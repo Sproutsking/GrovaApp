@@ -1,0 +1,57 @@
+{
+  "name": "grova-app",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@cloudflare/stream-react": "^1.9.3",
+    "@emailjs/browser": "^4.4.1",
+    "@fortawesome/fontawesome-free": "^7.1.0",
+    "@supabase/supabase-js": "^2.90.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@testing-library/user-event": "^13.5.0",
+    "js-sha256": "^0.11.1",
+    "lucide-react": "^0.562.0",
+    "otpauth": "^9.4.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-player": "^3.4.0",
+    "react-qr-code": "^2.0.18",
+    "react-scripts": "^5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+  "start": "react-scripts start",
+  "build": "cross-env SKIP_PREFLIGHT_CHECK=true react-scripts build",
+  "test": "react-scripts test",
+  "eject": "react-scripts eject",
+  "build:production": "cross-env REACT_APP_ENV=production ESLINT_NO_DEV_ERRORS=true react-scripts build",
+  "start:production": "serve -s build -l 3000"
+},
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
+  }
+}

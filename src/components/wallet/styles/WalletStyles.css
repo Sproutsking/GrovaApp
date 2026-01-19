@@ -1,0 +1,978 @@
+/* src/components/wallet/styles/WalletStyles.css */
+/* ====================================
+   GLOBAL & LAYOUT
+   ==================================== */
+
+.wallet-container {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 24px;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.wallet-content {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  padding-bottom: max(80px, env(safe-area-inset-bottom, 80px)); /* Increased to ensure ~40px visible buffer */
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.wallet-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wallet-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.wallet-content::-webkit-scrollbar-thumb {
+  background: rgba(132, 204, 22, 0.3);
+  border-radius: 3px;
+}
+
+/* ====================================
+   HERO & HEADER (Overview Tab)
+   ==================================== */
+.wallet-hero {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.wallet-hero-glow {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(132, 204, 22, 0.2) 0%, transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.wallet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.wallet-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.wallet-subtitle {
+  color: #737373;
+  font-size: 14px;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #84cc16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(132, 204, 22, 0.1);
+  border-color: rgba(132, 204, 22, 0.5);
+  transform: rotate(90deg);
+}
+
+/* Balance Showcase */
+.balance-showcase {
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.15) 0%, rgba(132, 204, 22, 0.05) 100%);
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  border-radius: 20px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.balance-showcase::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(132, 204, 22, 0.2) 0%, transparent 70%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.balance-primary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  position: relative;
+}
+
+.balance-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.4);
+}
+
+.balance-info {
+  flex: 1;
+}
+
+.balance-label {
+  display: block;
+  font-size: 12px;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.balance-amount {
+  font-size: 40px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.balance-currency {
+  font-size: 24px;
+  color: #84cc16;
+  margin-left: 8px;
+}
+
+.balance-converted {
+  font-size: 14px;
+  color: #737373;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.quick-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quick-action-btn.primary {
+  border-color: rgba(132, 204, 22, 0.3);
+  background: rgba(132, 204, 22, 0.1);
+}
+
+.quick-action-btn.secondary {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(132, 204, 22, 0.5);
+  background: rgba(132, 204, 22, 0.15);
+}
+
+/* Assets Section & Cards */
+.assets-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 16px;
+}
+
+.asset-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.asset-card.premium {
+  border-color: rgba(132, 204, 22, 0.3);
+  background: rgba(132, 204, 22, 0.05);
+}
+
+.asset-card:hover {
+  transform: translateX(4px);
+  border-color: rgba(132, 204, 22, 0.5);
+}
+
+.asset-glow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(132, 204, 22, 0.3) 0%, transparent 70%);
+  filter: blur(30px);
+}
+
+.asset-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.asset-icon.primary {
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  color: #000;
+}
+
+.asset-icon.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #737373;
+}
+
+.asset-info {
+  flex: 1;
+}
+
+.asset-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.asset-symbol {
+  font-size: 13px;
+  color: #737373;
+}
+
+.asset-balance {
+  text-align: right;
+}
+
+.asset-amount {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.asset-change {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(132, 204, 22, 0.1);
+  color: #84cc16;
+}
+
+/* Footer */
+.wallet-footer {
+  margin-top: 24px;
+}
+
+.footer-notice {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #737373;
+}
+
+.footer-label {
+  font-size: 12px;
+  color: #525252;
+  margin-bottom: 4px;
+}
+
+.footer-text {
+  font-size: 14px;
+}
+
+.footer-text strong {
+  color: #84cc16;
+}
+
+/* ====================================
+   VIEW HEADER (All Tabs except Overview)
+   ==================================== */
+.view-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.back-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(132, 204, 22, 0.5);
+}
+
+.view-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.view-subtitle {
+  font-size: 14px;
+  color: #737373;
+}
+
+/* ====================================
+   FORMS & INPUTS
+   ==================================== */
+.form-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: rgba(132, 204, 22, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.form-input::placeholder {
+  color: #525252;
+}
+
+.input-with-suffix {
+  position: relative;
+}
+
+.input-suffix {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #84cc16;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.form-hint {
+  font-size: 13px;
+  color: #737373;
+  margin-top: 8px;
+}
+
+.token-select {
+  padding: 12px 16px;
+  background: rgba(132, 204, 22, 0.1);
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  border-radius: 12px;
+  color: #84cc16;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.token-select:focus {
+  outline: none;
+}
+
+/* ====================================
+   TRANSACTION SUMMARY
+   ==================================== */
+.transaction-summary {
+  background: rgba(132, 204, 22, 0.05);
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.summary-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 16px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  color: #737373;
+  font-size: 14px;
+}
+
+.summary-row strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.summary-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 12px 0;
+}
+
+.summary-row.total {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  padding-top: 12px;
+}
+
+.summary-row.total strong {
+  color: #84cc16;
+}
+
+/* ====================================
+   RECEIVE TAB
+   ==================================== */
+.qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.qr-box {
+  width: 220px;
+  height: 220px;
+  background: #fff;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.2);
+}
+
+.qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #0a0a0a;
+}
+
+.qr-hint {
+  font-size: 14px;
+  color: #737373;
+  text-align: center;
+}
+
+.address-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.address-label {
+  font-size: 12px;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.address-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.address-text {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  color: #fff;
+}
+
+.copy-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(132, 204, 22, 0.1);
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  color: #84cc16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+  background: rgba(132, 204, 22, 0.2);
+}
+
+.copy-btn.copied {
+  background: #84cc16;
+  color: #000;
+}
+
+.copy-success {
+  font-size: 13px;
+  color: #84cc16;
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.info-box {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(132, 204, 22, 0.05);
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 12px;
+  color: #737373;
+}
+
+.info-box svg {
+  flex-shrink: 0;
+  color: #84cc16;
+}
+
+.info-box h4 {
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.info-box p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ====================================
+   SWAP TAB
+   ==================================== */
+.swap-container {
+  margin-bottom: 20px;
+}
+
+.swap-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+.swap-label {
+  font-size: 12px;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.swap-input-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.swap-input {
+  flex: 1;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.swap-input:focus {
+  outline: none;
+  border-color: rgba(132, 204, 22, 0.5);
+}
+
+.swap-balance {
+  font-size: 13px;
+  color: #737373;
+  margin-top: 8px;
+}
+
+.swap-switch {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(132, 204, 22, 0.1);
+  border: 2px solid rgba(132, 204, 22, 0.3);
+  color: #84cc16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -22px auto;
+  position: relative;
+  z-index: 10;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.swap-switch:hover {
+  transform: rotate(180deg);
+  background: rgba(132, 204, 22, 0.2);
+}
+
+.swap-rate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(132, 204, 22, 0.05);
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 12px;
+  color: #84cc16;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+/* ====================================
+   SETTINGS TAB
+   ==================================== */
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.settings-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(132, 204, 22, 0.3);
+}
+
+.settings-item svg:first-child {
+  color: #84cc16;
+  flex-shrink: 0;
+}
+
+.settings-item-info {
+  flex: 1;
+}
+
+.settings-item-info span {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.settings-item-info p {
+  font-size: 13px;
+  color: #737373;
+}
+
+.settings-item svg:last-child {
+  color: #525252;
+  flex-shrink: 0;
+}
+
+/* ====================================
+   PRIMARY BUTTONS
+   ==================================== */
+.btn-primary {
+  width: 100%;
+  max-width: 200px;
+  margin: 20px auto 40px auto; /* Extra bottom margin for breathing room */
+  padding: 16px 32px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(132, 204, 22, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.5);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary.small {
+  width: auto;
+  max-width: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ====================================
+   RESPONSIVE & MOBILE OPTIMIZATIONS
+   ==================================== */
+@media (max-width: 640px) {
+  .wallet-app {
+    padding: 0;
+  }
+
+  .wallet-container {
+    max-width: 100%;
+    border-radius: 0;
+    min-height: 100vh;
+    border: none;
+  }
+
+  .wallet-content {
+    padding: 16px; /* Reduced side padding for more content space */
+    padding-top: 20px;
+    padding-bottom: max(90px, env(safe-area-inset-bottom, 90px)); /* Generous bottom buffer */
+    max-height: none;
+  }
+
+  /* Reduce vertical spacing on mobile */
+  .wallet-hero {
+    margin-bottom: 20px;
+  }
+
+  .wallet-header {
+    margin-bottom: 20px;
+  }
+
+  .quick-actions {
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .quick-action-btn {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .assets-section,
+  .transaction-summary,
+  .form-card,
+  .swap-container,
+  .address-card,
+  .info-box {
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    margin-bottom: 12px;
+  }
+
+  .view-header {
+    margin-bottom: 20px;
+  }
+
+  .view-title {
+    font-size: 22px;
+  }
+
+  .balance-showcase {
+    padding: 20px;
+  }
+
+  .balance-amount {
+    font-size: 32px;
+  }
+
+  .balance-currency {
+    font-size: 20px;
+  }
+
+  .btn-primary {
+    max-width: 160px;
+    padding: 15px 24px;
+    font-size: 15px;
+    margin: 16px auto 32px auto;
+  }
+}
+
+@media (max-height: 600px) {
+  .wallet-content {
+    padding-bottom: max(100px, env(safe-area-inset-bottom, 100px));
+  }
+}
+
+ /* Responsive */
+        @media (min-width: 640px) {
+          .wallet-app {
+            padding: 0;
+          }
+
+          .wallet-container {
+            max-width: 100%;
+            border-radius: 0;
+            min-height: 100vh;
+          }
+
+          .wallet-content {
+            max-height: none;
+          }
+
+          .balance-amount {
+            font-size: 32px;
+          }
+
+          .quick-actions {
+            grid-template-columns: 1fr 1fr 1fr;
+          }
+        }
+          /* Responsive */
+        @media (max-width: 640px) {
+          .wallet-app {
+            padding: 0;
+          }
+
+          .wallet-container {
+            max-width: 100%;
+            border-radius: 0;
+            min-height: 100vh;
+          }
+
+          .wallet-content {
+            max-height: none;
+          }
+
+          .balance-amount {
+            font-size: 32px;
+          }
+
+          .quick-actions {
+            grid-template-columns: 1fr 1fr 1fr;
+          }
+        }

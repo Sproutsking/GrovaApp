@@ -1,0 +1,450 @@
+/* ==========================================================================
+   ORGANIZED GLOBAL.CSS - COMPLETE WITH CARD STYLES
+   ========================================================================== */
+
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app-container {
+  min-height: 100vh;
+  background-color: #000000;
+  color: #ffffff;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   CONTENT CARDS - POSTS, REELS, STORIES
+   ========================================================================== */
+        .content-card {
+          background: rgba(0, 0, 0, 0.6);
+          border: 1px solid #4444;
+          border-radius: 16px;
+          overflow: hidden;
+          transition: all 0.3s;
+          margin-bottom :10px;
+        }
+
+        .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .card-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .category-badge {
+          padding: 4px 12px;
+          background: rgba(132, 204, 22, 0.2);
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #84cc16;
+        }
+
+        .post-content {
+          padding-top:0;
+          padding-bottom: 0;
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .post-text {
+          font-size: 15px;
+          color: #e5e5e5;
+          line-height: 1.6;
+          margin: 0 0 16px 0;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        .post-images {
+          display: grid;
+          gap: 8px;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .grid-1 {
+          grid-template-columns: 1fr;
+        }
+
+        .grid-2 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 .post-image:first-child {
+          grid-column: 1 / -1;
+        }
+
+        .grid-4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .post-image {
+          width: 100%;
+          height: 100%;
+          min-height: 200px;
+          max-height: 400px;
+          object-fit: cover;
+          border-radius: 12px;
+          border: 1px solid #444444;
+          background: rgba(132, 204, 22, 0.1);
+          transition: transform 0.3s ease;
+          cursor: pointer;
+        }
+
+        .grid-1 .post-image {
+          max-height: 600px;
+        }
+
+        .post-image-error {
+          width: 100%;
+          min-height: 200px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(132, 204, 22, 0.1);
+          border-radius: 12px;
+          color: #737373;
+          font-size: 14px;
+        }
+
+        .card-footer {
+          background: rgba(0, 0, 0, 0.3);
+          /* border-top: 1px solid rgba(132, 204, 22, 0.1); */
+        }
+
+        @media (max-width: 768px) {
+          .post-text {
+            font-size: 14px;
+          }
+
+          .post-image {
+            min-height: 150px;
+            max-height: 300px;
+          }
+
+          .grid-1 .post-image {
+            max-height: 400px;
+          }
+        }
+
+
+
+
+
+/* Card Header - Author Section */
+.time-ago {
+  color: #737373;
+  font-size: 13px;
+  margin: 0;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.category-badge {
+  font-size: 11px;
+  color: #84cc16;
+  background: rgba(132, 204, 22, 0.1);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.action-menu-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #737373;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 16px;
+}
+
+.action-menu-btn:hover {
+  background: rgba(132, 204, 22, 0.2);
+  border-color: rgba(132, 204, 22, 0.5);
+  color: #84cc16;
+}
+
+/* POST CARD SPECIFIC */
+.post-text {
+  color: #d4d4d4;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* REEL CARD SPECIFIC */
+.reel-card {
+  cursor: pointer;
+}
+
+.reel-visual {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+}
+
+.reel-letter {
+  font-size: 120px;
+  font-weight: bold;
+  color: rgba(0, 0, 0, 0.2);
+  user-select: none;
+}
+
+.mute-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+
+.mute-toggle:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.1);
+}
+
+.reel-duration {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reel-caption {
+  color: #d4d4d4;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+}
+
+.reel-music {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #737373;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* STORY CARD SPECIFIC */
+.story-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
+}
+
+.story-preview {
+  color: #d4d4d4;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+}
+
+.view-more-inline {
+  color: #84cc16;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.view-more-inline:hover {
+  color: #a3e635;
+  text-decoration: underline;
+}
+
+/* Card Footer - Stats and Actions */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* padding-top: 16px; */
+}
+
+.card-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.stat-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #737373;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.stat-btn:hover {
+  color: #84cc16;
+  background: rgba(132, 204, 22, 0.1);
+}
+
+.stat-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.stat-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #737373;
+  font-size: 14px;
+}
+
+.unlock-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+  color: #000000;
+  font-weight: bold;
+  padding: 10px 24px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
+  font-size: 14px;
+}
+
+.unlock-btn:hover {
+  background: linear-gradient(90deg, #a3e635 0%, #84cc16 100%);
+  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Mobile Responsiveness for Cards */
+@media (max-width: 768px) {
+  .content-card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-header {
+    margin-bottom: 12px;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .author-name {
+    font-size: 15px;
+  }
+
+  .time-ago, .reel-music {
+    font-size: 12px;
+  }
+
+  .category-badge {
+    font-size: 10px;
+    padding: 4px 10px;
+  }
+
+  .post-text, .reel-caption, .story-preview {
+    font-size: 14px;
+  }
+
+  .story-title {
+    font-size: 18px;
+  }
+
+  .post-image {
+    height: 220px;
+  }
+
+  .post-images.grid-1 .post-image {
+    height: 300px;
+  }
+
+  .reel-visual {
+    height: 360px;
+  }
+
+  .reel-letter {
+    font-size: 100px;
+  }
+
+  .card-stats {
+    gap: 16px;
+  }
+
+  .stat-btn, .stat-item {
+    font-size: 13px;
+  }
+
+  .unlock-btn {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
+}
+
+/* Keep all your other existing styles below... */

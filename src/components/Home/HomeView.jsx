@@ -1,0 +1,571 @@
+// src/components/Home/HomeView.jsx - COMPLETE FIXED VERSION WITH DEBUG
+import React, { useState, useEffect, useRef } from 'react';
+import { Image, Film, BookOpen, RefreshCw } from 'lucide-react';
+
+import PostTab from './PostTab';
+import ReelsTab from './ReelsTab';
+import StoryTab from './StoryTab';
+
+import postService from '../../services/home/postService';
+import reelService from '../../services/home/reelService';
+import storyService from '../../services/home/storyService';
+import authService from '../../services/auth/authService';
+import SaveModel from '../../models/SaveModel';
+
+// Import modals
+import UserProfileModal from '../Modals/UserProfileModal';
+import ActionMenu from '../Shared/ActionMenu';
+import CommentModal from '../Modals/CommentModal';
+import TransactionPinModal from '../Modals/TransactionPinModal';
+import TwoFAModal from '../Modals/TwoFAModal';
+import SaveFolderModal from '../Modals/SaveFolderModal';
+import EditPostModal from '../Modals/EditPostModal';
+import UnifiedLoader from '../Shared/UnifiedLoader';
+
+const HomeView = () => {
+  const [activeTab, setActiveTab] = useState('posts');
+  const [posts, setPosts] = useState([]);
+  const [reels, setReels] = useState([]);
+  const [stories, setStories] = useState([]);
+  
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Modal states
+  const [showProfile, setShowProfile] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [actionMenuPos, setActionMenuPos] = useState({ x: 0, y: 0 });
+  const [selectedContent, setSelectedContent] = useState(null);
+  const [isOwnContent, setIsOwnContent] = useState(false);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [showTwoFA, setShowTwoFA] = useState(false);
+  const [pendingUnlock, setPendingUnlock] = useState(null);
+  const [showSaveFolder, setShowSaveFolder] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const savedFolders = ['Favorites', 'Inspiration', 'Later'];
+  const hasLoadedContent = useRef(false);
+
+  useEffect(() => {
+    initializeHome();
+  }, []);
+
+  const initializeHome = async () => {
+    try {
+      console.log('🏠 Initializing HomeView...');
+      const startTime = Date.now();
+
+      const user = await authService.getCurrentUser();
+      setCurrentUser(user);
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout. Please check your connection.')), 10000)
+      );
+
+      const contentPromise = loadContent();
+
+      try {
+        await Promise.race([contentPromise, timeoutPromise]);
+        hasLoadedContent.current = true;
+        console.log(`✅ Content loaded in ${Date.now() - startTime}ms`);
+      } catch (err) {
+        if (err.message.includes('timeout')) {
+          setError('Request timeout. Please check your connection.');
+        } else {
+          setError(err.message || 'Failed to load content');
+        }
+      }
+
+    } catch (err) {
+      console.error('❌ Failed to initialize home:', err);
+      setError(err.message || 'Failed to load content');
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
+  const loadContent = async () => {
+    try {
+      const [postsData, reelsData, storiesData] = await Promise.all([
+        postService.getPosts({ limit: 20 }).catch(() => []),
+        reelService.getReels({ limit: 20 }).catch(() => []),
+        storyService.getStories({ limit: 20 }).catch(() => [])
+      ]);
+
+      console.log('📊 Raw reels data:', reelsData);
+      console.log('📊 Is array?', Array.isArray(reelsData));
+      
+      setPosts(postsData || []);
+      setReels(Array.isArray(reelsData) ? reelsData : []);
+      setStories(storiesData || []);
+
+    } catch (err) {
+      console.error('❌ Failed to load content:', err);
+      throw err;
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError(null);
+      
+      await loadContent();
+      
+      setTimeout(() => setRefreshing(false), 300);
+    } catch (err) {
+      console.error('❌ Failed to refresh:', err);
+      setError(err.message || 'Failed to refresh content');
+      setRefreshing(false);
+    }
+  };
+
+  const handleAuthorClick = (content) => {
+    setSelectedUser({
+      id: content.userId,
+      author: content.author,
+      username: content.username,
+      avatar: content.avatar,
+      verified: content.verified
+    });
+    setShowProfile(true);
+  };
+
+  const handleActionMenu = (e, content, isOwn) => {
+    e.stopPropagation();
+    console.log('🎯 Action menu opened for:', content.type || 'post', content.id);
+    setSelectedContent(content);
+    setIsOwnContent(isOwn);
+    setActionMenuPos({ x: e.clientX, y: e.clientY });
+    setShowActionMenu(true);
+  };
+
+  const handleComment = (content) => {
+    setSelectedContent(content);
+    setShowCommentModal(true);
+  };
+
+  const handleUnlock = (story) => {
+    if (!currentUser) {
+      alert('Please sign in to unlock stories');
+      return;
+    }
+    setPendingUnlock(story);
+    setShowPinModal(true);
+  };
+
+  const handlePinConfirm = (pin) => {
+    setShowPinModal(false);
+    setShowTwoFA(true);
+  };
+
+  const handleTwoFAConfirm = async (code) => {
+    try {
+      alert(`Unlocked: ${pendingUnlock.title}`);
+      setShowTwoFA(false);
+      setPendingUnlock(null);
+      await handleRefresh();
+    } catch (err) {
+      console.error('Failed to unlock:', err);
+      alert(err.message);
+    }
+  };
+
+  // ========== ACTION MENU HANDLERS ==========
+
+  const handleSave = async (folder) => {
+    try {
+      if (!selectedContent || !currentUser) return;
+
+      const contentType = selectedContent.type || 'post';
+      
+      await SaveModel.saveContent(
+        contentType,
+        selectedContent.id,
+        currentUser.id,
+        folder
+      );
+      
+      alert(`Saved to ${folder}`);
+      setShowSaveFolder(false);
+
+    } catch (err) {
+      console.error('Failed to save:', err);
+      alert(err.message || 'Failed to save');
+    }
+  };
+
+  const handleEdit = () => {
+    setShowActionMenu(false);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = async () => {
+    try {
+      if (!selectedContent || !currentUser) {
+        console.error('❌ No content or user');
+        return;
+      }
+
+      const contentType = selectedContent.type || 'post';
+      const contentId = selectedContent.id;
+
+      console.log('🗑️ Deleting:', contentType, contentId);
+      console.log('📊 Current reels count:', reels.length);
+
+      if (contentType === 'post') {
+        await postService.deletePost(contentId);
+        setPosts(prev => {
+          const updated = prev.filter(p => p.id !== contentId);
+          console.log('📊 Posts after delete:', updated.length);
+          return updated;
+        });
+      } else if (contentType === 'reel') {
+        await reelService.deleteReel(contentId);
+        setReels(prev => {
+          const updated = prev.filter(r => r.id !== contentId);
+          console.log('📊 Reels after delete:', prev.length, '→', updated.length);
+          console.log('🎯 Deleted reel ID:', contentId);
+          console.log('🎯 Remaining reel IDs:', updated.map(r => r.id));
+          return updated;
+        });
+      } else if (contentType === 'story') {
+        await storyService.deleteStory(contentId);
+        setStories(prev => {
+          const updated = prev.filter(s => s.id !== contentId);
+          console.log('📊 Stories after delete:', updated.length);
+          return updated;
+        });
+      }
+
+      setShowActionMenu(false);
+      setSelectedContent(null);
+      alert('Deleted successfully!');
+
+    } catch (err) {
+      console.error('❌ Failed to delete:', err);
+      alert(err.message || 'Failed to delete');
+    }
+  };
+
+  const handleShare = () => {
+    setShowActionMenu(false);
+    alert('Share functionality coming soon!');
+  };
+
+  const handleReport = () => {
+    setShowActionMenu(false);
+    alert('Report submitted. Thank you for keeping our community safe!');
+    console.log('Reported content:', selectedContent);
+  };
+
+  // ========== RENDER ==========
+
+  if (error && !hasLoadedContent.current) {
+    return (
+      <UnifiedLoader 
+        type="page" 
+        error={error} 
+        onRetry={() => {
+          setError(null);
+          setInitialLoading(true);
+          initializeHome();
+        }} 
+      />
+    );
+  }
+
+  if (initialLoading && !hasLoadedContent.current) {
+    return <UnifiedLoader type="page" message="Loading content..." minDisplay={200} />;
+  }
+
+  return (
+    <>
+      <style>{`
+        .app-header {
+          position: sticky;
+          top: 0;
+          margin: 0;
+          background: rgba(0, 0, 0, 0.95);
+          backdrop-filter: blur(20px);
+          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+          padding: 0;
+          z-index: 100;
+        }
+
+        .tabs {
+          display: flex;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 4px;
+        }
+
+        .tab {
+          flex: 1;
+          padding: 12px;
+          background: transparent;
+          border: none;
+          color: #737373;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: all 0.2s ease;
+          border-radius: 10px;
+        }
+
+        .tab:hover {
+          background: rgba(132, 204, 22, 0.1);
+          color: #84cc16;
+        }
+
+        .tab.active {
+          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          color: #000000;
+          box-shadow: 0 4px 16px rgba(132, 204, 22, 0.4);
+        }
+
+        .feed-container {
+          padding: 20px;
+          min-height: 100vh;
+        }
+
+        .refresh-indicator {
+          position: fixed;
+          top: 80px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(132, 204, 22, 0.95);
+          color: #000;
+          padding: 12px 24px;
+          border-radius: 24px;
+          font-size: 14px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          z-index: 1000;
+          animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          text-align: center;
+        }
+
+        .empty-state-icon {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: rgba(132, 204, 22, 0.1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 20px;
+        }
+
+        .empty-state-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: #ffffff;
+          margin: 0 0 8px 0;
+        }
+
+        .empty-state-text {
+          font-size: 14px;
+          color: #a3a3a3;
+          margin: 0;
+        }
+      `}</style>
+
+      <div className="app-container">
+        {refreshing && (
+          <div className="refresh-indicator">
+            <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} />
+            Refreshing...
+          </div>
+        )}
+
+        <div className="app-header">
+          <div className="tabs">
+            <button className={`tab ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>
+              <Image size={18} /> Posts
+            </button>
+            <button className={`tab ${activeTab === 'reels' ? 'active' : ''}`} onClick={() => setActiveTab('reels')}>
+              <Film size={18} /> Reels
+            </button>
+            <button className={`tab ${activeTab === 'stories' ? 'active' : ''}`} onClick={() => setActiveTab('stories')}>
+              <BookOpen size={18} /> Stories
+            </button>
+          </div>
+        </div>
+
+        <div className="feed-container">
+          {activeTab === 'posts' && (
+            posts.length > 0 ? (
+              <PostTab
+                posts={posts}
+                currentUser={currentUser}
+                onAuthorClick={handleAuthorClick}
+                onActionMenu={handleActionMenu}
+                onComment={handleComment}
+              />
+            ) : (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <Image size={40} style={{ color: '#84cc16' }} />
+                </div>
+                <h3 className="empty-state-title">No posts yet</h3>
+                <p className="empty-state-text">Be the first to create a post!</p>
+              </div>
+            )
+          )}
+
+          {activeTab === 'reels' && (
+            reels.length > 0 ? (
+              <ReelsTab
+                reels={reels}
+                currentUser={currentUser}
+                onAuthorClick={handleAuthorClick}
+                onActionMenu={handleActionMenu}
+                onComment={handleComment}
+              />
+            ) : (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <Film size={40} style={{ color: '#84cc16' }} />
+                </div>
+                <h3 className="empty-state-title">No reels yet</h3>
+                <p className="empty-state-text">Be the first to create a reel!</p>
+              </div>
+            )
+          )}
+
+          {activeTab === 'stories' && (
+            stories.length > 0 ? (
+              <StoryTab
+                stories={stories}
+                currentUser={currentUser}
+                onAuthorClick={handleAuthorClick}
+                onActionMenu={handleActionMenu}
+                onComment={handleComment}
+                onUnlock={handleUnlock}
+              />
+            ) : (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <BookOpen size={40} style={{ color: '#84cc16' }} />
+                </div>
+                <h3 className="empty-state-title">No stories yet</h3>
+                <p className="empty-state-text">Be the first to share a story!</p>
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* ========== ALL MODALS ========== */}
+      
+      {showProfile && selectedUser && (
+        <UserProfileModal user={selectedUser} onClose={() => setShowProfile(false)} />
+      )}
+
+      {showActionMenu && selectedContent && (
+        <ActionMenu
+          position={actionMenuPos}
+          isOwnPost={isOwnContent}
+          content={selectedContent}
+          contentType={selectedContent.type || 'post'}
+          currentUser={currentUser}
+          onClose={() => setShowActionMenu(false)}
+          onSave={() => {
+            setShowActionMenu(false);
+            setShowSaveFolder(true);
+          }}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onShare={handleShare}
+          onReport={handleReport}
+        />
+      )}
+
+      {showCommentModal && selectedContent && (
+        <CommentModal
+          story={selectedContent}
+          comments={selectedContent.comments || []}
+          onClose={() => setShowCommentModal(false)}
+          storyId={selectedContent.id}
+          isMobile={window.innerWidth <= 768}
+          currentUser={currentUser}
+        />
+      )}
+
+      {showPinModal && (
+        <TransactionPinModal
+          onConfirm={handlePinConfirm}
+          onClose={() => setShowPinModal(false)}
+        />
+      )}
+
+      {showTwoFA && (
+        <TwoFAModal
+          onConfirm={handleTwoFAConfirm}
+          onClose={() => setShowTwoFA(false)}
+        />
+      )}
+
+      {showSaveFolder && (
+        <SaveFolderModal
+          folders={savedFolders}
+          onSave={handleSave}
+          onClose={() => setShowSaveFolder(false)}
+        />
+      )}
+
+      {showEditModal && selectedContent && (
+        <EditPostModal
+          story={selectedContent}
+          onUpdate={(updated) => {
+            // Update local state based on content type
+            const contentType = selectedContent.type || 'post';
+            if (contentType === 'post') {
+              setPosts(prev => prev.map(p => p.id === updated.id ? updated : p));
+            } else if (contentType === 'reel') {
+              setReels(prev => prev.map(r => r.id === updated.id ? updated : r));
+            } else if (contentType === 'story') {
+              setStories(prev => prev.map(s => s.id === updated.id ? updated : s));
+            }
+            alert('Updated successfully!');
+            setShowEditModal(false);
+          }}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
+    </>
+  );
+};
+
+export default HomeView;
