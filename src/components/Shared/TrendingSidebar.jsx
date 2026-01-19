@@ -1,39 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, X, Eye, Sparkles, Hash, Flame, Crown, ChevronRight, RefreshCw } from 'lucide-react';
+import { TrendingUp, Users, X, Eye, Sparkles, Hash, Flame, Crown, ChevronRight, RefreshCw, Award, ArrowRight } from 'lucide-react';
 import { supabase } from '../../services/config/supabase';
 import mediaUrlService from '../../services/shared/mediaUrlService';
 import UnifiedLoader from './UnifiedLoader';
 import UserProfileModal from '../Modals/UserProfileModal';
 
 const TrendingSidebar = ({ currentUser }) => {
-  const [trendingTags, setTrendingTags] = useState([]);
-  const [eliteCreators, setEliteCreators] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [trendingTags, setTrendingTags] = useState([]);           // displayed data
+  const [eliteCreators, setEliteCreators] = useState([]);         // displayed data
+  
+  const [loading, setLoading] = useState(true);                   // only for initial load
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Modal states
-  const [showTrendingModal, setShowTrendingModal] = useState(false);
-  const [showCreatorsModal, setShowCreatorsModal] = useState(false);
+
+  // Panel states
+  const [showTagsPanel, setShowTagsPanel] = useState(false);
+  const [showCreatorsPanel, setShowCreatorsPanel] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedCreator, setSelectedCreator] = useState(null);
 
   useEffect(() => {
-    loadLiveData();
-    const interval = setInterval(loadLiveData, 5 * 60 * 1000);
+    loadLiveData(true); // initial load with loader
+
+    const interval = setInterval(() => {
+      loadLiveData(false); // background refresh without loader
+    }, 5 * 60 * 1000);
+
     return () => clearInterval(interval);
   }, []);
 
-  const loadLiveData = async () => {
-    try {
+  const loadLiveData = async (isInitial = false) => {
+    if (isInitial) {
       setLoading(true);
-      setError(null);
+    }
+    
+    setError(null);
 
+    try {
       const [tags, creators] = await Promise.all([
         loadTrendingTags(),
-        loadEliteCreators()
+        loadActiveCreators()
       ]);
 
+      // Update displayed data only when fetch succeeds
       setTrendingTags(tags);
       setEliteCreators(creators);
 
@@ -41,14 +50,16 @@ const TrendingSidebar = ({ currentUser }) => {
       console.error('Failed to load trending data:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setLoading(false);
+      }
       setRefreshing(false);
     }
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadLiveData();
+    await loadLiveData(false);
   };
 
   const loadTrendingTags = async () => {
@@ -101,7 +112,7 @@ const TrendingSidebar = ({ currentUser }) => {
           trendScore: (data.views * 0.7) + (data.count * 100 * 0.3)
         }))
         .sort((a, b) => b.trendScore - a.trendScore)
-        .slice(0, 15);
+        .slice(0, 30);
 
       console.log('✅ Loaded trending tags:', tags);
       return tags;
@@ -112,56 +123,119 @@ const TrendingSidebar = ({ currentUser }) => {
     }
   };
 
-  const loadEliteCreators = async () => {
+  const loadActiveCreators = async () => {
     try {
-      console.log('👑 Loading elite creators from ep_dashboard...');
+      console.log('👑 Loading active creators (with content)...');
 
-      const { data: eliteData, error } = await supabase
-        .from('ep_dashboard')
-        .select(`
-          user_id,
-          total_ep_earned,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified,
-            bio
-          )
-        `)
-        .order('total_ep_earned', { ascending: false })
-        .limit(50);
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const weekAgoISO = oneWeekAgo.toISOString();
 
-      if (error) {
-        console.error('EP Dashboard error:', error);
+      const [posts, reels, stories] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('user_id, likes, views, comments_count')
+          .is('deleted_at', null)
+          .gte('created_at', weekAgoISO),
+        supabase
+          .from('reels')
+          .select('user_id, likes, views, comments_count')
+          .is('deleted_at', null)
+          .gte('created_at', weekAgoISO),
+        supabase
+          .from('stories')
+          .select('user_id, likes, views, comments_count')
+          .is('deleted_at', null)
+          .gte('created_at', weekAgoISO)
+      ]);
+
+      const userStats = {};
+      const allContent = [
+        ...(posts.data || []),
+        ...(reels.data || []),
+        ...(stories.data || [])
+      ];
+
+      allContent.forEach(item => {
+        const userId = item.user_id;
+        if (!userStats[userId]) {
+          userStats[userId] = {
+            totalLikes: 0,
+            totalViews: 0,
+            totalComments: 0,
+            postCount: 0
+          };
+        }
+        userStats[userId].totalLikes += item.likes || 0;
+        userStats[userId].totalViews += item.views || 0;
+        userStats[userId].totalComments += item.comments_count || 0;
+        userStats[userId].postCount++;
+      });
+
+      const topUserIds = Object.entries(userStats)
+        .map(([userId, stats]) => ({
+          userId,
+          ...stats,
+          engagementScore: (stats.totalLikes * 3) + (stats.totalComments * 5) + (stats.totalViews * 0.1)
+        }))
+        .sort((a, b) => b.engagementScore - a.engagementScore)
+        .slice(0, 30)
+        .map(u => u.userId);
+
+      if (topUserIds.length === 0) {
+        console.log('⚠️ No active creators found this week');
         return [];
       }
 
-      const creators = (eliteData || []).map((item, index) => {
-        const profile = item.profiles;
-        const avatarUrl = profile.avatar_id 
-          ? mediaUrlService.getImageUrl(profile.avatar_id, { width: 200, height: 200, crop: 'fill', gravity: 'face' })
-          : null;
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_id, verified, bio')
+        .in('id', topUserIds);
 
-        return {
-          userId: item.user_id,
-          rank: index + 1,
-          name: profile.full_name || 'Grova Creator',
-          username: profile.username || 'user',
-          avatar: avatarUrl || profile.full_name?.charAt(0) || 'G',
-          verified: profile.verified || false,
-          bio: profile.bio || '',
-          totalEarnings: item.total_ep_earned || 0,
-          isTopTier: index < 3
-        };
-      });
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        return [];
+      }
 
-      console.log('✅ Loaded elite creators:', creators);
+      const creators = topUserIds
+        .map((userId, index) => {
+          const profile = profileData?.find(p => p.id === userId);
+          if (!profile) return null;
+
+          const stats = userStats[userId];
+          const avatarUrl = profile.avatar_id 
+            ? mediaUrlService.getImageUrl(profile.avatar_id, { 
+                width: 200, 
+                height: 200, 
+                crop: 'fill', 
+                gravity: 'face' 
+              })
+            : null;
+
+          return {
+            userId: profile.id,
+            rank: index + 1,
+            name: profile.full_name || 'Grova Creator',
+            username: profile.username || 'user',
+            avatar: avatarUrl || profile.full_name?.charAt(0) || 'G',
+            verified: profile.verified || false,
+            bio: profile.bio || '',
+            stats: {
+              likes: stats.totalLikes,
+              views: stats.totalViews,
+              comments: stats.totalComments,
+              posts: stats.postCount
+            },
+            isTopTier: index < 3
+          };
+        })
+        .filter(Boolean);
+
+      console.log('✅ Loaded active creators:', creators);
       return creators;
 
     } catch (error) {
-      console.error('Failed to load elite creators:', error);
+      console.error('Failed to load active creators:', error);
       return [];
     }
   };
@@ -203,13 +277,13 @@ const TrendingSidebar = ({ currentUser }) => {
   if (error) {
     return (
       <aside className="trending-sidebar">
-        <UnifiedLoader type="section" error={error} onRetry={loadLiveData} />
+        <UnifiedLoader type="section" error={error} onRetry={() => loadLiveData(true)} />
       </aside>
     );
   }
 
-  const displayedTags = trendingTags.slice(0, 5);
-  const displayedCreators = eliteCreators.slice(0, 5);
+  const topTags = trendingTags.slice(0, 3);
+  const topCreators = eliteCreators.slice(0, 3);
 
   return (
     <>
@@ -261,6 +335,11 @@ const TrendingSidebar = ({ currentUser }) => {
           box-shadow: 0 8px 20px rgba(132, 204, 22, 0.3);
         }
 
+        .section-title-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
         .section-title {
           font-size: 18px;
           font-weight: 800;
@@ -281,8 +360,7 @@ const TrendingSidebar = ({ currentUser }) => {
           gap: 8px;
         }
 
-        .refresh-btn,
-        .view-all-btn {
+        .refresh-btn {
           padding: 8px 14px;
           background: rgba(132, 204, 22, 0.1);
           border: 1px solid rgba(132, 204, 22, 0.25);
@@ -297,8 +375,7 @@ const TrendingSidebar = ({ currentUser }) => {
           gap: 6px;
         }
 
-        .refresh-btn:hover,
-        .view-all-btn:hover {
+        .refresh-btn:hover {
           background: rgba(132, 204, 22, 0.2);
           border-color: #84cc16;
         }
@@ -328,8 +405,6 @@ const TrendingSidebar = ({ currentUser }) => {
           border-radius: 14px;
           cursor: pointer;
           transition: all 0.25s ease;
-          position: relative;
-          overflow: hidden;
         }
 
         .tag-item:hover {
@@ -370,11 +445,6 @@ const TrendingSidebar = ({ currentUser }) => {
           color: #ffffff;
           margin: 0 0 5px 0;
           line-height: 1.3;
-          white-space: normal;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
         }
 
         .tag-stats {
@@ -394,7 +464,6 @@ const TrendingSidebar = ({ currentUser }) => {
 
         .separator {
           color: #444;
-          font-weight: 300;
         }
 
         .trending-badge {
@@ -409,7 +478,33 @@ const TrendingSidebar = ({ currentUser }) => {
           gap: 4px;
         }
 
-        /* ── ELITE CREATORS (unchanged for now) ── */
+        /* ── VIEW MORE BUTTON ── */
+        .view-more-btn {
+          width: 100%;
+          padding: 14px;
+          margin-top: 12px;
+          background: rgba(132, 204, 22, 0.08);
+          border: 1px dashed rgba(132, 204, 22, 0.3);
+          border-radius: 12px;
+          color: #84cc16;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .view-more-btn:hover {
+          background: rgba(132, 204, 22, 0.15);
+          border-color: #84cc16;
+          border-style: solid;
+          transform: translateY(-2px);
+        }
+
+        /* ── ELITE CREATORS ── */
         .creator-list {
           display: flex;
           flex-direction: column;
@@ -431,11 +526,250 @@ const TrendingSidebar = ({ currentUser }) => {
         .creator-item:hover {
           transform: translateY(-4px);
           box-shadow: 0 8px 24px rgba(132, 204, 22, 0.2);
+          border-color: rgba(132, 204, 22, 0.4);
         }
 
         .creator-item.top-tier {
           border-color: rgba(251, 191, 36, 0.4);
           background: linear-gradient(135deg, rgba(251, 191, 36, 0.05), rgba(245, 158, 11, 0.05));
+        }
+
+        .creator-item.top-tier:hover {
+          border-color: rgba(251, 191, 36, 0.6);
+        }
+
+        .creator-rank-badge {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #84cc16, #65a30d);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #000;
+          font-size: 13px;
+          font-weight: 900;
+          flex-shrink: 0;
+          box-shadow: 0 4px 12px rgba(132, 204, 22, 0.4);
+        }
+
+        .creator-rank-badge.gold {
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        }
+
+        .creator-rank-badge.silver {
+          background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+        }
+
+        .creator-rank-badge.bronze {
+          background: linear-gradient(135deg, #d97706, #b45309);
+        }
+
+        .creator-avatar-wrapper {
+          position: relative;
+          flex-shrink: 0;
+        }
+
+        .creator-avatar {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #84cc16, #65a30d);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #000;
+          font-weight: 900;
+          font-size: 20px;
+          overflow: hidden;
+          border: 3px solid rgba(132, 204, 22, 0.3);
+        }
+
+        .creator-item.top-tier .creator-avatar {
+          border-color: rgba(251, 191, 36, 0.6);
+        }
+
+        .creator-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .crown-icon {
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 24px;
+          height: 24px;
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px solid #000;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .creator-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .creator-name {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 15px;
+          font-weight: 700;
+          color: #ffffff;
+          margin: 0 0 4px 0;
+        }
+
+        .verified-badge {
+          background: #84cc16;
+          color: #000;
+          border-radius: 50%;
+          width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .creator-username {
+          font-size: 13px;
+          color: #737373;
+          margin: 0 0 6px 0;
+        }
+
+        .creator-stats {
+          display: flex;
+          gap: 12px;
+          font-size: 12px;
+          color: #a3a3a3;
+        }
+
+        .stat-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .stat-value {
+          color: #84cc16;
+          font-weight: 700;
+        }
+
+        /* ── SLIDING PANELS ── */
+        .panel-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(10px);
+          z-index: 9998;
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .sliding-panel {
+          position: fixed;
+          top: 0;
+          right: 0;
+          width: 90%;
+          max-width: 480px;
+          height: 100vh;
+          background: #000;
+          border-left: 1px solid rgba(132, 204, 22, 0.3);
+          z-index: 9999;
+          animation: slideIn 0.3s ease;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+
+        .panel-header {
+          padding: 24px;
+          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+          background: rgba(132, 204, 22, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+        }
+
+        .panel-title {
+          font-size: 22px;
+          font-weight: 900;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .panel-close-btn {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: #fff;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .panel-close-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #84cc16;
+          transform: rotate(90deg);
+        }
+
+        .panel-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 24px;
+        }
+
+        .panel-content::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+          background: rgba(132, 204, 22, 0.3);
+          border-radius: 3px;
+        }
+
+        .empty-state {
+          text-align: center;
+          padding: 60px 20px;
+          color: #737373;
+        }
+
+        .empty-state-icon {
+          font-size: 64px;
+          margin-bottom: 16px;
+          opacity: 0.5;
+        }
+
+        .empty-state-text {
+          font-size: 14px;
+          margin: 0;
         }
       `}</style>
 
@@ -445,7 +779,7 @@ const TrendingSidebar = ({ currentUser }) => {
           <div className="section-header">
             <div className="header-left">
               <div className="section-icon-wrapper">
-                <Flame size={24} className="section-icon" />
+                <Flame size={24} style={{ color: '#000' }} />
               </div>
               <div className="section-title-wrapper">
                 <h3 className="section-title">Trending Now</h3>
@@ -460,52 +794,53 @@ const TrendingSidebar = ({ currentUser }) => {
               >
                 <RefreshCw size={14} className={refreshing ? 'refreshing' : ''} />
               </button>
-              {trendingTags.length > 5 && (
-                <button className="view-all-btn" onClick={() => setShowTrendingModal(true)}>
-                  View All
-                  <ChevronRight size={14} />
-                </button>
-              )}
             </div>
           </div>
 
-          {displayedTags.length > 0 ? (
-            <div className="tag-list">
-              {displayedTags.map((tag, index) => (
-                <div 
-                  key={`${tag.label}-${index}`} 
-                  className="tag-item"
-                  onClick={() => handleTagClick(tag)}
-                >
-                  <div className={`tag-rank ${index < 3 ? 'top-rank' : ''}`}>
-                    #{index + 1}
-                  </div>
-
-                  <div className="tag-content">
-                    <p className="tag-label">{tag.label}</p>
-                    <div className="tag-stats">
-                      <span className="tag-stat">
-                        <Eye size={13} />
-                        {formatNumber(tag.views)}
-                      </span>
-                      <span className="separator">•</span>
-                      <span className="tag-stat">
-                        {tag.posts} posts
-                      </span>
-                      {index < 3 && (
-                        <>
-                          <span className="separator">•</span>
-                          <span className="trending-badge">
-                            <Flame size={11} />
-                            HOT
-                          </span>
-                        </>
-                      )}
+          {topTags.length > 0 ? (
+            <>
+              <div className="tag-list">
+                {topTags.map((tag, index) => (
+                  <div 
+                    key={`${tag.label}-${index}`} 
+                    className="tag-item"
+                    onClick={() => handleTagClick(tag)}
+                  >
+                    <div className="tag-rank top-rank">
+                      #{index + 1}
+                    </div>
+                    <div className="tag-content">
+                      <p className="tag-label">{tag.label}</p>
+                      <div className="tag-stats">
+                        <span className="tag-stat">
+                          <Eye size={13} />
+                          {formatNumber(tag.views)}
+                        </span>
+                        <span className="separator">•</span>
+                        <span className="tag-stat">
+                          {tag.posts} posts
+                        </span>
+                        <span className="separator">•</span>
+                        <span className="trending-badge">
+                          <Flame size={11} />
+                          HOT
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              {trendingTags.length > 3 && (
+                <button 
+                  className="view-more-btn"
+                  onClick={() => setShowTagsPanel(true)}
+                >
+                  View Top 30 Tags
+                  <ArrowRight size={16} />
+                </button>
+              )}
+            </>
           ) : (
             <div className="empty-state">
               <div className="empty-state-icon">🔥</div>
@@ -514,83 +849,250 @@ const TrendingSidebar = ({ currentUser }) => {
           )}
         </div>
 
-        {/* ELITE CREATORS - kept original for now */}
+        {/* ELITE CREATORS */}
         <div className="trending-section">
           <div className="section-header">
             <div className="header-left">
               <div className="section-icon-wrapper">
-                <Crown size={24} className="section-icon" />
+                <Crown size={24} style={{ color: '#000' }} />
               </div>
               <div className="section-title-wrapper">
-                <h3 className="section-title">Elite Creators</h3>
-                <p className="section-subtitle">Top earners this month</p>
+                <h3 className="section-title">Top Creators</h3>
+                <p className="section-subtitle">This week's stars</p>
               </div>
             </div>
-            {eliteCreators.length > 5 && (
-              <button className="view-all-btn" onClick={() => setShowCreatorsModal(true)}>
-                View All
-                <ChevronRight size={14} />
-              </button>
-            )}
           </div>
 
-          {displayedCreators.length > 0 ? (
-            <div className="creator-list">
-              {displayedCreators.map((creator) => (
-                <div 
-                  key={creator.userId} 
-                  className={`creator-item ${creator.isTopTier ? 'top-tier' : ''}`}
-                  onClick={() => handleCreatorClick(creator)}
-                >
-                  <div className={`creator-rank-badge ${
-                    creator.rank === 1 ? 'gold' : 
-                    creator.rank === 2 ? 'silver' : 
-                    creator.rank === 3 ? 'bronze' : ''
-                  }`}>
-                    {creator.rank}
-                  </div>
-                  
-                  <div className="creator-avatar">
-                    {typeof creator.avatar === 'string' && creator.avatar.startsWith('http') ? (
-                      <img src={creator.avatar} alt={creator.name} />
-                    ) : (
-                      creator.avatar
-                    )}
-                    {creator.isTopTier && (
-                      <div className="crown-icon">
-                        <Crown size={12} color="#000" />
+          {topCreators.length > 0 ? (
+            <>
+              <div className="creator-list">
+                {topCreators.map((creator) => (
+                  <div 
+                    key={creator.userId} 
+                    className={`creator-item ${creator.isTopTier ? 'top-tier' : ''}`}
+                    onClick={() => handleCreatorClick(creator)}
+                  >
+                    <div className={`creator-rank-badge ${
+                      creator.rank === 1 ? 'gold' : 
+                      creator.rank === 2 ? 'silver' : 
+                      creator.rank === 3 ? 'bronze' : ''
+                    }`}>
+                      {creator.rank}
+                    </div>
+                    
+                    <div className="creator-avatar-wrapper">
+                      <div className="creator-avatar">
+                        {typeof creator.avatar === 'string' && creator.avatar.startsWith('http') ? (
+                          <img src={creator.avatar} alt={creator.name} />
+                        ) : (
+                          creator.avatar
+                        )}
+                        {creator.isTopTier && (
+                          <div className="crown-icon">
+                            <Crown size={12} color="#000" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  
-                  <div className="creator-info">
-                    <div className="creator-name">
-                      <span>{creator.name}</span>
-                      {creator.verified && (
-                        <span className="verified-badge">
-                          <Sparkles size={10} />
+                    </div>
+                    
+                    <div className="creator-info">
+                      <div className="creator-name">
+                        <span>{creator.name}</span>
+                        {creator.verified && (
+                          <span className="verified-badge">
+                            <Sparkles size={10} />
+                          </span>
+                        )}
+                      </div>
+                      <p className="creator-username">@{creator.username}</p>
+                      <div className="creator-stats">
+                        <span className="stat-item">
+                          <span className="stat-value">{formatNumber(creator.stats.likes)}</span> likes
                         </span>
-                      )}
-                    </div>
-                    <p className="creator-username">@{creator.username}</p>
-                    <div className="creator-earnings">
-                      <span className="ep-badge">{formatNumber(creator.totalEarnings)} EP</span>
+                        <span className="separator">•</span>
+                        <span className="stat-item">
+                          <span className="stat-value">{creator.stats.posts}</span> posts
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              {eliteCreators.length > 3 && (
+                <button 
+                  className="view-more-btn"
+                  onClick={() => setShowCreatorsPanel(true)}
+                >
+                  View Top 30 Creators
+                  <ArrowRight size={16} />
+                </button>
+              )}
+            </>
           ) : (
             <div className="empty-state">
               <div className="empty-state-icon">👑</div>
-              <p className="empty-state-text">No elite creators yet</p>
+              <p className="empty-state-text">No creators this week</p>
             </div>
           )}
         </div>
       </aside>
 
-      {/* Modals remain the same - omitted for brevity */}
-      {/* ... your existing modal code for trending tags, elite creators and profile ... */}
+      {/* TAGS PANEL */}
+      {showTagsPanel && (
+        <>
+          <div className="panel-overlay" onClick={() => setShowTagsPanel(false)} />
+          <div className="sliding-panel">
+            <div className="panel-header">
+              <div className="panel-title">
+                <Flame size={28} />
+                Top 30 Trending Tags
+              </div>
+              <button 
+                className="panel-close-btn" 
+                onClick={() => setShowTagsPanel(false)}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="panel-content">
+              <div className="tag-list">
+                {trendingTags.map((tag, index) => (
+                  <div 
+                    key={`panel-${tag.label}-${index}`} 
+                    className="tag-item"
+                    onClick={() => {
+                      handleTagClick(tag);
+                      setShowTagsPanel(false);
+                    }}
+                  >
+                    <div className={`tag-rank ${index < 3 ? 'top-rank' : ''}`}>
+                      #{index + 1}
+                    </div>
+                    <div className="tag-content">
+                      <p className="tag-label">{tag.label}</p>
+                      <div className="tag-stats">
+                        <span className="tag-stat">
+                          <Eye size={13} />
+                          {formatNumber(tag.views)}
+                        </span>
+                        <span className="separator">•</span>
+                        <span className="tag-stat">
+                          {tag.posts} posts
+                        </span>
+                        {index < 3 && (
+                          <>
+                            <span className="separator">•</span>
+                            <span className="trending-badge">
+                              <Flame size={11} />
+                              HOT
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* CREATORS PANEL */}
+      {showCreatorsPanel && (
+        <>
+          <div className="panel-overlay" onClick={() => setShowCreatorsPanel(false)} />
+          <div className="sliding-panel">
+            <div className="panel-header">
+              <div className="panel-title">
+                <Crown size={28} />
+                Top 30 Creators This Week
+              </div>
+              <button 
+                className="panel-close-btn" 
+                onClick={() => setShowCreatorsPanel(false)}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="panel-content">
+              <div className="creator-list">
+                {eliteCreators.map((creator) => (
+                  <div 
+                    key={`panel-${creator.userId}`} 
+                    className={`creator-item ${creator.isTopTier ? 'top-tier' : ''}`}
+                    onClick={() => {
+                      handleCreatorClick(creator);
+                      setShowCreatorsPanel(false);
+                    }}
+                  >
+                    <div className={`creator-rank-badge ${
+                      creator.rank === 1 ? 'gold' : 
+                      creator.rank === 2 ? 'silver' : 
+                      creator.rank === 3 ? 'bronze' : ''
+                    }`}>
+                      {creator.rank}
+                    </div>
+                    
+                    <div className="creator-avatar-wrapper">
+                      <div className="creator-avatar">
+                        {typeof creator.avatar === 'string' && creator.avatar.startsWith('http') ? (
+                          <img src={creator.avatar} alt={creator.name} />
+                        ) : (
+                          creator.avatar
+                        )}
+                        {creator.isTopTier && (
+                          <div className="crown-icon">
+                            <Crown size={12} color="#000" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="creator-info">
+                      <div className="creator-name">
+                        <span>{creator.name}</span>
+                        {creator.verified && (
+                          <span className="verified-badge">
+                            <Sparkles size={10} />
+                          </span>
+                        )}
+                      </div>
+                      <p className="creator-username">@{creator.username}</p>
+                      <div className="creator-stats">
+                        <span className="stat-item">
+                          <span className="stat-value">{formatNumber(creator.stats.likes)}</span> likes
+                        </span>
+                        <span className="separator">•</span>
+                        <span className="stat-item">
+                          <span className="stat-value">{formatNumber(creator.stats.views)}</span> views
+                        </span>
+                        <span className="separator">•</span>
+                        <span className="stat-item">
+                          <span className="stat-value">{creator.stats.posts}</span> posts
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* PROFILE MODAL */}
+      {showProfileModal && selectedCreator && (
+        <UserProfileModal
+          user={selectedCreator}
+          currentUser={currentUser}
+          onClose={() => {
+            setShowProfileModal(false);
+            setSelectedCreator(null);
+          }}
+        />
+      )}
     </>
   );
 };

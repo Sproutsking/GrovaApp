@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "20.x"
   },
   "dependencies": {
     "@cloudflare/stream-react": "^1.9.3",
@@ -26,13 +26,11 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-  "start": "react-scripts start",
-  "build": "cross-env SKIP_PREFLIGHT_CHECK=true react-scripts build",
-  "test": "react-scripts test",
-  "eject": "react-scripts eject",
-  "build:production": "cross-env REACT_APP_ENV=production ESLINT_NO_DEV_ERRORS=true react-scripts build",
-  "start:production": "serve -s build -l 3000"
-},
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -52,6 +50,6 @@
     ]
   },
   "devDependencies": {
-    "cross-env": "^10.1.0"
+    "cross-env": "^7.0.3"
   }
 }
