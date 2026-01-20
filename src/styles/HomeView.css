@@ -110,3 +110,10 @@
           color: #a3a3a3;
           margin: 0;
         }
+
+ @media (max-width: 768px) {
+  .feed-container {
+    padding: 0;
+    margin-bottom: 60px;
+  }
+}
