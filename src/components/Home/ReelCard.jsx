@@ -1,5 +1,5 @@
 // ============================================================================
-// src/components/Home/ReelCard.jsx - COMPLETE WITH AVATAR FIX
+// src/components/Home/ReelCard.jsx - FINAL FIXED VERSION
 // ============================================================================
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -28,8 +28,8 @@ const ReelCard = ({
   const [showShare, setShowShare] = useState(false);
   const videoRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // FIXED: Generate full Cloudinary URL for avatar
   const profile = {
     userId: reel.user_id,
     author: reel.profiles?.full_name || reel.author || 'Unknown',
@@ -40,7 +40,6 @@ const ReelCard = ({
     verified: reel.profiles?.verified || reel.verified || false
   };
 
-  // Ensure the reel has type set
   const reelWithType = {
     ...reel,
     type: 'reel'
@@ -57,8 +56,11 @@ const ReelCard = ({
   const resetControlsTimer = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    
     if (playing) {
-      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2000);
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
     }
   };
 
@@ -81,14 +83,33 @@ const ReelCard = ({
     }
   };
 
-  const handleOpenFullScreen = (e) => {
-    e.stopPropagation();
-    if (videoRef.current && playing) {
-      videoRef.current.pause();
-      setPlaying(false);
+  const handleVideoClick = (e) => {
+    // Don't open fullscreen if clicking on buttons or controls
+    if (e.target.closest('button') || e.target.closest('.reel-info-overlay')) {
+      return;
     }
+    
     if (onOpenFullScreen) {
+      if (videoRef.current && playing) {
+        videoRef.current.pause();
+        setPlaying(false);
+      }
       onOpenFullScreen(index);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+  };
+
+  const handleMouseMove = () => {
+    resetControlsTimer();
+  };
+
+  const handleMouseLeave = () => {
+    if (playing) {
+      resetControlsTimer();
     }
   };
 
@@ -115,7 +136,14 @@ const ReelCard = ({
   return (
     <>
       <div className="reel-card">
-        <div className="reel-video-container" onClick={handleOpenFullScreen}>
+        <div 
+          ref={containerRef}
+          className="reel-video-container" 
+          onClick={handleVideoClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
           {videoUrl && !videoError ? (
             <>
               <video
@@ -225,239 +253,6 @@ const ReelCard = ({
           onClose={() => setShowShare(false)}
         />
       )}
-
-      <style jsx>{`
-        .reel-card {
-          background: #000;
-          border: 1px solid rgba(132, 204, 22, 0.2);
-          border-radius: 16px;
-          overflow: hidden;
-          transition: all 0.3s ease;
-          cursor: pointer;
-          margin-bottom: 16px;
-        }
-
-        .reel-card:hover {
-          border-color: rgba(132, 204, 22, 0.5);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(132, 204, 22, 0.15);
-        }
-
-        .reel-video-container {
-          position: relative;
-          width: 100%;
-          aspect-ratio: 9/16;
-          max-height: 80vh;
-          background: #000;
-          overflow: hidden;
-        }
-
-        .reel-video {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          background: #000;
-        }
-
-        .reel-loading {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.8);
-        }
-
-        .spinner {
-          width: 48px;
-          height: 48px;
-          border: 4px solid rgba(132, 204, 22, 0.2);
-          border-top-color: #84cc16;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .reel-placeholder {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 20px;
-          min-height: 400px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-        }
-
-        .reel-placeholder-letter {
-          font-size: 120px;
-          font-weight: 900;
-          color: rgba(0, 0, 0, 0.3);
-        }
-
-        .reel-error-msg {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.7);
-          padding: 8px 16px;
-          background: rgba(0, 0, 0, 0.5);
-          border-radius: 8px;
-        }
-
-        .reel-overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-          opacity: 0;
-          pointer-events: none;
-        }
-
-        .reel-overlay.visible {
-          opacity: 1;
-          pointer-events: all;
-          background: rgba(0, 0, 0, 0.3);
-        }
-
-        .reel-play-btn {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: rgba(132, 204, 22, 0.9);
-          border: none;
-          color: #000;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-        }
-
-        .reel-play-btn:hover {
-          transform: scale(1.1);
-          background: #84cc16;
-        }
-
-        .reel-top-controls {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-        }
-
-        .reel-mute-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(10px);
-          border: none;
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .reel-mute-btn:hover {
-          background: rgba(0, 0, 0, 0.9);
-          transform: scale(1.05);
-        }
-
-        .reel-info-overlay {
-          position: absolute;
-          bottom: 12px;
-          left: 12px;
-          right: 12px;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          z-index: 10;
-        }
-
-        .reel-author-wrapper {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .reel-music-info {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(10px);
-          border-radius: 20px;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.9);
-          max-width: 250px;
-          overflow: hidden;
-          cursor: pointer;
-          border: 1px solid transparent;
-          transition: all 0.2s;
-        }
-
-        .reel-music-info:hover {
-          background: rgba(0, 0, 0, 0.8);
-          border-color: rgba(132, 204, 22, 0.5);
-        }
-
-        .music-marquee {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .reel-menu-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(10px);
-          border: none;
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .reel-menu-btn:hover {
-          background: rgba(0, 0, 0, 0.8);
-          transform: scale(1.05);
-        }
-
-        .reel-caption-section {
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.3);
-        }
-
-        .reel-caption {
-          font-size: 14px;
-          color: #e5e5e5;
-          line-height: 1.5;
-          margin: 0;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        .reel-footer {
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.5);
-          border-top: 1px solid rgba(132, 204, 22, 0.1);
-        }
-      `}</style>
     </>
   );
 };

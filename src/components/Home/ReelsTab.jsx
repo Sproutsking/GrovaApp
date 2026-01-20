@@ -1,15 +1,27 @@
 // ============================================================================
-// src/components/Home/ReelsTab.jsx - COMPLETE FIXED
+// src/components/Home/ReelsTab.jsx - WITH FULLSCREEN SUPPORT
 // ============================================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import ReelCard from './ReelCard';
+import FullScreenReels from './FullScreenReels';
 
 const ReelsTab = ({ reels, currentUser, onAuthorClick, onActionMenu, onComment }) => {
+  const [showFullScreen, setShowFullScreen] = useState(false);
+  const [fullScreenIndex, setFullScreenIndex] = useState(0);
+  
   console.log('🎬 ReelsTab rendering with', reels?.length || 0, 'reels');
   
-  // Filter out any deleted reels on the client side as extra safety
   const activeReels = reels?.filter(reel => !reel.deleted_at) || [];
+
+  const handleOpenFullScreen = (index) => {
+    setFullScreenIndex(index);
+    setShowFullScreen(true);
+  };
+
+  const handleCloseFullScreen = () => {
+    setShowFullScreen(false);
+  };
 
   if (!activeReels || activeReels.length === 0) {
     return (
@@ -20,17 +32,31 @@ const ReelsTab = ({ reels, currentUser, onAuthorClick, onActionMenu, onComment }
   }
 
   return (
-    <div className="reels-grid">
-      {activeReels.map((reel, index) => (
-        <ReelCard
-          key={reel.id}
-          reel={reel}
+    <>
+      <div className="reels-grid">
+        {activeReels.map((reel, index) => (
+          <ReelCard
+            key={reel.id}
+            reel={reel}
+            currentUser={currentUser}
+            onAuthorClick={() => onAuthorClick(reel)}
+            onActionMenu={onActionMenu}
+            onOpenFullScreen={() => handleOpenFullScreen(index)}
+            index={index}
+          />
+        ))}
+      </div>
+
+      {showFullScreen && (
+        <FullScreenReels
+          reels={activeReels}
+          initialIndex={fullScreenIndex}
           currentUser={currentUser}
-          onAuthorClick={() => onAuthorClick(reel)}
+          onClose={handleCloseFullScreen}
+          onAuthorClick={onAuthorClick}
           onActionMenu={onActionMenu}
-          index={index}
         />
-      ))}
+      )}
 
       <style jsx>{`
         .reels-grid {
@@ -43,7 +69,7 @@ const ReelsTab = ({ reels, currentUser, onAuthorClick, onActionMenu, onComment }
         @media (max-width: 768px) {
           .reels-grid {
             grid-template-columns: 1fr;
-            gap: 16px;
+            gap: 0;
           }
         }
 
@@ -53,7 +79,7 @@ const ReelsTab = ({ reels, currentUser, onAuthorClick, onActionMenu, onComment }
           color: #737373;
         }
       `}</style>
-    </div>
+    </>
   );
 };
 

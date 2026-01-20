@@ -2005,32 +2005,6 @@ body {
 /* ==========================================================================
    ADDITIONAL COMPONENTS (SEARCH PANEL, CREATE HEADER, ETC.)
    ========================================================================== */
-.search-panel {
-  position: sticky;
-  display: flex;
-  top: 10px;
-  align-items: center;
-  background: black;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px;
-  margin: 16px;
-  margin-top: 0;
-  z-index: 60;
-}
-
-.search-panel svg {
-  color: #737373;
-  margin-right: 12px;
-}
-
-.search-input {
-  background: transparent;
-  border: none;
-  color: #ffffff;
-  flex: 1;
-  outline: none;
-}
 
 .create-header-card {
   text-align: center;

@@ -381,13 +381,16 @@
 
 /* Mobile Responsiveness for Cards */
 @media (max-width: 768px) {
+  .feed-container {
+    padding: 0;
+  }
   .content-card {
-    padding: 16px;
-    margin-bottom: 12px;
+    margin-bottom: 0px;
+    border-radius: 0;
   }
 
   .card-header {
-    margin-bottom: 12px;
+    margin: 12px;
   }
 
   .avatar {

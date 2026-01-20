@@ -4,8 +4,10 @@ import './styles/global.css';
 import './styles/comment.css';
 import './styles/SideBar.css';
 import './styles/create.css';
+import './styles/HomeView.css';
 import './styles/PostCard.css';
 import './styles/ReelCard.css';
+import './styles/reels.css';
 import './styles/StoryCard.css';
 import './styles/ProfileModal.css';
 

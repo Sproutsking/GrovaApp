@@ -1,11 +1,11 @@
 // ============================================================================
-// src/components/Home/FullScreenReels.jsx - UNIFIED WITH NEW COMPONENTS
+// src/components/Home/FullScreenReels.jsx - FIXED VERSION
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Heart, MessageCircle, Share2, Bookmark, Music, 
-  VolumeX, Volume2, X, MoreVertical, SkipForward, SkipBack 
+  VolumeX, Volume2, X, MoreVertical
 } from 'lucide-react';
 import ProfilePreview from '../Shared/ProfilePreview';
 import CommentModal from '../Modals/CommentModal';
@@ -33,11 +33,10 @@ const FullScreenReels = ({
   const [showShare, setShowShare] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [videoError, setVideoError] = useState({});
+  const [showControls, setShowControls] = useState(true);
   
   const videoRefs = useRef({});
-  const lastTapRef = useRef({ time: 0, side: '' });
-  const touchStartY = useRef(0);
-  const touchMoveY = useRef(0);
+  const controlsTimeoutRef = useRef(null);
   const { showToast } = useToast();
 
   const currentReel = reels[currentIndex];
@@ -105,6 +104,14 @@ const FullScreenReels = ({
     }
   };
 
+  const resetControlsTimer = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (playing) {
+      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+    }
+  }, [playing]);
+
   const togglePlay = useCallback(() => {
     const currentVideo = videoRefs.current[currentIndex];
     if (!currentVideo) return;
@@ -115,18 +122,17 @@ const FullScreenReels = ({
         setVideoError(prev => ({ ...prev, [currentIndex]: true }));
       });
       setPlaying(true);
+      resetControlsTimer();
     } else {
       currentVideo.pause();
       setPlaying(false);
+      setShowControls(true);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     }
-  }, [currentIndex]);
+  }, [currentIndex, resetControlsTimer]);
 
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'ArrowDown' && currentIndex < reels.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    } else if (e.key === 'ArrowUp' && currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       onClose();
     } else if (e.key === ' ') {
       e.preventDefault();
@@ -134,11 +140,18 @@ const FullScreenReels = ({
     } else if (e.key === 'm' || e.key === 'M') {
       setMuted(prev => !prev);
     }
-  }, [currentIndex, reels.length, onClose, togglePlay]);
+  }, [onClose, togglePlay]);
+
+  const handleMouseMove = () => {
+    resetControlsTimer();
+  };
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    };
   }, [handleKeyDown]);
 
   useEffect(() => {
@@ -148,9 +161,13 @@ const FullScreenReels = ({
     currentVideo.currentTime = 0;
     setPlaying(true);
     setBuffering(true);
+    setShowControls(true);
     
     currentVideo.play()
-      .then(() => setBuffering(false))
+      .then(() => {
+        setBuffering(false);
+        resetControlsTimer();
+      })
       .catch(err => {
         console.error('Play error:', err);
         setVideoError(prev => ({ ...prev, [currentIndex]: true }));
@@ -162,7 +179,7 @@ const FullScreenReels = ({
         videoRefs.current[key].pause();
       }
     });
-  }, [currentIndex]);
+  }, [currentIndex, resetControlsTimer]);
 
   useEffect(() => {
     const currentVideo = videoRefs.current[currentIndex];
@@ -182,9 +199,12 @@ const FullScreenReels = ({
 
   return (
     <>
-      <div className="fullscreen-reels-overlay">
-        <button className="fullscreen-close-btn" onClick={onClose}>
-          <X size={28} />
+      <div className="fullscreen-reels-overlay" onMouseMove={handleMouseMove}>
+        <button 
+          className={`fullscreen-close-btn ${showControls ? 'visible' : ''}`}
+          onClick={onClose}
+        >
+          <X size={24} />
         </button>
 
         <div className="reels-container">
@@ -206,16 +226,16 @@ const FullScreenReels = ({
                 
                 {buffering && (
                   <div className="buffering-spinner">
-                    <div className="spinner" />
+                    <div className="spinner-ring" />
                   </div>
                 )}
 
                 {!playing && (
-                  <div className="play-pause-overlay">
+                  <div className="play-pause-overlay" onClick={togglePlay}>
                     <div className="play-icon-large">
-                      <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-                        <circle cx="40" cy="40" r="38" stroke="white" strokeWidth="2" opacity="0.8"/>
-                        <path d="M32 25L55 40L32 55V25Z" fill="white"/>
+                      <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
+                        <circle cx="50" cy="50" r="48" stroke="white" strokeWidth="3" opacity="0.9"/>
+                        <path d="M38 30L70 50L38 70V30Z" fill="white"/>
                       </svg>
                     </div>
                   </div>
@@ -232,7 +252,7 @@ const FullScreenReels = ({
               </div>
             )}
 
-            <div className="reel-left-info">
+            <div className={`reel-left-info ${showControls ? 'visible' : ''}`}>
               <div className="reel-author-wrapper">
                 <ProfilePreview 
                   profile={profile}
@@ -247,7 +267,7 @@ const FullScreenReels = ({
                     onSoundClick?.(currentReel.music || 'Original Audio', currentReel);
                   }}
                 >
-                  <Music size={16} />
+                  <Music size={14} />
                   <span className="music-marquee">{currentReel.music || 'Original Audio'}</span>
                 </button>
               </div>
@@ -259,10 +279,10 @@ const FullScreenReels = ({
               )}
             </div>
 
-            <div className="reel-right-actions">
+            <div className={`reel-right-actions ${showControls ? 'visible' : ''}`}>
               <button className="action-btn-vertical" onClick={handleLike}>
                 <Heart 
-                  size={32} 
+                  size={28} 
                   fill={liked[currentReel.id] ? '#ef4444' : 'none'} 
                   color="#ffffff" 
                 />
@@ -273,13 +293,13 @@ const FullScreenReels = ({
                 className="action-btn-vertical" 
                 onClick={() => setShowComments(true)}
               >
-                <MessageCircle size={32} color="#ffffff" />
+                <MessageCircle size={28} color="#ffffff" />
                 <span>{formatNumber(currentReel.comments_count || 0)}</span>
               </button>
 
               <button className="action-btn-vertical" onClick={handleSave}>
                 <Bookmark 
-                  size={32} 
+                  size={28} 
                   fill={saved[currentReel.id] ? '#fbbf24' : 'none'} 
                   color="#ffffff" 
                 />
@@ -289,7 +309,7 @@ const FullScreenReels = ({
                 className="action-btn-vertical" 
                 onClick={() => setShowShare(true)}
               >
-                <Share2 size={32} color="#ffffff" />
+                <Share2 size={28} color="#ffffff" />
                 <span>{formatNumber(currentReel.shares || 0)}</span>
               </button>
 
@@ -297,22 +317,16 @@ const FullScreenReels = ({
                 className="action-btn-vertical" 
                 onClick={(e) => onActionMenu?.(e, currentReel, currentReel.user_id === currentUser?.id)}
               >
-                <MoreVertical size={32} color="#ffffff" />
+                <MoreVertical size={28} color="#ffffff" />
               </button>
             </div>
 
-            <button className="fullscreen-mute-btn" onClick={() => setMuted(!muted)}>
-              {muted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+            <button 
+              className={`fullscreen-mute-btn ${showControls ? 'visible' : ''}`}
+              onClick={() => setMuted(!muted)}
+            >
+              {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </button>
-
-            <div className="reels-progress">
-              {reels.map((_, idx) => (
-                <div 
-                  key={idx} 
-                  className={`progress-dot ${idx === currentIndex ? 'active' : ''}`}
-                />
-              ))}
-            </div>
           </div>
         </div>
       </div>
@@ -333,255 +347,6 @@ const FullScreenReels = ({
           onClose={() => setShowShare(false)}
         />
       )}
-
-      <style jsx>{`
-        .fullscreen-reels-overlay {
-          position: fixed;
-          inset: 0;
-          background: #000;
-          z-index: 10000;
-          overflow: hidden;
-        }
-
-        .fullscreen-close-btn {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          z-index: 10002;
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s;
-        }
-
-        .fullscreen-close-btn:hover {
-          background: rgba(0, 0, 0, 0.9);
-          transform: rotate(90deg);
-        }
-
-        .reels-container {
-          width: 100%;
-          height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-        }
-
-        .reel-slide {
-          width: 100%;
-          height: 100%;
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .reel-video {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          background: #000;
-          cursor: pointer;
-        }
-
-        .buffering-spinner {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.3);
-          z-index: 100;
-        }
-
-        .spinner {
-          width: 60px;
-          height: 60px;
-          border: 4px solid rgba(132, 204, 22, 0.2);
-          border-top-color: #84cc16;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .play-pause-overlay {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.2);
-          z-index: 50;
-        }
-
-        .reel-fallback {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 20px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-        }
-
-        .reel-fallback-letter {
-          font-size: 200px;
-          font-weight: 900;
-          color: rgba(0, 0, 0, 0.3);
-        }
-
-        .error-message {
-          font-size: 16px;
-          color: rgba(255, 255, 255, 0.8);
-          padding: 12px 24px;
-          background: rgba(0, 0, 0, 0.6);
-          border-radius: 8px;
-        }
-
-        .reel-left-info {
-          position: absolute;
-          bottom: 100px;
-          left: 20px;
-          right: 100px;
-          z-index: 10001;
-        }
-
-        .reel-author-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .reel-music-info {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(10px);
-          border-radius: 24px;
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.9);
-          max-width: 300px;
-          overflow: hidden;
-          cursor: pointer;
-          border: 1px solid transparent;
-          transition: all 0.2s;
-        }
-
-        .reel-music-info:hover {
-          background: rgba(0, 0, 0, 0.8);
-          border-color: rgba(132, 204, 22, 0.5);
-        }
-
-        .music-marquee {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .reel-caption-full p {
-          font-size: 15px;
-          color: #fff;
-          line-height: 1.5;
-          margin: 0;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-        }
-
-        .reel-right-actions {
-          position: absolute;
-          right: 20px;
-          bottom: 100px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-          align-items: center;
-          z-index: 10001;
-        }
-
-        .action-btn-vertical {
-          background: none;
-          border: none;
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          transition: all 0.2s;
-        }
-
-        .action-btn-vertical:hover {
-          transform: scale(1.1);
-        }
-
-        .action-btn-vertical span {
-          font-size: 13px;
-          font-weight: 600;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-        }
-
-        .fullscreen-mute-btn {
-          position: absolute;
-          top: 20px;
-          left: 20px;
-          z-index: 10001;
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(10px);
-          border: none;
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .fullscreen-mute-btn:hover {
-          background: rgba(0, 0, 0, 0.9);
-          transform: scale(1.05);
-        }
-
-        .reels-progress {
-          position: absolute;
-          top: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 6px;
-          z-index: 10001;
-        }
-
-        .progress-dot {
-          width: 4px;
-          height: 4px;
-          border-radius: 2px;
-          background: rgba(255, 255, 255, 0.5);
-          transition: all 0.3s;
-        }
-
-        .progress-dot.active {
-          background: #84cc16;
-          width: 24px;
-        }
-      `}</style>
     </>
   );
 };
