@@ -2548,7 +2548,7 @@ body {
   /* CRITICAL: Zero padding */
   overflow-y: auto;
   /* Only top padding for header space */
-  padding-bottom: 60px;
+  padding-bottom: 80px;
 }
 
 @media(max-width: 780px) {
@@ -2556,6 +2556,7 @@ body {
     margin-right: 0;
     margin: 0;
     padding: 0;
+    margin-bottom: 80px;
   }
 
   .desktop-layout {
@@ -3191,6 +3192,7 @@ body {
     margin-right: 0;
     margin: 0;
     padding: 0;
+    margin-bottom: 80px
   }
 
   .main-content-mobile {
