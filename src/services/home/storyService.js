@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/home/storyService.js - COMPLETE FIXED
+// src/services/home/storyService.js - FIXED DATABASE QUERY
 // ============================================================================
 
 import { supabase } from '../config/supabase';
@@ -8,6 +8,64 @@ import cacheService from '../shared/cacheService';
 
 class StoryService {
   
+  // ==================== CREATE STORY - FIXED ====================
+  
+  async createStory(storyData) {
+    try {
+      console.log('📖 Creating story with data:', storyData);
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('You must be logged in to create a story');
+      }
+
+      const newStory = {
+        user_id: user.id,
+        title: storyData.title,
+        preview: storyData.preview,
+        full_content: storyData.fullContent,
+        cover_image_id: storyData.coverImageId || null,
+        cover_image_metadata: storyData.coverImageMetadata || {},
+        category: storyData.category || 'Folklore',
+        unlock_cost: storyData.unlockCost || 0,
+        max_accesses: storyData.maxAccesses === -1 ? 999999 : (storyData.maxAccesses || 1000)
+      };
+
+      console.log('💾 Inserting story to database:', newStory);
+
+      // FIXED: Removed 'shares' from select - it doesn't exist in the table
+      const { data, error } = await supabase
+        .from('stories')
+        .insert([newStory])
+        .select(`
+          *,
+          profiles!inner(
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('❌ Story insert error:', error);
+        throw error;
+      }
+
+      cacheService.invalidatePattern('stories');
+      
+      console.log('✅ Story created successfully:', data);
+      return data;
+
+    } catch (error) {
+      console.error('❌ Create story error:', error);
+      throw handleError(error, 'Failed to create story');
+    }
+  }
+
   // ==================== GET STORIES ====================
   
   async getStories(filters = {}, offset = 0, limit = 20) {
@@ -114,55 +172,6 @@ class StoryService {
     }
   }
 
-  // ==================== CREATE STORY ====================
-  
-  async createStory(storyData) {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        throw new Error('You must be logged in to create a story');
-      }
-
-      const newStory = {
-        user_id: user.id,
-        title: storyData.title,
-        preview: storyData.preview,
-        full_content: storyData.fullContent,
-        cover_image_id: storyData.coverImageId || null,
-        cover_image_metadata: storyData.coverImageMetadata || {},
-        category: storyData.category || 'Folklore',
-        unlock_cost: storyData.unlockCost || 0,
-        max_accesses: storyData.maxAccesses || 1000
-      };
-
-      const { data, error } = await supabase
-        .from('stories')
-        .insert([newStory])
-        .select(`
-          *,
-          profiles!inner(
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .single();
-
-      if (error) throw error;
-
-      cacheService.invalidatePattern('stories');
-      
-      console.log('✅ Story created successfully');
-      return data;
-
-    } catch (error) {
-      throw handleError(error, 'Failed to create story');
-    }
-  }
-
   // ==================== UPDATE STORY ====================
   
   async updateStory(storyId, updates) {
@@ -199,7 +208,6 @@ class StoryService {
 
       if (error) throw error;
 
-      // FIXED: Clear ALL story-related cache
       cacheService.invalidate(`story:${storyId}`);
       cacheService.invalidatePattern('stories');
 
@@ -218,7 +226,6 @@ class StoryService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('You must be logged in');
 
-      // Check if already unlocked
       const { data: unlocked } = await supabase
         .from('unlocked_stories')
         .select('id')
@@ -230,30 +237,28 @@ class StoryService {
         return { alreadyUnlocked: true };
       }
 
-      // Get story details
       const story = await this.getStory(storyId);
       
       if (!story) {
         throw new Error('Story not found');
       }
 
-      // Check if accesses available
-      if (story.current_accesses >= story.max_accesses) {
+      if (story.max_accesses !== 999999 && story.current_accesses >= story.max_accesses) {
         throw new Error('Story has reached maximum accesses');
       }
 
-      // Create transaction and unlock
       const { error: unlockError } = await supabase
         .from('unlocked_stories')
         .insert([{ story_id: storyId, user_id: user.id }]);
 
       if (unlockError) throw unlockError;
 
-      // Increment current accesses
-      await supabase
-        .from('stories')
-        .update({ current_accesses: story.current_accesses + 1 })
-        .eq('id', storyId);
+      if (story.max_accesses !== 999999) {
+        await supabase
+          .from('stories')
+          .update({ current_accesses: story.current_accesses + 1 })
+          .eq('id', storyId);
+      }
 
       cacheService.invalidate(`story:${storyId}`);
       

@@ -7,7 +7,94 @@
    - Sections grouped by feature/component for easy navigation and maintenance.
    - Consistent comment banners for quick scanning.
    ========================================================================== */
+/* ============================================================================
+   Z-INDEX HIERARCHY - Add to your global styles or App.css
+   ============================================================================ */
 
+/* 
+  Z-Index Scale:
+  1-99: Base content layers
+  100-199: Overlays and cards
+  200-299: Navigation and sidebars
+  300-399: Dropdowns and tooltips
+  400-499: Modals (comments, share, etc)
+  500-999: Full-screen views (reels on mobile)
+  1000+: Critical UI (toasts, notifications)
+*/
+
+/* Base content */
+.post-card,
+.reel-card {
+  z-index: 1;
+}
+
+/* Sidebars */
+.sidebar-left,
+.sidebar-right {
+  z-index: 200;
+}
+
+/* Navigation */
+.navbar,
+.mobile-nav {
+  z-index: 250;
+}
+
+/* Dropdowns and menus */
+.dropdown-menu,
+.action-menu,
+.context-menu {
+  z-index: 300;
+}
+
+/* Profile preview modal */
+.profile-preview-modal,
+.profile-modal {
+  z-index: 450 !important;
+}
+
+/* Comment modal, Share modal */
+.comment-modal,
+.share-modal {
+  z-index: 400;
+}
+
+/* Full-screen reels - LOWER than modals */
+.fullscreen-reels-container {
+  z-index: 999;
+}
+
+/* On desktop, fullscreen reels should be in main content area */
+@media (min-width: 1024px) {
+  .fullscreen-reels-container {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+}
+
+/* Ensure modals opened from fullscreen reels are above */
+.fullscreen-reels-container .comment-modal,
+.fullscreen-reels-container .share-modal,
+.fullscreen-reels-container .profile-preview-modal {
+  z-index: 1000 !important;
+}
+
+/* Critical UI elements */
+.toast-container,
+.notification-popup {
+  z-index: 1100;
+}
+
+/* Loading overlays */
+.loading-overlay {
+  z-index: 1200;
+}
+
+/* Emergency modals (errors, confirmations) */
+.confirm-dialog,
+.alert-modal {
+  z-index: 1300;
+}
 /* ==========================================================================
    RESET & BASE
    ========================================================================== */
@@ -51,7 +138,7 @@ body {
 .desktop-header-content {
   max-width: 1280px;
   margin: 0;
-  padding: 12px 24px;
+  padding: 8px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -190,26 +277,6 @@ body {
   color: #84cc16;
 }
 
-.wallet-btn-header {
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  font-weight: bold;
-  padding: 10px 24px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  transition: all 0.3s ease;
-}
-
-.wallet-btn-header:hover {
-  background: linear-gradient(135deg, #a3e635 0%, #84cc16 100%);
-}
-
 .mobile-greeting {
   flex: 1;
   text-align: center;
@@ -219,21 +286,6 @@ body {
   font-size: 12px;
   color: #737373;
   font-weight: 500;
-}
-
-.mobile-wallet-btn {
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  font-weight: bold;
-  padding: 8px 16px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
 }
 
 /* ==========================================================================
@@ -264,64 +316,6 @@ body {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
-}
-
-.new-stories-content {
-  background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(132, 204, 22, 0.3);
-  border-radius: 24px;
-  padding: 6px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.2);
-}
-
-.new-stories-avatars {
-  display: flex;
-  align-items: center;
-}
-
-.new-story-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: #000000;
-  font-size: 14px;
-  border: 2px solid #000000;
-  margin-left: -8px;
-}
-
-.new-story-avatar:first-child {
-  margin-left: 0;
-}
-
-.new-stories-text {
-  font-size: 13px;
-  color: #84cc16;
-  font-weight: 600;
-}
-
-.refresh-button {
-  background: rgba(132, 204, 22, 0.1);
-  border: 1px solid rgba(132, 204, 22, 0.3);
-  color: #84cc16;
-  padding: 6px 16px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.refresh-button:hover {
-  background: rgba(132, 204, 22, 0.2);
 }
 
 /* ==========================================================================
@@ -387,650 +381,6 @@ body {
   font-size: 10px;
   font-weight: bold;
 }
-
-/* ==========================================================================
-   WALLET VIEW
-   ========================================================================== */
-.wallet-bg-effect-1,
-.wallet-bg-effect-2,
-.wallet-bg-effect-3 {
-  position: absolute;
-  pointer-events: none;
-}
-
-.wallet-bg-effect-1 {
-  inset: 0;
-  background: linear-gradient(135deg, rgba(132, 204, 22, 0.05) 0%, transparent 100%);
-}
-
-.wallet-bg-effect-2 {
-  top: 0;
-  right: 0;
-  width: 288px;
-  height: 288px;
-  background: rgba(132, 204, 22, 0.1);
-  border-radius: 50%;
-  filter: blur(64px);
-}
-
-.wallet-bg-effect-3 {
-  bottom: 0;
-  left: 0;
-  width: 288px;
-  height: 288px;
-  background: rgba(132, 204, 22, 0.05);
-  border-radius: 50%;
-  filter: blur(64px);
-}
-
-.wallet-notice {
-  margin-bottom: 10px;
-  margin-top: 20px;
-}
-
-@media (max-width: 768px) {
-  .wallet-modal {
-    width: 100%;
-    height: 100%;
-    border-radius: 0;
-    padding: 0;
-    padding-bottom: 50px;
-  }
-}
-
-.wallet-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.wallet-title {
-  font-size: 28px;
-  font-weight: bold;
-  color: #ffffff;
-  margin-bottom: 4px;
-}
-
-.wallet-subtitle {
-  color: #737373;
-  font-size: 14px;
-}
-
-.wallet-close-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #737373;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.wallet-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(132, 204, 22, 0.5);
-  color: #84cc16;
-}
-
-/* ==========================================================================
-   WALLET CARDS & TRANSACTION PREVIEW
-   ========================================================================== */
-.wallet-cards-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.wallet-card {
-  position: relative;
-  background: #000000;
-  border-radius: 16px;
-  padding: 20px;
-  overflow: hidden;
-}
-
-.wallet-card-primary {
-  border: 1px solid rgba(132, 204, 22, 0.3);
-}
-
-.wallet-card-secondary {
-  border: 1px solid #1a1a1a;
-}
-
-.wallet-card-bg,
-.wallet-card-bg-secondary {
-  position: absolute;
-  inset: 0;
-}
-
-.wallet-card-bg {
-  background: linear-gradient(135deg, rgba(132, 204, 22, 0.05) 0%, transparent 100%);
-}
-
-.wallet-card-bg-secondary {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
-}
-
-.wallet-card-glow {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 128px;
-  height: 128px;
-  background: rgba(132, 204, 22, 0.1);
-  border-radius: 50%;
-  filter: blur(32px);
-  transition: all 0.5s ease;
-}
-
-.wallet-card:hover .wallet-card-glow {
-  filter: blur(48px);
-}
-
-.wallet-card-content {
-  position: relative;
-  z-index: 10;
-}
-
-.wallet-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.wallet-card-label {
-  color: #737373;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.wallet-card-label-secondary {
-  color: #525252;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.wallet-icon-container {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wallet-icon-primary {
-  background: rgba(132, 204, 22, 0.1);
-  color: #84cc16;
-}
-
-.wallet-icon-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: #737373;
-}
-
-.wallet-balance {
-  font-size: 36px;
-  font-weight: bold;
-  color: #ffffff;
-  margin-bottom: 4px;
-}
-
-.wallet-currency {
-  color: #84cc16;
-  font-size: 24px;
-  margin-left: 8px;
-}
-
-.wallet-currency-secondary {
-  color: #525252;
-  font-size: 24px;
-  margin-left: 8px;
-}
-
-.wallet-converted {
-  font-size: 14px;
-  color: #737373;
-}
-
-.wallet-lock-notice {
-  font-size: 12px;
-  color: #404040;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.transaction-preview {
-  position: relative;
-  background: linear-gradient(90deg, rgba(132, 204, 22, 0.1) 0%, rgba(132, 204, 22, 0.05) 50%, rgba(132, 204, 22, 0.1) 100%);
-  border: 1px solid rgba(132, 204, 22, 0.5);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
-  overflow: hidden;
-}
-
-.transaction-bg {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(132, 204, 22, 0.1) 0%, transparent 100%);
-}
-
-.transaction-content {
-  position: relative;
-  z-index: 10;
-}
-
-.transaction-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.transaction-icon {
-  width: 32px;
-  height: 32px;
-  background: #84cc16;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000000;
-}
-
-.transaction-label {
-  font-size: 12px;
-  color: #84cc16;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.transaction-title {
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 18px;
-  margin-bottom: 16px;
-  line-height: 1.4;
-}
-
-.transaction-details {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(132, 204, 22, 0.3);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  backdrop-filter: blur(8px);
-}
-
-.transaction-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.transaction-row:last-child {
-  margin-bottom: 0;
-}
-
-.transaction-text {
-  color: #737373;
-  font-size: 14px;
-}
-
-.transaction-cost {
-  font-size: 24px;
-  font-weight: bold;
-  color: #84cc16;
-}
-
-.transaction-balance {
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffffff;
-}
-
-.transaction-progress-bar {
-  width: 100%;
-  height: 4px;
-  background: #1a1a1a;
-  border-radius: 999px;
-  margin-top: 12px;
-  overflow: hidden;
-}
-
-.transaction-progress-fill {
-  height: 100%;
-  background: #84cc16;
-  border-radius: 999px;
-}
-
-.transaction-confirm-btn {
-  width: 100%;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  font-weight: bold;
-  padding: 16px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 15px;
-}
-
-.transaction-confirm-btn:hover:not(:disabled) {
-  background: linear-gradient(90deg, #a3e635 0%, #84cc16 100%);
-  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.5);
-}
-
-.transaction-confirm-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ==========================================================================
-   WALLET ACTIONS & NOTICES
-   ========================================================================== */
-.wallet-actions {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.wallet-action-btn {
-  /* flex: 1; */
-  width: calc(50% - 6px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  font-weight: 600;
-  padding: 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(8px);
-}
-
-.wallet-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(132, 204, 22, 0.5);
-}
-
-.wallet-notice {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 12px;
-  text-align: center;
-  backdrop-filter: blur(8px);
-}
-
-.wallet-notice-label {
-  font-size: 11px;
-  color: #525252;
-  margin-bottom: 4px;
-}
-
-.wallet-notice-text {
-  font-size: 14px;
-  color: #737373;
-  font-weight: 500;
-}
-
-.wallet-notice-highlight {
-  color: #84cc16;
-}
-
-/* ==========================================================================
-   STORY CARDS
-   ========================================================================== */
-.story-card {
-  position: relative;
-  background: #000000;
-  border: 1px solid #2a2c24;
-  box-shadow: 0 0 3px #354411;
-  border-radius: 16px;
-  padding: 20px;
-  margin: 0;
-  margin-bottom: 16px;
-  overflow: hidden;
-  transition: all 0.5s ease;
-  /* border-color: rgba(132, 204, 22, 0.6); */
-  /* background: linear-gradient(90deg, rgba(132, 204, 22, 0.2) 0%, transparent 50%, rgba(132, 204, 22, 0.2) 100%); */
-}
-
-.story-card:hover {
-  border-color: rgba(132, 204, 22, 0.6);
-}
-
-.story-card-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
-  pointer-events: none;
-}
-
-.story-card-glow {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-
-.story-card:hover .story-card-glow {
-  opacity: 1;
-  background: linear-gradient(90deg, rgba(132, 204, 22, 0.2) 0%, transparent 50%, rgba(132, 204, 22, 0.2) 100%);
-  filter: blur(24px);
-}
-
-.story-card-content {
-  position: relative;
-  z-index: 10;
-}
-
-.story-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.story-author-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.story-avatar {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000000;
-  font-weight: bold;
-  font-size: 18px;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.5);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.story-avatar:hover {
-  transform: scale(1.05);
-}
-
-.story-author-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.story-author-name {
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.story-author-name:hover {
-  color: #84cc16;
-}
-
-.verified-badge {
-  width: 20px;
-  height: 20px;
-  background: #84cc16;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.5);
-}
-
-.verified-badge span {
-  color: #000000;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.story-time {
-  color: #525252;
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.story-category {
-  font-size: 11px;
-  color: #84cc16;
-  background: rgba(132, 204, 22, 0.1);
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(132, 204, 22, 0.3);
-  font-weight: 500;
-  backdrop-filter: blur(8px);
-}
-
-.story-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffffff;
-  margin-bottom: 12px;
-  line-height: 1.3;
-}
-
-.story-preview {
-  color: #737373;
-  margin-bottom: 16px;
-  line-height: 1.6;
-  font-size: 15px;
-}
-
-.story-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 16px;
-  border-top: 1px solid rgba(26, 26, 26, 0.8);
-}
-
-.story-stats {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  color: #525252;
-  font-size: 14px;
-}
-
-.story-stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.story-stat:hover {
-  color: #84cc16;
-}
-
-.story-stat span {
-  font-weight: 500;
-}
-
-.unlock-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  font-weight: bold;
-  padding: 10px 24px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
-}
-
-.unlock-btn:hover {
-  background: linear-gradient(90deg, #a3e635 0%, #84cc16 100%);
-  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.5);
-  transform: scale(1.05);
-}
-
-.story-action-btn {
-  position: absolute;
-  right: 0px;
-  background: rgba(2, 19, 4, 0.856);
-  border: 1px solid #727a7444;
-  color: #ffffff;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-size: 20px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-  transition: all 0.3s ease;
-}
-
-.story-action-btn:hover {
-  background: rgba(132, 204, 22, 0.3);
-  transform: scale(1.1);
-}
-
-.story-card-header {
-  position: relative;
-  padding-right: 60px;
-  /* Make space for action button */
-}
-
 /* ==========================================================================
    HOME VIEW
    ========================================================================== */
@@ -1886,28 +1236,8 @@ body {
 }
 
 /* ==========================================================================
-   SCROLLBARS, ANIMATIONS & UTILITY CLASSES
+    ANIMATIONS & UTILITY CLASSES
    ========================================================================== */
-.wallet-modal::-webkit-scrollbar,
-.user-profile-modal::-webkit-scrollbar {
-  width: 8px;
-}
-
-.wallet-modal::-webkit-scrollbar-track,
-.user-profile-modal::-webkit-scrollbar-track {
-  background: #000000;
-}
-
-.wallet-modal::-webkit-scrollbar-thumb,
-.user-profile-modal::-webkit-scrollbar-thumb {
-  background: #1a1a1a;
-  border-radius: 4px;
-}
-
-.wallet-modal::-webkit-scrollbar-thumb:hover,
-.user-profile-modal::-webkit-scrollbar-thumb:hover {
-  background: #262626;
-}
 
 @keyframes pulse {
 
@@ -2003,137 +1333,6 @@ body {
 }
 
 /* ==========================================================================
-   ADDITIONAL COMPONENTS (SEARCH PANEL, CREATE HEADER, ETC.)
-   ========================================================================== */
-
-.create-header-card {
-  text-align: center;
-  padding: 40px 20px;
-}
-
-.create-title {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
-
-.create-subtitle {
-  font-size: 18px;
-  color: #84cc16;
-}
-
-.settings-group {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid #1a1a1a;
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-.settings-group h4 {
-  font-size: 18px;
-  margin-bottom: 16px;
-}
-
-.settings-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.settings-button {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
-.sub-settings {
-  padding: 20px;
-}
-
-.toggle-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.wallet-settings-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.wallet-settings-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wallet-settings-modal {
-  background: #000000;
-  border: 1px solid #1a1a1a;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.transaction-history {
-  margin-top: 20px;
-}
-
-.transaction-history h3 {
-  font-size: 18px;
-  margin-bottom: 12px;
-}
-
-.transaction-history ul {
-  list-style: none;
-}
-
-.transaction-history li {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #1a1a1a;
-}
-
-.negative {
-  color: #ff0000;
-}
-
-.positive {
-  color: #84cc16;
-}
-
-.close-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: transparent;
-  border: none;
-  color: #737373;
-  cursor: pointer;
-}
-
-.close-btn:hover {
-  color: #84cc16;
-}
-
-/* ==========================================================================
    MOBILE OPTIMIZATIONS & REDUCED SPACING
    ========================================================================== */
 @media (max-width: 768px) {
@@ -2150,14 +1349,6 @@ body {
   .home-tabs button {
     padding: 6px 16px;
     font-size: 14px;
-  }
-
-  .wallet-title {
-    font-size: 24px;
-  }
-
-  .wallet-balance {
-    font-size: 32px;
   }
 
   .transaction-title {
@@ -2203,69 +1394,6 @@ body {
     width: 16px;
     height: 16px;
   }
-}
-
-@media (max-width: 480px) {
-  .wallet-action-btn {
-    min-width: 80px;
-    padding: 12px 8px;
-    font-size: 12px;
-  }
-
-  .wallet-action-btn svg {
-    width: 24px;
-    height: 24px;
-  }
-}
-
-.story-card {
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.home-header-card,
-.create-header-card {
-  padding: 24px !important;
-}
-
-.wallet-view-full {
-  padding: 16px;
-}
-
-.wallet-header-full {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.wallet-actions-row {
-  display: flex;
-  overflow-x: auto;
-  gap: 12px;
-  padding: 8px 0;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.wallet-actions-row::-webkit-scrollbar {
-  display: none;
-}
-
-.wallet-action-btn {
-  min-width: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 12px;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.wallet-actions-row {
-  display: flex;
-  overflow-x: auto;
-  gap: 8px;
-  padding: 8px 0;
 }
 
 /* ==========================================================================
@@ -2516,16 +1644,6 @@ body {
    Add these to the END of your global.css file
    ========================================================================== */
 
-/* FIX 1: Remove overflow hidden that prevents scrolling */
-.app-container {
-  min-height: 100vh;
-  background-color: #000000;
-  color: #ffffff;
-  overflow-x: hidden;
-  /* Only hide horizontal scroll */
-  overflow-y: auto;
-}
-
 /* FIX 2: Desktop Layout - Remove height constraint and overflow hidden */
 .desktop-layout {
   display: flex;
@@ -2542,13 +1660,9 @@ body {
 /* FIX 3: Main Content - Remove ALL internal padding, only top/bottom */
 .main-content-desktop {
   flex: 1;
-  max-width: 680px;
+  /* max-width: 680px; */
   padding: 0;
-  padding-top: 8px;
-  /* CRITICAL: Zero padding */
   overflow-y: auto;
-  /* Only top padding for header space */
-  padding-bottom: 80px;
 }
 
 @media(max-width: 780px) {
@@ -2556,7 +1670,6 @@ body {
     margin-right: 0;
     margin: 0;
     padding: 0;
-    margin-bottom: 80px;
   }
 
   .desktop-layout {
@@ -2577,7 +1690,6 @@ body {
   /* Only bottom for nav */
   width: 100%;
   overflow-y: auto;
-  margin-bottom: 120px;
 }
 
 /* FIX 5: Content inside views should handle their own spacing */
@@ -2634,21 +1746,6 @@ body {
   margin-right: 12%;
 }
 
-/* FIX 9: Sidebar - Make it properly fixed */
-.sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 280px;
-  background: #000000;
-  border-right: 1px solid #1a1a1a;
-  z-index: 50;
-  overflow-y: auto;
-  padding-top: 80px;
-  /* Space for header */
-}
-
 /* FIX 10: Headers must be truly fixed */
 .desktop-header,
 .mobile-header {
@@ -2670,12 +1767,6 @@ body {
   overflow: visible;
 }
 
-/* FIX 15: Account tabs shouldn't push content */
-.account-tabs,
-.home-tabs {
-  margin-left: 0;
-  margin-right: 0;
-}
 
 /* FIX 16: Mobile specific - ensure no horizontal scroll */
 @media (max-width: 768px) {
@@ -2696,12 +1787,7 @@ body {
   .main-content-mobile {
     padding: 0;
     margin: 0;
-    margin-bottom: 120px;
-  }
 
-  .desktop-layout {
-    padding: 0;
-    margin: 0;
   }
 }
 
@@ -2727,478 +1813,16 @@ body {
 }
 
 
-/* ==========================================================================
-   ADDITIONAL COMPONENT STYLES - Add to end of global.css
-   ========================================================================== */
-
-/* ==========================================================================
-   SOLD OUT BADGE & ACCESS PROGRESS
-   ========================================================================== */
-.sold-out-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.3);
-  color: #ff4444;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.access-progress {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(26, 26, 26, 0.8);
-}
-
-.access-progress-bar {
-  width: 100%;
-  height: 4px;
-  background: #1a1a1a;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 6px;
-}
-
-.access-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.access-progress-text {
-  font-size: 11px;
-  color: #525252;
-}
-
-/* ==========================================================================
-   ENHANCED ACTION MENU
-   ========================================================================== */
-.action-menu-overlay {
-  position: fixed;
-  inset: 0;
-  background: transparent;
-  z-index: 999;
-}
-
-.action-menu {
-  position: fixed;
-  background: #0a0a0a;
-  border: 1px solid rgba(132, 204, 22, 0.3);
-  border-radius: 16px;
-  width: 240px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(132, 204, 22, 0.2);
-  overflow: hidden;
-  animation: menuSlideIn 0.2s ease-out;
-  z-index: 1000;
-}
-
-@keyframes menuSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.action-menu-header {
-  padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(132, 204, 22, 0.15) 0%, rgba(132, 204, 22, 0.05) 100%);
-  font-size: 13px;
-  font-weight: 700;
-  color: #84cc16;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-}
-
-.action-menu-items {
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-}
-
-.action-item {
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: #ffffff;
-  padding: 12px 14px;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-}
-
-.action-item:hover {
-  background: rgba(132, 204, 22, 0.15);
-  padding-left: 18px;
-  transform: translateX(2px);
-}
-
-.action-item svg {
-  color: #84cc16;
-  flex-shrink: 0;
-}
-
-.action-item.action-delete {
-  color: #ff4444;
-}
-
-.action-item.action-delete svg {
-  color: #ff4444;
-}
-
-.action-item.action-delete:hover {
-  background: rgba(255, 68, 68, 0.15);
-}
-
-.action-item.action-report {
-  color: #fbbf24;
-}
-
-.action-item.action-report svg {
-  color: #fbbf24;
-}
-
-.action-item.action-report:hover {
-  background: rgba(251, 191, 36, 0.15);
-}
-
-.action-item.action-cancel {
-  color: #737373;
-  margin-top: 8px;
-  border-top: 1px solid #1a1a1a;
-  padding-top: 16px;
-}
-
-.action-item.action-cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-}
-
-/* ==========================================================================
-   ENHANCED LIST MODAL
-   ========================================================================== */
-.list-modal-content {
-  background: #000000;
-  border: 1px solid rgba(132, 204, 22, 0.3);
-  border-radius: 24px;
-  padding: 0;
-  width: 90%;
-  height: 100vh;
-  max-width: 500px;
-  overflow: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px;
-  border-bottom: 1px solid #1a1a1a;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.modal-header h3 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0;
-}
-
-.list-story-info {
-  padding: 20px 24px;
-  background: rgba(132, 204, 22, 0.05);
-  border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-}
-
-.list-story-title {
-  font-size: 16px;
-  color: #ffffff;
-  margin-bottom: 8px;
-}
-
-.list-story-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #737373;
-}
-
-.list-info-alert {
-  display: flex;
-  gap: 12px;
-  padding: 16px 24px;
-  background: rgba(132, 204, 22, 0.1);
-  border-left: 3px solid #84cc16;
-  margin: 20px 24px;
-  border-radius: 8px;
-}
-
-.list-info-alert svg {
-  color: #84cc16;
-  flex-shrink: 0;
-}
-
-.list-info-alert p {
-  font-size: 13px;
-  color: #d4d4d4;
-  line-height: 1.5;
-}
-
-.list-price-section {
-  padding: 0 24px 20px;
-}
-
-.list-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: #737373;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.list-price-input-wrapper {
-  position: relative;
-  margin-bottom: 12px;
-}
-
-.list-price-input-wrapper input {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 14px 50px 14px 16px;
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.list-price-input-wrapper input:focus {
-  outline: none;
-  border-color: rgba(132, 204, 22, 0.5);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.list-currency {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #84cc16;
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.list-price-suggestions {
-  display: flex;
-  gap: 8px;
-}
-
-.suggestion-btn {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: #737373;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.suggestion-btn:hover {
-  background: rgba(132, 204, 22, 0.1);
-  border-color: rgba(132, 204, 22, 0.3);
-  color: #84cc16;
-}
-
-.list-breakdown {
-  margin: 0 24px 20px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid #1a1a1a;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.breakdown-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  color: #737373;
-  font-size: 14px;
-}
-
-.breakdown-row.royalty {
-  color: #fbbf24;
-  border-top: 1px solid #1a1a1a;
-  margin-top: 8px;
-  padding-top: 16px;
-}
-
-.breakdown-row.royalty span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.breakdown-row.total {
-  border-top: 2px solid rgba(132, 204, 22, 0.3);
-  margin-top: 12px;
-  padding-top: 16px;
-  font-weight: 700;
-  font-size: 16px;
-  color: #ffffff;
-}
-
-.earnings {
-  color: #84cc16;
-  font-size: 20px;
-}
-
-.list-warning {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 24px 20px;
-  padding: 12px;
-  background: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.3);
-  border-radius: 8px;
-  color: #ff4444;
-  font-size: 13px;
-}
-
-.list-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0 24px 24px;
-}
-
-.list-btn-primary {
-  width: 100%;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
-}
-
-.list-btn-primary:hover:not(:disabled) {
-  background: linear-gradient(90deg, #a3e635 0%, #84cc16 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.5);
-}
-
-.list-btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.list-btn-secondary {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.list-btn-secondary:hover {
-  background: rgba(255, 68, 68, 0.15);
-  border-color: rgba(255, 68, 68, 0.3);
-  color: #ff4444;
-}
-
-.list-terms {
-  padding: 16px 24px 24px;
-  border-top: 1px solid #1a1a1a;
-}
-
-.list-terms p {
-  font-size: 12px;
-  color: #525252;
-  line-height: 1.5;
-  text-align: center;
-}
-
-/* ==========================================================================
-   MOBILE RESPONSIVENESS
-   ========================================================================== */
-@media (max-width: 768px) {
-  .comment-modal.pop-up {
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    border-radius: 0;
-  }
-
-  .comments-list {
-    max-height: none;
-  }
-
-  .comment-item {
-    margin-left: 0 !important;
-  }
-
-  .reply-form {
-    margin-left: 36px;
-  }
-
-  .list-modal-content {
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-    border-radius: 0;
-  }
-}
-
-
-
 @media(max-width: 780px) {
   .main-content-desktop {
     margin-right: 0;
     margin: 0;
     padding: 0;
-    margin-bottom: 80px
   }
 
   .main-content-mobile {
     padding: 0;
     margin: 0;
-    margin-bottom: 120px;
   }
 
   .desktop-layout {
@@ -3235,429 +1859,414 @@ body {
 }
 
 
-/* ==========================================================================
-   REELS COMPONENT STYLES
-   ========================================================================== */
 
-/* Main Container */
-.reels-container {
-  position: relative;
+
+/* ============================================
+   ADD THIS TO THE END OF YOUR GLOBAL.CSS
+   COMMUNITY VIEW - FULL WIDTH OVERRIDE
+   ============================================ */
+
+/* When Community View is active, use full width except left sidebar */
+.desktop-layout:has(.community-view) {
+  max-width: none !important;
+  margin-left: calc(6% + 6px);
+  margin-right: 0 !important;
+}
+
+/* Main content takes full remaining space when community is active */
+.main-content-desktop:has(.community-view) {
+  flex: 1;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* Hide trending sidebar when in community view */
+.desktop-layout:has(.community-view) .trending-sidebar {
+  display: none !important;
+}
+
+/* Ensure community view fills the height properly */
+.main-content-desktop:has(.community-view) {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Community view wrapper should be full height */
+.community-view {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ============================================
+   MOBILE - COMMUNITY VIEW
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* On mobile, community takes full viewport except header/nav */
+  .main-content-mobile:has(.community-view) {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: calc(100vh - 130px); /* 60px header + 70px bottom nav */
+    overflow: hidden;
+  }
+
+  .community-view {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+/* ============================================
+   FIX FOR OTHER VIEWS TO MAINTAIN CENTER LAYOUT
+   ============================================ */
+
+/* Ensure other views still respect max-width and centering */
+.main-content-desktop:not(:has(.community-view)) {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.desktop-layout:not(:has(.community-view)) .trending-sidebar {
+  display: block;
+}
+
+/* ============================================
+   ENSURE PROPER HEIGHT CASCADE
+   ============================================ */
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-container {
   width: 100%;
   height: 100vh;
-  background-color: #000000;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  max-width: 680px;
-  margin: 0 auto;
+  position: relative;
 }
 
-.reels-wrapper {
+.desktop-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.main-content-desktop {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.main-content-mobile {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  padding-bottom: 70px;
+}
+
+/* ============================================
+   TABLET ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .desktop-layout:has(.community-view) {
+    margin-left: 0;
+    padding-left: 200px; /* Collapsed sidebar */
+  }
+}
+
+/* ============================================
+   PREVENT LAYOUT SHIFT
+   ============================================ */
+/* ============================================
+   ADD THIS TO THE VERY END OF YOUR GLOBAL.CSS
+   FINAL PERFECT COMMUNITY VIEW FIX
+   ============================================ */
+
+/* ============================================
+   DESKTOP - COMMUNITY RESPECTS APP LAYOUT
+   ============================================ */
+
+/* Community view should NOT stretch full screen - respects sidebar boundaries */
+.main-content-desktop:has(.community-view) {
+  max-width: none !important;
+  flex: 1;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  /* Stays within desktop-layout boundaries */
+}
+
+/* Hide trending sidebar ONLY when community is active */
+.desktop-layout:has(.community-view) .trending-sidebar {
+  display: none !important;
+}
+
+/* Desktop layout maintains its margins when community is active */
+.desktop-layout:has(.community-view) {
+  margin-left: calc(6% + 6px); /* Your original left margin */
+  margin-right: 6%; /* Add right margin to prevent full width stretch */
+  max-width: none;
+}
+
+/* Ensure community view fills available space without overflow */
+.community-view {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ============================================
+   MOBILE - PERFECT POSITIONING
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Remove desktop margins on mobile */
+  .desktop-layout:has(.community-view) {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Mobile content should have no padding when community is active */
+  .main-content-mobile:has(.community-view) {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden;
+  }
+
+  /* Community view positioned to avoid header and bottom nav */
+  .main-content-mobile .community-view {
+    position: fixed;
+    top: 60px; /* Below mobile header */
+    left: 0;
+    right: 0;
+    bottom: 70px; /* Above mobile bottom nav */
+    height: auto;
+    z-index: 5;
+  }
+
+  /* Ensure mobile bottom nav stays above community */
+  .mobile-bottom-nav {
+    z-index: 50 !important;
+    position: fixed;
+  }
+
+  /* Mobile header stays above */
+  .mobile-header {
+    z-index: 50 !important;
+  }
+}
+
+/* ============================================
+   MAINTAIN OTHER VIEWS' LAYOUT
+   ============================================ */
+
+/* Other views maintain centered layout with max-width */
+.main-content-desktop:not(:has(.community-view)) {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Trending sidebar shows for other views */
+.desktop-layout:not(:has(.community-view)) .trending-sidebar {
+  display: block;
+}
+
+/* ============================================
+   HEIGHT CASCADE FIX
+   ============================================ */
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-container {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+}
+
+.desktop-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0; /* CRITICAL */
+  overflow: hidden;
   position: relative;
   width: 100%;
-  height: 100%;
+  max-width: 1600px;
 }
 
-/* Content & Background */
-.reels-content {
-  position: absolute;
-  inset: 0;
-  transition: all 0.3s ease-out;
-}
-
-.reels-background {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  opacity: 0.9;
-}
-
-.reels-center-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 96px;
-  font-weight: bold;
-  opacity: 0.2;
-}
-
-.reels-pattern {
-  position: absolute;
-  inset: 0;
-  opacity: 0.1;
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1), transparent 50%);
-  animation: pulse 2s infinite;
-}
-
-/* Pause Overlay */
-.reels-pause-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.reels-pause-icon {
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 50%;
-  padding: 32px;
-  animation: ping 0.5s ease-out;
-}
-
-@keyframes ping {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Gradients */
-.reels-gradient-top {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 128px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
-}
-
-.reels-gradient-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 256px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
-}
-
-/* Header */
-.reels-header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  z-index: 20;
-}
-
-.reels-header-tab {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.reels-header-tab-active {
-  font-weight: bold;
-  border-bottom: 2px solid #ffffff;
-  padding-bottom: 4px;
-}
-
-.reels-header-spacer {
-  width: 80px;
-}
-
-/* Progress Bars */
-.reels-progress-bars {
-  position: absolute;
-  top: 56px;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: 4px;
-  padding: 0 16px;
-  z-index: 20;
-}
-
-.reels-progress-bar {
-  height: 2px;
+.main-content-desktop {
   flex: 1;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
+  min-height: 0; /* CRITICAL */
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.main-content-mobile {
+  flex: 1;
+  min-height: 0; /* CRITICAL */
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  padding-bottom: 70px;
+}
+
+/* ============================================
+   TABLET ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .desktop-layout:has(.community-view) {
+    margin-left: 200px; /* Collapsed sidebar width */
+    margin-right: 3%;
+  }
+
+  .left-sidebar-placeholder {
+    width: 200px;
+  }
+}
+
+/* ============================================
+   PREVENT LAYOUT SHIFT
+   ============================================ */
+
+/* Smooth transitions when switching views */
+.main-content-desktop,
+.desktop-layout {
+  transition: margin 0.2s ease, max-width 0.2s ease;
+}
+
+/* But no transition for community to prevent flicker */
+.main-content-desktop:has(.community-view),
+.desktop-layout:has(.community-view) {
+  transition: none;
+}
+
+/* Prevent body scroll */
+body:has(.community-view) {
   overflow: hidden;
 }
 
-.reels-progress-fill {
-  height: 100%;
-  background: #ffffff;
-  transition: all 0.3s ease;
-  width: 0;
+/* ============================================
+   Z-INDEX FIXES
+   ============================================ */
+
+.mobile-header {
+  z-index: 100;
 }
 
-.reels-progress-complete {
-  width: 100%;
+.mobile-bottom-nav {
+  z-index: 100;
 }
 
-.reels-progress-active {
-  width: 100%;
+.community-view {
+  z-index: 1;
 }
 
-/* Navigation Arrows - Desktop Only */
-.reels-nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 30;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-  padding: 12px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: none;
-}
-
-.reels-nav-btn:hover {
-  background: rgba(0, 0, 0, 0.6);
-  transform: translateY(-50%) scale(1.1);
-}
-
-.reels-nav-left {
-  left: 16px;
-}
-
-.reels-nav-right {
-  right: 96px;
-}
-
-@media (min-width: 768px) {
-  .reels-nav-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .reels-container {
-    box-shadow: 0 0 40px rgba(132, 204, 22, 0.1);
-  }
-}
-
-/* Story Counter Badge */
-.reels-counter-badge {
-  position: absolute;
-  top: 80px;
-  left: 16px;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  padding: 6px 12px;
-  border-radius: 999px;
-}
-
-.reels-counter-text {
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* Bottom Content */
-.reels-bottom-content {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 24px;
+.channels-bar {
   z-index: 10;
 }
 
-.reels-info-actions {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+.message-input-container {
+  z-index: 10;
 }
 
-.reels-info {
-  flex: 1;
-  padding-right: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* ============================================
+   SCROLLBAR CONSISTENCY
+   ============================================ */
+
+.main-content-desktop::-webkit-scrollbar,
+.main-content-mobile::-webkit-scrollbar {
+  width: 0px;
+  display: none;
 }
 
-.reels-user-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ============================================
+   ULTRA-WIDE SCREEN SUPPORT
+   ============================================ */
 
-.reels-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000000;
-  font-weight: bold;
-  font-size: 16px;
-  border: 2px solid #ffffff;
-}
-
-.reels-username {
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 18px;
-}
-
-.reels-follow-btn {
-  padding: 8px 20px;
-  background: #ffffff;
-  border-radius: 999px;
-  color: #000000;
-  font-size: 14px;
-  font-weight: bold;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.reels-follow-btn:hover {
-  background: #e5e5e5;
-}
-
-.reels-caption {
-  color: #ffffff;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.reels-music-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.reels-music-icon {
-  width: 16px;
-  height: 16px;
-  color: #ffffff;
-  animation: spin 3s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
+@media (min-width: 1920px) {
+  .desktop-layout:has(.community-view) {
+    margin-left: calc(8% + 6px);
+    margin-right: 8%;
   }
 }
 
-.reels-music-text {
-  color: #ffffff;
-  font-size: 14px;
+/* ============================================
+   SAFETY OVERRIDES
+   ============================================ */
+
+/* Ensure no elements in community can exceed bounds */
+.community-view,
+.community-view * {
+  max-width: 100%;
 }
 
-/* Action Buttons */
-.reels-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
+/* Fix any potential overflow issues */
+.chat-tab,
+.discover-tab {
+  contain: layout style paint;
 }
 
-.reels-action-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
+/* Ensure proper touch scrolling on mobile */
+.messages-container {
+  -webkit-overflow-scrolling: touch;
 }
 
-.reels-action-btn:hover {
-  transform: scale(1.1);
+/* Prevent zoom on mobile input focus */
+.message-input {
+  font-size: 16px !important;
 }
 
-.reels-action-icon {
-  width: 32px;
-  height: 32px;
-  color: #ffffff;
-  position: relative;
-}
-
-.reels-action-icon-liked {
-  color: #ef4444;
-  fill: #ef4444;
-  transform: scale(1.1);
-}
-
-.reels-action-icon-saved {
-  color: #fbbf24;
-  fill: #fbbf24;
-  transform: scale(1.1);
-}
-
-.reels-action-ping {
-  position: absolute;
-  inset: 0;
-  animation: ping 1s ease-out;
-}
-
-.reels-action-count {
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.reels-music-spinning {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: spin 4s linear infinite;
-}
-
-/* Volume Control */
-.reels-volume-btn {
-  position: absolute;
-  top: 80px;
-  right: 24px;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-  padding: 12px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.reels-volume-btn:hover {
-  background: rgba(0, 0, 0, 0.6);
-}
-
-/* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .reels-container {
-    max-width: 100%;
-    height: 100vh;
-  }
-
-  .reels-center-text {
-    font-size: 72px;
+  .message-input {
+    font-size: 14px !important;
   }
 }

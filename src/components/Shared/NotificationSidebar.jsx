@@ -1,79 +1,82 @@
+// ============================================================================
+// src/components/Shared/NotificationSidebar.jsx - PERFECT WITH READ TRACKING
+// ============================================================================
+
 import React, { useState, useEffect } from 'react';
-import { X, Bell, Heart, MessageSquare, UserPlus, Award, Sparkles, TrendingUp, Clock } from 'lucide-react';
+import { X, Bell, Heart, MessageSquare, Sparkles, Clock, Check, Share2 } from 'lucide-react';
+import notificationService from '../../services/notifications/notificationService';
+import mediaUrlService from '../../services/shared/mediaUrlService';
 
-const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'like',
-      user: 'Chidera Okonkwo',
-      avatar: 'C',
-      action: 'liked your story',
-      content: 'The Village Oracle\'s Last Words',
-      time: '5m ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'comment',
-      user: 'Adaeze Nwankwo',
-      avatar: 'A',
-      action: 'commented on your post',
-      content: '"This is absolutely beautiful! The imagery is stunning..."',
-      time: '12m ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'follow',
-      user: 'Oluwaseun Ajayi',
-      avatar: 'O',
-      action: 'started following you',
-      time: '1h ago',
-      read: true
-    },
-    {
-      id: 4,
-      type: 'unlock',
-      user: 'Blessing Chukwu',
-      avatar: 'B',
-      action: 'unlocked your story',
-      content: 'Whispers of the Ancestors',
-      time: '2h ago',
-      read: true,
-      earned: 50
-    },
-    {
-      id: 5,
-      type: 'achievement',
-      action: 'You\'ve earned a new achievement!',
-      content: 'Top Creator - Reached 10K views this month',
-      time: '5h ago',
-      read: true
-    }
-  ]);
-
+const NotificationSidebar = ({ isOpen, onClose, isMobile, userId }) => {
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [marking, setMarking] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && userId) {
+      loadNotifications();
+      
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(loadNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, userId]);
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      const data = await notificationService.getNotifications(userId);
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diff = now - past;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return past.toLocaleDateString();
+  };
 
   const getIcon = (type) => {
     switch (type) {
       case 'like': return <Heart size={20} className="notif-icon-like" />;
       case 'comment': return <MessageSquare size={20} className="notif-icon-comment" />;
-      case 'follow': return <UserPlus size={20} className="notif-icon-follow" />;
+      case 'share': return <Share2 size={20} className="notif-icon-share" />;
       case 'unlock': return <Sparkles size={20} className="notif-icon-unlock" />;
-      case 'achievement': return <Award size={20} className="notif-icon-achievement" />;
       default: return <Bell size={20} />;
     }
   };
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
+    await notificationService.markAsRead(id, userId);
     setNotifications(notifications.map(n => 
       n.id === id ? { ...n, read: true } : n
     ));
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    setMarking(true);
+    await notificationService.markAllAsRead(userId);
     setNotifications(notifications.map(n => ({ ...n, read: true })));
+    setMarking(false);
+  };
+
+  const getAvatarUrl = (avatarId) => {
+    if (!avatarId) return null;
+    return mediaUrlService.getAvatarUrl(avatarId, 200);
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -111,14 +114,8 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
         }
 
         @keyframes slideInRight {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
 
         @keyframes fadeIn {
@@ -193,7 +190,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           border-color: rgba(132, 204, 22, 0.3);
         }
 
-        .notif-filters {
+        .notif-tabs {
           display: flex;
           gap: 8px;
         }
@@ -209,6 +206,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
+          white-space: nowrap;
         }
 
         .filter-btn.active {
@@ -222,14 +220,8 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           border-color: rgba(255, 255, 255, 0.2);
         }
 
-        .notif-actions {
-          padding: 12px 20px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.1);
-        }
-
-        .mark-all-read-btn {
-          width: 100%;
-          padding: 10px;
+        .mark-all-btn {
+          padding: 8px 16px;
           background: rgba(132, 204, 22, 0.1);
           border: 1px solid rgba(132, 204, 22, 0.3);
           border-radius: 8px;
@@ -238,11 +230,20 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          white-space: nowrap;
         }
 
-        .mark-all-read-btn:hover {
+        .mark-all-btn:hover:not(:disabled) {
           background: rgba(132, 204, 22, 0.15);
           border-color: #84cc16;
+        }
+
+        .mark-all-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .notif-list {
@@ -301,18 +302,13 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           font-weight: 700;
           font-size: 18px;
           flex-shrink: 0;
+          overflow: hidden;
         }
 
-        .notif-achievement-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          flex-shrink: 0;
+        .notif-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .notif-text {
@@ -367,9 +363,8 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
 
         .notif-icon-like { color: #ef4444; }
         .notif-icon-comment { color: #3b82f6; }
-        .notif-icon-follow { color: #8b5cf6; }
+        .notif-icon-share { color: #8b5cf6; }
         .notif-icon-unlock { color: #fbbf24; }
-        .notif-icon-achievement { color: #f59e0b; }
 
         .empty-state {
           text-align: center;
@@ -388,10 +383,18 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           margin: 0 0 8px 0;
         }
 
-        .empty-subtext {
-          font-size: 14px;
-          color: #525252;
-          margin: 0;
+        .loading-spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid rgba(132, 204, 22, 0.2);
+          border-top-color: #84cc16;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin: 0 auto;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
 
         .notif-list::-webkit-scrollbar {
@@ -407,8 +410,10 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           border-radius: 3px;
         }
 
-        .notif-list::-webkit-scrollbar-thumb:hover {
-          background: rgba(132, 204, 22, 0.5);
+        .tab-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
         }
       `}</style>
 
@@ -433,7 +438,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
             </button>
           </div>
 
-          <div className="notif-filters">
+          <div className="tab-row">
             <button 
               className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
@@ -446,19 +451,26 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
             >
               Unread ({unreadCount})
             </button>
+            {unreadCount > 0 && (
+              <button 
+                className="mark-all-btn"
+                onClick={markAllAsRead}
+                disabled={marking}
+              >
+                <Check size={14} />
+                Mark all
+              </button>
+            )}
           </div>
         </div>
 
-        {unreadCount > 0 && (
-          <div className="notif-actions">
-            <button className="mark-all-read-btn" onClick={markAllAsRead}>
-              Mark all as read
-            </button>
-          </div>
-        )}
-
         <div className="notif-list">
-          {filteredNotifications.length > 0 ? (
+          {loading ? (
+            <div className="empty-state">
+              <div className="loading-spinner"></div>
+              <p className="empty-text">Loading notifications...</p>
+            </div>
+          ) : filteredNotifications.length > 0 ? (
             filteredNotifications.map(notif => (
               <div 
                 key={notif.id} 
@@ -466,18 +478,16 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
                 onClick={() => markAsRead(notif.id)}
               >
                 <div className="notif-item-content">
-                  {notif.type === 'achievement' ? (
-                    <div className="notif-achievement-icon">
-                      {getIcon(notif.type)}
-                    </div>
-                  ) : (
-                    <div className="notif-avatar">
-                      {notif.avatar}
-                    </div>
-                  )}
+                  <div className="notif-avatar">
+                    {notif.user?.avatar ? (
+                      <img src={getAvatarUrl(notif.user.avatar)} alt={notif.user.name} />
+                    ) : (
+                      notif.user?.name?.charAt(0)?.toUpperCase() || 'U'
+                    )}
+                  </div>
                   
                   <div className="notif-text">
-                    {notif.user && <div className="notif-user">{notif.user}</div>}
+                    {notif.user && <div className="notif-user">{notif.user.name}</div>}
                     <div className="notif-action">{notif.action}</div>
                     {notif.content && <div className="notif-content">{notif.content}</div>}
                     {notif.earned && (
@@ -488,7 +498,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
                     )}
                     <div className="notif-time">
                       <Clock size={12} />
-                      {notif.time}
+                      {formatTimeAgo(notif.timestamp)}
                     </div>
                   </div>
                   
@@ -499,8 +509,12 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile }) => {
           ) : (
             <div className="empty-state">
               <div className="empty-icon">🔔</div>
-              <p className="empty-text">No notifications</p>
-              <p className="empty-subtext">You're all caught up!</p>
+              <p className="empty-text">
+                {filter === 'unread' ? 'No unread notifications' : 'No notifications'}
+              </p>
+              <p className="empty-subtext" style={{ fontSize: '14px', color: '#525252', margin: 0 }}>
+                {filter === 'unread' ? "You're all caught up!" : 'Enable notifications in settings to stay updated'}
+              </p>
             </div>
           )}
         </div>

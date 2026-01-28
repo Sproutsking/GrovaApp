@@ -11,6 +11,7 @@
    2. MAIN CONTAINER & LAYOUT
    ========================================================================== */
 .auth-container {
+    color: white;
     min-height: 100vh;
     background: #000;
     position: relative;
@@ -31,6 +32,36 @@
     grid-template-columns: 1fr 1fr;
     gap: 80px;
     align-items: center;
+}
+
+.recovery-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.recovery-title {
+    color: #83ff1db0;
+}
+.recovery-header {
+    display: flex;
+    width: 100%;
+    margin-bottom: 40px;
+    justify-content: space-between;
+}
+.back-button {
+    border-radius: 12px;
+    padding: 0 12px;
+    display: flex;
+    flex-direction: row;
+    color: #83ff1db0;
+    box-shadow: 0 0 3px #83ff1db0;
+    border: 1px solid #83ff1db0;
+    background: black;
+    align-items: center;
+}
+.recovery-subtitle {
+    width: 100%;
+    margin-bottom: 12px;
 }
 
 /* ==========================================================================
@@ -554,11 +585,44 @@
     height: 24px;
     color: #a3e635;
 }
-
+.email-sent-view {
+    display: flex;
+    gap: 15px;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+}
+.email-sent-title {
+    color: #a3e635;
+}
+.cant-find-email-title {
+    color: #a3e635;
+}
 .fade-in {
     animation: fadeIn 0.6s ease-out;
 }
-
+.email-help-text {
+    padding: 10px;
+    background: linear-gradient(180deg, #4444, black);
+    border: 1px solid #4444;
+}
+@media (max-width: 780px) {
+    .email-help-text {
+        width: 100%;
+        border-radius: 18px 18px 0 0;
+    }
+}
+.email-sent-actions {
+    display: flex;
+    gap: 10px;
+}
+.back-to-signin-button, .resend-button {
+    padding: 4px 10px;
+    color: white;
+    border-radius: 10px;
+    background: linear-gradient(136deg, black, #a2e63560, black);
+    border: 1px solid #b2ff358a;
+}
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }

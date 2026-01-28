@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/explore/exploreService.js - COMPLETE ENHANCED
+// src/services/explore/exploreService.js - ULTIMATE SEARCH ENGINE
 // ============================================================================
 
 import { supabase } from '../config/supabase';
@@ -9,7 +9,7 @@ import cacheService from '../shared/cacheService';
 
 class ExploreService {
   
-  // ==================== UNIVERSAL SEARCH ====================
+  // ==================== UNIVERSAL ULTIMATE SEARCH ====================
   
   async searchAll(query, filters = {}) {
     try {
@@ -21,7 +21,8 @@ class ExploreService {
           posts: [],
           reels: [],
           users: [],
-          tags: []
+          tags: [],
+          mentions: []
         };
       }
 
@@ -34,44 +35,89 @@ class ExploreService {
         return cached;
       }
 
-      console.log('🔍 Searching for:', searchTerm);
+      console.log('🔍 Ultimate Search for:', searchTerm);
 
-      // Search all content types in parallel
-      const [stories, posts, reels, users, tags] = await Promise.all([
-        this.searchStories(searchTerm, { category, limit: 10 }),
-        this.searchPosts(searchTerm, { category, limit: 10 }),
-        this.searchReels(searchTerm, { category, limit: 10 }),
-        this.searchUsers(searchTerm, { limit: 10 }),
-        this.searchTags(searchTerm, { limit: 10 })
-      ]);
-
-      const results = {
-        stories,
-        posts,
-        reels,
-        users,
-        tags,
+      // Detect search type
+      const searchType = this.detectSearchType(searchTerm);
+      
+      let results = {
+        stories: [],
+        posts: [],
+        reels: [],
+        users: [],
+        tags: [],
+        mentions: [],
         query: searchTerm,
-        totalResults: stories.length + posts.length + reels.length + users.length
+        searchType
       };
+
+      if (searchType === 'hashtag') {
+        // Prioritize hashtag search
+        const [tags, posts, reels, stories] = await Promise.all([
+          this.searchTags(searchTerm, { limit: 15 }),
+          this.searchPostsByHashtag(searchTerm, { category, limit: 15 }),
+          this.searchReelsByHashtag(searchTerm, { category, limit: 15 }),
+          this.searchStoriesByHashtag(searchTerm, { category, limit: 10 })
+        ]);
+        results = { ...results, tags, posts, reels, stories };
+      } 
+      else if (searchType === 'mention') {
+        // Prioritize user search
+        const [users, posts, reels, stories] = await Promise.all([
+          this.searchUsersByMention(searchTerm, { limit: 15 }),
+          this.searchPostsByMention(searchTerm, { category, limit: 15 }),
+          this.searchReelsByMention(searchTerm, { category, limit: 15 }),
+          this.searchStoriesByMention(searchTerm, { category, limit: 10 })
+        ]);
+        results = { ...results, users, posts, reels, stories };
+        results.mentions = users; // Duplicate for mentions section
+      }
+      else {
+        // General search across everything
+        const [stories, posts, reels, users, tags] = await Promise.all([
+          this.searchStories(searchTerm, { category, limit: 12 }),
+          this.searchPosts(searchTerm, { category, limit: 12 }),
+          this.searchReels(searchTerm, { category, limit: 12 }),
+          this.searchUsers(searchTerm, { limit: 12 }),
+          this.searchTags(searchTerm, { limit: 10 })
+        ]);
+        results = { ...results, stories, posts, reels, users, tags };
+      }
+
+      results.totalResults = (results.stories?.length || 0) + 
+                            (results.posts?.length || 0) + 
+                            (results.reels?.length || 0) + 
+                            (results.users?.length || 0) +
+                            (results.tags?.length || 0);
 
       // Cache results for 2 minutes
       cacheService.set(cacheKey, results, 120000);
       
-      console.log('✅ Search complete:', {
-        stories: stories.length,
-        posts: posts.length,
-        reels: reels.length,
-        users: users.length,
-        tags: tags.length
+      console.log('✅ Ultimate Search complete:', {
+        type: searchType,
+        stories: results.stories?.length || 0,
+        posts: results.posts?.length || 0,
+        reels: results.reels?.length || 0,
+        users: results.users?.length || 0,
+        tags: results.tags?.length || 0,
+        total: results.totalResults
       });
 
       return results;
 
     } catch (error) {
-      console.error('❌ Search failed:', error);
+      console.error('❌ Ultimate Search failed:', error);
       throw handleError(error, 'Search');
     }
+  }
+
+  // ==================== DETECT SEARCH TYPE ====================
+  
+  detectSearchType(query) {
+    const trimmed = query.trim();
+    if (trimmed.startsWith('#')) return 'hashtag';
+    if (trimmed.startsWith('@')) return 'mention';
+    return 'general';
   }
 
   // ==================== SEARCH STORIES ====================
@@ -79,6 +125,7 @@ class ExploreService {
   async searchStories(query, filters = {}) {
     try {
       const { category, limit = 20 } = filters;
+      const cleanQuery = query.replace(/^[@#]/, '');
       
       let queryBuilder = supabase
         .from('stories')
@@ -94,12 +141,10 @@ class ExploreService {
         `)
         .is('deleted_at', null);
 
-      // Search in title and preview
-      if (query) {
-        queryBuilder = queryBuilder.or(
-          `title.ilike.%${query}%,preview.ilike.%${query}%`
-        );
-      }
+      // Search in title, preview, and full_content
+      queryBuilder = queryBuilder.or(
+        `title.ilike.%${cleanQuery}%,preview.ilike.%${cleanQuery}%,full_content.ilike.%${cleanQuery}%`
+      );
 
       if (category) {
         queryBuilder = queryBuilder.eq('category', category);
@@ -119,11 +164,85 @@ class ExploreService {
     }
   }
 
+  async searchStoriesByHashtag(query, filters = {}) {
+    try {
+      const { category, limit = 20 } = filters;
+      const hashtag = query.startsWith('#') ? query : `#${query}`;
+      
+      let queryBuilder = supabase
+        .from('stories')
+        .select(`
+          *,
+          profiles!inner (
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .is('deleted_at', null)
+        .or(
+          `preview.ilike.%${hashtag}%,full_content.ilike.%${hashtag}%`
+        );
+
+      if (category) queryBuilder = queryBuilder.eq('category', category);
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(story => this.formatStory(story));
+    } catch (error) {
+      console.error('❌ Story hashtag search failed:', error);
+      return [];
+    }
+  }
+
+  async searchStoriesByMention(query, filters = {}) {
+    try {
+      const { category, limit = 20 } = filters;
+      const mention = query.startsWith('@') ? query : `@${query}`;
+      const username = mention.replace('@', '');
+      
+      let queryBuilder = supabase
+        .from('stories')
+        .select(`
+          *,
+          profiles!inner (
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .is('deleted_at', null)
+        .or(
+          `preview.ilike.%${mention}%,full_content.ilike.%${mention}%,profiles.username.ilike.%${username}%`
+        );
+
+      if (category) queryBuilder = queryBuilder.eq('category', category);
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(story => this.formatStory(story));
+    } catch (error) {
+      console.error('❌ Story mention search failed:', error);
+      return [];
+    }
+  }
+
   // ==================== SEARCH POSTS ====================
   
   async searchPosts(query, filters = {}) {
     try {
       const { category, limit = 20 } = filters;
+      const cleanQuery = query.replace(/^[@#]/, '');
       
       let queryBuilder = supabase
         .from('posts')
@@ -137,11 +256,8 @@ class ExploreService {
             verified
           )
         `)
-        .is('deleted_at', null);
-
-      if (query) {
-        queryBuilder = queryBuilder.ilike('content', `%${query}%`);
-      }
+        .is('deleted_at', null)
+        .ilike('content', `%${cleanQuery}%`);
 
       if (category) {
         queryBuilder = queryBuilder.eq('category', category);
@@ -161,11 +277,83 @@ class ExploreService {
     }
   }
 
+  async searchPostsByHashtag(query, filters = {}) {
+    try {
+      const { category, limit = 20 } = filters;
+      const hashtag = query.startsWith('#') ? query : `#${query}`;
+      
+      let queryBuilder = supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!inner (
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .is('deleted_at', null)
+        .ilike('content', `%${hashtag}%`);
+
+      if (category) queryBuilder = queryBuilder.eq('category', category);
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(post => this.formatPost(post));
+    } catch (error) {
+      console.error('❌ Post hashtag search failed:', error);
+      return [];
+    }
+  }
+
+  async searchPostsByMention(query, filters = {}) {
+    try {
+      const { category, limit = 20 } = filters;
+      const mention = query.startsWith('@') ? query : `@${query}`;
+      const username = mention.replace('@', '');
+      
+      let queryBuilder = supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!inner (
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .is('deleted_at', null)
+        .or(
+          `content.ilike.%${mention}%,profiles.username.ilike.%${username}%`
+        );
+
+      if (category) queryBuilder = queryBuilder.eq('category', category);
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(post => this.formatPost(post));
+    } catch (error) {
+      console.error('❌ Post mention search failed:', error);
+      return [];
+    }
+  }
+
   // ==================== SEARCH REELS ====================
   
   async searchReels(query, filters = {}) {
     try {
       const { category, limit = 20 } = filters;
+      const cleanQuery = query.replace(/^[@#]/, '');
       
       let queryBuilder = supabase
         .from('reels')
@@ -179,13 +367,10 @@ class ExploreService {
             verified
           )
         `)
-        .is('deleted_at', null);
-
-      if (query) {
-        queryBuilder = queryBuilder.or(
-          `caption.ilike.%${query}%,music.ilike.%${query}%`
+        .is('deleted_at', null)
+        .or(
+          `caption.ilike.%${cleanQuery}%,music.ilike.%${cleanQuery}%`
         );
-      }
 
       if (category) {
         queryBuilder = queryBuilder.eq('category', category);
@@ -205,20 +390,92 @@ class ExploreService {
     }
   }
 
+  async searchReelsByHashtag(query, filters = {}) {
+    try {
+      const { category, limit = 20 } = filters;
+      const hashtag = query.startsWith('#') ? query : `#${query}`;
+      
+      let queryBuilder = supabase
+        .from('reels')
+        .select(`
+          *,
+          profiles!inner (
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .is('deleted_at', null)
+        .ilike('caption', `%${hashtag}%`);
+
+      if (category) queryBuilder = queryBuilder.eq('category', category);
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(reel => this.formatReel(reel));
+    } catch (error) {
+      console.error('❌ Reel hashtag search failed:', error);
+      return [];
+    }
+  }
+
+  async searchReelsByMention(query, filters = {}) {
+    try {
+      const { category, limit = 20 } = filters;
+      const mention = query.startsWith('@') ? query : `@${query}`;
+      const username = mention.replace('@', '');
+      
+      let queryBuilder = supabase
+        .from('reels')
+        .select(`
+          *,
+          profiles!inner (
+            id,
+            full_name,
+            username,
+            avatar_id,
+            verified
+          )
+        `)
+        .is('deleted_at', null)
+        .or(
+          `caption.ilike.%${mention}%,profiles.username.ilike.%${username}%`
+        );
+
+      if (category) queryBuilder = queryBuilder.eq('category', category);
+
+      const { data, error } = await queryBuilder
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(reel => this.formatReel(reel));
+    } catch (error) {
+      console.error('❌ Reel mention search failed:', error);
+      return [];
+    }
+  }
+
   // ==================== SEARCH USERS ====================
   
   async searchUsers(query, filters = {}) {
     try {
       const { limit = 20 } = filters;
+      const cleanQuery = query.replace(/^[@#]/, '').trim();
       
-      if (!query || query.trim().length < 2) return [];
+      if (cleanQuery.length < 2) return [];
 
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, username, avatar_id, verified, bio')
         .is('deleted_at', null)
         .or(
-          `full_name.ilike.%${query}%,username.ilike.%${query}%,bio.ilike.%${query}%`
+          `full_name.ilike.%${cleanQuery}%,username.ilike.%${cleanQuery}%,bio.ilike.%${cleanQuery}%`
         )
         .limit(limit);
 
@@ -242,32 +499,78 @@ class ExploreService {
     }
   }
 
+  async searchUsersByMention(query, filters = {}) {
+    try {
+      const { limit = 20 } = filters;
+      const username = query.replace('@', '').trim();
+      
+      if (username.length < 2) return [];
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_id, verified, bio')
+        .is('deleted_at', null)
+        .ilike('username', `%${username}%`)
+        .limit(limit);
+
+      if (error) throw error;
+
+      return (data || []).map(user => ({
+        id: user.id,
+        name: user.full_name,
+        username: `@${user.username}`,
+        avatar: user.avatar_id 
+          ? mediaUrlService.getAvatarUrl(user.avatar_id)
+          : user.full_name?.[0] || 'U',
+        verified: user.verified || false,
+        bio: user.bio,
+        type: 'mention'
+      }));
+
+    } catch (error) {
+      console.error('❌ User mention search failed:', error);
+      return [];
+    }
+  }
+
   // ==================== SEARCH TAGS ====================
   
   async searchTags(query, filters = {}) {
     try {
-      const { limit = 10 } = filters;
+      const { limit = 15 } = filters;
+      const hashtag = query.startsWith('#') ? query.toLowerCase() : `#${query.toLowerCase()}`;
       
-      if (!query || query.trim().length < 2) return [];
+      if (hashtag.length < 3) return [];
 
-      // Search for hashtags in content
-      const searchTerm = query.startsWith('#') ? query : `#${query}`;
-      
+      // Search across all content containing this hashtag
       const [postTags, reelTags, storyTags] = await Promise.all([
-        this.extractTagsFromPosts(searchTerm, limit),
-        this.extractTagsFromReels(searchTerm, limit),
-        this.extractTagsFromStories(searchTerm, limit)
+        this.extractTagsFromPosts(hashtag, limit * 2),
+        this.extractTagsFromReels(hashtag, limit * 2),
+        this.extractTagsFromStories(hashtag, limit * 2)
       ]);
 
-      // Combine and deduplicate
+      // Combine and count occurrences
       const allTags = [...postTags, ...reelTags, ...storyTags];
-      const uniqueTags = Array.from(new Set(allTags));
+      const tagCounts = {};
       
-      return uniqueTags.slice(0, limit).map(tag => ({
-        tag,
-        count: allTags.filter(t => t === tag).length,
-        type: 'tag'
-      }));
+      allTags.forEach(tag => {
+        const lowerTag = tag.toLowerCase();
+        if (lowerTag.includes(hashtag.toLowerCase())) {
+          tagCounts[lowerTag] = (tagCounts[lowerTag] || 0) + 1;
+        }
+      });
+
+      // Convert to array and sort by count
+      const results = Object.entries(tagCounts)
+        .map(([tag, count]) => ({
+          tag,
+          count,
+          type: 'tag'
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+
+      return results;
 
     } catch (error) {
       console.error('❌ Tag search failed:', error);
@@ -277,7 +580,7 @@ class ExploreService {
 
   // ==================== EXTRACT TAGS FROM CONTENT ====================
   
-  async extractTagsFromPosts(query, limit = 10) {
+  async extractTagsFromPosts(query, limit = 20) {
     try {
       const { data } = await supabase
         .from('posts')
@@ -292,7 +595,7 @@ class ExploreService {
     }
   }
 
-  async extractTagsFromReels(query, limit = 10) {
+  async extractTagsFromReels(query, limit = 20) {
     try {
       const { data } = await supabase
         .from('reels')
@@ -307,16 +610,17 @@ class ExploreService {
     }
   }
 
-  async extractTagsFromStories(query, limit = 10) {
+  async extractTagsFromStories(query, limit = 20) {
     try {
       const { data } = await supabase
         .from('stories')
-        .select('preview')
-        .ilike('preview', `%${query}%`)
+        .select('preview, full_content')
+        .or(`preview.ilike.%${query}%,full_content.ilike.%${query}%`)
         .is('deleted_at', null)
         .limit(limit);
 
-      return this.extractHashtags(data?.map(s => s.preview).join(' ') || '');
+      const text = data?.map(s => `${s.preview} ${s.full_content}`).join(' ') || '';
+      return this.extractHashtags(text);
     } catch {
       return [];
     }
@@ -423,46 +727,6 @@ class ExploreService {
       .limit(limit);
 
     return (data || []).map(r => this.formatReel(r));
-  }
-
-  // ==================== GET STORIES ====================
-  
-  async getStories(category = null, limit = 50) {
-    try {
-      const cacheKey = `explore:stories:${category || 'all'}`;
-      const cached = cacheService.get(cacheKey);
-      if (cached) return cached;
-
-      let query = supabase
-        .from('stories')
-        .select(`
-          *,
-          profiles:user_id (
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null);
-
-      if (category) {
-        query = query.eq('category', category);
-      }
-
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-
-      const formattedStories = (data || []).map(story => this.formatStory(story));
-
-      cacheService.set(cacheKey, formattedStories, 60000);
-      return formattedStories;
-    } catch (error) {
-      throw handleError(error, 'Failed to fetch stories');
-    }
   }
 
   // ==================== FORMAT METHODS ====================

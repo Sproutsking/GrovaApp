@@ -97,6 +97,7 @@ const AdvancedToast = ({
         }
 
         .toast-container {
+        color: white
           background: #0f0f0f;
           border: 1px solid rgba(132, 204, 22, 0.3);
           border-radius: 16px;

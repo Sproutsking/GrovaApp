@@ -20,9 +20,7 @@ class AuthService {
         this.sessionCache = session;
         this.lastSessionCheck = Date.now();
         
-        // Only ensure profile on actual sign in, not on every token refresh
         if (event === 'SIGNED_IN') {
-          // Fire and forget - don't wait for it
           this.ensureProfileExistsQuick(session.user).catch(err => {
             console.warn('Profile creation warning:', err);
           });
@@ -141,7 +139,6 @@ class AuthService {
       this.sessionCache = data.session;
       this.lastSessionCheck = Date.now();
       
-      // Don't wait for profile - let the app load
       console.log('✅ Sign in successful, loading app...');
 
       return {
@@ -216,7 +213,6 @@ class AuthService {
 
   async getUserProfile(userId) {
     try {
-      // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
@@ -250,7 +246,6 @@ class AuthService {
     try {
       console.log(`🔍 Quick profile check for ${user.id}`);
       
-      // Quick check with timeout
       const profile = await this.getUserProfile(user.id);
       
       if (profile) {
@@ -260,7 +255,6 @@ class AuthService {
 
       console.log('🔧 Profile missing, creating via RPC...');
       
-      // Try RPC creation with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -290,13 +284,11 @@ class AuthService {
 
     } catch (error) {
       console.error('❌ Quick profile check error:', error);
-      // Don't throw - just return false
       return false;
     }
   }
 
   async ensureProfileExists(user) {
-    // This is now async and non-blocking
     return this.ensureProfileExistsQuick(user);
   }
 
@@ -312,15 +304,26 @@ class AuthService {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Supabase resend error:', error.code, error.message, error.status);
+
+        if (error.status === 429 || 
+            error.message?.includes('after') || 
+            error.message?.includes('rate limit') || 
+            error.message?.includes('security purposes')) {
+          throw new Error('Too many requests — please wait 60 seconds before trying again.');
+        }
+        
+        throw error;
+      }
 
       return {
         success: true,
-        message: 'Verification email sent!'
+        message: 'Verification email resent successfully!'
       };
     } catch (error) {
       console.error('❌ Resend email error:', error);
-      throw new Error('Failed to resend verification email');
+      throw error; // Let UI show the message
     }
   }
 

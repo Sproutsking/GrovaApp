@@ -102,7 +102,7 @@
           max-height: 400px;
           object-fit: cover;
           border-radius: 12px;
-          border: 1px solid #444444;
+          border: 1px solid #444444a6;
           background: rgba(132, 204, 22, 0.1);
           transition: transform 0.3s ease;
           cursor: pointer;
@@ -421,7 +421,16 @@
   }
 
   .post-image {
-    height: 220px;
+    width: 100%;
+    height: auto;              /* 🔑 let image control height */
+    max-height: 300px;
+    object-fit: contain;       /* 🔑 prevent cropping */
+    object-position: center;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .post-images.grid-1 .post-image {
+    max-height: 400px;
   }
 
   .post-images.grid-1 .post-image {
@@ -451,3 +460,6 @@
 }
 
 /* Keep all your other existing styles below... */
+
+
+

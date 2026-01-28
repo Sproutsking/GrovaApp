@@ -1,21 +1,31 @@
+// ============================================================================
+// src/components/Account/SettingsSection.jsx - PERFECT - ALL OFF BY DEFAULT
+// ============================================================================
+
 import React, { useState, useEffect } from 'react';
-import { Bell, Lock, Wallet, User, Loader, Save, Mail, Phone, Globe, Users, Eye } from 'lucide-react';
+import { Bell, Lock, User, Loader, Save, Mail, Phone, AlertTriangle, RefreshCw } from 'lucide-react';
+import settingsService from '../../services/account/settingsService';
+import StatusModal from '../Modals/StatusModal';
+import ConfirmModal from '../Modals/ConfirmModal';
+import PhoneVerificationModal from '../Modals/PhoneVerificationModal';
 
 const SettingsSection = ({ userId }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   
+  // DEFAULT TO ALL OFF
   const [notifications, setNotifications] = useState({
-    profileVisits: true,
-    comments: true,
-    likes: true,
-    shares: true,
-    newFollowers: true,
-    storyUnlocks: true
+    profileVisits: false,
+    comments: false,
+    likes: false,
+    shares: false,
+    newFollowers: false,
+    storyUnlocks: false
   });
 
   const [privacy, setPrivacy] = useState({
@@ -30,34 +40,142 @@ const SettingsSection = ({ userId }) => {
     renewalDate: null
   });
 
+  const [statusModal, setStatusModal] = useState({ show: false, type: 'success', message: '' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', action: null });
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+
   useEffect(() => {
-    loadSettings();
+    if (userId) {
+      loadSettings();
+    }
   }, [userId]);
 
   const loadSettings = async () => {
-    // Replace with actual Supabase calls
-    setTimeout(() => {
-      setEmail('user@example.com');
-      setPhone('+234 801 234 5678');
-      setPhoneVerified(true);
+    try {
+      setLoading(true);
+
+      const [settings, subscriptionStatus] = await Promise.all([
+        settingsService.getUserSettings(userId),
+        settingsService.getSubscriptionStatus(userId)
+      ]);
+
+      // Set notifications (default to false if not set)
+      setNotifications({
+        profileVisits: settings.notifications.profileVisits || false,
+        comments: settings.notifications.comments || false,
+        likes: settings.notifications.likes || false,
+        shares: settings.notifications.shares || false,
+        newFollowers: settings.notifications.newFollowers || false,
+        storyUnlocks: settings.notifications.storyUnlocks || false
+      });
+
+      setPrivacy(settings.privacy);
+      setEmail(settings.contact.email);
+      setPhone(settings.contact.phone || '');
+      setPhoneVerified(settings.contact.phoneVerified);
+      setSubscription(subscriptionStatus);
+
+      setHasChanges(false);
+      console.log('✅ Settings loaded - All notifications default to OFF');
+
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      showStatus('error', 'Failed to load settings');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  const showStatus = (type, message) => {
+    setStatusModal({ show: true, type, message });
+  };
+
+  const hideStatus = () => {
+    setStatusModal({ show: false, type: 'success', message: '' });
+  };
+
+  const showConfirm = (title, message, action) => {
+    setConfirmModal({ show: true, title, message, action });
+  };
+
+  const hideConfirm = () => {
+    setConfirmModal({ show: false, title: '', message: '', action: null });
   };
 
   const handleNotificationChange = (key) => {
-    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
+    setNotifications(prev => {
+      const newValue = !prev[key];
+      console.log(`📣 Notification setting changed: ${key} = ${newValue}`);
+      return { ...prev, [key]: newValue };
+    });
+    setHasChanges(true);
   };
 
   const handlePrivacyChange = (key) => {
     setPrivacy(prev => ({ ...prev, [key]: !prev[key] }));
+    setHasChanges(true);
   };
 
-  const handleSaveSettings = () => {
-    setSaving(true);
-    setTimeout(() => {
+  const handleSaveSettings = async () => {
+    try {
+      setSaving(true);
+
+      console.log('💾 Saving settings:', { notifications, privacy });
+
+      // Save notification settings
+      await settingsService.updateNotificationSettings(userId, notifications);
+
+      // Save privacy settings
+      await settingsService.updatePrivacySettings(userId, privacy);
+
+      setHasChanges(false);
+      showStatus('success', 'Settings saved successfully! Your notification preferences are now active.');
+
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      showStatus('error', 'Failed to save settings');
+    } finally {
       setSaving(false);
-      alert('Settings saved successfully!');
-    }, 1000);
+    }
+  };
+
+  const handleUpgradeSubscription = () => {
+    showConfirm(
+      'Upgrade to Pro',
+      'Upgrade to Pro to unlock advanced features, analytics, and earn 10% more on all content. Continue?',
+      async () => {
+        try {
+          hideConfirm();
+          setSaving(true);
+          await settingsService.updateSubscription(userId, 'pro');
+          await loadSettings();
+          showStatus('success', 'Successfully upgraded to Pro!');
+        } catch (error) {
+          showStatus('error', 'Failed to upgrade subscription');
+        } finally {
+          setSaving(false);
+        }
+      }
+    );
+  };
+
+  const handleChangeEmail = () => {
+    showStatus('info', 'Email change feature coming soon');
+  };
+
+  const handleChangePhone = () => {
+    setShowPhoneModal(true);
+  };
+
+  const handlePhoneVerified = async (newPhone) => {
+    setPhone(newPhone);
+    setPhoneVerified(true);
+    showStatus('success', 'Phone number verified successfully!');
+    await loadSettings(); // Reload settings
+  };
+
+  const getEnabledCount = () => {
+    return Object.values(notifications).filter(Boolean).length;
   };
 
   if (loading) {
@@ -77,6 +195,8 @@ const SettingsSection = ({ userId }) => {
   return (
     <>
       <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         .settings-section {
           padding: 20px;
         }
@@ -104,8 +224,14 @@ const SettingsSection = ({ userId }) => {
         .settings-card-header {
           display: flex;
           align-items: center;
-          gap: 12px;
+          justify-content: space-between;
           margin-bottom: 24px;
+        }
+
+        .settings-card-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
 
         .settings-icon-wrapper {
@@ -127,6 +253,15 @@ const SettingsSection = ({ userId }) => {
           margin: 0;
         }
 
+        .enabled-count {
+          padding: 4px 12px;
+          background: rgba(132, 204, 22, 0.2);
+          border-radius: 8px;
+          color: #84cc16;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
         .toggle-item {
           display: flex;
           align-items: center;
@@ -141,6 +276,11 @@ const SettingsSection = ({ userId }) => {
 
         .toggle-item:hover {
           background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(132, 204, 22, 0.3);
+        }
+
+        .toggle-item.active {
+          background: rgba(132, 204, 22, 0.05);
           border-color: rgba(132, 204, 22, 0.3);
         }
 
@@ -304,16 +444,63 @@ const SettingsSection = ({ userId }) => {
           opacity: 0.5;
           cursor: not-allowed;
         }
+
+        .changes-indicator {
+          background: rgba(251, 191, 36, 0.1);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: #fbbf24;
+        }
+
+        .info-banner {
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          color: #3b82f6;
+        }
       `}</style>
 
       <div className="settings-section">
+        <div className="info-banner">
+          <Bell size={20} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+            <strong>Notification Settings:</strong> All notifications are turned OFF by default. Enable the types of notifications you want to receive. Changes take effect immediately after saving.
+          </div>
+        </div>
+
+        {hasChanges && (
+          <div className="changes-indicator">
+            <AlertTriangle size={20} />
+            <span style={{ fontSize: '14px', fontWeight: '600' }}>
+              You have unsaved changes
+            </span>
+          </div>
+        )}
+
+        {/* Notifications */}
         <div className="settings-card">
           <div className="settings-card-header">
-            <div className="settings-icon-wrapper">
-              <Bell size={24} />
+            <div className="settings-card-left">
+              <div className="settings-icon-wrapper">
+                <Bell size={24} />
+              </div>
+              <h3 className="settings-card-title">Notifications</h3>
             </div>
-            <h3 className="settings-card-title">Notifications</h3>
+            <span className="enabled-count">
+              {getEnabledCount()} / 6 enabled
+            </span>
           </div>
+          
           {Object.entries({
             profileVisits: 'Profile Visits',
             comments: 'Comments',
@@ -322,10 +509,12 @@ const SettingsSection = ({ userId }) => {
             newFollowers: 'New Followers',
             storyUnlocks: 'Story Unlocks'
           }).map(([key, label]) => (
-            <div key={key} className="toggle-item">
+            <div key={key} className={`toggle-item ${notifications[key] ? 'active' : ''}`}>
               <div className="toggle-item-info">
                 <div className="toggle-item-title">{label}</div>
-                <div className="toggle-item-desc">Get notified when someone {label.toLowerCase()}</div>
+                <div className="toggle-item-desc">
+                  {notifications[key] ? 'You will be notified' : 'You will NOT be notified'} when someone {label.toLowerCase()}
+                </div>
               </div>
               <div 
                 className={`toggle-switch ${notifications[key] ? 'active' : ''}`}
@@ -337,12 +526,15 @@ const SettingsSection = ({ userId }) => {
           ))}
         </div>
 
+        {/* Privacy & Contact */}
         <div className="settings-card">
           <div className="settings-card-header">
-            <div className="settings-icon-wrapper">
-              <Lock size={24} />
+            <div className="settings-card-left">
+              <div className="settings-icon-wrapper">
+                <Lock size={24} />
+              </div>
+              <h3 className="settings-card-title">Privacy & Contact</h3>
             </div>
-            <h3 className="settings-card-title">Privacy & Contact</h3>
           </div>
           
           <div className="contact-info-box">
@@ -353,7 +545,7 @@ const SettingsSection = ({ userId }) => {
                 <span className="verified-badge">✓ Verified</span>
               </div>
             </div>
-            <button className="change-btn">
+            <button className="change-btn" onClick={handleChangeEmail}>
               <Mail size={14} />
               Change
             </button>
@@ -367,7 +559,7 @@ const SettingsSection = ({ userId }) => {
                 {phoneVerified && <span className="verified-badge">✓ Verified</span>}
               </div>
             </div>
-            <button className="change-btn">
+            <button className="change-btn" onClick={handleChangePhone}>
               <Phone size={14} />
               {phone ? 'Change' : 'Add'}
             </button>
@@ -415,27 +607,15 @@ const SettingsSection = ({ userId }) => {
           )}
         </div>
 
+        {/* Subscription */}
         <div className="settings-card">
           <div className="settings-card-header">
-            <div className="settings-icon-wrapper">
-              <Wallet size={24} />
+            <div className="settings-card-left">
+              <div className="settings-icon-wrapper">
+                <User size={24} />
+              </div>
+              <h3 className="settings-card-title">Subscription</h3>
             </div>
-            <h3 className="settings-card-title">Payment Methods</h3>
-          </div>
-          <p style={{ fontSize: '14px', color: '#a3a3a3', margin: '0 0 16px 0', lineHeight: '1.6' }}>
-            Manage your payment methods for purchasing Grova Tokens and unlocking premium stories.
-          </p>
-          <button className="change-btn" style={{ width: '100%', justifyContent: 'center' }}>
-            Add Payment Method
-          </button>
-        </div>
-
-        <div className="settings-card">
-          <div className="settings-card-header">
-            <div className="settings-icon-wrapper">
-              <User size={24} />
-            </div>
-            <h3 className="settings-card-title">Subscription</h3>
           </div>
           <div className={`subscription-badge subscription-${subscription.isActive ? 'active' : 'free'}`}>
             {subscription.plan}
@@ -445,15 +625,21 @@ const SettingsSection = ({ userId }) => {
               ? 'You have access to all Pro features including advanced analytics and priority support.' 
               : 'Upgrade to Pro to unlock advanced features, analytics, and earn 10% more on all content.'}
           </p>
-          <button className="change-btn" style={{ width: '100%', justifyContent: 'center' }}>
+          <button 
+            className="change-btn" 
+            style={{ width: '100%', justifyContent: 'center' }}
+            onClick={handleUpgradeSubscription}
+            disabled={subscription.isActive}
+          >
             {subscription.isActive ? 'Manage Subscription' : 'Upgrade to Pro'}
           </button>
         </div>
 
+        {/* Save Button */}
         <button 
           className="save-button" 
           onClick={handleSaveSettings}
-          disabled={saving}
+          disabled={saving || !hasChanges}
         >
           {saving ? (
             <>
@@ -468,6 +654,23 @@ const SettingsSection = ({ userId }) => {
           )}
         </button>
       </div>
+
+      {/* Modals */}
+      <StatusModal {...statusModal} onClose={hideStatus} />
+      <ConfirmModal
+        {...confirmModal}
+        onConfirm={() => {
+          if (confirmModal.action) confirmModal.action();
+        }}
+        onCancel={hideConfirm}
+      />
+      <PhoneVerificationModal
+        show={showPhoneModal}
+        onClose={() => setShowPhoneModal(false)}
+        userId={userId}
+        currentPhone={phone}
+        onSuccess={handlePhoneVerified}
+      />
     </>
   );
 };

@@ -1,63 +1,108 @@
- .reel-card {
-          background: #000;
-          border: 1px solid rgba(132, 204, 22, 0.2);
+.reel-card {
+          background: #171717;
           border-radius: 16px;
           overflow: hidden;
-          transition: all 0.3s ease;
-          cursor: pointer;
-          margin-bottom: 16px;
+          border: 1px solid #262626;
+          position: relative;
+          transition: transform 0.15s ease;
+          max-height: 86vh;
         }
 
         .reel-card:hover {
-          border-color: rgba(132, 204, 22, 0.5);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(132, 204, 22, 0.15);
-        }
-
-        @media (max-width: 780px) {
-          .reel-card {
-            border-radius: 0;
-            margin-bottom: 0;
-            border-left: none;
-            border-right: none;
-            border-top: none;
-            border-bottom: 1px solid #222;
-          }
-          
-          .reel-card:hover {
-            transform: none;
-          }
+          transform: scale(1.002);
         }
 
         .reel-video-container {
           position: relative;
           width: 100%;
-          aspect-ratio: 9/16;
-          max-height: 80vh;
+          aspect-ratio: 9 / 14;
+          max-height: 70vh;
           background: #000;
+          cursor: pointer;
           overflow: hidden;
+        }
+
+        .video-progress-bar {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 8px;
+          background: rgba(255, 255, 255, 0.15);
+          z-index: 100;
+          cursor: pointer;
+          transition: height 0.2s ease;
+        }
+
+        .progress-buffered {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.3);
+          transition: width 0.3s ease;
+        }
+
+        .progress-played {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+          transition: width 0.1s linear;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+        }
+
+        .progress-handle {
+          width: 12px;
+          height: 12px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          transform: translateX(50%);
+        }
+
+        .video-progress-bar:hover .progress-handle {
+          opacity: 1;
+        }
+
+        .video-time-display {
+          position: absolute;
+          top: 6px;
+          left: 8px;
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(10px);
+          color: white;
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          z-index: 101;
+          pointer-events: none;
+          font-variant-numeric: tabular-nums;
         }
 
         .reel-video {
           width: 100%;
           height: 100%;
-          object-fit: contain;
           background: #000;
         }
 
         .reel-loading {
           position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.8);
-          z-index: 5;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 10;
         }
 
         .spinner {
-          width: 48px;
-          height: 48px;
+          width: 50px;
+          height: 50px;
           border: 4px solid rgba(132, 204, 22, 0.2);
           border-top-color: #84cc16;
           border-radius: 50%;
@@ -71,184 +116,192 @@
         .reel-placeholder {
           width: 100%;
           height: 100%;
+          background: linear-gradient(135deg, #171717 0%, #0a0a0a 100%);
           display: flex;
-          flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 20px;
-          min-height: 400px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          flex-direction: column;
+          gap: 12px;
         }
 
         .reel-placeholder-letter {
-          font-size: 120px;
-          font-weight: 900;
-          color: rgba(0, 0, 0, 0.3);
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 36px;
+          font-weight: 800;
+          color: #000;
         }
 
         .reel-error-msg {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.7);
-          padding: 8px 16px;
-          background: rgba(0, 0, 0, 0.5);
-          border-radius: 8px;
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 13px;
         }
 
         .reel-overlay {
           position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0);
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.6) 100%);
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: opacity 0.3s ease, background 0.3s ease;
           opacity: 0;
+          transition: opacity 0.3s;
           pointer-events: none;
-          z-index: 10;
         }
 
         .reel-overlay.visible {
           opacity: 1;
-          pointer-events: all;
-          background: rgba(0, 0, 0, 0.3);
         }
 
         .reel-play-btn {
-          width: 80px;
-          height: 80px;
+          background: rgba(0, 0, 0, 0.6);
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          width: 70px;
+          height: 70px;
           border-radius: 50%;
-          background: rgba(132, 204, 22, 0.95);
-          border: none;
-          color: #000;
-          cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 20px rgba(132, 204, 22, 0.5);
+          cursor: pointer;
+          transition: all 0.2s;
+          pointer-events: all;
         }
 
         .reel-play-btn:hover {
-          transform: scale(1.1);
-          background: #84cc16;
-          box-shadow: 0 6px 28px rgba(132, 204, 22, 0.7);
-        }
-
-        .reel-play-btn:active {
-          transform: scale(0.95);
+          background: rgba(0, 0, 0, 0.8);
+          transform: scale(1.05);
         }
 
         .reel-top-controls {
           position: absolute;
-          top: 12px;
-          right: 12px;
-          z-index: 15;
+          top: 16px;
+          right: 16px;
         }
 
         .reel-mute-btn {
-          width: 36px;
-          height: 36px;
+          background: rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(10px);
-          border: none;
-          color: #fff;
-          cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
           transition: all 0.2s;
+          pointer-events: all;
         }
 
         .reel-mute-btn:hover {
-          background: rgba(0, 0, 0, 0.9);
+          background: rgba(0, 0, 0, 0.8);
           transform: scale(1.05);
         }
 
         .reel-info-overlay {
           position: absolute;
-          bottom: 12px;
-          left: 12px;
-          right: 12px;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 16px;
+          background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          z-index: 15;
         }
 
         .reel-author-wrapper {
-          flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 2px;
+          flex: 1;
+          min-width: 0;
         }
 
         .reel-music-info {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
           background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(10px);
-          border-radius: 20px;
+          padding: 4px 10px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          color: white;
           font-size: 12px;
-          color: rgba(255, 255, 255, 0.9);
-          max-width: 250px;
-          overflow: hidden;
           cursor: pointer;
-          border: 1px solid transparent;
           transition: all 0.2s;
+          max-width: fit-content;
         }
 
         .reel-music-info:hover {
           background: rgba(0, 0, 0, 0.8);
-          border-color: rgba(132, 204, 22, 0.5);
         }
 
         .music-marquee {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          max-width: 150px;
         }
 
         .reel-menu-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
           background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(10px);
-          border: none;
-          color: #fff;
-          cursor: pointer;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
           transition: all 0.2s;
+          flex-shrink: 0;
         }
 
         .reel-menu-btn:hover {
           background: rgba(0, 0, 0, 0.8);
-          transform: scale(1.05);
         }
 
         .reel-caption-section {
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.3);
+          padding: 4px 16px;
+          padding-bottom: 0;
+          background: linear-gradient(180deg, #ffffff00, #444444);
         }
 
         .reel-caption {
-          font-size: 14px;
           color: #e5e5e5;
+          font-size: 14px;
           line-height: 1.5;
           margin: 0;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
         }
 
         .reel-footer {
           padding: 0;
-          background: rgba(0, 0, 0, 0.5);
-          border-top: 1px solid rgba(132, 204, 22, 0.1);
+          background: #171717;
+        }
+
+        @media (max-width: 768px) {
+          .reel-card {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            max-height: 95vh;
+          }
+
+          .reel-video-container {
+            aspect-ratio: 9 / 16;
+            max-height: 80vh;
+          }
         }

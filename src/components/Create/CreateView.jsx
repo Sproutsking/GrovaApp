@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Image, Film, BookOpen, X, Upload, Eye, Lock, Sparkles, DollarSign, Users, Plus, Minus, Loader } from 'lucide-react';
+import { Image, Film, BookOpen, X, Upload, Eye, Lock, Sparkles, DollarSign, Users, Plus, Minus, Loader, Infinity, Palette } from 'lucide-react';
 import createService from '../../services/create/createService';
 import authService from '../../services/auth/authService';
 import securityService from '../../services/security/SecurityService';
@@ -30,11 +30,68 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
   const [storyPreview, setStoryPreview] = useState('');
   const [unlockPrice, setUnlockPrice] = useState(10);
   const [maxAccesses, setMaxAccesses] = useState(1000);
+  const [isUnlimitedAccess, setIsUnlimitedAccess] = useState(false);
   const [storyCover, setStoryCover] = useState(null);
+  const [titleColor, setTitleColor] = useState('#ffffff');
+  const [textColor, setTextColor] = useState('#d4d4d4');
 
-  const postCategories = ['General', 'Technology', 'Art', 'Music', 'Photography', 'Lifestyle', 'Food', 'Travel'];
-  const reelCategories = ['Entertainment', 'Comedy', 'Education', 'Music', 'Dance', 'Fashion', 'Fitness', 'Gaming'];
-  const storyCategories = ['Folklore', 'Life Journey', 'Philosophy', 'Innovation', 'Romance', 'Adventure', 'Mystery', 'Wisdom'];
+  // Enhanced Categories
+  const postCategories = [
+    'General', 'Technology', 'Art', 'Music', 'Photography', 'Lifestyle', 'Food', 'Travel',
+    'Blockchain', 'Crypto', 'NFTs', 'Web3', 'DeFi', 'Business', 'Finance', 'Health',
+    'Fitness', 'Fashion', 'Gaming', 'Sports', 'Education', 'Science', 'Nature'
+  ];
+
+  const reelCategories = [
+    'Entertainment', 'Comedy', 'Education', 'Music', 'Dance', 'Fashion', 'Fitness', 'Gaming',
+    'Crypto News', 'Tech Reviews', 'Tutorials', 'Vlogs', 'Travel', 'Food', 'Sports',
+    'Art & Design', 'Blockchain', 'NFT Showcase', 'Web3', 'Lifestyle'
+  ];
+
+  const storyCategories = [
+    'Folklore', 'Life Journey', 'Philosophy', 'Innovation', 'Romance', 'Adventure', 'Mystery', 'Wisdom',
+    'Crypto Stories', 'Blockchain Tales', 'Tech Fiction', 'Entrepreneurship', 'Success Stories',
+    'Historical', 'Fantasy', 'Thriller', 'Horror', 'Biography', 'Memoir', 'Self-Help'
+  ];
+
+  const titleColors = [
+    { name: 'White', value: '#ffffff' },
+    { name: 'Green', value: '#84cc16' },
+    { name: 'Lime', value: '#bef264' },
+    { name: 'Gold', value: '#fbbf24' },
+    { name: 'Amber', value: '#f59e0b' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Rose', value: '#f43f5e' },
+    { name: 'Pink', value: '#ec4899' },
+    { name: 'Fuchsia', value: '#d946ef' },
+    { name: 'Purple', value: '#a855f7' },
+    { name: 'Violet', value: '#8b5cf6' },
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Sky', value: '#0ea5e9' },
+    { name: 'Cyan', value: '#06b6d4' },
+    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Emerald', value: '#10b981' }
+  ];
+
+  const textColors = [
+    { name: 'Light Gray', value: '#d4d4d4' },
+    { name: 'White', value: '#ffffff' },
+    { name: 'Gray', value: '#a3a3a3' },
+    { name: 'Slate', value: '#94a3b8' },
+    { name: 'Light Green', value: '#bef264' },
+    { name: 'Light Lime', value: '#d9f99d' },
+    { name: 'Light Yellow', value: '#fde047' },
+    { name: 'Light Amber', value: '#fcd34d' },
+    { name: 'Light Orange', value: '#fdba74' },
+    { name: 'Light Red', value: '#fca5a5' },
+    { name: 'Light Pink', value: '#f9a8d4' },
+    { name: 'Light Purple', value: '#d8b4fe' },
+    { name: 'Light Blue', value: '#93c5fd' },
+    { name: 'Light Cyan', value: '#67e8f9' },
+    { name: 'Light Teal', value: '#5eead4' }
+  ];
 
   useEffect(() => {
     loadUser();
@@ -79,7 +136,6 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
         category: postCategory
       }, currentUser.id);
 
-      // Reset form
       setPostContent('');
       setPostImages([]);
       setPostCategory('General');
@@ -129,7 +185,6 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
         setUploadProgress(progress);
       });
 
-      // Reset form
       setReelCaption('');
       setReelVideo(null);
       setReelMusic('');
@@ -187,6 +242,8 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
         throw new Error('Story content is required');
       }
 
+      const finalMaxAccesses = isUnlimitedAccess ? 999999 : maxAccesses;
+
       const newStory = await createService.createStory({
         title: storyTitle.trim(),
         preview: storyPreview.trim(),
@@ -194,20 +251,27 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
         coverImage: storyCover,
         category: storyCategory,
         unlockCost: unlockPrice,
-        maxAccesses: maxAccesses
+        maxAccesses: finalMaxAccesses,
+        titleColor: titleColor,
+        textColor: textColor
       }, currentUser.id);
 
-      // Reset form
       setStoryTitle('');
       setStoryCategory('Folklore');
       setStoryContent('');
       setStoryPreview('');
       setUnlockPrice(10);
       setMaxAccesses(1000);
+      setIsUnlimitedAccess(false);
       setStoryCover(null);
+      setTitleColor('#ffffff');
+      setTextColor('#d4d4d4');
 
-      const potentialEarnings = unlockPrice * maxAccesses;
-      showToast?.('success', 'Story published! 💰', `Start earning! Potential: ${potentialEarnings.toLocaleString()} GT`);
+      const potentialEarnings = unlockPrice === 0 ? 'Free Story' : 
+        isUnlimitedAccess ? 'Unlimited earnings!' : 
+        `${(unlockPrice * finalMaxAccesses).toLocaleString()} GT`;
+      
+      showToast?.('success', 'Story published! 💰', `Potential: ${potentialEarnings}`);
 
       if (onPublishSuccess) {
         onPublishSuccess(newStory, 'story');
@@ -564,6 +628,46 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
               </label>
             </div>
 
+            {/* Color Customization */}
+            <div className="customization-section">
+              <div className="customization-header">
+                <Palette size={20} />
+                <span>Story Customization</span>
+              </div>
+
+              <div className="color-picker-group">
+                <label className="color-label">Title Color</label>
+                <div className="color-options">
+                  {titleColors.map(color => (
+                    <button
+                      key={color.value}
+                      className={`color-btn ${titleColor === color.value ? 'active' : ''}`}
+                      style={{ background: color.value }}
+                      onClick={() => setTitleColor(color.value)}
+                      title={color.name}
+                      disabled={loading}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="color-picker-group">
+                <label className="color-label">Text Color</label>
+                <div className="color-options">
+                  {textColors.map(color => (
+                    <button
+                      key={color.value}
+                      className={`color-btn ${textColor === color.value ? 'active' : ''}`}
+                      style={{ background: color.value }}
+                      onClick={() => setTextColor(color.value)}
+                      title={color.name}
+                      disabled={loading}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="form-group">
               <label className="form-label">
                 <Eye size={16} />
@@ -608,6 +712,13 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
                   Unlock Price (GT)
                 </label>
                 <div className="price-grid">
+                  <button
+                    className={`price-btn ${unlockPrice === 0 ? 'active' : ''}`}
+                    onClick={() => setUnlockPrice(0)}
+                    disabled={loading}
+                  >
+                    Free
+                  </button>
                   {[10, 20, 50, 100].map(price => (
                     <button
                       key={price}
@@ -626,21 +737,34 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
                   <Users size={16} />
                   Maximum Accesses
                 </label>
-                <div className="number-input-group">
+                <div className="access-control-row">
+                  <div className="number-input-group">
+                    <button
+                      className="number-btn"
+                      onClick={() => setMaxAccesses(Math.max(100, maxAccesses - 100))}
+                      disabled={loading || isUnlimitedAccess}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <div className="number-display">
+                      {isUnlimitedAccess ? '∞' : maxAccesses}
+                    </div>
+                    <button
+                      className="number-btn"
+                      onClick={() => setMaxAccesses(Math.min(10000, maxAccesses + 100))}
+                      disabled={loading || isUnlimitedAccess}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  
                   <button
-                    className="number-btn"
-                    onClick={() => setMaxAccesses(Math.max(100, maxAccesses - 100))}
+                    className={`unlimited-btn ${isUnlimitedAccess ? 'active' : ''}`}
+                    onClick={() => setIsUnlimitedAccess(!isUnlimitedAccess)}
                     disabled={loading}
                   >
-                    <Minus size={16} />
-                  </button>
-                  <div className="number-display">{maxAccesses}</div>
-                  <button
-                    className="number-btn"
-                    onClick={() => setMaxAccesses(Math.min(10000, maxAccesses + 100))}
-                    disabled={loading}
-                  >
-                    <Plus size={16} />
+                    <Infinity size={18} />
+                    Unlimited
                   </button>
                 </div>
               </div>
@@ -648,7 +772,11 @@ const CreateStudio = ({ onPublishSuccess, showToast }) => {
               <div className="stats-grid">
                 <div className="stat-card">
                   <div className="stat-label">Potential Earnings</div>
-                  <div className="stat-value">{(unlockPrice * maxAccesses).toLocaleString()} GT</div>
+                  <div className="stat-value">
+                    {unlockPrice === 0 ? 'Free Story' : 
+                     isUnlimitedAccess ? '∞ GT' : 
+                     `${(unlockPrice * maxAccesses).toLocaleString()} GT`}
+                  </div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Per Access</div>

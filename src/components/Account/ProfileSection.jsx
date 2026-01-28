@@ -1,16 +1,19 @@
-// src/components/Account/ProfileSection.jsx - FIXED VERSION
+// ============================================================================
+// src/components/Account/ProfileSection.jsx - WITH EMAIL/PHONE DISPLAY
+// ============================================================================
+
 import React, { useState, useEffect } from 'react';
-import { Eye, MessageSquare, Edit, Award, TrendingUp, RefreshCw } from 'lucide-react';
+import { Eye, MessageSquare, Edit, Mail, Phone, Shield } from 'lucide-react';
 import { supabase } from '../../services/config/supabase';
 import mediaUrlService from '../../services/shared/mediaUrlService';
-import UnifiedLoader from '../Shared/UnifiedLoader';
-import ProfileEditModal from './ProfileEditModal';
 
-const ProfileSection = ({ userId }) => {
+const ProfileSection = ({ userId, onProfileUpdate }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -25,10 +28,10 @@ const ProfileSection = ({ userId }) => {
 
       console.log('📊 Loading profile for user:', userId);
 
-      // Load profile - FIXED: removed non-existent columns (location, website)
+      // Load profile with contact info and privacy settings
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, full_name, username, avatar_id, bio, verified, is_pro, created_at')
+        .select('id, full_name, username, avatar_id, bio, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone')
         .eq('id', userId)
         .single();
 
@@ -50,7 +53,7 @@ const ProfileSection = ({ userId }) => {
         console.warn('⚠️ Wallet error:', walletError);
       }
 
-      // Load content stats using correct column names (views not views_count)
+      // Load content stats
       const [
         { count: storiesCount },
         { count: reelsCount },
@@ -61,7 +64,7 @@ const ProfileSection = ({ userId }) => {
         supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', userId)
       ]);
 
-      // Aggregate views from all content (using 'views' not 'views_count')
+      // Aggregate views from all content
       const { data: storiesViews } = await supabase
         .from('stories')
         .select('views')
@@ -89,10 +92,19 @@ const ProfileSection = ({ userId }) => {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
-      // Convert avatar_id to URL if exists
-      const avatarUrl = profileData.avatar_id 
-        ? mediaUrlService.getImageUrl(profileData.avatar_id) 
-        : null;
+      // Convert avatar_id to HIGH QUALITY URL
+      let avatarUrl = null;
+      if (profileData.avatar_id) {
+        const baseUrl = mediaUrlService.getImageUrl(profileData.avatar_id);
+        if (baseUrl && typeof baseUrl === 'string') {
+          const cleanUrl = baseUrl.split('?')[0];
+          if (cleanUrl.includes('supabase')) {
+            avatarUrl = `${cleanUrl}?quality=100&width=600&height=600&resize=cover&format=webp`;
+          } else {
+            avatarUrl = baseUrl;
+          }
+        }
+      }
 
       const profileState = {
         id: profileData.id,
@@ -106,6 +118,12 @@ const ProfileSection = ({ userId }) => {
           month: 'short', 
           year: 'numeric' 
         }),
+        // Contact info with privacy settings
+        email: profileData.email,
+        phone: profileData.phone,
+        phoneVerified: profileData.phone_verified,
+        showEmail: profileData.show_email,
+        showPhone: profileData.show_phone,
         stats: {
           totalContent: (storiesCount || 0) + (reelsCount || 0) + (postsCount || 0),
           stories: storiesCount || 0,
@@ -122,6 +140,18 @@ const ProfileSection = ({ userId }) => {
 
       console.log('✅ Profile state ready:', profileState);
       setProfile(profileState);
+
+      // Notify parent component for header update
+      if (onProfileUpdate) {
+        onProfileUpdate({
+          id: profileState.id,
+          fullName: profileState.fullName,
+          username: profileState.username,
+          avatar: avatarUrl,
+          verified: profileState.verified,
+          isPro: profileState.isPro
+        });
+      }
 
     } catch (err) {
       console.error('❌ Failed to load profile:', err);
@@ -142,42 +172,88 @@ const ProfileSection = ({ userId }) => {
   };
 
   const formatNumber = (num) => {
-    // Handle undefined/null
     if (num == null) return 0;
-    
-    // Convert to number and handle floating point precision
     const value = Number(num);
     
-    // For millions
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
     }
     
-    // For thousands
     if (value >= 1000) {
       return `${(value / 1000).toFixed(1)}K`;
     }
     
-    // For decimal numbers, round to 2 decimal places
     if (value % 1 !== 0) {
       return value.toFixed(2);
     }
     
-    // For whole numbers
     return Math.floor(value);
   };
 
+  const handleImageLoad = () => {
+    console.log('✅ Profile avatar loaded successfully');
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = (e) => {
+    console.error('❌ Profile avatar error:', e);
+    setImageLoaded(false);
+    setImageError(true);
+  };
+
   if (loading) {
-    return <UnifiedLoader type="profile" />;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: '#84cc16' }}>
+        <div style={{
+          width: '48px',
+          height: '48px',
+          border: '4px solid rgba(132, 204, 22, 0.2)',
+          borderTop: '4px solid #84cc16',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+          margin: '0 auto 16px'
+        }}></div>
+        Loading profile...
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
   }
 
   if (error) {
-    return <UnifiedLoader type="profile" error={error} onRetry={loadProfileData} />;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ color: '#ef4444', marginBottom: '20px' }}>Error: {error}</div>
+        <button 
+          onClick={loadProfileData}
+          style={{
+            padding: '12px 24px',
+            background: '#84cc16',
+            border: 'none',
+            borderRadius: '12px',
+            color: '#000',
+            fontWeight: '700',
+            cursor: 'pointer'
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   if (!profile) {
-    return <UnifiedLoader type="profile" error="Profile not found" onRetry={loadProfileData} />;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: '#737373' }}>
+        Profile not found
+      </div>
+    );
   }
+
+  const isValidAvatar = profile.avatar && 
+                       typeof profile.avatar === 'string' && 
+                       !imageError &&
+                       (profile.avatar.startsWith('http') || profile.avatar.startsWith('blob:'));
 
   return (
     <>
@@ -188,23 +264,24 @@ const ProfileSection = ({ userId }) => {
 
         .profile-header-card {
           position: relative;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(132, 204, 22, 0.2);
-          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(132, 204, 22, 0.25);
+          border-radius: 24px;
           padding: 40px 24px;
           margin-bottom: 24px;
           overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         .profile-header-glow {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, rgba(132, 204, 22, 0.1) 0%, rgba(132, 204, 22, 0.03) 100%);
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.12) 0%, rgba(132, 204, 22, 0.04) 100%);
           animation: headerPulse 3s ease-in-out infinite;
         }
 
         @keyframes headerPulse {
-          0%, 100% { opacity: 0.5; }
+          0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
         }
 
@@ -217,24 +294,50 @@ const ProfileSection = ({ userId }) => {
         .profile-avatar {
           width: 120px;
           height: 120px;
-          border-radius: 30px;
+          border-radius: 32px;
           background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
           display: flex;
           align-items: center;
           justify-content: center;
           margin: 0 auto 20px;
-          border: 4px solid rgba(132, 204, 22, 0.3);
+          border: 4px solid rgba(132, 204, 22, 0.4);
           font-size: 48px;
           color: #000;
-          font-weight: 700;
+          font-weight: 800;
           overflow: hidden;
-          box-shadow: 0 8px 32px rgba(132, 204, 22, 0.4);
+          box-shadow: 0 8px 40px rgba(132, 204, 22, 0.5);
+          position: relative;
         }
 
         .profile-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          position: absolute;
+          top: 0;
+          left: 0;
+          image-rendering: -webkit-optimize-contrast;
+          image-rendering: crisp-edges;
+          backface-visibility: hidden;
+          transform: translateZ(0);
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          filter: brightness(1.15) contrast(1.2) saturate(1.25);
+          opacity: ${imageLoaded && !imageError ? '1' : '0'};
+          transition: opacity 0.5s ease-in-out;
+        }
+
+        .profile-avatar-fallback {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 48px;
+          color: #000;
+          font-weight: 800;
+          opacity: ${imageLoaded && !imageError ? '0' : '1'};
+          transition: opacity 0.5s ease-in-out;
         }
 
         .profile-name {
@@ -242,13 +345,54 @@ const ProfileSection = ({ userId }) => {
           font-weight: 900;
           color: #fff;
           margin: 0 0 8px 0;
+          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+          filter: brightness(1.1);
         }
 
         .profile-username {
           font-size: 16px;
           color: #84cc16;
-          margin: 0 0 24px 0;
+          margin: 0 0 16px 0;
           font-weight: 600;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+        }
+
+        .contact-info-section {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 24px;
+          padding: 0 20px;
+        }
+
+        .contact-info-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 16px;
+          background: rgba(132, 204, 22, 0.08);
+          border: 1px solid rgba(132, 204, 22, 0.25);
+          border-radius: 12px;
+          font-size: 14px;
+          color: #84cc16;
+        }
+
+        .contact-info-item svg {
+          flex-shrink: 0;
+        }
+
+        .verified-indicator {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 8px;
+          background: rgba(34, 197, 94, 0.2);
+          border-radius: 6px;
+          color: #22c55e;
+          font-size: 11px;
+          font-weight: 700;
+          margin-left: 8px;
         }
 
         .profile-stats-row {
@@ -272,11 +416,12 @@ const ProfileSection = ({ userId }) => {
           -webkit-text-fill-color: transparent;
           margin: 0 0 4px 0;
           white-space: nowrap;
+          filter: brightness(1.15);
         }
 
         .profile-stat-label {
           font-size: 11px;
-          color: #737373;
+          color: #a3a3a3;
           margin: 0;
           text-transform: uppercase;
           letter-spacing: 0.3px;
@@ -287,7 +432,7 @@ const ProfileSection = ({ userId }) => {
         .stat-divider {
           width: 1px;
           height: 35px;
-          background: linear-gradient(180deg, transparent 0%, rgba(132, 204, 22, 0.3) 50%, transparent 100%);
+          background: linear-gradient(180deg, transparent 0%, rgba(132, 204, 22, 0.4) 50%, transparent 100%);
           flex-shrink: 0;
         }
 
@@ -300,24 +445,24 @@ const ProfileSection = ({ userId }) => {
 
         .metric-card {
           position: relative;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(132, 204, 22, 0.2);
-          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(132, 204, 22, 0.25);
+          border-radius: 18px;
           padding: 20px;
           overflow: hidden;
           transition: all 0.3s;
         }
 
         .metric-card:hover {
-          border-color: rgba(132, 204, 22, 0.4);
+          border-color: rgba(132, 204, 22, 0.5);
           transform: translateY(-4px);
-          box-shadow: 0 8px 24px rgba(132, 204, 22, 0.2);
+          box-shadow: 0 8px 28px rgba(132, 204, 22, 0.3);
         }
 
         .metric-card-glow {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, rgba(132, 204, 22, 0.05) 0%, transparent 100%);
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.08) 0%, transparent 100%);
         }
 
         .metric-content {
@@ -330,6 +475,7 @@ const ProfileSection = ({ userId }) => {
 
         .metric-icon {
           color: #84cc16;
+          filter: brightness(1.2);
         }
 
         .metric-value {
@@ -337,11 +483,12 @@ const ProfileSection = ({ userId }) => {
           font-weight: 900;
           color: #fff;
           margin: 0;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
         }
 
         .metric-label {
           font-size: 13px;
-          color: #737373;
+          color: #a3a3a3;
           margin: 0;
           font-weight: 600;
         }
@@ -361,12 +508,13 @@ const ProfileSection = ({ userId }) => {
           align-items: center;
           justify-content: center;
           gap: 10px;
-          box-shadow: 0 4px 16px rgba(132, 204, 22, 0.3);
+          box-shadow: 0 4px 20px rgba(132, 204, 22, 0.4);
         }
 
         .edit-profile-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(132, 204, 22, 0.5);
+          transform: translateY(-3px);
+          box-shadow: 0 8px 32px rgba(132, 204, 22, 0.6);
+          filter: brightness(1.1);
         }
 
         .edit-profile-btn:active {
@@ -379,11 +527,18 @@ const ProfileSection = ({ userId }) => {
           <div className="profile-header-glow"></div>
           <div className="profile-header-content">
             <div className="profile-avatar">
-              {profile.avatar && typeof profile.avatar === 'string' && profile.avatar.startsWith('http') ? (
-                <img src={profile.avatar} alt={profile.fullName} />
-              ) : (
-                profile.fullName?.charAt(0)?.toUpperCase() || 'G'
+              {isValidAvatar && (
+                <img 
+                  src={profile.avatar} 
+                  alt={profile.fullName}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  crossOrigin="anonymous"
+                />
               )}
+              <div className="profile-avatar-fallback">
+                {profile.fullName?.charAt(0)?.toUpperCase() || 'G'}
+              </div>
             </div>
 
             <h2 className="profile-name">
@@ -392,6 +547,30 @@ const ProfileSection = ({ userId }) => {
             <p className="profile-username">
               @{profile.username || 'user'}
             </p>
+
+            {/* Contact Information - Only shown if settings allow */}
+            {(profile.showEmail || profile.showPhone) && (
+              <div className="contact-info-section">
+                {profile.showEmail && profile.email && (
+                  <div className="contact-info-item">
+                    <Mail size={16} />
+                    <span>{profile.email}</span>
+                  </div>
+                )}
+                {profile.showPhone && profile.phone && (
+                  <div className="contact-info-item">
+                    <Phone size={16} />
+                    <span>{profile.phone}</span>
+                    {profile.phoneVerified && (
+                      <span className="verified-indicator">
+                        <Shield size={10} />
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="profile-stats-row">
               <div className="profile-stat">
@@ -453,12 +632,45 @@ const ProfileSection = ({ userId }) => {
       </div>
 
       {showEditModal && (
-        <ProfileEditModal
-          userId={userId}
-          currentProfile={profile}
-          onClose={() => setShowEditModal(false)}
-          onSuccess={handleEditSuccess}
-        />
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px',
+          backdropFilter: 'blur(8px)'
+        }}>
+          <div style={{
+            background: '#1a1a1a',
+            padding: '30px',
+            borderRadius: '20px',
+            maxWidth: '500px',
+            width: '100%',
+            border: '1px solid rgba(132, 204, 22, 0.3)'
+          }}>
+            <h3 style={{ color: '#84cc16', marginBottom: '20px' }}>Edit Profile</h3>
+            <p style={{ color: '#fff', marginBottom: '20px' }}>
+              Profile editing functionality coming soon...
+            </p>
+            <button 
+              onClick={() => setShowEditModal(false)}
+              style={{
+                padding: '12px 24px',
+                background: '#84cc16',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#000',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </>
   );

@@ -1,0 +1,115 @@
+/* ==========================================================================
+   ENHANCED ACTION MENU
+   ========================================================================== */
+.action-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 999;
+}
+
+.action-menu {
+  position: fixed;
+  background: #0a0a0a;
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  border-radius: 16px;
+  width: 240px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(132, 204, 22, 0.2);
+  overflow: hidden;
+  animation: menuSlideIn 0.2s ease-out;
+  z-index: 1000;
+}
+
+@keyframes menuSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.action-menu-header {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.15) 0%, rgba(132, 204, 22, 0.05) 100%);
+  font-size: 13px;
+  font-weight: 700;
+  color: #84cc16;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+}
+
+.action-menu-items {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.action-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.action-item:hover {
+  background: rgba(132, 204, 22, 0.15);
+  padding-left: 18px;
+  transform: translateX(2px);
+}
+
+.action-item svg {
+  color: #84cc16;
+  flex-shrink: 0;
+}
+
+.action-item.action-delete {
+  color: #ff4444;
+}
+
+.action-item.action-delete svg {
+  color: #ff4444;
+}
+
+.action-item.action-delete:hover {
+  background: rgba(255, 68, 68, 0.15);
+}
+
+.action-item.action-report {
+  color: #fbbf24;
+}
+
+.action-item.action-report svg {
+  color: #fbbf24;
+}
+
+.action-item.action-report:hover {
+  background: rgba(251, 191, 36, 0.15);
+}
+
+.action-item.action-cancel {
+  color: #737373;
+  margin-top: 8px;
+  border-top: 1px solid #1a1a1a;
+  padding-top: 16px;
+}
+
+.action-item.action-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}

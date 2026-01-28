@@ -86,12 +86,32 @@ const AdvancedToast = ({
   const { Icon, color, bg, borderColor } = icons[type] || icons.info;
 
   const positions = {
-    'top-right': { top: '24px', right: '24px' },
-    'top-left': { top: '24px', left: '24px' },
-    'bottom-right': { bottom: '24px', right: '24px' },
-    'bottom-left': { bottom: '24px', left: '24px' },
-    'top-center': { top: '24px', left: '50%', transform: 'translateX(-50%)' },
-    'bottom-center': { bottom: '24px', left: '50%', transform: 'translateX(-50%)' }
+    'top-right': { 
+      top: '24px', 
+      right: '24px' 
+    },
+    'top-left': { 
+      top: '24px', 
+      left: '24px' 
+    },
+    'bottom-right': { 
+      bottom: '24px', 
+      right: '24px' 
+    },
+    'bottom-left': { 
+      bottom: '24px', 
+      left: '24px' 
+    },
+    'top-center': { 
+      top: '24px', 
+      left: '50%', 
+      transform: 'translateX(-50%)' 
+    },
+    'bottom-center': { 
+      bottom: '24px', 
+      left: '50%', 
+      transform: 'translateX(-50%)' 
+    }
   };
 
   return (
@@ -140,6 +160,7 @@ const AdvancedToast = ({
         }
 
         .advanced-toast {
+          color: white;
           position: fixed;
           min-width: 340px;
           max-width: 440px;
@@ -149,6 +170,7 @@ const AdvancedToast = ({
         }
 
         .toast-container {
+          color: white;
           background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
           border: 1px solid ${borderColor};
           border-radius: 16px;
@@ -168,6 +190,7 @@ const AdvancedToast = ({
         }
 
         .toast-content {
+        color: white;
           padding: 20px 22px;
           display: flex;
           gap: 16px;
@@ -206,6 +229,7 @@ const AdvancedToast = ({
         }
 
         .toast-text {
+          color: #ffffff;
           flex: 1;
           min-width: 0;
         }
@@ -221,7 +245,7 @@ const AdvancedToast = ({
 
         .toast-description {
           font-size: 13px;
-          color: #a3a3a3;
+          color: #ffffff;
           margin: 0;
           line-height: 1.6;
         }

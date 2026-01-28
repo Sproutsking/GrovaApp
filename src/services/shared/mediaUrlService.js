@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/shared/mediaUrlService.js - COMPLETE FIXED
+// src/services/shared/mediaUrlService.js - COMPLETE WITH STORY SUPPORT
 // ============================================================================
 
 class MediaUrlService {
@@ -119,6 +119,55 @@ class MediaUrlService {
       crop: 'thumb',
       gravity: 'face',
       quality: 'auto:best'
+    });
+  }
+
+  // ==================== GET POST IMAGE URL ====================
+  
+  getPostImageUrl(imageId, width = 800) {
+    if (!imageId) return null;
+    
+    return this.getImageUrl(imageId, {
+      width,
+      crop: 'fill',
+      gravity: 'auto',
+      quality: 'auto:best'
+    });
+  }
+
+  // ==================== GET STORY COVER IMAGE URL ====================
+  
+  getStoryImageUrl(imageId, width = 1200) {
+    if (!imageId) return null;
+    
+    return this.getImageUrl(imageId, {
+      width,
+      crop: 'fill',
+      gravity: 'auto',
+      quality: 'auto:best'
+    });
+  }
+
+  // ==================== GET REEL VIDEO URL ====================
+  
+  getReelVideoUrl(videoId) {
+    if (!videoId) return null;
+    
+    return this.getVideoUrl(videoId, {
+      quality: 'auto:best',
+      format: 'mp4'
+    });
+  }
+
+  // ==================== GET REEL THUMBNAIL URL ====================
+  
+  getReelThumbnailUrl(publicId, width = 400) {
+    if (!publicId) return null;
+    
+    return this.getVideoThumbnail(publicId, {
+      width,
+      height: Math.round(width * 16 / 9),
+      time: '0'
     });
   }
 

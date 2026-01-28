@@ -1,6 +1,6 @@
 // src/components/wallet/components/QuickActions.jsx
 import React from 'react';
-import { ArrowUpRight, ArrowDownLeft, Download, Repeat, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Wallet, Download, Repeat, TrendingUp } from 'lucide-react';
 
 const QuickActions = ({ setActiveTab }) => {
   return (
@@ -24,6 +24,10 @@ const QuickActions = ({ setActiveTab }) => {
       <button className="quick-action-btn secondary" onClick={() => setActiveTab('trade')}>
         <TrendingUp size={20} />
         <span>Trade</span>
+      </button>
+      <button className="quick-action-btn secondary" onClick={() => setActiveTab('trade')}>
+        <Wallet size={20} />
+        <span>Pay Wave</span>
       </button>
     </div>
   );

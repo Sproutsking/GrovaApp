@@ -1,5 +1,5 @@
-// src/components/Account/AccountView.jsx
-import React from 'react';
+// src/components/Account/AccountView.jsx - FIXED
+import React, { useState, useEffect } from 'react';
 import {
   UserCircle,
   Settings,
@@ -11,6 +11,8 @@ import ProfileSection from './ProfileSection';
 import SettingsSection from './SettingsSection';
 import DashboardSection from './DashboardSection';
 import SecuritySection from './SecuritySection';
+import { supabase } from '../../services/config/supabase';
+import mediaUrlService from '../../services/shared/mediaUrlService';
 
 const AccountView = ({
   accountSection,
@@ -18,7 +20,67 @@ const AccountView = ({
   currentUser,
   isSubscribed,
   userId,
+  onProfileLoad, // Callback to pass profile data to App.jsx
 }) => {
+  const [profileData, setProfileData] = useState(null);
+
+  useEffect(() => {
+    if (userId) {
+      loadBasicProfile();
+    }
+  }, [userId]);
+
+  const loadBasicProfile = async () => {
+    try {
+      console.log('📊 Loading profile for headers from AccountView');
+      
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_id, verified, is_pro')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('❌ Error loading profile for header:', error);
+        return;
+      }
+
+      // Enhanced avatar URL with HIGH QUALITY parameters
+      let avatarUrl = null;
+      if (profile.avatar_id) {
+        const baseUrl = mediaUrlService.getImageUrl(profile.avatar_id);
+        if (baseUrl && typeof baseUrl === 'string') {
+          const cleanUrl = baseUrl.split('?')[0];
+          if (cleanUrl.includes('supabase')) {
+            avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
+          } else {
+            avatarUrl = baseUrl;
+          }
+        }
+      }
+
+      const profileState = {
+        id: profile.id,
+        fullName: profile.full_name,
+        username: profile.username,
+        avatar: avatarUrl,
+        verified: profile.verified,
+        isPro: profile.is_pro
+      };
+
+      setProfileData(profileState);
+
+      // Pass profile data to parent (App.jsx) for headers
+      if (onProfileLoad) {
+        onProfileLoad(profileState);
+      }
+
+      console.log('✅ Profile loaded for headers:', profileState);
+    } catch (err) {
+      console.error('❌ Failed to load profile:', err);
+    }
+  };
+
   return (
     <div className="account-view">
       {/* Tabs */}
@@ -70,7 +132,11 @@ const AccountView = ({
 
       {/* Sections */}
       {accountSection === 'profile' && (
-        <ProfileSection currentUser={currentUser} userId={userId} />
+        <ProfileSection 
+          currentUser={currentUser} 
+          userId={userId}
+          onProfileUpdate={loadBasicProfile} // Refresh when profile updates
+        />
       )}
 
       {accountSection === 'dashboard' && (

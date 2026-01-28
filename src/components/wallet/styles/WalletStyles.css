@@ -1,4 +1,4 @@
-/* src/components/wallet/styles/WalletStyles.css */
+﻿/* src/components/wallet/styles/WalletStyles.css */
 /* ====================================
    GLOBAL & LAYOUT
    ==================================== */
@@ -18,14 +18,14 @@
 .wallet-content {
   position: relative;
   z-index: 1;
-  padding: 24px;
-  padding-bottom: max(80px, env(safe-area-inset-bottom, 80px)); /* Increased to ensure ~40px visible buffer */
+  padding: 16px;
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 80px)); /* Increased to ensure ~40px visible buffer */
   max-height: 90vh;
   overflow-y: auto;
 }
 
 .wallet-content::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .wallet-content::-webkit-scrollbar-track {
@@ -65,7 +65,7 @@
 }
 
 .wallet-title {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   color: #fff;
   margin-bottom: 4px;
@@ -858,7 +858,7 @@
   .wallet-content {
     padding: 16px; /* Reduced side padding for more content space */
     padding-top: 20px;
-    padding-bottom: max(90px, env(safe-area-inset-bottom, 90px)); /* Generous bottom buffer */
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 90px)); /* Generous bottom buffer */
     max-height: none;
   }
 

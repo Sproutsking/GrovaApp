@@ -1,175 +1,181 @@
-// src/components/Modals/PhoneVerificationModal.jsx
-import React, { useState } from 'react';
-import { Phone, Loader, Check } from 'lucide-react';
-import { supabase } from '../../services/config/supabase';
+// ============================================================================
+// src/components/Modals/PhoneVerificationModal.jsx - COMPLETE PHONE VERIFICATION
+// ============================================================================
+
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Phone, Shield, Loader, Check, ArrowLeft } from 'lucide-react';
+import settingsService from '../../services/account/settingsService';
 
 const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess }) => {
-  const [step, setStep] = useState(1);
-  const [newPhone, setNewPhone] = useState('');
-  const [code, setCode] = useState('');
+  const [step, setStep] = useState(currentPhone ? 'verify' : 'enter');
+  const [phoneNumber, setPhoneNumber] = useState(currentPhone || '');
+  const [countryCode, setCountryCode] = useState('+234'); // Default Nigeria
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [countdown, setCountdown] = useState(0);
+  const inputRefs = useRef([]);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   const formatPhoneNumber = (value) => {
     // Remove all non-digits
-    const digits = value.replace(/\D/g, '');
+    const cleaned = value.replace(/\D/g, '');
     
-    // Format as (XXX) XXX-XXXX for US numbers
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    // Format as: (XXX) XXX-XXXX
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 6) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    } else {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+    }
   };
 
-  const sendVerificationCode = async () => {
+  const handlePhoneChange = (e) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhoneNumber(formatted);
+    setError('');
+  };
+
+  const validatePhone = () => {
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    if (cleaned.length < 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSendCode = async () => {
+    if (!validatePhone()) return;
+
     try {
       setLoading(true);
       setError('');
 
-      // Extract digits only
-      const phoneDigits = newPhone.replace(/\D/g, '');
+      const cleaned = phoneNumber.replace(/\D/g, '');
+      const fullNumber = `${countryCode}${cleaned}`;
 
-      // Validate phone number (basic validation)
-      if (phoneDigits.length < 10) {
-        throw new Error('Please enter a valid phone number');
-      }
+      // Send verification code via service
+      await settingsService.sendVerificationCode(userId, fullNumber);
 
-      if (currentPhone && phoneDigits === currentPhone.replace(/\D/g, '')) {
-        throw new Error('New phone must be different from current phone');
-      }
+      // Move to verification step
+      setStep('verify');
+      setCountdown(60); // 60 second countdown
 
-      // Generate 6-digit code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log('📲 Verification code sent to:', fullNumber);
 
-      // Save to database
-      const { error: dbError } = await supabase
-        .from('verification_codes')
-        .insert({
-          user_id: userId,
-          phone: phoneDigits,
-          code_hash: verificationCode,
-          code_type: 'phone_verify',
-          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-          attempts: 0,
-          verified: false
-        });
-
-      if (dbError) throw dbError;
-
-      // In production, send SMS via Twilio/similar
-      console.log('📱 SMS verification code:', verificationCode);
-      console.log('Send to:', phoneDigits);
-
-      setStep(2);
-      setResendCooldown(60);
-      
-      // Countdown timer
-      const interval = setInterval(() => {
-        setResendCooldown(prev => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
     } catch (err) {
-      console.error('Send verification error:', err);
+      console.error('Failed to send code:', err);
       setError(err.message || 'Failed to send verification code');
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyCode = async () => {
+  const handleCodeChange = (index, value) => {
+    // Only allow digits
+    if (value && !/^\d$/.test(value)) return;
+
+    const newCode = [...verificationCode];
+    newCode[index] = value;
+    setVerificationCode(newCode);
+    setError('');
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleCodeKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleCodePaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
+    
+    if (pastedData.length === 6) {
+      const newCode = pastedData.split('');
+      setVerificationCode(newCode);
+      inputRefs.current[5]?.focus();
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    const code = verificationCode.join('');
+    
+    if (code.length !== 6) {
+      setError('Please enter the 6-digit verification code');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
 
-      if (code.length !== 6) {
-        throw new Error('Please enter a 6-digit code');
-      }
+      const cleaned = phoneNumber.replace(/\D/g, '');
+      const fullNumber = `${countryCode}${cleaned}`;
 
-      const phoneDigits = newPhone.replace(/\D/g, '');
+      // First update the phone number
+      await settingsService.updateContactInfo(userId, { phone: fullNumber });
 
-      // Fetch the verification code
-      const { data, error: fetchError } = await supabase
-        .from('verification_codes')
-        .select('*')
-        .eq('phone', phoneDigits)
-        .eq('code_type', 'phone_verify')
-        .eq('verified', false)
-        .gte('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      // Then verify it
+      await settingsService.verifyPhoneNumber(userId, code);
 
-      if (fetchError || !data) {
-        throw new Error('Invalid or expired verification code');
-      }
-
-      // Check attempts
-      if (data.attempts >= 5) {
-        throw new Error('Too many failed attempts. Please request a new code.');
-      }
-
-      // Verify code
-      if (data.code_hash !== code) {
-        // Increment attempts
-        await supabase
-          .from('verification_codes')
-          .update({ attempts: (data.attempts || 0) + 1 })
-          .eq('id', data.id);
-
-        throw new Error(`Invalid code. ${5 - (data.attempts || 0) - 1} attempts remaining.`);
-      }
-
-      // Mark as verified
-      await supabase
-        .from('verification_codes')
-        .update({ verified: true })
-        .eq('id', data.id);
-
-      // Update phone in profiles
-      await supabase
-        .from('profiles')
-        .update({ 
-          phone: phoneDigits,
-          phone_verified: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      // Log security event
-      await supabase.from('security_events').insert({
-        user_id: userId,
-        event_type: 'phone_verified',
-        severity: 'info',
-        metadata: { 
-          phone: phoneDigits,
-          action: currentPhone ? 'phone_changed' : 'phone_added'
-        }
-      });
-
-      onSuccess(currentPhone ? 'Phone number updated successfully!' : 'Phone number added successfully!');
-      handleClose();
+      console.log('✅ Phone verified successfully');
       
+      // Call success callback
+      if (onSuccess) {
+        onSuccess(fullNumber);
+      }
+
+      // Close modal
+      onClose();
+
     } catch (err) {
-      console.error('Verification error:', err);
-      setError(err.message || 'Verification failed');
+      console.error('Failed to verify code:', err);
+      setError(err.message || 'Invalid verification code');
+      setVerificationCode(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setStep(1);
-    setNewPhone('');
-    setCode('');
-    setError('');
-    setResendCooldown(0);
-    onClose();
+  const handleResendCode = async () => {
+    if (countdown > 0) return;
+
+    try {
+      setLoading(true);
+      setError('');
+
+      const cleaned = phoneNumber.replace(/\D/g, '');
+      const fullNumber = `${countryCode}${cleaned}`;
+
+      await settingsService.sendVerificationCode(userId, fullNumber);
+
+      setCountdown(60);
+      setVerificationCode(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+
+      console.log('📲 Verification code resent');
+
+    } catch (err) {
+      console.error('Failed to resend code:', err);
+      setError(err.message || 'Failed to resend code');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!show) return null;
@@ -180,243 +186,398 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
+
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.9);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          padding: 20px;
+          animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .modal-content {
+          background: #0a0a0a;
+          border: 2px solid rgba(132, 204, 22, 0.3);
+          border-radius: 24px;
+          width: 100%;
+          max-width: 480px;
+          overflow: hidden;
+          animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+          padding: 24px;
+          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+          background: rgba(132, 204, 22, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .modal-header-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .modal-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #000;
+        }
+
+        .modal-body {
+          padding: 32px 24px;
+        }
+
+        .input-group {
+          margin-bottom: 24px;
+        }
+
+        .input-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #a3a3a3;
+          margin-bottom: 8px;
+          display: block;
+        }
+
+        .phone-input-wrapper {
+          display: flex;
+          gap: 12px;
+        }
+
+        .country-code-select {
+          width: 100px;
+          padding: 14px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(132, 204, 22, 0.3);
+          border-radius: 12px;
+          color: #fff;
+          font-size: 15px;
+          font-weight: 600;
+        }
+
+        .phone-input {
+          flex: 1;
+          padding: 14px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(132, 204, 22, 0.3);
+          border-radius: 12px;
+          color: #fff;
+          font-size: 15px;
+          font-weight: 600;
+        }
+
+        .phone-input:focus, .country-code-select:focus {
+          outline: none;
+          border-color: #84cc16;
+          background: rgba(132, 204, 22, 0.08);
+        }
+
+        .code-inputs {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+        }
+
+        .code-input {
+          width: 56px;
+          height: 64px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 2px solid rgba(132, 204, 22, 0.3);
+          border-radius: 12px;
+          color: #fff;
+          font-size: 24px;
+          font-weight: 700;
+          text-align: center;
+          transition: all 0.2s;
+        }
+
+        .code-input:focus {
+          outline: none;
+          border-color: #84cc16;
+          background: rgba(132, 204, 22, 0.08);
+          transform: scale(1.05);
+        }
+
+        .info-text {
+          text-align: center;
+          color: #a3a3a3;
+          font-size: 14px;
+          margin-bottom: 24px;
+          line-height: 1.6;
+        }
+
+        .highlight-phone {
+          color: #84cc16;
+          font-weight: 700;
+        }
+
+        .error-message {
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 12px;
+          padding: 12px;
+          color: #ef4444;
+          font-size: 13px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .action-btn {
+          width: 100%;
+          padding: 16px;
+          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          border: none;
+          border-radius: 14px;
+          color: #000;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          transition: all 0.3s;
+        }
+
+        .action-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(132, 204, 22, 0.4);
+        }
+
+        .action-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .resend-btn {
+          width: 100%;
+          padding: 14px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(132, 204, 22, 0.3);
+          border-radius: 12px;
+          color: #84cc16;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-top: 16px;
+          transition: all 0.2s;
+        }
+
+        .resend-btn:hover:not(:disabled) {
+          background: rgba(132, 204, 22, 0.1);
+          border-color: #84cc16;
+        }
+
+        .resend-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .back-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          color: #a3a3a3;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-bottom: 24px;
+          transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #84cc16;
+        }
       `}</style>
-      
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.9)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-        padding: '20px'
-      }} onClick={handleClose}>
-        <div style={{
-          background: '#1a1a1a',
-          border: '1px solid rgba(132, 204, 22, 0.3)',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '450px'
-        }} onClick={e => e.stopPropagation()}>
-          {/* Header */}
-          <div style={{
-            padding: '24px',
-            borderBottom: '1px solid rgba(132, 204, 22, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Phone size={20} style={{ color: '#84cc16' }} />
-              {currentPhone ? 'Change Phone Number' : 'Add Phone Number'}
-            </h2>
-            <button onClick={handleClose} style={{
+
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-header-left">
+              <div className="modal-icon">
+                {step === 'verify' ? <Shield size={24} /> : <Phone size={24} />}
+              </div>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>
+                  {step === 'verify' ? 'Verify Phone Number' : 'Add Phone Number'}
+                </h2>
+                <p style={{ fontSize: '13px', color: '#a3a3a3', margin: '4px 0 0 0' }}>
+                  {step === 'verify' ? 'Enter the code we sent' : 'Secure your account'}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} style={{
               background: 'none',
               border: 'none',
               color: '#a3a3a3',
-              fontSize: '32px',
               cursor: 'pointer',
-              padding: 0,
-              lineHeight: 1
-            }}>×</button>
+              padding: 0
+            }}>
+              <X size={24} />
+            </button>
           </div>
 
-          {/* Body */}
-          <div style={{ padding: '24px' }}>
-            {step === 1 ? (
+          <div className="modal-body">
+            {step === 'enter' && (
               <>
-                {currentPhone && (
-                  <div style={{
-                    background: 'rgba(132, 204, 22, 0.1)',
-                    border: '1px solid rgba(132, 204, 22, 0.2)',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    marginBottom: '20px'
-                  }}>
-                    <p style={{ color: '#a3a3a3', fontSize: '13px', margin: 0 }}>
-                      Current phone: <strong style={{ color: '#84cc16' }}>{currentPhone}</strong>
-                    </p>
-                  </div>
-                )}
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', color: '#fff', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
-                    Phone Number:
-                  </label>
-                  <input
-                    type="tel"
-                    value={newPhone}
-                    onChange={e => setNewPhone(formatPhoneNumber(e.target.value))}
-                    placeholder="(555) 123-4567"
-                    autoFocus
-                    maxLength="14"
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(132, 204, 22, 0.2)',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '16px',
-                      boxSizing: 'border-box',
-                      fontFamily: 'monospace'
-                    }}
-                  />
-                  <p style={{ color: '#737373', fontSize: '12px', marginTop: '6px' }}>
-                    Enter your phone number with area code
-                  </p>
+                <div className="info-text">
+                  Enter your phone number to receive a verification code
                 </div>
 
                 {error && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>
-                    {error}
-                  </p>
+                  <div className="error-message">
+                    ⚠️ {error}
+                  </div>
                 )}
 
-                <button
-                  onClick={sendVerificationCode}
-                  disabled={loading || newPhone.replace(/\D/g, '').length < 10}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    background: loading || newPhone.replace(/\D/g, '').length < 10 ? '#333' : 'linear-gradient(135deg, #84cc16 0%, #65a30d 100%)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: loading || newPhone.replace(/\D/g, '').length < 10 ? '#666' : '#000',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    cursor: loading || newPhone.replace(/\D/g, '').length < 10 ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
+                <div className="input-group">
+                  <label className="input-label">Phone Number</label>
+                  <div className="phone-input-wrapper">
+                    <select 
+                      className="country-code-select"
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                    >
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+234">🇳🇬 +234</option>
+                      <option value="+254">🇰🇪 +254</option>
+                      <option value="+27">🇿🇦 +27</option>
+                      <option value="+91">🇮🇳 +91</option>
+                    </select>
+                    <input
+                      type="tel"
+                      className="phone-input"
+                      placeholder="(XXX) XXX-XXXX"
+                      value={phoneNumber}
+                      onChange={handlePhoneChange}
+                      maxLength={16}
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  className="action-btn"
+                  onClick={handleSendCode}
+                  disabled={loading || !phoneNumber}
                 >
                   {loading ? (
                     <>
-                      <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                      Sending...
+                      <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      Sending Code...
                     </>
                   ) : (
                     <>
-                      <Phone size={18} />
-                      Send SMS Code
+                      <Phone size={20} />
+                      Send Verification Code
                     </>
                   )}
                 </button>
               </>
-            ) : (
-              <>
-                <p style={{ color: '#a3a3a3', marginBottom: '24px', fontSize: '14px', lineHeight: '1.5' }}>
-                  We've sent a 6-digit verification code via SMS to:<br />
-                  <strong style={{ color: '#84cc16' }}>{newPhone}</strong>
-                </p>
+            )}
 
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', color: '#fff', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
-                    Enter SMS Code:
-                  </label>
-                  <input
-                    type="text"
-                    maxLength="6"
-                    value={code}
-                    onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="000000"
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '14px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(132, 204, 22, 0.2)',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '20px',
-                      textAlign: 'center',
-                      letterSpacing: '10px',
-                      fontFamily: 'monospace',
-                      boxSizing: 'border-box'
-                    }}
-                  />
+            {step === 'verify' && (
+              <>
+                {step !== 'enter' && (
+                  <button className="back-btn" onClick={() => setStep('enter')}>
+                    <ArrowLeft size={16} />
+                    Change Number
+                  </button>
+                )}
+
+                <div className="info-text">
+                  We sent a 6-digit code to <span className="highlight-phone">{countryCode} {phoneNumber}</span>
                 </div>
 
                 {error && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>
-                    {error}
-                  </p>
+                  <div className="error-message">
+                    ⚠️ {error}
+                  </div>
                 )}
 
-                <button
-                  onClick={verifyCode}
-                  disabled={loading || code.length !== 6}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    background: loading || code.length !== 6 ? '#333' : 'linear-gradient(135deg, #84cc16 0%, #65a30d 100%)',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: loading || code.length !== 6 ? '#666' : '#000',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    cursor: loading || code.length !== 6 ? 'not-allowed' : 'pointer',
-                    marginBottom: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
+                <div className="input-group">
+                  <label className="input-label" style={{ textAlign: 'center' }}>
+                    Enter Verification Code
+                  </label>
+                  <div className="code-inputs">
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <input
+                        key={index}
+                        ref={el => inputRefs.current[index] = el}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d{1}"
+                        maxLength={1}
+                        className="code-input"
+                        value={verificationCode[index]}
+                        onChange={e => handleCodeChange(index, e.target.value)}
+                        onKeyDown={e => handleCodeKeyDown(index, e)}
+                        onPaste={index === 0 ? handleCodePaste : undefined}
+                        autoFocus={index === 0}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <button 
+                  className="action-btn"
+                  onClick={handleVerifyCode}
+                  disabled={loading || verificationCode.join('').length !== 6}
                 >
                   {loading ? (
                     <>
-                      <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                      <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
                       Verifying...
                     </>
                   ) : (
                     <>
-                      <Check size={18} />
-                      Verify Code
+                      <Check size={20} />
+                      Verify Phone Number
                     </>
                   )}
                 </button>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    onClick={() => setStep(1)}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: 'transparent',
-                      border: '1px solid rgba(132, 204, 22, 0.3)',
-                      borderRadius: '8px',
-                      color: '#84cc16',
-                      fontSize: '14px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Change Number
-                  </button>
-
-                  <button
-                    onClick={sendVerificationCode}
-                    disabled={resendCooldown > 0}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: 'transparent',
-                      border: '1px solid rgba(132, 204, 22, 0.3)',
-                      borderRadius: '8px',
-                      color: resendCooldown > 0 ? '#666' : '#84cc16',
-                      fontSize: '14px',
-                      cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend Code'}
-                  </button>
-                </div>
-
-                <p style={{ color: '#737373', fontSize: '12px', marginTop: '16px', textAlign: 'center' }}>
-                  Code expires in 10 minutes
-                </p>
+                <button 
+                  className="resend-btn"
+                  onClick={handleResendCode}
+                  disabled={countdown > 0 || loading}
+                >
+                  {countdown > 0 ? (
+                    `Resend Code in ${countdown}s`
+                  ) : (
+                    'Resend Verification Code'
+                  )}
+                </button>
               </>
             )}
           </div>

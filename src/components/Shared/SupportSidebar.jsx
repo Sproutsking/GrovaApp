@@ -119,7 +119,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile }) => {
         }
 
         .support-header {
-          padding: 20px;
+          padding: 8px 20px;
           border-bottom: 1px solid rgba(132, 204, 22, 0.2);
           background: rgba(132, 204, 22, 0.03);
         }
@@ -128,7 +128,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile }) => {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 16px;
+          margin-bottom: 10px;
         }
 
         .support-title-section {
@@ -177,13 +177,13 @@ const SupportSidebar = ({ isOpen, onClose, isMobile }) => {
 
         .support-tabs {
           display: flex;
-          gap: 8px;
+          gap: 6px;
         }
 
         .support-tab {
           flex: 1;
-          padding: 8px 16px;
-          background: rgba(255, 255, 255, 0.03);
+          padding: 6px 16px;
+          background: rgba(0, 0, 0, 0.35);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 8px;
           color: #a3a3a3;
@@ -206,7 +206,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile }) => {
         .support-content {
           flex: 1;
           overflow-y: auto;
-          padding: 16px;
+          padding: 10px;
         }
 
         .help-topic {
@@ -214,7 +214,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile }) => {
           border: 1px solid rgba(255, 255, 255, 0.05);
           border-radius: 12px;
           padding: 16px;
-          margin-bottom: 12px;
+          margin-bottom: 5px;
           cursor: pointer;
           transition: all 0.2s;
         }
@@ -266,7 +266,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile }) => {
           border: 1px solid rgba(255, 255, 255, 0.05);
           border-radius: 12px;
           padding: 16px;
-          margin-bottom: 12px;
+          margin-bottom: 5px;
         }
 
         .faq-question {

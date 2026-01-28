@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/create/createService.js - FIXED WITH PROPER IMAGE HANDLING
+// src/services/create/createService.js - FIXED STORY CREATION
 // ============================================================================
 
 import { supabase } from '../config/supabase';
@@ -222,6 +222,7 @@ class CreateService {
 
       console.log('💾 Inserting story to database...');
       
+      // FIXED: Removed 'shares' column - it doesn't exist in the stories table
       const { data, error } = await supabase
         .from('stories')
         .insert({
@@ -237,7 +238,6 @@ class CreateService {
           current_accesses: 0,
           likes: 0,
           comments_count: 0,
-          shares: 0,
           views: 0
         })
         .select(`

@@ -1,326 +1,336 @@
-// src/services/security/SecurityService.js - ACTUALLY FIXED
+// src/services/security/SecurityService.js
 import { supabase } from '../config/supabase';
 
 class SecurityService {
   constructor() {
-    this.sessionKey = this.generateSessionKey();
     this.deviceFingerprint = null;
-    this.securityEvents = [];
-    this.requestCount = new Map();
+    this.sessionKey = null;
     this.lastActivity = Date.now();
     this.isInitialized = false;
   }
 
+  // ────────────────────────────────────────────────
+  // Initialization & Device Fingerprint
+  // ────────────────────────────────────────────────
   async initialize() {
     if (this.isInitialized) return;
-    
-    console.log('🛡️ Initializing Security Service...');
 
     try {
-      const screenInfo = window.screen || {};
-      
-      const fingerprint = {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        screen: `${screenInfo.width || 0}x${screenInfo.height || 0}x${screenInfo.colorDepth || 0}`,
-        platform: navigator.platform,
-        hardwareConcurrency: navigator.hardwareConcurrency || 0,
-        deviceMemory: navigator.deviceMemory || 0,
-        timestamp: Date.now()
-      };
+      // Generate stable session key
+      this.sessionKey = crypto.randomUUID?.() || 
+        Array.from(crypto.getRandomValues(new Uint8Array(16)))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
 
-      const fingerprintString = JSON.stringify(fingerprint);
-      this.deviceFingerprint = btoa(fingerprintString).substring(0, 64);
-      
+      // Enhanced device fingerprint (more stable than before)
+      const components = [
+        navigator.userAgent,
+        navigator.language || navigator.userLanguage,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+        `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
+        navigator.hardwareConcurrency || 'unknown',
+        navigator.deviceMemory || 'unknown',
+        navigator.platform || 'unknown'
+      ];
+
+      const str = components.join('|');
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32bit integer
+      }
+
+      this.deviceFingerprint = Math.abs(hash).toString(36) + '-' + 
+        btoa(navigator.userAgent.slice(0, 80)).slice(0, 32);
+
       sessionStorage.setItem('device_fp', this.deviceFingerprint);
-
-      this.startSessionMonitoring();
-      this.startActivityTracking();
-      this.protectConsole();
-      this.protectClipboard();
-
       this.isInitialized = true;
-      console.log('✅ Security Service Active');
-      
-    } catch (error) {
-      console.error('❌ Security initialization failed:', error);
+
+      this.startActivityTracking();
+      console.debug('SecurityService initialized');
+    } catch (err) {
+      console.warn('Security init failed:', err);
     }
-  }
-
-  generateSessionKey() {
-    return Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-
-  startSessionMonitoring() {
-    setInterval(() => {
-      this.validateSession();
-    }, 5 * 60 * 1000);
-  }
-
-  async validateSession() {
-    const now = Date.now();
-    
-    if (now - this.lastActivity > 30 * 60 * 1000) {
-      await this.terminateSession('Session expired due to inactivity');
-      return false;
-    }
-
-    const storedFp = sessionStorage.getItem('device_fp');
-    if (storedFp && storedFp !== this.deviceFingerprint) {
-      await this.terminateSession('Device fingerprint mismatch detected');
-      return false;
-    }
-
-    return true;
-  }
-
-  async terminateSession(reason) {
-    console.error('🚨 Session terminated:', reason);
-    sessionStorage.clear();
-    await supabase.auth.signOut();
-    window.location.href = '/login';
-  }
-
-  startActivityTracking() {
-    const updateActivity = () => {
-      this.lastActivity = Date.now();
-      sessionStorage.setItem('last_activity', this.lastActivity.toString());
-    };
-
-    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
-      document.addEventListener(event, updateActivity, { passive: true });
-    });
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        // Tab hidden
-      } else {
-        // Tab visible - validate session
-        this.validateSession();
-      }
-    });
-  }
-
-  updateActivity() {
-    this.lastActivity = Date.now();
-    sessionStorage.setItem('last_activity', this.lastActivity.toString());
-  }
-
-  checkRateLimit(action, maxRequests = 100, windowMs = 60000) {
-    const now = Date.now();
-    const windowKey = Math.floor(now / windowMs);
-    const key = `${action}_${windowKey}`;
-    
-    const count = this.requestCount.get(key) || 0;
-    
-    if (count >= maxRequests) {
-      throw new Error('Too many requests. Please slow down.');
-    }
-    
-    this.requestCount.set(key, count + 1);
-    
-    for (const [k] of this.requestCount.entries()) {
-      if (!k.includes(`_${windowKey}`)) {
-        this.requestCount.delete(k);
-      }
-    }
-
-    return true;
-  }
-
-  sanitizeInput(input) {
-    if (typeof input !== 'string') return input;
-    
-    let sanitized = input
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/data:text\/html/gi, '');
-    
-    return sanitized;
-  }
-
-  sanitizeObject(obj) {
-    if (typeof obj !== 'object' || obj === null) return obj;
-    
-    const sanitized = Array.isArray(obj) ? [] : {};
-    
-    for (const key in obj) {
-      if (typeof obj[key] === 'string') {
-        sanitized[key] = this.sanitizeInput(obj[key]);
-      } else if (typeof obj[key] === 'object') {
-        sanitized[key] = this.sanitizeObject(obj[key]);
-      } else {
-        sanitized[key] = obj[key];
-      }
-    }
-    
-    return sanitized;
-  }
-
-  validateSQLInput(input) {
-    const sqlPatterns = [
-      /(\bOR\b|\bAND\b).*=.*/i,
-      /UNION.*SELECT/i,
-      /DROP\s+TABLE/i,
-      /INSERT\s+INTO/i,
-      /DELETE\s+FROM/i,
-      /UPDATE.*SET/i,
-      /--/,
-      /;.*--/,
-      /\/\*/,
-      /xp_/i,
-      /sp_/i
-    ];
-
-    for (const pattern of sqlPatterns) {
-      if (pattern.test(input)) {
-        throw new Error('Invalid input detected');
-      }
-    }
-    
-    return true;
-  }
-
-  protectConsole() {
-    if (process.env.NODE_ENV !== 'production') return;
-
-    const methods = ['log', 'debug', 'info', 'warn', 'error'];
-    
-    methods.forEach(method => {
-      const original = console[method];
-      console[method] = (...args) => {
-        const message = args.join(' ');
-        
-        if (
-          message.includes('supabase') ||
-          message.includes('token') ||
-          message.includes('password') ||
-          message.includes('auth')
-        ) {
-          // Detected sensitive console activity
-        }
-        
-        original.apply(console, args);
-      };
-    });
-  }
-
-  protectClipboard() {
-    document.addEventListener('copy', (e) => {
-      const selection = window.getSelection().toString();
-      
-      if (
-        selection.includes('password') ||
-        selection.includes('token') ||
-        selection.includes('secret') ||
-        selection.includes('key')
-      ) {
-        e.preventDefault();
-      }
-    });
-  }
-
-  // =====================================================
-  // FIXED: Proper security event logging
-  // =====================================================
-  async logSecurityEvent(eventType, severity, metadata = {}) {
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        // Not authenticated - just store in memory
-        this.securityEvents.push({
-          event_type: eventType,
-          severity: severity,
-          timestamp: new Date().toISOString()
-        });
-        return;
-      }
-
-      // Build the event object - MATCH YOUR TABLE EXACTLY
-      const event = {
-        user_id: user.id,
-        event_type: eventType,
-        severity: severity,
-        ip_address: null,
-        user_agent: navigator.userAgent,
-        device_fingerprint: this.deviceFingerprint,
-        location_data: null,
-        metadata: metadata || {}
-      };
-
-      // Store in memory
-      this.securityEvents.push(event);
-      if (this.securityEvents.length > 100) {
-        this.securityEvents.shift();
-      }
-
-      // THE FIX: Use .insert() WITHOUT select() or columns
-      const { error } = await supabase
-        .from('security_events')
-        .insert(event);
-
-      if (error) {
-        console.debug('Security log failed:', error.message);
-      }
-
-      if (severity === 'critical') {
-        console.error('🚨 CRITICAL SECURITY EVENT:', eventType, metadata);
-      }
-
-    } catch (error) {
-      // Silent fail - don't break the app
-      console.debug('Security event error:', error);
-    }
-  }
-
-  async secureRequest(url, options = {}) {
-    const isValid = await this.validateSession();
-    if (!isValid) {
-      throw new Error('Invalid session');
-    }
-
-    this.checkRateLimit('api_request', 100, 60000);
-    this.updateActivity();
-
-    const secureOptions = {
-      ...options,
-      headers: {
-        ...options.headers,
-        'X-Device-Fingerprint': this.deviceFingerprint,
-        'X-Session-Key': this.sessionKey,
-        'X-Timestamp': Date.now().toString()
-      }
-    };
-
-    return fetch(url, secureOptions);
   }
 
   getDeviceFingerprint() {
     return this.deviceFingerprint;
   }
 
-  isSessionValid() {
-    return this.validateSession();
+  // ────────────────────────────────────────────────
+  // Session & Activity Monitoring
+  // ────────────────────────────────────────────────
+  startActivityTracking() {
+    const events = ['mousemove', 'keydown', 'scroll', 'touchstart'];
+    const update = () => { this.lastActivity = Date.now(); };
+
+    events.forEach(ev => 
+      document.addEventListener(ev, update, { passive: true })
+    );
+
+    // Check inactivity every 3 minutes
+    setInterval(() => this.checkInactivity(), 3 * 60 * 1000);
   }
 
-  logActivity(action, metadata = {}) {
-    this.updateActivity();
-    this.logSecurityEvent(action, 'info', metadata);
+  async checkInactivity() {
+    const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+    if (Date.now() - this.lastActivity > INACTIVITY_TIMEOUT) {
+      await this.terminateSession('Inactivity timeout');
+    }
   }
+
+  async terminateSession(reason = 'Manual termination') {
+    try {
+      await supabase.auth.signOut();
+      sessionStorage.clear();
+      window.location.replace('/login?reason=session_ended');
+    } catch (err) {
+      console.error('Session termination failed:', err);
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Core Security Event Logging
+  // ────────────────────────────────────────────────
+  async logSecurityEvent(eventType, severity = 'info', metadata = {}) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const event = {
+        user_id: user.id,
+        event_type: eventType,
+        severity,
+        ip_address: null,           // filled later if you have server-side IP
+        user_agent: navigator.userAgent,
+        device_fingerprint: this.deviceFingerprint,
+        location_data: null,        // can be enriched later
+        metadata: { ...metadata, client_time: new Date().toISOString() },
+        created_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('security_events')
+        .insert(event);
+
+      if (error) throw error;
+
+      if (severity === 'critical' || severity === 'warning') {
+        console.warn(`Security [${severity.toUpperCase()}] ${eventType}`, metadata);
+      }
+    } catch (err) {
+      // Silent fail — never break main app flow
+      console.debug('Could not log security event:', err.message);
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Trusted Devices / Fingerprints
+  // ────────────────────────────────────────────────
+  async getTrustedDevices(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('device_fingerprints')
+        .select(`
+          id,
+          fingerprint_hash,
+          device_name,
+          browser,
+          os,
+          is_trusted,
+          first_seen,
+          last_seen,
+          location_country,
+          location_city,
+          ip_address
+        `)
+        .eq('user_id', userId)
+        .eq('is_trusted', true)
+        .order('last_seen', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('getTrustedDevices failed:', err);
+      return [];
+    }
+  }
+
+  async trustCurrentDevice(userId, customName = null) {
+    try {
+      const fp = {
+        user_id: userId,
+        fingerprint_hash: this.deviceFingerprint,
+        device_name: customName || this.guessDeviceName(),
+        browser: this.guessBrowser(),
+        os: this.guessOS(),
+        is_trusted: true,
+        first_seen: new Date().toISOString(),
+        last_seen: new Date().toISOString(),
+        ip_address: await this.getApproximateIP()
+      };
+
+      const { error } = await supabase
+        .from('device_fingerprints')
+        .upsert(fp, { onConflict: 'user_id, fingerprint_hash' });
+
+      if (error) throw error;
+
+      await this.logSecurityEvent('device_trusted', 'info', {
+        fingerprint: this.deviceFingerprint,
+        name: fp.device_name
+      });
+
+      return true;
+    } catch (err) {
+      console.error('trustCurrentDevice failed:', err);
+      return false;
+    }
+  }
+
+  async removeTrustedDevice(userId, deviceId) {
+    try {
+      const { error } = await supabase
+        .from('device_fingerprints')
+        .update({ is_trusted: false, last_seen: new Date().toISOString() })
+        .eq('id', deviceId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      await this.logSecurityEvent('device_untrusted', 'warning', { device_id: deviceId });
+      return true;
+    } catch (err) {
+      console.error('removeTrustedDevice failed:', err);
+      return false;
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Active Sessions (recommended for "Where you're logged in")
+  // ────────────────────────────────────────────────
+  async getActiveSessions(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_sessions')
+        .select(`
+          id,
+          ip_address,
+          user_agent,
+          location_data,
+          last_activity,
+          created_at,
+          expires_at,
+          is_active,
+          device_fingerprint_id,
+          device_fingerprints!device_fingerprint_id (
+            device_name,
+            browser,
+            os,
+            location_country,
+            location_city
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('last_activity', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(s => ({
+        ...s,
+        current: s.device_fingerprint_id === this.deviceFingerprint,
+        deviceName: s.device_fingerprints?.device_name || this.guessDeviceName(s.user_agent),
+        browser: s.device_fingerprints?.browser || this.guessBrowser(s.user_agent),
+        os: s.device_fingerprints?.os || this.guessOS(s.user_agent),
+        location: this.formatLocation(s)
+      }));
+    } catch (err) {
+      console.error('getActiveSessions failed:', err);
+      return [];
+    }
+  }
+
+  async terminateSessionById(sessionId, userId) {
+    try {
+      const { error } = await supabase
+        .from('user_sessions')
+        .update({
+          is_active: false,
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', sessionId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      await this.logSecurityEvent('session_terminated', 'info', { session_id: sessionId });
+      return true;
+    } catch (err) {
+      console.error('terminateSessionById failed:', err);
+      return false;
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Helpers
+  // ────────────────────────────────────────────────
+  guessDeviceName(ua = navigator.userAgent) {
+    if (/mobile/i.test(ua)) return 'Mobile';
+    if (/tablet|iPad/i.test(ua)) return 'Tablet';
+    return 'Computer';
+  }
+
+  guessBrowser(ua = navigator.userAgent) {
+    if (/edg/i.test(ua)) return 'Edge';
+    if (/firefox/i.test(ua)) return 'Firefox';
+    if (/opr\//i.test(ua) || /opera/i.test(ua)) return 'Opera';
+    if (/chrome/i.test(ua)) return 'Chrome';
+    if (/safari/i.test(ua)) return 'Safari';
+    return 'Unknown';
+  }
+
+  guessOS(ua = navigator.userAgent) {
+    if (/windows/i.test(ua)) return 'Windows';
+    if (/macintosh|mac os/i.test(ua)) return 'macOS';
+    if (/linux/i.test(ua)) return 'Linux';
+    if (/android/i.test(ua)) return 'Android';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'iOS';
+    return 'Unknown';
+  }
+
+  formatLocation(session) {
+    const loc = session.location_data || session.device_fingerprints || {};
+    const parts = [
+      loc.location_city || loc.city,
+      loc.location_country || loc.country
+    ].filter(Boolean);
+    return parts.length ? parts.join(', ') : 'Unknown';
+  }
+
+  async getApproximateIP() {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const { ip } = await res.json();
+      return ip;
+    } catch {
+      return null;
+    }
+  }
+
+  // Legacy / compatibility methods (keep if needed)
+  async getTrustedDevicesLegacy(userId) { return this.getTrustedDevices(userId); }
+  async removeDevice(userId, deviceId) { return this.removeTrustedDevice(userId, deviceId); }
 }
 
 const securityService = new SecurityService();
 
+// Auto-init in browser
 if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    securityService.initialize();
-  }, 1000);
+  window.addEventListener('load', () => {
+    setTimeout(() => securityService.initialize(), 800);
+  });
 }
 
 export default securityService;

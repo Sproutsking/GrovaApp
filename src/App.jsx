@@ -1,4 +1,4 @@
-// src/App.jsx - ULTRA FAST WITH TOAST PROVIDER (MINIMAL CHANGES)
+// src/App.jsx - FIXED with proper profile loading for headers
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import './styles/global.css';
 import './styles/comment.css';
@@ -13,9 +13,9 @@ import './styles/ProfileModal.css';
 
 import authService from './services/auth/authService';
 import { supabase } from './services/config/supabase';
+import mediaUrlService from './services/shared/mediaUrlService';
 import { ToastProvider } from './contexts/ToastContext';
 
-// Eager load critical components
 import DesktopHeader from './components/Shared/DesktopHeader';
 import MobileHeader from './components/Shared/MobileHeader';
 import MobileBottomNav from './components/Shared/MobileBottomNav';
@@ -24,15 +24,14 @@ import AuthPage from './components/Auth/AuthPage';
 import SupportSidebar from './components/Shared/SupportSidebar';
 import NotificationSidebar from './components/Shared/NotificationSidebar';
 
-// Lazy load views
 const HomeView = lazy(() => import('./components/Home/HomeView'));
 const ExploreView = lazy(() => import('./components/Explore/ExploreView'));
 const CreateView = lazy(() => import('./components/Create/CreateView'));
 const AccountView = lazy(() => import('./components/Account/AccountView'));
 const WalletView = lazy(() => import('./components/wallet/WalletView'));
+const CommunityView = lazy(() => import('./components/Community/CommunityView'));
 const TrendingSidebar = lazy(() => import('./components/Shared/TrendingSidebar'));
 
-// Modern loading component
 const LoadingFallback = () => (
   <div style={{
     display: 'flex',
@@ -50,11 +49,7 @@ const LoadingFallback = () => (
       borderRadius: '50%',
       animation: 'spin 0.8s linear infinite'
     }}></div>
-    <style>{`
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-    `}</style>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
 );
 
@@ -62,6 +57,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [profileData, setProfileData] = useState(null); // NEW: Separate state for header profile
   const [activeTab, setActiveTab] = useState('home');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -69,8 +65,6 @@ const App = () => {
   const [homeSection, setHomeSection] = useState('newsfeed');
   const [userBalance, setUserBalance] = useState({ tokens: 0, points: 0 });
   const [isSubscribed, setIsSubscribed] = useState(false);
-
-  // NEW STATES FOR NOTIFICATIONS AND SUPPORT SIDEBARS
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
 
@@ -79,17 +73,14 @@ const App = () => {
 
   useEffect(() => {
     initializeApp();
-
     authUnsubscribe.current = authService.onAuthStateChange((authenticatedUser) => {
-      console.log('🔄 Auth changed:', authenticatedUser ? 'Signed in' : 'Signed out');
-      
       if (authenticatedUser) {
         setUser(authenticatedUser);
-        // Load user data in background, don't block UI
         loadUserDataAsync(authenticatedUser.id);
       } else {
         setUser(null);
         setCurrentUser(null);
+        setProfileData(null);
         setUserBalance({ tokens: 0, points: 0 });
       }
     });
@@ -105,10 +96,6 @@ const App = () => {
 
   const initializeApp = async () => {
     try {
-      console.log('🚀 Initializing app...');
-      const startTime = Date.now();
-      
-      // Fast timeout - don't wait forever
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('timeout')), 1500)
       );
@@ -117,24 +104,15 @@ const App = () => {
       
       try {
         const session = await Promise.race([sessionPromise, timeoutPromise]);
-        
-        console.log(`⏱️ Session check: ${Date.now() - startTime}ms`);
-        
         if (session?.user) {
-          console.log('✅ Existing session found');
           setUser(session.user);
-          // Load user data async
           loadUserDataAsync(session.user.id);
-        } else {
-          console.log('ℹ️ No session found');
         }
       } catch (err) {
-        if (err.message === 'timeout') {
-          console.warn('⚠️ Session check timeout, proceeding anyway');
-        }
+        if (err.message !== 'timeout') throw err;
       }
     } catch (error) {
-      console.error('❌ Init error:', error);
+      console.error('Init error:', error);
     } finally {
       setLoading(false);
     }
@@ -142,18 +120,16 @@ const App = () => {
 
   const loadUserDataAsync = async (userId) => {
     try {
-      console.log('📊 Loading user data in background...');
-      const startTime = Date.now();
+      console.log('🔄 Loading user data for:', userId);
       
-      // Set immediate fallback so UI shows
       setCurrentUser({
         name: 'Loading...',
         username: 'user',
         avatar: 'G',
-        verified: false
+        verified: false,
+        fullName: 'Loading...'
       });
       
-      // Fetch data with timeout
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('timeout')), 5000)
       );
@@ -168,35 +144,67 @@ const App = () => {
       try {
         [profileResult, walletResult] = await Promise.race([fetchPromise, timeoutPromise]);
       } catch (err) {
-        if (err.message === 'timeout') {
-          console.warn('⚠️ Data fetch timeout');
-          // Keep fallback data
-          return;
-        }
+        if (err.message === 'timeout') return;
         throw err;
       }
 
-      console.log(`⏱️ Data fetch: ${Date.now() - startTime}ms`);
-
       let userData = null;
+      let headerProfile = null;
       let balance = { tokens: 0, points: 0 };
       let isPro = false;
 
       if (profileResult.data) {
         const profile = profileResult.data;
+        
+        // Process avatar with HIGH QUALITY for headers
+        let avatarUrl = null;
+        if (profile.avatar_id) {
+          const baseUrl = mediaUrlService.getImageUrl(profile.avatar_id);
+          if (baseUrl && typeof baseUrl === 'string') {
+            const cleanUrl = baseUrl.split('?')[0];
+            if (cleanUrl.includes('supabase')) {
+              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
+            } else {
+              avatarUrl = baseUrl;
+            }
+          }
+        }
+
+        console.log('✅ Avatar URL processed:', avatarUrl);
+
         userData = {
           name: profile.full_name || 'Grova User',
           username: profile.username || 'user',
-          avatar: profile.avatar_url || profile.avatar_id || profile.full_name?.charAt(0)?.toUpperCase() || 'G',
-          verified: profile.verified || false
+          avatar: profile.avatar_id ? avatarUrl : profile.full_name?.charAt(0)?.toUpperCase() || 'G',
+          verified: profile.verified || false,
+          fullName: profile.full_name || 'Grova User'
         };
+
+        // Separate profile data for headers with avatar URL
+        headerProfile = {
+          id: profile.id,
+          fullName: profile.full_name,
+          username: profile.username,
+          avatar: avatarUrl, // This is the high-quality URL
+          verified: profile.verified,
+          isPro: profile.is_pro
+        };
+
         isPro = profile.is_pro || false;
+
+        console.log('✅ Header profile ready:', headerProfile);
       } else {
-        // Profile doesn't exist - use fallback
         userData = {
           name: 'Grova User',
           username: 'user_' + userId.substring(0, 8),
           avatar: 'G',
+          verified: false,
+          fullName: 'Grova User'
+        };
+        headerProfile = {
+          fullName: 'Grova User',
+          username: 'user',
+          avatar: null,
           verified: false
         };
       }
@@ -210,32 +218,51 @@ const App = () => {
       }
 
       setCurrentUser(userData);
+      setProfileData(headerProfile); // Set profile data for headers
       setUserBalance(balance);
       setIsSubscribed(isPro);
 
-      console.log(`✅ User data loaded (${Date.now() - startTime}ms)`);
-
+      console.log('✅ User data loaded successfully');
     } catch (error) {
       console.error('❌ Load user data error:', error);
-      // Keep fallback data
       setCurrentUser({
         name: 'Grova User',
         username: 'user',
         avatar: 'G',
+        verified: false,
+        fullName: 'Grova User'
+      });
+      setProfileData({
+        fullName: 'Grova User',
+        username: 'user',
+        avatar: null,
         verified: false
       });
     }
   };
 
+  // Callback when profile is updated in AccountView
+  const handleProfileUpdate = (updatedProfile) => {
+    console.log('🔄 Profile updated, refreshing header:', updatedProfile);
+    setProfileData(updatedProfile);
+    setCurrentUser(prev => ({
+      ...prev,
+      fullName: updatedProfile.fullName,
+      username: updatedProfile.username,
+      avatar: updatedProfile.avatar,
+      verified: updatedProfile.verified
+    }));
+  };
+
   const handleSignOut = async () => {
     try {
-      console.log('👋 Signing out...');
       await authService.signOut();
       setUser(null);
       setCurrentUser(null);
+      setProfileData(null);
       setUserBalance({ tokens: 0, points: 0 });
     } catch (error) {
-      console.error('❌ Sign out error:', error);
+      console.error('Sign out error:', error);
     }
   };
 
@@ -244,16 +271,6 @@ const App = () => {
     if (hour < 12) return "Good Morning";
     if (hour < 17) return "Good Afternoon";
     return "Good Evening";
-  };
-
-  const handleNotificationClick = () => {
-    setShowNotifications(true);
-    setShowSupport(false);
-  };
-
-  const handleSupportClick = () => {
-    setShowSupport(true);
-    setShowNotifications(false);
   };
 
   const renderContent = () => {
@@ -288,6 +305,13 @@ const App = () => {
           </Suspense>
         );
 
+      case 'community':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <CommunityView currentUser={currentUser} userId={user.id} />
+          </Suspense>
+        );
+
       case 'account':
         return (
           <Suspense fallback={<LoadingFallback />}>
@@ -298,6 +322,7 @@ const App = () => {
               isSubscribed={isSubscribed}
               onSignOut={handleSignOut}
               userId={user.id}
+              onProfileLoad={handleProfileUpdate}
             />
           </Suspense>
         );
@@ -328,7 +353,6 @@ const App = () => {
     }
   };
 
-  // Quick loading screen
   if (loading) {
     return (
       <div style={{
@@ -359,11 +383,7 @@ const App = () => {
           animation: 'spin 0.8s linear infinite'
         }}></div>
 
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -376,7 +396,6 @@ const App = () => {
     );
   }
 
-  // Show app immediately even if currentUser is still loading
   if (!currentUser) {
     return (
       <ToastProvider>
@@ -406,11 +425,7 @@ const App = () => {
             Loading your profile...
           </div>
 
-          <style>{`
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-          `}</style>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </ToastProvider>
     );
@@ -436,8 +451,9 @@ const App = () => {
             currentUser={currentUser}
             getGreeting={getGreeting}
             setSidebarOpen={setSidebarOpen}
-            onNotificationClick={handleNotificationClick}
-            onSupportClick={handleSupportClick}
+            onNotificationClick={() => setShowNotifications(true)}
+            onSupportClick={() => setShowSupport(true)}
+            profile={profileData}
           />
         )}
 
@@ -446,8 +462,9 @@ const App = () => {
             userBalance={userBalance}
             getGreeting={getGreeting}
             setActiveTab={setActiveTab}
-            onNotificationClick={handleNotificationClick}
-            onSupportClick={handleSupportClick}
+            onNotificationClick={() => setShowNotifications(true)}
+            onSupportClick={() => setShowSupport(true)}
+            profile={profileData}
           />
         )}
 
@@ -458,7 +475,7 @@ const App = () => {
             {renderContent()}
           </main>
 
-          {!isMobile && (
+          {!isMobile && activeTab !== 'community' && (
             <Suspense fallback={<div style={{ width: '300px' }}></div>}>
               <TrendingSidebar />
             </Suspense>
@@ -472,7 +489,6 @@ const App = () => {
           />
         )}
 
-        {/* NOTIFICATION AND SUPPORT SIDEBARS */}
         <NotificationSidebar
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}

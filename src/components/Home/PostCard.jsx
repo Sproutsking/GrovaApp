@@ -1,7 +1,6 @@
 // ============================================================================
-// src/components/Home/PostCard.jsx - FIXED AVATAR DISPLAY
+// src/components/Home/PostCard.jsx - WITH PARSED HASHTAGS & MENTIONS
 // ============================================================================
-// Also apply same fix to ReelCard.jsx and StoryCard.jsx
 
 import React, { useState } from 'react';
 import { MoreVertical } from 'lucide-react';
@@ -9,16 +8,23 @@ import ProfilePreview from '../Shared/ProfilePreview';
 import ReactionPanel from '../Shared/ReactionPanel';
 import CommentModal from '../Modals/CommentModal';
 import ShareModal from '../Modals/ShareModal';
+import ParsedText from '../Shared/ParsedText';
 import mediaUrlService from '../../services/shared/mediaUrlService';
 
-const PostCard = ({ post, currentUser, onAuthorClick, onActionMenu }) => {
+const PostCard = ({ 
+  post, 
+  currentUser, 
+  onAuthorClick, 
+  onActionMenu,
+  onHashtagClick,
+  onMentionClick 
+}) => {
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [imageError, setImageError] = useState({});
 
   const isOwnPost = post.user_id === currentUser?.id;
 
-  // FIXED: Generate full Cloudinary URL for avatar
   const profile = {
     userId: post.user_id,
     author: post.profiles?.full_name || post.author || 'Unknown',
@@ -36,7 +42,6 @@ const PostCard = ({ post, currentUser, onAuthorClick, onActionMenu }) => {
     }
   };
 
-  // Get image URLs from image_ids
   const getImageUrls = () => {
     if (!post.image_ids || post.image_ids.length === 0) return [];
     
@@ -81,7 +86,15 @@ const PostCard = ({ post, currentUser, onAuthorClick, onActionMenu }) => {
         </div>
 
         <div className="post-content">
-          {post.content && <p className="post-text">{post.content}</p>}
+          {post.content && (
+            <p className="post-text">
+              <ParsedText 
+                text={post.content}
+                onHashtagClick={onHashtagClick}
+                onMentionClick={onMentionClick}
+              />
+            </p>
+          )}
           
           {imageUrls.length > 0 && (
             <div className={`post-images ${getGridClass(imageUrls.length)}`}>
