@@ -1,17 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  Heart, MessageCircle, Share2, Bookmark, Music, 
-  VolumeX, Volume2, X, MoreVertical
-} from 'lucide-react';
-import ProfilePreview from '../Shared/ProfilePreview';
-import CommentModal from '../Modals/CommentModal';
-import ShareModal from '../Modals/ShareModal';
-import LikeModel from '../../models/LikeModel';
-import SaveModel from '../../models/SaveModel';
-import mediaUrlService from '../../services/shared/mediaUrlService';
-import { useToast } from '../../contexts/ToastContext';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { VolumeX, Volume2, X, MoreVertical } from "lucide-react";
+import ReelProfilePreview from "../Shared/ReelProfilePreview";
+import FullScreenReactionPanel from "../Shared/FullScreenReactionPanel";
+import CommentModal from "../Modals/CommentModal";
+import ShareModal from "../Modals/ShareModal";
+import mediaUrlService from "../../services/shared/mediaUrlService";
+import { useToast } from "../../contexts/ToastContext";
 
-// Global Video State Manager
 const GlobalVideoState = {
   globalPlayState: false,
   globalMuteState: true,
@@ -24,29 +19,29 @@ const GlobalVideoState = {
   },
 
   notify() {
-    this.listeners.forEach(callback => callback());
+    this.listeners.forEach((callback) => callback());
   },
 
   setGlobalPlayState(shouldPlay) {
     this.globalPlayState = shouldPlay;
-    sessionStorage.setItem('reels_global_play_state', shouldPlay.toString());
+    sessionStorage.setItem("reels_global_play_state", shouldPlay.toString());
     this.notify();
   },
 
   getGlobalPlayState() {
-    const saved = sessionStorage.getItem('reels_global_play_state');
-    return saved === null ? false : saved === 'true';
+    const saved = sessionStorage.getItem("reels_global_play_state");
+    return saved === null ? false : saved === "true";
   },
 
   setGlobalMuteState(shouldMute) {
     this.globalMuteState = shouldMute;
-    sessionStorage.setItem('reels_global_muted', shouldMute.toString());
+    sessionStorage.setItem("reels_global_muted", shouldMute.toString());
     this.notify();
   },
 
   getGlobalMuteState() {
-    const saved = sessionStorage.getItem('reels_global_muted');
-    return saved === null ? true : saved === 'true';
+    const saved = sessionStorage.getItem("reels_global_muted");
+    return saved === null ? true : saved === "true";
   },
 
   setCurrentlyVisibleVideo(videoId) {
@@ -59,27 +54,26 @@ const GlobalVideoState = {
   init() {
     this.globalPlayState = this.getGlobalPlayState();
     this.globalMuteState = this.getGlobalMuteState();
-  }
+  },
 };
 
 GlobalVideoState.init();
 
-const FullScreenReels = ({ 
-  reels = [], 
-  onClose, 
-  initialIndex = 0, 
+const FullScreenReels = ({
+  reels = [],
+  onClose,
+  initialIndex = 0,
   currentUser,
   onAuthorClick,
   onSoundClick,
-  onActionMenu 
+  onActionMenu,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [liked, setLiked] = useState({});
-  const [saved, setSaved] = useState({});
   const [muted, setMuted] = useState(GlobalVideoState.getGlobalMuteState());
   const [playing, setPlaying] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [buffering, setBuffering] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -88,7 +82,8 @@ const FullScreenReels = ({
   const [bufferedProgress, setBufferedProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
-  
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+
   const videoRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
   const containerRef = useRef(null);
@@ -99,44 +94,36 @@ const FullScreenReels = ({
   const { showToast } = useToast();
 
   const currentReel = reels[currentIndex];
-  
-  const profile = currentReel ? {
-    userId: currentReel.user_id,
-    author: currentReel.profiles?.full_name || currentReel.author || 'Unknown',
-    username: currentReel.profiles?.username || currentReel.username || 'unknown',
-    avatar: currentReel.profiles?.avatar_id || null,
-    verified: currentReel.profiles?.verified || currentReel.verified || false
-  } : null;
 
-  // Use your mediaUrlService just like in ReelCard
-  const videoUrl = currentReel?.video_id 
-    ? mediaUrlService.getVideoUrl(currentReel.video_id, { quality: 'auto', format: 'mp4' })
-    : null;
-  
-  const thumbnailUrl = currentReel?.thumbnail_id 
-    ? mediaUrlService.getVideoThumbnail(currentReel.thumbnail_id, { width: 640, height: 1138 })
+  const profile = currentReel
+    ? {
+        userId: currentReel.user_id,
+        author:
+          currentReel.profiles?.full_name || currentReel.author || "Unknown",
+        username:
+          currentReel.profiles?.username || currentReel.username || "unknown",
+        avatar: currentReel.profiles?.avatar_id
+          ? mediaUrlService.getAvatarUrl(currentReel.profiles.avatar_id, 200)
+          : null,
+        verified:
+          currentReel.profiles?.verified || currentReel.verified || false,
+      }
     : null;
 
-  // Check like/save states
-  // Subscribe to global mute state changes
-  useEffect(() => {
-    if (currentUser?.id && currentReel) {
-      checkStates();
-    }
-  }, [currentReel?.id, currentUser?.id]);
+  const videoUrl = currentReel?.video_id
+    ? mediaUrlService.getVideoUrl(currentReel.video_id, {
+        quality: "auto",
+        format: "mp4",
+      })
+    : null;
 
-  const checkStates = async () => {
-    try {
-      const [isLiked, isSaved] = await Promise.all([
-        LikeModel.checkIfLiked('reel', currentReel.id, currentUser.id),
-        SaveModel.checkIfSaved('reel', currentReel.id, currentUser.id)
-      ]);
-      setLiked(prev => ({ ...prev, [currentReel.id]: isLiked }));
-      setSaved(prev => ({ ...prev, [currentReel.id]: isSaved }));
-    } catch (error) {
-      console.error('Error checking states:', error);
-    }
-  };
+  const thumbnailUrl = currentReel?.thumbnail_id
+    ? mediaUrlService.getVideoThumbnail(currentReel.thumbnail_id, {
+        width: 640,
+        height: 1138,
+      })
+    : null;
+
   useEffect(() => {
     const unsubscribe = GlobalVideoState.subscribe(() => {
       setMuted(GlobalVideoState.globalMuteState);
@@ -144,28 +131,24 @@ const FullScreenReels = ({
     return unsubscribe;
   }, []);
 
-  // Notify that fullscreen is open/closed
   useEffect(() => {
-    const pauseEvent = new CustomEvent('fullscreen-opened');
+    const pauseEvent = new CustomEvent("fullscreen-opened");
     window.dispatchEvent(pauseEvent);
-    
-    // Set global play state to true when entering fullscreen
+
     GlobalVideoState.setGlobalPlayState(true);
 
     return () => {
-      const closeEvent = new CustomEvent('fullscreen-closed');
+      const closeEvent = new CustomEvent("fullscreen-closed");
       window.dispatchEvent(closeEvent);
-      
-      // Pause when closing fullscreen
+
       GlobalVideoState.setGlobalPlayState(false);
     };
   }, []);
 
-  // Reset controls timer
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    
+
     if (playing) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
@@ -173,27 +156,26 @@ const FullScreenReels = ({
     }
   }, [playing]);
 
-  // Play video function
   const playVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || videoError || isTransitioningRef.current) return;
 
-    video.play()
+    video
+      .play()
       .then(() => {
         setPlaying(true);
         setBuffering(false);
         resetControlsTimer();
       })
-      .catch(err => {
-        console.error('Play error:', err);
-        if (err.name !== 'AbortError') {
+      .catch((err) => {
+        console.error("Play error:", err);
+        if (err.name !== "AbortError") {
           setVideoError(true);
         }
         setBuffering(false);
       });
   }, [videoError, resetControlsTimer]);
 
-  // Pause video function
   const pauseVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -204,15 +186,13 @@ const FullScreenReels = ({
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
   }, []);
 
-  // Toggle play/pause
   const togglePlay = useCallback(() => {
     if (!videoRef.current || videoError) return;
-    
+
     const newPlayState = !playing;
-    
-    // Update global play state
+
     GlobalVideoState.setGlobalPlayState(newPlayState);
-    
+
     if (newPlayState) {
       playVideo();
     } else {
@@ -220,27 +200,29 @@ const FullScreenReels = ({
     }
   }, [playing, videoError, playVideo, pauseVideo]);
 
-  // Handle keyboard shortcuts
-  const handleKeyDown = useCallback((e) => {
-    if (showComments || showShare) return;
-    
-    if (e.key === 'Escape') {
-      onClose();
-    } else if (e.key === ' ') {
-      e.preventDefault();
-      togglePlay();
-    } else if (e.key === 'm' || e.key === 'M') {
-      const newMuted = !muted;
-      setMuted(newMuted);
-      GlobalVideoState.setGlobalMuteState(newMuted);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      goToPrevious();
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      goToNext();
-    }
-  }, [onClose, togglePlay, showComments, showShare, muted]);
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (showComments || showShare) return;
+
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === " ") {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === "m" || e.key === "M") {
+        const newMuted = !muted;
+        setMuted(newMuted);
+        GlobalVideoState.setGlobalMuteState(newMuted);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        goToPrevious();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        goToNext();
+      }
+    },
+    [onClose, togglePlay, showComments, showShare, muted],
+  );
 
   const handleMouseMove = () => {
     resetControlsTimer();
@@ -249,68 +231,88 @@ const FullScreenReels = ({
   const goToNext = useCallback(() => {
     if (currentIndex < reels.length - 1 && !isTransitioningRef.current) {
       isTransitioningRef.current = true;
-      
-      // Pause current video
+
       if (videoRef.current) {
         videoRef.current.pause();
       }
-      
+
       setPlaying(false);
-      setCurrentIndex(prev => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
       setVideoError(false);
+      setIsLoading(true);
       setBuffering(true);
       setCurrentTime(0);
       setDuration(0);
       setBufferedProgress(0);
+      setCaptionExpanded(false);
+
+      setTimeout(() => {
+        isTransitioningRef.current = false;
+      }, 100);
     }
   }, [currentIndex, reels.length]);
 
   const goToPrevious = useCallback(() => {
     if (currentIndex > 0 && !isTransitioningRef.current) {
       isTransitioningRef.current = true;
-      
-      // Pause current video
+
       if (videoRef.current) {
         videoRef.current.pause();
       }
-      
+
       setPlaying(false);
-      setCurrentIndex(prev => prev - 1);
+      setCurrentIndex((prev) => prev - 1);
       setVideoError(false);
+      setIsLoading(true);
       setBuffering(true);
       setCurrentTime(0);
       setDuration(0);
       setBufferedProgress(0);
+      setCaptionExpanded(false);
+
+      setTimeout(() => {
+        isTransitioningRef.current = false;
+      }, 100);
     }
   }, [currentIndex]);
 
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    if (isScrolling) return;
+  const handleWheel = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (isScrolling) return;
 
-    setIsScrolling(true);
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      setIsScrolling(true);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
 
-    if (e.deltaY > 0) {
-      goToNext();
-    } else if (e.deltaY < 0) {
-      goToPrevious();
-    }
+      if (e.deltaY > 0) {
+        goToNext();
+      } else if (e.deltaY < 0) {
+        goToPrevious();
+      }
 
-    scrollTimeoutRef.current = setTimeout(() => {
-      setIsScrolling(false);
-    }, 500);
-  }, [isScrolling, goToNext, goToPrevious]);
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, 150);
+    },
+    [isScrolling, goToNext, goToPrevious],
+  );
 
   const handleTouchStart = (e) => {
+    if (e.target.closest("button") || e.target.closest(".reel-left-info")) {
+      return;
+    }
     touchStartY.current = e.touches[0].clientY;
   };
 
   const handleTouchEnd = (e) => {
+    if (e.target.closest("button") || e.target.closest(".reel-left-info")) {
+      return;
+    }
+
     const touchEndY = e.changedTouches[0].clientY;
     const diff = touchStartY.current - touchEndY;
 
-    if (Math.abs(diff) > 50) {
+    if (Math.abs(diff) > 30) {
       if (diff > 0) {
         goToNext();
       } else {
@@ -319,7 +321,6 @@ const FullScreenReels = ({
     }
   };
 
-  // Progress bar handling
   const handleProgressBarClick = (e) => {
     e.stopPropagation();
     if (!videoRef.current || !progressBarRef.current || !duration) return;
@@ -328,20 +329,26 @@ const FullScreenReels = ({
     const clickX = e.clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percentage * duration;
-    
+
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
 
   const handleProgressBarDrag = (e) => {
     e.stopPropagation();
-    if (!isDragging || !videoRef.current || !progressBarRef.current || !duration) return;
+    if (
+      !isDragging ||
+      !videoRef.current ||
+      !progressBarRef.current ||
+      !duration
+    )
+      return;
 
     const rect = progressBarRef.current.getBoundingClientRect();
     const dragX = e.clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, dragX / rect.width));
     const newTime = percentage * duration;
-    
+
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
@@ -352,7 +359,6 @@ const FullScreenReels = ({
     handleProgressBarClick(e);
   };
 
-  // Video event handlers
   const handleTimeUpdate = () => {
     if (videoRef.current && !isDragging) {
       setCurrentTime(videoRef.current.currentTime);
@@ -362,11 +368,10 @@ const FullScreenReels = ({
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      setIsLoading(false);
       setBuffering(false);
       setVideoError(false);
-      isTransitioningRef.current = false;
-      
-      // Auto-play if global state says we should play
+
       if (GlobalVideoState.globalPlayState) {
         playVideo();
       }
@@ -375,7 +380,9 @@ const FullScreenReels = ({
 
   const handleProgress = () => {
     if (videoRef.current && videoRef.current.buffered.length > 0) {
-      const bufferedEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
+      const bufferedEnd = videoRef.current.buffered.end(
+        videoRef.current.buffered.length - 1,
+      );
       const videoDuration = videoRef.current.duration;
       if (videoDuration > 0) {
         const progress = (bufferedEnd / videoDuration) * 100;
@@ -393,42 +400,37 @@ const FullScreenReels = ({
   };
 
   const handleError = (e) => {
-    console.error('Video error:', e);
+    console.error("Video error:", e);
     setVideoError(true);
+    setIsLoading(false);
     setBuffering(false);
-    isTransitioningRef.current = false;
   };
 
   const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
+    if (!seconds || isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Handle video source changes
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Reset video state
     video.currentTime = 0;
     video.muted = muted;
     setCurrentTime(0);
     setShowControls(true);
-    
-    // Load the new video
+
     video.load();
   }, [currentIndex, videoUrl, muted]);
 
-  // Handle mute state changes
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = muted;
     }
   }, [muted]);
 
-  // Handle drag events
   useEffect(() => {
     const handleGlobalMouseMove = (e) => {
       if (isDragging) {
@@ -443,75 +445,35 @@ const FullScreenReels = ({
     };
 
     if (isDragging) {
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener("mousemove", handleGlobalMouseMove);
+      document.addEventListener("mouseup", handleGlobalMouseUp);
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener("mousemove", handleGlobalMouseMove);
+      document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
   }, [isDragging]);
 
-  // Event listeners
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     const container = containerRef.current;
     if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
+      container.addEventListener("wheel", handleWheel, { passive: false });
     }
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
       if (container) {
-        container.removeEventListener('wheel', handleWheel);
+        container.removeEventListener("wheel", handleWheel);
       }
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
   }, [handleKeyDown, handleWheel]);
 
-  // Mock functions for demo - Replace with actual implementations
-  const handleLike = async () => {
-    if (!currentUser?.id) {
-      showToast('warning', 'Please login to like');
-      return;
-    }
-
-    try {
-      const result = await LikeModel.toggleLike('reel', currentReel.id, currentUser.id);
-      setLiked(prev => ({ ...prev, [currentReel.id]: result.liked }));
-      
-      if (result.liked) {
-        showToast('success', 'Liked!', '+1 EP earned');
-      }
-    } catch (error) {
-      console.error('Like error:', error);
-      showToast('error', 'Failed to like');
-    }
-  };
-
-  const handleSave = async () => {
-    if (!currentUser?.id) {
-      showToast('warning', 'Please login to save');
-      return;
-    }
-
-    try {
-      const result = await SaveModel.saveContent('reel', currentReel.id, currentUser.id);
-      setSaved(prev => ({ ...prev, [currentReel.id]: result.saved }));
-      
-      showToast('success', result.saved ? 'Saved!' : 'Removed from saved');
-    } catch (error) {
-      console.error('Save error:', error);
-      showToast('error', 'Failed to save');
-    }
-  };
-
-  if (!currentReel || !profile) return null;
-
   const formatNumber = (num) => {
-    if (!num || num === 0) return '0';
+    if (!num || num === 0) return "0";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -519,35 +481,32 @@ const FullScreenReels = ({
 
   const playedPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const reelWithType = {
+    ...currentReel,
+    type: "reel",
+  };
+
+  const captionNeedsExpansion =
+    currentReel?.caption && currentReel.caption.length > 60;
+
+  const handleCaptionToggle = (e) => {
+    e.stopPropagation();
+    setCaptionExpanded(!captionExpanded);
+  };
+
+  if (!currentReel || !profile) return null;
+
   return (
     <>
-      <div 
+      <div
         ref={containerRef}
-        className="fullscreen-reels-container" 
+        className="fullscreen-reels-container"
         onMouseMove={handleMouseMove}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div 
-          ref={progressBarRef}
-          className="video-progress-bar"
-          onClick={handleProgressBarClick}
-          onMouseDown={handleProgressBarMouseDown}
-        >
-          <div className="progress-buffered" style={{ width: `${bufferedProgress}%` }} />
-          <div className="progress-played" style={{ width: `${playedPercentage}%` }}>
-            <div className="progress-handle" />
-          </div>
-        </div>
-
-        {duration > 0 && (
-          <div className="video-time-display">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </div>
-        )}
-
-        <button 
-          className={`fullscreen-close-btn ${showControls ? 'visible' : ''}`}
+        <button
+          className={`fullscreen-close-btn ${showControls ? "visible" : ""}`}
           onClick={onClose}
         >
           <X size={24} />
@@ -566,6 +525,7 @@ const FullScreenReels = ({
                 muted={muted}
                 preload="auto"
                 onClick={togglePlay}
+                onLoadStart={() => setIsLoading(true)}
                 onWaiting={handleWaiting}
                 onCanPlay={handleCanPlay}
                 onTimeUpdate={handleTimeUpdate}
@@ -573,19 +533,31 @@ const FullScreenReels = ({
                 onProgress={handleProgress}
                 onError={handleError}
               />
-              
-              {buffering && (
-                <div className="buffering-spinner">
-                  <div className="spinner-ring" />
+
+              {isLoading && (
+                <div className="reel-loading">
+                  <div className="spinner" />
                 </div>
               )}
 
-              {!playing && !buffering && (
+              {!playing && !buffering && !isLoading && (
                 <div className="play-pause-overlay" onClick={togglePlay}>
                   <div className="play-icon-large">
-                    <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
-                      <circle cx="50" cy="50" r="48" stroke="white" strokeWidth="3" opacity="0.9"/>
-                      <path d="M38 30L70 50L38 70V30Z" fill="white"/>
+                    <svg
+                      width="100"
+                      height="100"
+                      viewBox="0 0 100 100"
+                      fill="none"
+                    >
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="48"
+                        stroke="white"
+                        strokeWidth="3"
+                        opacity="0.9"
+                      />
+                      <path d="M38 30L70 50L38 70V30Z" fill="white" />
                     </svg>
                   </div>
                 </div>
@@ -594,7 +566,7 @@ const FullScreenReels = ({
           ) : (
             <div className="reel-fallback">
               <div className="reel-fallback-letter">
-                {profile.author?.charAt(0) || 'R'}
+                {profile.author?.charAt(0) || "R"}
               </div>
               {videoError && (
                 <div className="error-message">Video unavailable</div>
@@ -602,77 +574,99 @@ const FullScreenReels = ({
             </div>
           )}
 
-          <div className={`reel-left-info ${showControls ? 'visible' : ''}`}>
-            <div className="reel-author-wrapper">
-              <ProfilePreview 
-                profile={profile}
-                onClick={onAuthorClick}
-                size="large"
-              />
-
-              <button 
-                className="reel-music-info"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSoundClick?.(currentReel.music || 'Original Audio', currentReel);
-                }}
+          <div className="reel-left-info">
+            <div className="video-progress-container">
+              <div
+                ref={progressBarRef}
+                className="video-progress-bar"
+                onClick={handleProgressBarClick}
+                onMouseDown={handleProgressBarMouseDown}
               >
-                <Music size={14} />
-                <span className="music-marquee">{currentReel.music || 'Original Audio'}</span>
-              </button>
+                <div
+                  className="progress-buffered"
+                  style={{ width: `${bufferedProgress}%` }}
+                />
+                <div
+                  className="progress-played"
+                  style={{ width: `${playedPercentage}%` }}
+                >
+                  <div className="progress-handle" />
+                </div>
+              </div>
+
+              {!videoError && duration > 0 && (
+                <div className="video-time-display">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </div>
+              )}
             </div>
 
+            <ReelProfilePreview
+              profile={profile}
+              music={currentReel.music}
+              onProfileClick={onAuthorClick}
+              onMusicClick={(musicName) =>
+                onSoundClick?.(musicName, currentReel)
+              }
+              size="large"
+            />
+
             {currentReel.caption && (
-              <div className="reel-caption-full">
-                <p>{currentReel.caption}</p>
+              <div
+                className={`reel-caption-container ${captionNeedsExpansion ? "has-more" : ""}`}
+                onClick={
+                  captionNeedsExpansion ? handleCaptionToggle : undefined
+                }
+              >
+                <p className="reel-caption-text">
+                  {captionExpanded
+                    ? currentReel.caption
+                    : currentReel.caption.substring(0, 60)}
+                  {captionNeedsExpansion && !captionExpanded && (
+                    <span className="caption-more">...more</span>
+                  )}
+                </p>
               </div>
             )}
           </div>
 
-          <div className={`reel-right-actions ${showControls ? 'visible' : ''}`}>
-            <button className="action-btn-vertical" onClick={handleLike}>
-              <Heart 
-                size={28} 
-                fill={liked[currentReel.id] ? '#ef4444' : 'none'} 
-                color="#ffffff" 
-              />
-              <span>{formatNumber(currentReel.likes || 0)}</span>
-            </button>
-
-            <button 
-              className="action-btn-vertical" 
-              onClick={() => setShowComments(true)}
+          {captionExpanded && currentReel.caption && (
+            <div
+              className="reel-caption-expanded"
+              onClick={handleCaptionToggle}
             >
-              <MessageCircle size={28} color="#ffffff" />
-              <span>{formatNumber(currentReel.comments_count || 0)}</span>
-            </button>
+              <div className="caption-expanded-content">
+                <p>{currentReel.caption}</p>
+              </div>
+            </div>
+          )}
 
-            <button className="action-btn-vertical" onClick={handleSave}>
-              <Bookmark 
-                size={28} 
-                fill={saved[currentReel.id] ? '#fbbf24' : 'none'} 
-                color="#ffffff" 
-              />
-            </button>
+          <div
+            className={`reel-right-actions ${showControls ? "visible" : ""}`}
+          >
+            <FullScreenReactionPanel
+              content={reelWithType}
+              currentUser={currentUser}
+              onComment={() => setShowComments(true)}
+              onShare={() => setShowShare(true)}
+            />
 
-            <button 
-              className="action-btn-vertical" 
-              onClick={() => setShowShare(true)}
-            >
-              <Share2 size={28} color="#ffffff" />
-              <span>{formatNumber(currentReel.shares || 0)}</span>
-            </button>
-
-            <button 
-              className="action-btn-vertical" 
-              onClick={(e) => onActionMenu?.(e, currentReel, currentReel.user_id === currentUser?.id)}
+            <button
+              className="action-menu-btn"
+              onClick={(e) =>
+                onActionMenu?.(
+                  e,
+                  currentReel,
+                  currentReel.user_id === currentUser?.id,
+                )
+              }
             >
               <MoreVertical size={28} color="#ffffff" />
             </button>
           </div>
 
-          <button 
-            className={`fullscreen-mute-btn ${showControls ? 'visible' : ''}`}
+          <button
+            className={`fullscreen-mute-btn ${showControls ? "visible" : ""}`}
             onClick={() => {
               const newMuted = !muted;
               setMuted(newMuted);
@@ -686,7 +680,7 @@ const FullScreenReels = ({
 
       {showComments && (
         <CommentModal
-          content={{ ...currentReel, type: 'reel' }}
+          content={{ ...currentReel, type: "reel" }}
           currentUser={currentUser}
           onClose={() => setShowComments(false)}
         />
@@ -694,7 +688,7 @@ const FullScreenReels = ({
 
       {showShare && (
         <ShareModal
-          content={{ ...currentReel, type: 'reel' }}
+          content={{ ...currentReel, type: "reel" }}
           currentUser={currentUser}
           onClose={() => setShowShare(false)}
         />
@@ -703,84 +697,19 @@ const FullScreenReels = ({
       <style jsx>{`
         .fullscreen-reels-container {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 100%;
+          max-width: 500px;
+          height: 92vh;
           background: #000;
           z-index: 999;
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
-        }
-
-        .video-progress-bar {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: rgba(255, 255, 255, 0.15);
-          z-index: 10002;
-          cursor: pointer;
-          transition: height 0.2s ease;
-        }
-
-        .video-progress-bar:hover {
-          height: 6px;
-        }
-
-        .progress-buffered {
-          position: absolute;
-          top: 0;
-          left: 0;
-          height: 100%;
-          background: rgba(255, 255, 255, 0.3);
-          transition: width 0.3s ease;
-        }
-
-        .progress-played {
-          position: absolute;
-          top: 0;
-          left: 0;
-          height: 100%;
-          background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-          transition: width 0.1s linear;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-        }
-
-        .progress-handle {
-          width: 12px;
-          height: 12px;
-          background: #fff;
-          border-radius: 50%;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-          opacity: 0;
-          transition: opacity 0.2s ease;
-          transform: translateX(50%);
-        }
-
-        .video-progress-bar:hover .progress-handle {
-          opacity: 1;
-        }
-
-        .video-time-display {
-          position: absolute;
-          top: 6px;
-          left: 8px;
-          background: rgba(0, 0, 0, 0.75);
-          backdrop-filter: blur(10px);
-          color: white;
-          padding: 4px 10px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 600;
-          z-index: 10002;
-          pointer-events: none;
-          font-variant-numeric: tabular-nums;
+          border-radius: 12px;
         }
 
         .fullscreen-close-btn {
@@ -788,12 +717,12 @@ const FullScreenReels = ({
           top: 20px;
           right: 20px;
           z-index: 10001;
-          background: rgba(0, 0, 0, 0.6);
+          background: rgb(0, 0, 0);
           backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid #444444e1;
           color: white;
-          width: 44px;
-          height: 44px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -861,7 +790,7 @@ const FullScreenReels = ({
           font-size: 16px;
         }
 
-        .buffering-spinner {
+        .reel-loading {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -869,9 +798,9 @@ const FullScreenReels = ({
           z-index: 10;
         }
 
-        .spinner-ring {
-          width: 60px;
-          height: 60px;
+        .spinner {
+          width: 50px;
+          height: 50px;
           border: 4px solid rgba(132, 204, 22, 0.2);
           border-top-color: #84cc16;
           border-radius: 50%;
@@ -879,7 +808,9 @@ const FullScreenReels = ({
         }
 
         @keyframes spin {
-          to { transform: rotate(360deg); }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .play-pause-overlay {
@@ -901,71 +832,170 @@ const FullScreenReels = ({
         }
 
         @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 0.9; }
-          50% { transform: scale(1.05); opacity: 1; }
+          0%,
+          100% {
+            transform: scale(1);
+            opacity: 0.9;
+          }
+          50% {
+            transform: scale(1.05);
+            opacity: 1;
+          }
         }
 
         .reel-left-info {
           position: absolute;
-          bottom: 80px;
-          left: 20px;
-          right: 80px;
+          bottom: 4px;
+          left: 4px;
+          right: 90px;
           z-index: 10;
-          transition: all 0.3s;
-          opacity: 0;
-          pointer-events: none;
-        }
-
-        .reel-left-info.visible {
+          transition: opacity 0.3s;
           opacity: 1;
           pointer-events: all;
-        }
-
-        .reel-author-wrapper {
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          margin-bottom: 16px;
+          gap: 0px;
         }
 
-        .reel-music-info {
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(10px);
-          padding: 8px 14px;
-          border-radius: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+        .video-progress-container {
           display: flex;
           align-items: center;
           gap: 8px;
-          color: white;
-          font-size: 13px;
+          width: 100%;
+        }
+
+        .video-progress-bar {
+          flex: 1;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 2px;
           cursor: pointer;
-          transition: all 0.2s;
-          max-width: fit-content;
-        }
-
-        .reel-music-info:hover {
-          background: rgba(0, 0, 0, 0.8);
-        }
-
-        .music-marquee {
-          white-space: nowrap;
+          transition: height 0.2s ease;
+          position: relative;
           overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 200px;
         }
 
-        .reel-caption-full {
+        .video-progress-bar:hover {
+          height: 6px;
+        }
+
+        .progress-buffered {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.35);
+          transition: width 0.3s ease;
+          border-radius: 2px;
+        }
+
+        .progress-played {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+          transition: width 0.1s linear;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          border-radius: 2px;
+        }
+
+        .progress-handle {
+          width: 10px;
+          height: 10px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          transform: translateX(50%);
+        }
+
+        .video-progress-bar:hover .progress-handle {
+          opacity: 1;
+        }
+
+        .video-time-display {
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(10px);
+          color: white;
+          padding: 3px 8px;
+          border-radius: 6px;
+          font-size: 10px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .reel-caption-container {
+          cursor: default;
+          margin-top: 4px;
+        }
+
+        .reel-caption-container.has-more {
+          cursor: pointer;
+        }
+
+        .reel-caption-container.has-more:hover .caption-more {
+          color: #84cc16;
+        }
+
+        .reel-caption-text {
           background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(10px);
-          padding: 12px 16px;
-          border-radius: 12px;
+          padding: 4px 10px;
+          border-radius: 8px;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          max-width: 400px;
+          color: white;
+          font-size: 12px;
+          line-height: 1.4;
+          margin: 0;
+          display: inline-block;
+          max-width: 100%;
         }
 
-        .reel-caption-full p {
-          color: white;
+        .caption-more {
+          color: rgba(255, 255, 255, 0.5);
+          font-weight: 600;
+          margin-left: 4px;
+          transition: color 0.2s;
+        }
+
+        .reel-caption-expanded {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.95) 0%,
+            rgba(0, 0, 0, 0.85) 100%
+          );
+          backdrop-filter: blur(10px);
+          padding: 16px;
+          max-height: 60%;
+          overflow-y: auto;
+          z-index: 50;
+          cursor: pointer;
+          animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        .caption-expanded-content p {
+          color: #e5e5e5;
           font-size: 14px;
           line-height: 1.5;
           margin: 0;
@@ -973,15 +1003,17 @@ const FullScreenReels = ({
 
         .reel-right-actions {
           position: absolute;
-          right: 20px;
-          bottom: 100px;
+          right: 2%;
+          bottom: 10px;
           display: flex;
           flex-direction: column;
-          gap: 24px;
+          gap: 12px;
           z-index: 10;
           transition: all 0.3s;
           opacity: 0;
           pointer-events: none;
+          align-items: center;
+          justify-content: center;
         }
 
         .reel-right-actions.visible {
@@ -989,35 +1021,30 @@ const FullScreenReels = ({
           pointer-events: all;
         }
 
-        .action-btn-vertical {
-          position: relative;
+        .action-menu-btn {
           background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: white;
-          width: 50px;
-          height: 50px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
           transition: all 0.2s;
-          margin-bottom: 8px;
+          margin: 0;
         }
 
-        .action-btn-vertical:hover {
+        .action-menu-btn:hover {
           background: rgba(0, 0, 0, 0.8);
           transform: scale(1.05);
         }
 
-        .action-btn-vertical span {
-          position: absolute;
-          bottom: -22px;
-          font-size: 11px;
-          font-weight: 600;
-          color: white;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        .action-menu-btn svg {
+          width: 24px;
+          height: 24px;
         }
 
         .fullscreen-mute-btn {
@@ -1052,20 +1079,44 @@ const FullScreenReels = ({
         }
 
         @media (max-width: 768px) {
+          .fullscreen-reels-container {
+            max-width: 100%;
+            height: 100vh;
+            border-radius: 0;
+            top: 0;
+            left: 0;
+            transform: none;
+          }
+
           .reel-left-info {
-            bottom: 100px;
-            left: 16px;
+            bottom: 12px;
+            left: 12px;
             right: 70px;
           }
 
-          .reel-right-actions {
-            right: 16px;
-            bottom: 120px;
-            gap: 20px;
+          .reel-caption-text {
+            font-size: 12px;
+            padding: 5px 8px;
           }
 
-          .reel-caption-full {
-            max-width: 100%;
+          .caption-expanded-content p {
+            font-size: 13px;
+          }
+
+          .reel-right-actions {
+            right: 12px;
+            bottom: 12px;
+            gap: 8px;
+          }
+
+          .action-menu-btn {
+            width: 44px;
+            height: 44px;
+          }
+
+          .action-menu-btn svg {
+            width: 22px;
+            height: 22px;
           }
 
           .fullscreen-close-btn {

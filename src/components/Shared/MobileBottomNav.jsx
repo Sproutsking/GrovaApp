@@ -1,49 +1,62 @@
-import React from 'react';
-import { Home, Search, PlusSquare, Wallet, Users } from 'lucide-react';
+import React from "react";
+import { Home, Search, PlusSquare, Wallet, Users } from "lucide-react";
 
 const MobileBottomNav = ({ activeTab, setActiveTab }) => (
   <nav className="mobile-bottom-nav">
     <div className="mobile-nav-content">
-      <button 
-        onClick={() => setActiveTab('home')} 
-        className={activeTab === 'home' ? 'mobile-nav-btn mobile-nav-btn-active' : 'mobile-nav-btn'}
+      <button
+        onClick={() => setActiveTab("home")}
+        className={
+          activeTab === "home"
+            ? "mobile-nav-btn mobile-nav-btn-active"
+            : "mobile-nav-btn"
+        }
       >
-        <Home size={22} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
+        <Home size={20} strokeWidth={activeTab === "home" ? 2.5 : 2} />
         <span className="mobile-nav-label">Home</span>
       </button>
 
-      <button 
-        onClick={() => setActiveTab('search')} 
-        className={activeTab === 'search' ? 'mobile-nav-btn mobile-nav-btn-active' : 'mobile-nav-btn'}
+      <button
+        onClick={() => setActiveTab("search")}
+        className={
+          activeTab === "search"
+            ? "mobile-nav-btn mobile-nav-btn-active"
+            : "mobile-nav-btn"
+        }
       >
-        <Search size={22} strokeWidth={activeTab === 'search' ? 2.5 : 2} />
+        <Search size={20} strokeWidth={activeTab === "search" ? 2.5 : 2} />
         <span className="mobile-nav-label">Explore</span>
       </button>
 
-      <button 
-        onClick={() => setActiveTab('create')} 
+      <button
+        onClick={() => setActiveTab("create")}
         className="mobile-nav-btn-create"
       >
-        <PlusSquare size={24} strokeWidth={2.5} />
+        <PlusSquare size={22} strokeWidth={2.5} />
         <span className="mobile-nav-label-create">Create</span>
       </button>
 
-      <button 
-        onClick={() => setActiveTab('community')} 
-        className={activeTab === 'community' ? 'mobile-nav-btn mobile-nav-btn-active' : 'mobile-nav-btn'}
+      <button
+        onClick={() => setActiveTab("community")}
+        className={
+          activeTab === "community"
+            ? "mobile-nav-btn mobile-nav-btn-active"
+            : "mobile-nav-btn"
+        }
       >
-        <Users size={22} strokeWidth={activeTab === 'community' ? 2.5 : 2} />
-        <span className="mobile-nav-label">
-          <span className="label-full">Community</span>
-          <span className="label-short">Social</span>
-        </span>
+        <Users size={20} strokeWidth={activeTab === "community" ? 2.5 : 2} />
+        <span className="mobile-nav-label">Community</span>
       </button>
 
-      <button 
-        onClick={() => setActiveTab('wallet')} 
-        className={activeTab === 'wallet' ? 'mobile-nav-btn mobile-nav-btn-active' : 'mobile-nav-btn'}
+      <button
+        onClick={() => setActiveTab("wallet")}
+        className={
+          activeTab === "wallet"
+            ? "mobile-nav-btn mobile-nav-btn-active"
+            : "mobile-nav-btn"
+        }
       >
-        <Wallet size={22} strokeWidth={activeTab === 'wallet' ? 2.5 : 2} />
+        <Wallet size={20} strokeWidth={activeTab === "wallet" ? 2.5 : 2} />
         <span className="mobile-nav-label">Wallet</span>
       </button>
     </div>
@@ -55,10 +68,9 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         left: 0;
         right: 0;
         z-index: 100;
-        background: rgba(10, 10, 10, 0.98);
-        backdrop-filter: blur(20px);
-        border-top: 1px solid rgba(132, 204, 22, 0.2);
-        padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+        background: #000000;
+        border-top: 1px solid rgba(132, 204, 22, 0.15);
+        padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
       }
 
       .mobile-nav-content {
@@ -67,8 +79,8 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         justify-content: space-around;
         max-width: 600px;
         margin: 0 auto;
-        padding: 0 12px;
-        gap: 4px;
+        padding: 0 8px;
+        gap: 2px;
       }
 
       .mobile-nav-btn {
@@ -76,16 +88,17 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        padding: 8px 8px;
+        gap: 2px;
+        padding: 6px 6px;
         background: transparent;
         border: none;
-        border-radius: 12px;
-        color: #737373;
+        border-radius: 10px;
+        color: #525252;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         flex: 1;
         min-width: 0;
+        position: relative;
       }
 
       .mobile-nav-btn:active {
@@ -94,34 +107,64 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
 
       .mobile-nav-btn-active {
         color: #84cc16;
-        background: rgba(132, 204, 22, 0.1);
+        background: linear-gradient(
+          135deg,
+          rgba(132, 204, 22, 0.15) 0%,
+          rgba(132, 204, 22, 0.08) 100%
+        );
+        box-shadow:
+          0 0 20px rgba(132, 204, 22, 0.3),
+          inset 0 1px 1px rgba(132, 204, 22, 0.2);
+        border: 1px solid rgba(132, 204, 22, 0.3);
+      }
+
+      .mobile-nav-btn-active::before {
+        content: "";
+        position: absolute;
+        top: -1px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 30%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #84cc16, transparent);
+        border-radius: 0 0 2px 2px;
+        box-shadow: 0 0 8px rgba(132, 204, 22, 0.6);
       }
 
       .mobile-nav-label {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
+        transition: all 0.3s;
       }
 
-      .label-full {
-        display: inline;
+      .mobile-nav-btn-active .mobile-nav-label {
+        text-shadow: 0 0 8px rgba(132, 204, 22, 0.5);
       }
 
-      .label-short {
-        display: none;
-      }
-
-      /* Show short label on very small screens */
-      @media (max-width: 360px) {
-        .label-full {
+      @media (max-width: 400px) {
+        .mobile-nav-label,
+        .mobile-nav-label-create {
           display: none;
         }
-        
-        .label-short {
-          display: inline;
+
+        .mobile-nav-btn,
+        .mobile-nav-btn-active {
+          padding: 10px;
+          border-radius: 12px;
+        }
+
+        .mobile-nav-btn-create {
+          padding: 12px;
+          border-radius: 14px;
+          transform: translateY(-6px);
+        }
+
+        .mobile-nav-btn-create:active {
+          transform: translateY(-4px) scale(0.95);
         }
       }
 
@@ -130,43 +173,30 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        padding: 10px 12px;
+        gap: 2px;
+        padding: 8px 10px;
         background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
         border: none;
-        border-radius: 14px;
+        border-radius: 12px;
         color: #000;
         cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 4px 16px rgba(132, 204, 22, 0.35);
-        transform: translateY(-6px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow:
+          0 4px 20px rgba(132, 204, 22, 0.4),
+          0 0 30px rgba(132, 204, 22, 0.2);
+        transform: translateY(-4px);
         flex: 1;
         min-width: 0;
       }
 
       .mobile-nav-btn-create:active {
-        transform: translateY(-4px) scale(0.95);
+        transform: translateY(-2px) scale(0.95);
+        box-shadow: 0 2px 12px rgba(132, 204, 22, 0.4);
       }
 
       .mobile-nav-label-create {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
-      }
-
-      /* Extra small screens - reduce font size */
-      @media (max-width: 340px) {
-        .mobile-nav-label,
-        .mobile-nav-label-create {
-          font-size: 10px;
-        }
-        
-        .mobile-nav-btn {
-          padding: 8px 6px;
-        }
-        
-        .mobile-nav-btn-create {
-          padding: 10px 10px;
-        }
       }
     `}</style>
   </nav>

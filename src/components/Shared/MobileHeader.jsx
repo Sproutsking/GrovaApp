@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bell, HelpCircle, Clock } from 'lucide-react';
-import notificationService from '../../services/notifications/notificationService';
+import React, { useState, useEffect, useRef } from "react";
+import { Bell, HeadsetIcon, Clock, TrendingUp } from "lucide-react";
+import notificationService from "../../services/notifications/notificationService";
+import MobileTrendingModal from "./MobileTrendingModal";
 
 const MobileHeader = ({
   getGreeting,
@@ -8,60 +9,71 @@ const MobileHeader = ({
   onSupportClick,
   setActiveTab,
   profile,
-  userId
+  userId,
+  currentUser,
 }) => {
-  const [displayedText, setDisplayedText] = useState('');
+  const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [greetingText, setGreetingText] = useState(getGreeting());
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showTrendingModal, setShowTrendingModal] = useState(false);
   const timerRef = useRef(null);
   const cycleRef = useRef(null);
   const typeIntervalRef = useRef(null);
 
   // Enhanced avatar URL with quality parameters
   let avatarUrl = profile?.avatar;
-  if (avatarUrl && typeof avatarUrl === 'string') {
-    const cleanUrl = avatarUrl.split('?')[0];
-    if (cleanUrl.includes('supabase')) {
+  if (avatarUrl && typeof avatarUrl === "string") {
+    const cleanUrl = avatarUrl.split("?")[0];
+    if (cleanUrl.includes("supabase")) {
       avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
     }
   }
 
-  const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || 'U';
+  const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
 
   const isValidAvatar =
     avatarUrl &&
-    typeof avatarUrl === 'string' &&
+    typeof avatarUrl === "string" &&
     !imageError &&
-    (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:'));
+    (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
   // Load notification count
   useEffect(() => {
     if (userId) {
       loadNotificationCount();
-      
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(loadNotificationCount, 30000);
+
+      // Poll for new notifications every 15 seconds
+      const interval = setInterval(loadNotificationCount, 15000);
       return () => clearInterval(interval);
     }
   }, [userId]);
 
   const loadNotificationCount = async () => {
     try {
+      console.log("🔔 Loading notification count for user:", userId);
       const count = await notificationService.getUnreadCount(userId);
+      console.log("🔔 Unread count:", count);
       setUnreadCount(count);
     } catch (error) {
-      console.error('Failed to load notification count:', error);
+      console.error("Failed to load notification count:", error);
     }
+  };
+
+  // Refresh notifications when notification panel is closed
+  const handleNotificationClick = () => {
+    onNotificationClick();
+    // Refresh count after a short delay
+    setTimeout(loadNotificationCount, 500);
   };
 
   useEffect(() => {
     const typeText = (text, callback) => {
       setIsTyping(true);
       let index = 0;
-      
+
       const performTyping = () => {
         if (index <= text.length) {
           setDisplayedText(text.slice(0, index));
@@ -72,14 +84,14 @@ const MobileHeader = ({
           if (callback) callback();
         }
       };
-      
+
       performTyping();
     };
 
     const unTypeText = (text, callback) => {
       setIsTyping(true);
       let index = text.length;
-      
+
       const performUnTyping = () => {
         if (index >= 0) {
           setDisplayedText(text.slice(0, index));
@@ -90,7 +102,7 @@ const MobileHeader = ({
           if (callback) callback();
         }
       };
-      
+
       performUnTyping();
     };
 
@@ -138,7 +150,7 @@ const MobileHeader = ({
   };
 
   const handleImageError = (e) => {
-    console.error('Mobile header avatar error:', e);
+    console.error("Mobile header avatar error:", e);
     setImageLoaded(false);
     setImageError(true);
   };
@@ -150,32 +162,31 @@ const MobileHeader = ({
           position: sticky;
           top: 0;
           z-index: 100;
-          background: rgba(10, 10, 10, 0.98);
-          backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+          background: #000000;
+          border-bottom: 1px solid rgba(132, 204, 22, 0.15);
         }
 
         .mobile-header-content {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 8px 14px;
-          gap: 10px;
+          padding: 6px 12px;
+          gap: 8px;
         }
 
         .mobile-left-section {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           flex: 1;
           min-width: 0;
         }
 
         .mobile-avatar-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 14px;
-          border: 2.5px solid #84cc16;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          border: 2px solid #84cc16;
           background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
           display: flex;
           align-items: center;
@@ -185,9 +196,9 @@ const MobileHeader = ({
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           color: #000;
           font-weight: 800;
-          font-size: 18px;
+          font-size: 16px;
           flex-shrink: 0;
-          box-shadow: 0 4px 16px rgba(132, 204, 22, 0.5);
+          box-shadow: 0 3px 12px rgba(132, 204, 22, 0.4);
           position: relative;
         }
 
@@ -205,7 +216,7 @@ const MobileHeader = ({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           filter: brightness(1.1) contrast(1.15) saturate(1.2) sharpen(1);
-          opacity: ${imageLoaded && !imageError ? '1' : '0'};
+          opacity: ${imageLoaded && !imageError ? "1" : "0"};
           transition: opacity 0.4s ease-in-out;
         }
 
@@ -215,43 +226,38 @@ const MobileHeader = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 18px;
+          font-size: 16px;
           color: #000;
           font-weight: 800;
-          opacity: ${imageLoaded && !imageError ? '0' : '1'};
+          opacity: ${imageLoaded && !imageError ? "0" : "1"};
           transition: opacity 0.4s ease-in-out;
         }
 
-        .mobile-avatar-btn:hover {
-          transform: scale(1.08);
-          box-shadow: 0 6px 20px rgba(132, 204, 22, 0.6);
-        }
-
         .mobile-avatar-btn:active {
-          transform: scale(0.95);
+          transform: scale(0.94);
         }
 
         .mobile-greeting-container {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           min-width: 0;
-          min-height: 28px;
-          padding: 4px 10px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(132, 204, 22, 0.2);
-          border-radius: 10px;
+          min-height: 24px;
+          padding: 2px 8px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(132, 204, 22, 0.15);
+          border-radius: 8px;
         }
 
         .mobile-greeting-icon {
           color: #84cc16;
           flex-shrink: 0;
-          opacity: ${displayedText ? '1' : '0'};
+          opacity: ${displayedText ? "1" : "0"};
           transition: opacity 0.4s;
         }
 
         .mobile-greeting-text {
-          font-size: 14px;
+          font-size: 10px;
           font-weight: 600;
           background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
           -webkit-background-clip: text;
@@ -266,14 +272,14 @@ const MobileHeader = ({
         .mobile-greeting-text::after {
           content: '';
           position: absolute;
-          right: -6px;
+          right: -5px;
           top: 50%;
           transform: translateY(-50%);
-          width: 2px;
-          height: 100%;
+          width: 1.5px;
+          height: 85%;
           background: #84cc16;
           border-radius: 1px;
-          animation: ${isTyping ? 'smoothBlink 1s ease-in-out infinite' : 'none'};
+          animation: ${isTyping ? "smoothBlink 1s ease-in-out infinite" : "none"};
         }
 
         @keyframes smoothBlink {
@@ -290,11 +296,11 @@ const MobileHeader = ({
         }
 
         .mobile-action-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -303,22 +309,34 @@ const MobileHeader = ({
           position: relative;
         }
 
+        .mobile-action-btn.trending {
+          color: #696969;
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.05), rgba(132, 204, 22, 0.08));
+          border-color: rgba(132, 204, 22, 0.2);
+        }
+
         .mobile-action-btn.notification {
-          color: #84cc16;
+          color: #696969;
         }
 
         .mobile-action-btn.support {
-          color: #3b82f6;
+          color: #696969;
+        }
+
+        .mobile-action-btn.trending:hover {
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.15), rgba(132, 204, 22, 0.12));
+          border-color: rgba(132, 204, 22, 0.4);
+          color: #84cc16;
         }
 
         .mobile-action-btn.notification:hover {
-          background: rgba(132, 204, 22, 0.15);
-          border-color: rgba(132, 204, 22, 0.4);
+          background: rgba(132, 204, 22, 0.12);
+          border-color: rgba(132, 204, 22, 0.3);
         }
 
         .mobile-action-btn.support:hover {
-          background: rgba(59, 130, 246, 0.15);
-          border-color: rgba(59, 130, 246, 0.4);
+          background: rgba(59, 130, 246, 0.12);
+          border-color: rgba(59, 130, 246, 0.3);
         }
 
         .mobile-action-btn:active {
@@ -335,12 +353,12 @@ const MobileHeader = ({
           border-radius: 8px;
           background: #ef4444;
           color: #fff;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 700;
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 2px solid #0a0a0a;
+          border: 2px solid #000000;
           animation: smoothPulse 2s ease-in-out infinite;
         }
 
@@ -357,11 +375,16 @@ const MobileHeader = ({
 
         @media (max-width: 360px) {
           .mobile-greeting-text {
-            font-size: 13px;
+            font-size: 9px;
           }
           
           .mobile-header-content {
-            padding: 8px 12px;
+            padding: 6px 10px;
+          }
+          
+          .mobile-greeting-icon {
+            width: 13px;
+            height: 13px;
           }
         }
       `}</style>
@@ -371,7 +394,7 @@ const MobileHeader = ({
           <div className="mobile-left-section">
             <button
               className="mobile-avatar-btn"
-              onClick={() => setActiveTab('account')}
+              onClick={() => setActiveTab("account")}
               aria-label="Open account"
             >
               {isValidAvatar && (
@@ -383,41 +406,51 @@ const MobileHeader = ({
                   crossOrigin="anonymous"
                 />
               )}
-              <div className="mobile-avatar-placeholder">
-                {fallbackLetter}
-              </div>
+              <div className="mobile-avatar-placeholder">{fallbackLetter}</div>
             </button>
 
             <div className="mobile-greeting-container">
-              <Clock size={16} className="mobile-greeting-icon" />
-              <span className="mobile-greeting-text">
-                {displayedText}
-              </span>
+              <Clock size={14} className="mobile-greeting-icon" />
+              <span className="mobile-greeting-text">{displayedText}</span>
             </div>
           </div>
 
           <div className="mobile-actions">
-            <button 
-              className="mobile-action-btn notification" 
-              onClick={onNotificationClick}
+            <button
+              className="mobile-action-btn trending"
+              onClick={() => setShowTrendingModal(true)}
+              aria-label="Trending"
+            >
+              <TrendingUp size={18} />
+            </button>
+
+            <button
+              className="mobile-action-btn notification"
+              onClick={handleNotificationClick}
               aria-label="Notifications"
             >
-              <Bell size={20} />
+              <Bell size={18} />
               {unreadCount > 0 && (
                 <span className="mobile-notification-badge">{unreadCount}</span>
               )}
             </button>
 
-            <button 
-              className="mobile-action-btn support" 
+            <button
+              className="mobile-action-btn support"
               onClick={onSupportClick}
               aria-label="Support"
             >
-              <HelpCircle size={20} />
+              <HeadsetIcon size={18} />
             </button>
           </div>
         </div>
       </header>
+
+      <MobileTrendingModal
+        isOpen={showTrendingModal}
+        onClose={() => setShowTrendingModal(false)}
+        currentUser={currentUser}
+      />
     </>
   );
 };

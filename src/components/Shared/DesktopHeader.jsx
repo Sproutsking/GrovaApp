@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Clock, Bell, HelpCircle } from 'lucide-react';
-import notificationService from '../../services/notifications/notificationService';
+import React, { useState, useEffect, useRef } from "react";
+import { Clock, Bell, HelpCircle } from "lucide-react";
+import notificationService from "../../services/notifications/notificationService";
 
-const DesktopHeader = ({ 
-  currentUser, 
-  getGreeting, 
-  onNotificationClick, 
+const DesktopHeader = ({
+  currentUser,
+  getGreeting,
+  onNotificationClick,
   onSupportClick,
   setActiveTab,
   profile,
-  userId
+  userId,
 }) => {
-  const [displayedText, setDisplayedText] = useState('');
+  const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [greetingText, setGreetingText] = useState(getGreeting());
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -23,26 +23,26 @@ const DesktopHeader = ({
 
   // Enhanced avatar URL with quality parameters
   let avatarUrl = profile?.avatar;
-  if (avatarUrl && typeof avatarUrl === 'string') {
-    const cleanUrl = avatarUrl.split('?')[0];
-    if (cleanUrl.includes('supabase')) {
+  if (avatarUrl && typeof avatarUrl === "string") {
+    const cleanUrl = avatarUrl.split("?")[0];
+    if (cleanUrl.includes("supabase")) {
       avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
     }
   }
 
-  const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || 'U';
+  const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
 
   const isValidAvatar =
     avatarUrl &&
-    typeof avatarUrl === 'string' &&
+    typeof avatarUrl === "string" &&
     !imageError &&
-    (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:'));
+    (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
   // Load notification count
   useEffect(() => {
     if (userId) {
       loadNotificationCount();
-      
+
       // Poll for new notifications every 30 seconds
       const interval = setInterval(loadNotificationCount, 30000);
       return () => clearInterval(interval);
@@ -54,17 +54,17 @@ const DesktopHeader = ({
       const count = await notificationService.getUnreadCount(userId);
       setUnreadCount(count);
     } catch (error) {
-      console.error('Failed to load notification count:', error);
+      console.error("Failed to load notification count:", error);
     }
   };
 
   useEffect(() => {
-    const fullText = `${greetingText}, ${currentUser?.name || 'User'}`;
+    const fullText = `${greetingText}, ${currentUser?.name || "User"}`;
 
     const typeText = (text, callback) => {
       setIsTyping(true);
       let index = 0;
-      
+
       const performTyping = () => {
         if (index <= text.length) {
           setDisplayedText(text.slice(0, index));
@@ -75,14 +75,14 @@ const DesktopHeader = ({
           if (callback) callback();
         }
       };
-      
+
       performTyping();
     };
 
     const unTypeText = (text, callback) => {
       setIsTyping(true);
       let index = text.length;
-      
+
       const performUnTyping = () => {
         if (index >= 0) {
           setDisplayedText(text.slice(0, index));
@@ -93,7 +93,7 @@ const DesktopHeader = ({
           if (callback) callback();
         }
       };
-      
+
       performUnTyping();
     };
 
@@ -141,7 +141,7 @@ const DesktopHeader = ({
   };
 
   const handleImageError = (e) => {
-    console.error('Desktop header avatar error:', e);
+    console.error("Desktop header avatar error:", e);
     setImageLoaded(false);
     setImageError(true);
   };
@@ -150,6 +150,7 @@ const DesktopHeader = ({
     <>
       <style>{`
         .desktop-header {
+          height: 60px;
           position: sticky;
           top: 0;
           z-index: 100;
@@ -162,7 +163,7 @@ const DesktopHeader = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 24px;
+          padding: 5px 24px;
           max-width: 1400px;
           margin: 0 auto;
         }
@@ -174,9 +175,9 @@ const DesktopHeader = ({
         }
 
         .desktop-avatar-btn {
-          width: 52px;
-          height: 52px;
-          border-radius: 16px;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
           border: 2.5px solid #84cc16;
           background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
           display: flex;
@@ -207,7 +208,7 @@ const DesktopHeader = ({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           filter: brightness(1.1) contrast(1.15) saturate(1.2) sharpen(1);
-          opacity: ${imageLoaded && !imageError ? '1' : '0'};
+          opacity: ${imageLoaded && !imageError ? "1" : "0"};
           transition: opacity 0.4s ease-in-out;
         }
 
@@ -220,14 +221,12 @@ const DesktopHeader = ({
           font-size: 22px;
           color: #000;
           font-weight: 800;
-          opacity: ${imageLoaded && !imageError ? '0' : '1'};
+          opacity: ${imageLoaded && !imageError ? "0" : "1"};
           transition: opacity 0.4s ease-in-out;
         }
 
         .desktop-avatar-btn:hover {
-          transform: scale(1.08) translateY(-2px);
-          box-shadow: 0 8px 32px rgba(132, 204, 22, 0.7);
-          border-color: #a3e635;
+          transform: scale(1.008) translateY(-2px);
         }
 
         .desktop-avatar-btn:active {
@@ -238,26 +237,26 @@ const DesktopHeader = ({
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 10px 16px;
+          padding: 5px 12px;
           background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(132, 204, 22, 0.25);
+          border: 1px solid #4444; 
           border-radius: 14px;
-          min-height: 44px;
-          min-width: 260px;
+          min-height: 32px;
+          min-width: fit-content;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
         .desktop-greeting-icon {
           color: #84cc16;
           flex-shrink: 0;
-          opacity: ${displayedText ? '1' : '0'};
+          opacity: ${displayedText ? "1" : "0"};
           transition: opacity 0.4s;
         }
 
         .desktop-greeting-text {
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 600;
-          color: #fff;
+          color: #ffffffad;
           position: relative;
           white-space: nowrap;
           letter-spacing: 0.3px;
@@ -273,7 +272,7 @@ const DesktopHeader = ({
           height: 18px;
           background: #84cc16;
           border-radius: 1px;
-          animation: ${isTyping ? 'smoothBlink 1s ease-in-out infinite' : 'none'};
+          animation: ${isTyping ? "smoothBlink 1s ease-in-out infinite" : "none"};
         }
 
         @keyframes smoothBlink {
@@ -364,7 +363,7 @@ const DesktopHeader = ({
           <div className="desktop-left-section">
             <button
               className="desktop-avatar-btn"
-              onClick={() => setActiveTab('account')}
+              onClick={() => setActiveTab("account")}
               aria-label="Open account"
             >
               {isValidAvatar && (
@@ -376,22 +375,18 @@ const DesktopHeader = ({
                   crossOrigin="anonymous"
                 />
               )}
-              <div className="desktop-avatar-placeholder">
-                {fallbackLetter}
-              </div>
+              <div className="desktop-avatar-placeholder">{fallbackLetter}</div>
             </button>
 
             <div className="desktop-greeting-container">
               <Clock size={18} className="desktop-greeting-icon" />
-              <span className="desktop-greeting-text">
-                {displayedText}
-              </span>
+              <span className="desktop-greeting-text">{displayedText}</span>
             </div>
           </div>
 
           <div className="header-right">
-            <button 
-              onClick={onNotificationClick} 
+            <button
+              onClick={onNotificationClick}
               className="header-action-btn notification"
             >
               <Bell size={18} />
@@ -400,9 +395,9 @@ const DesktopHeader = ({
                 <span className="notification-badge">{unreadCount}</span>
               )}
             </button>
-            
-            <button 
-              onClick={onSupportClick} 
+
+            <button
+              onClick={onSupportClick}
               className="header-action-btn support"
             >
               <HelpCircle size={18} />

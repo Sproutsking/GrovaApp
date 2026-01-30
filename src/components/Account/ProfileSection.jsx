@@ -2,10 +2,11 @@
 // src/components/Account/ProfileSection.jsx - WITH EMAIL/PHONE DISPLAY
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
-import { Eye, MessageSquare, Edit, Mail, Phone, Shield } from 'lucide-react';
-import { supabase } from '../../services/config/supabase';
-import mediaUrlService from '../../services/shared/mediaUrlService';
+import React, { useState, useEffect } from "react";
+import { Eye, MessageSquare, Edit, Mail, Phone, Shield } from "lucide-react";
+import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
+import ProfileEditModal from "./ProfileEditModal";
 
 const ProfileSection = ({ userId, onProfileUpdate }) => {
   const [profile, setProfile] = useState(null);
@@ -26,79 +27,90 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
       setLoading(true);
       setError(null);
 
-      console.log('📊 Loading profile for user:', userId);
+      console.log("📊 Loading profile for user:", userId);
 
       // Load profile with contact info and privacy settings
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, avatar_id, bio, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone')
-        .eq('id', userId)
+        .from("profiles")
+        .select(
+          "id, full_name, username, avatar_id, bio, verified, is_pro, created_at, email, phone, phone_verified, show_email, show_phone",
+        )
+        .eq("id", userId)
         .single();
 
       if (profileError) {
-        console.error('❌ Profile error:', profileError);
-        throw new Error('Failed to load profile');
+        console.error("❌ Profile error:", profileError);
+        throw new Error("Failed to load profile");
       }
 
-      console.log('✅ Profile loaded:', profileData);
+      console.log("✅ Profile loaded:", profileData);
 
       // Load wallet data
       const { data: wallet, error: walletError } = await supabase
-        .from('wallets')
-        .select('grova_tokens, engagement_points')
-        .eq('user_id', userId)
+        .from("wallets")
+        .select("grova_tokens, engagement_points")
+        .eq("user_id", userId)
         .single();
 
       if (walletError) {
-        console.warn('⚠️ Wallet error:', walletError);
+        console.warn("⚠️ Wallet error:", walletError);
       }
 
       // Load content stats
       const [
         { count: storiesCount },
         { count: reelsCount },
-        { count: postsCount }
+        { count: postsCount },
       ] = await Promise.all([
-        supabase.from('stories').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('reels').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', userId)
+        supabase
+          .from("stories")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId),
+        supabase
+          .from("reels")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId),
+        supabase
+          .from("posts")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId),
       ]);
 
       // Aggregate views from all content
       const { data: storiesViews } = await supabase
-        .from('stories')
-        .select('views')
-        .eq('user_id', userId);
+        .from("stories")
+        .select("views")
+        .eq("user_id", userId);
 
       const { data: reelsViews } = await supabase
-        .from('reels')
-        .select('views')
-        .eq('user_id', userId);
+        .from("reels")
+        .select("views")
+        .eq("user_id", userId);
 
       const { data: postsViews } = await supabase
-        .from('posts')
-        .select('views')
-        .eq('user_id', userId);
+        .from("posts")
+        .select("views")
+        .eq("user_id", userId);
 
       const totalViews = [
         ...(storiesViews || []),
         ...(reelsViews || []),
-        ...(postsViews || [])
+        ...(postsViews || []),
       ].reduce((sum, item) => sum + (item.views || 0), 0);
 
       // Aggregate comments
       const { count: commentsCount } = await supabase
-        .from('comments')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .from("comments")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId);
 
       // Convert avatar_id to HIGH QUALITY URL
       let avatarUrl = null;
       if (profileData.avatar_id) {
         const baseUrl = mediaUrlService.getImageUrl(profileData.avatar_id);
-        if (baseUrl && typeof baseUrl === 'string') {
-          const cleanUrl = baseUrl.split('?')[0];
-          if (cleanUrl.includes('supabase')) {
+        if (baseUrl && typeof baseUrl === "string") {
+          const cleanUrl = baseUrl.split("?")[0];
+          if (cleanUrl.includes("supabase")) {
             avatarUrl = `${cleanUrl}?quality=100&width=600&height=600&resize=cover&format=webp`;
           } else {
             avatarUrl = baseUrl;
@@ -111,12 +123,13 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
         fullName: profileData.full_name,
         username: profileData.username,
         avatar: avatarUrl,
+        avatarId: profileData.avatar_id,
         bio: profileData.bio,
         verified: profileData.verified,
         isPro: profileData.is_pro,
-        joinDate: new Date(profileData.created_at).toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: 'numeric' 
+        joinDate: new Date(profileData.created_at).toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
         }),
         // Contact info with privacy settings
         email: profileData.email,
@@ -125,20 +138,21 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
         showEmail: profileData.show_email,
         showPhone: profileData.show_phone,
         stats: {
-          totalContent: (storiesCount || 0) + (reelsCount || 0) + (postsCount || 0),
+          totalContent:
+            (storiesCount || 0) + (reelsCount || 0) + (postsCount || 0),
           stories: storiesCount || 0,
           reels: reelsCount || 0,
           posts: postsCount || 0,
           totalViews: totalViews,
-          totalComments: commentsCount || 0
+          totalComments: commentsCount || 0,
         },
         wallet: {
           grovaTokens: wallet?.grova_tokens || 0,
-          engagementPoints: wallet?.engagement_points || 0
-        }
+          engagementPoints: wallet?.engagement_points || 0,
+        },
       };
 
-      console.log('✅ Profile state ready:', profileState);
+      console.log("✅ Profile state ready:", profileState);
       setProfile(profileState);
 
       // Notify parent component for header update
@@ -149,71 +163,85 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
           username: profileState.username,
           avatar: avatarUrl,
           verified: profileState.verified,
-          isPro: profileState.isPro
+          isPro: profileState.isPro,
         });
       }
-
     } catch (err) {
-      console.error('❌ Failed to load profile:', err);
-      setError(err.message || 'Failed to load profile');
+      console.error("❌ Failed to load profile:", err);
+      setError(err.message || "Failed to load profile");
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditSuccess = (updatedData) => {
-    setProfile(prev => ({
+    setProfile((prev) => ({
       ...prev,
       fullName: updatedData.fullName,
       username: updatedData.username,
       bio: updatedData.bio,
-      avatar: updatedData.avatar
+      avatar: updatedData.avatar,
+      avatarId: updatedData.avatarId,
     }));
+
+    // Update parent component
+    if (onProfileUpdate) {
+      onProfileUpdate({
+        id: profile.id,
+        fullName: updatedData.fullName,
+        username: updatedData.username,
+        avatar: updatedData.avatar,
+        verified: profile.verified,
+        isPro: profile.isPro,
+      });
+    }
   };
 
   const formatNumber = (num) => {
     if (num == null) return 0;
     const value = Number(num);
-    
+
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
     }
-    
+
     if (value >= 1000) {
       return `${(value / 1000).toFixed(1)}K`;
     }
-    
+
     if (value % 1 !== 0) {
       return value.toFixed(2);
     }
-    
+
     return Math.floor(value);
   };
 
   const handleImageLoad = () => {
-    console.log('✅ Profile avatar loaded successfully');
+    console.log("✅ Profile avatar loaded successfully");
     setImageLoaded(true);
     setImageError(false);
   };
 
   const handleImageError = (e) => {
-    console.error('❌ Profile avatar error:', e);
+    console.error("❌ Profile avatar error:", e);
     setImageLoaded(false);
     setImageError(true);
   };
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#84cc16' }}>
-        <div style={{
-          width: '48px',
-          height: '48px',
-          border: '4px solid rgba(132, 204, 22, 0.2)',
-          borderTop: '4px solid #84cc16',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-          margin: '0 auto 16px'
-        }}></div>
+      <div style={{ padding: "40px", textAlign: "center", color: "#84cc16" }}>
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            border: "4px solid rgba(132, 204, 22, 0.2)",
+            borderTop: "4px solid #84cc16",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 16px",
+          }}
+        ></div>
         Loading profile...
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -222,18 +250,20 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
 
   if (error) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ color: '#ef4444', marginBottom: '20px' }}>Error: {error}</div>
-        <button 
+      <div style={{ padding: "40px", textAlign: "center" }}>
+        <div style={{ color: "#ef4444", marginBottom: "20px" }}>
+          Error: {error}
+        </div>
+        <button
           onClick={loadProfileData}
           style={{
-            padding: '12px 24px',
-            background: '#84cc16',
-            border: 'none',
-            borderRadius: '12px',
-            color: '#000',
-            fontWeight: '700',
-            cursor: 'pointer'
+            padding: "12px 24px",
+            background: "#84cc16",
+            border: "none",
+            borderRadius: "12px",
+            color: "#000",
+            fontWeight: "700",
+            cursor: "pointer",
           }}
         >
           Retry
@@ -244,16 +274,17 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
 
   if (!profile) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#737373' }}>
+      <div style={{ padding: "40px", textAlign: "center", color: "#737373" }}>
         Profile not found
       </div>
     );
   }
 
-  const isValidAvatar = profile.avatar && 
-                       typeof profile.avatar === 'string' && 
-                       !imageError &&
-                       (profile.avatar.startsWith('http') || profile.avatar.startsWith('blob:'));
+  const isValidAvatar =
+    profile.avatar &&
+    typeof profile.avatar === "string" &&
+    !imageError &&
+    (profile.avatar.startsWith("http") || profile.avatar.startsWith("blob:"));
 
   return (
     <>
@@ -323,7 +354,7 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           filter: brightness(1.15) contrast(1.2) saturate(1.25);
-          opacity: ${imageLoaded && !imageError ? '1' : '0'};
+          opacity: ${imageLoaded && !imageError ? "1" : "0"};
           transition: opacity 0.5s ease-in-out;
         }
 
@@ -336,7 +367,7 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
           font-size: 48px;
           color: #000;
           font-weight: 800;
-          opacity: ${imageLoaded && !imageError ? '0' : '1'};
+          opacity: ${imageLoaded && !imageError ? "0" : "1"};
           transition: opacity 0.5s ease-in-out;
         }
 
@@ -528,8 +559,8 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
           <div className="profile-header-content">
             <div className="profile-avatar">
               {isValidAvatar && (
-                <img 
-                  src={profile.avatar} 
+                <img
+                  src={profile.avatar}
                   alt={profile.fullName}
                   onLoad={handleImageLoad}
                   onError={handleImageError}
@@ -537,16 +568,12 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
                 />
               )}
               <div className="profile-avatar-fallback">
-                {profile.fullName?.charAt(0)?.toUpperCase() || 'G'}
+                {profile.fullName?.charAt(0)?.toUpperCase() || "G"}
               </div>
             </div>
 
-            <h2 className="profile-name">
-              {profile.fullName || 'Grova User'}
-            </h2>
-            <p className="profile-username">
-              @{profile.username || 'user'}
-            </p>
+            <h2 className="profile-name">{profile.fullName || "Grova User"}</h2>
+            <p className="profile-username">@{profile.username || "user"}</p>
 
             {/* Contact Information - Only shown if settings allow */}
             {(profile.showEmail || profile.showPhone) && (
@@ -625,52 +652,28 @@ const ProfileSection = ({ userId, onProfileUpdate }) => {
           </div>
         </div>
 
-        <button className="edit-profile-btn" onClick={() => setShowEditModal(true)}>
+        <button
+          className="edit-profile-btn"
+          onClick={() => setShowEditModal(true)}
+        >
           <Edit size={20} />
           Edit Profile
         </button>
       </div>
 
       {showEditModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div style={{
-            background: '#1a1a1a',
-            padding: '30px',
-            borderRadius: '20px',
-            maxWidth: '500px',
-            width: '100%',
-            border: '1px solid rgba(132, 204, 22, 0.3)'
-          }}>
-            <h3 style={{ color: '#84cc16', marginBottom: '20px' }}>Edit Profile</h3>
-            <p style={{ color: '#fff', marginBottom: '20px' }}>
-              Profile editing functionality coming soon...
-            </p>
-            <button 
-              onClick={() => setShowEditModal(false)}
-              style={{
-                padding: '12px 24px',
-                background: '#84cc16',
-                border: 'none',
-                borderRadius: '12px',
-                color: '#000',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <ProfileEditModal
+          userId={userId}
+          currentProfile={{
+            fullName: profile.fullName,
+            username: profile.username,
+            bio: profile.bio,
+            avatar: profile.avatar,
+            avatarId: profile.avatarId,
+          }}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditSuccess}
+        />
       )}
     </>
   );

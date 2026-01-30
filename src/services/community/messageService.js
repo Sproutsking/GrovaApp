@@ -26,33 +26,36 @@ class MessageService {
   async fetchMessages(channelId, options = {}) {
     try {
       const { 
-        limit = 100, // Increased for better UX
+        limit = 100,
         before = null, 
         after = null 
       } = options;
 
       // First, get the community_id from the channel
-      const { data: channelData } = await supabase
+      const { data: channelData, error: channelError } = await supabase
         .from('community_channels')
         .select('community_id')
         .eq('id', channelId)
         .single();
 
-      if (!channelData) {
+      if (channelError || !channelData) {
+        console.error('Channel fetch error:', channelError);
         throw new Error('Channel not found');
       }
 
       const communityId = channelData.community_id;
 
+      // Fetch messages with user profiles - use direct column reference
       let query = supabase
         .from('community_messages')
         .select(`
           *,
-          user:profiles!community_messages_user_id_fkey(
+          user:user_id(
             id, 
             username, 
             full_name, 
-            avatar_id, 
+            avatar_id,
+            avatar_metadata,
             verified
           )
         `)
@@ -70,16 +73,28 @@ class MessageService {
 
       const { data: messages, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Messages fetch error:', error);
+        throw error;
+      }
 
-      // Now fetch member roles for all users in these messages
-      const userIds = [...new Set(messages.map(m => m.user_id))];
+      if (!messages || messages.length === 0) {
+        return [];
+      }
+
+      // Fetch member roles for all users in these messages
+      const userIds = [...new Set(messages.map(m => m.user_id).filter(Boolean))];
       
-      const { data: memberData } = await supabase
+      if (userIds.length === 0) {
+        console.warn('No user IDs found in messages');
+        return [];
+      }
+
+      const { data: memberData, error: memberError } = await supabase
         .from('community_members')
         .select(`
           user_id,
-          role:community_roles!community_members_role_id_fkey(
+          role:role_id(
             name,
             color,
             position
@@ -88,9 +103,13 @@ class MessageService {
         .eq('community_id', communityId)
         .in('user_id', userIds);
 
+      if (memberError) {
+        console.error('Member data fetch error:', memberError);
+      }
+
       // Create a map of user_id -> role
       const roleMap = {};
-      if (memberData) {
+      if (memberData && memberData.length > 0) {
         memberData.forEach(member => {
           if (member.role) {
             roleMap[member.user_id] = member.role.name;
@@ -99,19 +118,27 @@ class MessageService {
       }
 
       // Transform messages with proper avatar URLs and roles
-      const transformedMessages = (messages || []).map(msg => ({
-        ...msg,
-        user: msg.user ? {
-          ...msg.user,
-          avatar_id: msg.user.avatar_id,
-          avatar: getAvatarUrl(msg.user.avatar_id)
-        } : null,
-        role: roleMap[msg.user_id] || null
-      })).reverse();
+      const transformedMessages = messages
+        .filter(msg => msg.user) // Only include messages with valid users
+        .map(msg => ({
+          ...msg,
+          user: {
+            id: msg.user.id,
+            username: msg.user.username,
+            full_name: msg.user.full_name,
+            avatar_id: msg.user.avatar_id,
+            avatar_metadata: msg.user.avatar_metadata,
+            verified: msg.user.verified,
+            avatar: getAvatarUrl(msg.user.avatar_id)
+          },
+          role: roleMap[msg.user_id] || null
+        }))
+        .reverse();
 
+      console.log(`✅ Fetched ${transformedMessages.length} messages for channel ${channelId}`);
       return MessageModel.fromAPIArray(transformedMessages);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('❌ Error fetching messages:', error);
       throw error;
     }
   }
@@ -123,7 +150,8 @@ class MessageService {
     try {
       const { 
         replyToId = null, 
-        attachments = [] 
+        attachments = [],
+        tempId = null
       } = options;
 
       // Validate content
@@ -155,11 +183,12 @@ class MessageService {
         })
         .select(`
           *,
-          user:profiles!community_messages_user_id_fkey(
+          user:user_id(
             id, 
             username, 
             full_name, 
-            avatar_id, 
+            avatar_id,
+            avatar_metadata,
             verified
           )
         `)
@@ -171,7 +200,7 @@ class MessageService {
       const { data: memberData } = await supabase
         .from('community_members')
         .select(`
-          role:community_roles!community_members_role_id_fkey(name)
+          role:role_id(name)
         `)
         .eq('community_id', channelData.community_id)
         .eq('user_id', userId)
@@ -181,11 +210,16 @@ class MessageService {
       const transformedData = {
         ...messageData,
         user: messageData.user ? {
-          ...messageData.user,
+          id: messageData.user.id,
+          username: messageData.user.username,
+          full_name: messageData.user.full_name,
           avatar_id: messageData.user.avatar_id,
+          avatar_metadata: messageData.user.avatar_metadata,
+          verified: messageData.user.verified,
           avatar: getAvatarUrl(messageData.user.avatar_id)
         } : null,
-        role: memberData?.role?.name || null
+        role: memberData?.role?.name || null,
+        tempId: tempId
       };
 
       return MessageModel.fromAPI(transformedData);
@@ -235,11 +269,12 @@ class MessageService {
         .eq('id', messageId)
         .select(`
           *,
-          user:profiles!community_messages_user_id_fkey(
+          user:user_id(
             id, 
             username, 
             full_name, 
-            avatar_id, 
+            avatar_id,
+            avatar_metadata,
             verified
           )
         `)
@@ -251,7 +286,7 @@ class MessageService {
       const { data: memberData } = await supabase
         .from('community_members')
         .select(`
-          role:community_roles!community_members_role_id_fkey(name)
+          role:role_id(name)
         `)
         .eq('community_id', channelData.community_id)
         .eq('user_id', userId)
@@ -260,8 +295,12 @@ class MessageService {
       const transformedData = {
         ...messageData,
         user: messageData.user ? {
-          ...messageData.user,
+          id: messageData.user.id,
+          username: messageData.user.username,
+          full_name: messageData.user.full_name,
           avatar_id: messageData.user.avatar_id,
+          avatar_metadata: messageData.user.avatar_metadata,
+          verified: messageData.user.verified,
           avatar: getAvatarUrl(messageData.user.avatar_id)
         } : null,
         role: memberData?.role?.name || null
@@ -275,20 +314,55 @@ class MessageService {
   }
 
   /**
-   * Delete message
+   * Delete message - with proper permission check
    */
-  async deleteMessage(messageId, userId, hasPermission = false) {
+  async deleteMessage(messageId, userId, communityId = null) {
     try {
-      // Check ownership or permission
-      const { data: existing, error: fetchError } = await supabase
+      // Get message and channel info
+      const { data: message, error: fetchError } = await supabase
         .from('community_messages')
-        .select('user_id')
+        .select('user_id, channel_id')
         .eq('id', messageId)
         .single();
 
       if (fetchError) throw fetchError;
       
-      if (existing.user_id !== userId && !hasPermission) {
+      // Check if user owns the message
+      const isOwner = message.user_id === userId;
+      
+      // If not owner, check if user has manage permissions
+      let hasPermission = isOwner;
+      
+      if (!isOwner) {
+        // Get community_id if not provided
+        let targetCommunityId = communityId;
+        if (!targetCommunityId) {
+          const { data: channelData } = await supabase
+            .from('community_channels')
+            .select('community_id')
+            .eq('id', message.channel_id)
+            .single();
+          targetCommunityId = channelData?.community_id;
+        }
+
+        if (targetCommunityId) {
+          // Check user's role permissions
+          const { data: memberData } = await supabase
+            .from('community_members')
+            .select(`
+              role:role_id(permissions)
+            `)
+            .eq('community_id', targetCommunityId)
+            .eq('user_id', userId)
+            .single();
+
+          hasPermission = 
+            memberData?.role?.permissions?.administrator === true ||
+            memberData?.role?.permissions?.manageMessages === true;
+        }
+      }
+
+      if (!hasPermission) {
         throw new Error('Unauthorized: Insufficient permissions to delete this message');
       }
 
@@ -301,6 +375,54 @@ class MessageService {
       return true;
     } catch (error) {
       console.error('Error deleting message:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Wipe all messages in a channel (administrator only)
+   */
+  async wipeChannelMessages(channelId, userId, communityId) {
+    try {
+      if (!communityId) {
+        // Get community_id from channel if not provided
+        const { data: channelData } = await supabase
+          .from('community_channels')
+          .select('community_id')
+          .eq('id', channelId)
+          .single();
+        
+        if (!channelData) {
+          throw new Error('Channel not found');
+        }
+        communityId = channelData.community_id;
+      }
+
+      // Check if user is administrator
+      const { data: memberData } = await supabase
+        .from('community_members')
+        .select(`
+          role:role_id(permissions)
+        `)
+        .eq('community_id', communityId)
+        .eq('user_id', userId)
+        .single();
+
+      const isAdmin = memberData?.role?.permissions?.administrator === true;
+
+      if (!isAdmin) {
+        throw new Error('Unauthorized: Only administrators can wipe channels');
+      }
+
+      const { error } = await supabase
+        .from('community_messages')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('channel_id', channelId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error wiping channel:', error);
       throw error;
     }
   }
@@ -467,6 +589,7 @@ class MessageService {
   subscribeToMessages(channelId, callback) {
     const channelKey = `channel:${channelId}`;
     
+    // Unsubscribe from previous if exists
     if (this.activeSubscriptions.has(channelKey)) {
       this.activeSubscriptions.get(channelKey)();
     }
@@ -495,11 +618,12 @@ class MessageService {
               .from('community_messages')
               .select(`
                 *,
-                user:profiles!community_messages_user_id_fkey(
+                user:user_id(
                   id, 
                   username, 
                   full_name, 
-                  avatar_id, 
+                  avatar_id,
+                  avatar_metadata,
                   verified
                 )
               `)
@@ -511,7 +635,7 @@ class MessageService {
               const { data: memberData } = await supabase
                 .from('community_members')
                 .select(`
-                  role:community_roles!community_members_role_id_fkey(name)
+                  role:role_id(name)
                 `)
                 .eq('community_id', channelData.community_id)
                 .eq('user_id', messageData.user_id)
@@ -520,8 +644,12 @@ class MessageService {
               const transformedData = {
                 ...messageData,
                 user: messageData.user ? {
-                  ...messageData.user,
+                  id: messageData.user.id,
+                  username: messageData.user.username,
+                  full_name: messageData.user.full_name,
                   avatar_id: messageData.user.avatar_id,
+                  avatar_metadata: messageData.user.avatar_metadata,
+                  verified: messageData.user.verified,
                   avatar: getAvatarUrl(messageData.user.avatar_id)
                 } : null,
                 role: memberData?.role?.name || null
@@ -543,101 +671,6 @@ class MessageService {
 
     this.activeSubscriptions.set(channelKey, unsubscribe);
     return unsubscribe;
-  }
-
-  /**
-   * Subscribe to message updates (edits, deletes, reactions)
-   */
-  subscribeToMessageUpdates(channelId, callback) {
-    const channelKey = `channel-updates:${channelId}`;
-
-    const subscription = supabase
-      .channel(channelKey)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'community_messages',
-          filter: `channel_id=eq.${channelId}`
-        },
-        async (payload) => {
-          callback(payload.new);
-        }
-      )
-      .subscribe();
-
-    return () => subscription.unsubscribe();
-  }
-
-  /**
-   * Search messages in channel
-   */
-  async searchMessages(channelId, query, limit = 50) {
-    try {
-      // Get community_id
-      const { data: channelData } = await supabase
-        .from('community_channels')
-        .select('community_id')
-        .eq('id', channelId)
-        .single();
-
-      const { data: messages, error } = await supabase
-        .from('community_messages')
-        .select(`
-          *,
-          user:profiles!community_messages_user_id_fkey(
-            id, 
-            username, 
-            full_name, 
-            avatar_id, 
-            verified
-          )
-        `)
-        .eq('channel_id', channelId)
-        .is('deleted_at', null)
-        .ilike('content', `%${query}%`)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-
-      // Get roles for all users
-      const userIds = [...new Set(messages.map(m => m.user_id))];
-      
-      const { data: memberData } = await supabase
-        .from('community_members')
-        .select(`
-          user_id,
-          role:community_roles!community_members_role_id_fkey(name)
-        `)
-        .eq('community_id', channelData.community_id)
-        .in('user_id', userIds);
-
-      const roleMap = {};
-      if (memberData) {
-        memberData.forEach(member => {
-          if (member.role) {
-            roleMap[member.user_id] = member.role.name;
-          }
-        });
-      }
-
-      const transformedMessages = (messages || []).map(msg => ({
-        ...msg,
-        user: msg.user ? {
-          ...msg.user,
-          avatar_id: msg.user.avatar_id,
-          avatar: getAvatarUrl(msg.user.avatar_id)
-        } : null,
-        role: roleMap[msg.user_id] || null
-      }));
-
-      return MessageModel.fromAPIArray(transformedMessages);
-    } catch (error) {
-      console.error('Error searching messages:', error);
-      throw error;
-    }
   }
 
   /**

@@ -468,7 +468,16 @@
 .token-select:focus {
   outline: none;
 }
-
+.send-options {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.send-option-btn {
+  background: black;
+  border: 1px solid #84cc16;
+}
 /* ====================================
    TRANSACTION SUMMARY
    ==================================== */
@@ -703,9 +712,10 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(132, 204, 22, 0.1);
-  border: 2px solid rgba(132, 204, 22, 0.3);
-  color: #84cc16;
+  background: rgb(0, 0, 0);
+  border: 1px solid rgba(131, 204, 22, 0.29);
+  box-shadow: 0 0 2px #83cc1685;
+  color: #83cc168f;
   display: flex;
   align-items: center;
   justify-content: center;

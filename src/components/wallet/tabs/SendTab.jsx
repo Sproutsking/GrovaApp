@@ -24,12 +24,12 @@ const SendTab = ({ setActiveTab }) => {
             <p className="view-subtitle">Choose what to send</p>
           </div>
         </div>
-        <div className="form-card">
-          <button className="btn-primary" onClick={() => setSendType('tokens')}>
+        <div className="send-options">
+          <button className="send-option-btn" onClick={() => setSendType('tokens')}>
             <Coins size={18} />
             Send (GT)
           </button>
-          <button className="btn-primary" onClick={() => setSendType('points')} style={{ marginTop: '12px' }}>
+          <button className="send-option-btn" onClick={() => setSendType('points')} style={{ marginTop: '12px' }}>
             <Eye size={18} />
             Send (EP)
           </button>

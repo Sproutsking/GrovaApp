@@ -2,17 +2,30 @@
 // src/components/Modals/PhoneVerificationModal.jsx - COMPLETE PHONE VERIFICATION
 // ============================================================================
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Phone, Shield, Loader, Check, ArrowLeft } from 'lucide-react';
-import settingsService from '../../services/account/settingsService';
+import React, { useState, useEffect, useRef } from "react";
+import { X, Phone, Shield, Loader, Check, ArrowLeft } from "lucide-react";
+import settingsService from "../../services/account/settingsService";
 
-const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess }) => {
-  const [step, setStep] = useState(currentPhone ? 'verify' : 'enter');
-  const [phoneNumber, setPhoneNumber] = useState(currentPhone || '');
-  const [countryCode, setCountryCode] = useState('+234'); // Default Nigeria
-  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
+const PhoneVerificationModal = ({
+  show,
+  onClose,
+  userId,
+  currentPhone,
+  onSuccess,
+}) => {
+  const [step, setStep] = useState(currentPhone ? "verify" : "enter");
+  const [phoneNumber, setPhoneNumber] = useState(currentPhone || "");
+  const [countryCode, setCountryCode] = useState("+234"); // Default Nigeria
+  const [verificationCode, setVerificationCode] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
   const inputRefs = useRef([]);
 
@@ -25,8 +38,8 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
 
   const formatPhoneNumber = (value) => {
     // Remove all non-digits
-    const cleaned = value.replace(/\D/g, '');
-    
+    const cleaned = value.replace(/\D/g, "");
+
     // Format as: (XXX) XXX-XXXX
     if (cleaned.length <= 3) {
       return cleaned;
@@ -40,13 +53,13 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
   const handlePhoneChange = (e) => {
     const formatted = formatPhoneNumber(e.target.value);
     setPhoneNumber(formatted);
-    setError('');
+    setError("");
   };
 
   const validatePhone = () => {
-    const cleaned = phoneNumber.replace(/\D/g, '');
+    const cleaned = phoneNumber.replace(/\D/g, "");
     if (cleaned.length < 10) {
-      setError('Please enter a valid 10-digit phone number');
+      setError("Please enter a valid 10-digit phone number");
       return false;
     }
     return true;
@@ -57,23 +70,22 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      const cleaned = phoneNumber.replace(/\D/g, '');
+      const cleaned = phoneNumber.replace(/\D/g, "");
       const fullNumber = `${countryCode}${cleaned}`;
 
       // Send verification code via service
       await settingsService.sendVerificationCode(userId, fullNumber);
 
       // Move to verification step
-      setStep('verify');
+      setStep("verify");
       setCountdown(60); // 60 second countdown
 
-      console.log('📲 Verification code sent to:', fullNumber);
-
+      console.log("📲 Verification code sent to:", fullNumber);
     } catch (err) {
-      console.error('Failed to send code:', err);
-      setError(err.message || 'Failed to send verification code');
+      console.error("Failed to send code:", err);
+      setError(err.message || "Failed to send verification code");
     } finally {
       setLoading(false);
     }
@@ -86,7 +98,7 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
     const newCode = [...verificationCode];
     newCode[index] = value;
     setVerificationCode(newCode);
-    setError('');
+    setError("");
 
     // Auto-focus next input
     if (value && index < 5) {
@@ -95,35 +107,35 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
   };
 
   const handleCodeKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
+    if (e.key === "Backspace" && !verificationCode[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
 
   const handleCodePaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
-    
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "");
+
     if (pastedData.length === 6) {
-      const newCode = pastedData.split('');
+      const newCode = pastedData.split("");
       setVerificationCode(newCode);
       inputRefs.current[5]?.focus();
     }
   };
 
   const handleVerifyCode = async () => {
-    const code = verificationCode.join('');
-    
+    const code = verificationCode.join("");
+
     if (code.length !== 6) {
-      setError('Please enter the 6-digit verification code');
+      setError("Please enter the 6-digit verification code");
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      const cleaned = phoneNumber.replace(/\D/g, '');
+      const cleaned = phoneNumber.replace(/\D/g, "");
       const fullNumber = `${countryCode}${cleaned}`;
 
       // First update the phone number
@@ -132,8 +144,8 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
       // Then verify it
       await settingsService.verifyPhoneNumber(userId, code);
 
-      console.log('✅ Phone verified successfully');
-      
+      console.log("✅ Phone verified successfully");
+
       // Call success callback
       if (onSuccess) {
         onSuccess(fullNumber);
@@ -141,11 +153,10 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
 
       // Close modal
       onClose();
-
     } catch (err) {
-      console.error('Failed to verify code:', err);
-      setError(err.message || 'Invalid verification code');
-      setVerificationCode(['', '', '', '', '', '']);
+      console.error("Failed to verify code:", err);
+      setError(err.message || "Invalid verification code");
+      setVerificationCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
@@ -157,22 +168,21 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      const cleaned = phoneNumber.replace(/\D/g, '');
+      const cleaned = phoneNumber.replace(/\D/g, "");
       const fullNumber = `${countryCode}${cleaned}`;
 
       await settingsService.sendVerificationCode(userId, fullNumber);
 
       setCountdown(60);
-      setVerificationCode(['', '', '', '', '', '']);
+      setVerificationCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
 
-      console.log('📲 Verification code resent');
-
+      console.log("📲 Verification code resent");
     } catch (err) {
-      console.error('Failed to resend code:', err);
-      setError(err.message || 'Failed to resend code');
+      console.error("Failed to resend code:", err);
+      setError(err.message || "Failed to resend code");
     } finally {
       setLoading(false);
     }
@@ -421,49 +431,65 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
       `}</style>
 
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="modal-header-left">
               <div className="modal-icon">
-                {step === 'verify' ? <Shield size={24} /> : <Phone size={24} />}
+                {step === "verify" ? <Shield size={24} /> : <Phone size={24} />}
               </div>
               <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>
-                  {step === 'verify' ? 'Verify Phone Number' : 'Add Phone Number'}
+                <h2
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: "800",
+                    color: "#fff",
+                    margin: 0,
+                  }}
+                >
+                  {step === "verify"
+                    ? "Verify Phone Number"
+                    : "Add Phone Number"}
                 </h2>
-                <p style={{ fontSize: '13px', color: '#a3a3a3', margin: '4px 0 0 0' }}>
-                  {step === 'verify' ? 'Enter the code we sent' : 'Secure your account'}
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#a3a3a3",
+                    margin: "4px 0 0 0",
+                  }}
+                >
+                  {step === "verify"
+                    ? "Enter the code we sent"
+                    : "Secure your account"}
                 </p>
               </div>
             </div>
-            <button onClick={onClose} style={{
-              background: 'none',
-              border: 'none',
-              color: '#a3a3a3',
-              cursor: 'pointer',
-              padding: 0
-            }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#a3a3a3",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
               <X size={24} />
             </button>
           </div>
 
           <div className="modal-body">
-            {step === 'enter' && (
+            {step === "enter" && (
               <>
                 <div className="info-text">
                   Enter your phone number to receive a verification code
                 </div>
 
-                {error && (
-                  <div className="error-message">
-                    ⚠️ {error}
-                  </div>
-                )}
+                {error && <div className="error-message">⚠️ {error}</div>}
 
                 <div className="input-group">
                   <label className="input-label">Phone Number</label>
                   <div className="phone-input-wrapper">
-                    <select 
+                    <select
                       className="country-code-select"
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}
@@ -486,14 +512,17 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
                   </div>
                 </div>
 
-                <button 
+                <button
                   className="action-btn"
                   onClick={handleSendCode}
                   disabled={loading || !phoneNumber}
                 >
                   {loading ? (
                     <>
-                      <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      <Loader
+                        size={20}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />
                       Sending Code...
                     </>
                   ) : (
@@ -506,42 +535,46 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
               </>
             )}
 
-            {step === 'verify' && (
+            {step === "verify" && (
               <>
-                {step !== 'enter' && (
-                  <button className="back-btn" onClick={() => setStep('enter')}>
+                {step !== "enter" && (
+                  <button className="back-btn" onClick={() => setStep("enter")}>
                     <ArrowLeft size={16} />
                     Change Number
                   </button>
                 )}
 
                 <div className="info-text">
-                  We sent a 6-digit code to <span className="highlight-phone">{countryCode} {phoneNumber}</span>
+                  We sent a 6-digit code to{" "}
+                  <span className="highlight-phone">
+                    {countryCode} {phoneNumber}
+                  </span>
                 </div>
 
-                {error && (
-                  <div className="error-message">
-                    ⚠️ {error}
-                  </div>
-                )}
+                {error && <div className="error-message">⚠️ {error}</div>}
 
                 <div className="input-group">
-                  <label className="input-label" style={{ textAlign: 'center' }}>
+                  <label
+                    className="input-label"
+                    style={{ textAlign: "center" }}
+                  >
                     Enter Verification Code
                   </label>
                   <div className="code-inputs">
                     {[0, 1, 2, 3, 4, 5].map((index) => (
                       <input
                         key={index}
-                        ref={el => inputRefs.current[index] = el}
+                        ref={(el) => (inputRefs.current[index] = el)}
                         type="text"
                         inputMode="numeric"
                         pattern="\d{1}"
                         maxLength={1}
                         className="code-input"
                         value={verificationCode[index]}
-                        onChange={e => handleCodeChange(index, e.target.value)}
-                        onKeyDown={e => handleCodeKeyDown(index, e)}
+                        onChange={(e) =>
+                          handleCodeChange(index, e.target.value)
+                        }
+                        onKeyDown={(e) => handleCodeKeyDown(index, e)}
                         onPaste={index === 0 ? handleCodePaste : undefined}
                         autoFocus={index === 0}
                       />
@@ -549,14 +582,17 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
                   </div>
                 </div>
 
-                <button 
+                <button
                   className="action-btn"
                   onClick={handleVerifyCode}
-                  disabled={loading || verificationCode.join('').length !== 6}
+                  disabled={loading || verificationCode.join("").length !== 6}
                 >
                   {loading ? (
                     <>
-                      <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      <Loader
+                        size={20}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />
                       Verifying...
                     </>
                   ) : (
@@ -567,16 +603,14 @@ const PhoneVerificationModal = ({ show, onClose, userId, currentPhone, onSuccess
                   )}
                 </button>
 
-                <button 
+                <button
                   className="resend-btn"
                   onClick={handleResendCode}
                   disabled={countdown > 0 || loading}
                 >
-                  {countdown > 0 ? (
-                    `Resend Code in ${countdown}s`
-                  ) : (
-                    'Resend Verification Code'
-                  )}
+                  {countdown > 0
+                    ? `Resend Code in ${countdown}s`
+                    : "Resend Verification Code"}
                 </button>
               </>
             )}

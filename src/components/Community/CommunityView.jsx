@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import CommunitySidebar from "./tabs/CommunitySidebar";
 import DiscoverTab from "./tabs/DiscoverTab";
 import ChatTab from "./tabs/ChatTab";
@@ -19,11 +19,31 @@ const CommunityView = ({ userId, currentUser }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCommunity, setInviteCommunity] = useState(null);
   const [pendingInvite, setPendingInvite] = useState(null);
+  
+  // Aggressive caching for instant switching
+  const communityCache = useRef({});
+  const channelCache = useRef({});
+  const lastLoadTime = useRef({});
+  const currentCommunityRef = useRef(null);
+  const switchTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadCommunities();
     checkPendingInvite();
   }, [userId]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (switchTimeoutRef.current) {
+        clearTimeout(switchTimeoutRef.current);
+      }
+      communityCache.current = {};
+      channelCache.current = {};
+      lastLoadTime.current = {};
+      currentCommunityRef.current = null;
+    };
+  }, []);
 
   const checkPendingInvite = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -45,6 +65,12 @@ const CommunityView = ({ userId, currentUser }) => {
 
       setMyCommunities(userComms);
       setAllCommunities(allComms);
+      
+      // Aggressive caching - store all communities
+      userComms.forEach(comm => {
+        communityCache.current[comm.id] = comm;
+        lastLoadTime.current[comm.id] = Date.now();
+      });
     } catch (error) {
       console.error("Error loading communities:", error);
       alert("Failed to load communities. Please refresh the page.");
@@ -54,18 +80,83 @@ const CommunityView = ({ userId, currentUser }) => {
   };
 
   const handleSelectCommunity = async (community) => {
-    setSelectedCommunity(community);
-    setView("chat");
+    // Clear any pending switch timeout
+    if (switchTimeoutRef.current) {
+      clearTimeout(switchTimeoutRef.current);
+    }
+
+    // INSTANT CLEANUP - Clear previous community data immediately
+    if (currentCommunityRef.current !== community.id) {
+      setSelectedChannel(null);
+      currentCommunityRef.current = community.id;
+    }
+
+    // INSTANT SWITCH - Use cached data immediately
+    const cached = communityCache.current[community.id];
+    const cacheAge = Date.now() - (lastLoadTime.current[community.id] || 0);
+    const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+
+    if (cached && cacheAge < cacheExpiry) {
+      // Use cache instantly with no delay
+      setSelectedCommunity(cached);
+      setView("chat");
+      
+      // Load fresh data in background silently
+      switchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const fresh = await communityService.fetchCommunityDetails(community.id);
+          communityCache.current[fresh.id] = fresh;
+          lastLoadTime.current[fresh.id] = Date.now();
+          // Only update if still on this community
+          if (currentCommunityRef.current === fresh.id) {
+            setSelectedCommunity(fresh);
+          }
+        } catch (error) {
+          console.error("Background refresh error:", error);
+        }
+      }, 100);
+    } else {
+      // Still show old cache immediately while loading
+      if (cached) {
+        setSelectedCommunity(cached);
+        setView("chat");
+      }
+      
+      // Load fresh data
+      try {
+        const fresh = await communityService.fetchCommunityDetails(community.id);
+        communityCache.current[fresh.id] = fresh;
+        lastLoadTime.current[fresh.id] = Date.now();
+        // Only update if still on this community
+        if (currentCommunityRef.current === fresh.id) {
+          setSelectedCommunity(fresh);
+        }
+      } catch (error) {
+        console.error("Error loading community details:", error);
+        // Still use cache on error
+        if (cached && currentCommunityRef.current === community.id) {
+          setSelectedCommunity(cached);
+          setView("chat");
+        }
+      }
+    }
   };
 
   const handleCreateCommunity = async (communityData) => {
     try {
       const newCommunity = await communityService.createCommunity(
         communityData,
-        userId,
+        userId
       );
 
+      // Add to cache
+      communityCache.current[newCommunity.id] = newCommunity;
+      lastLoadTime.current[newCommunity.id] = Date.now();
+      
+      // Reload communities
       await loadCommunities();
+      
+      // Select the newly created community
       handleSelectCommunity(newCommunity);
       setShowCreateCommunity(false);
     } catch (error) {
@@ -77,8 +168,11 @@ const CommunityView = ({ userId, currentUser }) => {
   const handleJoinCommunity = async (communityId) => {
     try {
       await communityService.joinCommunity(communityId, userId);
+      
+      // Reload communities
       await loadCommunities();
 
+      // Get the full community details and navigate to it
       const joinedCommunity =
         await communityService.fetchCommunityDetails(communityId);
       if (joinedCommunity) {
@@ -92,16 +186,22 @@ const CommunityView = ({ userId, currentUser }) => {
 
   const handleInviteSuccess = async (communityId) => {
     try {
+      // Reload communities
       await loadCommunities();
+      
+      // Get the community details
       const community =
         await communityService.fetchCommunityDetails(communityId);
+      
       if (community) {
         handleSelectCommunity(community);
       }
+      
       setPendingInvite(null);
     } catch (error) {
       console.error("Error after invite success:", error);
       setPendingInvite(null);
+      await loadCommunities();
     }
   };
 
@@ -119,11 +219,20 @@ const CommunityView = ({ userId, currentUser }) => {
     try {
       await communityService.leaveCommunity(communityId, userId);
 
+      // Remove from cache
+      delete communityCache.current[communityId];
+      delete lastLoadTime.current[communityId];
+      delete channelCache.current[communityId];
+
+      // INSTANT CLEANUP - If we're currently viewing this community
       if (selectedCommunity?.id === communityId) {
         setSelectedCommunity(null);
+        setSelectedChannel(null);
         setView("discover");
+        currentCommunityRef.current = null;
       }
 
+      // Reload communities
       await loadCommunities();
     } catch (error) {
       console.error("Error leaving community:", error);
@@ -134,7 +243,7 @@ const CommunityView = ({ userId, currentUser }) => {
   const handleDeleteCommunity = async (communityId) => {
     if (
       !window.confirm(
-        "Are you sure you want to delete this community? This action cannot be undone.",
+        "Are you sure you want to delete this community? This action cannot be undone."
       )
     ) {
       return;
@@ -143,11 +252,20 @@ const CommunityView = ({ userId, currentUser }) => {
     try {
       await communityService.deleteCommunity(communityId, userId);
 
+      // Remove from cache
+      delete communityCache.current[communityId];
+      delete lastLoadTime.current[communityId];
+      delete channelCache.current[communityId];
+
+      // INSTANT CLEANUP
       if (selectedCommunity?.id === communityId) {
         setSelectedCommunity(null);
+        setSelectedChannel(null);
         setView("discover");
+        currentCommunityRef.current = null;
       }
 
+      // Reload communities
       await loadCommunities();
     } catch (error) {
       console.error("Error deleting community:", error);
@@ -159,9 +277,14 @@ const CommunityView = ({ userId, currentUser }) => {
     await loadCommunities();
     if (selectedCommunity) {
       const updated = await communityService.fetchCommunityDetails(
-        selectedCommunity.id,
+        selectedCommunity.id
       );
-      setSelectedCommunity(updated);
+      communityCache.current[updated.id] = updated;
+      lastLoadTime.current[updated.id] = Date.now();
+      // Only update if still on this community
+      if (currentCommunityRef.current === updated.id) {
+        setSelectedCommunity(updated);
+      }
     }
   };
 
@@ -192,8 +315,11 @@ const CommunityView = ({ userId, currentUser }) => {
         onSelectCommunity={handleSelectCommunity}
         onCreateCommunity={() => setShowCreateCommunity(true)}
         onGoHome={() => {
+          // INSTANT CLEANUP
           setSelectedCommunity(null);
+          setSelectedChannel(null);
           setView("discover");
+          currentCommunityRef.current = null;
         }}
         view={view}
       />
@@ -207,19 +333,22 @@ const CommunityView = ({ userId, currentUser }) => {
             onSelect={handleSelectCommunity}
           />
         ) : (
-          <ChatTab
-            community={selectedCommunity}
-            userId={userId}
-            currentUser={currentUser}
-            selectedChannel={selectedChannel}
-            setSelectedChannel={setSelectedChannel}
-            onLeaveCommunity={() => handleLeaveCommunity(selectedCommunity.id)}
-            onCommunityUpdate={handleCommunityUpdate}
-            onOpenInvite={handleOpenInvite}
-            onDeleteCommunity={() =>
-              handleDeleteCommunity(selectedCommunity.id)
-            }
-          />
+          selectedCommunity && (
+            <ChatTab
+              key={selectedCommunity.id}
+              community={selectedCommunity}
+              userId={userId}
+              currentUser={currentUser}
+              selectedChannel={selectedChannel}
+              setSelectedChannel={setSelectedChannel}
+              onLeaveCommunity={() => handleLeaveCommunity(selectedCommunity.id)}
+              onCommunityUpdate={handleCommunityUpdate}
+              onOpenInvite={handleOpenInvite}
+              onDeleteCommunity={() =>
+                handleDeleteCommunity(selectedCommunity.id)
+              }
+            />
+          )
         )}
       </div>
 

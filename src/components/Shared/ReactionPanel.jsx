@@ -1,38 +1,30 @@
 // ============================================================================
-// src/components/Shared/ReactionPanel.jsx - UNIFIED REACTION PANEL
+// src/components/Shared/ReactionPanel.jsx - SELF-CONTAINED VERSION
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, Eye, Bookmark } from 'lucide-react';
-import LikeModel from '../../models/LikeModel';
-import SaveModel from '../../models/SaveModel';
-import { useToast } from '../../contexts/ToastContext';
+import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
+import { Heart, MessageCircle, Share2, Eye, Bookmark } from "lucide-react";
+import LikeModel from "../../models/LikeModel";
+import SaveModel from "../../models/SaveModel";
+import { useToast } from "../../contexts/ToastContext";
+import CommentModal from "../Modals/CommentModal";
+import ShareModal from "../Modals/ShareModal";
 
-/**
- * ReactionPanel - Used across ALL content cards
- * Props:
- * - content: { id, type, likes, comments_count, shares, views }
- * - currentUser: { id }
- * - onComment: callback
- * - onShare: callback
- * - layout: 'horizontal' | 'vertical'
- * - showSave: boolean
- * - showViews: boolean
- */
-const ReactionPanel = ({ 
-  content, 
+const ReactionPanel = ({
+  content,
   currentUser,
-  onComment,
-  onShare,
-  layout = 'horizontal',
+  layout = "horizontal",
   showSave = true,
   showViews = true,
-  className = ''
+  className = "",
 }) => {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(content.likes || 0);
   const [isLiking, setIsLiking] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -43,20 +35,28 @@ const ReactionPanel = ({
   }, [content.id, currentUser?.id]);
 
   const checkLikedStatus = async () => {
-    const isLiked = await LikeModel.checkIfLiked(content.type, content.id, currentUser.id);
+    const isLiked = await LikeModel.checkIfLiked(
+      content.type,
+      content.id,
+      currentUser.id,
+    );
     setLiked(isLiked);
   };
 
   const checkSavedStatus = async () => {
-    const isSaved = await SaveModel.checkIfSaved(content.type, content.id, currentUser.id);
+    const isSaved = await SaveModel.checkIfSaved(
+      content.type,
+      content.id,
+      currentUser.id,
+    );
     setSaved(isSaved);
   };
 
   const handleLike = async (e) => {
     e.stopPropagation();
-    
+
     if (!currentUser?.id) {
-      showToast('warning', 'Please login to like');
+      showToast("warning", "Please login to like");
       return;
     }
 
@@ -64,19 +64,22 @@ const ReactionPanel = ({
 
     try {
       setIsLiking(true);
-      
-      const result = await LikeModel.toggleLike(content.type, content.id, currentUser.id);
-      
+
+      const result = await LikeModel.toggleLike(
+        content.type,
+        content.id,
+        currentUser.id,
+      );
+
       setLiked(result.liked);
       setLikeCount(result.newCount);
 
       if (result.liked) {
-        showToast('success', 'Liked!', '+1 EP earned');
+        showToast("success", "Liked!", "+1 EP earned");
       }
-
     } catch (error) {
-      console.error('Like error:', error);
-      showToast('error', 'Failed to like');
+      console.error("Like error:", error);
+      showToast("error", "Failed to like");
     } finally {
       setIsLiking(false);
     }
@@ -84,40 +87,39 @@ const ReactionPanel = ({
 
   const handleComment = (e) => {
     e.stopPropagation();
-    if (onComment) {
-      onComment(content);
-    }
+    setShowComments(true);
   };
 
   const handleShare = (e) => {
     e.stopPropagation();
-    if (onShare) {
-      onShare(content);
-    }
+    setShowShareModal(true);
   };
 
   const handleSave = async (e) => {
     e.stopPropagation();
-    
+
     if (!currentUser?.id) {
-      showToast('warning', 'Please login to save');
+      showToast("warning", "Please login to save");
       return;
     }
 
     try {
-      const result = await SaveModel.saveContent(content.type, content.id, currentUser.id);
+      const result = await SaveModel.saveContent(
+        content.type,
+        content.id,
+        currentUser.id,
+      );
       setSaved(result.saved);
-      
-      showToast('success', result.saved ? 'Saved!' : 'Removed from saved');
 
+      showToast("success", result.saved ? "Saved!" : "Removed from saved");
     } catch (error) {
-      console.error('Save error:', error);
-      showToast('error', 'Failed to save');
+      console.error("Save error:", error);
+      showToast("error", "Failed to save");
     }
   };
 
   const formatNumber = (num) => {
-    if (!num || num === 0) return '0';
+    if (!num || num === 0) return "0";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -126,12 +128,16 @@ const ReactionPanel = ({
   return (
     <>
       <div className={`reaction-panel reaction-panel-${layout} ${className}`}>
-        <button 
-          className={`reaction-btn ${liked ? 'reaction-btn-active' : ''}`}
+        <button
+          className={`reaction-btn ${liked ? "reaction-btn-active" : ""}`}
           onClick={handleLike}
           disabled={isLiking}
         >
-          <Heart size={18} fill={liked ? '#ef4444' : 'none'} color={liked ? '#ef4444' : '#e5e5e5'} />
+          <Heart
+            size={18}
+            fill={liked ? "#ef4444" : "none"}
+            color={liked ? "#ef4444" : "#e5e5e5"}
+          />
           <span>{formatNumber(likeCount)}</span>
         </button>
 
@@ -146,11 +152,15 @@ const ReactionPanel = ({
         </button>
 
         {showSave && (
-          <button 
-            className={`reaction-btn ${saved ? 'reaction-btn-active' : ''}`}
+          <button
+            className={`reaction-btn ${saved ? "reaction-btn-active" : ""}`}
             onClick={handleSave}
           >
-            <Bookmark size={18} fill={saved ? '#fbbf24' : 'none'} color={saved ? '#fbbf24' : '#e5e5e5'} />
+            <Bookmark
+              size={18}
+              fill={saved ? "#fbbf24" : "none"}
+              color={saved ? "#fbbf24" : "#e5e5e5"}
+            />
           </button>
         )}
 
@@ -162,196 +172,175 @@ const ReactionPanel = ({
         )}
       </div>
 
+      {showComments &&
+        ReactDOM.createPortal(
+          <CommentModal
+            content={content}
+            currentUser={currentUser}
+            onClose={() => setShowComments(false)}
+            isMobile={window.innerWidth <= 768}
+          />,
+          document.body,
+        )}
+
+      {showShareModal &&
+        ReactDOM.createPortal(
+          <ShareModal
+            content={content}
+            currentUser={currentUser}
+            onClose={() => setShowShareModal(false)}
+          />,
+          document.body,
+        )}
+
       <style jsx>{`
-  /* =========================
-     FULL WIDTH BAR
-  ========================== */
-  .reaction-panel {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+        .reaction-panel {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 14px;
+          margin-top: 8px;
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.05),
+            rgba(255, 255, 255, 0.015)
+          );
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(12px);
+        }
 
-    padding: 10px 14px;
-    margin-top: 8px;
+        .reaction-panel-horizontal {
+          gap: 12px;
+        }
 
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.05),
-        rgba(255, 255, 255, 0.015)
-      );
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-  }
+        .reaction-panel-vertical {
+          flex-direction: column;
+          gap: 10px;
+        }
 
-  .reaction-panel-horizontal {
-    gap: 12px;
-  }
+        .reaction-btn {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 14px;
+          border-radius: 14px;
+          background: transparent;
+          border: none;
+          color: #d4d4d4;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition:
+            background 0.2s ease,
+            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+            color 0.18s ease;
+        }
 
-  .reaction-panel-vertical {
-    flex-direction: column;
-    gap: 10px;
-  }
+        .reaction-btn::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.06);
+          opacity: 0;
+          transform: scale(0.9);
+          transition:
+            opacity 0.18s ease,
+            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+          z-index: -1;
+        }
 
-  /* =========================
-     MAIN REACTIONS (LEFT / CENTER)
-  ========================== */
-  .reaction-btn {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+        .reaction-btn:hover::before {
+          opacity: 1;
+          transform: scale(1);
+        }
 
-    padding: 10px 14px;
-    border-radius: 14px;
+        .reaction-btn:hover {
+          transform: translateY(-1px);
+          color: #e5e5e5;
+        }
 
-    background: transparent;
-    border: none;
+        .reaction-btn-active {
+          color: #84cc16;
+        }
 
-    color: #d4d4d4;
-    font-size: 13px;
-    font-weight: 600;
+        .reaction-btn-active::before {
+          opacity: 1;
+          background: radial-gradient(
+            circle at top,
+            rgba(132, 204, 22, 0.25),
+            rgba(132, 204, 22, 0.1)
+          );
+          box-shadow:
+            inset 0 0 0 1px rgba(132, 204, 22, 0.4),
+            0 4px 14px rgba(132, 204, 22, 0.25);
+        }
 
-    cursor: pointer;
-    transition:
-      background 0.2s ease,
-      transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-      color 0.18s ease;
-  }
+        .reaction-btn svg {
+          transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
 
-  /* Soft hover zone */
-  .reaction-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.06);
-    opacity: 0;
-    transform: scale(0.9);
-    transition:
-      opacity 0.18s ease,
-      transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-    z-index: -1;
-  }
+        .reaction-btn:hover svg {
+          transform: scale(1.15);
+        }
 
-  .reaction-btn:hover::before {
-    opacity: 1;
-    transform: scale(1);
-  }
+        .reaction-btn-active svg {
+          transform: scale(1.2);
+        }
 
-  .reaction-btn:hover {
-    transform: translateY(-1px);
-    color: #e5e5e5;
-  }
+        .reaction-btn span {
+          font-variant-numeric: tabular-nums;
+          opacity: 0.85;
+        }
 
-  /* =========================
-     ACTIVE STATE
-  ========================== */
-  .reaction-btn-active {
-    color: #84cc16;
-  }
+        .reaction-stat {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 12px;
+          border-radius: 12px;
+          color: #a3a3a3;
+          font-size: 12px;
+          font-weight: 600;
+          opacity: 0.7;
+        }
 
-  .reaction-btn-active::before {
-    opacity: 1;
-    background:
-      radial-gradient(
-        circle at top,
-        rgba(132, 204, 22, 0.25),
-        rgba(132, 204, 22, 0.1)
-      );
-    box-shadow:
-      inset 0 0 0 1px rgba(132, 204, 22, 0.4),
-      0 4px 14px rgba(132, 204, 22, 0.25);
-  }
+        .reaction-panel-horizontal > :nth-child(1),
+        .reaction-panel-horizontal > :nth-child(2),
+        .reaction-panel-horizontal > :nth-child(3) {
+          flex: 1;
+          justify-content: center;
+        }
 
-  /* =========================
-     ICON ENERGY
-  ========================== */
-  .reaction-btn svg {
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
+        .reaction-panel-horizontal > :last-child {
+          margin-left: auto;
+        }
 
-  .reaction-btn:hover svg {
-    transform: scale(1.15);
-  }
+        .reaction-btn:active {
+          transform: scale(0.96);
+        }
 
-  .reaction-btn-active svg {
-    transform: scale(1.2);
-  }
+        .reaction-btn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
 
-  /* =========================
-     COUNTS
-  ========================== */
-  .reaction-btn span {
-    font-variant-numeric: tabular-nums;
-    opacity: 0.85;
-  }
+        @media (max-width: 768px) {
+          .reaction-panel {
+            padding: 12px 10px;
+          }
 
-  /* =========================
-     PASSIVE STATS (RIGHT)
-  ========================== */
-  .reaction-stat {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+          .reaction-btn {
+            padding: 10px;
+          }
 
-    padding: 8px 12px;
-    border-radius: 12px;
-
-    color: #a3a3a3;
-    font-size: 12px;
-    font-weight: 600;
-
-    opacity: 0.7;
-  }
-
-  /* =========================
-     LAYOUT MAGIC
-     (no JSX changes)
-  ========================== */
-  .reaction-panel-horizontal > :nth-child(1),
-  .reaction-panel-horizontal > :nth-child(2),
-  .reaction-panel-horizontal > :nth-child(3) {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .reaction-panel-horizontal > :last-child {
-    margin-left: auto;
-  }
-
-  /* =========================
-     PRESS
-  ========================== */
-  .reaction-btn:active {
-    transform: scale(0.96);
-  }
-
-  .reaction-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  /* =========================
-     MOBILE
-  ========================== */
-  @media (max-width: 768px) {
-    .reaction-panel {
-      padding: 12px 10px;
-    }
-
-    .reaction-btn {
-      padding: 10px;
-    }
-
-    .reaction-btn span {
-      font-size: 12px;
-    }
-  }
-`}</style>
-
-
+          .reaction-btn span {
+            font-size: 12px;
+          }
+        }
+      `}</style>
     </>
   );
 };

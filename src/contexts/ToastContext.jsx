@@ -1,26 +1,38 @@
-// src/contexts/ToastContext.jsx - COMPLETE ALL-IN-ONE FILE
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Info, X, Sparkles } from 'lucide-react';
+// src/contexts/ToastContext.jsx - FIXED TEXT VISIBILITY
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Info,
+  X,
+  Sparkles,
+} from "lucide-react";
 
 const ToastContext = createContext(null);
 
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
+    throw new Error("useToast must be used within a ToastProvider");
   }
   return context;
 };
 
-// ADVANCED TOAST COMPONENT - BUILT INTO THIS FILE
-const AdvancedToast = ({ 
-  type = 'success', 
-  message, 
+const AdvancedToast = ({
+  type = "success",
+  message,
   description,
-  onClose, 
+  onClose,
   duration = 5000,
-  position = 'top-right',
-  showProgress = true 
+  position = "top-right",
+  showProgress = true,
 }) => {
   const [progress, setProgress] = useState(100);
   const [isClosing, setIsClosing] = useState(false);
@@ -29,8 +41,8 @@ const AdvancedToast = ({
   useEffect(() => {
     if (duration && !isPaused) {
       const interval = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev - (100 / (duration / 100));
+        setProgress((prev) => {
+          const newProgress = prev - 100 / (duration / 100);
           if (newProgress <= 0) {
             handleClose();
             return 0;
@@ -51,67 +63,67 @@ const AdvancedToast = ({
   };
 
   const icons = {
-    success: { 
-      Icon: CheckCircle, 
-      color: '#22c55e', 
-      bg: 'rgba(34, 197, 94, 0.15)',
-      borderColor: 'rgba(34, 197, 94, 0.3)'
+    success: {
+      Icon: CheckCircle,
+      color: "#22c55e",
+      bg: "rgba(34, 197, 94, 0.15)",
+      borderColor: "rgba(34, 197, 94, 0.3)",
     },
-    error: { 
-      Icon: XCircle, 
-      color: '#ef4444', 
-      bg: 'rgba(239, 68, 68, 0.15)',
-      borderColor: 'rgba(239, 68, 68, 0.3)'
+    error: {
+      Icon: XCircle,
+      color: "#ef4444",
+      bg: "rgba(239, 68, 68, 0.15)",
+      borderColor: "rgba(239, 68, 68, 0.3)",
     },
-    warning: { 
-      Icon: AlertCircle, 
-      color: '#f59e0b', 
-      bg: 'rgba(245, 158, 11, 0.15)',
-      borderColor: 'rgba(245, 158, 11, 0.3)'
+    warning: {
+      Icon: AlertCircle,
+      color: "#f59e0b",
+      bg: "rgba(245, 158, 11, 0.15)",
+      borderColor: "rgba(245, 158, 11, 0.3)",
     },
-    info: { 
-      Icon: Info, 
-      color: '#3b82f6', 
-      bg: 'rgba(59, 130, 246, 0.15)',
-      borderColor: 'rgba(59, 130, 246, 0.3)'
+    info: {
+      Icon: Info,
+      color: "#3b82f6",
+      bg: "rgba(59, 130, 246, 0.15)",
+      borderColor: "rgba(59, 130, 246, 0.3)",
     },
-    premium: { 
-      Icon: Sparkles, 
-      color: '#a855f7', 
-      bg: 'rgba(168, 85, 247, 0.15)',
-      borderColor: 'rgba(168, 85, 247, 0.3)'
-    }
+    premium: {
+      Icon: Sparkles,
+      color: "#a855f7",
+      bg: "rgba(168, 85, 247, 0.15)",
+      borderColor: "rgba(168, 85, 247, 0.3)",
+    },
   };
 
   const { Icon, color, bg, borderColor } = icons[type] || icons.info;
 
   const positions = {
-    'top-right': { 
-      top: '24px', 
-      right: '24px' 
+    "top-right": {
+      top: "24px",
+      right: "24px",
     },
-    'top-left': { 
-      top: '24px', 
-      left: '24px' 
+    "top-left": {
+      top: "24px",
+      left: "24px",
     },
-    'bottom-right': { 
-      bottom: '24px', 
-      right: '24px' 
+    "bottom-right": {
+      bottom: "24px",
+      right: "24px",
     },
-    'bottom-left': { 
-      bottom: '24px', 
-      left: '24px' 
+    "bottom-left": {
+      bottom: "24px",
+      left: "24px",
     },
-    'top-center': { 
-      top: '24px', 
-      left: '50%', 
-      transform: 'translateX(-50%)' 
+    "top-center": {
+      top: "24px",
+      left: "50%",
+      transform: "translateX(-50%)",
     },
-    'bottom-center': { 
-      bottom: '24px', 
-      left: '50%', 
-      transform: 'translateX(-50%)' 
-    }
+    "bottom-center": {
+      bottom: "24px",
+      left: "50%",
+      transform: "translateX(-50%)",
+    },
   };
 
   return (
@@ -120,8 +132,8 @@ const AdvancedToast = ({
         @keyframes toastSlideIn {
           from {
             opacity: 0;
-            transform: translateX(${position.includes('right') ? '400px' : position.includes('left') ? '-400px' : '0'}) 
-                       translateY(${position.includes('top') ? '-20px' : position.includes('bottom') ? '20px' : '0'})
+            transform: translateX(${position.includes("right") ? "400px" : position.includes("left") ? "-400px" : "0"}) 
+                       translateY(${position.includes("top") ? "-20px" : position.includes("bottom") ? "20px" : "0"})
                        scale(0.9);
           }
           to {
@@ -137,8 +149,8 @@ const AdvancedToast = ({
           }
           to {
             opacity: 0;
-            transform: translateX(${position.includes('right') ? '400px' : position.includes('left') ? '-400px' : '0'}) 
-                       translateY(${position.includes('top') ? '-20px' : position.includes('bottom') ? '20px' : '0'})
+            transform: translateX(${position.includes("right") ? "400px" : position.includes("left") ? "-400px" : "0"}) 
+                       translateY(${position.includes("top") ? "-20px" : position.includes("bottom") ? "20px" : "0"})
                        scale(0.9);
           }
         }
@@ -160,17 +172,15 @@ const AdvancedToast = ({
         }
 
         .advanced-toast {
-          color: white;
           position: fixed;
           min-width: 340px;
           max-width: 440px;
           z-index: 10000;
-          animation: ${isClosing ? 'toastSlideOut' : 'toastSlideIn'} 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+          animation: ${isClosing ? "toastSlideOut" : "toastSlideIn"} 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
           pointer-events: auto;
         }
 
         .toast-container {
-          color: white;
           background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
           border: 1px solid ${borderColor};
           border-radius: 16px;
@@ -190,7 +200,6 @@ const AdvancedToast = ({
         }
 
         .toast-content {
-        color: white;
           padding: 20px 22px;
           display: flex;
           gap: 16px;
@@ -229,7 +238,6 @@ const AdvancedToast = ({
         }
 
         .toast-text {
-          color: #ffffff;
           flex: 1;
           min-width: 0;
         }
@@ -237,7 +245,7 @@ const AdvancedToast = ({
         .toast-message {
           font-size: 15px;
           font-weight: 700;
-          color: #ffffff;
+          color: #ffffff !important;
           margin: 0 0 4px 0;
           line-height: 1.5;
           letter-spacing: -0.01em;
@@ -245,7 +253,7 @@ const AdvancedToast = ({
 
         .toast-description {
           font-size: 13px;
-          color: #ffffff;
+          color: #d4d4d4 !important;
           margin: 0;
           line-height: 1.6;
         }
@@ -330,8 +338,8 @@ const AdvancedToast = ({
         }
       `}</style>
 
-      <div 
-        className="advanced-toast" 
+      <div
+        className="advanced-toast"
         style={positions[position]}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
@@ -339,27 +347,34 @@ const AdvancedToast = ({
         <div className="toast-container">
           <div className="toast-content">
             <div className="toast-icon-wrapper">
-              <Icon size={22} color={color} strokeWidth={2.5} style={{ zIndex: 1 }} />
+              <Icon
+                size={22}
+                color={color}
+                strokeWidth={2.5}
+                style={{ zIndex: 1 }}
+              />
             </div>
-            
+
             <div className="toast-text">
               <p className="toast-message">{message}</p>
-              {description && <p className="toast-description">{description}</p>}
+              {description && (
+                <p className="toast-description">{description}</p>
+              )}
             </div>
-            
-            <button 
-              className="toast-close-btn" 
+
+            <button
+              className="toast-close-btn"
               onClick={handleClose}
               aria-label="Close notification"
             >
               <X size={16} />
             </button>
           </div>
-          
+
           {showProgress && duration && (
             <div className="toast-progress">
-              <div 
-                className="toast-progress-bar" 
+              <div
+                className="toast-progress-bar"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -370,68 +385,85 @@ const AdvancedToast = ({
   );
 };
 
-// TOAST PROVIDER WITH BUILT-IN COMPONENT
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = useCallback(({
-    type = 'success',
-    message,
-    description,
-    duration = 5000,
-    position = 'top-right',
-    showProgress = true
-  }) => {
-    const id = Date.now() + Math.random();
-    
-    const newToast = {
-      id,
-      type,
+  const showToast = useCallback(
+    ({
+      type = "success",
       message,
       description,
-      duration,
-      position,
-      showProgress
-    };
+      duration = 5000,
+      position = "top-right",
+      showProgress = true,
+    }) => {
+      const id = Date.now() + Math.random();
 
-    setToasts(prev => [...prev, newToast]);
+      const newToast = {
+        id,
+        type,
+        message,
+        description,
+        duration,
+        position,
+        showProgress,
+      };
 
-    if (duration) {
-      setTimeout(() => {
-        setToasts(prev => prev.filter(toast => toast.id !== id));
-      }, duration + 500);
-    }
+      setToasts((prev) => [...prev, newToast]);
 
-    return id;
-  }, []);
+      if (duration) {
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((toast) => toast.id !== id));
+        }, duration + 500);
+      }
+
+      return id;
+    },
+    [],
+  );
 
   const hideToast = useCallback((id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
   const hideAllToasts = useCallback(() => {
     setToasts([]);
   }, []);
 
-  const success = useCallback((message, description, options = {}) => {
-    return showToast({ type: 'success', message, description, ...options });
-  }, [showToast]);
+  const success = useCallback(
+    (message, description, options = {}) => {
+      return showToast({ type: "success", message, description, ...options });
+    },
+    [showToast],
+  );
 
-  const error = useCallback((message, description, options = {}) => {
-    return showToast({ type: 'error', message, description, ...options });
-  }, [showToast]);
+  const error = useCallback(
+    (message, description, options = {}) => {
+      return showToast({ type: "error", message, description, ...options });
+    },
+    [showToast],
+  );
 
-  const warning = useCallback((message, description, options = {}) => {
-    return showToast({ type: 'warning', message, description, ...options });
-  }, [showToast]);
+  const warning = useCallback(
+    (message, description, options = {}) => {
+      return showToast({ type: "warning", message, description, ...options });
+    },
+    [showToast],
+  );
 
-  const info = useCallback((message, description, options = {}) => {
-    return showToast({ type: 'info', message, description, ...options });
-  }, [showToast]);
+  const info = useCallback(
+    (message, description, options = {}) => {
+      return showToast({ type: "info", message, description, ...options });
+    },
+    [showToast],
+  );
 
-  const premium = useCallback((message, description, options = {}) => {
-    return showToast({ type: 'premium', message, description, ...options });
-  }, [showToast]);
+  const premium = useCallback(
+    (message, description, options = {}) => {
+      return showToast({ type: "premium", message, description, ...options });
+    },
+    [showToast],
+  );
 
   const value = {
     showToast,
@@ -441,13 +473,13 @@ export const ToastProvider = ({ children }) => {
     error,
     warning,
     info,
-    premium
+    premium,
   };
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {toasts.map(toast => (
+      {toasts.map((toast) => (
         <AdvancedToast
           key={toast.id}
           type={toast.type}

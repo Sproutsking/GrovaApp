@@ -1,54 +1,63 @@
 // src/App.jsx - FIXED with proper profile loading for headers
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import './styles/global.css';
-import './styles/comment.css';
-import './styles/SideBar.css';
-import './styles/create.css';
-import './styles/HomeView.css';
-import './styles/PostCard.css';
-import './styles/ReelCard.css';
-import './styles/reels.css';
-import './styles/StoryCard.css';
-import './styles/ProfileModal.css';
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import "./styles/global.css";
+import "./styles/comment.css";
+import "./styles/SideBar.css";
+import "./styles/create.css";
+import "./styles/HomeView.css";
+import "./styles/PostCard.css";
+import "./styles/ReelCard.css";
+import "./styles/reels.css";
+import "./styles/StoryCard.css";
+import "./styles/ProfileModal.css";
+import "./styles/Draft.css";
 
-import authService from './services/auth/authService';
-import { supabase } from './services/config/supabase';
-import mediaUrlService from './services/shared/mediaUrlService';
-import { ToastProvider } from './contexts/ToastContext';
+import authService from "./services/auth/authService";
+import { supabase } from "./services/config/supabase";
+import mediaUrlService from "./services/shared/mediaUrlService";
+import { ToastProvider } from "./contexts/ToastContext";
 
-import DesktopHeader from './components/Shared/DesktopHeader';
-import MobileHeader from './components/Shared/MobileHeader';
-import MobileBottomNav from './components/Shared/MobileBottomNav';
-import Sidebar from './components/Shared/Sidebar';
-import AuthPage from './components/Auth/AuthPage';
-import SupportSidebar from './components/Shared/SupportSidebar';
-import NotificationSidebar from './components/Shared/NotificationSidebar';
+import DesktopHeader from "./components/Shared/DesktopHeader";
+import MobileHeader from "./components/Shared/MobileHeader";
+import MobileBottomNav from "./components/Shared/MobileBottomNav";
+import Sidebar from "./components/Shared/Sidebar";
+import AuthPage from "./components/Auth/AuthPage";
+import SupportSidebar from "./components/Shared/SupportSidebar";
+import NotificationSidebar from "./components/Shared/NotificationSidebar";
 
-const HomeView = lazy(() => import('./components/Home/HomeView'));
-const ExploreView = lazy(() => import('./components/Explore/ExploreView'));
-const CreateView = lazy(() => import('./components/Create/CreateView'));
-const AccountView = lazy(() => import('./components/Account/AccountView'));
-const WalletView = lazy(() => import('./components/wallet/WalletView'));
-const CommunityView = lazy(() => import('./components/Community/CommunityView'));
-const TrendingSidebar = lazy(() => import('./components/Shared/TrendingSidebar'));
+const HomeView = lazy(() => import("./components/Home/HomeView"));
+const ExploreView = lazy(() => import("./components/Explore/ExploreView"));
+const CreateView = lazy(() => import("./components/Create/CreateView"));
+const AccountView = lazy(() => import("./components/Account/AccountView"));
+const WalletView = lazy(() => import("./components/wallet/WalletView"));
+const CommunityView = lazy(
+  () => import("./components/Community/CommunityView"),
+);
+const TrendingSidebar = lazy(
+  () => import("./components/Shared/TrendingSidebar"),
+);
 
 const LoadingFallback = () => (
-  <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '200px',
-    gap: '16px'
-  }}>
-    <div style={{
-      width: '48px',
-      height: '48px',
-      border: '4px solid rgba(132, 204, 22, 0.2)',
-      borderTop: '4px solid #84cc16',
-      borderRadius: '50%',
-      animation: 'spin 0.8s linear infinite'
-    }}></div>
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "200px",
+      gap: "16px",
+    }}
+  >
+    <div
+      style={{
+        width: "48px",
+        height: "48px",
+        border: "4px solid rgba(132, 204, 22, 0.2)",
+        borderTop: "4px solid #84cc16",
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+      }}
+    ></div>
     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
 );
@@ -58,11 +67,11 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [profileData, setProfileData] = useState(null); // NEW: Separate state for header profile
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState("home");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [accountSection, setAccountSection] = useState('profile');
-  const [homeSection, setHomeSection] = useState('newsfeed');
+  const [accountSection, setAccountSection] = useState("profile");
+  const [homeSection, setHomeSection] = useState("newsfeed");
   const [userBalance, setUserBalance] = useState({ tokens: 0, points: 0 });
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -73,35 +82,37 @@ const App = () => {
 
   useEffect(() => {
     initializeApp();
-    authUnsubscribe.current = authService.onAuthStateChange((authenticatedUser) => {
-      if (authenticatedUser) {
-        setUser(authenticatedUser);
-        loadUserDataAsync(authenticatedUser.id);
-      } else {
-        setUser(null);
-        setCurrentUser(null);
-        setProfileData(null);
-        setUserBalance({ tokens: 0, points: 0 });
-      }
-    });
+    authUnsubscribe.current = authService.onAuthStateChange(
+      (authenticatedUser) => {
+        if (authenticatedUser) {
+          setUser(authenticatedUser);
+          loadUserDataAsync(authenticatedUser.id);
+        } else {
+          setUser(null);
+          setCurrentUser(null);
+          setProfileData(null);
+          setUserBalance({ tokens: 0, points: 0 });
+        }
+      },
+    );
 
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       if (authUnsubscribe.current) authUnsubscribe.current();
     };
   }, []);
 
   const initializeApp = async () => {
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 1500)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 1500),
       );
-      
+
       const sessionPromise = authService.getSession();
-      
+
       try {
         const session = await Promise.race([sessionPromise, timeoutPromise]);
         if (session?.user) {
@@ -109,10 +120,10 @@ const App = () => {
           loadUserDataAsync(session.user.id);
         }
       } catch (err) {
-        if (err.message !== 'timeout') throw err;
+        if (err.message !== "timeout") throw err;
       }
     } catch (error) {
-      console.error('Init error:', error);
+      console.error("Init error:", error);
     } finally {
       setLoading(false);
     }
@@ -120,31 +131,38 @@ const App = () => {
 
   const loadUserDataAsync = async (userId) => {
     try {
-      console.log('🔄 Loading user data for:', userId);
-      
+      console.log("🔄 Loading user data for:", userId);
+
       setCurrentUser({
-        name: 'Loading...',
-        username: 'user',
-        avatar: 'G',
+        name: "Loading...",
+        username: "user",
+        avatar: "G",
         verified: false,
-        fullName: 'Loading...'
+        fullName: "Loading...",
       });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 5000)
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 5000),
       );
 
       const fetchPromise = Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-        supabase.from('wallets').select('*').eq('user_id', userId).maybeSingle()
+        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+        supabase
+          .from("wallets")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle(),
       ]);
 
       let profileResult, walletResult;
-      
+
       try {
-        [profileResult, walletResult] = await Promise.race([fetchPromise, timeoutPromise]);
+        [profileResult, walletResult] = await Promise.race([
+          fetchPromise,
+          timeoutPromise,
+        ]);
       } catch (err) {
-        if (err.message === 'timeout') return;
+        if (err.message === "timeout") return;
         throw err;
       }
 
@@ -155,14 +173,14 @@ const App = () => {
 
       if (profileResult.data) {
         const profile = profileResult.data;
-        
+
         // Process avatar with HIGH QUALITY for headers
         let avatarUrl = null;
         if (profile.avatar_id) {
           const baseUrl = mediaUrlService.getImageUrl(profile.avatar_id);
-          if (baseUrl && typeof baseUrl === 'string') {
-            const cleanUrl = baseUrl.split('?')[0];
-            if (cleanUrl.includes('supabase')) {
+          if (baseUrl && typeof baseUrl === "string") {
+            const cleanUrl = baseUrl.split("?")[0];
+            if (cleanUrl.includes("supabase")) {
               avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
             } else {
               avatarUrl = baseUrl;
@@ -170,14 +188,16 @@ const App = () => {
           }
         }
 
-        console.log('✅ Avatar URL processed:', avatarUrl);
+        console.log("✅ Avatar URL processed:", avatarUrl);
 
         userData = {
-          name: profile.full_name || 'Grova User',
-          username: profile.username || 'user',
-          avatar: profile.avatar_id ? avatarUrl : profile.full_name?.charAt(0)?.toUpperCase() || 'G',
+          name: profile.full_name || "Grova User",
+          username: profile.username || "user",
+          avatar: profile.avatar_id
+            ? avatarUrl
+            : profile.full_name?.charAt(0)?.toUpperCase() || "G",
           verified: profile.verified || false,
-          fullName: profile.full_name || 'Grova User'
+          fullName: profile.full_name || "Grova User",
         };
 
         // Separate profile data for headers with avatar URL
@@ -187,25 +207,25 @@ const App = () => {
           username: profile.username,
           avatar: avatarUrl, // This is the high-quality URL
           verified: profile.verified,
-          isPro: profile.is_pro
+          isPro: profile.is_pro,
         };
 
         isPro = profile.is_pro || false;
 
-        console.log('✅ Header profile ready:', headerProfile);
+        console.log("✅ Header profile ready:", headerProfile);
       } else {
         userData = {
-          name: 'Grova User',
-          username: 'user_' + userId.substring(0, 8),
-          avatar: 'G',
+          name: "Grova User",
+          username: "user_" + userId.substring(0, 8),
+          avatar: "G",
           verified: false,
-          fullName: 'Grova User'
+          fullName: "Grova User",
         };
         headerProfile = {
-          fullName: 'Grova User',
-          username: 'user',
+          fullName: "Grova User",
+          username: "user",
           avatar: null,
-          verified: false
+          verified: false,
         };
       }
 
@@ -213,7 +233,7 @@ const App = () => {
         const wallet = walletResult.data;
         balance = {
           tokens: wallet.grova_tokens || 0,
-          points: wallet.engagement_points || 0
+          points: wallet.engagement_points || 0,
         };
       }
 
@@ -222,35 +242,35 @@ const App = () => {
       setUserBalance(balance);
       setIsSubscribed(isPro);
 
-      console.log('✅ User data loaded successfully');
+      console.log("✅ User data loaded successfully");
     } catch (error) {
-      console.error('❌ Load user data error:', error);
+      console.error("❌ Load user data error:", error);
       setCurrentUser({
-        name: 'Grova User',
-        username: 'user',
-        avatar: 'G',
+        name: "Grova User",
+        username: "user",
+        avatar: "G",
         verified: false,
-        fullName: 'Grova User'
+        fullName: "Grova User",
       });
       setProfileData({
-        fullName: 'Grova User',
-        username: 'user',
+        fullName: "Grova User",
+        username: "user",
         avatar: null,
-        verified: false
+        verified: false,
       });
     }
   };
 
   // Callback when profile is updated in AccountView
   const handleProfileUpdate = (updatedProfile) => {
-    console.log('🔄 Profile updated, refreshing header:', updatedProfile);
+    console.log("🔄 Profile updated, refreshing header:", updatedProfile);
     setProfileData(updatedProfile);
-    setCurrentUser(prev => ({
+    setCurrentUser((prev) => ({
       ...prev,
       fullName: updatedProfile.fullName,
       username: updatedProfile.username,
       avatar: updatedProfile.avatar,
-      verified: updatedProfile.verified
+      verified: updatedProfile.verified,
     }));
   };
 
@@ -262,7 +282,7 @@ const App = () => {
       setProfileData(null);
       setUserBalance({ tokens: 0, points: 0 });
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error("Sign out error:", error);
     }
   };
 
@@ -277,7 +297,7 @@ const App = () => {
     if (!user || !currentUser) return null;
 
     switch (activeTab) {
-      case 'home':
+      case "home":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <div ref={feedRef}>
@@ -291,28 +311,28 @@ const App = () => {
           </Suspense>
         );
 
-      case 'search':
+      case "search":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <ExploreView currentUser={currentUser} userId={user.id} />
           </Suspense>
         );
 
-      case 'create':
+      case "create":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <CreateView currentUser={currentUser} userId={user.id} />
           </Suspense>
         );
 
-      case 'community':
+      case "community":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <CommunityView currentUser={currentUser} userId={user.id} />
           </Suspense>
         );
 
-      case 'account':
+      case "account":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <AccountView
@@ -327,7 +347,7 @@ const App = () => {
           </Suspense>
         );
 
-      case 'wallet':
+      case "wallet":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <WalletView
@@ -355,33 +375,39 @@ const App = () => {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)'
-      }}>
-        <div style={{
-          fontSize: '64px',
-          fontWeight: '900',
-          background: 'linear-gradient(135deg, #84cc16 0%, #65a30d 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '32px'
-        }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          background: "linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "64px",
+            fontWeight: "900",
+            background: "linear-gradient(135deg, #84cc16 0%, #65a30d 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "32px",
+          }}
+        >
           GROVA
         </div>
-        
-        <div style={{
-          width: '64px',
-          height: '64px',
-          border: '4px solid rgba(132, 204, 22, 0.2)',
-          borderTop: '4px solid #84cc16',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite'
-        }}></div>
+
+        <div
+          style={{
+            width: "64px",
+            height: "64px",
+            border: "4px solid rgba(132, 204, 22, 0.2)",
+            borderTop: "4px solid #84cc16",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        ></div>
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -399,29 +425,35 @@ const App = () => {
   if (!currentUser) {
     return (
       <ToastProvider>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)'
-        }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            border: '4px solid rgba(132, 204, 22, 0.2)',
-            borderTop: '4px solid #84cc16',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-            marginBottom: '24px'
-          }}></div>
-          
-          <div style={{
-            color: '#84cc16',
-            fontSize: '18px',
-            fontWeight: '600'
-          }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            background: "linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
+          }}
+        >
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              border: "4px solid rgba(132, 204, 22, 0.2)",
+              borderTop: "4px solid #84cc16",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+              marginBottom: "24px",
+            }}
+          ></div>
+
+          <div
+            style={{
+              color: "#84cc16",
+              fontSize: "18px",
+              fontWeight: "600",
+            }}
+          >
             Loading your profile...
           </div>
 
@@ -469,24 +501,27 @@ const App = () => {
         )}
 
         <div className="desktop-layout">
-          {!isMobile && sidebarOpen && <div className="left-sidebar-placeholder"></div>}
-          
-          <main className={isMobile ? "main-content-mobile" : "main-content-desktop"}>
+          {!isMobile && sidebarOpen && (
+            <div className="left-sidebar-placeholder"></div>
+          )}
+
+          <main
+            className={
+              isMobile ? "main-content-mobile" : "main-content-desktop"
+            }
+          >
             {renderContent()}
           </main>
 
-          {!isMobile && activeTab !== 'community' && (
-            <Suspense fallback={<div style={{ width: '300px' }}></div>}>
+          {!isMobile && activeTab !== "community" && (
+            <Suspense fallback={<div style={{ width: "300px" }}></div>}>
               <TrendingSidebar />
             </Suspense>
           )}
         </div>
 
         {isMobile && (
-          <MobileBottomNav
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-          />
+          <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
         )}
 
         <NotificationSidebar

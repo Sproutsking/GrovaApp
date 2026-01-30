@@ -1,61 +1,50 @@
-import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import React, { useState } from "react";
+import { Sparkles } from "lucide-react";
+import UserProfileModal from "../Modals/UserProfileModal";
 
-/**
- * ProfilePreview - Used across ALL content cards
- * Props:
- * - profile: { userId, author, username, avatar, verified }
- * - onClick: callback when profile is clicked
- * - size: 'small' | 'medium' | 'large'
- * - layout: 'horizontal' | 'vertical'
- * - showUsername: boolean
- */
-const ProfilePreview = ({ 
-  profile, 
-  onClick, 
-  size = 'medium',
-  layout = 'horizontal',
+const ProfilePreview = ({
+  profile,
+  currentUser,
+  size = "medium",
+  layout = "horizontal",
   showUsername = true,
-  className = ''
+  className = "",
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
   const { userId, author, username, avatar, verified } = profile;
 
   const sizes = {
     small: { avatar: 32, name: 13, username: 11 },
     medium: { avatar: 42, name: 14, username: 12 },
-    large: { avatar: 52, name: 16, username: 13 }
+    large: { avatar: 52, name: 16, username: 13 },
   };
 
   const currentSize = sizes[size];
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if (onClick) {
-      onClick(profile);
-    }
+    setShowProfileModal(true);
   };
 
-  // Enhanced avatar URL with quality parameters
   let enhancedAvatar = avatar;
-  if (avatar && typeof avatar === 'string') {
-    // Clean URL first
-    const cleanUrl = avatar.split('?')[0];
-    if (cleanUrl.includes('supabase')) {
-      // Higher resolution for retina displays
-      const targetSize = currentSize.avatar * 3; // 3x for ultra-sharp images
+  if (avatar && typeof avatar === "string") {
+    const cleanUrl = avatar.split("?")[0];
+    if (cleanUrl.includes("supabase")) {
+      const targetSize = currentSize.avatar * 3;
       enhancedAvatar = `${cleanUrl}?quality=100&width=${targetSize}&height=${targetSize}&resize=cover&format=webp`;
     }
   }
 
-  // Check if avatar is a valid URL
-  const isValidUrl = enhancedAvatar && 
-                     typeof enhancedAvatar === 'string' && 
-                     !imageError &&
-                     (enhancedAvatar.startsWith('http://') || 
-                      enhancedAvatar.startsWith('https://') ||
-                      enhancedAvatar.startsWith('blob:'));
+  const isValidUrl =
+    enhancedAvatar &&
+    typeof enhancedAvatar === "string" &&
+    !imageError &&
+    (enhancedAvatar.startsWith("http://") ||
+      enhancedAvatar.startsWith("https://") ||
+      enhancedAvatar.startsWith("blob:"));
 
   const handleImageLoad = () => {
     setImageLoaded(true);
@@ -63,27 +52,27 @@ const ProfilePreview = ({
   };
 
   const handleImageError = (e) => {
-    console.error('ProfilePreview image error:', e);
+    console.error("ProfilePreview image error:", e);
     setImageLoaded(false);
     setImageError(true);
   };
 
   return (
     <>
-      <div 
+      <div
         className={`profile-preview profile-preview-${layout} ${className}`}
         onClick={handleClick}
       >
-        <div 
-          className="profile-preview-avatar" 
-          style={{ 
-            width: `${currentSize.avatar}px`, 
-            height: `${currentSize.avatar}px` 
+        <div
+          className="profile-preview-avatar"
+          style={{
+            width: `${currentSize.avatar}px`,
+            height: `${currentSize.avatar}px`,
           }}
         >
           {isValidUrl && (
-            <img 
-              src={enhancedAvatar} 
+            <img
+              src={enhancedAvatar}
               alt={author}
               loading="eager"
               decoding="async"
@@ -92,33 +81,56 @@ const ProfilePreview = ({
               crossOrigin="anonymous"
             />
           )}
-          <span 
+          <span
             className="profile-preview-fallback"
-            style={{ 
-              fontSize: `${currentSize.avatar * 0.5}px`
+            style={{
+              fontSize: `${currentSize.avatar * 0.5}px`,
             }}
           >
-            {author?.charAt(0)?.toUpperCase() || 'U'}
+            {author?.charAt(0)?.toUpperCase() || "U"}
           </span>
         </div>
 
         <div className="profile-preview-info">
-          <div className="profile-preview-name" style={{ fontSize: `${currentSize.name}px` }}>
-            <span>{author || 'Unknown User'}</span>
+          <div
+            className="profile-preview-name"
+            style={{ fontSize: `${currentSize.name}px` }}
+          >
+            <span>{author || "Unknown User"}</span>
             {verified && (
               <div className="profile-preview-verified">
                 <Sparkles size={currentSize.name - 2} />
               </div>
             )}
           </div>
-          
+
           {showUsername && username && (
-            <div className="profile-preview-username" style={{ fontSize: `${currentSize.username}px` }}>
+            <div
+              className="profile-preview-username"
+              style={{ fontSize: `${currentSize.username}px` }}
+            >
               @{username}
             </div>
           )}
         </div>
       </div>
+
+      {showProfileModal && (
+        <UserProfileModal
+          user={{
+            id: userId,
+            user_id: userId,
+            userId: userId,
+            name: author,
+            author: author,
+            username: username,
+            avatar: avatar,
+            verified: verified,
+          }}
+          currentUser={currentUser}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
 
       <style jsx>{`
         .profile-preview {
@@ -182,7 +194,7 @@ const ProfilePreview = ({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           filter: brightness(1.15) contrast(1.2) saturate(1.25) sharpen(1.5);
-          opacity: ${imageLoaded && !imageError ? '1' : '0'};
+          opacity: ${imageLoaded && !imageError ? "1" : "0"};
           transition: opacity 0.4s ease-in-out;
         }
 
@@ -196,7 +208,7 @@ const ProfilePreview = ({
           height: 100%;
           font-weight: 800;
           color: #000;
-          opacity: ${imageLoaded && !imageError ? '0' : '1'};
+          opacity: ${imageLoaded && !imageError ? "0" : "1"};
           transition: opacity 0.4s ease-in-out;
         }
 

@@ -37,11 +37,11 @@ const ChatTab = ({
   onDeleteCommunity,
 }) => {
   const [channels, setChannels] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [channelMessages, setChannelMessages] = useState({});
+  const [pendingMessages, setPendingMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [inputExpanded, setInputExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
@@ -53,58 +53,69 @@ const ChatTab = ({
   const [userPermissions, setUserPermissions] = useState({});
   const [typingUsers, setTypingUsers] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [backgroundTheme, setBackgroundTheme] = useState("security");
+  const [backgroundTheme, setBackgroundTheme] = useState("elegant");
   const [showBackgroundSwitcher, setShowBackgroundSwitcher] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const unsubscribeRef = useRef(null);
+  const unsubscribeRefs = useRef({});
   const typingTimeoutRef = useRef(null);
   const typingSubscriptionRef = useRef(null);
+  const messageIdCounter = useRef(0);
+  const messageCache = useRef({});
+  const currentChannelRef = useRef(null);
+
+  // Load personal background preference (user + community specific)
+  useEffect(() => {
+    if (userId && community?.id) {
+      const saved = localStorage.getItem(`bg-theme-${userId}-${community.id}`);
+      if (saved) {
+        setBackgroundTheme(saved);
+      }
+    }
+  }, [userId, community?.id]);
 
   useEffect(() => {
     if (community) {
       loadChannels();
       loadPermissions();
-      loadBackgroundPreference();
     }
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
+      // Cleanup on unmount
+      Object.values(unsubscribeRefs.current).forEach((unsub) => {
+        if (unsub) unsub();
+      });
       if (typingSubscriptionRef.current) {
         typingSubscriptionRef.current();
       }
+      messageCache.current = {};
+      currentChannelRef.current = null;
     };
-  }, [community]);
+  }, [community?.id]);
 
   useEffect(() => {
     if (selectedChannel) {
-      loadMessages();
-      subscribeToMessages();
-      subscribeToTyping();
+      // INSTANT CLEAR - Clear old channel data immediately
+      if (currentChannelRef.current !== selectedChannel.id) {
+        setPendingMessages([]);
+        setTypingUsers([]);
+        currentChannelRef.current = selectedChannel.id;
+      }
+
+      // ALWAYS RELOAD - Don't trust cache for user data
+      loadMessages(selectedChannel.id);
+      subscribeToMessages(selectedChannel.id);
+      subscribeToTyping(selectedChannel.id);
     }
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-      if (typingSubscriptionRef.current) {
-        typingSubscriptionRef.current();
-      }
       stopTyping();
     };
-  }, [selectedChannel]);
-
-  const loadBackgroundPreference = () => {
-    const saved = localStorage.getItem(`bg-theme-${community.id}`);
-    if (saved) {
-      setBackgroundTheme(saved);
-    }
-  };
+  }, [selectedChannel?.id]);
 
   const handleBackgroundChange = (theme) => {
     setBackgroundTheme(theme);
-    localStorage.setItem(`bg-theme-${community.id}`, theme);
+    // Personal preference: user + community specific
+    localStorage.setItem(`bg-theme-${userId}-${community.id}`, theme);
   };
 
   const loadChannels = async () => {
@@ -128,57 +139,103 @@ const ChatTab = ({
     }
   };
 
-  const loadMessages = async () => {
+  const loadMessages = async (channelId) => {
     try {
-      setLoading(true);
-      const data = await messageService.fetchMessages(selectedChannel.id);
-      setMessages(data);
+      console.log(`📥 Loading messages for channel ${channelId}`);
+      const data = await messageService.fetchMessages(channelId);
+      
+      console.log(`✅ Loaded ${data.length} messages with complete user data`);
+      
+      // CRITICAL: Only update state, DO NOT cache messages with user data
+      // Caching causes stale user data on refresh
+      setChannelMessages((prev) => ({
+        ...prev,
+        [channelId]: data,
+      }));
     } catch (error) {
-      console.error("Error loading messages:", error);
-      setMessages([]);
-    } finally {
-      setLoading(false);
+      console.error("❌ Error loading messages:", error);
+      setChannelMessages((prev) => ({
+        ...prev,
+        [channelId]: [],
+      }));
     }
   };
 
-  const subscribeToMessages = () => {
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
+  const subscribeToMessages = (channelId) => {
+    if (unsubscribeRefs.current[channelId]) {
+      unsubscribeRefs.current[channelId]();
     }
 
-    unsubscribeRef.current = messageService.subscribeToMessages(
-      selectedChannel.id,
+    unsubscribeRefs.current[channelId] = messageService.subscribeToMessages(
+      channelId,
       (newMessage) => {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === newMessage.id)) return prev;
-          return [...prev, newMessage];
-        });
-      },
+        console.log('📨 New message received:', newMessage);
+        
+        // Only update if still on this channel
+        if (currentChannelRef.current === channelId) {
+          setChannelMessages((prev) => {
+            const channelMsgs = prev[channelId] || [];
+            
+            // Check if message already exists
+            if (channelMsgs.some((m) => m.id === newMessage.id)) {
+              return prev;
+            }
+            
+            // Add new message with complete user data
+            const updated = [...channelMsgs, newMessage];
+            
+            return {
+              ...prev,
+              [channelId]: updated,
+            };
+          });
+
+          // Remove from pending if it was pending
+          setPendingMessages((prev) =>
+            prev.filter((pm) => pm.tempId !== newMessage.tempId)
+          );
+        }
+      }
     );
   };
 
-  const subscribeToTyping = () => {
+  const subscribeToTyping = (channelId) => {
     if (typingSubscriptionRef.current) {
       typingSubscriptionRef.current();
     }
 
-    // Subscribe to typing indicators via Supabase realtime
     typingSubscriptionRef.current = messageService.subscribeToTyping?.(
-      selectedChannel.id,
+      channelId,
       (typingData) => {
-        setTypingUsers(
-          typingData
-            .filter((t) => t.userId !== userId)
-            .map((t) => t.userName || t.username)
-        );
+        // Only update if still on this channel
+        if (currentChannelRef.current === channelId) {
+          setTypingUsers(
+            typingData
+              .filter((t) => t.userId !== userId)
+              .map((t) => t.userName || t.username)
+          );
+        }
       }
     );
   };
 
   const broadcastTyping = async () => {
+    // CRITICAL FIX: Check if selectedChannel exists before accessing
+    if (!selectedChannel?.id) {
+      return; // Silently return if no channel selected
+    }
+
     if (!isTyping && messageInput.length > 0) {
       setIsTyping(true);
-      await messageService.startTyping?.(selectedChannel.id, userId, currentUser?.username || currentUser?.full_name);
+      try {
+        await messageService.startTyping?.(
+          selectedChannel.id,
+          userId,
+          currentUser?.username || currentUser?.full_name
+        );
+      } catch (error) {
+        console.error('Error broadcasting typing:', error);
+      }
     }
 
     clearTimeout(typingTimeoutRef.current);
@@ -188,14 +245,30 @@ const ChatTab = ({
   };
 
   const stopTyping = async () => {
+    // CRITICAL FIX: Check if selectedChannel exists before accessing
+    if (!selectedChannel?.id) {
+      return; // Silently return if no channel selected
+    }
+
     if (isTyping) {
       setIsTyping(false);
-      await messageService.stopTyping?.(selectedChannel.id, userId);
+      try {
+        await messageService.stopTyping?.(selectedChannel.id, userId);
+      } catch (error) {
+        console.error('Error stopping typing:', error);
+      }
     }
     clearTimeout(typingTimeoutRef.current);
   };
 
   const handleSendMessage = async () => {
+    // CRITICAL FIX: Check selectedChannel exists FIRST
+    if (!selectedChannel?.id) {
+      console.error('❌ Cannot send message: no channel selected');
+      alert('Please select a channel first');
+      return;
+    }
+
     const content = messageInput.trim();
     if (!content || sending) return;
 
@@ -205,7 +278,7 @@ const ChatTab = ({
         await messageService.editMessage(editingMessage.id, userId, content);
         setEditingMessage(null);
         setMessageInput("");
-        await loadMessages();
+        await loadMessages(selectedChannel.id);
       } catch (error) {
         console.error("Error editing message:", error);
         alert("Failed to edit message");
@@ -215,22 +288,54 @@ const ChatTab = ({
       return;
     }
 
-    setSending(true);
-    const tempInput = messageInput;
+    const tempId = `temp_${Date.now()}_${messageIdCounter.current++}`;
+    
+    // Create pending message with COMPLETE user data
+    const pendingMessage = {
+      tempId,
+      id: tempId,
+      content,
+      user_id: userId,
+      channel_id: selectedChannel.id,
+      user: {
+        id: userId,
+        user_id: userId,
+        username: currentUser?.username || 'You',
+        full_name: currentUser?.full_name || 'You',
+        avatar: currentUser?.avatar,
+        avatar_id: currentUser?.avatar_id,
+        avatar_metadata: currentUser?.avatar_metadata,
+        verified: currentUser?.verified || false,
+      },
+      role: null, // Will be populated by subscription
+      created_at: new Date().toISOString(),
+      reactions: {},
+      edited: false,
+      isPending: true,
+      isSent: false,
+      isDelivered: false,
+    };
+
+    console.log('📤 Sending message with user data:', pendingMessage.user);
+
+    // Add to pending immediately
+    setPendingMessages((prev) => [...prev, pendingMessage]);
     setMessageInput("");
     stopTyping();
 
     try {
+      // Send in background
       await messageService.sendMessage(selectedChannel.id, userId, content, {
         replyToId: null,
         attachments: [],
+        tempId,
       });
     } catch (error) {
       console.error("Error sending message:", error);
-      setMessageInput(tempInput);
+      // Remove from pending on error
+      setPendingMessages((prev) => prev.filter((m) => m.tempId !== tempId));
+      setMessageInput(content);
       alert("Failed to send message. Please try again.");
-    } finally {
-      setSending(false);
     }
   };
 
@@ -322,6 +427,65 @@ const ChatTab = ({
     }
   };
 
+  const handleWipeChannel = async (channel) => {
+    if (
+      !window.confirm(
+        `Wipe ALL messages in #${channel.name}? This will permanently delete all messages and cannot be undone. Only proceed if you're absolutely sure.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const isAdministrator = userPermissions.administrator || isOwner;
+      await messageService.wipeChannelMessages(
+        channel.id,
+        userId,
+        community.id,
+        isAdministrator
+      );
+      
+      // Reload messages to get fresh data
+      await loadMessages(channel.id);
+      
+      setChannelContextMenu(null);
+      alert("Channel messages wiped successfully");
+    } catch (error) {
+      console.error("Error wiping channel:", error);
+      alert(error.message || "Failed to wipe channel");
+    }
+  };
+
+  const handleDeleteUserMessages = async (targetUserId) => {
+    if (!selectedChannel) return;
+
+    if (
+      !window.confirm(
+        "Delete ALL messages from this user in this channel? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const hasPermission = userPermissions.manageMessages || isOwner;
+      await messageService.deleteUserMessagesInChannel(
+        selectedChannel.id,
+        targetUserId,
+        userId,
+        hasPermission
+      );
+      
+      // Reload messages to get fresh data
+      await loadMessages(selectedChannel.id);
+      
+      alert("User messages deleted successfully");
+    } catch (error) {
+      console.error("Error deleting user messages:", error);
+      alert(error.message || "Failed to delete user messages");
+    }
+  };
+
   const handleDeleteMessage = async (message) => {
     if (!window.confirm("Delete this message?")) {
       setContextMenu(null);
@@ -329,10 +493,11 @@ const ChatTab = ({
     }
 
     try {
-      const isOwner = community.owner_id === userId;
-      const hasPermission = userPermissions.manageMessages || isOwner;
-      await messageService.deleteMessage(message.id, userId, hasPermission);
-      setMessages((prev) => prev.filter((m) => m.id !== message.id));
+      const isOwnerUser = community.owner_id === userId;
+      await messageService.deleteMessage(message.id, userId, community.id);
+      
+      // Reload messages to get fresh data
+      await loadMessages(selectedChannel.id);
     } catch (error) {
       console.error("Error deleting message:", error);
       alert("Failed to delete message");
@@ -349,6 +514,7 @@ const ChatTab = ({
 
   const handleReactionClick = async (messageId, emoji) => {
     try {
+      const messages = channelMessages[selectedChannel.id] || [];
       const message = messages.find((m) => m.id === messageId);
       const hasReacted = message?.reactions?.[emoji]?.users?.includes(userId);
 
@@ -356,31 +522,42 @@ const ChatTab = ({
         const reactions = await messageService.removeReaction(
           messageId,
           userId,
-          emoji,
+          emoji
         );
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
-        );
+        updateMessageReactions(messageId, reactions);
       } else {
         const reactions = await messageService.addReaction(
           messageId,
           userId,
-          emoji,
+          emoji
         );
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
-        );
+        updateMessageReactions(messageId, reactions);
       }
     } catch (error) {
       console.error("Error toggling reaction:", error);
     }
   };
 
+  const updateMessageReactions = (messageId, reactions) => {
+    setChannelMessages((prev) => {
+      const channelMsgs = prev[selectedChannel.id] || [];
+      const updated = channelMsgs.map((m) =>
+        m.id === messageId ? { ...m, reactions } : m
+      );
+      
+      return {
+        ...prev,
+        [selectedChannel.id]: updated,
+      };
+    });
+  };
+
   const currentChannelIndex = channels.findIndex(
-    (ch) => ch.id === selectedChannel?.id,
+    (ch) => ch.id === selectedChannel?.id
   );
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
+  const currentMessages = channelMessages[selectedChannel?.id] || [];
 
   return (
     <div
@@ -456,14 +633,19 @@ const ChatTab = ({
       </div>
 
       <MessageList
-        messages={messages}
-        loading={loading}
+        messages={currentMessages}
+        pendingMessages={pendingMessages}
+        loading={false}
         userId={userId}
+        currentUser={currentUser}
         messagesEndRef={messagesEndRef}
         onContextMenu={handleContextMenu}
         onReactionClick={handleReactionClick}
         typingUsers={typingUsers}
         channelId={selectedChannel?.id}
+        userPermissions={userPermissions}
+        isOwner={isOwner}
+        communityId={community?.id}
       />
 
       {editingMessage && (
@@ -499,6 +681,7 @@ const ChatTab = ({
               onSelect={(emoji) => {
                 setMessageInput((prev) => prev + emoji);
                 setShowEmoji(false);
+                inputRef.current?.focus();
               }}
               onClose={() => setShowEmoji(false)}
             />
@@ -582,14 +765,18 @@ const ChatTab = ({
           message={contextMenu.message}
           userId={userId}
           permissions={userPermissions}
+          isOwner={isOwner}
           onClose={() => setContextMenu(null)}
           onEdit={() => handleEditMessage(contextMenu.message)}
           onDelete={() => handleDeleteMessage(contextMenu.message)}
-          onReaction={(emoji) => handleReactionClick(contextMenu.message.id, emoji)}
+          onReaction={(emoji) =>
+            handleReactionClick(contextMenu.message.id, emoji)
+          }
           onCopy={() => {
             navigator.clipboard.writeText(contextMenu.message.content);
             setContextMenu(null);
           }}
+          onDeleteUserMessages={() => handleDeleteUserMessages(contextMenu.message.user_id)}
         />
       )}
 
@@ -599,6 +786,7 @@ const ChatTab = ({
           channel={channelContextMenu.channel}
           isOwner={isOwner}
           hasManagePermission={canManageChannels}
+          isAdministrator={userPermissions.administrator || isOwner}
           onClose={() => setChannelContextMenu(null)}
           onEdit={() => {
             setEditingChannel(channelContextMenu.channel);
@@ -609,6 +797,7 @@ const ChatTab = ({
           onTogglePrivacy={() =>
             handleToggleChannelPrivacy(channelContextMenu.channel)
           }
+          onWipeChannel={() => handleWipeChannel(channelContextMenu.channel)}
         />
       )}
 
