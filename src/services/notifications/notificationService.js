@@ -10,6 +10,8 @@ class NotificationService {
     this.cachedNotifications = null;
     this.lastFetch = null;
     this.cacheTimeout = 30000; // 30 seconds
+    this.readNotifications = new Set();
+    this.activeSubscription = null;
   }
 
   /**
@@ -40,35 +42,28 @@ class NotificationService {
       const preferences = profile?.preferences || {};
       const notifications = [];
 
-      // 1. Fetch LIKES notifications
-      if (preferences.notify_likes !== false) {
-        await this.fetchLikeNotifications(userId, notifications);
-      }
-
-      // 2. Fetch COMMENTS notifications
-      if (preferences.notify_comments !== false) {
-        await this.fetchCommentNotifications(userId, notifications);
-      }
-
-      // 3. Fetch FOLLOWERS notifications
-      if (preferences.notify_followers !== false) {
-        await this.fetchFollowerNotifications(userId, notifications);
-      }
-
-      // 4. Fetch UNLOCKS notifications
-      if (preferences.notify_unlocks !== false) {
-        await this.fetchUnlockNotifications(userId, notifications);
-      }
-
-      // 5. Fetch SHARES notifications
-      if (preferences.notify_shares !== false) {
-        await this.fetchShareNotifications(userId, notifications);
-      }
+      // Fetch all notification types in parallel
+      await Promise.all([
+        preferences.notify_likes !== false &&
+          this.fetchLikeNotifications(userId, notifications),
+        preferences.notify_comments !== false &&
+          this.fetchCommentNotifications(userId, notifications),
+        preferences.notify_followers !== false &&
+          this.fetchFollowerNotifications(userId, notifications),
+        preferences.notify_unlocks !== false &&
+          this.fetchUnlockNotifications(userId, notifications),
+        preferences.notify_shares !== false &&
+          this.fetchShareNotifications(userId, notifications),
+      ]);
 
       // Sort by date and limit
       const sortedNotifications = notifications
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, limit);
+        .slice(0, limit)
+        .map((n) => ({
+          ...n,
+          read: this.readNotifications.has(n.id),
+        }));
 
       // Cache the results
       this.cachedNotifications = sortedNotifications;
@@ -92,37 +87,92 @@ class NotificationService {
    */
   async fetchLikeNotifications(userId, notifications) {
     try {
-      // Post likes
-      const { data: postLikes } = await supabase
-        .from("post_likes")
-        .select(
-          `
-          id,
-          created_at,
-          user_id,
-          post_id,
-          profiles!post_likes_user_id_fkey (
+      const [postLikes, reelLikes, storyLikes] = await Promise.all([
+        supabase
+          .from("post_likes")
+          .select(
+            `
             id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          ),
-          posts!post_likes_post_id_fkey (
-            id,
+            created_at,
             user_id,
-            content,
-            image_ids
+            post_id,
+            profiles!post_likes_user_id_fkey (
+              id,
+              full_name,
+              username,
+              avatar_id,
+              verified
+            ),
+            posts!post_likes_post_id_fkey (
+              id,
+              user_id,
+              content
+            )
+          `,
           )
-        `,
-        )
-        .eq("posts.user_id", userId)
-        .neq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
+          .eq("posts.user_id", userId)
+          .neq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20),
 
-      if (postLikes) {
-        postLikes.forEach((like) => {
+        supabase
+          .from("reel_likes")
+          .select(
+            `
+            id,
+            created_at,
+            user_id,
+            reel_id,
+            profiles!reel_likes_user_id_fkey (
+              id,
+              full_name,
+              username,
+              avatar_id,
+              verified
+            ),
+            reels!reel_likes_reel_id_fkey (
+              id,
+              user_id,
+              caption
+            )
+          `,
+          )
+          .eq("reels.user_id", userId)
+          .neq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+
+        supabase
+          .from("story_likes")
+          .select(
+            `
+            id,
+            created_at,
+            user_id,
+            story_id,
+            profiles!story_likes_user_id_fkey (
+              id,
+              full_name,
+              username,
+              avatar_id,
+              verified
+            ),
+            stories!story_likes_story_id_fkey (
+              id,
+              user_id,
+              title
+            )
+          `,
+          )
+          .eq("stories.user_id", userId)
+          .neq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
+
+      // Process post likes
+      if (postLikes.data) {
+        postLikes.data.forEach((like) => {
           if (like.profiles && like.posts) {
             notifications.push({
               id: `like-post-${like.id}`,
@@ -140,6 +190,7 @@ class NotificationService {
                   : null,
                 verified: like.profiles.verified,
               },
+              actorId: like.profiles.id,
               content: {
                 id: like.posts.id,
                 preview: like.posts.content?.substring(0, 100) || "your post",
@@ -151,36 +202,9 @@ class NotificationService {
         });
       }
 
-      // Reel likes
-      const { data: reelLikes } = await supabase
-        .from("reel_likes")
-        .select(
-          `
-          id,
-          created_at,
-          user_id,
-          reel_id,
-          profiles!reel_likes_user_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          ),
-          reels!reel_likes_reel_id_fkey (
-            id,
-            user_id,
-            caption
-          )
-        `,
-        )
-        .eq("reels.user_id", userId)
-        .neq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (reelLikes) {
-        reelLikes.forEach((like) => {
+      // Process reel likes
+      if (reelLikes.data) {
+        reelLikes.data.forEach((like) => {
           if (like.profiles && like.reels) {
             notifications.push({
               id: `like-reel-${like.id}`,
@@ -198,6 +222,7 @@ class NotificationService {
                   : null,
                 verified: like.profiles.verified,
               },
+              actorId: like.profiles.id,
               content: {
                 id: like.reels.id,
                 preview: like.reels.caption?.substring(0, 100) || "your reel",
@@ -209,36 +234,9 @@ class NotificationService {
         });
       }
 
-      // Story likes
-      const { data: storyLikes } = await supabase
-        .from("story_likes")
-        .select(
-          `
-          id,
-          created_at,
-          user_id,
-          story_id,
-          profiles!story_likes_user_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          ),
-          stories!story_likes_story_id_fkey (
-            id,
-            user_id,
-            title
-          )
-        `,
-        )
-        .eq("stories.user_id", userId)
-        .neq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (storyLikes) {
-        storyLikes.forEach((like) => {
+      // Process story likes
+      if (storyLikes.data) {
+        storyLikes.data.forEach((like) => {
           if (like.profiles && like.stories) {
             notifications.push({
               id: `like-story-${like.id}`,
@@ -256,6 +254,7 @@ class NotificationService {
                   : null,
                 verified: like.profiles.verified,
               },
+              actorId: like.profiles.id,
               content: {
                 id: like.stories.id,
                 preview: like.stories.title,
@@ -276,7 +275,6 @@ class NotificationService {
    */
   async fetchCommentNotifications(userId, notifications) {
     try {
-      // Get all comments
       const { data: comments } = await supabase
         .from("comments")
         .select(
@@ -303,13 +301,8 @@ class NotificationService {
         .limit(50);
 
       if (comments) {
-        // Check ownership in batches for better performance
-        const postIds = comments
-          .filter((c) => c.post_id)
-          .map((c) => c.post_id);
-        const reelIds = comments
-          .filter((c) => c.reel_id)
-          .map((c) => c.reel_id);
+        const postIds = comments.filter((c) => c.post_id).map((c) => c.post_id);
+        const reelIds = comments.filter((c) => c.reel_id).map((c) => c.reel_id);
         const storyIds = comments
           .filter((c) => c.story_id)
           .map((c) => c.story_id);
@@ -350,19 +343,16 @@ class NotificationService {
           let contentPreview = null;
 
           if (comment.post_id && ownedPosts.has(comment.post_id)) {
-            const post = ownedPosts.get(comment.post_id);
             contentType = "post";
-            contentId = post.id;
+            contentId = comment.post_id;
             contentPreview = comment.text.substring(0, 100);
           } else if (comment.reel_id && ownedReels.has(comment.reel_id)) {
-            const reel = ownedReels.get(comment.reel_id);
             contentType = "reel";
-            contentId = reel.id;
+            contentId = comment.reel_id;
             contentPreview = comment.text.substring(0, 100);
           } else if (comment.story_id && ownedStories.has(comment.story_id)) {
-            const story = ownedStories.get(comment.story_id);
             contentType = "story";
-            contentId = story.id;
+            contentId = comment.story_id;
             contentPreview = comment.text.substring(0, 100);
           }
 
@@ -383,6 +373,7 @@ class NotificationService {
                   : null,
                 verified: comment.profiles.verified,
               },
+              actorId: comment.profiles.id,
               content: {
                 id: contentId,
                 preview: contentPreview,
@@ -442,6 +433,7 @@ class NotificationService {
                   : null,
                 verified: follow.profiles.verified,
               },
+              actorId: follow.profiles.id,
               content: null,
               createdAt: follow.created_at,
               read: false,
@@ -505,6 +497,7 @@ class NotificationService {
                   : null,
                 verified: unlock.profiles.verified,
               },
+              actorId: unlock.profiles.id,
               content: {
                 id: unlock.stories.id,
                 preview: unlock.stories.title,
@@ -548,7 +541,6 @@ class NotificationService {
         .limit(30);
 
       if (shares) {
-        // Check ownership for shares
         for (const share of shares) {
           if (!share.profiles) continue;
 
@@ -607,6 +599,7 @@ class NotificationService {
                   : null,
                 verified: share.profiles.verified,
               },
+              actorId: share.profiles.id,
               content: {
                 id: share.content_id,
                 preview: contentPreview,
@@ -638,6 +631,42 @@ class NotificationService {
   }
 
   /**
+   * Mark notification as read
+   */
+  async markAsRead(notificationId) {
+    this.readNotifications.add(notificationId);
+
+    // Update cache
+    if (this.cachedNotifications) {
+      this.cachedNotifications = this.cachedNotifications.map((n) =>
+        n.id === notificationId ? { ...n, read: true } : n,
+      );
+    }
+
+    return true;
+  }
+
+  /**
+   * Mark all notifications as read
+   */
+  async markAllAsRead(userId) {
+    // Add all current notifications to read set
+    if (this.cachedNotifications) {
+      this.cachedNotifications.forEach((n) => {
+        this.readNotifications.add(n.id);
+      });
+
+      // Update cache
+      this.cachedNotifications = this.cachedNotifications.map((n) => ({
+        ...n,
+        read: true,
+      }));
+    }
+
+    return true;
+  }
+
+  /**
    * Clear cache to force refresh
    */
   clearCache() {
@@ -646,32 +675,98 @@ class NotificationService {
   }
 
   /**
-   * Mark notification as read
+   * Subscribe to real-time notification updates
    */
-  async markAsRead(notificationId) {
-    // Placeholder for future implementation with proper read tracking table
-    console.log("Marking notification as read:", notificationId);
-    return true;
-  }
+  subscribeToNotifications(userId, callback) {
+    // Prevent duplicate subscriptions
+    if (this.activeSubscription) {
+      console.log("⚠️ Already subscribed to notifications");
+      return this.activeSubscription;
+    }
 
-  /**
-   * Mark all notifications as read
-   */
-  async markAllAsRead(userId) {
-    // Placeholder for future implementation with proper read tracking table
-    console.log("Marking all notifications as read for user:", userId);
-    this.clearCache();
-    return true;
-  }
+    // Subscribe to all notification-related tables
+    const channels = [];
 
-  /**
-   * Delete a notification
-   */
-  async deleteNotification(notificationId) {
-    // Placeholder for future implementation
-    console.log("Deleting notification:", notificationId);
-    this.clearCache();
-    return true;
+    // Post likes
+    const postLikesChannel = supabase
+      .channel(`notifications-post-likes:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "post_likes",
+        },
+        () => {
+          this.clearCache();
+          callback();
+        },
+      )
+      .subscribe();
+    channels.push(postLikesChannel);
+
+    // Reel likes
+    const reelLikesChannel = supabase
+      .channel(`notifications-reel-likes:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "reel_likes",
+        },
+        () => {
+          this.clearCache();
+          callback();
+        },
+      )
+      .subscribe();
+    channels.push(reelLikesChannel);
+
+    // Comments
+    const commentsChannel = supabase
+      .channel(`notifications-comments:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "comments",
+        },
+        () => {
+          this.clearCache();
+          callback();
+        },
+      )
+      .subscribe();
+    channels.push(commentsChannel);
+
+    // Follows
+    const followsChannel = supabase
+      .channel(`notifications-follows:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "follows",
+          filter: `following_id=eq.${userId}`,
+        },
+        () => {
+          this.clearCache();
+          callback();
+        },
+      )
+      .subscribe();
+    channels.push(followsChannel);
+
+    const unsubscribe = () => {
+      channels.forEach((channel) => supabase.removeChannel(channel));
+      this.activeSubscription = null;
+    };
+
+    this.activeSubscription = unsubscribe;
+    return unsubscribe;
   }
 }
 

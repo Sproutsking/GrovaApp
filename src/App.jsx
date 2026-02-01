@@ -1,4 +1,4 @@
-// src/App.jsx - FIXED with proper profile loading for headers
+// src/App.jsx - FIXED with proper userId passing to headers
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import "./styles/global.css";
 import "./styles/comment.css";
@@ -66,7 +66,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [profileData, setProfileData] = useState(null); // NEW: Separate state for header profile
+  const [profileData, setProfileData] = useState(null);
   const [activeTab, setActiveTab] = useState("home");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -191,6 +191,7 @@ const App = () => {
         console.log("✅ Avatar URL processed:", avatarUrl);
 
         userData = {
+          id: profile.id,
           name: profile.full_name || "Grova User",
           username: profile.username || "user",
           avatar: profile.avatar_id
@@ -205,7 +206,7 @@ const App = () => {
           id: profile.id,
           fullName: profile.full_name,
           username: profile.username,
-          avatar: avatarUrl, // This is the high-quality URL
+          avatar: avatarUrl,
           verified: profile.verified,
           isPro: profile.is_pro,
         };
@@ -215,6 +216,7 @@ const App = () => {
         console.log("✅ Header profile ready:", headerProfile);
       } else {
         userData = {
+          id: userId,
           name: "Grova User",
           username: "user_" + userId.substring(0, 8),
           avatar: "G",
@@ -222,6 +224,7 @@ const App = () => {
           fullName: "Grova User",
         };
         headerProfile = {
+          id: userId,
           fullName: "Grova User",
           username: "user",
           avatar: null,
@@ -238,7 +241,7 @@ const App = () => {
       }
 
       setCurrentUser(userData);
-      setProfileData(headerProfile); // Set profile data for headers
+      setProfileData(headerProfile);
       setUserBalance(balance);
       setIsSubscribed(isPro);
 
@@ -246,6 +249,7 @@ const App = () => {
     } catch (error) {
       console.error("❌ Load user data error:", error);
       setCurrentUser({
+        id: userId,
         name: "Grova User",
         username: "user",
         avatar: "G",
@@ -253,6 +257,7 @@ const App = () => {
         fullName: "Grova User",
       });
       setProfileData({
+        id: userId,
         fullName: "Grova User",
         username: "user",
         avatar: null,
@@ -261,7 +266,6 @@ const App = () => {
     }
   };
 
-  // Callback when profile is updated in AccountView
   const handleProfileUpdate = (updatedProfile) => {
     console.log("🔄 Profile updated, refreshing header:", updatedProfile);
     setProfileData(updatedProfile);
@@ -486,6 +490,7 @@ const App = () => {
             onNotificationClick={() => setShowNotifications(true)}
             onSupportClick={() => setShowSupport(true)}
             profile={profileData}
+            userId={user?.id}
           />
         )}
 
@@ -497,6 +502,8 @@ const App = () => {
             onNotificationClick={() => setShowNotifications(true)}
             onSupportClick={() => setShowSupport(true)}
             profile={profileData}
+            userId={user?.id}
+            currentUser={currentUser}
           />
         )}
 

@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Clock, Bell, HelpCircle } from "lucide-react";
+import { Clock, Bell, HelpCircle, MessageCircle } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
+import dmMessageService from "../../services/messages/dmMessageService";
+import onlineStatusService from "../../services/messages/onlineStatusService";
+import DMMessagesView from "../Messages/DMMessagesView";
+
+/**
+ * DesktopHeader — UPDATED
+ *
+ * Changes:
+ * 1. REMOVED the broken login guard — same issue as MobileHeader.
+ *    The button simply does nothing if there's no logged-in user. No toast.
+ * 2. Start onlineStatusService when userId is available.
+ * 3. Pass currentUser properly to DMMessagesView.
+ */
 
 const DesktopHeader = ({
   currentUser,
@@ -17,11 +30,13 @@ const DesktopHeader = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [showMessages, setShowMessages] = useState(false);
+
   const timerRef = useRef(null);
   const cycleRef = useRef(null);
   const typeIntervalRef = useRef(null);
 
-  // Enhanced avatar URL with quality parameters
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
@@ -38,18 +53,39 @@ const DesktopHeader = ({
     !imageError &&
     (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
-  // Load notification count
+  // ─── ONLINE STATUS + NOTIFICATION POLLING ──────────────────────────────
+
   useEffect(() => {
     if (userId) {
-      loadNotificationCount();
+      // Start online status heartbeat
+      onlineStatusService.start(userId);
 
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(loadNotificationCount, 30000);
+      loadNotificationCount();
+      loadMessageCount();
+
+      const interval = setInterval(() => {
+        loadNotificationCount();
+        loadMessageCount();
+      }, 30000);
+
       return () => clearInterval(interval);
     }
   }, [userId]);
 
+  useEffect(() => {
+    if (userId) {
+      const unsubscribe = dmMessageService.subscribeToConversations(
+        userId,
+        () => {
+          loadMessageCount();
+        },
+      );
+      return () => unsubscribe();
+    }
+  }, [userId]);
+
   const loadNotificationCount = async () => {
+    if (!userId) return;
     try {
       const count = await notificationService.getUnreadCount(userId);
       setUnreadCount(count);
@@ -57,6 +93,30 @@ const DesktopHeader = ({
       console.error("Failed to load notification count:", error);
     }
   };
+
+  const loadMessageCount = async () => {
+    if (!userId) return;
+    try {
+      const count = await dmMessageService.getTotalUnreadCount(userId);
+      setUnreadMessages(count);
+    } catch (error) {
+      console.error("Failed to load message count:", error);
+    }
+  };
+
+  // ─── HANDLERS ───────────────────────────────────────────────────────────
+
+  const handleMessagesClick = () => {
+    if (!currentUser?.id && !userId) return;
+    setShowMessages(true);
+  };
+
+  const handleMessagesClose = () => {
+    setShowMessages(false);
+    loadMessageCount();
+  };
+
+  // ─── TYPING ANIMATION ───────────────────────────────────────────────────
 
   useEffect(() => {
     const fullText = `${greetingText}, ${currentUser?.name || "User"}`;
@@ -135,6 +195,8 @@ const DesktopHeader = ({
     };
   }, [greetingText, currentUser?.name, getGreeting]);
 
+  // ─── AVATAR HANDLERS ────────────────────────────────────────────────────
+
   const handleImageLoad = () => {
     setImageLoaded(true);
     setImageError(false);
@@ -205,9 +267,7 @@ const DesktopHeader = ({
           image-rendering: crisp-edges;
           backface-visibility: hidden;
           transform: translateZ(0);
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          filter: brightness(1.1) contrast(1.15) saturate(1.2) sharpen(1);
+          filter: brightness(1.1) contrast(1.15) saturate(1.2);
           opacity: ${imageLoaded && !imageError ? "1" : "0"};
           transition: opacity 0.4s ease-in-out;
         }
@@ -239,7 +299,7 @@ const DesktopHeader = ({
           gap: 10px;
           padding: 5px 12px;
           background: rgba(255, 255, 255, 0.04);
-          border: 1px solid #4444; 
+          border: 1px solid #4444;
           border-radius: 14px;
           min-height: 32px;
           min-width: fit-content;
@@ -263,7 +323,7 @@ const DesktopHeader = ({
         }
 
         .desktop-greeting-text::after {
-          content: '';
+          content: "";
           position: absolute;
           right: -8px;
           top: 50%;
@@ -279,11 +339,6 @@ const DesktopHeader = ({
           0%, 45% { opacity: 1; }
           50%, 95% { opacity: 0; }
           100% { opacity: 1; }
-        }
-
-        .greeting-highlight {
-          color: #84cc16;
-          font-weight: 700;
         }
 
         .header-right {
@@ -307,12 +362,14 @@ const DesktopHeader = ({
           transition: all 0.3s;
         }
 
-        .header-action-btn.notification {
-          color: #84cc16;
-        }
+        .header-action-btn.messages { color: #9cff00; }
+        .header-action-btn.notification { color: #84cc16; }
+        .header-action-btn.support { color: #3b82f6; }
 
-        .header-action-btn.support {
-          color: #3b82f6;
+        .header-action-btn.messages:hover {
+          background: rgba(156, 255, 0, 0.15);
+          border-color: rgba(156, 255, 0, 0.4);
+          transform: translateY(-2px);
         }
 
         .header-action-btn.notification:hover {
@@ -347,14 +404,8 @@ const DesktopHeader = ({
         }
 
         @keyframes smoothPulse {
-          0%, 100% { 
-            transform: scale(1); 
-            opacity: 1; 
-          }
-          50% { 
-            transform: scale(1.12); 
-            opacity: 0.85; 
-          }
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.12); opacity: 0.85; }
         }
       `}</style>
 
@@ -386,13 +437,28 @@ const DesktopHeader = ({
 
           <div className="header-right">
             <button
+              onClick={handleMessagesClick}
+              className="header-action-btn messages"
+            >
+              <MessageCircle size={18} />
+              <span>Messages</span>
+              {unreadMessages > 0 && (
+                <span className="notification-badge">
+                  {unreadMessages > 99 ? "99+" : unreadMessages}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={onNotificationClick}
               className="header-action-btn notification"
             >
               <Bell size={18} />
               <span>Notifications</span>
               {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount}</span>
+                <span className="notification-badge">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
               )}
             </button>
 
@@ -406,6 +472,13 @@ const DesktopHeader = ({
           </div>
         </div>
       </header>
+
+      {showMessages && (
+        <DMMessagesView
+          currentUser={currentUser}
+          onClose={handleMessagesClose}
+        />
+      )}
     </>
   );
 };

@@ -1,26 +1,34 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Crown, Users, Search, Filter, Shield, CheckCircle } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  ChevronLeft,
+  Crown,
+  Users,
+  Search,
+  Filter,
+  Shield,
+  CheckCircle,
+} from "lucide-react";
 
-const MembersSection = ({ 
-  members, 
-  roles, 
-  loading,
-  onBack
-}) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
+const MembersSection = ({ members, roles, loading, onBack }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
 
-  const filteredMembers = members.filter(member => {
-    const matchesSearch = member.user?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         member.user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = filterRole === 'all' || member.role_id === filterRole;
+  const filteredMembers = members.filter((member) => {
+    const matchesSearch =
+      member.user?.full_name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      member.user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = filterRole === "all" || member.role_id === filterRole;
     return matchesSearch && matchesRole;
   });
 
-  const groupedMembers = roles.map(role => ({
-    role,
-    members: filteredMembers.filter(m => m.role_id === role.id)
-  })).filter(group => group.members.length > 0);
+  const groupedMembers = roles
+    .map((role) => ({
+      role,
+      members: filteredMembers.filter((m) => m.role_id === role.id),
+    }))
+    .filter((group) => group.members.length > 0);
 
   return (
     <>
@@ -33,9 +41,7 @@ const MembersSection = ({
         <div className="members-title">
           <Users size={20} />
           <span>Community Members</span>
-          <div className="member-count-badge">
-            {filteredMembers.length}
-          </div>
+          <div className="member-count-badge">{filteredMembers.length}</div>
         </div>
       </div>
 
@@ -43,8 +49,8 @@ const MembersSection = ({
       <div className="members-controls">
         <div className="search-bar">
           <Search size={16} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search members..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -53,13 +59,15 @@ const MembersSection = ({
 
         <div className="filter-dropdown">
           <Filter size={16} />
-          <select 
+          <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
           >
             <option value="all">All Roles</option>
-            {roles.map(role => (
-              <option key={role.id} value={role.id}>{role.name}</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
             ))}
           </select>
         </div>
@@ -84,21 +92,27 @@ const MembersSection = ({
               <div className="role-group-header" style={{ color: role.color }}>
                 <Crown size={14} />
                 <span>{role.name}</span>
-                <div className="role-member-count" style={{ background: `${role.color}20`, color: role.color }}>
+                <div
+                  className="role-member-count"
+                  style={{ background: `${role.color}20`, color: role.color }}
+                >
                   {roleMembers.length}
                 </div>
               </div>
 
               <div className="members-grid">
-                {roleMembers.map(member => (
+                {roleMembers.map((member) => (
                   <div key={member.id} className="member-card">
                     <div className="member-card-header">
                       <div className="member-avatar">
                         {member.user?.avatar ? (
-                          <img src={member.user.avatar} alt={member.user?.full_name} />
+                          <img
+                            src={member.user.avatar}
+                            alt={member.user?.full_name}
+                          />
                         ) : (
                           <span className="avatar-fallback">
-                            {member.user?.full_name?.[0]?.toUpperCase() || '?'}
+                            {member.user?.full_name?.[0]?.toUpperCase() || "?"}
                           </span>
                         )}
                         {member.is_online && <div className="online-dot" />}
@@ -113,28 +127,35 @@ const MembersSection = ({
 
                     <div className="member-info">
                       <div className="member-name">
-                        {member.user?.full_name || 'Unknown User'}
+                        {member.user?.full_name || "Unknown User"}
                       </div>
                       <div className="member-username">
-                        @{member.user?.username || 'unknown'}
+                        @{member.user?.username || "unknown"}
                       </div>
                     </div>
 
-                    <div className="member-role-badge" style={{ 
-                      background: `${role.color}15`, 
-                      color: role.color,
-                      borderColor: `${role.color}40`
-                    }}>
+                    <div
+                      className="member-role-badge"
+                      style={{
+                        background: `${role.color}15`,
+                        color: role.color,
+                        borderColor: `${role.color}40`,
+                      }}
+                    >
                       {role.name}
                     </div>
 
                     {member.joined_at && (
                       <div className="member-joined">
-                        Joined {new Date(member.joined_at).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
+                        Joined{" "}
+                        {new Date(member.joined_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )}
                       </div>
                     )}
                   </div>
@@ -145,7 +166,7 @@ const MembersSection = ({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .back-button {
           display: flex;
           align-items: center;

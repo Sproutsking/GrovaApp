@@ -143,9 +143,9 @@ const ChatTab = ({
     try {
       console.log(`📥 Loading messages for channel ${channelId}`);
       const data = await messageService.fetchMessages(channelId);
-      
+
       console.log(`✅ Loaded ${data.length} messages with complete user data`);
-      
+
       // CRITICAL: Only update state, DO NOT cache messages with user data
       // Caching causes stale user data on refresh
       setChannelMessages((prev) => ({
@@ -169,21 +169,21 @@ const ChatTab = ({
     unsubscribeRefs.current[channelId] = messageService.subscribeToMessages(
       channelId,
       (newMessage) => {
-        console.log('📨 New message received:', newMessage);
-        
+        console.log("📨 New message received:", newMessage);
+
         // Only update if still on this channel
         if (currentChannelRef.current === channelId) {
           setChannelMessages((prev) => {
             const channelMsgs = prev[channelId] || [];
-            
+
             // Check if message already exists
             if (channelMsgs.some((m) => m.id === newMessage.id)) {
               return prev;
             }
-            
+
             // Add new message with complete user data
             const updated = [...channelMsgs, newMessage];
-            
+
             return {
               ...prev,
               [channelId]: updated,
@@ -192,10 +192,10 @@ const ChatTab = ({
 
           // Remove from pending if it was pending
           setPendingMessages((prev) =>
-            prev.filter((pm) => pm.tempId !== newMessage.tempId)
+            prev.filter((pm) => pm.tempId !== newMessage.tempId),
           );
         }
-      }
+      },
     );
   };
 
@@ -212,10 +212,10 @@ const ChatTab = ({
           setTypingUsers(
             typingData
               .filter((t) => t.userId !== userId)
-              .map((t) => t.userName || t.username)
+              .map((t) => t.userName || t.username),
           );
         }
-      }
+      },
     );
   };
 
@@ -231,10 +231,10 @@ const ChatTab = ({
         await messageService.startTyping?.(
           selectedChannel.id,
           userId,
-          currentUser?.username || currentUser?.full_name
+          currentUser?.username || currentUser?.full_name,
         );
       } catch (error) {
-        console.error('Error broadcasting typing:', error);
+        console.error("Error broadcasting typing:", error);
       }
     }
 
@@ -255,7 +255,7 @@ const ChatTab = ({
       try {
         await messageService.stopTyping?.(selectedChannel.id, userId);
       } catch (error) {
-        console.error('Error stopping typing:', error);
+        console.error("Error stopping typing:", error);
       }
     }
     clearTimeout(typingTimeoutRef.current);
@@ -264,8 +264,8 @@ const ChatTab = ({
   const handleSendMessage = async () => {
     // CRITICAL FIX: Check selectedChannel exists FIRST
     if (!selectedChannel?.id) {
-      console.error('❌ Cannot send message: no channel selected');
-      alert('Please select a channel first');
+      console.error("❌ Cannot send message: no channel selected");
+      alert("Please select a channel first");
       return;
     }
 
@@ -289,7 +289,7 @@ const ChatTab = ({
     }
 
     const tempId = `temp_${Date.now()}_${messageIdCounter.current++}`;
-    
+
     // Create pending message with COMPLETE user data
     const pendingMessage = {
       tempId,
@@ -300,8 +300,8 @@ const ChatTab = ({
       user: {
         id: userId,
         user_id: userId,
-        username: currentUser?.username || 'You',
-        full_name: currentUser?.full_name || 'You',
+        username: currentUser?.username || "You",
+        full_name: currentUser?.full_name || "You",
         avatar: currentUser?.avatar,
         avatar_id: currentUser?.avatar_id,
         avatar_metadata: currentUser?.avatar_metadata,
@@ -316,7 +316,7 @@ const ChatTab = ({
       isDelivered: false,
     };
 
-    console.log('📤 Sending message with user data:', pendingMessage.user);
+    console.log("📤 Sending message with user data:", pendingMessage.user);
 
     // Add to pending immediately
     setPendingMessages((prev) => [...prev, pendingMessage]);
@@ -430,7 +430,7 @@ const ChatTab = ({
   const handleWipeChannel = async (channel) => {
     if (
       !window.confirm(
-        `Wipe ALL messages in #${channel.name}? This will permanently delete all messages and cannot be undone. Only proceed if you're absolutely sure.`
+        `Wipe ALL messages in #${channel.name}? This will permanently delete all messages and cannot be undone. Only proceed if you're absolutely sure.`,
       )
     ) {
       return;
@@ -442,12 +442,12 @@ const ChatTab = ({
         channel.id,
         userId,
         community.id,
-        isAdministrator
+        isAdministrator,
       );
-      
+
       // Reload messages to get fresh data
       await loadMessages(channel.id);
-      
+
       setChannelContextMenu(null);
       alert("Channel messages wiped successfully");
     } catch (error) {
@@ -461,7 +461,7 @@ const ChatTab = ({
 
     if (
       !window.confirm(
-        "Delete ALL messages from this user in this channel? This action cannot be undone."
+        "Delete ALL messages from this user in this channel? This action cannot be undone.",
       )
     ) {
       return;
@@ -473,12 +473,12 @@ const ChatTab = ({
         selectedChannel.id,
         targetUserId,
         userId,
-        hasPermission
+        hasPermission,
       );
-      
+
       // Reload messages to get fresh data
       await loadMessages(selectedChannel.id);
-      
+
       alert("User messages deleted successfully");
     } catch (error) {
       console.error("Error deleting user messages:", error);
@@ -495,7 +495,7 @@ const ChatTab = ({
     try {
       const isOwnerUser = community.owner_id === userId;
       await messageService.deleteMessage(message.id, userId, community.id);
-      
+
       // Reload messages to get fresh data
       await loadMessages(selectedChannel.id);
     } catch (error) {
@@ -522,14 +522,14 @@ const ChatTab = ({
         const reactions = await messageService.removeReaction(
           messageId,
           userId,
-          emoji
+          emoji,
         );
         updateMessageReactions(messageId, reactions);
       } else {
         const reactions = await messageService.addReaction(
           messageId,
           userId,
-          emoji
+          emoji,
         );
         updateMessageReactions(messageId, reactions);
       }
@@ -542,9 +542,9 @@ const ChatTab = ({
     setChannelMessages((prev) => {
       const channelMsgs = prev[selectedChannel.id] || [];
       const updated = channelMsgs.map((m) =>
-        m.id === messageId ? { ...m, reactions } : m
+        m.id === messageId ? { ...m, reactions } : m,
       );
-      
+
       return {
         ...prev,
         [selectedChannel.id]: updated,
@@ -553,7 +553,7 @@ const ChatTab = ({
   };
 
   const currentChannelIndex = channels.findIndex(
-    (ch) => ch.id === selectedChannel?.id
+    (ch) => ch.id === selectedChannel?.id,
   );
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
@@ -776,7 +776,9 @@ const ChatTab = ({
             navigator.clipboard.writeText(contextMenu.message.content);
             setContextMenu(null);
           }}
-          onDeleteUserMessages={() => handleDeleteUserMessages(contextMenu.message.user_id)}
+          onDeleteUserMessages={() =>
+            handleDeleteUserMessages(contextMenu.message.user_id)
+          }
         />
       )}
 

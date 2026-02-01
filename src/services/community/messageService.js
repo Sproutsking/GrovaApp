@@ -1,230 +1,225 @@
-// src/services/community/messageService.js
-import { supabase } from '../config/supabase';
-import MessageModel from '../../models/MessageModel';
+import { supabase } from "../config/supabase";
+import MessageModel from "../../models/MessageModel";
 
 function getAvatarUrl(avatarId) {
-  if (!avatarId || typeof avatarId !== 'string') {
-    return null;
-  }
-  if (avatarId.startsWith('http://') || avatarId.startsWith('https://')) {
+  if (!avatarId || typeof avatarId !== "string") return null;
+  if (avatarId.startsWith("http://") || avatarId.startsWith("https://"))
     return avatarId;
-  }
-  const { data } = supabase.storage.from('avatars').getPublicUrl(avatarId);
+  const { data } = supabase.storage.from("avatars").getPublicUrl(avatarId);
   return data?.publicUrl || null;
 }
 
 class MessageService {
   constructor() {
-    this.activeSubscriptions = new Map();
-    this.typingTimeouts = new Map();
-    this.typingChannel = null;
+    this.subscriptions = new Map();
+    this.optimisticMessages = new Map();
+    this.messageCache = new Map();
   }
 
   /**
-   * Fetch messages with proper user profile and community role
+   * Fetch messages with complete user data - OPTIMIZED
    */
   async fetchMessages(channelId, options = {}) {
-    try {
-      const { 
-        limit = 100,
-        before = null, 
-        after = null 
-      } = options;
+    const { limit = 100 } = options;
 
-      // First, get the community_id from the channel
-      const { data: channelData, error: channelError } = await supabase
-        .from('community_channels')
-        .select('community_id')
-        .eq('id', channelId)
+    try {
+      // Get community_id from channel
+      const { data: channelData } = await supabase
+        .from("community_channels")
+        .select("community_id")
+        .eq("id", channelId)
         .single();
 
-      if (channelError || !channelData) {
-        console.error('Channel fetch error:', channelError);
-        throw new Error('Channel not found');
-      }
+      if (!channelData) throw new Error("Channel not found");
 
-      const communityId = channelData.community_id;
-
-      // Fetch messages with user profiles - use direct column reference
-      let query = supabase
-        .from('community_messages')
-        .select(`
+      // Fetch messages with user data in ONE query
+      const { data: messages, error } = await supabase
+        .from("community_messages")
+        .select(
+          `
           *,
           user:user_id(
-            id, 
-            username, 
-            full_name, 
+            id,
+            username,
+            full_name,
             avatar_id,
             avatar_metadata,
             verified
           )
-        `)
-        .eq('channel_id', channelId)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+        `,
+        )
+        .eq("channel_id", channelId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
         .limit(limit);
 
-      if (before) {
-        query = query.lt('created_at', before);
-      }
-      if (after) {
-        query = query.gt('created_at', after);
-      }
+      if (error) throw error;
+      if (!messages || messages.length === 0) return [];
 
-      const { data: messages, error } = await query;
+      // Get user IDs for role lookup
+      const userIds = [
+        ...new Set(messages.map((m) => m.user_id).filter(Boolean)),
+      ];
 
-      if (error) {
-        console.error('Messages fetch error:', error);
-        throw error;
-      }
-
-      if (!messages || messages.length === 0) {
-        return [];
-      }
-
-      // Fetch member roles for all users in these messages
-      const userIds = [...new Set(messages.map(m => m.user_id).filter(Boolean))];
-      
-      if (userIds.length === 0) {
-        console.warn('No user IDs found in messages');
-        return [];
-      }
-
-      const { data: memberData, error: memberError } = await supabase
-        .from('community_members')
-        .select(`
+      // Fetch roles in ONE query
+      const { data: memberData } = await supabase
+        .from("community_members")
+        .select(
+          `
           user_id,
-          role:role_id(
-            name,
-            color,
-            position
-          )
-        `)
-        .eq('community_id', communityId)
-        .in('user_id', userIds);
+          role:role_id(name, color)
+        `,
+        )
+        .eq("community_id", channelData.community_id)
+        .in("user_id", userIds);
 
-      if (memberError) {
-        console.error('Member data fetch error:', memberError);
-      }
-
-      // Create a map of user_id -> role
+      // Create role map
       const roleMap = {};
-      if (memberData && memberData.length > 0) {
-        memberData.forEach(member => {
+      if (memberData) {
+        memberData.forEach((member) => {
           if (member.role) {
             roleMap[member.user_id] = member.role.name;
           }
         });
       }
 
-      // Transform messages with proper avatar URLs and roles
+      // Transform messages with avatar URLs
       const transformedMessages = messages
-        .filter(msg => msg.user) // Only include messages with valid users
-        .map(msg => ({
+        .filter((msg) => msg.user)
+        .map((msg) => ({
           ...msg,
           user: {
-            id: msg.user.id,
-            username: msg.user.username,
-            full_name: msg.user.full_name,
-            avatar_id: msg.user.avatar_id,
-            avatar_metadata: msg.user.avatar_metadata,
-            verified: msg.user.verified,
-            avatar: getAvatarUrl(msg.user.avatar_id)
+            ...msg.user,
+            avatar: getAvatarUrl(msg.user.avatar_id),
           },
-          role: roleMap[msg.user_id] || null
+          role: roleMap[msg.user_id] || null,
         }))
         .reverse();
 
-      console.log(`✅ Fetched ${transformedMessages.length} messages for channel ${channelId}`);
+      // Cache messages
+      transformedMessages.forEach((msg) => {
+        this.messageCache.set(msg.id, msg);
+      });
+
       return MessageModel.fromAPIArray(transformedMessages);
     } catch (error) {
-      console.error('❌ Error fetching messages:', error);
-      throw error;
+      console.error("❌ Error fetching messages:", error);
+      return [];
     }
   }
 
   /**
-   * Send a message with optimistic updates
+   * Send message with INSTANT optimistic update
    */
-  async sendMessage(channelId, userId, content, options = {}) {
+  async sendMessage(channelId, userId, content, currentUser, options = {}) {
     try {
-      const { 
-        replyToId = null, 
-        attachments = [],
-        tempId = null
-      } = options;
-
-      // Validate content
+      // Validate
       const validation = MessageModel.validate(content);
       if (!validation.valid) {
         throw new Error(validation.error);
       }
 
-      // Get community_id from channel
-      const { data: channelData } = await supabase
-        .from('community_channels')
-        .select('community_id')
-        .eq('id', channelId)
-        .single();
+      const { replyToId = null, attachments = [] } = options;
 
-      if (!channelData) {
-        throw new Error('Channel not found');
-      }
+      // Create optimistic message for INSTANT display
+      const optimisticMessage = MessageModel.createOptimistic(
+        channelId,
+        userId,
+        content,
+        currentUser,
+        { replyToId, attachments, role: options.role },
+      );
+
+      // Store optimistic message
+      this.optimisticMessages.set(optimisticMessage.tempId, optimisticMessage);
+
+      // Return optimistic message immediately
+      const optimisticReturn = optimisticMessage.toJSON();
+
+      // Send to backend in background
+      this.sendToBackend(channelId, userId, content, optimisticMessage.tempId, {
+        replyToId,
+        attachments,
+      }).catch((error) => {
+        console.error("Background send failed:", error);
+        // Remove optimistic message on failure
+        this.optimisticMessages.delete(optimisticMessage.tempId);
+      });
+
+      return optimisticReturn;
+    } catch (error) {
+      console.error("Error creating optimistic message:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send to backend (background operation)
+   */
+  async sendToBackend(channelId, userId, content, tempId, options = {}) {
+    try {
+      // Get community_id
+      const { data: channelData } = await supabase
+        .from("community_channels")
+        .select("community_id")
+        .eq("id", channelId)
+        .single();
 
       // Insert message
       const { data: messageData, error: insertError } = await supabase
-        .from('community_messages')
+        .from("community_messages")
         .insert({
           channel_id: channelId,
           user_id: userId,
           content: content.trim(),
-          reply_to_id: replyToId,
-          attachments: attachments
+          reply_to_id: options.replyToId || null,
+          attachments: options.attachments || [],
         })
-        .select(`
+        .select(
+          `
           *,
           user:user_id(
-            id, 
-            username, 
-            full_name, 
+            id,
+            username,
+            full_name,
             avatar_id,
             avatar_metadata,
             verified
           )
-        `)
+        `,
+        )
         .single();
 
       if (insertError) throw insertError;
 
-      // Get user's role in this community
+      // Get role
       const { data: memberData } = await supabase
-        .from('community_members')
-        .select(`
-          role:role_id(name)
-        `)
-        .eq('community_id', channelData.community_id)
-        .eq('user_id', userId)
+        .from("community_members")
+        .select(`role:role_id(name)`)
+        .eq("community_id", channelData.community_id)
+        .eq("user_id", userId)
         .single();
 
-      // Transform data
-      const transformedData = {
+      // Remove optimistic message
+      this.optimisticMessages.delete(tempId);
+
+      // Return real message
+      const realMessage = {
         ...messageData,
-        user: messageData.user ? {
-          id: messageData.user.id,
-          username: messageData.user.username,
-          full_name: messageData.user.full_name,
-          avatar_id: messageData.user.avatar_id,
-          avatar_metadata: messageData.user.avatar_metadata,
-          verified: messageData.user.verified,
-          avatar: getAvatarUrl(messageData.user.avatar_id)
-        } : null,
+        user: {
+          ...messageData.user,
+          avatar: getAvatarUrl(messageData.user.avatar_id),
+        },
         role: memberData?.role?.name || null,
-        tempId: tempId
+        tempId,
       };
 
-      return MessageModel.fromAPI(transformedData);
+      // Cache real message
+      this.messageCache.set(realMessage.id, realMessage);
+
+      return realMessage;
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Backend send error:", error);
       throw error;
     }
   }
@@ -235,213 +230,150 @@ class MessageService {
   async editMessage(messageId, userId, newContent) {
     try {
       const validation = MessageModel.validate(newContent);
-      if (!validation.valid) {
-        throw new Error(validation.error);
-      }
+      if (!validation.valid) throw new Error(validation.error);
 
       // Check ownership
-      const { data: existing, error: fetchError } = await supabase
-        .from('community_messages')
-        .select('user_id, channel_id')
-        .eq('id', messageId)
+      const { data: existing } = await supabase
+        .from("community_messages")
+        .select("user_id, channel_id")
+        .eq("id", messageId)
         .single();
 
-      if (fetchError) throw fetchError;
       if (existing.user_id !== userId) {
-        throw new Error('Unauthorized: You can only edit your own messages');
+        throw new Error("Unauthorized");
       }
 
-      // Get community_id
-      const { data: channelData } = await supabase
-        .from('community_channels')
-        .select('community_id')
-        .eq('id', existing.channel_id)
-        .single();
-
-      // Update message
+      // Update
       const { data: messageData, error } = await supabase
-        .from('community_messages')
-        .update({ 
+        .from("community_messages")
+        .update({
           content: newContent.trim(),
           edited: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', messageId)
-        .select(`
+        .eq("id", messageId)
+        .select(
+          `
           *,
           user:user_id(
-            id, 
-            username, 
-            full_name, 
+            id,
+            username,
+            full_name,
             avatar_id,
             avatar_metadata,
             verified
           )
-        `)
+        `,
+        )
         .single();
 
       if (error) throw error;
 
-      // Get role
-      const { data: memberData } = await supabase
-        .from('community_members')
-        .select(`
-          role:role_id(name)
-        `)
-        .eq('community_id', channelData.community_id)
-        .eq('user_id', userId)
+      // Get community and role
+      const { data: channelData } = await supabase
+        .from("community_channels")
+        .select("community_id")
+        .eq("id", existing.channel_id)
         .single();
 
-      const transformedData = {
+      const { data: memberData } = await supabase
+        .from("community_members")
+        .select(`role:role_id(name)`)
+        .eq("community_id", channelData.community_id)
+        .eq("user_id", userId)
+        .single();
+
+      const transformed = {
         ...messageData,
-        user: messageData.user ? {
-          id: messageData.user.id,
-          username: messageData.user.username,
-          full_name: messageData.user.full_name,
-          avatar_id: messageData.user.avatar_id,
-          avatar_metadata: messageData.user.avatar_metadata,
-          verified: messageData.user.verified,
-          avatar: getAvatarUrl(messageData.user.avatar_id)
-        } : null,
-        role: memberData?.role?.name || null
+        user: {
+          ...messageData.user,
+          avatar: getAvatarUrl(messageData.user.avatar_id),
+        },
+        role: memberData?.role?.name || null,
       };
 
-      return MessageModel.fromAPI(transformedData);
+      // Update cache
+      this.messageCache.set(transformed.id, transformed);
+
+      return MessageModel.fromAPI(transformed);
     } catch (error) {
-      console.error('Error editing message:', error);
+      console.error("Error editing message:", error);
       throw error;
     }
   }
 
   /**
-   * Delete message - with proper permission check
+   * Delete message
    */
   async deleteMessage(messageId, userId, communityId = null) {
     try {
-      // Get message and channel info
-      const { data: message, error: fetchError } = await supabase
-        .from('community_messages')
-        .select('user_id, channel_id')
-        .eq('id', messageId)
+      const { data: message } = await supabase
+        .from("community_messages")
+        .select("user_id, channel_id")
+        .eq("id", messageId)
         .single();
 
-      if (fetchError) throw fetchError;
-      
-      // Check if user owns the message
       const isOwner = message.user_id === userId;
-      
-      // If not owner, check if user has manage permissions
-      let hasPermission = isOwner;
-      
+
       if (!isOwner) {
-        // Get community_id if not provided
         let targetCommunityId = communityId;
         if (!targetCommunityId) {
           const { data: channelData } = await supabase
-            .from('community_channels')
-            .select('community_id')
-            .eq('id', message.channel_id)
+            .from("community_channels")
+            .select("community_id")
+            .eq("id", message.channel_id)
             .single();
           targetCommunityId = channelData?.community_id;
         }
 
         if (targetCommunityId) {
-          // Check user's role permissions
           const { data: memberData } = await supabase
-            .from('community_members')
-            .select(`
-              role:role_id(permissions)
-            `)
-            .eq('community_id', targetCommunityId)
-            .eq('user_id', userId)
+            .from("community_members")
+            .select(`role:role_id(permissions)`)
+            .eq("community_id", targetCommunityId)
+            .eq("user_id", userId)
             .single();
 
-          hasPermission = 
+          const hasPermission =
             memberData?.role?.permissions?.administrator === true ||
             memberData?.role?.permissions?.manageMessages === true;
+
+          if (!hasPermission) throw new Error("Unauthorized");
+        } else {
+          throw new Error("Unauthorized");
         }
       }
 
-      if (!hasPermission) {
-        throw new Error('Unauthorized: Insufficient permissions to delete this message');
-      }
-
       const { error } = await supabase
-        .from('community_messages')
+        .from("community_messages")
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', messageId);
+        .eq("id", messageId);
 
       if (error) throw error;
+
+      // Remove from cache
+      this.messageCache.delete(messageId);
+
       return true;
     } catch (error) {
-      console.error('Error deleting message:', error);
+      console.error("Error deleting message:", error);
       throw error;
     }
   }
 
   /**
-   * Wipe all messages in a channel (administrator only)
-   */
-  async wipeChannelMessages(channelId, userId, communityId) {
-    try {
-      if (!communityId) {
-        // Get community_id from channel if not provided
-        const { data: channelData } = await supabase
-          .from('community_channels')
-          .select('community_id')
-          .eq('id', channelId)
-          .single();
-        
-        if (!channelData) {
-          throw new Error('Channel not found');
-        }
-        communityId = channelData.community_id;
-      }
-
-      // Check if user is administrator
-      const { data: memberData } = await supabase
-        .from('community_members')
-        .select(`
-          role:role_id(permissions)
-        `)
-        .eq('community_id', communityId)
-        .eq('user_id', userId)
-        .single();
-
-      const isAdmin = memberData?.role?.permissions?.administrator === true;
-
-      if (!isAdmin) {
-        throw new Error('Unauthorized: Only administrators can wipe channels');
-      }
-
-      const { error } = await supabase
-        .from('community_messages')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('channel_id', channelId);
-
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error wiping channel:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Add reaction to message
+   * Reaction management
    */
   async addReaction(messageId, userId, emoji) {
     try {
-      const { data: message, error: fetchError } = await supabase
-        .from('community_messages')
-        .select('reactions')
-        .eq('id', messageId)
+      const { data: message } = await supabase
+        .from("community_messages")
+        .select("reactions")
+        .eq("id", messageId)
         .single();
 
-      if (fetchError) throw fetchError;
-
       const reactions = message.reactions || {};
-      
+
       if (!reactions[emoji]) {
         reactions[emoji] = { count: 0, users: [] };
       }
@@ -452,36 +384,33 @@ class MessageService {
       }
 
       const { error } = await supabase
-        .from('community_messages')
+        .from("community_messages")
         .update({ reactions })
-        .eq('id', messageId);
+        .eq("id", messageId);
 
       if (error) throw error;
       return reactions;
     } catch (error) {
-      console.error('Error adding reaction:', error);
+      console.error("Error adding reaction:", error);
       throw error;
     }
   }
 
-  /**
-   * Remove reaction from message
-   */
   async removeReaction(messageId, userId, emoji) {
     try {
-      const { data: message, error: fetchError } = await supabase
-        .from('community_messages')
-        .select('reactions')
-        .eq('id', messageId)
+      const { data: message } = await supabase
+        .from("community_messages")
+        .select("reactions")
+        .eq("id", messageId)
         .single();
-
-      if (fetchError) throw fetchError;
 
       const reactions = message.reactions || {};
 
       if (reactions[emoji] && reactions[emoji].users.includes(userId)) {
         reactions[emoji].count--;
-        reactions[emoji].users = reactions[emoji].users.filter(id => id !== userId);
+        reactions[emoji].users = reactions[emoji].users.filter(
+          (id) => id !== userId,
+        );
 
         if (reactions[emoji].count === 0) {
           delete reactions[emoji];
@@ -489,202 +418,129 @@ class MessageService {
       }
 
       const { error } = await supabase
-        .from('community_messages')
+        .from("community_messages")
         .update({ reactions })
-        .eq('id', messageId);
+        .eq("id", messageId);
 
       if (error) throw error;
       return reactions;
     } catch (error) {
-      console.error('Error removing reaction:', error);
+      console.error("Error removing reaction:", error);
       throw error;
     }
   }
 
   /**
-   * Start typing indicator
-   */
-  async startTyping(channelId, userId, userName) {
-    try {
-      if (!this.typingChannel) {
-        this.typingChannel = supabase.channel(`typing:${channelId}`);
-      }
-
-      await this.typingChannel.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId, userName, typing: true }
-      });
-    } catch (error) {
-      console.error('Error broadcasting typing:', error);
-    }
-  }
-
-  /**
-   * Stop typing indicator
-   */
-  async stopTyping(channelId, userId) {
-    try {
-      if (this.typingChannel) {
-        await this.typingChannel.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId, typing: false }
-        });
-      }
-    } catch (error) {
-      console.error('Error stopping typing:', error);
-    }
-  }
-
-  /**
-   * Subscribe to typing indicators
-   */
-  subscribeToTyping(channelId, callback) {
-    const typingUsers = new Map();
-    
-    const channel = supabase
-      .channel(`typing:${channelId}`)
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const { userId, userName, typing } = payload.payload;
-        
-        if (typing) {
-          typingUsers.set(userId, userName);
-          
-          // Clear existing timeout
-          if (this.typingTimeouts.has(userId)) {
-            clearTimeout(this.typingTimeouts.get(userId));
-          }
-          
-          // Auto-remove after 3 seconds
-          const timeout = setTimeout(() => {
-            typingUsers.delete(userId);
-            callback(Array.from(typingUsers.values()));
-          }, 3000);
-          
-          this.typingTimeouts.set(userId, timeout);
-        } else {
-          typingUsers.delete(userId);
-          if (this.typingTimeouts.has(userId)) {
-            clearTimeout(this.typingTimeouts.get(userId));
-            this.typingTimeouts.delete(userId);
-          }
-        }
-        
-        callback(Array.from(typingUsers.values()));
-      })
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-      typingUsers.clear();
-      this.typingTimeouts.forEach(timeout => clearTimeout(timeout));
-      this.typingTimeouts.clear();
-    };
-  }
-
-  /**
-   * Subscribe to new messages with proper data structure
+   * Subscribe to new messages
    */
   subscribeToMessages(channelId, callback) {
-    const channelKey = `channel:${channelId}`;
-    
-    // Unsubscribe from previous if exists
-    if (this.activeSubscriptions.has(channelKey)) {
-      this.activeSubscriptions.get(channelKey)();
-    }
-
     const subscription = supabase
-      .channel(channelKey)
+      .channel(`channel:${channelId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'community_messages',
-          filter: `channel_id=eq.${channelId}`
+          event: "INSERT",
+          schema: "public",
+          table: "community_messages",
+          filter: `channel_id=eq.${channelId}`,
         },
         async (payload) => {
           try {
-            // Get community_id
+            // Skip if this is our optimistic message
+            const isOptimistic = Array.from(
+              this.optimisticMessages.values(),
+            ).some(
+              (opt) =>
+                opt.userId === payload.new.user_id &&
+                opt.content === payload.new.content &&
+                Date.now() - new Date(opt.createdAt).getTime() < 5000,
+            );
+
+            if (isOptimistic) {
+              // Match optimistic with real
+              const optimistic = Array.from(
+                this.optimisticMessages.values(),
+              ).find(
+                (opt) =>
+                  opt.userId === payload.new.user_id &&
+                  opt.content === payload.new.content,
+              );
+
+              if (optimistic) {
+                this.optimisticMessages.delete(optimistic.tempId);
+              }
+            }
+
+            // Fetch full message
             const { data: channelData } = await supabase
-              .from('community_channels')
-              .select('community_id')
-              .eq('id', channelId)
+              .from("community_channels")
+              .select("community_id")
+              .eq("id", channelId)
               .single();
 
-            // Fetch full message with user data
             const { data: messageData } = await supabase
-              .from('community_messages')
-              .select(`
+              .from("community_messages")
+              .select(
+                `
                 *,
                 user:user_id(
-                  id, 
-                  username, 
-                  full_name, 
+                  id,
+                  username,
+                  full_name,
                   avatar_id,
                   avatar_metadata,
                   verified
                 )
-              `)
-              .eq('id', payload.new.id)
+              `,
+              )
+              .eq("id", payload.new.id)
               .single();
 
             if (messageData && channelData) {
-              // Get user's role
               const { data: memberData } = await supabase
-                .from('community_members')
-                .select(`
-                  role:role_id(name)
-                `)
-                .eq('community_id', channelData.community_id)
-                .eq('user_id', messageData.user_id)
+                .from("community_members")
+                .select(`role:role_id(name)`)
+                .eq("community_id", channelData.community_id)
+                .eq("user_id", messageData.user_id)
                 .single();
 
-              const transformedData = {
+              const transformed = {
                 ...messageData,
-                user: messageData.user ? {
-                  id: messageData.user.id,
-                  username: messageData.user.username,
-                  full_name: messageData.user.full_name,
-                  avatar_id: messageData.user.avatar_id,
-                  avatar_metadata: messageData.user.avatar_metadata,
-                  verified: messageData.user.verified,
-                  avatar: getAvatarUrl(messageData.user.avatar_id)
-                } : null,
-                role: memberData?.role?.name || null
+                user: {
+                  ...messageData.user,
+                  avatar: getAvatarUrl(messageData.user.avatar_id),
+                },
+                role: memberData?.role?.name || null,
               };
 
-              callback(MessageModel.fromAPI(transformedData));
+              // Cache message
+              this.messageCache.set(transformed.id, transformed);
+
+              callback(MessageModel.fromAPI(transformed));
             }
           } catch (error) {
-            console.error('Error in message subscription:', error);
+            console.error("Subscription error:", error);
           }
-        }
+        },
       )
       .subscribe();
 
-    const unsubscribe = () => {
-      subscription.unsubscribe();
-      this.activeSubscriptions.delete(channelKey);
-    };
+    this.subscriptions.set(channelId, subscription);
 
-    this.activeSubscriptions.set(channelKey, unsubscribe);
-    return unsubscribe;
+    return () => {
+      subscription.unsubscribe();
+      this.subscriptions.delete(channelId);
+    };
   }
 
   /**
-   * Cleanup all subscriptions
+   * Cleanup
    */
   cleanup() {
-    this.activeSubscriptions.forEach(unsubscribe => unsubscribe());
-    this.activeSubscriptions.clear();
-    this.typingTimeouts.forEach(timeout => clearTimeout(timeout));
-    this.typingTimeouts.clear();
-    if (this.typingChannel) {
-      this.typingChannel.unsubscribe();
-      this.typingChannel = null;
-    }
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
+    this.subscriptions.clear();
+    this.optimisticMessages.clear();
+    this.messageCache.clear();
   }
 }
 

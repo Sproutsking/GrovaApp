@@ -1,7 +1,3 @@
-// ============================================================================
-// src/components/Profile/UserProfileModal.jsx - WORKING VERSION
-// ============================================================================
-
 import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
@@ -32,9 +28,27 @@ import ShareModal from "./ShareModal";
 import ProfileActionMenu from "./ProfileActionMenu";
 import NotificationSettingsModal from "../Modals/NotificationSettingsModal";
 import ProfileEditModal from "../Account/ProfileEditModal";
+import DMMessagesView from "../Messages/DMMessagesView";
 import PostTab from "../Home/PostTab";
 import StoryTab from "../Home/StoryTab";
 import ReelsTab from "../Home/ReelsTab";
+
+/**
+ * UserProfileModal — UPDATED
+ *
+ * Key change: The "Message" button now opens DMMessagesView with
+ * `initialOtherUserId` set to the viewed user's ID. This means:
+ *
+ * 1. DMMessagesView creates/gets the conversation immediately
+ * 2. It jumps straight into the chat view for that user
+ * 3. The conversation is stored in the same `conversations` table
+ * 4. When the user later opens Messages from the header, that conversation
+ *    appears in their list — no hidden state, no needing to go back through
+ *    the profile.
+ *
+ * The old `dmState` object with `standalone` flag is simplified to just
+ * a boolean + the target user ID.
+ */
 
 const UserProfileModal = ({
   user,
@@ -58,7 +72,12 @@ const UserProfileModal = ({
   const [showNotificationSettings, setShowNotificationSettings] =
     useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const { showToast } = useToast();
+
+  // DM state — simplified
+  const [showDM, setShowDM] = useState(false);
+  const [dmTargetUserId, setDmTargetUserId] = useState(null);
+
+  const { success, error: showError, showToast } = useToast();
   const isMobile = window.innerWidth <= 768;
 
   const isOwnProfile =
@@ -117,7 +136,7 @@ const UserProfileModal = ({
       });
     } catch (error) {
       console.error("Failed to load profile:", error);
-      showToast("error", "Failed to load profile");
+      showToast({ type: "error", message: "Failed to load profile" });
     } finally {
       setLoading(false);
     }
@@ -184,7 +203,7 @@ const UserProfileModal = ({
 
   const handleFollowToggle = async () => {
     if (!currentUser?.id) {
-      showToast("warning", "Please login to follow users");
+      showToast({ type: "warning", message: "Please login to follow users" });
       return;
     }
 
@@ -204,15 +223,13 @@ const UserProfileModal = ({
 
       if (newFollowState) {
         await followService.followUser(currentUser.id, userId);
-        showToast(
-          "success",
+        success(
           "Following!",
           `You are now following ${profileData?.fullName || user?.author || user?.name}`,
         );
       } else {
         await followService.unfollowUser(currentUser.id, userId);
-        showToast(
-          "success",
+        success(
           "Unfollowed",
           `You unfollowed ${profileData?.fullName || user?.author || user?.name}`,
         );
@@ -230,7 +247,7 @@ const UserProfileModal = ({
             : (prev.stats?.followers || 0) + 1,
         },
       }));
-      showToast("error", "Action failed. Please try again.");
+      showError("Action failed. Please try again.");
       console.error("Follow toggle error:", error);
     }
   };
@@ -239,8 +256,24 @@ const UserProfileModal = ({
     setShowShareModal(true);
   };
 
+  /**
+   * Message button handler — opens DMMessagesView with initialOtherUserId.
+   * This ensures the conversation is created/fetched and the chat opens directly.
+   * The conversation will then appear in the user's main Messages list.
+   */
   const handleMessageClick = () => {
-    showToast("info", "Messaging feature coming soon!");
+    if (!currentUser?.id) {
+      showToast({ type: "warning", message: "Please login to send messages" });
+      return;
+    }
+
+    setDmTargetUserId(userId);
+    setShowDM(true);
+  };
+
+  const handleDMClose = () => {
+    setShowDM(false);
+    setDmTargetUserId(null);
   };
 
   const handleEditProfile = () => {
@@ -256,7 +289,7 @@ const UserProfileModal = ({
       avatar: updatedProfile.avatar,
       avatarId: updatedProfile.avatarId,
     }));
-    showToast("success", "Profile updated successfully!");
+    success("Profile updated successfully!");
   };
 
   const formatNumber = (num) => {
@@ -601,6 +634,7 @@ const UserProfileModal = ({
         </div>
       </div>
 
+      {/* Sub-modals rendered OUTSIDE the profile overlay so they sit on top */}
       {showShareModal && (
         <ShareModal
           content={{
@@ -637,6 +671,20 @@ const UserProfileModal = ({
           currentProfile={profileData}
           onClose={() => setShowEditModal(false)}
           onSuccess={handleProfileUpdated}
+        />
+      )}
+
+      {/*
+        DM View — opened with initialOtherUserId so it jumps straight
+        into the chat with the profile user. This conversation will then
+        appear in the main Messages list when opened from the header.
+      */}
+      {showDM && dmTargetUserId && (
+        <DMMessagesView
+          currentUser={currentUser}
+          onClose={handleDMClose}
+          initialOtherUserId={dmTargetUserId}
+          standalone={true}
         />
       )}
 
@@ -813,11 +861,9 @@ const UserProfileModal = ({
         .profile-modal-content::-webkit-scrollbar {
           width: 6px;
         }
-
         .profile-modal-content::-webkit-scrollbar-track {
           background: rgba(255, 255, 255, 0.05);
         }
-
         .profile-modal-content::-webkit-scrollbar-thumb {
           background: rgba(132, 204, 22, 0.3);
           border-radius: 3px;
@@ -1104,7 +1150,6 @@ const UserProfileModal = ({
           background: rgba(132, 204, 22, 0.1);
           border-color: rgba(132, 204, 22, 0.3);
         }
-
         .profile-stat-card:hover {
           border-color: rgba(132, 204, 22, 0.4);
           transform: translateY(-2px);
@@ -1250,7 +1295,6 @@ const UserProfileModal = ({
         .achievement-info {
           flex: 1;
         }
-
         .achievement-title {
           font-size: 16px;
           font-weight: 700;
@@ -1356,7 +1400,6 @@ const UserProfileModal = ({
           padding: 60px 20px;
           gap: 16px;
         }
-
         .content-loading p {
           color: #737373;
           font-size: 14px;
@@ -1371,12 +1414,10 @@ const UserProfileModal = ({
           text-align: center;
           gap: 16px;
         }
-
         .empty-icon {
           font-size: 64px;
           opacity: 0.3;
         }
-
         .empty-content p {
           color: #737373;
           font-size: 16px;

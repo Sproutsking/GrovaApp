@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { Sparkles } from "lucide-react";
 import UserProfileModal from "../Modals/UserProfileModal";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 const ProfilePreview = ({
   profile,
@@ -14,7 +16,52 @@ const ProfilePreview = ({
   const [imageError, setImageError] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  const { userId, author, username, avatar, verified } = profile;
+  // Smart data extraction - handles both pre-formatted and raw database objects
+  const getUserData = () => {
+    // If profile is already formatted with userId, author, username, avatar
+    if (profile.userId || profile.author) {
+      return {
+        userId: profile.userId || profile.user_id || profile.id,
+        author:
+          profile.author || profile.name || profile.full_name || "Unknown User",
+        username: profile.username || "unknown",
+        avatar: profile.avatar,
+        verified: profile.verified || false,
+      };
+    }
+
+    // If profile is raw database object (from posts/reels/stories)
+    const userId = profile.user_id || profile.id;
+    const profileData = profile.profiles || profile;
+
+    const author =
+      profileData.full_name || profile.author || profile.name || "Unknown User";
+    const username =
+      profileData.username ||
+      profile.username ||
+      (author || "user").toLowerCase().replace(/\s+/g, "_");
+
+    // Handle avatar - check for avatar_id first
+    let avatar = null;
+    if (profileData.avatar_id) {
+      avatar = mediaUrlService.getAvatarUrl(profileData.avatar_id, 200);
+    } else if (profile.avatar) {
+      avatar = profile.avatar;
+    } else {
+      avatar = author.charAt(0).toUpperCase();
+    }
+
+    return {
+      userId,
+      author,
+      username,
+      avatar,
+      verified: profileData.verified || profile.verified || false,
+    };
+  };
+
+  const userData = getUserData();
+  const { userId, author, username, avatar, verified } = userData;
 
   const sizes = {
     small: { avatar: 32, name: 13, username: 11 },
@@ -29,12 +76,15 @@ const ProfilePreview = ({
     setShowProfileModal(true);
   };
 
+  // Enhanced avatar URL with quality parameters
   let enhancedAvatar = avatar;
   if (avatar && typeof avatar === "string") {
     const cleanUrl = avatar.split("?")[0];
-    if (cleanUrl.includes("supabase")) {
+    if (cleanUrl.includes("supabase") || cleanUrl.includes("cloudinary")) {
       const targetSize = currentSize.avatar * 3;
-      enhancedAvatar = `${cleanUrl}?quality=100&width=${targetSize}&height=${targetSize}&resize=cover&format=webp`;
+      enhancedAvatar = avatar.includes("?")
+        ? avatar
+        : `${cleanUrl}?quality=100&width=${targetSize}&height=${targetSize}&resize=cover&format=webp`;
     }
   }
 
@@ -87,7 +137,9 @@ const ProfilePreview = ({
               fontSize: `${currentSize.avatar * 0.5}px`,
             }}
           >
-            {author?.charAt(0)?.toUpperCase() || "U"}
+            {typeof avatar === "string" && avatar.length === 1
+              ? avatar
+              : author?.charAt(0)?.toUpperCase() || "U"}
           </span>
         </div>
 
@@ -96,7 +148,7 @@ const ProfilePreview = ({
             className="profile-preview-name"
             style={{ fontSize: `${currentSize.name}px` }}
           >
-            <span>{author || "Unknown User"}</span>
+            <span>{author}</span>
             {verified && (
               <div className="profile-preview-verified">
                 <Sparkles size={currentSize.name - 2} />
@@ -115,22 +167,24 @@ const ProfilePreview = ({
         </div>
       </div>
 
-      {showProfileModal && (
-        <UserProfileModal
-          user={{
-            id: userId,
-            user_id: userId,
-            userId: userId,
-            name: author,
-            author: author,
-            username: username,
-            avatar: avatar,
-            verified: verified,
-          }}
-          currentUser={currentUser}
-          onClose={() => setShowProfileModal(false)}
-        />
-      )}
+      {showProfileModal &&
+        ReactDOM.createPortal(
+          <UserProfileModal
+            user={{
+              id: userId,
+              user_id: userId,
+              userId: userId,
+              name: author,
+              author: author,
+              username: username,
+              avatar: avatar,
+              verified: verified,
+            }}
+            currentUser={currentUser}
+            onClose={() => setShowProfileModal(false)}
+          />,
+          document.body,
+        )}
 
       <style jsx>{`
         .profile-preview {

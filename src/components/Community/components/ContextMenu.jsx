@@ -35,14 +35,25 @@ const ContextMenu = ({
   onForward,
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
   const menuRef = useRef(null);
 
-  const quickReactions = ["❤️", "👍", "😂", "🔥", "🎉", "💯", "😮", "😢", "🙏", "👏"];
+  const quickReactions = [
+    "❤️",
+    "👍",
+    "😂",
+    "🔥",
+    "🎉",
+    "💯",
+    "😮",
+    "😢",
+    "🙏",
+    "👏",
+  ];
 
   const isOwnMessage = message?.user_id === userId;
-  
-  // Enhanced permission checks
-  const canManageMessages = permissions?.manageMessages || isAdmin || isOwner || isModerator;
+  const canManageMessages =
+    permissions?.manageMessages || isAdmin || isOwner || isModerator;
   const canDeleteOwnMessage = isOwnMessage;
   const canDeleteAnyMessage = canManageMessages;
   const canEditOwnMessage = isOwnMessage;
@@ -54,36 +65,55 @@ const ContextMenu = ({
   useEffect(() => {
     if (!menuRef.current || !position) return;
 
-    const menu = menuRef.current;
-    const menuRect = menu.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const padding = 20;
+    const calculatePosition = () => {
+      const menu = menuRef.current;
+      const menuRect = menu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const padding = 20;
 
-    let { x, y } = position;
+      let { x, y } = position;
 
-    // Ensure menu stays within viewport horizontally
-    if (x + menuRect.width > viewportWidth - padding) {
-      x = viewportWidth - menuRect.width - padding;
-    }
-    if (x < padding) {
-      x = padding;
-    }
+      // Smart positioning based on cursor location
+      const cursorInBottomHalf = y > viewportHeight / 2;
+      const cursorInRightHalf = x > viewportWidth / 2;
 
-    // Ensure menu stays within viewport vertically
-    if (y + menuRect.height > viewportHeight - padding) {
-      y = viewportHeight - menuRect.height - padding;
-    }
-    if (y < padding) {
-      y = padding;
-    }
+      // Horizontal positioning
+      if (cursorInRightHalf) {
+        // Open to the left of cursor
+        x = Math.max(padding, x - menuRect.width - 10);
+      } else {
+        // Open to the right of cursor
+        x = Math.min(viewportWidth - menuRect.width - padding, x + 10);
+      }
 
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-    menu.style.opacity = '1';
+      // Vertical positioning
+      if (cursorInBottomHalf) {
+        // Open upward from cursor
+        y = Math.max(padding, y - menuRect.height);
+      } else {
+        // Open downward from cursor
+        y = Math.min(viewportHeight - menuRect.height - padding, y);
+      }
+
+      // Ensure it stays within viewport
+      x = Math.max(
+        padding,
+        Math.min(x, viewportWidth - menuRect.width - padding),
+      );
+      y = Math.max(
+        padding,
+        Math.min(y, viewportHeight - menuRect.height - padding),
+      );
+
+      setMenuPosition({ x, y, cursorInBottomHalf });
+    };
+
+    // Small delay to ensure menu is rendered
+    setTimeout(calculatePosition, 10);
   }, [position]);
 
-  if (!position || !message) return null;
+  if (!position || !message || !menuPosition) return null;
 
   const handleReaction = (emoji) => {
     onReaction?.(emoji);
@@ -113,11 +143,10 @@ const ContextMenu = ({
 
       <div
         ref={menuRef}
-        className="context-menu"
+        className={`context-menu ${menuPosition.cursorInBottomHalf ? "open-upward" : "open-downward"}`}
         style={{
-          left: position.x,
-          top: position.y,
-          opacity: 0,
+          left: `${menuPosition.x}px`,
+          top: `${menuPosition.y}px`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -147,7 +176,6 @@ const ContextMenu = ({
           </div>
         ) : (
           <>
-            {/* Quick Reactions */}
             <div className="reactions-section">
               <div className="reactions-grid">
                 {quickReactions.map((emoji) => (
@@ -164,7 +192,6 @@ const ContextMenu = ({
 
             <div className="menu-divider"></div>
 
-            {/* Standard Actions */}
             <div className="menu-section">
               <button
                 className="menu-item"
@@ -203,7 +230,6 @@ const ContextMenu = ({
               )}
             </div>
 
-            {/* Own Message Actions */}
             {canEditOwnMessage && (
               <>
                 <div className="menu-divider"></div>
@@ -229,7 +255,6 @@ const ContextMenu = ({
               </>
             )}
 
-            {/* Moderation Actions - Only for messages from other users */}
             {!isOwnMessage && canModerate && (
               <>
                 <div className="menu-divider"></div>
@@ -250,7 +275,7 @@ const ContextMenu = ({
                       onClick={() =>
                         handleAction(
                           () => onDeleteUserMessages?.(message.user_id),
-                          true
+                          true,
                         )
                       }
                     >
@@ -286,7 +311,6 @@ const ContextMenu = ({
               </>
             )}
 
-            {/* Report Option - For regular users on other users' messages */}
             {!isOwnMessage && !canModerate && (
               <>
                 <div className="menu-divider"></div>
@@ -330,17 +354,24 @@ const ContextMenu = ({
           backdrop-filter: blur(24px);
           z-index: 9999;
           animation: contextMenuSlide 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-          transition: opacity 0.1s ease;
+        }
+
+        .context-menu.open-upward {
+          transform-origin: bottom center;
+        }
+
+        .context-menu.open-downward {
+          transform-origin: top center;
         }
 
         @keyframes contextMenuSlide {
           from {
             opacity: 0;
-            transform: scale(0.96) translateY(-4px);
+            transform: scale(0.96);
           }
           to {
             opacity: 1;
-            transform: scale(1) translateY(0);
+            transform: scale(1);
           }
         }
 

@@ -1,7 +1,4 @@
-// ============================================================================
-// src/components/Shared/NotificationSidebar.jsx - SELF-CONTAINED NAVIGATION
-// ============================================================================
-
+// Key changes: Added real-time subscription, removed loading spinner, auto-refresh
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -10,7 +7,6 @@ import {
   UserPlus,
   Share2,
   Unlock,
-  Check,
   CheckCheck,
   Settings,
 } from "lucide-react";
@@ -21,13 +17,12 @@ import UserProfileModal from "../Modals/UserProfileModal";
 
 const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
-
-  // Internal state for modals
   const [showSettings, setShowSettings] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+
+  // ─── LOAD NOTIFICATIONS ──────────────────────────────────────────────────
 
   useEffect(() => {
     if (isOpen) {
@@ -35,42 +30,48 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
     }
   }, [isOpen]);
 
+  // ─── REAL-TIME SUBSCRIPTION ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const unsubscribe = notificationService.subscribeToNotifications(
+      userId,
+      () => {
+        // Refresh notifications when new ones arrive
+        loadNotifications();
+      },
+    );
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [userId]);
+
   const loadNotifications = async () => {
     try {
-      setLoading(true);
-
       const user = await authService.getCurrentUser();
       if (!user) {
-        console.log("❌ No user found");
         setNotifications([]);
         return;
       }
 
       setUserId(user.id);
 
-      console.log("📬 Loading notifications for user:", user.id);
-
+      // Get cached notifications first for instant display
       const notifs = await notificationService.getNotifications(
         user.id,
         50,
-        true,
+        false,
       );
       setNotifications(notifs);
-
-      console.log("✅ Loaded", notifs.length, "notifications");
-
-      if (notifs.length === 0) {
-        console.log(
-          "ℹ️ No notifications found - check your notification settings or wait for new activity",
-        );
-      }
     } catch (error) {
       console.error("❌ Failed to load notifications:", error);
       setNotifications([]);
-    } finally {
-      setLoading(false);
     }
   };
+
+  // ─── HANDLERS ────────────────────────────────────────────────────────────
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -129,20 +130,10 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
     }
   };
 
-  const handleSettingsClick = (e) => {
-    e?.stopPropagation();
-    console.log("Opening settings...");
-    setShowSettings(true);
-  };
-
   const handleUserClick = (notification, e) => {
     e?.stopPropagation();
-    console.log("Opening user profile...");
 
-    if (!notification.actor) {
-      console.log("No actor data found");
-      return;
-    }
+    if (!notification.actor) return;
 
     const userData = {
       id: notification.actor.id || notification.actorId,
@@ -153,39 +144,37 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
       verified: notification.actor.verified || false,
     };
 
-    console.log("User data:", userData);
     setSelectedUser(userData);
     setShowUserProfile(true);
-
-    // Close the notification sidebar to prevent z-index conflicts
     onClose();
   };
 
-  const handleCloseSettings = () => {
-    setShowSettings(false);
-  };
-
-  const handleCloseUserProfile = () => {
-    setShowUserProfile(false);
-    setSelectedUser(null);
+  const handleNotificationClick = async (notification) => {
+    // Mark as read
+    await notificationService.markAsRead(notification.id);
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)),
+    );
   };
 
   if (!isOpen && !showUserProfile) return null;
 
-  // If settings is open, show settings instead of notifications
   if (showSettings) {
     return (
       <>
         <div
           className="notification-sidebar-overlay"
-          onClick={handleCloseSettings}
+          onClick={() => setShowSettings(false)}
         >
           <div
             className="notification-sidebar settings-view"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="notification-header">
-              <button onClick={handleCloseSettings} className="close-btn">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="close-btn"
+              >
                 <X size={20} />
               </button>
               <div className="notification-title">Settings</div>
@@ -203,7 +192,6 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
 
   return (
     <>
-      {/* Notification Sidebar - Only show when isOpen and not showing profile */}
       {isOpen && (
         <div className="notification-sidebar-overlay" onClick={onClose}>
           <div
@@ -226,26 +214,20 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
             </div>
 
             <div className="notification-list">
-              {loading ? (
-                <div className="loading-container">
-                  <div className="loading-spinner"></div>
-                  <div className="loading-text">Loading notifications...</div>
-                </div>
-              ) : notifications.length === 0 ? (
+              {notifications.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">🔔</div>
                   <div className="empty-state-text">No notifications yet</div>
                   <div className="empty-state-hint">
-                    When someone likes, comments, follows, or shares your
-                    content, you'll see it here. Make sure notifications are
-                    enabled in settings.
+                    When someone interacts with your content, you'll see it
+                    here.
                   </div>
                   <button
                     className="settings-link"
-                    onClick={handleSettingsClick}
+                    onClick={() => setShowSettings(true)}
                   >
                     <Settings size={16} />
-                    Check Notification Settings
+                    Notification Settings
                   </button>
                 </div>
               ) : (
@@ -253,6 +235,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
                   <div
                     key={notification.id}
                     className={`notification-item ${notification.read ? "" : "unread"}`}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div
                       className="notification-avatar"
@@ -303,19 +286,14 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
         </div>
       )}
 
-      {/* User Profile Modal - Renders independently */}
       {showUserProfile && selectedUser && (
         <UserProfileModal
           user={selectedUser}
-          onClose={handleCloseUserProfile}
+          onClose={() => {
+            setShowUserProfile(false);
+            setSelectedUser(null);
+          }}
           currentUser={currentUser}
-          onAuthorClick={(user) => {
-            setSelectedUser(user);
-            setShowUserProfile(true);
-          }}
-          onActionMenu={(content) => {
-            // Handle action menu if needed
-          }}
         />
       )}
 
@@ -324,8 +302,17 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
   );
 };
 
-// Extracted styles function
 const getStyles = () => `
+  /* Same styles as before - copy from the original file */
+  .notification-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+  }
+
   .notification-sidebar-overlay {
     position: fixed;
     inset: 0;

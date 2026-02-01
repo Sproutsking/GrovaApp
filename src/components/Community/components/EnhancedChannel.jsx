@@ -1,27 +1,36 @@
 // src/components/Community/components/EnhancedChannel.jsx
 // USE THIS - DELETE Channel.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Send, Smile, Image, ChevronRight, MoreVertical, 
-  Edit3, Trash2, Copy, Reply, Flag, Pin 
-} from 'lucide-react';
-import channelService from '../../../services/community/channelService';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Send,
+  Smile,
+  Image,
+  ChevronRight,
+  MoreVertical,
+  Edit3,
+  Trash2,
+  Copy,
+  Reply,
+  Flag,
+  Pin,
+} from "lucide-react";
+import channelService from "../../../services/community/channelService";
 
 const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
   const [messages, setMessages] = useState([]);
-  const [messageInput, setMessageInput] = useState('');
+  const [messageInput, setMessageInput] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inputExpanded, setInputExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
-  
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const unsubscribeRef = useRef(null);
 
   // Background pattern state
-  const [backgroundPattern, setBackgroundPattern] = useState('default');
+  const [backgroundPattern, setBackgroundPattern] = useState("default");
 
   useEffect(() => {
     // Load saved background preference
@@ -34,8 +43,9 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
         setBackgroundPattern(e.detail.pattern);
       }
     };
-    window.addEventListener('chat-background-change', handleBgChange);
-    return () => window.removeEventListener('chat-background-change', handleBgChange);
+    window.addEventListener("chat-background-change", handleBgChange);
+    return () =>
+      window.removeEventListener("chat-background-change", handleBgChange);
   }, [community]);
 
   useEffect(() => {
@@ -61,7 +71,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
       const data = await channelService.fetchMessages(channel.id);
       setMessages(data);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error("Error loading messages:", error);
     } finally {
       setLoading(false);
     }
@@ -71,12 +81,12 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
     }
-    
+
     unsubscribeRef.current = channelService.subscribeToMessages(
       channel.id,
       (newMessage) => {
-        setMessages(prev => [...prev, newMessage]);
-      }
+        setMessages((prev) => [...prev, newMessage]);
+      },
     );
   };
 
@@ -88,28 +98,28 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
       try {
         await channelService.updateMessage(editingMessage.id, content);
         setEditingMessage(null);
-        setMessageInput('');
+        setMessageInput("");
         await loadMessages();
       } catch (error) {
-        console.error('Error editing message:', error);
+        console.error("Error editing message:", error);
       }
       return;
     }
 
-    setMessageInput('');
+    setMessageInput("");
 
     try {
       await channelService.sendMessage(channel.id, userId, content);
       // Message will be added via subscription
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       setMessageInput(content);
-      alert('Failed to send message. Please try again.');
+      alert("Failed to send message. Please try again.");
     }
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -131,18 +141,20 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
 
   const handleDeleteMessage = async () => {
     if (!contextMenu?.message) return;
-    
-    if (!window.confirm('Are you sure you want to delete this message?')) {
+
+    if (!window.confirm("Are you sure you want to delete this message?")) {
       setContextMenu(null);
       return;
     }
 
     try {
       await channelService.deleteMessage(contextMenu.message.id);
-      setMessages(prev => prev.filter(m => m.id !== contextMenu.message.id));
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== contextMenu.message.id),
+      );
     } catch (error) {
-      console.error('Error deleting message:', error);
-      alert('Failed to delete message');
+      console.error("Error deleting message:", error);
+      alert("Failed to delete message");
     }
     setContextMenu(null);
   };
@@ -156,28 +168,44 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
 
   const cancelEdit = () => {
     setEditingMessage(null);
-    setMessageInput('');
+    setMessageInput("");
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const allReactions = ['❤️', '👍', '😂', '😮', '😢', '😡', '🔥', '🎉', '💯', '🚀', '👏', '🙏'];
+  const allReactions = [
+    "❤️",
+    "👍",
+    "😂",
+    "😮",
+    "😢",
+    "😡",
+    "🔥",
+    "🎉",
+    "💯",
+    "🚀",
+    "👏",
+    "🙏",
+  ];
 
   const isOwner = community?.owner_id === userId;
   const canManageMessages = userPermissions?.manageMessages || isOwner;
 
   const getBackgroundClass = () => {
     switch (backgroundPattern) {
-      case 'dots': return 'chat-background telegram-dots';
-      case 'subtle': return 'chat-background telegram-alt';
-      default: return 'chat-background';
+      case "dots":
+        return "chat-background telegram-dots";
+      case "subtle":
+        return "chat-background telegram-alt";
+      default:
+        return "chat-background";
     }
   };
 
   return (
-    <div 
+    <div
       className="channel-view"
       onClick={() => {
         setContextMenu(null);
@@ -189,36 +217,40 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
       {/* Messages Container */}
       <div className="messages-container">
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+          <div style={{ textAlign: "center", color: "#666", padding: "20px" }}>
             Loading messages...
           </div>
         ) : messages.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+          <div style={{ textAlign: "center", color: "#666", padding: "20px" }}>
             No messages yet. Start the conversation!
           </div>
         ) : (
-          messages.map(msg => (
-            <div 
-              key={msg.id} 
+          messages.map((msg) => (
+            <div
+              key={msg.id}
               className="message-group"
               onContextMenu={(e) => handleContextMenu(e, msg)}
             >
-              <div className="message-avatar">
-                {msg.user?.avatar || '👤'}
-              </div>
+              <div className="message-avatar">{msg.user?.avatar || "👤"}</div>
               <div className="message-content">
                 <div className="message-header">
                   <span className="message-author">
-                    {msg.user?.full_name || msg.user?.username || 'Unknown'}
+                    {msg.user?.full_name || msg.user?.username || "Unknown"}
                   </span>
                   <span className="message-timestamp">
-                    {new Date(msg.created_at).toLocaleTimeString('en-US', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    {new Date(msg.created_at).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </span>
                   {msg.edited && (
-                    <span style={{ color: '#666', fontSize: '11px', marginLeft: '4px' }}>
+                    <span
+                      style={{
+                        color: "#666",
+                        fontSize: "11px",
+                        marginLeft: "4px",
+                      }}
+                    >
                       (edited)
                     </span>
                   )}
@@ -227,15 +259,15 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
                 {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                   <div className="message-reactions">
                     {Object.entries(msg.reactions).map(([emoji, count]) => (
-                      <div 
-                        key={emoji} 
+                      <div
+                        key={emoji}
                         className="reaction"
                         onClick={async () => {
                           try {
                             await channelService.addReaction(msg.id, emoji);
                             await loadMessages();
                           } catch (error) {
-                            console.error('Error adding reaction:', error);
+                            console.error("Error adding reaction:", error);
                           }
                         }}
                       >
@@ -260,7 +292,9 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
               <div className="edit-label">Editing Message</div>
               <div className="edit-text">{editingMessage.content}</div>
             </div>
-            <button className="cancel-action" onClick={cancelEdit}>×</button>
+            <button className="cancel-action" onClick={cancelEdit}>
+              ×
+            </button>
           </div>
         </div>
       )}
@@ -268,18 +302,15 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
       {/* Message Input */}
       <div className="message-input-container">
         {showEmoji && (
-          <div 
-            className="emoji-panel" 
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="emoji-panel" onClick={(e) => e.stopPropagation()}>
             <div className="emoji-content">
               <div className="emoji-grid">
                 {allReactions.map((emoji, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="emoji-item"
                     onClick={() => {
-                      setMessageInput(prev => prev + emoji);
+                      setMessageInput((prev) => prev + emoji);
                       setShowEmoji(false);
                     }}
                   >
@@ -292,8 +323,10 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
         )}
 
         <div className="input-wrapper">
-          <div className={`input-left-actions ${inputExpanded ? 'hidden' : ''}`}>
-            <button 
+          <div
+            className={`input-left-actions ${inputExpanded ? "hidden" : ""}`}
+          >
+            <button
               className="input-btn"
               onClick={(e) => {
                 e.stopPropagation();
@@ -308,7 +341,10 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
           </div>
 
           {inputExpanded && (
-            <button className="expand-toggle" onClick={() => setInputExpanded(false)}>
+            <button
+              className="expand-toggle"
+              onClick={() => setInputExpanded(false)}
+            >
               <ChevronRight size={16} />
             </button>
           )}
@@ -317,7 +353,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
             ref={inputRef}
             type="text"
             className="message-input"
-            placeholder={`Message #${channel?.name || 'channel'}`}
+            placeholder={`Message #${channel?.name || "channel"}`}
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             onFocus={() => setInputExpanded(true)}
@@ -325,7 +361,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
           />
 
           <div className="input-actions">
-            <button 
+            <button
               className="input-btn send-btn"
               onClick={handleSendMessage}
               disabled={!messageInput.trim()}
@@ -338,11 +374,11 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
 
       {/* Context Menu */}
       {contextMenu && (
-        <div 
+        <div
           className="context-menu"
-          style={{ 
-            top: Math.min(contextMenu.y, window.innerHeight - 300), 
-            left: Math.min(contextMenu.x, window.innerWidth - 200) 
+          style={{
+            top: Math.min(contextMenu.y, window.innerHeight - 300),
+            left: Math.min(contextMenu.x, window.innerWidth - 200),
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -357,7 +393,10 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
                 <Edit3 size={16} />
                 Edit Message
               </div>
-              <div className="context-item danger" onClick={handleDeleteMessage}>
+              <div
+                className="context-item danger"
+                onClick={handleDeleteMessage}
+              >
                 <Trash2 size={16} />
                 Delete Message
               </div>
@@ -390,7 +429,7 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .message-action-bar {
           padding: 8px 12px;
           background: rgba(15, 15, 15, 0.95);

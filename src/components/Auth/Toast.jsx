@@ -1,14 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Info, X, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Info,
+  X,
+  Sparkles,
+} from "lucide-react";
 
-const AdvancedToast = ({ 
-  type = 'success', 
-  message, 
+const AdvancedToast = ({
+  type = "success",
+  message,
   description,
-  onClose, 
+  onClose,
   duration = 5000,
-  position = 'top-right',
-  showProgress = true 
+  position = "top-right",
+  showProgress = true,
 }) => {
   const [progress, setProgress] = useState(100);
   const [isClosing, setIsClosing] = useState(false);
@@ -16,8 +23,8 @@ const AdvancedToast = ({
   useEffect(() => {
     if (duration) {
       const interval = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev - (100 / (duration / 100));
+        setProgress((prev) => {
+          const newProgress = prev - 100 / (duration / 100);
           if (newProgress <= 0) {
             handleClose();
             return 0;
@@ -38,22 +45,38 @@ const AdvancedToast = ({
   };
 
   const icons = {
-    success: { Icon: CheckCircle, color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
-    error: { Icon: XCircle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
-    warning: { Icon: AlertCircle, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
-    info: { Icon: Info, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
-    premium: { Icon: Sparkles, color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' }
+    success: {
+      Icon: CheckCircle,
+      color: "#22c55e",
+      bg: "rgba(34, 197, 94, 0.15)",
+    },
+    error: { Icon: XCircle, color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)" },
+    warning: {
+      Icon: AlertCircle,
+      color: "#f59e0b",
+      bg: "rgba(245, 158, 11, 0.15)",
+    },
+    info: { Icon: Info, color: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)" },
+    premium: {
+      Icon: Sparkles,
+      color: "#a855f7",
+      bg: "rgba(168, 85, 247, 0.15)",
+    },
   };
 
   const { Icon, color, bg } = icons[type] || icons.info;
 
   const positions = {
-    'top-right': { top: '24px', right: '24px' },
-    'top-left': { top: '24px', left: '24px' },
-    'bottom-right': { bottom: '24px', right: '24px' },
-    'bottom-left': { bottom: '24px', left: '24px' },
-    'top-center': { top: '24px', left: '50%', transform: 'translateX(-50%)' },
-    'bottom-center': { bottom: '24px', left: '50%', transform: 'translateX(-50%)' }
+    "top-right": { top: "24px", right: "24px" },
+    "top-left": { top: "24px", left: "24px" },
+    "bottom-right": { bottom: "24px", right: "24px" },
+    "bottom-left": { bottom: "24px", left: "24px" },
+    "top-center": { top: "24px", left: "50%", transform: "translateX(-50%)" },
+    "bottom-center": {
+      bottom: "24px",
+      left: "50%",
+      transform: "translateX(-50%)",
+    },
   };
 
   return (
@@ -62,8 +85,8 @@ const AdvancedToast = ({
         @keyframes toastSlideIn {
           from {
             opacity: 0;
-            transform: translateX(${position.includes('right') ? '400px' : position.includes('left') ? '-400px' : '0'}) 
-                       translateY(${position.includes('top') ? '-20px' : position.includes('bottom') ? '20px' : '0'});
+            transform: translateX(${position.includes("right") ? "400px" : position.includes("left") ? "-400px" : "0"}) 
+                       translateY(${position.includes("top") ? "-20px" : position.includes("bottom") ? "20px" : "0"});
           }
           to {
             opacity: 1;
@@ -78,8 +101,8 @@ const AdvancedToast = ({
           }
           to {
             opacity: 0;
-            transform: translateX(${position.includes('right') ? '400px' : position.includes('left') ? '-400px' : '0'}) 
-                       translateY(${position.includes('top') ? '-20px' : position.includes('bottom') ? '20px' : '0'});
+            transform: translateX(${position.includes("right") ? "400px" : position.includes("left") ? "-400px" : "0"}) 
+                       translateY(${position.includes("top") ? "-20px" : position.includes("bottom") ? "20px" : "0"});
           }
         }
 
@@ -93,11 +116,11 @@ const AdvancedToast = ({
           min-width: 320px;
           max-width: 420px;
           z-index: 10000;
-          animation: ${isClosing ? 'toastSlideOut' : 'toastSlideIn'} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: ${isClosing ? "toastSlideOut" : "toastSlideIn"} 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .toast-container {
-        color: white
+        color: white;
           background: #0f0f0f;
           border: 1px solid rgba(132, 204, 22, 0.3);
           border-radius: 16px;
@@ -202,21 +225,23 @@ const AdvancedToast = ({
             <div className="toast-icon-wrapper">
               <Icon size={22} color={color} strokeWidth={2.5} />
             </div>
-            
+
             <div className="toast-text">
               <p className="toast-message">{message}</p>
-              {description && <p className="toast-description">{description}</p>}
+              {description && (
+                <p className="toast-description">{description}</p>
+              )}
             </div>
-            
+
             <button className="toast-close-btn" onClick={handleClose}>
               <X size={16} />
             </button>
           </div>
-          
+
           {showProgress && duration && (
             <div className="toast-progress">
-              <div 
-                className="toast-progress-bar" 
+              <div
+                className="toast-progress-bar"
                 style={{ width: `${progress}%` }}
               />
             </div>

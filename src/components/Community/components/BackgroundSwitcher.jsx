@@ -7,81 +7,97 @@ const BackgroundSwitcher = ({ show, onClose, currentTheme, onThemeChange }) => {
   const themes = [
     {
       id: "space",
-      name: "Space",
+      name: "Space Nebula",
       icon: "🌌",
-      description: "Cosmic stars & nebula",
+      description: "Deep cosmic stars",
       preview:
-        "radial-gradient(circle at 30% 40%, rgba(138, 43, 226, 0.3) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(75, 0, 130, 0.2) 0%, transparent 40%), #000000",
+        "radial-gradient(circle at 30% 40%, rgba(138, 43, 226, 0.4) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(75, 0, 130, 0.3) 0%, transparent 40%), #000000",
     },
     {
       id: "neon",
-      name: "Neon Glow",
+      name: "Neon Pulse",
       icon: "✨",
-      description: "Vibrant neon particles",
+      description: "Electric neon waves",
       preview:
-        "radial-gradient(circle at 25% 25%, rgba(255, 0, 110, 0.3) 0%, transparent 35%), radial-gradient(circle at 75% 75%, rgba(131, 56, 236, 0.3) 0%, transparent 35%), radial-gradient(circle at 50% 50%, rgba(255, 190, 11, 0.25) 0%, transparent 30%), #000000",
+        "radial-gradient(circle at 25% 25%, rgba(255, 0, 110, 0.35) 0%, transparent 35%), radial-gradient(circle at 75% 75%, rgba(131, 56, 236, 0.35) 0%, transparent 35%), radial-gradient(circle at 50% 50%, rgba(255, 190, 11, 0.3) 0%, transparent 30%), #000000",
     },
     {
       id: "tech",
       name: "Tech Grid",
       icon: "🎮",
-      description: "Circuit board lines",
+      description: "Digital circuit lines",
       preview:
-        "repeating-linear-gradient(0deg, transparent, transparent 15px, rgba(0, 255, 136, 0.08) 15px, rgba(0, 255, 136, 0.08) 16px), #000000",
+        "repeating-linear-gradient(0deg, transparent, transparent 15px, rgba(0, 255, 136, 0.1) 15px, rgba(0, 255, 136, 0.1) 16px), #000000",
     },
     {
       id: "matrix",
-      name: "Matrix",
+      name: "Matrix Rain",
       icon: "⚡",
-      description: "Digital code rain",
+      description: "Cascading code",
       preview:
-        "repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0, 255, 0, 0.05) 40px, rgba(0, 255, 0, 0.05) 41px), #000000",
+        "repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0, 255, 0, 0.08) 40px, rgba(0, 255, 0, 0.08) 41px), #000000",
     },
     {
       id: "security",
-      name: "Security",
+      name: "Cyber Shield",
       icon: "🔒",
-      description: "Hexagon network",
+      description: "Encrypted network",
       preview:
-        "radial-gradient(circle at 50% 50%, rgba(156, 255, 0, 0.08) 0%, transparent 50%), #000000",
+        "radial-gradient(circle at 50% 50%, rgba(0, 191, 255, 0.12) 0%, transparent 50%), #000000",
     },
     {
       id: "minimal",
-      name: "Minimal",
+      name: "Pure Dark",
       icon: "⬛",
-      description: "Clean darkness",
+      description: "Simple elegance",
       preview: "linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
     },
     {
       id: "lime",
-      name: "Lime Accent",
+      name: "Lime Glow",
       icon: "💚",
-      description: "Electric green glow",
+      description: "Vibrant green energy",
       preview:
-        "radial-gradient(circle at 30% 50%, rgba(156, 255, 0, 0.15) 0%, transparent 60%), linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
+        "radial-gradient(circle at 30% 50%, rgba(156, 255, 0, 0.2) 0%, transparent 60%), linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
     },
     {
       id: "gold",
-      name: "Gold Lux",
-      icon: "✨",
-      description: "Golden luxury",
+      name: "Golden Hour",
+      icon: "🌅",
+      description: "Warm luxury shine",
       preview:
-        "radial-gradient(circle at 30% 50%, rgba(255, 215, 0, 0.15) 0%, transparent 60%), linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
+        "radial-gradient(circle at 30% 50%, rgba(255, 215, 0, 0.2) 0%, transparent 60%), linear-gradient(135deg, #000000 0%, #0a0a0a 100%)",
     },
     {
       id: "noir",
-      name: "Pure Noir",
+      name: "Absolute Void",
       icon: "🌑",
-      description: "Absolute black",
+      description: "Pure black canvas",
       preview: "#000000",
     },
     {
       id: "midnight",
-      name: "Midnight",
+      name: "Midnight Sky",
       icon: "🌃",
-      description: "Dual soft glow",
+      description: "Dual aurora glow",
       preview:
-        "radial-gradient(circle at 50% 50%, rgba(156, 255, 0, 0.06) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(255, 215, 0, 0.06) 0%, transparent 60%), #000000",
+        "radial-gradient(circle at 50% 50%, rgba(156, 255, 0, 0.08) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(255, 215, 0, 0.08) 0%, transparent 60%), #000000",
+    },
+    {
+      id: "ocean",
+      name: "Deep Ocean",
+      icon: "🌊",
+      description: "Underwater depths",
+      preview:
+        "radial-gradient(circle at 40% 50%, rgba(0, 119, 182, 0.2) 0%, transparent 50%), radial-gradient(circle at 60% 30%, rgba(0, 150, 199, 0.15) 0%, transparent 40%), #000814",
+    },
+    {
+      id: "sunset",
+      name: "Sunset Vibes",
+      icon: "🌇",
+      description: "Warm twilight",
+      preview:
+        "radial-gradient(circle at 30% 40%, rgba(255, 107, 107, 0.2) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(255, 159, 64, 0.15) 0%, transparent 40%), #0a0a0a",
     },
   ];
 

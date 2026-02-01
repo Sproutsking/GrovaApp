@@ -1,48 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import ReelCard from './ReelCard';
-import FullScreenReels from './FullScreenReels';
+import React, { useState, useEffect } from "react";
+import ReelCard from "./ReelCard";
+import FullScreenReels from "./FullScreenReels";
 
-const ReelsTab = ({ 
-  reels, 
-  currentUser, 
-  onAuthorClick, 
-  onActionMenu, 
+const ReelsTab = ({
+  reels,
+  currentUser,
+  onAuthorClick,
+  onActionMenu,
   onComment,
   onSoundClick,
   onHashtagClick,
-  onMentionClick 
+  onMentionClick,
 }) => {
   const [showFullScreen, setShowFullScreen] = useState(false);
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  
-  console.log('🎬 ReelsTab rendering with', reels?.length || 0, 'reels');
-  
-  const activeReels = reels?.filter(reel => !reel.deleted_at) || [];
+
+  console.log("🎬 ReelsTab rendering with", reels?.length || 0, "reels");
+
+  const activeReels = reels?.filter((reel) => !reel.deleted_at) || [];
 
   useEffect(() => {
     const handleResize = () => {
       setIsDesktop(window.innerWidth >= 1024);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleOpenFullScreen = (index) => {
     setFullScreenIndex(index);
     setShowFullScreen(true);
-    
+
     if (!isDesktop) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     }
   };
 
   const handleCloseFullScreen = () => {
     setShowFullScreen(false);
-    
+
     if (!isDesktop) {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
   };
 
@@ -52,7 +52,7 @@ const ReelsTab = ({
         <div className="empty-reels-icon">🎬</div>
         <p>No reels to display</p>
         <span>Start creating amazing content!</span>
-        
+
         <style jsx>{`
           .empty-reels {
             display: flex;
@@ -123,7 +123,7 @@ const ReelsTab = ({
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
           gap: 24px;
-          padding: 20px 0;
+          padding: 0;
           max-width: 1400px;
           margin: 0 auto;
         }
@@ -131,7 +131,7 @@ const ReelsTab = ({
         @media (max-width: 1280px) {
           .reels-grid {
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            gap: 10px;
           }
         }
 
@@ -139,7 +139,7 @@ const ReelsTab = ({
           .reels-grid {
             grid-template-columns: repeat(2, 1fr);
             gap: 16px;
-            padding: 16px;
+            padding: 0px;
           }
         }
 
@@ -155,7 +155,7 @@ const ReelsTab = ({
           :global(.home-view.fullscreen-active) {
             overflow: hidden;
           }
-          
+
           :global(.home-view.fullscreen-active .reels-grid) {
             display: none;
           }

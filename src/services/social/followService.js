@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/social/followService.js - ENHANCED FOLLOW SERVICE
+// src/services/social/followService.js - OPTIMIZED WITH INSTANT UI UPDATES
 // ============================================================================
 
 import FollowModel from "../../models/FollowModel";
@@ -83,10 +83,8 @@ class FollowService {
     }
   }
 
-  // NEW: Get mutual followers (people who follow you back)
   async getMutualFollowers(userId, limit = 20) {
     try {
-      // Get users that userId follows
       const { data: following, error: followingError } = await supabase
         .from("follows")
         .select("following_id")
@@ -100,7 +98,6 @@ class FollowService {
 
       const followingIds = following.map((f) => f.following_id);
 
-      // Get users that also follow userId back
       const { data: mutualFollowers, error: mutualError } = await supabase
         .from("follows")
         .select(
@@ -130,7 +127,6 @@ class FollowService {
     }
   }
 
-  // NEW: Check if two users follow each other (mutual)
   async isMutualFollow(userId1, userId2) {
     try {
       const [user1FollowsUser2, user2FollowsUser1] = await Promise.all([
@@ -145,13 +141,12 @@ class FollowService {
     }
   }
 
-  // NEW: Get follow statistics
   async getFollowStats(userId) {
     try {
       const [followers, following, mutuals] = await Promise.all([
         this.getFollowerCount(userId),
         this.getFollowingCount(userId),
-        this.getMutualFollowers(userId, 1000), // Get all for counting
+        this.getMutualFollowers(userId, 1000),
       ]);
 
       return {

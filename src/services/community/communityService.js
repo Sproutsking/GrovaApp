@@ -79,21 +79,27 @@ class CommunityService {
 
       if (communityError) throw communityError;
 
-      // 2. Create default roles
+      // 2. Create default roles in correct order
       const ownerRole = await this.createDefaultRole(
         community.id,
         "Owner",
         0,
-        true,
+        "owner",
+      );
+      const novisRole = await this.createDefaultRole(
+        community.id,
+        "Novis",
+        2,
+        "novis",
       );
       const memberRole = await this.createDefaultRole(
         community.id,
         "Member",
         1,
-        false,
+        "member",
       );
 
-      // 3. Check if owner is already a member (shouldn't be, but safety check)
+      // 3. Check if owner is already a member
       const { data: existingOwnerMember } = await supabase
         .from("community_members")
         .select("id")
@@ -101,7 +107,7 @@ class CommunityService {
         .eq("user_id", userId)
         .maybeSingle();
 
-      // 4. Add owner as member with Owner role only if not already a member
+      // 4. Add owner as member with Owner role
       if (!existingOwnerMember) {
         const { error: memberError } = await supabase
           .from("community_members")
@@ -131,20 +137,41 @@ class CommunityService {
   /**
    * Create default role with permissions
    */
-  async createDefaultRole(communityId, roleName, position, isOwner) {
-    const permissions = isOwner
-      ? this.getOwnerPermissions()
-      : this.getMemberPermissions();
+  async createDefaultRole(communityId, roleName, position, roleType) {
+    let permissions;
+    let isDefault = false;
+
+    switch (roleType) {
+      case "owner":
+        permissions = this.getOwnerPermissions();
+        break;
+      case "novis":
+        permissions = this.getNovisPermissions();
+        isDefault = true; // Novis is the default joining role
+        break;
+      case "member":
+        permissions = this.getMemberPermissions();
+        break;
+      default:
+        permissions = this.getMemberPermissions();
+    }
+
+    const roleColor =
+      roleType === "owner"
+        ? "#FFD700"
+        : roleType === "novis"
+          ? "#95A5A6"
+          : "#667eea";
 
     const { data, error } = await supabase
       .from("community_roles")
       .insert({
         community_id: communityId,
         name: roleName,
-        color: isOwner ? "#FFD700" : "#95A5A6",
+        color: roleColor,
         position,
         permissions,
-        is_default: !isOwner,
+        is_default: isDefault,
       })
       .select()
       .single();
@@ -197,6 +224,49 @@ class CommunityService {
   }
 
   /**
+   * Get Novis (beginner) permissions - very restricted
+   */
+  getNovisPermissions() {
+    return {
+      sendMessages: false,
+      attachFiles: false,
+      embedLinks: false,
+      addReactions: false,
+      useExternalEmojis: false,
+      mentionEveryone: false,
+      useSlashCommands: false,
+      viewChannels: true, // Can only see verification/welcome channels
+      createChannels: false,
+      manageChannels: false,
+      createPrivateChannels: false,
+      viewMembers: true,
+      inviteMembers: false,
+      kickMembers: false,
+      banMembers: false,
+      manageNicknames: false,
+      changeOwnNickname: false,
+      manageRoles: false,
+      assignRoles: false,
+      viewRoles: false,
+      manageMessages: false,
+      pinMessages: false,
+      readMessageHistory: true,
+      viewAuditLog: false,
+      timeoutMembers: false,
+      manageWarnings: false,
+      manageCommunity: false,
+      manageWebhooks: false,
+      manageInvites: false,
+      viewAnalytics: false,
+      manageEmojis: false,
+      administrator: false,
+      bypassSlowMode: false,
+      prioritySpeaker: false,
+      moveMembers: false,
+    };
+  }
+
+  /**
    * Get default member permissions
    */
   getMemberPermissions() {
@@ -211,34 +281,66 @@ class CommunityService {
       readMessageHistory: true,
       changeOwnNickname: true,
       viewRoles: true,
+      useExternalEmojis: false,
+      mentionEveryone: false,
+      createChannels: false,
+      manageChannels: false,
+      createPrivateChannels: false,
+      inviteMembers: false,
+      kickMembers: false,
+      banMembers: false,
+      manageNicknames: false,
+      manageRoles: false,
+      assignRoles: false,
+      manageMessages: false,
+      pinMessages: false,
+      viewAuditLog: false,
+      timeoutMembers: false,
+      manageWarnings: false,
+      manageCommunity: false,
+      manageWebhooks: false,
+      manageInvites: false,
+      viewAnalytics: false,
+      manageEmojis: false,
+      administrator: false,
+      bypassSlowMode: false,
+      prioritySpeaker: false,
+      moveMembers: false,
     };
   }
 
   /**
-   * Create default channels
+   * Create default channels including verification channel
    */
   async createDefaultChannels(communityId) {
     const channels = [
+      {
+        name: "verification",
+        icon: "✅",
+        description: "Verify yourself to access the community",
+        type: "text",
+        position: 0,
+      },
       {
         name: "welcome",
         icon: "👋",
         description: "Welcome new members!",
         type: "text",
-        position: 0,
+        position: 1,
       },
       {
         name: "general",
         icon: "💬",
         description: "General discussion",
         type: "text",
-        position: 1,
+        position: 2,
       },
       {
         name: "announcements",
         icon: "📢",
         description: "Important updates",
         type: "announcement",
-        position: 2,
+        position: 3,
       },
     ];
 
@@ -247,6 +349,116 @@ class CommunityService {
       .insert(channels.map((ch) => ({ ...ch, community_id: communityId })));
 
     if (error) throw error;
+  }
+
+  /**
+   * Generate invite code
+   */
+  generateInviteCode() {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  /**
+   * Generate invite link with settings
+   */
+  async generateInvite(communityId, userId, settings) {
+    try {
+      // Verify user has permission to create invites
+      const hasPermission = await this.checkInvitePermission(
+        communityId,
+        userId,
+      );
+      if (!hasPermission) {
+        throw new Error("You don't have permission to create invites");
+      }
+
+      // Generate unique invite code
+      const code = this.generateInviteCode();
+
+      // Calculate expiry time
+      let expiresAt = null;
+      if (settings.duration !== "never") {
+        const now = new Date();
+        switch (settings.duration) {
+          case "1h":
+            expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+            break;
+          case "6h":
+            expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+            break;
+          case "24h":
+            expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            break;
+          case "7d":
+            expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            break;
+        }
+      }
+
+      // Parse max uses
+      const maxUses =
+        settings.maxUses === "unlimited" ? null : parseInt(settings.maxUses);
+
+      // Create invite in database
+      const { data, error } = await supabase
+        .from("community_invites")
+        .insert({
+          community_id: communityId,
+          code: code,
+          created_by: userId,
+          max_uses: maxUses,
+          uses: 0,
+          expires_at: expiresAt,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Return full invite URL
+      return `${window.location.origin}/communities?invite=${code}`;
+    } catch (error) {
+      console.error("Error generating invite:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if user can create invites
+   */
+  async checkInvitePermission(communityId, userId) {
+    try {
+      // Check if owner
+      const { data: community } = await supabase
+        .from("communities")
+        .select("owner_id")
+        .eq("id", communityId)
+        .single();
+
+      if (community?.owner_id === userId) return true;
+
+      // Check role permissions
+      const { data: member } = await supabase
+        .from("community_members")
+        .select(`role:community_roles!role_id(permissions)`)
+        .eq("community_id", communityId)
+        .eq("user_id", userId)
+        .single();
+
+      return (
+        member?.role?.permissions?.manageInvites === true ||
+        member?.role?.permissions?.inviteMembers === true
+      );
+    } catch (error) {
+      console.error("Error checking invite permission:", error);
+      return false;
+    }
   }
 
   /**
@@ -266,7 +478,7 @@ class CommunityService {
       if (community.is_private)
         throw new Error("Cannot join private community without invite");
 
-      // 2. Check if already a member (use maybeSingle to avoid 406 error)
+      // 2. Check if already a member
       const { data: existingMember, error: memberCheckError } = await supabase
         .from("community_members")
         .select("id")
@@ -274,7 +486,6 @@ class CommunityService {
         .eq("user_id", userId)
         .maybeSingle();
 
-      // Log any non-PGRST116 errors (PGRST116 = no rows found, which is expected)
       if (memberCheckError && memberCheckError.code !== "PGRST116") {
         console.error("Member check error:", memberCheckError);
       }
@@ -283,7 +494,7 @@ class CommunityService {
         throw new Error("Already a member of this community");
       }
 
-      // 3. Get default role (use maybeSingle to handle no results gracefully)
+      // 3. Get default Novis role
       const { data: defaultRole, error: roleError } = await supabase
         .from("community_roles")
         .select("id")
@@ -299,23 +510,23 @@ class CommunityService {
       }
 
       if (!defaultRole) {
-        // Create default role if it doesn't exist
+        // Create default Novis role if it doesn't exist
         console.log(
-          "Creating missing default role for community:",
+          "Creating missing default Novis role for community:",
           communityId,
         );
         const role = await this.createDefaultRole(
           communityId,
-          "Member",
-          1,
-          false,
+          "Novis",
+          2,
+          "novis",
         );
         roleId = role.id;
       } else {
         roleId = defaultRole.id;
       }
 
-      // 4. Add user as member
+      // 4. Add user as member with Novis role
       const { error: memberError } = await supabase
         .from("community_members")
         .insert({
@@ -340,7 +551,7 @@ class CommunityService {
         console.error("Failed to update member count:", updateError);
       }
 
-      return true;
+      return community;
     } catch (error) {
       console.error("Join community error:", error);
       throw error;
@@ -367,7 +578,7 @@ class CommunityService {
         throw new Error("Invite code has reached maximum uses");
       }
 
-      // 2. Check if already member (use maybeSingle)
+      // 2. Check if already member
       const { data: existingMember } = await supabase
         .from("community_members")
         .select("id")
@@ -377,7 +588,7 @@ class CommunityService {
 
       if (existingMember) throw new Error("Already a member of this community");
 
-      // 3. Get default role (use maybeSingle)
+      // 3. Get default Novis role
       const { data: defaultRole } = await supabase
         .from("community_roles")
         .select("id")
@@ -385,24 +596,27 @@ class CommunityService {
         .eq("is_default", true)
         .maybeSingle();
 
+      let roleId;
       if (!defaultRole) {
-        // Create default role if missing
+        // Create default Novis role if missing
         const role = await this.createDefaultRole(
           invite.community_id,
-          "Member",
-          1,
-          false,
+          "Novis",
+          2,
+          "novis",
         );
-        defaultRole = { id: role.id };
+        roleId = role.id;
+      } else {
+        roleId = defaultRole.id;
       }
 
-      // 4. Add member
+      // 4. Add member with Novis role
       const { error: memberError } = await supabase
         .from("community_members")
         .insert({
           community_id: invite.community_id,
           user_id: userId,
-          role_id: defaultRole.id,
+          role_id: roleId,
           is_online: true,
         });
 
