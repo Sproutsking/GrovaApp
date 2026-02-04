@@ -19,7 +19,10 @@
   position: relative;
   z-index: 1;
   padding: 16px;
-  padding-bottom: max(40px, env(safe-area-inset-bottom, 80px)); /* Increased to ensure ~40px visible buffer */
+  padding-bottom: max(
+    40px,
+    env(safe-area-inset-bottom, 80px)
+  ); /* Increased to ensure ~40px visible buffer */
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -52,7 +55,11 @@
   transform: translateX(-50%);
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(132, 204, 22, 0.2) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(132, 204, 22, 0.2) 0%,
+    transparent 70%
+  );
   filter: blur(60px);
   pointer-events: none;
 }
@@ -62,6 +69,9 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.096);
+  border-radius: 18px;
+  border: 1px solid #444444;
 }
 
 .wallet-title {
@@ -98,7 +108,11 @@
 
 /* Balance Showcase */
 .balance-showcase {
-  background: linear-gradient(135deg, rgba(132, 204, 22, 0.15) 0%, rgba(132, 204, 22, 0.05) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(132, 204, 22, 0.15) 0%,
+    rgba(132, 204, 22, 0.05) 100%
+  );
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 20px;
   padding: 24px;
@@ -107,19 +121,30 @@
 }
 
 .balance-showcase::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -50%;
   right: -50%;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, rgba(132, 204, 22, 0.2) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(132, 204, 22, 0.2) 0%,
+    transparent 70%
+  );
   animation: pulse 3s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
 .balance-primary {
@@ -186,7 +211,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 16px;
+  padding: 8px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
@@ -198,8 +223,6 @@
 }
 
 .quick-action-btn.primary {
-  border-color: rgba(132, 204, 22, 0.3);
-  background: rgba(132, 204, 22, 0.1);
 }
 
 .quick-action-btn.secondary {
@@ -255,7 +278,11 @@
   right: 0;
   width: 100px;
   height: 100px;
-  background: radial-gradient(circle, rgba(132, 204, 22, 0.3) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(132, 204, 22, 0.3) 0%,
+    transparent 70%
+  );
   filter: blur(30px);
 }
 
@@ -591,7 +618,7 @@
 
 .address-text {
   flex: 1;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 16px;
   color: #fff;
 }
@@ -627,8 +654,14 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .info-box {
@@ -868,7 +901,10 @@
   .wallet-content {
     padding: 16px; /* Reduced side padding for more content space */
     padding-top: 20px;
-    padding-bottom: max(20px, env(safe-area-inset-bottom, 90px)); /* Generous bottom buffer */
+    padding-bottom: max(
+      20px,
+      env(safe-area-inset-bottom, 90px)
+    ); /* Generous bottom buffer */
     max-height: none;
   }
 
@@ -878,7 +914,9 @@
   }
 
   .wallet-header {
-    margin-bottom: 20px;
+    padding: 12px;
+    margin-bottom: 0px;
+    border-radius: 0;
   }
 
   .quick-actions {
@@ -887,7 +925,7 @@
   }
 
   .quick-action-btn {
-    padding: 12px;
+    padding: 8px;
     font-size: 13px;
   }
 
@@ -913,6 +951,7 @@
   }
 
   .balance-showcase {
+    border-radius: 0;
     padding: 20px;
   }
 
@@ -938,51 +977,61 @@
   }
 }
 
- /* Responsive */
-        @media (min-width: 640px) {
-          .wallet-app {
-            padding: 0;
-          }
+/* Responsive */
+@media (min-width: 640px) {
+  .wallet-app {
+    padding: 0;
+  }
 
-          .wallet-container {
-            max-width: 100%;
-            border-radius: 0;
-            min-height: 100vh;
-          }
+  .wallet-container {
+    max-width: 100%;
+    border-radius: 0;
+    min-height: 100vh;
+  }
 
-          .wallet-content {
-            max-height: none;
-          }
+  .wallet-content {
+    max-height: none;
+  }
 
-          .balance-amount {
-            font-size: 32px;
-          }
+  .balance-amount {
+    font-size: 32px;
+  }
 
-          .quick-actions {
-            grid-template-columns: 1fr 1fr 1fr;
-          }
-        }
-          /* Responsive */
-        @media (max-width: 640px) {
-          .wallet-app {
-            padding: 0;
-          }
+  .quick-actions {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+/* Responsive */
+@media (max-width: 640px) {
+  .wallet-app {
+    padding: 0;
+  }
 
-          .wallet-container {
-            max-width: 100%;
-            border-radius: 0;
-            min-height: 100vh;
-          }
+  .wallet-container {
+    max-width: 100%;
+    border-radius: 0;
+    min-height: 100vh;
+  }
 
-          .wallet-content {
-            max-height: none;
-          }
+  .wallet-content {
+    max-height: none;
+  }
 
-          .balance-amount {
-            font-size: 32px;
-          }
+  .balance-amount {
+    font-size: 32px;
+  }
 
-          .quick-actions {
-            grid-template-columns: 1fr 1fr 1fr;
-          }
-        }
+  .quick-actions {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.button-icon {
+  color: #84cc16;
+  padding: 12px 15px;
+  /* box-shadow: 0 0 2px #65a30d; */
+  /* border: 1px solid #65a30d; */
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.082);
+  border: 1px solid #444444;
+}

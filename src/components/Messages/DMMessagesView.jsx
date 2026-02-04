@@ -1,176 +1,115 @@
+// components/Messages/DMMessagesView.jsx - REALTIME-FIRST PERFECTION
 import React, { useState, useEffect, useRef } from "react";
-import { X, Loader } from "lucide-react";
-import { supabase } from "../../services/config/supabase";
 import dmMessageService from "../../services/messages/dmMessageService";
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import ConversationList from "./ConversationList";
 import ChatView from "./ChatView";
 import UserSearchModal from "./UserSearchModal";
 
-const DMMessagesView = ({
-  currentUser,
-  onClose,
-  initialOtherUserId,
-  standalone,
-}) => {
+const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const [view, setView] = useState("list");
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [selectedConv, setSelectedConv] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
-  const realtimeUnsubRef = useRef(null);
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    if (currentUser?.id) {
-      onlineStatusService.start(currentUser.id);
-    }
-  }, [currentUser?.id]);
-
-  useEffect(() => {
-    loadConversations();
-  }, [currentUser?.id]);
+  const initialized = useRef(false);
+  const unsubscribeList = useRef(null);
 
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const unsub = dmMessageService.subscribeToConversations(
-      currentUser.id,
-      (event) => {
-        if (event.type === "NEW_MESSAGE") {
-          loadConversations();
-        }
-      },
-    );
+    console.log("🚀 [DM] Initializing messaging system");
 
-    realtimeUnsubRef.current = unsub;
+    onlineStatusService.start(currentUser.id);
+    
+    dmMessageService.init(currentUser.id).then(() => {
+      setLoading(false);
+      console.log("✅ [DM] Messaging system initialized");
+    });
+
+    // Subscribe to conversation list changes
+    unsubscribeList.current = dmMessageService.subscribeToConversationList();
+
     return () => {
-      if (realtimeUnsubRef.current) realtimeUnsubRef.current();
+      console.log("🧹 [DM] Cleaning up messaging system");
+      if (unsubscribeList.current) {
+        unsubscribeList.current();
+      }
+      dmMessageService.cleanup();
     };
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!initialOtherUserId || !currentUser?.id || initializedRef.current)
-      return;
-    initializedRef.current = true;
+    if (!initialOtherUserId || !currentUser?.id || initialized.current) return;
+    initialized.current = true;
 
-    const openDirectChat = async () => {
-      try {
-        const conv = await dmMessageService.createOrGetConversation(
-          currentUser.id,
-          initialOtherUserId,
-        );
+    console.log("📨 [DM] Opening initial conversation with:", initialOtherUserId);
 
-        const otherUser =
-          conv.user1_id === currentUser.id ? conv.user2 : conv.user1;
-        const enriched = {
-          ...conv,
-          otherUser,
-          lastMessage: null,
-          unreadCount: 0,
-        };
-
-        setSelectedConversation(enriched);
+    dmMessageService
+      .createConversation(currentUser.id, initialOtherUserId)
+      .then((conv) => {
+        const otherUser = conv.user1_id === currentUser.id ? conv.user2 : conv.user1;
+        setSelectedConv({ ...conv, otherUser, lastMessage: null, unreadCount: 0 });
         setView("chat");
-        loadConversations();
-      } catch (e) {
-        console.error("Failed to open direct chat:", e);
-      }
-    };
-
-    openDirectChat();
+      })
+      .catch((e) => console.error("❌ [DM] Init chat error:", e));
   }, [initialOtherUserId, currentUser?.id]);
 
-  const loadConversations = async () => {
-    if (!currentUser?.id) return;
-    try {
-      setLoading(true);
-      const convs = await dmMessageService.getConversations(currentUser.id);
-      setConversations(convs);
-    } catch (e) {
-      console.error("Failed to load conversations:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectConversation = (conv) => {
-    setSelectedConversation(conv);
+  const handleSelect = (conv) => {
+    console.log("📨 [DM] Opening conversation:", conv.id);
+    setSelectedConv(conv);
     setView("chat");
   };
 
-  const handleBackToList = () => {
+  const handleBack = () => {
+    console.log("🔙 [DM] Returning to conversation list");
+    setSelectedConv(null);
     setView("list");
-    setSelectedConversation(null);
-    loadConversations();
   };
 
-  const handleNewChat = () => {
-    setShowUserSearch(true);
-  };
-
-  const handleSelectUser = async (user) => {
+  const handleUserSelect = async (user) => {
     try {
-      const conv = await dmMessageService.createOrGetConversation(
-        currentUser.id,
-        user.id,
-      );
-
-      const otherUser =
-        conv.user1_id === currentUser.id ? conv.user2 : conv.user1;
-      const enriched = {
-        ...conv,
-        otherUser,
-        lastMessage: null,
-        unreadCount: 0,
-      };
-
-      setSelectedConversation(enriched);
+      console.log("📨 [DM] Creating conversation with:", user.id);
+      const conv = await dmMessageService.createConversation(currentUser.id, user.id);
+      const otherUser = conv.user1_id === currentUser.id ? conv.user2 : conv.user1;
+      setSelectedConv({ ...conv, otherUser, lastMessage: null, unreadCount: 0 });
       setView("chat");
-      setShowUserSearch(false);
-      loadConversations();
+      setShowSearch(false);
     } catch (e) {
-      console.error("Failed to start conversation:", e);
+      console.error("❌ [DM] User select error:", e);
     }
   };
-
-  const isMobile = window.innerWidth <= 768;
 
   return (
     <>
       <div className="dm-overlay" onClick={onClose}>
-        <div
-          className={`dm-panel ${standalone ? "standalone" : ""}`}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="dm-panel" onClick={(e) => e.stopPropagation()}>
           {view === "list" && (
             <ConversationList
-              conversations={conversations}
               currentUserId={currentUser?.id}
-              onSelect={handleSelectConversation}
-              onNewChat={handleNewChat}
+              onSelect={handleSelect}
+              onNewChat={() => setShowSearch(true)}
               onClose={onClose}
               loading={loading}
-              activeConversationId={selectedConversation?.id}
+              activeConversationId={selectedConv?.id}
             />
           )}
 
-          {view === "chat" && selectedConversation && (
+          {view === "chat" && selectedConv && (
             <ChatView
-              conversation={selectedConversation}
+              conversation={selectedConv}
               currentUser={currentUser}
-              onBack={handleBackToList}
+              onBack={handleBack}
             />
           )}
         </div>
       </div>
 
-      {showUserSearch && (
+      {showSearch && (
         <UserSearchModal
           currentUser={currentUser}
-          onClose={() => setShowUserSearch(false)}
-          onSelect={handleSelectUser}
+          onClose={() => setShowSearch(false)}
+          onSelect={handleUserSelect}
         />
       )}
 
@@ -184,15 +123,8 @@ const DMMessagesView = ({
           display: flex;
           align-items: stretch;
           justify-content: flex-end;
-          animation: dmFadeIn 0.2s ease;
         }
-        @keyframes dmFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
         .dm-panel {
-          position: relative;
           width: 400px;
           max-width: 100%;
           height: 100vh;
@@ -200,18 +132,7 @@ const DMMessagesView = ({
           border-left: 1px solid rgba(132, 204, 22, 0.2);
           display: flex;
           flex-direction: column;
-          overflow: hidden;
-          animation: dmSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        @keyframes dmSlideIn {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-
-        .dm-panel.standalone {
-          z-index: 10000;
-        }
-
         @media (max-width: 768px) {
           .dm-overlay {
             align-items: flex-end;
@@ -223,11 +144,6 @@ const DMMessagesView = ({
             border-left: none;
             border-top: 1px solid rgba(132, 204, 22, 0.2);
             border-radius: 20px 20px 0 0;
-            animation: dmSlideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          }
-          @keyframes dmSlideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
           }
         }
       `}</style>

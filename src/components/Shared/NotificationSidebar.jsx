@@ -364,7 +364,7 @@ const getStyles = () => `
       border-left: none;
       border-radius: 24px 24px 0 0;
       bottom: 0;
-      top: auto;
+      top: 0;
       height: 100vh;
       animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }

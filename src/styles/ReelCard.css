@@ -16,7 +16,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 9 / 14;
-  max-height: 70vh;
+  height: 70vh;
   background: #000;
   cursor: pointer;
   overflow: hidden;
@@ -355,7 +355,7 @@
     border-radius: 0;
     border-left: none;
     border-right: none;
-    max-height: 95vh;
+    max-height: 86vh;
   }
 
   .reel-video-container {

@@ -1,460 +1,466 @@
+// services/messages/dmMessageService.js - REALTIME-FIRST PERFECTION
 import { supabase } from "../config/supabase";
+import conversationState from "./ConversationStateManager";
 
-/**
- * DMMessageService — UPDATED
- *
- * Key changes:
- * 1. Removed nothing that blocks access — the "login" guard was in the UI layers (headers),
- *    not here. This service assumes a valid userId is passed by the caller.
- * 2. Conversations created anywhere (UserProfileModal, header, etc.) all land in the same
- *    `conversations` table — so getConversations() always returns them all.
- * 3. Speed: sendMessage() returns the message IMMEDIATELY with a local timestamp,
- *    then fires the DB insert in the background. The realtime subscription delivers
- *    the server-confirmed version. This gives instant perceived send.
- * 4. Race-condition protection on conversation creation is preserved.
- */
 class DMMessageService {
   constructor() {
-    this.conversationCache = new Map();
-    this.creationLocks = new Map();
+    this.conversationChannels = new Map(); // conversation:{id} channels
+    this.listChannel = null; // Global list subscription
+    this.userId = null;
+    this.pendingMessages = new Map(); // Track optimistic messages by tempId
   }
 
-  // ─── CONVERSATION CREATION ──────────────────────────────────────────────────
+  async init(userId) {
+    this.userId = userId;
+    await this.loadConversations();
+  }
 
-  async createOrGetConversation(user1Id, user2Id) {
-    if (!user1Id || !user2Id) throw new Error("Both user IDs required");
-    if (user1Id === user2Id) throw new Error("Cannot message yourself");
-
-    const cacheKey = [user1Id, user2Id].sort().join("-");
-
-    if (this.conversationCache.has(cacheKey)) {
-      return this.conversationCache.get(cacheKey);
-    }
-
-    if (this.creationLocks.has(cacheKey)) {
-      return this.creationLocks.get(cacheKey);
-    }
-
-    const lockPromise = this._createOrGetInternal(user1Id, user2Id, cacheKey);
-    this.creationLocks.set(cacheKey, lockPromise);
-
+  async loadConversations() {
     try {
-      const result = await lockPromise;
-      this.conversationCache.set(cacheKey, result);
-      return result;
-    } finally {
-      this.creationLocks.delete(cacheKey);
-    }
-  }
+      const { data, error } = await supabase
+        .from("conversations")
+        .select(`
+          *,
+          user1:profiles!conversations_user1_id_fkey(id, full_name, username, avatar_id, verified),
+          user2:profiles!conversations_user2_id_fkey(id, full_name, username, avatar_id, verified)
+        `)
+        .or(`user1_id.eq.${this.userId},user2_id.eq.${this.userId}`)
+        .order("last_message_at", { ascending: false });
 
-  async _createOrGetInternal(user1Id, user2Id, cacheKey) {
-    const profileSelect = `
-      id, full_name, username, avatar_id, avatar_metadata, verified, last_seen
-    `;
-    const convSelect = `
-      *,
-      user1:profiles!conversations_user1_id_fkey(${profileSelect}),
-      user2:profiles!conversations_user2_id_fkey(${profileSelect})
-    `;
+      if (error) throw error;
 
-    // Search existing
-    const { data: existing, error: searchError } = await supabase
-      .from("conversations")
-      .select(convSelect)
-      .or(
-        `and(user1_id.eq.${user1Id},user2_id.eq.${user2Id}),and(user1_id.eq.${user2Id},user2_id.eq.${user1Id})`,
-      )
-      .maybeSingle();
+      const enriched = await Promise.all(
+        (data || []).map(async (conv) => {
+          const otherUser = conv.user1_id === this.userId ? conv.user2 : conv.user1;
 
-    if (searchError && searchError.code !== "PGRST116") throw searchError;
-    if (existing) return existing;
+          // Get last message and unread count in parallel
+          const [{ data: lastMsg }, { data: unreadData }] = await Promise.all([
+            supabase
+              .from("messages")
+              .select("*")
+              .eq("conversation_id", conv.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase.rpc("get_conversation_unread_count", {
+              p_conversation_id: conv.id,
+              p_user_id: this.userId,
+            }),
+          ]);
 
-    // Create with retry
-    let attempts = 0;
-    while (attempts < 3) {
-      try {
-        const { data: newConv, error: createError } = await supabase
-          .from("conversations")
-          .insert({
-            user1_id: user1Id,
-            user2_id: user2Id,
-            last_message_at: new Date().toISOString(),
-          })
-          .select(convSelect)
-          .single();
-
-        if (createError) {
-          if (
-            createError.code === "23505" ||
-            createError.message?.includes("already exists")
-          ) {
-            const { data: fetched } = await supabase
-              .from("conversations")
-              .select(convSelect)
-              .or(
-                `and(user1_id.eq.${user1Id},user2_id.eq.${user2Id}),and(user1_id.eq.${user2Id},user2_id.eq.${user1Id})`,
-              )
-              .single();
-            if (fetched) return fetched;
-          }
-          throw createError;
-        }
-        return newConv;
-      } catch (error) {
-        attempts++;
-        if (attempts === 3) throw error;
-        await new Promise((r) => setTimeout(r, 100 * attempts));
-      }
-    }
-  }
-
-  // ─── FETCH CONVERSATIONS ────────────────────────────────────────────────────
-
-  async getConversations(userId) {
-    if (!userId) throw new Error("User ID required");
-
-    const profileSelect = `
-      id, full_name, username, avatar_id, avatar_metadata, verified, last_seen
-    `;
-
-    const { data: conversations, error } = await supabase
-      .from("conversations")
-      .select(
-        `*,
-        user1:profiles!conversations_user1_id_fkey(${profileSelect}),
-        user2:profiles!conversations_user2_id_fkey(${profileSelect})`,
-      )
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-      .order("last_message_at", { ascending: false });
-
-    if (error) throw error;
-    if (!conversations?.length) return [];
-
-    // Batch-fetch last messages and unread counts for all conversations
-    const convIds = conversations.map((c) => c.id);
-
-    // Get last message for each conversation in one query
-    const { data: lastMessages } = await supabase
-      .from("messages")
-      .select(
-        "id, content, created_at, sender_id, read, delivered, conversation_id, media_type",
-      )
-      .in("conversation_id", convIds)
-      .order("created_at", { ascending: false });
-
-    // Build a map: conversationId -> last message
-    const lastMsgMap = new Map();
-    if (lastMessages) {
-      for (const msg of lastMessages) {
-        if (!lastMsgMap.has(msg.conversation_id)) {
-          lastMsgMap.set(msg.conversation_id, msg);
-        }
-      }
-    }
-
-    // Get unread counts — messages not sent by me that are unread
-    const { data: unreadMessages } = await supabase
-      .from("messages")
-      .select("conversation_id")
-      .in("conversation_id", convIds)
-      .eq("read", false)
-      .neq("sender_id", userId);
-
-    const unreadMap = new Map();
-    if (unreadMessages) {
-      for (const msg of unreadMessages) {
-        unreadMap.set(
-          msg.conversation_id,
-          (unreadMap.get(msg.conversation_id) || 0) + 1,
-        );
-      }
-    }
-
-    return conversations.map((conv) => {
-      const otherUser = conv.user1_id === userId ? conv.user2 : conv.user1;
-      return {
-        ...conv,
-        otherUser,
-        lastMessage: lastMsgMap.get(conv.id) || null,
-        unreadCount: unreadMap.get(conv.id) || 0,
-      };
-    });
-  }
-
-  // ─── FETCH MESSAGES ─────────────────────────────────────────────────────────
-
-  async getMessages(conversationId) {
-    if (!conversationId) throw new Error("Conversation ID required");
-
-    const { data: messages, error } = await supabase
-      .from("messages")
-      .select(
-        `*,
-        sender:profiles!messages_sender_id_fkey(id, full_name, username, avatar_id, avatar_metadata, verified)`,
-      )
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-
-    // Filter out soft-deleted messages
-    const { data: deletedIds } = await supabase
-      .from("deleted_messages")
-      .select("message_id")
-      .in(
-        "message_id",
-        (messages || []).map((m) => m.id),
+          return {
+            ...conv,
+            otherUser,
+            lastMessage: lastMsg,
+            unreadCount: unreadData || 0,
+          };
+        })
       );
 
-    const deletedSet = new Set((deletedIds || []).map((d) => d.message_id));
-    return (messages || []).filter((m) => !deletedSet.has(m.id));
+      conversationState.initConversations(enriched);
+      return enriched;
+    } catch (error) {
+      console.error("❌ Load conversations error:", error);
+      return [];
+    }
   }
 
-  // ─── SEND MESSAGE (SPEED-FIRST) ─────────────────────────────────────────────
+  async createConversation(user1Id, user2Id) {
+    try {
+      const { data: existing } = await supabase
+        .from("conversations")
+        .select(`
+          *,
+          user1:profiles!conversations_user1_id_fkey(*),
+          user2:profiles!conversations_user2_id_fkey(*)
+        `)
+        .or(
+          `and(user1_id.eq.${user1Id},user2_id.eq.${user2Id}),and(user1_id.eq.${user2Id},user2_id.eq.${user1Id})`
+        )
+        .maybeSingle();
 
-  /**
-   * Sends a message. Returns an optimistic local message object IMMEDIATELY,
-   * then persists to DB in background. The realtime subscription will deliver
-   * the server-confirmed version with the real ID.
-   *
-   * The returned object has a special `_optimistic: true` flag so the UI can
-   * distinguish it and replace it when the real one arrives.
-   */
-  async sendMessage(conversationId, senderId, content, senderProfile = null) {
-    if (!conversationId || !senderId || !content?.trim()) {
-      throw new Error("All fields required");
+      if (existing) return existing;
+
+      const { data: newConv, error } = await supabase
+        .from("conversations")
+        .insert({ user1_id: user1Id, user2_id: user2Id })
+        .select(`
+          *,
+          user1:profiles!conversations_user1_id_fkey(*),
+          user2:profiles!conversations_user2_id_fkey(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      return newConv;
+    } catch (error) {
+      console.error("❌ Create conversation error:", error);
+      throw error;
     }
+  }
 
-    const trimmed = content.trim();
-    const now = new Date();
-    const optimisticId = `opt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  async loadMessages(conversationId) {
+    try {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
 
-    // Build optimistic message — returned INSTANTLY
+      if (error) throw error;
+
+      conversationState.initMessages(conversationId, data || []);
+      return data || [];
+    } catch (error) {
+      console.error("❌ Load messages error:", error);
+      return [];
+    }
+  }
+
+  async sendMessage(conversationId, senderId, content) {
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    
+    // 1️⃣ OPTIMISTIC UI INJECTION (INSTANT)
     const optimisticMessage = {
-      id: optimisticId,
+      id: tempId,
+      _tempId: tempId,
+      _optimistic: true,
       conversation_id: conversationId,
       sender_id: senderId,
-      content: trimmed,
+      content: content.trim(),
+      created_at: new Date().toISOString(),
       read: false,
       delivered: false,
-      edited_at: null,
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-      media_url: null,
-      media_type: null,
-      sender: senderProfile
-        ? {
-            id: senderId,
-            full_name: senderProfile.name || senderProfile.fullName || "You",
-            username: senderProfile.username || "",
-            avatar_id:
-              senderProfile.avatarId || senderProfile.avatar_id || null,
-            avatar_metadata:
-              senderProfile.avatarMetadata ||
-              senderProfile.avatar_metadata ||
-              {},
-            verified: senderProfile.verified || false,
-          }
-        : {
-            id: senderId,
-            full_name: "You",
-            username: "",
-            avatar_id: null,
-            avatar_metadata: {},
-            verified: false,
-          },
-      _optimistic: true,
     };
 
-    // Fire DB insert in background — do NOT await before returning
-    this._persistMessage(
-      conversationId,
-      senderId,
-      trimmed,
-      now.toISOString(),
-      optimisticId,
-    );
+    // Add to state INSTANTLY
+    conversationState.addMessage(conversationId, optimisticMessage);
+    this.pendingMessages.set(tempId, optimisticMessage);
 
-    return optimisticMessage;
-  }
+    console.log("🚀 [SEND] Optimistic message added:", tempId);
 
-  async _persistMessage(
-    conversationId,
-    senderId,
-    content,
-    timestamp,
-    optimisticId,
-  ) {
+    // 2️⃣ REALTIME BROADCAST (INSTANT)
+    const channel = this.conversationChannels.get(`conversation:${conversationId}`);
+    if (channel) {
+      channel.send({
+        type: "broadcast",
+        event: "new_message",
+        payload: {
+          tempId,
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: content.trim(),
+          created_at: optimisticMessage.created_at,
+        },
+      });
+      console.log("📡 [SEND] Broadcast sent to channel");
+    }
+
     try {
-      const { data: message } = await supabase
+      // 3️⃣ DATABASE PERSISTENCE (ASYNC)
+      const { data, error } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           sender_id: senderId,
-          content,
-          read: false,
-          delivered: true, // mark delivered immediately for sender's own view
-          created_at: timestamp,
+          content: content.trim(),
+          delivered: true,
         })
-        .select(
-          `*,
-          sender:profiles!messages_sender_id_fkey(id, full_name, username, avatar_id, avatar_metadata, verified)`,
-        )
+        .select()
         .single();
 
-      // Update conversation timestamp
-      await supabase
-        .from("conversations")
-        .update({ last_message_at: timestamp })
-        .eq("id", conversationId);
+      if (error) throw error;
 
-      // The realtime subscription will fire and the UI will replace the optimistic message
-      // with this confirmed one. We tag it so the UI knows the optimistic ID to swap out.
-      if (message) {
-        message._replacesOptimistic = optimisticId;
+      console.log("✅ [SEND] DB insert successful:", data.id);
+
+      // Replace optimistic with real message
+      const currentMessages = conversationState.getMessages(conversationId);
+      const updated = currentMessages.map((m) =>
+        m._tempId === tempId ? { ...data, _replaced: true } : m
+      );
+
+      conversationState.state.messagesByConversation.set(conversationId, updated);
+      conversationState.state.messageStatusById.set(data.id, "delivered");
+      conversationState.emit();
+
+      this.pendingMessages.delete(tempId);
+
+      // Update conversation timestamp
+      supabase
+        .from("conversations")
+        .update({ last_message_at: data.created_at })
+        .eq("id", conversationId)
+        .then();
+
+      // Broadcast the real message ID
+      if (channel) {
+        channel.send({
+          type: "broadcast",
+          event: "message_confirmed",
+          payload: {
+            tempId,
+            realId: data.id,
+            created_at: data.created_at,
+          },
+        });
       }
-    } catch (e) {
-      console.error("Message persist failed:", e);
-      // The optimistic message stays in UI; you could add error state here
+
+      return data;
+    } catch (error) {
+      console.error("❌ [SEND] DB insert failed:", error);
+      
+      // Mark as failed
+      const currentMessages = conversationState.getMessages(conversationId);
+      const updated = currentMessages.map((m) =>
+        m._tempId === tempId ? { ...m, _failed: true } : m
+      );
+      conversationState.state.messagesByConversation.set(conversationId, updated);
+      conversationState.emit();
+
+      this.pendingMessages.delete(tempId);
+      throw error;
     }
   }
 
-  // ─── READ / EDIT / DELETE ────────────────────────────────────────────────────
+  async markRead(conversationId, userId) {
+    try {
+      // Optimistically clear unread (INSTANT)
+      conversationState.clearUnread(conversationId);
 
-  async markAsRead(conversationId, userId) {
-    if (!conversationId || !userId) return false;
-    const { error } = await supabase
-      .from("messages")
-      .update({ read: true })
-      .eq("conversation_id", conversationId)
-      .neq("sender_id", userId)
-      .eq("read", false);
-    return !error;
+      // Update DB (async)
+      const { error } = await supabase.rpc("mark_conversation_read", {
+        p_conversation_id: conversationId,
+        p_user_id: userId,
+      });
+
+      if (error) throw error;
+
+      // Broadcast read receipt
+      const channel = this.conversationChannels.get(`conversation:${conversationId}`);
+      if (channel) {
+        channel.send({
+          type: "broadcast",
+          event: "message_read",
+          payload: {
+            conversation_id: conversationId,
+            user_id: userId,
+            read_at: new Date().toISOString(),
+          },
+        });
+      }
+
+      console.log("✅ [READ] Marked conversation as read");
+    } catch (error) {
+      console.error("❌ [READ] Mark read error:", error);
+    }
   }
 
-  async editMessage(messageId, newContent, senderId) {
-    if (!newContent?.trim()) throw new Error("Content cannot be empty");
-    const { data, error } = await supabase
-      .from("messages")
-      .update({
-        content: newContent.trim(),
-        edited_at: new Date().toISOString(),
+  // REALTIME CHANNEL MANAGEMENT
+  subscribeToConversation(conversationId, callbacks = {}) {
+    const channelKey = `conversation:${conversationId}`;
+    
+    if (this.conversationChannels.has(channelKey)) {
+      console.log("⚠️ Already subscribed to", channelKey);
+      return () => {};
+    }
+
+    console.log("🔌 [SUBSCRIBE] Joining channel:", channelKey);
+
+    const channel = supabase
+      .channel(channelKey, {
+        config: {
+          broadcast: { self: true }, // Important: see own messages for confirmation
+        },
       })
-      .eq("id", messageId)
-      .eq("sender_id", senderId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+      // ✅ NEW MESSAGE BROADCAST (PRIMARY MESSAGE DELIVERY)
+      .on("broadcast", { event: "new_message" }, ({ payload }) => {
+        console.log("📨 [RECEIVE] new_message broadcast:", payload);
+
+        // Skip if this is our own optimistic message
+        if (payload.sender_id === this.userId && this.pendingMessages.has(payload.tempId)) {
+          console.log("⏭️ Skipping own optimistic message");
+          return;
+        }
+
+        const message = {
+          id: payload.tempId || `temp_${Date.now()}`,
+          conversation_id: payload.conversation_id,
+          sender_id: payload.sender_id,
+          content: payload.content,
+          created_at: payload.created_at,
+          delivered: true,
+          read: false,
+        };
+
+        // Add to state INSTANTLY
+        conversationState.addMessage(conversationId, message);
+
+        // Increment unread if not active
+        if (!conversationState.isActive(conversationId) && payload.sender_id !== this.userId) {
+          conversationState.incrementUnread(conversationId, payload.sender_id);
+        }
+
+        callbacks.onMessage?.(message);
+      })
+      // ✅ MESSAGE CONFIRMATION (TEMP ID → REAL ID)
+      .on("broadcast", { event: "message_confirmed" }, ({ payload }) => {
+        console.log("✅ [CONFIRM] Message confirmed:", payload);
+
+        const currentMessages = conversationState.getMessages(conversationId);
+        const updated = currentMessages.map((m) =>
+          m.id === payload.tempId || m._tempId === payload.tempId
+            ? { ...m, id: payload.realId, _tempId: undefined, _optimistic: false }
+            : m
+        );
+
+        conversationState.state.messagesByConversation.set(conversationId, updated);
+        conversationState.emit();
+      })
+      // ✅ READ RECEIPTS
+      .on("broadcast", { event: "message_read" }, ({ payload }) => {
+        console.log("👁️ [READ] Read receipt received:", payload);
+
+        if (payload.user_id !== this.userId) {
+          conversationState.markAllRead(conversationId);
+          callbacks.onRead?.(payload.user_id);
+        }
+      })
+      // ✅ TYPING INDICATORS
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if (payload.userId !== this.userId) {
+          callbacks.onTyping?.(payload.userId, payload.isTyping, payload.userName);
+        }
+      })
+      .subscribe((status) => {
+        console.log(`🔌 [SUBSCRIBE] Channel ${channelKey} status:`, status);
+      });
+
+    this.conversationChannels.set(channelKey, channel);
+
+    return () => {
+      console.log("🔌 [UNSUBSCRIBE] Leaving channel:", channelKey);
+      supabase.removeChannel(channel);
+      this.conversationChannels.delete(channelKey);
+    };
   }
 
-  async deleteMessage(messageId, userId) {
-    const { error } = await supabase
-      .from("deleted_messages")
-      .insert({ message_id: messageId, user_id: userId });
-    if (error && error.code !== "23505") throw error;
-    return true;
-  }
+  subscribeToConversationList() {
+    if (this.listChannel) {
+      console.log("⚠️ Already subscribed to list");
+      return () => {};
+    }
 
-  // ─── UNREAD COUNT ───────────────────────────────────────────────────────────
+    console.log("🔌 [LIST] Subscribing to conversation list");
 
-  async getTotalUnreadCount(userId) {
-    if (!userId) return 0;
-    const { data: conversations } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
-
-    if (!conversations?.length) return 0;
-
-    const { count } = await supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .in(
-        "conversation_id",
-        conversations.map((c) => c.id),
-      )
-      .eq("read", false)
-      .neq("sender_id", userId);
-
-    return count || 0;
-  }
-
-  // ─── REALTIME SUBSCRIPTIONS ─────────────────────────────────────────────────
-
-  /**
-   * Subscribe to messages in a specific conversation.
-   * Callback: { type: 'INSERT'|'UPDATE'|'DELETE', message?, messageId? }
-   * For INSERT: message includes _replacesOptimistic if it was from sendMessage()
-   */
-  subscribeToMessages(conversationId, callback) {
-    const channel = supabase
-      .channel(`dm-messages:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
+    this.listChannel = supabase
+      .channel(`conversation_list:${this.userId}`, {
+        config: {
+          broadcast: { self: false },
         },
-        async (payload) => {
-          if (
-            payload.eventType === "INSERT" ||
-            payload.eventType === "UPDATE"
-          ) {
-            const { data } = await supabase
-              .from("messages")
-              .select(
-                `*,
-                sender:profiles!messages_sender_id_fkey(id, full_name, username, avatar_id, avatar_metadata, verified)`,
-              )
-              .eq("id", payload.new.id)
-              .single();
-
-            if (data) {
-              callback({ type: payload.eventType, message: data });
-            }
-          } else if (payload.eventType === "DELETE") {
-            callback({ type: "DELETE", messageId: payload.old.id });
-          }
-        },
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }
-
-  /**
-   * Subscribe to any message activity across all of a user's conversations.
-   * Used by headers to update unread badge.
-   */
-  subscribeToConversations(userId, callback) {
-    const channel = supabase
-      .channel(`dm-conv-activity:${userId}`)
+      })
+      // Listen to DB changes for reconciliation only
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         async (payload) => {
-          if (!payload.new?.conversation_id) return;
-          // Check if this conversation belongs to the user
+          const msg = payload.new;
+          console.log("🗄️ [LIST] DB insert detected:", msg.id);
+
+          // Check if this message is for a conversation we care about
           const { data: conv } = await supabase
             .from("conversations")
-            .select("id")
-            .eq("id", payload.new.conversation_id)
-            .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+            .select("id, user1_id, user2_id")
+            .eq("id", msg.conversation_id)
             .maybeSingle();
 
-          if (conv) callback({ type: "NEW_MESSAGE", conversationId: conv.id });
-        },
+          if (!conv || (conv.user1_id !== this.userId && conv.user2_id !== this.userId)) {
+            return;
+          }
+
+          // Update conversation list metadata
+          conversationState.updateConversation(msg.conversation_id, {
+            lastMessage: msg,
+            last_message_at: msg.created_at,
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "message_reads" },
+        async (payload) => {
+          const { message_id, user_id } = payload.new;
+
+          if (user_id === this.userId) {
+            // Get conversation for this message
+            const { data: message } = await supabase
+              .from("messages")
+              .select("conversation_id")
+              .eq("id", message_id)
+              .maybeSingle();
+
+            if (message) {
+              // Recalculate unread count from DB
+              const { data: unreadCount } = await supabase.rpc("get_conversation_unread_count", {
+                p_conversation_id: message.conversation_id,
+                p_user_id: this.userId,
+              });
+
+              conversationState.updateConversation(message.conversation_id, {
+                unreadCount: unreadCount || 0,
+              });
+            }
+          }
+        }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      if (this.listChannel) {
+        supabase.removeChannel(this.listChannel);
+        this.listChannel = null;
+      }
+    };
   }
 
-  clearCache() {
-    this.conversationCache.clear();
+  // TYPING INDICATOR
+  sendTyping(conversationId, isTyping, userName) {
+    const channel = this.conversationChannels.get(`conversation:${conversationId}`);
+    if (channel) {
+      channel.send({
+        type: "broadcast",
+        event: "typing",
+        payload: {
+          conversationId,
+          userId: this.userId,
+          isTyping,
+          userName,
+        },
+      });
+    }
+  }
+
+  subscribeTyping(conversationId, callback) {
+    // Typing is handled by conversation channel subscription
+    // This method exists for backward compatibility
+    return () => {};
+  }
+
+  cleanup() {
+    console.log("🧹 Cleaning up all channels");
+    
+    // Unsubscribe from all conversation channels
+    this.conversationChannels.forEach((channel) => {
+      supabase.removeChannel(channel);
+    });
+    this.conversationChannels.clear();
+
+    // Unsubscribe from list channel
+    if (this.listChannel) {
+      supabase.removeChannel(this.listChannel);
+      this.listChannel = null;
+    }
+
+    this.pendingMessages.clear();
   }
 }
 

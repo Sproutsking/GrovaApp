@@ -1,1080 +1,382 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  ArrowLeft,
-  MoreVertical,
-  Edit2,
-  Trash2,
-  Check,
-  CheckCheck,
-  Palette,
-  AlertCircle,
-  Ban,
-  Users,
-} from "lucide-react";
+// components/Messages/ChatView.jsx - REALTIME-FIRST PERFECTION
+import React, { useState, useEffect, useRef } from "react";
+import { ArrowLeft, MoreVertical, Palette, ChevronDown } from "lucide-react";
 import dmMessageService from "../../services/messages/dmMessageService";
 import onlineStatusService from "../../services/messages/onlineStatusService";
+import conversationState from "../../services/messages/ConversationStateManager";
+import backgroundService from "../../services/messages/BackgroundService";
 import MessageInput from "./MessageInput";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
-const CHAT_BACKGROUNDS = [
-  "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)",
-  "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)",
-  "linear-gradient(135deg, #0f0f0f 0%, #1a2a1a 100%)",
-];
-
 const ChatView = ({ conversation, currentUser, onBack }) => {
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [otherOnline, setOtherOnline] = useState(false);
-  const [otherTyping, setOtherTyping] = useState(false);
-  const [contextMenu, setContextMenu] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [editText, setEditText] = useState("");
-  const [showActionMenu, setShowActionMenu] = useState(false);
-  const [selectedBackground, setSelectedBackground] = useState(0);
-  const [showDeleteOptions, setShowDeleteOptions] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState({ online: false, lastSeenText: "Offline" });
+  const [typing, setTyping] = useState({ isTyping: false, userName: "" });
+  const [showMenu, setShowMenu] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [showJump, setShowJump] = useState(false);
 
-  const scrollRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const unsubRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
-  const initialLoadRef = useRef(false);
+  const endRef = useRef(null);
+  const containerRef = useRef(null);
+  const typingTimeout = useRef(null);
+  const isAtBottom = useRef(true);
+  const unsubscribeChannel = useRef(null);
 
-  const otherUser = conversation.otherUser;
   const conversationId = conversation.id;
+  const otherUser = conversation.otherUser;
 
-  // ─── LOAD MESSAGES ──────────────────────────────────────────────────────
+  const backgrounds = backgroundService.getBackgrounds();
+  const selectedBg = backgroundService.getConversationBackground(conversationId);
+  const bg = backgrounds[selectedBg];
+  const bgStyle = bg?.image
+    ? { backgroundImage: `url(${bg.image})`, backgroundSize: "cover" }
+    : { background: bg?.value || "#000" };
 
+  const scrollToBottom = (behavior = "smooth") => {
+    endRef.current?.scrollIntoView({ behavior });
+  };
+
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 60;
+    isAtBottom.current = atBottom;
+    setShowJump(!atBottom && messages.length >= 2);
+  };
+
+  // Set conversation as active
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      // Only show loading on initial load
-      if (!initialLoadRef.current) {
-        setLoading(true);
-        initialLoadRef.current = true;
-      }
-
-      try {
-        // Try to get cached messages first
-        const msgs = await dmMessageService.getMessages(conversationId, false);
-        if (!cancelled) {
-          setMessages(msgs);
-        }
-      } catch (e) {
-        console.error("Failed to load messages:", e);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-
-      // Mark as read
-      dmMessageService.markAsRead(conversationId, currentUser.id);
-    };
-
-    load();
+    console.log("🎯 [CHAT] Setting conversation active:", conversationId);
+    conversationState.setActive(conversationId);
+    dmMessageService.markRead(conversationId, currentUser.id);
 
     return () => {
-      cancelled = true;
+      console.log("🎯 [CHAT] Clearing conversation active");
+      conversationState.clearActive();
     };
   }, [conversationId, currentUser.id]);
 
-  // ─── REALTIME SUBSCRIPTION ──────────────────────────────────────────────
-
+  // Load initial messages
   useEffect(() => {
-    const unsub = dmMessageService.subscribeToMessages(
-      conversationId,
-      (event) => {
-        if (event.type === "INSERT" && event.message) {
-          setMessages((prev) => {
-            const existsById = prev.some((m) => m.id === event.message.id);
-            if (existsById) {
-              return prev.map((m) =>
-                m.id === event.message.id ? event.message : m,
-              );
-            }
+    setLoading(true);
 
-            const optimisticIndex = prev.findIndex(
-              (m) =>
-                m._optimistic &&
-                m.sender_id === event.message.sender_id &&
-                m.content === event.message.content,
-            );
-            if (optimisticIndex !== -1) {
-              const next = [...prev];
-              next[optimisticIndex] = event.message;
-              return next;
-            }
+    dmMessageService.loadMessages(conversationId).then((msgs) => {
+      setMessages(msgs);
+      setLoading(false);
+      setTimeout(() => scrollToBottom("auto"), 50);
+    });
+  }, [conversationId]);
 
-            return [...prev, event.message];
-          });
+  // ✅ SUBSCRIBE TO REALTIME CONVERSATION CHANNEL
+  useEffect(() => {
+    console.log("🔌 [CHAT] Subscribing to conversation channel");
 
-          if (event.message.sender_id !== currentUser.id) {
-            dmMessageService.markAsRead(conversationId, currentUser.id);
-          }
-        } else if (event.type === "UPDATE" && event.message) {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === event.message.id ? event.message : m)),
-          );
-        } else if (event.type === "DELETE" && event.messageId) {
-          setMessages((prev) => prev.filter((m) => m.id !== event.messageId));
-        } else if (event.type === "TYPING" && event.userId !== currentUser.id) {
-          setOtherTyping(true);
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-          typingTimeoutRef.current = setTimeout(() => {
-            setOtherTyping(false);
-          }, 3000);
+    const unsubscribe = dmMessageService.subscribeToConversation(conversationId, {
+      onMessage: (message) => {
+        console.log("📨 [CHAT] Message received via broadcast");
+        
+        // Auto-scroll if at bottom
+        if (isAtBottom.current) {
+          setTimeout(scrollToBottom, 10);
         }
       },
-    );
-
-    unsubRef.current = unsub;
-    return () => {
-      if (unsubRef.current) unsubRef.current();
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    };
-  }, [conversationId, currentUser.id]);
-
-  // ─── ONLINE STATUS ──────────────────────────────────────────────────────
-
-  useEffect(() => {
-    onlineStatusService.fetchStatus(otherUser?.id).then((s) => {
-      setOtherOnline(s.online);
+      onTyping: (userId, isTyping, userName) => {
+        if (userId === otherUser?.id) {
+          setTyping({ isTyping, userName: userName || otherUser?.full_name || "User" });
+          
+          if (isTyping && isAtBottom.current) {
+            setTimeout(scrollToBottom, 100);
+          }
+        }
+      },
+      onRead: (userId) => {
+        console.log("👁️ [CHAT] Read receipt received");
+      },
     });
 
-    const unsub = onlineStatusService.subscribe((userId, status) => {
-      if (userId === otherUser?.id) {
-        setOtherOnline(status.online);
+    unsubscribeChannel.current = unsubscribe;
+
+    return () => {
+      if (unsubscribeChannel.current) {
+        unsubscribeChannel.current();
       }
+    };
+  }, [conversationId, otherUser?.id, otherUser?.full_name]);
+
+  // ✅ SUBSCRIBE TO STATE CHANGES (FOR UI UPDATES)
+  useEffect(() => {
+    const updateMessages = () => {
+      const msgs = conversationState.getMessages(conversationId);
+      console.log("🔄 [CHAT] State updated:", msgs.length, "messages");
+      setMessages([...msgs]); // Force new array reference
+    };
+
+    const unsub = conversationState.subscribe(updateMessages);
+    
+    // Initial load from state
+    updateMessages();
+
+    return unsub;
+  }, [conversationId]);
+
+  // Subscribe to online status
+  useEffect(() => {
+    onlineStatusService.fetchStatus(otherUser?.id).then(setStatus);
+    const unsub = onlineStatusService.subscribe((uid, st) => {
+      if (uid === otherUser?.id) setStatus(st);
     });
 
     return unsub;
   }, [otherUser?.id]);
 
-  // ─── AUTO SCROLL ────────────────────────────────────────────────────────
+  const handleTyping = () => {
+    dmMessageService.sendTyping(
+      conversationId,
+      true,
+      currentUser.fullName || currentUser.name
+    );
+    
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      dmMessageService.sendTyping(conversationId, false);
+    }, 2500);
+  };
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, otherTyping]);
+  const handleSend = async (text) => {
+    if (!text?.trim()) return;
+    
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    dmMessageService.sendTyping(conversationId, false);
 
-  // ─── HANDLERS ───────────────────────────────────────────────────────────
+    console.log("🚀 [CHAT] Sending message");
 
-  const handleSend = useCallback(
-    (text) => {
-      if (!text?.trim()) return;
-
-      const senderProfile = {
-        id: currentUser.id,
-        name: currentUser.name || currentUser.fullName,
-        username: currentUser.username,
-        avatarId: currentUser.avatarId || currentUser.avatar_id,
-        avatar: currentUser.avatar,
-        verified: currentUser.verified || false,
-      };
-
-      const optimistic = dmMessageService.sendMessage(
-        conversationId,
-        currentUser.id,
-        text,
-        senderProfile,
-      );
-
-      optimistic.then((msg) => {
-        setMessages((prev) => [...prev, msg]);
-      });
-    },
-    [conversationId, currentUser],
-  );
-
-  const handleEdit = async () => {
-    if (!contextMenu || !editText.trim()) return;
     try {
-      await dmMessageService.editMessage(contextMenu, editText, currentUser.id);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === contextMenu
-            ? {
-                ...m,
-                content: editText.trim(),
-                edited_at: new Date().toISOString(),
-              }
-            : m,
-        ),
-      );
-    } catch (e) {
-      console.error("Edit failed:", e);
+      await dmMessageService.sendMessage(conversationId, currentUser.id, text);
+      
+      // Auto-scroll after send
+      setTimeout(scrollToBottom, 10);
+    } catch (error) {
+      console.error("❌ [CHAT] Send failed:", error);
     }
-    setEditingId(null);
-    setContextMenu(null);
-    setEditText("");
   };
 
-  const handleDelete = async (messageId, deleteForAll = false) => {
-    try {
-      await dmMessageService.deleteMessage(
-        messageId,
-        currentUser.id,
-        deleteForAll,
-      );
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    } catch (e) {
-      console.error("Delete failed:", e);
+  const getStatus = (msg) => {
+    if (msg._optimistic || msg._failed === undefined) {
+      return <span className="tick gray">✓</span>;
     }
-    setContextMenu(null);
-    setShowDeleteOptions(null);
-  };
-
-  const startEdit = (msg) => {
-    setEditingId(msg.id);
-    setEditText(msg.content);
-    setContextMenu(null);
-  };
-
-  // ─── FORMATTING ─────────────────────────────────────────────────────────
-
-  const formatTime = (dateStr) => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    let hours = d.getHours();
-    const mins = d.getMinutes().toString().padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-    return `${hours}:${mins} ${ampm}`;
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString()) return "Today";
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const getReadIcon = (msg) => {
-    if (msg.sender_id !== currentUser.id) return null;
-    if (msg._optimistic) return <Check size={12} />;
-    if (msg.read) return <CheckCheck size={12} className="read-icon read" />;
-    if (msg.delivered)
-      return <CheckCheck size={12} className="read-icon delivered" />;
-    return <Check size={12} className="read-icon pending" />;
-  };
-
-  // ─── MESSAGE GROUPING ───────────────────────────────────────────────────
-
-  const groupedMessages = [];
-  let lastDate = null;
-
-  messages.forEach((msg, idx) => {
-    const msgDate = formatDate(msg.created_at);
-    if (msgDate !== lastDate) {
-      groupedMessages.push({ type: "date", label: msgDate });
-      lastDate = msgDate;
+    if (msg._failed) {
+      return <span className="tick red">✗</span>;
     }
+    const st = conversationState.getMessageStatus(msg.id);
+    if (msg.read || st === "read") return <span className="tick green">✓✓</span>;
+    if (msg.delivered || st === "delivered") return <span className="tick gray">✓✓</span>;
+    return <span className="tick gray">✓</span>;
+  };
 
-    const isMe = msg.sender_id === currentUser.id;
-    const prev = messages[idx - 1];
-    const showAvatar = !isMe && (!prev || prev.sender_id !== msg.sender_id);
+  const formatTime = (d) => {
+    if (!d) return "";
+    const date = new Date(d);
+    const h = date.getHours() % 12 || 12;
+    const m = date.getMinutes().toString().padStart(2, "0");
+    return `${h}:${m} ${date.getHours() >= 12 ? "PM" : "AM"}`;
+  };
 
-    groupedMessages.push({ type: "message", msg, isMe, showAvatar });
-  });
-
-  // ─── AVATAR HELPERS ─────────────────────────────────────────────────────
-
-  const getAvatarUrl = (user) => {
+  const getAvatar = (user) => {
     if (!user) return null;
-
-    if (
-      user.avatar &&
-      typeof user.avatar === "string" &&
-      user.avatar.startsWith("http")
-    ) {
-      return user.avatar;
-    }
-
-    if (user.avatar_id) {
-      return mediaUrlService.getAvatarUrl(user.avatar_id, 200);
-    }
-
+    if (user.avatar_id) return mediaUrlService.getAvatarUrl(user.avatar_id, 200);
     return null;
   };
 
-  const getAvatarContent = (user) => {
-    if (!user) return "U";
-
-    const avatarUrl = getAvatarUrl(user);
-
-    if (avatarUrl) {
-      return (
-        <img
-          src={avatarUrl}
-          alt={user.full_name || "User"}
-          loading="eager"
-          onError={(e) => {
-            const parent = e.target.parentElement;
-            if (parent) {
-              e.target.style.display = "none";
-              const span = document.createElement("span");
-              span.textContent = (user.full_name || "U")
-                .charAt(0)
-                .toUpperCase();
-              span.className = "avatar-fallback";
-              parent.appendChild(span);
-            }
-          }}
-        />
-      );
-    }
-
-    return (user.full_name || "U").charAt(0).toUpperCase();
-  };
+  const avatarUrl = getAvatar(otherUser);
 
   return (
-    <div className="chat-view-root">
-      <div className="chat-header">
-        <button className="chat-back-btn" onClick={onBack} aria-label="Back">
+    <div className="chat-root">
+      <div className="chat-head">
+        <button className="chat-back" onClick={onBack}>
           <ArrowLeft size={20} />
         </button>
 
-        <div className="chat-header-info">
-          <div className="chat-avatar-sm">{getAvatarContent(otherUser)}</div>
-          <div className="chat-header-text">
-            <span className="chat-header-name">
-              {otherUser?.full_name || "Unknown"}
-            </span>
-            <span
-              className={`chat-header-status ${otherOnline ? "online" : "offline"}`}
-            >
-              {otherTyping ? "typing..." : otherOnline ? "Online" : "Offline"}
-            </span>
+        <div className="chat-head-info">
+          <div className="chat-head-avatar">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={otherUser?.full_name} />
+            ) : (
+              (otherUser?.full_name || "U").charAt(0).toUpperCase()
+            )}
+          </div>
+          <div className="chat-head-text">
+            <div className="chat-head-name">{otherUser?.full_name || "Unknown"}</div>
+            <div className={`chat-head-status ${status.online ? "online" : ""}`}>
+              {typing.isTyping ? "typing..." : status.lastSeenText}
+            </div>
           </div>
         </div>
 
-        <button
-          className="chat-action-btn"
-          onClick={() => setShowActionMenu(!showActionMenu)}
-          aria-label="Chat actions"
-        >
+        <button className="chat-more" onClick={() => setShowMenu(!showMenu)}>
           <MoreVertical size={20} />
         </button>
 
-        {showActionMenu && (
+        {showMenu && (
           <>
-            <div
-              className="chat-action-overlay"
-              onClick={() => setShowActionMenu(false)}
-            />
-            <div className="chat-action-menu">
-              <div className="chat-action-section">
-                <span className="chat-action-label">Chat Background</span>
-                <div className="chat-bg-options">
-                  {["Dark", "Blue", "Green"].map((name, idx) => (
-                    <button
-                      key={idx}
-                      className={`chat-bg-btn ${selectedBackground === idx ? "active" : ""}`}
-                      onClick={() => setSelectedBackground(idx)}
-                    >
-                      <Palette size={14} />
-                      <span>{name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button className="chat-action-item">
-                <Users size={16} />
-                <span>Start Group Chat</span>
+            <div className="chat-overlay" onClick={() => setShowMenu(false)} />
+            <div className="chat-menu">
+              <button onClick={() => { setShowBgPicker(true); setShowMenu(false); }}>
+                <Palette size={16} /> Change Background
               </button>
-              <button className="chat-action-item danger">
-                <AlertCircle size={16} />
-                <span>Report User</span>
-              </button>
-              <button className="chat-action-item danger">
-                <Ban size={16} />
-                <span>Block User</span>
-              </button>
+            </div>
+          </>
+        )}
+
+        {showBgPicker && (
+          <>
+            <div className="chat-overlay" onClick={() => setShowBgPicker(false)} />
+            <div className="bg-picker">
+              {backgrounds.map((b, i) => (
+                <button
+                  key={i}
+                  className={`bg-opt ${selectedBg === i ? "active" : ""}`}
+                  onClick={() => {
+                    backgroundService.setConversationBackground(conversationId, i);
+                    setShowBgPicker(false);
+                    window.location.reload();
+                  }}
+                >
+                  {b.image ? (
+                    <img src={b.image} alt={b.name} />
+                  ) : (
+                    <div className="bg-prev" style={{ background: b.value }} />
+                  )}
+                  <span>{b.name}</span>
+                </button>
+              ))}
             </div>
           </>
         )}
       </div>
 
-      <div
-        className="chat-messages"
-        ref={scrollRef}
-        style={{
-          background: CHAT_BACKGROUNDS[selectedBackground],
-        }}
-      >
-        <div className="chat-messages-overlay" />
+      <div className="chat-msgs" style={bgStyle} ref={containerRef} onScroll={handleScroll}>
+        <div className="chat-msgs-overlay" />
+        <div className="chat-msgs-content">
+          {loading && (
+            <div className="chat-loading">
+              <div className="chat-spinner" />
+            </div>
+          )}
 
-        {loading && messages.length === 0 && (
-          <div className="chat-loading">
-            <div className="chat-spinner"></div>
-          </div>
-        )}
+          {!loading &&
+            messages.map((msg, idx) => {
+              const isMe = msg.sender_id === currentUser.id;
+              const prev = messages[idx - 1];
+              const showAvatar = !isMe && (!prev || prev.sender_id !== msg.sender_id);
 
-        {!loading &&
-          groupedMessages.map((item, idx) => {
-            if (item.type === "date") {
               return (
-                <div key={`date-${idx}`} className="chat-date-divider">
-                  <span>{item.label}</span>
-                </div>
-              );
-            }
-
-            const { msg, isMe, showAvatar } = item;
-
-            if (editingId === msg.id) {
-              return (
-                <div key={msg.id} className="chat-edit-row">
-                  <textarea
-                    className="chat-edit-textarea"
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleEdit();
-                      }
-                      if (e.key === "Escape") {
-                        setEditingId(null);
-                        setEditText("");
-                      }
-                    }}
-                  />
-                  <div className="chat-edit-actions">
-                    <button
-                      className="chat-edit-cancel"
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditText("");
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button className="chat-edit-save" onClick={handleEdit}>
-                      Save
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={msg.id || `opt-${idx}`}
-                className={`chat-msg-row ${isMe ? "me" : "them"}`}
-              >
-                {showAvatar && (
-                  <div className="chat-msg-avatar">
-                    {getAvatarContent(otherUser)}
-                  </div>
-                )}
-                {!showAvatar && !isMe && (
-                  <div className="chat-msg-avatar-spacer" />
-                )}
-
-                <div
-                  className={`chat-bubble ${isMe ? "me" : "them"}`}
-                  onContextMenu={(e) => {
-                    if (isMe) {
-                      e.preventDefault();
-                      setContextMenu(msg.id);
-                    }
-                  }}
+                <div 
+                  key={msg.id || msg._tempId} 
+                  className={`chat-msg ${isMe ? "me" : "them"} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
                 >
-                  <span className="chat-bubble-text">{msg.content}</span>
-                  <div className="chat-bubble-meta">
-                    <span className="chat-bubble-time">
-                      {formatTime(msg.created_at)}
-                    </span>
-                    {msg.edited_at && (
-                      <span className="chat-bubble-edited">(edited)</span>
-                    )}
-                    {isMe && (
-                      <span className="chat-bubble-receipt">
-                        {getReadIcon(msg)}
-                      </span>
-                    )}
+                  {showAvatar && (
+                    <div className="chat-avatar">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={otherUser?.full_name} />
+                      ) : (
+                        (otherUser?.full_name || "U").charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  )}
+                  {!showAvatar && !isMe && <div className="chat-avatar-spacer" />}
+
+                  <div className={`chat-bubble ${isMe ? "me" : "them"}`}>
+                    <div className="chat-content">{msg.content}</div>
+                    <div className="chat-meta">
+                      <span className="chat-time">{formatTime(msg.created_at)}</span>
+                      {isMe && <span className="chat-status">{getStatus(msg)}</span>}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
 
-                {contextMenu === msg.id && isMe && (
-                  <div className="chat-ctx-menu">
-                    <button
-                      className="chat-ctx-btn"
-                      onClick={() => startEdit(msg)}
-                    >
-                      <Edit2 size={14} />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      className="chat-ctx-btn danger"
-                      onClick={() => setShowDeleteOptions(msg.id)}
-                    >
-                      <Trash2 size={14} />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                )}
-
-                {showDeleteOptions === msg.id && (
-                  <div className="chat-delete-options">
-                    <button
-                      className="chat-delete-btn"
-                      onClick={() => handleDelete(msg.id, false)}
-                    >
-                      Delete for me
-                    </button>
-                    <button
-                      className="chat-delete-btn danger"
-                      onClick={() => handleDelete(msg.id, true)}
-                    >
-                      Delete for everyone
-                    </button>
-                    <button
-                      className="chat-delete-btn"
-                      onClick={() => setShowDeleteOptions(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+          {typing.isTyping && (
+            <div className="chat-msg them typing-indicator">
+              <div className="chat-avatar">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={otherUser?.full_name} />
+                ) : (
+                  (otherUser?.full_name || "U").charAt(0).toUpperCase()
                 )}
               </div>
-            );
-          })}
-
-        {otherTyping && (
-          <div className="chat-typing-indicator">
-            <div className="chat-msg-avatar">{getAvatarContent(otherUser)}</div>
-            <div className="typing-bubble">
-              <div className="typing-dot"></div>
-              <div className="typing-dot"></div>
-              <div className="typing-dot"></div>
+              <div className="chat-bubble them typing-bubble">
+                <div className="typing-dots">
+                  <span /><span /><span />
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div ref={messagesEndRef} />
+          <div ref={endRef} />
+        </div>
+
+        {showJump && (
+          <button className="jump-btn" onClick={() => scrollToBottom()}>
+            <ChevronDown size={18} />
+          </button>
+        )}
       </div>
 
-      {(contextMenu || showDeleteOptions) && (
-        <div
-          className="chat-ctx-overlay"
-          onClick={() => {
-            setContextMenu(null);
-            setShowDeleteOptions(null);
-          }}
-        />
-      )}
-
-      <MessageInput
-        onSend={handleSend}
-        conversationId={conversationId}
-        onTyping={() => {
-          dmMessageService.sendTypingIndicator?.(
-            conversationId,
-            currentUser.id,
-          );
-        }}
-      />
+      <MessageInput onSend={handleSend} onTyping={handleTyping} />
 
       <style>{`
-        .chat-view-root {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          background: #000;
-          position: relative;
-        }
-
-        .chat-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          background: rgba(0,0,0,0.95);
-          border-bottom: 1px solid rgba(132,204,22,0.12);
-          flex-shrink: 0;
-          position: relative;
-          z-index: 10;
-        }
-        
-        .chat-back-btn,
-        .chat-action-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
-          color: #84cc16;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s;
-          flex-shrink: 0;
-        }
-        .chat-back-btn:hover,
-        .chat-action-btn:hover { 
-          background: rgba(132,204,22,0.12); 
-        }
-
-        .chat-header-info {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex: 1;
-          min-width: 0;
-        }
-        
-        .chat-avatar-sm {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #1a1a1a, #222);
-          border: 2px solid rgba(132,204,22,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 16px;
-          font-weight: 700;
-          color: #84cc16;
-          flex-shrink: 0;
-          overflow: hidden;
-          position: relative;
-        }
-        
-        .chat-avatar-sm img,
-        .chat-msg-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          position: absolute;
-          top: 0;
-          left: 0;
-        }
-        
-        .avatar-fallback {
-          font-size: 16px;
-          font-weight: 700;
-          color: #84cc16;
-        }
-        
-        .chat-header-text {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-        }
-        .chat-header-name {
-          font-size: 15px;
-          font-weight: 700;
-          color: #fff;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .chat-header-status {
-          font-size: 12px;
-          font-weight: 600;
-        }
-        .chat-header-status.online { color: #22c55e; }
-        .chat-header-status.offline { color: #555; }
-
-        .chat-action-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 998;
-        }
-        
-        .chat-action-menu {
-          position: absolute;
-          top: 60px;
-          right: 16px;
-          background: #1a1a1a;
-          border: 1px solid rgba(132,204,22,0.25);
-          border-radius: 12px;
-          padding: 8px;
-          min-width: 220px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-          z-index: 999;
-        }
-        
-        .chat-action-section {
-          padding: 8px;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          margin-bottom: 8px;
-        }
-        
-        .chat-action-label {
-          font-size: 11px;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          display: block;
-          margin-bottom: 8px;
-        }
-        
-        .chat-bg-options {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        
-        .chat-bg-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 8px;
-          color: #888;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .chat-bg-btn:hover {
-          background: rgba(132,204,22,0.1);
-          border-color: rgba(132,204,22,0.3);
-          color: #84cc16;
-        }
-        .chat-bg-btn.active {
-          background: rgba(132,204,22,0.15);
-          border-color: rgba(132,204,22,0.4);
-          color: #84cc16;
-        }
-        
-        .chat-action-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          padding: 10px 12px;
-          background: transparent;
-          border: none;
-          border-radius: 8px;
-          color: #ccc;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.15s;
-          text-align: left;
-        }
-        .chat-action-item:hover {
-          background: rgba(255,255,255,0.08);
-        }
-        .chat-action-item.danger {
-          color: #ef4444;
-        }
-        .chat-action-item.danger:hover {
-          background: rgba(239,68,68,0.1);
-        }
-
-        .chat-messages {
-          flex: 1;
-          overflow-y: auto;
-          padding: 12px 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(132,204,22,0.2) transparent;
-          position: relative;
-        }
-        
-        .chat-messages-overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0,0,0,0.4);
-          pointer-events: none;
-        }
-        
-        .chat-messages > * {
-          position: relative;
-          z-index: 1;
-        }
-        
-        .chat-messages::-webkit-scrollbar { width: 4px; }
-        .chat-messages::-webkit-scrollbar-thumb { 
-          background: rgba(132,204,22,0.2); 
-          border-radius: 2px; 
-        }
-
-        .chat-loading {
-          display: flex;
-          justify-content: center;
-          padding: 30px 0;
-        }
-        .chat-spinner {
-          width: 24px;
-          height: 24px;
-          border: 3px solid rgba(132,204,22,0.2);
-          border-top-color: #84cc16;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-        }
+        .chat-root { display: flex; flex-direction: column; height: 100%; background: #000; }
+        .chat-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(0, 0, 0, 0.98); border-bottom: 1px solid rgba(132, 204, 22, 0.15); position: relative; }
+        .chat-back, .chat-more { width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); color: #84cc16; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .chat-head-info { display: flex; align-items: center; gap: 8px; flex: 1; }
+        .chat-head-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a, #222); border: 2px solid rgba(132, 204, 22, 0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #84cc16; overflow: hidden; }
+        .chat-head-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .chat-head-name { font-size: 14px; font-weight: 700; color: #fff; }
+        .chat-head-status { font-size: 11px; color: #555; transition: color 0.3s; }
+        .chat-head-status.online { color: #22c55e; }
+        .chat-overlay { position: fixed; inset: 0; z-index: 998; }
+        .chat-menu { position: absolute; top: 50px; right: 12px; background: #1a1a1a; border: 1px solid rgba(132, 204, 22, 0.25); border-radius: 10px; padding: 6px; z-index: 999; }
+        .chat-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; background: transparent; border: none; border-radius: 6px; color: #ccc; font-size: 13px; cursor: pointer; }
+        .bg-picker { position: absolute; top: 50px; right: 12px; background: #1a1a1a; border: 1px solid rgba(132, 204, 22, 0.25); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 999; max-height: 400px; overflow-y: auto; }
+        .bg-opt { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; color: #ccc; font-size: 13px; cursor: pointer; }
+        .bg-opt.active { background: rgba(132, 204, 22, 0.15); border-color: rgba(132, 204, 22, 0.4); color: #84cc16; }
+        .bg-opt img, .bg-prev { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; }
+        .chat-msgs { flex: 1; overflow-y: auto; position: relative; }
+        .chat-msgs-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.3); pointer-events: none; }
+        .chat-msgs-content { position: relative; z-index: 1; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+        .jump-btn { position: fixed; bottom: 80px; right: 20px; z-index: 5; width: 40px; height: 40px; border-radius: 50%; background: #1a1a1a; border: 1.5px solid rgba(132, 204, 22, 0.45); color: #84cc16; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .chat-loading { display: flex; justify-content: center; padding: 20px; }
+        .chat-spinner { width: 20px; height: 20px; border: 2px solid rgba(132, 204, 22, 0.2); border-top-color: #84cc16; border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        .chat-date-divider {
-          text-align: center;
-          padding: 12px 0 8px;
-        }
-        .chat-date-divider span {
-          font-size: 11px;
-          color: #84cc16;
-          font-weight: 600;
-          background: rgba(0,0,0,0.8);
-          padding: 4px 12px;
-          border-radius: 12px;
-          border: 1px solid rgba(132,204,22,0.2);
-        }
-
-        .chat-msg-row {
-          display: flex;
-          align-items: flex-end;
-          gap: 8px;
-          position: relative;
-        }
-        .chat-msg-row.me { flex-direction: row-reverse; }
-
-        .chat-msg-avatar {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #1a1a1a, #222);
-          border: 1px solid rgba(132,204,22,0.2);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          font-weight: 700;
-          color: #84cc16;
-          flex-shrink: 0;
-          overflow: hidden;
-          position: relative;
-        }
-        
-        .chat-msg-avatar-spacer {
-          width: 28px;
-          flex-shrink: 0;
-        }
-
-        .chat-bubble {
-          max-width: 70%;
-          padding: 10px 14px;
-          border-radius: 18px;
-          position: relative;
-          backdrop-filter: blur(10px);
-        }
-        .chat-bubble.them {
-          background: rgba(26,26,26,0.95);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-bottom-left-radius: 4px;
-        }
-        .chat-bubble.me {
-          background: linear-gradient(135deg, rgba(132,204,22,0.25), rgba(132,204,22,0.15));
-          border: 1px solid rgba(132,204,22,0.3);
-          border-bottom-right-radius: 4px;
-        }
-
-        .chat-bubble-text {
-          display: block;
-          font-size: 14px;
-          color: #fff;
-          line-height: 1.5;
-          word-break: break-word;
-        }
-
-        .chat-bubble-meta {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          margin-top: 4px;
-        }
-        .chat-bubble.me .chat-bubble-meta { justify-content: flex-end; }
-
-        .chat-bubble-time {
-          font-size: 10px;
-          color: #666;
-        }
-        .chat-bubble-edited {
-          font-size: 10px;
-          color: #555;
-          font-style: italic;
-        }
-        .chat-bubble-receipt {
-          display: flex;
-          align-items: center;
-        }
-        .read-icon { color: #84cc16; }
-        .read-icon.delivered { color: #555; }
-        .read-icon.pending { color: #444; }
-
-        .chat-typing-indicator {
-          display: flex;
-          align-items: flex-end;
-          gap: 8px;
-          animation: fadeIn 0.3s ease;
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .typing-bubble {
-          background: rgba(26,26,26,0.95);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 18px;
-          border-bottom-left-radius: 4px;
-          padding: 12px 16px;
-          display: flex;
-          gap: 4px;
-          backdrop-filter: blur(10px);
-        }
-        
-        .typing-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #84cc16;
-          animation: typingBounce 1.4s infinite;
-        }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        
-        @keyframes typingBounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-10px); }
-        }
-
-        .chat-ctx-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 999;
-        }
-        
-        .chat-ctx-menu {
-          position: absolute;
-          right: 0;
-          bottom: 28px;
-          background: #1a1a1a;
-          border: 1px solid rgba(132,204,22,0.25);
-          border-radius: 10px;
-          padding: 4px;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-          z-index: 1000;
-          min-width: 120px;
-        }
-        .chat-msg-row.me .chat-ctx-menu { right: 0; left: auto; }
-
-        .chat-ctx-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          width: 100%;
-          padding: 8px 12px;
-          background: transparent;
-          border: none;
-          border-radius: 6px;
-          color: #ccc;
-          font-size: 13px;
-          cursor: pointer;
-          transition: background 0.15s;
-          text-align: left;
-        }
-        .chat-ctx-btn:hover { background: rgba(255,255,255,0.08); }
-        .chat-ctx-btn.danger { color: #ef4444; }
-        .chat-ctx-btn.danger:hover { background: rgba(239,68,68,0.1); }
-
-        .chat-delete-options {
-          position: absolute;
-          right: 0;
-          bottom: 28px;
-          background: #1a1a1a;
-          border: 1px solid rgba(132,204,22,0.25);
-          border-radius: 10px;
-          padding: 8px;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-          z-index: 1000;
-          min-width: 180px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        
-        .chat-delete-btn {
-          padding: 10px 12px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 8px;
-          color: #ccc;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .chat-delete-btn:hover {
-          background: rgba(255,255,255,0.1);
-        }
-        .chat-delete-btn.danger {
-          color: #ef4444;
-          border-color: rgba(239,68,68,0.3);
-        }
-        .chat-delete-btn.danger:hover {
-          background: rgba(239,68,68,0.15);
-        }
-
-        .chat-edit-row {
-          padding: 8px 0;
-        }
-        .chat-edit-textarea {
-          width: 100%;
-          background: rgba(26,26,26,0.95);
-          border: 1px solid rgba(132,204,22,0.3);
-          border-radius: 8px;
-          padding: 10px 12px;
-          color: #fff;
-          font-size: 14px;
-          font-family: inherit;
-          resize: none;
-          outline: none;
-          min-height: 40px;
-          max-height: 100px;
-          box-sizing: border-box;
-          backdrop-filter: blur(10px);
-        }
-        .chat-edit-actions {
-          display: flex;
-          gap: 8px;
-          margin-top: 6px;
-          justify-content: flex-end;
-        }
-        .chat-edit-cancel, .chat-edit-save {
-          padding: 5px 14px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          border: none;
-        }
-        .chat-edit-cancel {
-          background: rgba(255,255,255,0.06);
-          color: #888;
-        }
-        .chat-edit-cancel:hover { background: rgba(255,255,255,0.1); }
-        .chat-edit-save {
-          background: linear-gradient(135deg, #84cc16, #65a30d);
-          color: #000;
-        }
-        .chat-edit-save:hover { filter: brightness(1.1); }
+        .chat-msg { display: flex; align-items: flex-end; gap: 6px; animation: slideIn 0.2s ease-out; }
+        .chat-msg.me { flex-direction: row-reverse; }
+        .chat-msg.optimistic { opacity: 0.7; }
+        .chat-msg.failed { opacity: 0.5; }
+        .chat-msg.typing-indicator { animation: fadeIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .chat-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a, #222); border: 1px solid rgba(132, 204, 22, 0.2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #84cc16; overflow: hidden; }
+        .chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .chat-avatar-spacer { width: 26px; }
+        .chat-bubble { max-width: 70%; padding: 6px 10px; border-radius: 14px; backdrop-filter: blur(10px); }
+        .chat-bubble.them { background: rgba(26, 26, 26, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-bottom-left-radius: 3px; }
+        .chat-bubble.me { background: linear-gradient(135deg, rgba(132, 204, 22, 0.25), rgba(132, 204, 22, 0.15)); border: 1px solid rgba(132, 204, 22, 0.3); border-bottom-right-radius: 3px; }
+        .chat-content { font-size: 13px; color: #fff; line-height: 1.4; word-break: break-word; }
+        .chat-meta { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+        .chat-msg.me .chat-meta { justify-content: flex-end; }
+        .chat-time { font-size: 9px; color: #666; }
+        .tick { font-size: 10px; font-weight: 600; }
+        .tick.gray { color: #666; }
+        .tick.green { color: #22c55e; }
+        .tick.red { color: #ef4444; }
+        .typing-bubble { padding: 10px 14px; }
+        .typing-dots { display: flex; gap: 4px; }
+        .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: #666; animation: bounce 1.2s ease infinite; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
       `}</style>
     </div>
   );

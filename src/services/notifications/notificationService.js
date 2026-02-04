@@ -12,6 +12,39 @@ class NotificationService {
     this.cacheTimeout = 30000; // 30 seconds
     this.readNotifications = new Set();
     this.activeSubscription = null;
+    this.updateCallbacks = new Set();
+  }
+
+  /**
+   * Get unread notification count (for headers)
+   */
+  getUnreadCount() {
+    if (!this.cachedNotifications) return 0;
+    return this.cachedNotifications.filter((n) => !n.read).length;
+  }
+
+  /**
+   * Register a callback for notification updates (for header)
+   */
+  onUpdate(callback) {
+    this.updateCallbacks.add(callback);
+
+    return () => {
+      this.updateCallbacks.delete(callback);
+    };
+  }
+
+  /**
+   * Notify all registered callbacks of updates
+   */
+  notifyUpdateListeners() {
+    this.updateCallbacks.forEach((cb) => {
+      try {
+        cb();
+      } catch (err) {
+        console.error("Error in update callback:", err);
+      }
+    });
   }
 
   /**
@@ -74,6 +107,8 @@ class NotificationService {
         sortedNotifications.length,
         "notifications for user",
       );
+
+      this.notifyUpdateListeners();
 
       return sortedNotifications;
     } catch (error) {
@@ -643,6 +678,8 @@ class NotificationService {
       );
     }
 
+    this.notifyUpdateListeners();
+
     return true;
   }
 
@@ -662,6 +699,8 @@ class NotificationService {
         read: true,
       }));
     }
+
+    this.notifyUpdateListeners();
 
     return true;
   }
@@ -699,6 +738,7 @@ class NotificationService {
         },
         () => {
           this.clearCache();
+          this.notifyUpdateListeners();
           callback();
         },
       )
@@ -717,6 +757,7 @@ class NotificationService {
         },
         () => {
           this.clearCache();
+          this.notifyUpdateListeners();
           callback();
         },
       )
@@ -735,6 +776,7 @@ class NotificationService {
         },
         () => {
           this.clearCache();
+          this.notifyUpdateListeners();
           callback();
         },
       )
@@ -754,6 +796,7 @@ class NotificationService {
         },
         () => {
           this.clearCache();
+          this.notifyUpdateListeners();
           callback();
         },
       )

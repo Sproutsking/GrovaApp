@@ -329,7 +329,7 @@ const ReactionPanel = ({
 
         @media (max-width: 768px) {
           .reaction-panel {
-            padding: 12px 10px;
+            padding: 6px 10px;
           }
 
           .reaction-btn {

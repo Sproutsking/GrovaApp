@@ -1,8 +1,9 @@
+// components/Messages/MessageInput.jsx - OPTIMIZED
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Send, Plus } from "lucide-react";
 import MediaPopup from "./MediaPopup";
 
-const MessageInput = ({ onSend, conversationId, disabled = false }) => {
+const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) => {
   const [text, setText] = useState("");
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
@@ -31,6 +32,11 @@ const MessageInput = ({ onSend, conversationId, disabled = false }) => {
     },
     [handleSend],
   );
+
+  const handleChange = (e) => {
+    setText(e.target.value);
+    if (onTyping) onTyping();
+  };
 
   const handlePlusClick = () => {
     if (plusBtnRef.current) {
@@ -66,7 +72,6 @@ const MessageInput = ({ onSend, conversationId, disabled = false }) => {
   };
 
   const handleFileSelect = (file) => {
-    // Placeholder for file upload
     console.log("File selected:", file);
     setShowMediaPopup(false);
   };
@@ -98,7 +103,7 @@ const MessageInput = ({ onSend, conversationId, disabled = false }) => {
           ref={inputRef}
           className="msg-textarea"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           rows={1}
