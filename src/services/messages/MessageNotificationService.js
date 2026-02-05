@@ -6,6 +6,7 @@ class MessageNotificationService {
     this.toastCallback = null;
     this.isInitialized = false;
     this.currentUserId = null;
+    this.notifiedMessages = new Set();
   }
 
   init(userId, toastCallback) {
@@ -15,7 +16,6 @@ class MessageNotificationService {
     this.toastCallback = toastCallback;
     this.isInitialized = true;
 
-    // Subscribe to conversation state changes
     conversationState.subscribe((conversations) => {
       this.checkForNewMessages(conversations);
     });
@@ -27,28 +27,30 @@ class MessageNotificationService {
     conversations.forEach((conv) => {
       const lastMsg = conv.lastMessage;
       
-      // Only notify if:
-      // 1. Message exists
-      // 2. Not from current user
-      // 3. Conversation is not active
-      // 4. Created in last 5 seconds (new message)
       if (
         lastMsg &&
         lastMsg.sender_id !== this.currentUserId &&
-        !conversationState.isActive(conv.id)
+        !conversationState.isActive(conv.id) &&
+        !this.notifiedMessages.has(lastMsg.id)
       ) {
         const msgAge = Date.now() - new Date(lastMsg.created_at).getTime();
         
-        if (msgAge < 5000) {
+        if (msgAge < 10000) {
           const otherUser = conv.user1_id === this.currentUserId ? conv.user2 : conv.user1;
           const userName = otherUser?.full_name || "Someone";
           
           this.toastCallback({
             type: "info",
-            message: `New message from ${userName}`,
-            description: lastMsg.content.slice(0, 50) + (lastMsg.content.length > 50 ? "..." : ""),
-            duration: 4000,
+            message: `${userName}`,
+            description: lastMsg.content.slice(0, 60) + (lastMsg.content.length > 60 ? "..." : ""),
+            duration: 5000,
           });
+
+          this.notifiedMessages.add(lastMsg.id);
+
+          setTimeout(() => {
+            this.notifiedMessages.delete(lastMsg.id);
+          }, 15000);
         }
       }
     });
@@ -58,6 +60,7 @@ class MessageNotificationService {
     this.toastCallback = null;
     this.isInitialized = false;
     this.currentUserId = null;
+    this.notifiedMessages.clear();
   }
 }
 

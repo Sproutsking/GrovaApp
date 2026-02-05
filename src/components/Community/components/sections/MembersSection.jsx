@@ -1,17 +1,75 @@
-import React, { useState } from "react";
+// components/Community/components/sections/MembersSection.jsx - FIXED VERSION
+import React, { useState, useEffect } from "react";
 import {
   ChevronLeft,
   Crown,
   Users,
   Search,
   Filter,
-  Shield,
   CheckCircle,
 } from "lucide-react";
+import { supabase } from "../../../../services/config/supabase";
+import mediaUrlService from "../../../../services/shared/mediaUrlService";
 
-const MembersSection = ({ members, roles, loading, onBack }) => {
+const MembersSection = ({ community, onBack }) => {
+  const [members, setMembers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+
+  useEffect(() => {
+    if (community?.id) {
+      loadData();
+    }
+  }, [community?.id]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      // Load roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("community_roles")
+        .select("*")
+        .eq("community_id", community.id)
+        .order("position", { ascending: true });
+
+      if (rolesError) throw rolesError;
+      setRoles(rolesData || []);
+
+      // Load members with user data and role
+      const { data: membersData, error: membersError } = await supabase
+        .from("community_members")
+        .select(
+          `
+          *,
+          user:profiles!user_id(
+            id,
+            username,
+            full_name,
+            avatar_id,
+            verified
+          ),
+          role:community_roles!role_id(
+            id,
+            name,
+            color,
+            position
+          )
+        `,
+        )
+        .eq("community_id", community.id)
+        .order("joined_at", { ascending: false });
+
+      if (membersError) throw membersError;
+      setMembers(membersData || []);
+    } catch (error) {
+      console.error("Error loading members:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
@@ -32,11 +90,6 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
 
   return (
     <>
-      <div className="back-button" onClick={onBack}>
-        <ChevronLeft size={16} />
-        Back to Menu
-      </div>
-
       <div className="members-header">
         <div className="members-title">
           <Users size={20} />
@@ -45,7 +98,6 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
         </div>
       </div>
 
-      {/* Search and Filter Bar */}
       <div className="members-controls">
         <div className="search-bar">
           <Search size={16} />
@@ -73,7 +125,6 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
         </div>
       </div>
 
-      {/* Members List */}
       <div className="members-content">
         {loading ? (
           <div className="loading-state">
@@ -101,65 +152,78 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
               </div>
 
               <div className="members-grid">
-                {roleMembers.map((member) => (
-                  <div key={member.id} className="member-card">
-                    <div className="member-card-header">
-                      <div className="member-avatar">
-                        {member.user?.avatar ? (
-                          <img
-                            src={member.user.avatar}
-                            alt={member.user?.full_name}
-                          />
-                        ) : (
-                          <span className="avatar-fallback">
-                            {member.user?.full_name?.[0]?.toUpperCase() || "?"}
-                          </span>
-                        )}
-                        {member.is_online && <div className="online-dot" />}
+                {roleMembers.map((member) => {
+                  const avatarUrl = member.user?.avatar_id
+                    ? mediaUrlService.getAvatarUrl(member.user.avatar_id, 200)
+                    : null;
+
+                  return (
+                    <div key={member.id} className="member-card">
+                      <div className="member-card-contents">
+                        <div className="member-card-header">
+                          <div className="member-avatar">
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt={member.user?.full_name}
+                              />
+                            ) : (
+                              <span className="avatar-fallback">
+                                {member.user?.full_name?.[0]?.toUpperCase() ||
+                                  "?"}
+                              </span>
+                            )}
+                            {member.is_online && <div className="online-dot" />}
+                          </div>
+
+                          {member.user?.verified && (
+                            <div className="verified-icon">
+                              <CheckCircle
+                                size={14}
+                                fill="#9cff00"
+                                color="#000"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="member-info">
+                          <div className="member-name">
+                            {member.user?.full_name || "Unknown User"}
+                          </div>
+                          <div className="member-username">
+                            @{member.user?.username || "unknown"}
+                          </div>
+                        </div>
+
+                        <div
+                          className="member-role-badge"
+                          style={{
+                            background: `${role.color}15`,
+                            color: role.color,
+                            borderColor: `${role.color}40`,
+                          }}
+                        >
+                          {role.name}
+                        </div>
                       </div>
 
-                      {member.user?.verified && (
-                        <div className="verified-icon">
-                          <CheckCircle size={14} fill="#9cff00" color="#000" />
+                      {member.joined_at && (
+                        <div className="member-joined">
+                          Joined{" "}
+                          {new Date(member.joined_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )}
                         </div>
                       )}
                     </div>
-
-                    <div className="member-info">
-                      <div className="member-name">
-                        {member.user?.full_name || "Unknown User"}
-                      </div>
-                      <div className="member-username">
-                        @{member.user?.username || "unknown"}
-                      </div>
-                    </div>
-
-                    <div
-                      className="member-role-badge"
-                      style={{
-                        background: `${role.color}15`,
-                        color: role.color,
-                        borderColor: `${role.color}40`,
-                      }}
-                    >
-                      {role.name}
-                    </div>
-
-                    {member.joined_at && (
-                      <div className="member-joined">
-                        Joined{" "}
-                        {new Date(member.joined_at).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          },
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))
@@ -168,6 +232,7 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
 
       <style>{`
         .back-button {
+          width: fit-content;
           display: flex;
           align-items: center;
           gap: 8px;
@@ -177,7 +242,7 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
           font-weight: 600;
           font-size: 13px;
           transition: all 0.2s;
-          margin-bottom: 16px;
+          margin: 16px;
         }
 
         .back-button:hover {
@@ -187,7 +252,7 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
 
         .members-header {
           padding: 0 12px;
-          margin-bottom: 20px;
+          margin: 20px;
         }
 
         .members-title {
@@ -341,7 +406,7 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
         .members-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 12px;
+          gap: 6px;
         }
 
         .member-card {
@@ -368,6 +433,12 @@ const MembersSection = ({ members, roles, loading, onBack }) => {
           justify-content: space-between;
         }
 
+        .member-card-contents {
+          display: flex;
+          flex-direction: row;
+          gap: 8px;
+          align-items: center;
+        }
         .member-avatar {
           width: 56px;
           height: 56px;

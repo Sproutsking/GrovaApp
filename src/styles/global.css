@@ -1944,7 +1944,6 @@ body {
   .main-content-mobile:has(.community-view) {
     padding: 0 !important;
     margin: 0 !important;
-    height: calc(100vh - 130px); /* 60px header + 70px bottom nav */
     overflow: hidden;
   }
 
@@ -2097,10 +2096,10 @@ body {
   /* Community view positioned to avoid header and bottom nav */
   .main-content-mobile .community-view {
     position: fixed;
-    top: 60px; /* Below mobile header */
+    top: 46px; /* Below mobile header */
     left: 0;
     right: 0;
-    bottom: 70px; /* Above mobile bottom nav */
+    bottom: 56px; /* Above mobile bottom nav */
     height: auto;
     z-index: 5;
   }

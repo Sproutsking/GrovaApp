@@ -1,28 +1,27 @@
+// components/Community/tabs/ChatTab.jsx - FIXED TYPING INDICATOR
 import React, { useState, useEffect, useRef } from "react";
 import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  Send,
-  Smile,
-  Image,
   Plus,
   Lock,
-  Edit3,
-  MoreVertical,
   Palette,
+  ChevronDown,
 } from "lucide-react";
 import MessageList from "../components/MessageList";
-import EmojiPanel from "../components/EmojiPanel";
 import ContextMenu from "../components/ContextMenu";
 import ChannelContextMenu from "../components/ChannelContextMenu";
 import CommunityMenu from "../components/CommunityMenu";
 import CreateChannelModal from "../modals/CreateChannelModal";
 import EditChannelModal from "../modals/EditChannelModal";
-import BackgroundSwitcher from "../components/BackgroundSwitcher";
+import BackgroundDropdown from "../components/BackgroundDropdown";
 import ChatBackground from "../components/ChatBackground";
+import CommunityMessageInput from "../components/CommunityMessageInput";
 import channelService from "../../../services/community/channelService";
-import messageService from "../../../services/community/messageService";
+import communityMessageService from "../../../services/community/communityMessageService";
+import communityState from "../../../services/community/CommunityStateManager";
+import backgroundService from "../../../services/community/CommunityBackgroundService";
 import permissionService from "../../../services/community/permissionService";
 
 const ChatTab = ({
@@ -37,13 +36,10 @@ const ChatTab = ({
   onDeleteCommunity,
 }) => {
   const [channels, setChannels] = useState([]);
-  const [channelMessages, setChannelMessages] = useState({});
-  const [pendingMessages, setPendingMessages] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
-  const [showEmoji, setShowEmoji] = useState(false);
   const [sending, setSending] = useState(false);
-  const [inputExpanded, setInputExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [channelContextMenu, setChannelContextMenu] = useState(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -53,70 +49,112 @@ const ChatTab = ({
   const [userPermissions, setUserPermissions] = useState({});
   const [typingUsers, setTypingUsers] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [backgroundTheme, setBackgroundTheme] = useState("elegant");
-  const [showBackgroundSwitcher, setShowBackgroundSwitcher] = useState(false);
+  const [showBgDropdown, setShowBgDropdown] = useState(false);
+  const [showJump, setShowJump] = useState(false);
+  const [backgroundId, setBackgroundId] = useState('space');
+
+  const backgroundTheme = backgroundService.getTheme(backgroundId);
 
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const unsubscribeRefs = useRef({});
-  const typingTimeoutRef = useRef(null);
-  const typingSubscriptionRef = useRef(null);
-  const messageIdCounter = useRef(0);
-  const messageCache = useRef({});
-  const currentChannelRef = useRef(null);
+  const containerRef = useRef(null);
+  const unsubscribeChannel = useRef(null);
+  const unsubscribeTyping = useRef(null);
+  const typingTimeout = useRef(null);
+  const isAtBottom = useRef(true);
 
-  // Load personal background preference (user + community specific)
   useEffect(() => {
-    if (userId && community?.id) {
-      const saved = localStorage.getItem(`bg-theme-${userId}-${community.id}`);
-      if (saved) {
-        setBackgroundTheme(saved);
-      }
+    if (community) {
+      const bg = backgroundService.getBackground(userId, community.id);
+      setBackgroundId(bg);
     }
-  }, [userId, community?.id]);
+  }, [community?.id, userId]);
+
+  useEffect(() => {
+    const unsubscribe = backgroundService.subscribe(() => {
+      if (community) {
+        const bg = backgroundService.getBackground(userId, community.id);
+        setBackgroundId(bg);
+      }
+    });
+    return unsubscribe;
+  }, [community?.id, userId]);
+
+  const scrollToBottom = (behavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 60;
+    isAtBottom.current = atBottom;
+    setShowJump(!atBottom && messages.length >= 2);
+  };
 
   useEffect(() => {
     if (community) {
       loadChannels();
       loadPermissions();
     }
-    return () => {
-      // Cleanup on unmount
-      Object.values(unsubscribeRefs.current).forEach((unsub) => {
-        if (unsub) unsub();
-      });
-      if (typingSubscriptionRef.current) {
-        typingSubscriptionRef.current();
-      }
-      messageCache.current = {};
-      currentChannelRef.current = null;
-    };
   }, [community?.id]);
 
   useEffect(() => {
     if (selectedChannel) {
-      // INSTANT CLEAR - Clear old channel data immediately
-      if (currentChannelRef.current !== selectedChannel.id) {
-        setPendingMessages([]);
-        setTypingUsers([]);
-        currentChannelRef.current = selectedChannel.id;
-      }
-
-      // ALWAYS RELOAD - Don't trust cache for user data
-      loadMessages(selectedChannel.id);
-      subscribeToMessages(selectedChannel.id);
-      subscribeToTyping(selectedChannel.id);
+      communityState.setActive(selectedChannel.id);
+      communityMessageService.init(userId);
+      loadMessages();
+      subscribeToChannel();
+      subscribeToTyping();
     }
+
     return () => {
       stopTyping();
+      if (unsubscribeChannel.current) unsubscribeChannel.current();
+      if (unsubscribeTyping.current) unsubscribeTyping.current();
     };
   }, [selectedChannel?.id]);
 
-  const handleBackgroundChange = (theme) => {
-    setBackgroundTheme(theme);
-    // Personal preference: user + community specific
-    localStorage.setItem(`bg-theme-${userId}-${community.id}`, theme);
-  };
+  useEffect(() => {
+    const unsub = communityState.subscribe(() => {
+      const msgs = communityState.getMessages(selectedChannel?.id);
+      const typing = communityState.getTyping(selectedChannel?.id);
+      setMessages([...msgs]);
+      setTypingUsers(typing);
+    });
+
+    return unsub;
+  }, [selectedChannel?.id]);
+
+  // TYPING DETECTION: Track input changes - send typing on every change
+  useEffect(() => {
+    if (messageInput.length > 0) {
+      // User is typing - send indicator
+      if (!isTyping) {
+        setIsTyping(true);
+        communityMessageService.sendTyping(
+          selectedChannel?.id,
+          true,
+          currentUser?.username || currentUser?.full_name || currentUser?.fullName
+        );
+      }
+
+      // Reset the stop timer on every keystroke
+      clearTimeout(typingTimeout.current);
+      typingTimeout.current = setTimeout(() => {
+        stopTyping();
+      }, 3000);
+    } else {
+      // Input is empty - stop immediately
+      if (isTyping) {
+        stopTyping();
+      }
+    }
+
+    // Cleanup on unmount or channel change
+    return () => {
+      clearTimeout(typingTimeout.current);
+    };
+  }, [messageInput, selectedChannel?.id]);
 
   const loadChannels = async () => {
     try {
@@ -139,146 +177,65 @@ const ChatTab = ({
     }
   };
 
-  const loadMessages = async (channelId) => {
+  const loadMessages = async () => {
+    if (!selectedChannel?.id) return;
+    
     try {
-      console.log(`📥 Loading messages for channel ${channelId}`);
-      const data = await messageService.fetchMessages(channelId);
-
-      console.log(`✅ Loaded ${data.length} messages with complete user data`);
-
-      // CRITICAL: Only update state, DO NOT cache messages with user data
-      // Caching causes stale user data on refresh
-      setChannelMessages((prev) => ({
-        ...prev,
-        [channelId]: data,
-      }));
+      await communityMessageService.loadMessages(selectedChannel.id);
     } catch (error) {
-      console.error("❌ Error loading messages:", error);
-      setChannelMessages((prev) => ({
-        ...prev,
-        [channelId]: [],
-      }));
+      console.error("Error loading messages:", error);
     }
   };
 
-  const subscribeToMessages = (channelId) => {
-    if (unsubscribeRefs.current[channelId]) {
-      unsubscribeRefs.current[channelId]();
+  const subscribeToChannel = () => {
+    if (unsubscribeChannel.current) {
+      unsubscribeChannel.current();
     }
 
-    unsubscribeRefs.current[channelId] = messageService.subscribeToMessages(
-      channelId,
-      (newMessage) => {
-        console.log("📨 New message received:", newMessage);
-
-        // Only update if still on this channel
-        if (currentChannelRef.current === channelId) {
-          setChannelMessages((prev) => {
-            const channelMsgs = prev[channelId] || [];
-
-            // Check if message already exists
-            if (channelMsgs.some((m) => m.id === newMessage.id)) {
-              return prev;
-            }
-
-            // Add new message with complete user data
-            const updated = [...channelMsgs, newMessage];
-
-            return {
-              ...prev,
-              [channelId]: updated,
-            };
-          });
-
-          // Remove from pending if it was pending
-          setPendingMessages((prev) =>
-            prev.filter((pm) => pm.tempId !== newMessage.tempId),
-          );
+    unsubscribeChannel.current = communityMessageService.subscribeToChannel(
+      selectedChannel.id,
+      (message) => {
+        if (isAtBottom.current) {
+          setTimeout(scrollToBottom, 10);
         }
-      },
-    );
-  };
-
-  const subscribeToTyping = (channelId) => {
-    if (typingSubscriptionRef.current) {
-      typingSubscriptionRef.current();
-    }
-
-    typingSubscriptionRef.current = messageService.subscribeToTyping?.(
-      channelId,
-      (typingData) => {
-        // Only update if still on this channel
-        if (currentChannelRef.current === channelId) {
-          setTypingUsers(
-            typingData
-              .filter((t) => t.userId !== userId)
-              .map((t) => t.userName || t.username),
-          );
-        }
-      },
-    );
-  };
-
-  const broadcastTyping = async () => {
-    // CRITICAL FIX: Check if selectedChannel exists before accessing
-    if (!selectedChannel?.id) {
-      return; // Silently return if no channel selected
-    }
-
-    if (!isTyping && messageInput.length > 0) {
-      setIsTyping(true);
-      try {
-        await messageService.startTyping?.(
-          selectedChannel.id,
-          userId,
-          currentUser?.username || currentUser?.full_name,
-        );
-      } catch (error) {
-        console.error("Error broadcasting typing:", error);
       }
-    }
-
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      stopTyping();
-    }, 3000);
+    );
   };
 
-  const stopTyping = async () => {
-    // CRITICAL FIX: Check if selectedChannel exists before accessing
-    if (!selectedChannel?.id) {
-      return; // Silently return if no channel selected
+  const subscribeToTyping = () => {
+    if (unsubscribeTyping.current) {
+      unsubscribeTyping.current();
     }
 
+    unsubscribeTyping.current = communityMessageService.subscribeToTyping(
+      selectedChannel.id,
+      (typing) => {
+        if (typing.length > 0 && isAtBottom.current) {
+          setTimeout(scrollToBottom, 100);
+        }
+      }
+    );
+  };
+
+  const stopTyping = () => {
     if (isTyping) {
       setIsTyping(false);
-      try {
-        await messageService.stopTyping?.(selectedChannel.id, userId);
-      } catch (error) {
-        console.error("Error stopping typing:", error);
-      }
+      communityMessageService.sendTyping(selectedChannel?.id, false);
     }
-    clearTimeout(typingTimeoutRef.current);
+    clearTimeout(typingTimeout.current);
   };
 
   const handleSendMessage = async () => {
-    // CRITICAL FIX: Check selectedChannel exists FIRST
-    if (!selectedChannel?.id) {
-      console.error("❌ Cannot send message: no channel selected");
-      alert("Please select a channel first");
-      return;
-    }
-
     const content = messageInput.trim();
-    if (!content || sending) return;
+    if (!content || sending || !selectedChannel?.id) return;
 
     if (editingMessage) {
       try {
         setSending(true);
-        await messageService.editMessage(editingMessage.id, userId, content);
+        await communityMessageService.editMessage(editingMessage.id, userId, content);
         setEditingMessage(null);
         setMessageInput("");
-        await loadMessages(selectedChannel.id);
+        await loadMessages();
       } catch (error) {
         console.error("Error editing message:", error);
         alert("Failed to edit message");
@@ -288,287 +245,57 @@ const ChatTab = ({
       return;
     }
 
-    const tempId = `temp_${Date.now()}_${messageIdCounter.current++}`;
-
-    // Create pending message with COMPLETE user data
-    const pendingMessage = {
-      tempId,
-      id: tempId,
-      content,
-      user_id: userId,
-      channel_id: selectedChannel.id,
-      user: {
-        id: userId,
-        user_id: userId,
-        username: currentUser?.username || "You",
-        full_name: currentUser?.full_name || "You",
-        avatar: currentUser?.avatar,
-        avatar_id: currentUser?.avatar_id,
-        avatar_metadata: currentUser?.avatar_metadata,
-        verified: currentUser?.verified || false,
-      },
-      role: null, // Will be populated by subscription
-      created_at: new Date().toISOString(),
-      reactions: {},
-      edited: false,
-      isPending: true,
-      isSent: false,
-      isDelivered: false,
-    };
-
-    console.log("📤 Sending message with user data:", pendingMessage.user);
-
-    // Add to pending immediately
-    setPendingMessages((prev) => [...prev, pendingMessage]);
     setMessageInput("");
     stopTyping();
 
     try {
-      // Send in background
-      await messageService.sendMessage(selectedChannel.id, userId, content, {
-        replyToId: null,
-        attachments: [],
-        tempId,
-      });
+      let avatarId = currentUser?.avatar_id;
+      
+      if (!avatarId && currentUser?.avatar && typeof currentUser.avatar === 'string') {
+        if (currentUser.avatar.includes('/')) {
+          const parts = currentUser.avatar.split('/');
+          avatarId = parts[parts.length - 1].split('?')[0];
+        }
+      }
+
+      await communityMessageService.sendMessage(
+        selectedChannel.id,
+        userId,
+        content,
+        {
+          user: {
+            id: userId,
+            username: currentUser?.username,
+            full_name: currentUser?.full_name || currentUser?.fullName,
+            avatar_id: avatarId,
+            avatar_metadata: currentUser?.avatar_metadata,
+            verified: currentUser?.verified || false
+          }
+        }
+      );
+
+      setTimeout(scrollToBottom, 10);
     } catch (error) {
       console.error("Error sending message:", error);
-      // Remove from pending on error
-      setPendingMessages((prev) => prev.filter((m) => m.tempId !== tempId));
       setMessageInput(content);
       alert("Failed to send message. Please try again.");
     }
   };
 
-  const handleInputChange = (e) => {
-    setMessageInput(e.target.value);
-    broadcastTyping();
+  const handleBackgroundChange = (bgId) => {
+    backgroundService.setBackground(userId, community.id, bgId);
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-    if (e.key === "Escape" && editingMessage) {
-      setEditingMessage(null);
-      setMessageInput("");
-    }
-  };
-
-  const handleContextMenu = (e, message) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, message });
-  };
-
-  const handleChannelContextMenu = (e, channel) => {
-    e.preventDefault();
-    if (userPermissions.manageChannels || isOwner) {
-      setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
-    }
-  };
-
-  const handleCreateChannel = async (channelData) => {
-    try {
-      await channelService.createChannel(channelData, community.id);
-      await loadChannels();
-      setShowCreateChannel(false);
-    } catch (error) {
-      console.error("Error creating channel:", error);
-      throw error;
-    }
-  };
-
-  const handleUpdateChannel = async (channelData) => {
-    try {
-      await channelService.updateChannel(editingChannel.id, channelData);
-      await loadChannels();
-      setShowEditChannel(false);
-      setEditingChannel(null);
-    } catch (error) {
-      console.error("Error updating channel:", error);
-      throw error;
-    }
-  };
-
-  const handleDeleteChannel = async (channel) => {
-    if (
-      !window.confirm(`Delete #${channel.name}? This action cannot be undone.`)
-    ) {
-      return;
-    }
-
-    try {
-      await channelService.deleteChannel(channel.id);
-      await loadChannels();
-      setChannelContextMenu(null);
-
-      if (selectedChannel?.id === channel.id && channels.length > 1) {
-        const remaining = channels.filter((ch) => ch.id !== channel.id);
-        if (remaining.length > 0) {
-          setSelectedChannel(remaining[0]);
-        }
-      }
-    } catch (error) {
-      console.error("Error deleting channel:", error);
-      alert("Failed to delete channel");
-    }
-  };
-
-  const handleToggleChannelPrivacy = async (channel) => {
-    try {
-      await channelService.updateChannel(channel.id, {
-        is_private: !channel.is_private,
-      });
-      await loadChannels();
-      setChannelContextMenu(null);
-    } catch (error) {
-      console.error("Error updating channel:", error);
-      alert("Failed to update channel");
-    }
-  };
-
-  const handleWipeChannel = async (channel) => {
-    if (
-      !window.confirm(
-        `Wipe ALL messages in #${channel.name}? This will permanently delete all messages and cannot be undone. Only proceed if you're absolutely sure.`,
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const isAdministrator = userPermissions.administrator || isOwner;
-      await messageService.wipeChannelMessages(
-        channel.id,
-        userId,
-        community.id,
-        isAdministrator,
-      );
-
-      // Reload messages to get fresh data
-      await loadMessages(channel.id);
-
-      setChannelContextMenu(null);
-      alert("Channel messages wiped successfully");
-    } catch (error) {
-      console.error("Error wiping channel:", error);
-      alert(error.message || "Failed to wipe channel");
-    }
-  };
-
-  const handleDeleteUserMessages = async (targetUserId) => {
-    if (!selectedChannel) return;
-
-    if (
-      !window.confirm(
-        "Delete ALL messages from this user in this channel? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const hasPermission = userPermissions.manageMessages || isOwner;
-      await messageService.deleteUserMessagesInChannel(
-        selectedChannel.id,
-        targetUserId,
-        userId,
-        hasPermission,
-      );
-
-      // Reload messages to get fresh data
-      await loadMessages(selectedChannel.id);
-
-      alert("User messages deleted successfully");
-    } catch (error) {
-      console.error("Error deleting user messages:", error);
-      alert(error.message || "Failed to delete user messages");
-    }
-  };
-
-  const handleDeleteMessage = async (message) => {
-    if (!window.confirm("Delete this message?")) {
-      setContextMenu(null);
-      return;
-    }
-
-    try {
-      const isOwnerUser = community.owner_id === userId;
-      await messageService.deleteMessage(message.id, userId, community.id);
-
-      // Reload messages to get fresh data
-      await loadMessages(selectedChannel.id);
-    } catch (error) {
-      console.error("Error deleting message:", error);
-      alert("Failed to delete message");
-    }
-    setContextMenu(null);
-  };
-
-  const handleEditMessage = (message) => {
-    setEditingMessage(message);
-    setMessageInput(message.content);
-    inputRef.current?.focus();
-    setContextMenu(null);
-  };
-
-  const handleReactionClick = async (messageId, emoji) => {
-    try {
-      const messages = channelMessages[selectedChannel.id] || [];
-      const message = messages.find((m) => m.id === messageId);
-      const hasReacted = message?.reactions?.[emoji]?.users?.includes(userId);
-
-      if (hasReacted) {
-        const reactions = await messageService.removeReaction(
-          messageId,
-          userId,
-          emoji,
-        );
-        updateMessageReactions(messageId, reactions);
-      } else {
-        const reactions = await messageService.addReaction(
-          messageId,
-          userId,
-          emoji,
-        );
-        updateMessageReactions(messageId, reactions);
-      }
-    } catch (error) {
-      console.error("Error toggling reaction:", error);
-    }
-  };
-
-  const updateMessageReactions = (messageId, reactions) => {
-    setChannelMessages((prev) => {
-      const channelMsgs = prev[selectedChannel.id] || [];
-      const updated = channelMsgs.map((m) =>
-        m.id === messageId ? { ...m, reactions } : m,
-      );
-
-      return {
-        ...prev,
-        [selectedChannel.id]: updated,
-      };
-    });
-  };
-
-  const currentChannelIndex = channels.findIndex(
-    (ch) => ch.id === selectedChannel?.id,
-  );
+  const currentChannelIndex = channels.findIndex((ch) => ch.id === selectedChannel?.id);
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
-  const currentMessages = channelMessages[selectedChannel?.id] || [];
 
   return (
-    <div
-      className="chat-tab"
-      onClick={() => {
-        setContextMenu(null);
-        setChannelContextMenu(null);
-        setShowEmoji(false);
-      }}
-    >
-      <ChatBackground theme={backgroundTheme} />
+    <div className="chat-tab" onClick={() => {
+      setContextMenu(null);
+      setChannelContextMenu(null);
+    }}>
+      <ChatBackground key={backgroundId} theme={backgroundTheme.id} />
 
       <div className="channels-bar">
         <div className="menu-button" onClick={() => setShowMenu(true)}>
@@ -581,7 +308,12 @@ const ChatTab = ({
               key={channel.id}
               className={`channel-item ${selectedChannel?.id === channel.id ? "active" : ""}`}
               onClick={() => setSelectedChannel(channel)}
-              onContextMenu={(e) => handleChannelContextMenu(e, channel)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (canManageChannels) {
+                  setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
+                }
+              }}
             >
               <span className="channel-icon">{channel.icon || "💬"}</span>
               <span className="channel-name">{channel.name}</span>
@@ -624,7 +356,7 @@ const ChatTab = ({
           )}
           <button
             className="channel-nav-btn"
-            onClick={() => setShowBackgroundSwitcher(true)}
+            onClick={() => setShowBgDropdown(!showBgDropdown)}
             title="Change Background"
           >
             <Palette size={16} />
@@ -632,113 +364,63 @@ const ChatTab = ({
         </div>
       </div>
 
-      <MessageList
-        messages={currentMessages}
-        pendingMessages={pendingMessages}
-        loading={false}
-        userId={userId}
-        currentUser={currentUser}
-        messagesEndRef={messagesEndRef}
-        onContextMenu={handleContextMenu}
-        onReactionClick={handleReactionClick}
+      <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
+        <MessageList
+          messages={messages}
+          pendingMessages={[]}
+          loading={false}
+          userId={userId}
+          currentUser={currentUser}
+          messagesEndRef={messagesEndRef}
+          onContextMenu={(e, msg) => {
+            e.preventDefault();
+            setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
+          }}
+          onReactionClick={async (msgId, emoji) => {
+            try {
+              const msg = messages.find((m) => m.id === msgId);
+              const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
+
+              if (hasReacted) {
+                await communityMessageService.removeReaction(msgId, userId, emoji);
+              } else {
+                await communityMessageService.addReaction(msgId, userId, emoji);
+              }
+
+              await loadMessages();
+            } catch (error) {
+              console.error("Error toggling reaction:", error);
+            }
+          }}
+        />
+
+        {showJump && (
+          <button className="jump-btn" onClick={() => scrollToBottom()}>
+            <ChevronDown size={18} />
+          </button>
+        )}
+      </div>
+
+      <CommunityMessageInput
+        value={messageInput}
+        onChange={setMessageInput}
+        onSend={handleSendMessage}
+        disabled={sending}
+        placeholder={`Message #${selectedChannel?.name || "channel"}`}
+        editingMessage={editingMessage}
+        onCancelEdit={() => {
+          setEditingMessage(null);
+          setMessageInput("");
+        }}
         typingUsers={typingUsers}
-        channelId={selectedChannel?.id}
-        userPermissions={userPermissions}
-        isOwner={isOwner}
-        communityId={community?.id}
       />
 
-      {editingMessage && (
-        <div className="editing-bar">
-          <div className="editing-content">
-            <Edit3 size={16} />
-            <div className="editing-text">
-              <span className="editing-label">Editing message</span>
-              <span className="editing-preview">
-                {editingMessage.content.substring(0, 50)}...
-              </span>
-            </div>
-            <button
-              className="cancel-edit"
-              onClick={() => {
-                setEditingMessage(null);
-                setMessageInput("");
-              }}
-            >
-              <MoreVertical size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="message-input-container">
-        {showEmoji && (
-          <div
-            className="emoji-panel-wrapper"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <EmojiPanel
-              onSelect={(emoji) => {
-                setMessageInput((prev) => prev + emoji);
-                setShowEmoji(false);
-                inputRef.current?.focus();
-              }}
-              onClose={() => setShowEmoji(false)}
-            />
-          </div>
-        )}
-
-        <div className="input-wrapper">
-          <div
-            className={`input-left-actions ${inputExpanded ? "hidden" : ""}`}
-          >
-            <button
-              className="input-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowEmoji(!showEmoji);
-              }}
-            >
-              <Smile size={16} />
-            </button>
-            <button className="input-btn">
-              <Image size={16} />
-            </button>
-          </div>
-
-          {inputExpanded && (
-            <button
-              className="expand-toggle"
-              onClick={() => setInputExpanded(false)}
-            >
-              <ChevronRight size={16} />
-            </button>
-          )}
-
-          <input
-            ref={inputRef}
-            type="text"
-            className="message-input"
-            placeholder={`Message #${selectedChannel?.name || "channel"}`}
-            value={messageInput}
-            onChange={handleInputChange}
-            onFocus={() => setInputExpanded(true)}
-            onKeyPress={handleKeyPress}
-            onBlur={stopTyping}
-            disabled={sending}
-          />
-
-          <div className="input-actions">
-            <button
-              className="input-btn send-btn"
-              onClick={handleSendMessage}
-              disabled={!messageInput.trim() || sending}
-            >
-              <Send size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <BackgroundDropdown
+        currentTheme={backgroundId}
+        onThemeChange={handleBackgroundChange}
+        show={showBgDropdown}
+        onClose={() => setShowBgDropdown(false)}
+      />
 
       <CommunityMenu
         show={showMenu}
@@ -755,7 +437,7 @@ const ChatTab = ({
         }}
         onOpenBackgroundSwitcher={() => {
           setShowMenu(false);
-          setShowBackgroundSwitcher(true);
+          setShowBgDropdown(true);
         }}
       />
 
@@ -767,18 +449,51 @@ const ChatTab = ({
           permissions={userPermissions}
           isOwner={isOwner}
           onClose={() => setContextMenu(null)}
-          onEdit={() => handleEditMessage(contextMenu.message)}
-          onDelete={() => handleDeleteMessage(contextMenu.message)}
-          onReaction={(emoji) =>
-            handleReactionClick(contextMenu.message.id, emoji)
-          }
+          onEdit={() => {
+            setEditingMessage(contextMenu.message);
+            setMessageInput(contextMenu.message.content);
+            setContextMenu(null);
+          }}
+          onDelete={async () => {
+            if (!window.confirm("Delete this message?")) {
+              setContextMenu(null);
+              return;
+            }
+
+            try {
+              await communityMessageService.deleteMessage(
+                contextMenu.message.id,
+                userId,
+                community.id
+              );
+              await loadMessages();
+            } catch (error) {
+              console.error("Error deleting message:", error);
+              alert("Failed to delete message");
+            }
+            setContextMenu(null);
+          }}
+          onReaction={async (emoji) => {
+            try {
+              const msg = contextMenu.message;
+              const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
+
+              if (hasReacted) {
+                await communityMessageService.removeReaction(msg.id, userId, emoji);
+              } else {
+                await communityMessageService.addReaction(msg.id, userId, emoji);
+              }
+
+              await loadMessages();
+            } catch (error) {
+              console.error("Error toggling reaction:", error);
+            }
+            setContextMenu(null);
+          }}
           onCopy={() => {
             navigator.clipboard.writeText(contextMenu.message.content);
             setContextMenu(null);
           }}
-          onDeleteUserMessages={() =>
-            handleDeleteUserMessages(contextMenu.message.user_id)
-          }
         />
       )}
 
@@ -795,18 +510,55 @@ const ChatTab = ({
             setShowEditChannel(true);
             setChannelContextMenu(null);
           }}
-          onDelete={() => handleDeleteChannel(channelContextMenu.channel)}
-          onTogglePrivacy={() =>
-            handleToggleChannelPrivacy(channelContextMenu.channel)
-          }
-          onWipeChannel={() => handleWipeChannel(channelContextMenu.channel)}
+          onDelete={async () => {
+            if (!window.confirm(`Delete #${channelContextMenu.channel.name}? This action cannot be undone.`)) {
+              return;
+            }
+
+            try {
+              await channelService.deleteChannel(channelContextMenu.channel.id);
+              await loadChannels();
+              setChannelContextMenu(null);
+
+              if (selectedChannel?.id === channelContextMenu.channel.id && channels.length > 1) {
+                const remaining = channels.filter((ch) => ch.id !== channelContextMenu.channel.id);
+                if (remaining.length > 0) {
+                  setSelectedChannel(remaining[0]);
+                }
+              }
+            } catch (error) {
+              console.error("Error deleting channel:", error);
+              alert("Failed to delete channel");
+            }
+          }}
+          onTogglePrivacy={async () => {
+            try {
+              await channelService.updateChannel(channelContextMenu.channel.id, {
+                is_private: !channelContextMenu.channel.is_private,
+              });
+              await loadChannels();
+              setChannelContextMenu(null);
+            } catch (error) {
+              console.error("Error updating channel:", error);
+              alert("Failed to update channel");
+            }
+          }}
         />
       )}
 
       {showCreateChannel && (
         <CreateChannelModal
           onClose={() => setShowCreateChannel(false)}
-          onCreate={handleCreateChannel}
+          onCreate={async (channelData) => {
+            try {
+              await channelService.createChannel(channelData, community.id);
+              await loadChannels();
+              setShowCreateChannel(false);
+            } catch (error) {
+              console.error("Error creating channel:", error);
+              throw error;
+            }
+          }}
           communityId={community.id}
         />
       )}
@@ -818,18 +570,185 @@ const ChatTab = ({
             setShowEditChannel(false);
             setEditingChannel(null);
           }}
-          onUpdate={handleUpdateChannel}
+          onUpdate={async (channelData) => {
+            try {
+              await channelService.updateChannel(editingChannel.id, channelData);
+              await loadChannels();
+              setShowEditChannel(false);
+              setEditingChannel(null);
+            } catch (error) {
+              console.error("Error updating channel:", error);
+              throw error;
+            }
+          }}
         />
       )}
 
-      {showBackgroundSwitcher && (
-        <BackgroundSwitcher
-          show={showBackgroundSwitcher}
-          onClose={() => setShowBackgroundSwitcher(false)}
-          currentTheme={backgroundTheme}
-          onThemeChange={handleBackgroundChange}
-        />
-      )}
+      <style>{`
+        .chat-tab {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          position: relative;
+          background: #000;
+        }
+
+        .channels-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: rgba(0, 0, 0, 0.95);
+          border-bottom: 1px solid rgba(156, 255, 0, 0.12);
+          z-index: 10;
+        }
+
+        .menu-button {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #9cff00;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .menu-button:hover {
+          background: rgba(156, 255, 0, 0.1);
+          border-color: rgba(156, 255, 0, 0.3);
+        }
+
+        .channels-scroll {
+          flex: 1;
+          display: flex;
+          gap: 6px;
+          overflow-x: auto;
+          padding: 2px;
+        }
+
+        .channels-scroll::-webkit-scrollbar {
+          height: 4px;
+        }
+
+        .channels-scroll::-webkit-scrollbar-track {
+          background: rgba(26, 26, 26, 0.3);
+        }
+
+        .channels-scroll::-webkit-scrollbar-thumb {
+          background: rgba(156, 255, 0, 0.3);
+          border-radius: 2px;
+        }
+
+        .channel-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 12px;
+          background: rgba(26, 26, 26, 0.4);
+          border: 1px solid rgba(42, 42, 42, 0.6);
+          border-radius: 8px;
+          color: #ccc;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s;
+        }
+
+        .channel-item:hover {
+          background: rgba(26, 26, 26, 0.8);
+          border-color: rgba(156, 255, 0, 0.3);
+          color: #fff;
+        }
+
+        .channel-item.active {
+          background: rgba(156, 255, 0, 0.15);
+          border-color: rgba(156, 255, 0, 0.5);
+          color: #9cff00;
+        }
+
+        .channel-icon {
+          font-size: 16px;
+        }
+
+        .channel-nav-btns {
+          display: flex;
+          gap: 4px;
+        }
+
+        .channel-nav-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #999;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .channel-nav-btn:hover:not(:disabled) {
+          background: rgba(156, 255, 0, 0.1);
+          border-color: rgba(156, 255, 0, 0.3);
+          color: #9cff00;
+        }
+
+        .channel-nav-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        .chat-msgs {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          position: relative;
+        }
+
+        .chat-msgs::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .chat-msgs::-webkit-scrollbar-track {
+          background: rgba(26, 26, 26, 0.2);
+        }
+
+        .chat-msgs::-webkit-scrollbar-thumb {
+          background: rgba(156, 255, 0, 0.3);
+          border-radius: 3px;
+        }
+
+        .jump-btn {
+          position: fixed;
+          bottom: 90px;
+          right: 20px;
+          z-index: 5;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(10, 10, 10, 0.95);
+          border: 2px solid rgba(156, 255, 0, 0.5);
+          color: #9cff00;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+          transition: all 0.2s;
+        }
+
+        .jump-btn:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 16px rgba(156, 255, 0, 0.3);
+        }
+      `}</style>
     </div>
   );
 };

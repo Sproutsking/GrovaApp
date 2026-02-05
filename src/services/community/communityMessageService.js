@@ -1,222 +1,302 @@
-// ============================================================================
-// src/services/messages/communityMessageService.js - COMMUNITY MESSAGING
-// ============================================================================
-
-import { supabase } from "../../config/supabaseClient";
+// services/community/communityMessageService.js - FIXED AVATAR ISSUE
+import { supabase } from "../config/supabase";
+import communityState from "./CommunityStateManager";
 
 class CommunityMessageService {
-  // ========================================================================
-  // CHANNEL MANAGEMENT
-  // ========================================================================
-
-  async getChannels(communityId, userId) {
-    try {
-      const { data: membership } = await supabase
-        .from("community_members")
-        .select("role_id")
-        .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .single();
-
-      if (!membership) {
-        throw new Error("Not a member of this community");
-      }
-
-      const { data, error } = await supabase
-        .from("community_channels")
-        .select(
-          `
-          *,
-          category:community_channel_categories(id, name, position)
-        `,
-        )
-        .eq("community_id", communityId)
-        .order("position", { ascending: true });
-
-      if (error) throw error;
-
-      const channelsWithUnread = await Promise.all(
-        (data || []).map(async (channel) => {
-          const { count } = await supabase
-            .from("community_messages")
-            .select("*", { count: "exact", head: true })
-            .eq("channel_id", channel.id)
-            .gt("created_at", membership.last_read_at || "1970-01-01");
-
-          const { data: lastMsg } = await supabase
-            .from("community_messages")
-            .select(
-              "content, created_at, author:profiles!community_messages_author_id_fkey(full_name)",
-            )
-            .eq("channel_id", channel.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-
-          return {
-            ...channel,
-            unreadCount: count || 0,
-            lastMessage: lastMsg,
-          };
-        }),
-      );
-
-      return channelsWithUnread;
-    } catch (error) {
-      console.error("Error fetching channels:", error);
-      throw error;
-    }
+  constructor() {
+    this.channelSubscriptions = new Map();
+    this.typingSubscriptions = new Map();
+    this.userId = null;
+    this.pendingMessages = new Map();
+    this.messageIdCounter = 0;
   }
 
-  async createChannel(communityId, name, description, type = "text") {
-    try {
-      const { data, error } = await supabase
-        .from("community_channels")
-        .insert({
-          community_id: communityId,
-          name,
-          description,
-          type,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error creating channel:", error);
-      throw error;
-    }
+  async init(userId) {
+    this.userId = userId;
   }
 
-  // ========================================================================
-  // MESSAGE MANAGEMENT
-  // ========================================================================
-
-  async getMessages(channelId, limit = 50) {
+  async loadMessages(channelId) {
     try {
+      console.log(`📥 Loading messages for channel ${channelId}`);
       const { data, error } = await supabase
         .from("community_messages")
-        .select(
-          `
+        .select(`
           *,
-          author:profiles!community_messages_author_id_fkey(
-            id, 
-            full_name, 
-            username, 
-            avatar_id, 
+          user:user_id(
+            id,
+            username,
+            full_name,
+            avatar_id,
+            avatar_metadata,
             verified
-          ),
-          reactions:community_message_reactions(
-            id,
-            emoji,
-            user_id,
-            user:profiles!community_message_reactions_user_id_fkey(full_name, username)
-          ),
-          attachments:community_message_attachments(*),
-          replies:community_messages!parent_message_id(
-            id,
-            content,
-            created_at,
-            author:profiles!community_messages_author_id_fkey(full_name, avatar_id)
           )
-        `,
-        )
+        `)
         .eq("channel_id", channelId)
-        .is("parent_message_id", null)
-        .order("created_at", { ascending: false })
-        .limit(limit);
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return (data || []).reverse();
+
+      const messages = (data || []).map(msg => ({
+        ...msg,
+        user: msg.user || {
+          id: msg.user_id,
+          username: "Unknown",
+          full_name: "Unknown User",
+          avatar_id: null,
+          avatar_metadata: null,
+          verified: false
+        }
+      }));
+
+      console.log(`✅ Loaded ${messages.length} messages`);
+      communityState.initMessages(channelId, messages);
+      return messages;
     } catch (error) {
-      console.error("Error fetching messages:", error);
-      throw error;
+      console.error("❌ Load messages error:", error);
+      return [];
     }
   }
 
-  async sendMessage(
-    channelId,
-    authorId,
-    content,
-    parentMessageId = null,
-    attachments = [],
-  ) {
+  async sendMessage(channelId, userId, content, options = {}) {
+    const tempId = `temp_${Date.now()}_${this.messageIdCounter++}`;
+    const currentUser = options.user || options.currentUser;
+
+    if (!currentUser) {
+      console.error("❌ No user data provided to sendMessage");
+      throw new Error("User data is required");
+    }
+
     try {
-      const optimisticId = `temp_${Date.now()}`;
-      const optimisticMessage = {
-        id: optimisticId,
-        channel_id: channelId,
-        author_id: authorId,
-        content,
-        parent_message_id: parentMessageId,
-        created_at: new Date().toISOString(),
-        pending: true,
-        reactions: [],
-        attachments: [],
-        replies: [],
+      // Build complete user object with avatar
+      const userObject = {
+        id: userId,
+        username: currentUser.username || "Unknown",
+        full_name: currentUser.full_name || currentUser.fullName || "Unknown User",
+        avatar_id: currentUser.avatar_id || null,
+        avatar_metadata: currentUser.avatar_metadata || null,
+        verified: currentUser.verified || false
       };
 
-      const insertPromise = supabase
-        .from("community_messages")
-        .insert({
-          channel_id: channelId,
-          author_id: authorId,
-          content,
-          parent_message_id: parentMessageId,
-        })
-        .select(
-          `
-          *,
-          author:profiles!community_messages_author_id_fkey(id, full_name, username, avatar_id, verified)
-        `,
-        )
-        .single()
-        .then(async ({ data: message, error: msgError }) => {
-          if (msgError) throw msgError;
+      console.log(`🚀 [SEND] Complete user object:`, userObject);
 
-          if (attachments.length > 0 && message) {
-            const attachmentPromises = attachments.map((att) =>
-              supabase.from("community_message_attachments").insert({
-                message_id: message.id,
-                file_url: att.url,
-                file_type: att.type,
-                file_size: att.size,
-              }),
-            );
-            await Promise.all(attachmentPromises);
-          }
+      // Create optimistic message with full user data
+      const optimisticMessage = {
+        id: tempId,
+        tempId,
+        _tempId: tempId,
+        channel_id: channelId,
+        user_id: userId,
+        content,
+        created_at: new Date().toISOString(),
+        user: userObject,  // Full user object included
+        reactions: {},
+        edited: false,
+        _optimistic: true
+      };
 
-          const updateChannelPromise = supabase
-            .from("community_channels")
-            .update({ last_message_at: new Date().toISOString() })
-            .eq("id", channelId);
+      // Add to state immediately
+      communityState.addMessage(channelId, optimisticMessage);
+      this.pendingMessages.set(tempId, optimisticMessage);
 
-          await updateChannelPromise;
+      console.log(`✅ [SEND] Optimistic message added with avatar:`, userObject.avatar_id);
 
-          return message;
-        });
-
-      insertPromise.catch((error) => {
-        console.error("Background send failed:", error);
+      // Broadcast to other users with full user data
+      const channel = supabase.channel(`channel:${channelId}`);
+      await channel.send({
+        type: "broadcast",
+        event: "new_message",
+        payload: optimisticMessage  // Send complete message with user object
       });
+      console.log(`📡 [SEND] Broadcast sent with user data`);
+
+      // Save to database (async) - pass userObject for fallback
+      this.saveToDatabase(channelId, userId, content, tempId, userObject);
 
       return optimisticMessage;
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("❌ Error sending message:", error);
+      this.pendingMessages.delete(tempId);
+      communityState.removeMessage(channelId, tempId);
       throw error;
     }
   }
 
-  async editMessage(messageId, newContent) {
+  async saveToDatabase(channelId, userId, content, tempId, userObject) {
+    try {
+      const { data, error } = await supabase
+        .from("community_messages")
+        .insert({
+          channel_id: channelId,
+          user_id: userId,
+          content: content.trim()
+        })
+        .select(`
+          *,
+          user:user_id(
+            id,
+            username,
+            full_name,
+            avatar_id,
+            avatar_metadata,
+            verified
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error("❌ [DB] Insert failed:", error);
+        this.pendingMessages.delete(tempId);
+        communityState.removeMessage(channelId, tempId);
+        throw error;
+      }
+
+      console.log(`✅ [DB] Saved, replacing temp ${tempId} with ${data.id}`);
+      
+      // Use DB user data if available, otherwise fallback to userObject
+      const realMessage = {
+        ...data,
+        user: data.user || userObject
+      };
+
+      console.log(`✅ [DB] Real message user data:`, realMessage.user);
+
+      communityState.replaceMessage(channelId, tempId, realMessage);
+      this.pendingMessages.delete(tempId);
+
+      return realMessage;
+    } catch (error) {
+      console.error("❌ Database save error:", error);
+      this.pendingMessages.delete(tempId);
+      throw error;
+    }
+  }
+
+  subscribeToChannel(channelId, callbackOrOptions) {
+    const callback = typeof callbackOrOptions === 'function' 
+      ? callbackOrOptions 
+      : callbackOrOptions?.onMessage || (() => {});
+
+    return this.subscribeToMessages(channelId, callback);
+  }
+
+  subscribeToMessages(channelId, callback) {
+    const channelKey = `channel:${channelId}`;
+    
+    if (this.channelSubscriptions.has(channelKey)) {
+      console.log(`⚠️ Already subscribed to ${channelKey}`);
+      return this.channelSubscriptions.get(channelKey).unsubscribe;
+    }
+
+    console.log(`🔌 [SUBSCRIBE] Joining channel: ${channelKey}`);
+
+    const channel = supabase
+      .channel(channelKey)
+      .on("broadcast", { event: "new_message" }, (payload) => {
+        console.log("📨 [BROADCAST] Received:", payload.payload);
+        
+        // Skip own optimistic messages
+        if (this.pendingMessages.has(payload.payload.tempId) || 
+            this.pendingMessages.has(payload.payload._tempId)) {
+          console.log("⏭️ Skipping own optimistic message");
+          return;
+        }
+
+        // Ensure user data is present in broadcast
+        if (payload.payload.user) {
+          console.log("✅ [BROADCAST] User data present:", payload.payload.user.avatar_id);
+          communityState.addMessage(channelId, payload.payload);
+          callback(payload.payload);
+        } else {
+          console.warn("⚠️ [BROADCAST] Missing user data, fetching...");
+          // Fetch user data if missing
+          this.fetchUserForMessage(payload.payload).then(enrichedMsg => {
+            communityState.addMessage(channelId, enrichedMsg);
+            callback(enrichedMsg);
+          });
+        }
+      })
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "community_messages",
+        filter: `channel_id=eq.${channelId}`
+      }, async (payload) => {
+        console.log("📨 [DB INSERT] Received:", payload.new.id);
+        
+        // Fetch full message with user data
+        const { data } = await supabase
+          .from("community_messages")
+          .select(`
+            *,
+            user:user_id(
+              id,
+              username,
+              full_name,
+              avatar_id,
+              avatar_metadata,
+              verified
+            )
+          `)
+          .eq("id", payload.new.id)
+          .single();
+
+        if (data) {
+          console.log("✅ [DB INSERT] User data loaded:", data.user?.avatar_id);
+          communityState.addMessage(channelId, data);
+          callback(data);
+        }
+      })
+      .subscribe((status) => {
+        console.log(`🔌 Channel ${channelKey} status:`, status);
+      });
+
+    const unsubscribe = () => {
+      console.log(`🔌 [UNSUBSCRIBE] Leaving ${channelKey}`);
+      channel.unsubscribe();
+      this.channelSubscriptions.delete(channelKey);
+    };
+
+    this.channelSubscriptions.set(channelKey, { channel, unsubscribe });
+    return unsubscribe;
+  }
+
+  async fetchUserForMessage(message) {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, full_name, avatar_id, avatar_metadata, verified")
+        .eq("id", message.user_id)
+        .single();
+
+      return {
+        ...message,
+        user: data || {
+          id: message.user_id,
+          username: "Unknown",
+          full_name: "Unknown User",
+          avatar_id: null,
+          avatar_metadata: null,
+          verified: false
+        }
+      };
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      return message;
+    }
+  }
+
+  async editMessage(messageId, userId, newContent) {
     try {
       const { data, error } = await supabase
         .from("community_messages")
         .update({
-          content: newContent,
-          edited_at: new Date().toISOString(),
+          content: newContent.trim(),
+          edited: true,
+          updated_at: new Date().toISOString()
         })
         .eq("id", messageId)
+        .eq("user_id", userId)
         .select()
         .single();
 
@@ -228,11 +308,11 @@ class CommunityMessageService {
     }
   }
 
-  async deleteMessage(messageId) {
+  async deleteMessage(messageId, userId, communityId) {
     try {
       const { error } = await supabase
         .from("community_messages")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", messageId);
 
       if (error) throw error;
@@ -243,312 +323,151 @@ class CommunityMessageService {
     }
   }
 
-  async pinMessage(messageId, channelId) {
+  async addReaction(messageId, userId, emoji) {
     try {
-      const { data, error } = await supabase
+      const { data: msg } = await supabase
         .from("community_messages")
-        .update({ pinned: true, pinned_at: new Date().toISOString() })
+        .select("reactions")
         .eq("id", messageId)
-        .select()
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error pinning message:", error);
-      throw error;
-    }
-  }
+      const reactions = msg?.reactions || {};
+      
+      if (!reactions[emoji]) {
+        reactions[emoji] = { count: 0, users: [] };
+      }
 
-  async unpinMessage(messageId) {
-    try {
-      const { data, error } = await supabase
-        .from("community_messages")
-        .update({ pinned: false, pinned_at: null })
-        .eq("id", messageId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error unpinning message:", error);
-      throw error;
-    }
-  }
-
-  // ========================================================================
-  // REACTIONS
-  // ========================================================================
-
-  async reactToMessage(messageId, userId, emoji) {
-    try {
-      const { data: existing } = await supabase
-        .from("community_message_reactions")
-        .select("*")
-        .eq("message_id", messageId)
-        .eq("user_id", userId)
-        .eq("emoji", emoji)
-        .single();
-
-      if (existing) {
-        const { error } = await supabase
-          .from("community_message_reactions")
-          .delete()
-          .eq("id", existing.id);
-
-        if (error) throw error;
-        return { action: "removed" };
+      if (!reactions[emoji].users.includes(userId)) {
+        reactions[emoji].count++;
+        reactions[emoji].users.push(userId);
       }
 
       const { error } = await supabase
-        .from("community_message_reactions")
-        .insert({
-          message_id: messageId,
-          user_id: userId,
-          emoji,
-        });
-
-      if (error) throw error;
-      return { action: "added" };
-    } catch (error) {
-      console.error("Error reacting to message:", error);
-      throw error;
-    }
-  }
-
-  // ========================================================================
-  // THREADS (REPLIES)
-  // ========================================================================
-
-  async getReplies(parentMessageId) {
-    try {
-      const { data, error } = await supabase
         .from("community_messages")
-        .select(
-          `
-          *,
-          author:profiles!community_messages_author_id_fkey(id, full_name, username, avatar_id, verified)
-        `,
-        )
-        .eq("parent_message_id", parentMessageId)
-        .order("created_at", { ascending: true });
+        .update({ reactions })
+        .eq("id", messageId);
 
       if (error) throw error;
-      return data || [];
+      return reactions;
     } catch (error) {
-      console.error("Error fetching replies:", error);
+      console.error("Error adding reaction:", error);
       throw error;
     }
   }
 
-  // ========================================================================
-  // MENTIONS & NOTIFICATIONS
-  // ========================================================================
-
-  async getMentions(userId, communityId) {
+  async removeReaction(messageId, userId, emoji) {
     try {
-      const { data, error } = await supabase
-        .from("community_mentions")
-        .select(
-          `
-          *,
-          message:community_messages(
-            *,
-            author:profiles!community_messages_author_id_fkey(full_name, avatar_id),
-            channel:community_channels(id, name)
-          )
-        `,
-        )
-        .eq("user_id", userId)
-        .eq("message.channel.community_id", communityId)
-        .eq("read", false)
-        .order("created_at", { ascending: false });
+      const { data: msg } = await supabase
+        .from("community_messages")
+        .select("reactions")
+        .eq("id", messageId)
+        .single();
 
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error("Error fetching mentions:", error);
-      throw error;
-    }
-  }
+      const reactions = msg?.reactions || {};
 
-  async markMentionAsRead(mentionId) {
-    try {
+      if (reactions[emoji] && reactions[emoji].users.includes(userId)) {
+        reactions[emoji].count--;
+        reactions[emoji].users = reactions[emoji].users.filter(id => id !== userId);
+
+        if (reactions[emoji].count === 0) {
+          delete reactions[emoji];
+        }
+      }
+
       const { error } = await supabase
-        .from("community_mentions")
-        .update({ read: true })
-        .eq("id", mentionId);
+        .from("community_messages")
+        .update({ reactions })
+        .eq("id", messageId);
 
       if (error) throw error;
-      return true;
+      return reactions;
     } catch (error) {
-      console.error("Error marking mention as read:", error);
+      console.error("Error removing reaction:", error);
       throw error;
-    }
-  }
-
-  // ========================================================================
-  // REAL-TIME SUBSCRIPTIONS
-  // ========================================================================
-
-  subscribeToChannel(channelId, callback) {
-    const channel = supabase
-      .channel(`community-channel:${channelId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "community_messages",
-          filter: `channel_id=eq.${channelId}`,
-        },
-        async (payload) => {
-          if (payload.eventType === "INSERT") {
-            const { data } = await supabase
-              .from("community_messages")
-              .select(
-                `
-                *,
-                author:profiles!community_messages_author_id_fkey(id, full_name, username, avatar_id, verified),
-                reactions:community_message_reactions(*)
-              `,
-              )
-              .eq("id", payload.new.id)
-              .single();
-
-            callback({ type: "INSERT", message: data });
-          } else if (payload.eventType === "UPDATE") {
-            callback({ type: "UPDATE", message: payload.new });
-          } else if (payload.eventType === "DELETE") {
-            callback({ type: "DELETE", messageId: payload.old.id });
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }
-
-  subscribeToReactions(messageId, callback) {
-    const channel = supabase
-      .channel(`message-reactions:${messageId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "community_message_reactions",
-          filter: `message_id=eq.${messageId}`,
-        },
-        (payload) => {
-          callback(payload);
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }
-
-  // ========================================================================
-  // MEMBER PERMISSIONS
-  // ========================================================================
-
-  async canUserPostInChannel(userId, channelId) {
-    try {
-      const { data: channel } = await supabase
-        .from("community_channels")
-        .select("community_id")
-        .eq("id", channelId)
-        .single();
-
-      if (!channel) return false;
-
-      const { data: member } = await supabase
-        .from("community_members")
-        .select(
-          `
-          role_id,
-          role:community_roles(can_send_messages, can_manage_messages)
-        `,
-        )
-        .eq("community_id", channel.community_id)
-        .eq("user_id", userId)
-        .single();
-
-      return member?.role?.can_send_messages || false;
-    } catch (error) {
-      console.error("Error checking permissions:", error);
-      return false;
-    }
-  }
-
-  async canUserManageMessages(userId, channelId) {
-    try {
-      const { data: channel } = await supabase
-        .from("community_channels")
-        .select("community_id")
-        .eq("id", channelId)
-        .single();
-
-      if (!channel) return false;
-
-      const { data: member } = await supabase
-        .from("community_members")
-        .select(
-          `
-          role_id,
-          role:community_roles(can_manage_messages)
-        `,
-        )
-        .eq("community_id", channel.community_id)
-        .eq("user_id", userId)
-        .single();
-
-      return member?.role?.can_manage_messages || false;
-    } catch (error) {
-      console.error("Error checking permissions:", error);
-      return false;
-    }
-  }
-
-  // ========================================================================
-  // TYPING INDICATORS
-  // ========================================================================
-
-  async setTyping(channelId, userId, isTyping) {
-    const channel = supabase.channel(`typing:${channelId}`);
-
-    if (isTyping) {
-      channel.send({
-        type: "broadcast",
-        event: "typing",
-        payload: { userId, isTyping: true },
-      });
-    } else {
-      channel.send({
-        type: "broadcast",
-        event: "typing",
-        payload: { userId, isTyping: false },
-      });
     }
   }
 
   subscribeToTyping(channelId, callback) {
+    const typingKey = `typing:${channelId}`;
+    
+    if (this.typingSubscriptions.has(typingKey)) {
+      return this.typingSubscriptions.get(typingKey).unsubscribe;
+    }
+
+    const typingUsers = new Map();
+    const typingTimeouts = new Map();
+
     const channel = supabase
-      .channel(`typing:${channelId}`)
+      .channel(typingKey)
       .on("broadcast", { event: "typing" }, (payload) => {
-        callback(payload.payload);
+        const { userId, userName, typing } = payload.payload;
+
+        if (userId === this.userId) return;
+
+        if (typing) {
+          typingUsers.set(userId, { userId, userName });
+
+          if (typingTimeouts.has(userId)) {
+            clearTimeout(typingTimeouts.get(userId));
+          }
+
+          const timeout = setTimeout(() => {
+            typingUsers.delete(userId);
+            const current = Array.from(typingUsers.values());
+            communityState.setTyping(channelId, current);
+            callback(current);
+          }, 3000);
+
+          typingTimeouts.set(userId, timeout);
+        } else {
+          typingUsers.delete(userId);
+          if (typingTimeouts.has(userId)) {
+            clearTimeout(typingTimeouts.get(userId));
+            typingTimeouts.delete(userId);
+          }
+        }
+
+        const current = Array.from(typingUsers.values());
+        communityState.setTyping(channelId, current);
+        callback(current);
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
+    const unsubscribe = () => {
+      channel.unsubscribe();
+      typingTimeouts.forEach(timeout => clearTimeout(timeout));
+      typingTimeouts.clear();
+      typingUsers.clear();
+      this.typingSubscriptions.delete(typingKey);
     };
+
+    this.typingSubscriptions.set(typingKey, { channel, unsubscribe });
+    return unsubscribe;
+  }
+
+  async sendTyping(channelId, isTyping, userName) {
+    try {
+      const channel = supabase.channel(`typing:${channelId}`);
+      await channel.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { 
+          userId: this.userId, 
+          userName: userName || "Unknown",
+          typing: isTyping 
+        }
+      });
+    } catch (error) {
+      console.error("Error sending typing indicator:", error);
+    }
+  }
+
+  cleanup() {
+    this.channelSubscriptions.forEach(({ channel }) => channel.unsubscribe());
+    this.channelSubscriptions.clear();
+    this.typingSubscriptions.forEach(({ channel }) => channel.unsubscribe());
+    this.typingSubscriptions.clear();
+    this.pendingMessages.clear();
   }
 }
 

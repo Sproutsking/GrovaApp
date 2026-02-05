@@ -640,12 +640,13 @@
 @media (max-width: 768px) {
   .community-view {
     position: fixed;
-    top: 60px;
+    top: 50px;
     left: 0;
     right: 0;
-    bottom: 70px; /* Space for mobile bottom nav */
+    bottom: 60px; /* Space for mobile bottom nav */
     height: auto;
     width: 100%;
+    margin: 0;
   }
 
   .community-sidebar {

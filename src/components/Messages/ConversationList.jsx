@@ -1,8 +1,9 @@
-// components/Messages/ConversationList.jsx - INSTANT UPDATES
+// components/Messages/ConversationList.jsx - INSTANT UPDATES + TYPING
 import React, { useState, useEffect } from "react";
 import { Search, X, MessageCircle, Plus } from "lucide-react";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
+import dmMessageService from "../../services/messages/dmMessageService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
 const ConversationList = ({
@@ -16,13 +17,17 @@ const ConversationList = ({
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState([]);
   const [statusMap, setStatusMap] = useState(new Map());
+  const [typingMap, setTypingMap] = useState(new Map());
 
-  // Subscribe to conversation updates - INSTANT
+  // ✅ SUBSCRIBE TO STATE CHANGES (INSTANT UPDATES)
   useEffect(() => {
-    const unsub = conversationState.subscribe((convs) => {
-      // Update conversations immediately when state changes
-      setConversations(convs);
-    });
+    const updateConversations = () => {
+      const convs = conversationState.getConversations();
+      setConversations([...convs]);
+    };
+
+    const unsub = conversationState.subscribe(updateConversations);
+    updateConversations();
 
     return unsub;
   }, []);
@@ -37,13 +42,43 @@ const ConversationList = ({
       });
     });
 
-    // Fetch status for all visible users
     conversations.forEach((conv) => {
       const otherId = conv.user1_id === currentUserId ? conv.user2?.id : conv.user1?.id;
       if (otherId) onlineStatusService.fetchStatus(otherId);
     });
 
     return unsub;
+  }, [conversations, currentUserId]);
+
+  // ✅ SUBSCRIBE TO TYPING INDICATORS FOR ALL CONVERSATIONS
+  useEffect(() => {
+    const unsubscribers = [];
+
+    conversations.forEach((conv) => {
+      const unsub = dmMessageService.subscribeToConversation(conv.id, {
+        onTyping: (userId, isTyping, userName) => {
+          const otherId = conv.user1_id === currentUserId ? conv.user2?.id : conv.user1?.id;
+          
+          if (userId === otherId) {
+            setTypingMap((prev) => {
+              const newMap = new Map(prev);
+              if (isTyping) {
+                newMap.set(conv.id, userName || "User");
+              } else {
+                newMap.delete(conv.id);
+              }
+              return newMap;
+            });
+          }
+        },
+      });
+
+      unsubscribers.push(unsub);
+    });
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
   }, [conversations, currentUserId]);
 
   const filtered = conversations.filter((conv) => {
@@ -65,6 +100,9 @@ const ConversationList = ({
   };
 
   const getPreview = (conv) => {
+    const typingName = typingMap.get(conv.id);
+    if (typingName) return `${typingName} is typing...`;
+    
     if (!conv.lastMessage) return "Start a conversation";
     const isMe = conv.lastMessage.sender_id === currentUserId;
     const prefix = isMe ? "You: " : "";
@@ -126,6 +164,7 @@ const ConversationList = ({
             const unread = conv.unreadCount || 0;
             const hasUnread = !isActive && unread > 0;
             const avatarUrl = getAvatar(other);
+            const isTyping = typingMap.has(conv.id);
 
             return (
               <div
@@ -152,10 +191,10 @@ const ConversationList = ({
                     </span>
                   </div>
                   <div className="conv-bottom">
-                    <span className={`conv-preview ${hasUnread ? "unread" : ""}`}>
+                    <span className={`conv-preview ${hasUnread ? "unread" : ""} ${isTyping ? "typing" : ""}`}>
                       {getPreview(conv)}
                     </span>
-                    {hasUnread && (
+                    {hasUnread && !isTyping && (
                       <span className="conv-badge">{unread > 99 ? "99+" : unread}</span>
                     )}
                   </div>
@@ -235,6 +274,7 @@ const ConversationList = ({
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
         }
         .conv-preview.unread { color: #888; font-weight: 600; }
+        .conv-preview.typing { color: #84cc16; font-style: italic; }
         .conv-badge {
           min-width: 18px; height: 18px; padding: 0 5px;
           border-radius: 9px; background: #84cc16; color: #000;

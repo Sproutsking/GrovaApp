@@ -632,9 +632,7 @@ const CommunityMenu = ({
             {/* Render section components */}
             {menuView === "members" && (
               <MembersSection
-                members={members}
-                roles={roles}
-                loading={loading}
+                community={community}
                 onBack={() => setMenuView("main")}
               />
             )}
@@ -748,7 +746,7 @@ const CommunityMenu = ({
         }
 
         .menu-header {
-          padding: 20px;
+          padding: 8px 12px;
           border-bottom: 2px solid rgba(156, 255, 0, 0.1);
           background: linear-gradient(
             180deg,
@@ -841,8 +839,8 @@ const CommunityMenu = ({
         .close-menu {
           width: 40px;
           height: 40px;
-          border-radius: 10px;
-          background: rgba(26, 26, 26, 0.6);
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.8);
           border: 2px solid rgba(42, 42, 42, 0.8);
           color: #999;
           cursor: pointer;
@@ -881,14 +879,13 @@ const CommunityMenu = ({
         }
 
         .menu-section {
-          padding: 16px;
+          padding: 12px;
         }
 
         .stat-card-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin-bottom: 16px;
+          gap: 8px;
         }
 
         .stat-card {
@@ -928,7 +925,7 @@ const CommunityMenu = ({
           gap: 12px;
           padding: 16px;
           background: rgba(26, 26, 26, 0.4);
-          border: 2px solid rgba(42, 42, 42, 0.6);
+          border: 1px solid rgba(42, 42, 42, 0.6);
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -998,10 +995,6 @@ const CommunityMenu = ({
               opacity: 1;
               transform: translateY(0);
             }
-          }
-
-          .stat-card-grid {
-            grid-template-columns: 1fr !important;
           }
         }
       `}</style>
