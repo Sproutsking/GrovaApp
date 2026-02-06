@@ -39,9 +39,9 @@
 }
 
 .tab.active {
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  box-shadow: 0 4px 16px rgba(132, 204, 22, 0.4);
+  background: rgba(132, 204, 22, 0.1);
+  border-radius: 0 0 12px 12px;
+  border-bottom: 4px solid #84cc16;
 }
 
 .feed-container {
@@ -127,10 +127,10 @@
   }
   .tab {
     font-size: 12px;
-    padding: 4px;
+    padding: 6px;
     border-radius: 0;
   }
   .tab.active {
-    border: 1px solid #84cc16;
+    /* border: 1px solid #84cc16; */
   }
 }

@@ -1,7 +1,3 @@
-// ============================================================================
-// src/components/Shared/ReactionPanel.jsx - SELF-CONTAINED VERSION
-// ============================================================================
-
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { Heart, MessageCircle, Share2, Eye, Bookmark } from "lucide-react";
@@ -22,7 +18,6 @@ const ReactionPanel = ({
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(content.likes || 0);
-  const [isLiking, setIsLiking] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const { showToast } = useToast();
@@ -54,35 +49,39 @@ const ReactionPanel = ({
 
   const handleLike = async (e) => {
     e.stopPropagation();
-
     if (!currentUser?.id) {
       showToast("warning", "Please login to like");
       return;
     }
 
-    if (isLiking) return;
+    // OPTIMISTIC UPDATE - instant UI feedback
+    const wasLiked = liked;
+    const previousCount = likeCount;
 
-    try {
-      setIsLiking(true);
+    setLiked(!liked);
+    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
 
-      const result = await LikeModel.toggleLike(
-        content.type,
-        content.id,
-        currentUser.id,
-      );
-
-      setLiked(result.liked);
-      setLikeCount(result.newCount);
-
-      if (result.liked) {
-        showToast("success", "Liked!", "+1 EP earned");
-      }
-    } catch (error) {
-      console.error("Like error:", error);
-      showToast("error", "Failed to like");
-    } finally {
-      setIsLiking(false);
+    if (!wasLiked) {
+      showToast("success", "Liked!", "+1 EP earned");
     }
+
+    // Background sync - no blocking
+    LikeModel.toggleLike(content.type, content.id, currentUser.id)
+      .then((result) => {
+        // Update with server result if different
+        if (result.liked !== !wasLiked) {
+          setLiked(result.liked);
+        }
+        if (result.newCount !== previousCount + (wasLiked ? -1 : 1)) {
+          setLikeCount(result.newCount);
+        }
+      })
+      .catch((error) => {
+        // Rollback on error
+        setLiked(wasLiked);
+        setLikeCount(previousCount);
+        showToast("error", "Failed to like");
+      });
   };
 
   const handleComment = (e) => {
@@ -97,25 +96,23 @@ const ReactionPanel = ({
 
   const handleSave = async (e) => {
     e.stopPropagation();
-
     if (!currentUser?.id) {
       showToast("warning", "Please login to save");
       return;
     }
 
-    try {
-      const result = await SaveModel.saveContent(
-        content.type,
-        content.id,
-        currentUser.id,
-      );
-      setSaved(result.saved);
+    // OPTIMISTIC UPDATE
+    const wasSaved = saved;
+    setSaved(!saved);
+    showToast("success", !wasSaved ? "Saved!" : "Removed from saved");
 
-      showToast("success", result.saved ? "Saved!" : "Removed from saved");
-    } catch (error) {
-      console.error("Save error:", error);
-      showToast("error", "Failed to save");
-    }
+    // Background sync
+    SaveModel.saveContent(content.type, content.id, currentUser.id).catch(
+      (error) => {
+        setSaved(wasSaved);
+        showToast("error", "Failed to save");
+      },
+    );
   };
 
   const formatNumber = (num) => {
@@ -131,7 +128,6 @@ const ReactionPanel = ({
         <button
           className={`reaction-btn ${liked ? "reaction-btn-active" : ""}`}
           onClick={handleLike}
-          disabled={isLiking}
         >
           <Heart
             size={18}
@@ -199,8 +195,8 @@ const ReactionPanel = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 10px 14px;
-          margin-top: 8px;
+          padding: 8px 12px;
+          margin-top: 6px;
           background: linear-gradient(
             180deg,
             rgba(255, 255, 255, 0.05),
@@ -211,55 +207,50 @@ const ReactionPanel = ({
         }
 
         .reaction-panel-horizontal {
-          gap: 12px;
+          gap: 10px;
         }
-
         .reaction-panel-vertical {
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
         }
 
         .reaction-btn {
           position: relative;
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 10px 14px;
-          border-radius: 14px;
+          gap: 5px;
+          padding: 8px 12px;
+          border-radius: 12px;
           background: transparent;
           border: none;
           color: #d4d4d4;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
-          transition:
-            background 0.2s ease,
-            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-            color 0.18s ease;
+          transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
         }
 
         .reaction-btn::before {
           content: "";
           position: absolute;
           inset: 0;
-          border-radius: 14px;
+          border-radius: 12px;
           background: rgba(255, 255, 255, 0.06);
           opacity: 0;
-          transform: scale(0.9);
-          transition:
-            opacity 0.18s ease,
-            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+          transform: scale(0.92);
+          transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
           z-index: -1;
         }
 
-        .reaction-btn:hover::before {
-          opacity: 1;
-          transform: scale(1);
+        .reaction-btn:active {
+          transform: scale(0.94);
         }
 
-        .reaction-btn:hover {
-          transform: translateY(-1px);
-          color: #e5e5e5;
+        .reaction-btn:active::before {
+          opacity: 1;
+          transform: scale(1);
         }
 
         .reaction-btn-active {
@@ -279,15 +270,15 @@ const ReactionPanel = ({
         }
 
         .reaction-btn svg {
-          transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        .reaction-btn:hover svg {
+        .reaction-btn:active svg {
           transform: scale(1.15);
         }
 
         .reaction-btn-active svg {
-          transform: scale(1.2);
+          transform: scale(1.1);
         }
 
         .reaction-btn span {
@@ -298,9 +289,9 @@ const ReactionPanel = ({
         .reaction-stat {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          border-radius: 12px;
+          gap: 5px;
+          padding: 6px 10px;
+          border-radius: 10px;
           color: #a3a3a3;
           font-size: 12px;
           font-weight: 600;
@@ -318,25 +309,13 @@ const ReactionPanel = ({
           margin-left: auto;
         }
 
-        .reaction-btn:active {
-          transform: scale(0.96);
-        }
-
-        .reaction-btn:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
         @media (max-width: 768px) {
           .reaction-panel {
-            padding: 6px 10px;
+            padding: 6px 8px;
           }
 
           .reaction-btn {
-            padding: 10px;
-          }
-
-          .reaction-btn span {
+            padding: 8px 10px;
             font-size: 12px;
           }
         }
