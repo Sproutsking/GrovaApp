@@ -1,10 +1,9 @@
 // service-worker.js
-// Critical fix for mobile PWA - API calls always bypass cache
+// Optimized for mobile PWA - API calls always bypass cache
 
-const CACHE_NAME = "grova-cache-v3";
-const RUNTIME_CACHE = "grova-runtime-v3";
+const CACHE_NAME = "grova-cache-v4";
+const RUNTIME_CACHE = "grova-runtime-v4";
 
-// Only cache static assets, NEVER data
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -14,26 +13,24 @@ const PRECACHE_URLS = [
   "/logo512.png",
 ];
 
-// Install event
 self.addEventListener("install", (event) => {
-  console.log("[Service Worker] Installing v3...");
+  console.log("[SW] Installing v4...");
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[Service Worker] Precaching app shell");
+        console.log("[SW] Precaching app shell");
         return cache.addAll(PRECACHE_URLS);
       })
       .then(() => self.skipWaiting())
       .catch((error) => {
-        console.error("[Service Worker] Precaching failed:", error);
+        console.error("[SW] Precache failed:", error);
       }),
   );
 });
 
-// Activate event - clean up old caches
 self.addEventListener("activate", (event) => {
-  console.log("[Service Worker] Activating v3...");
+  console.log("[SW] Activating v4...");
   event.waitUntil(
     caches
       .keys()
@@ -42,7 +39,7 @@ self.addEventListener("activate", (event) => {
           cacheNames
             .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
             .map((name) => {
-              console.log("[Service Worker] Deleting old cache:", name);
+              console.log("[SW] Deleting old cache:", name);
               return caches.delete(name);
             }),
         );
@@ -51,12 +48,11 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - CRITICAL: Never cache API/Supabase
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests (let browser handle)
+  // Skip cross-origin requests
   if (url.origin !== location.origin) {
     return;
   }
@@ -66,7 +62,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // CRITICAL: NEVER cache these - always use network
+  // CRITICAL: NEVER cache API/Supabase calls
   const noCachePatterns = [
     "/api/",
     "supabase",
@@ -80,15 +76,9 @@ self.addEventListener("fetch", (event) => {
   );
 
   if (shouldNeverCache) {
-    console.log("[SW] Network-only (no cache):", url.pathname);
     event.respondWith(
       fetch(request, {
         cache: "no-store",
-        headers: {
-          ...request.headers,
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-        },
       }).catch(() => {
         return new Response(
           JSON.stringify({ error: "Network unavailable", offline: true }),
@@ -102,7 +92,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For HTML navigation - always try network first
+  // For HTML navigation
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request, { cache: "no-store" })
@@ -112,7 +102,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For static assets (JS, CSS, images) - cache first with network update
+  // For static assets - cache first
   if (
     request.destination === "script" ||
     request.destination === "style" ||
@@ -121,7 +111,6 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
-        // Return cached version
         const fetchPromise = fetch(request).then((response) => {
           if (response && response.status === 200) {
             const responseClone = response.clone();
@@ -156,21 +145,8 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Handle messages from clients
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
-  }
-
-  // Force clear all caches
-  if (event.data && event.data.type === "CLEAR_CACHE") {
-    console.log("[SW] Clearing all caches");
-    event.waitUntil(
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => caches.delete(cacheName)),
-        );
-      }),
-    );
   }
 });

@@ -6,7 +6,6 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const containerRef = useRef(null);
   const startYRef = useRef(0);
-  const currentYRef = useRef(0);
   const isTouchingRef = useRef(false);
   const canPullRef = useRef(false);
 
@@ -22,11 +21,9 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
     const handleTouchStart = (e) => {
       const scrollTop = container.scrollTop;
 
-      // Only allow pull if at absolute top
       if (scrollTop === 0) {
         canPullRef.current = true;
         startYRef.current = e.touches[0].clientY;
-        currentYRef.current = e.touches[0].clientY;
         isTouchingRef.current = true;
       } else {
         canPullRef.current = false;
@@ -36,18 +33,15 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
     const handleTouchMove = (e) => {
       if (!isTouchingRef.current || !canPullRef.current || isRefreshing) return;
 
-      currentYRef.current = e.touches[0].clientY;
-      const pullDelta = currentYRef.current - startYRef.current;
+      const currentY = e.touches[0].clientY;
+      const pullDelta = currentY - startYRef.current;
 
-      // Only show indicator if pulling down AND still at top
       if (pullDelta > 0 && container.scrollTop === 0) {
-        // DO NOT prevent default - let scroll happen naturally
         const resistance = 0.4;
         const distance = Math.min(pullDelta * resistance, MAX_PULL);
         setPullDistance(distance);
         setIsPulling(distance > 10);
       } else {
-        // Reset if user scrolls down or pulls up
         setPullDistance(0);
         setIsPulling(false);
         canPullRef.current = false;
@@ -68,19 +62,21 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
         setIsRefreshing(true);
 
         try {
+          // Fast refresh - max 1 second
           await Promise.race([
             onRefresh(),
-            new Promise((resolve) => setTimeout(resolve, 800)),
+            new Promise((resolve) => setTimeout(resolve, 1000)),
           ]);
         } catch (error) {
-          console.error("Refresh failed:", error);
+          console.error("Refresh error:", error);
         }
 
+        // Auto-close after 1 second total
         setTimeout(() => {
           setPullDistance(0);
           setIsPulling(false);
           setIsRefreshing(false);
-        }, 600);
+        }, 1000);
       } else {
         setPullDistance(0);
         setIsPulling(false);
@@ -89,7 +85,6 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
       canPullRef.current = false;
     };
 
-    // Use passive listeners - never block scroll
     container.addEventListener("touchstart", handleTouchStart, {
       passive: true,
     });

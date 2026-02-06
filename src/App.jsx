@@ -26,7 +26,7 @@ import Sidebar from "./components/Shared/Sidebar";
 import AuthPage from "./components/Auth/AuthPage";
 import SupportSidebar from "./components/Shared/SupportSidebar";
 import NotificationSidebar from "./components/Shared/NotificationSidebar";
-import Pulltorefreshindicator from "./components/Shared/PullToRefreshIndicator";
+import PullToRefreshIndicator from "./components/Shared/PullToRefreshIndicator";
 
 const HomeView = lazy(() => import("./components/Home/HomeView"));
 const ExploreView = lazy(() => import("./components/Explore/ExploreView"));
@@ -79,14 +79,12 @@ const App = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
 
   const feedRef = useRef(null);
   const authUnsubscribe = useRef(null);
-  const isStandalone = useRef(
-    window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true,
-  );
+  const refreshTimeoutRef = useRef(null);
 
   const { isAtRoot } = useNavigation(
     activeTab,
@@ -99,23 +97,63 @@ const App = () => {
 
   const { showExitPrompt } = useBackButton(isAtRoot);
 
-  // Pull to refresh handler - fast 1 second refresh
+  // Smart refresh handler - incremental updates, not full remount
   const handleRefresh = async () => {
-    console.log("🔄 Fast refresh triggered");
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTime;
 
-    // Just increment key to force remount - super fast
-    setRefreshKey((prev) => prev + 1);
+    console.log("🔄 Refresh triggered");
 
-    // Optionally refresh user data in background
+    // Prevent spam refreshing (min 2 seconds between refreshes)
+    if (timeSinceLastRefresh < 2000) {
+      console.log("⏳ Too soon, skipping refresh");
+      return;
+    }
+
+    setLastRefreshTime(now);
+
+    // Increment trigger - child components listen to this
+    // They can choose to fetch new data WITHOUT full remount
+    setRefreshTrigger((prev) => prev + 1);
+
+    // Background refresh user data (balance, profile updates)
     if (user?.id) {
       loadUserDataAsync(user.id).catch((err) =>
-        console.log("Background refresh error:", err),
+        console.log("Background refresh:", err),
       );
     }
   };
 
   const { containerRef, isPulling, pullDistance, isRefreshing } =
     usePullToRefresh(handleRefresh, isMobile && user !== null);
+
+  // Auto-refresh for desktop - check for new content every 30 seconds
+  useEffect(() => {
+    if (!isMobile && user) {
+      // Clear any existing timeout
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+
+      // Set up auto-refresh
+      const autoRefresh = () => {
+        console.log("🔄 Auto-refresh (desktop)");
+        setRefreshTrigger((prev) => prev + 1);
+
+        // Schedule next refresh
+        refreshTimeoutRef.current = setTimeout(autoRefresh, 30000); // 30 seconds
+      };
+
+      // Start auto-refresh cycle
+      refreshTimeoutRef.current = setTimeout(autoRefresh, 30000);
+
+      return () => {
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current);
+        }
+      };
+    }
+  }, [isMobile, user]);
 
   useEffect(() => {
     initializeApp();
@@ -137,43 +175,21 @@ const App = () => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
 
-    // CRITICAL: Clear service worker cache on PWA startup
-    if (isStandalone.current && "serviceWorker" in navigator) {
-      console.log("📱 PWA Mode Detected - Clearing cache for fresh data");
-
-      // Wait for service worker to be ready
-      navigator.serviceWorker.ready.then((registration) => {
-        // Send clear cache message
-        if (registration.active) {
-          registration.active.postMessage({ type: "CLEAR_CACHE" });
-        }
-
-        // Also manually delete caches
-        if ("caches" in window) {
-          caches.keys().then((cacheNames) => {
-            return Promise.all(
-              cacheNames.map((cacheName) => {
-                console.log("Deleting cache:", cacheName);
-                return caches.delete(cacheName);
-              }),
-            );
-          });
-        }
-      });
-    }
-
     return () => {
       window.removeEventListener("resize", handleResize);
       if (authUnsubscribe.current) authUnsubscribe.current();
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
     };
   }, []);
 
   const initializeApp = async () => {
     try {
-      // Longer timeout for PWA on mobile
-      const timeout = isStandalone.current ? 5000 : 2000;
+      console.log("🚀 App initializing...");
+
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), timeout),
+        setTimeout(() => reject(new Error("timeout")), 3000),
       );
 
       const sessionPromise = authService.getSession();
@@ -185,11 +201,11 @@ const App = () => {
           setUser(session.user);
           await loadUserDataAsync(session.user.id);
         } else {
-          console.log("⚠️ No session found");
+          console.log("ℹ️ No active session");
         }
       } catch (err) {
         if (err.message !== "timeout") throw err;
-        console.log("⚠️ Session check timed out, continuing...");
+        console.log("⚠️ Session check timeout");
       }
     } catch (error) {
       console.error("❌ Init error:", error);
@@ -200,7 +216,7 @@ const App = () => {
 
   const loadUserDataAsync = async (userId) => {
     try {
-      console.log("🔄 Loading user data for:", userId);
+      console.log("📡 Fetching user data:", userId);
 
       setCurrentUser({
         name: "Loading...",
@@ -209,11 +225,6 @@ const App = () => {
         verified: false,
         fullName: "Loading...",
       });
-
-      // CRITICAL: Force fresh network request - no cache
-      const timestamp = Date.now();
-
-      console.log("📡 Fetching profile from Supabase...");
 
       const [profileResult, walletResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
@@ -224,8 +235,8 @@ const App = () => {
           .maybeSingle(),
       ]);
 
-      console.log("📊 Profile result:", profileResult);
-      console.log("💰 Wallet result:", walletResult);
+      console.log("📊 Profile:", profileResult.data ? "✅" : "❌");
+      console.log("💰 Wallet:", walletResult.data ? "✅" : "❌");
 
       let userData = null;
       let headerProfile = null;
@@ -241,8 +252,7 @@ const App = () => {
           if (baseUrl && typeof baseUrl === "string") {
             const cleanUrl = baseUrl.split("?")[0];
             if (cleanUrl.includes("supabase")) {
-              // Add cache-busting timestamp
-              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp&t=${timestamp}`;
+              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp&t=${Date.now()}`;
             } else {
               avatarUrl = baseUrl;
             }
@@ -270,10 +280,7 @@ const App = () => {
         };
 
         isPro = profile.is_pro || false;
-
-        console.log("✅ Profile loaded:", headerProfile);
       } else {
-        console.log("⚠️ No profile data found");
         userData = {
           id: userId,
           name: "Grova User",
@@ -297,7 +304,6 @@ const App = () => {
           tokens: wallet.grova_tokens || 0,
           points: wallet.engagement_points || 0,
         };
-        console.log("✅ Wallet loaded:", balance);
       }
 
       setCurrentUser(userData);
@@ -305,9 +311,9 @@ const App = () => {
       setUserBalance(balance);
       setIsSubscribed(isPro);
 
-      console.log("✅ User data loaded successfully");
+      console.log("✅ User data loaded");
     } catch (error) {
-      console.error("❌ Load user data error:", error);
+      console.error("❌ Load error:", error);
       setCurrentUser({
         id: userId,
         name: "Grova User",
@@ -327,7 +333,7 @@ const App = () => {
   };
 
   const handleProfileUpdate = (updatedProfile) => {
-    console.log("🔄 Profile updated:", updatedProfile);
+    console.log("🔄 Profile updated");
     setProfileData(updatedProfile);
     setCurrentUser((prev) => ({
       ...prev,
@@ -360,17 +366,19 @@ const App = () => {
   const renderContent = () => {
     if (!user || !currentUser) return null;
 
+    // Pass refreshTrigger to child components
+    // They listen to it and fetch new data WITHOUT remounting
     switch (activeTab) {
       case "home":
         return (
           <Suspense fallback={<LoadingFallback />}>
             <div ref={feedRef}>
               <HomeView
-                key={`home-${refreshKey}`}
                 homeSection={homeSection}
                 setHomeSection={setHomeSection}
                 currentUser={currentUser}
                 userId={user.id}
+                refreshTrigger={refreshTrigger}
               />
             </div>
           </Suspense>
@@ -380,9 +388,9 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <ExploreView
-              key={`explore-${refreshKey}`}
               currentUser={currentUser}
               userId={user.id}
+              refreshTrigger={refreshTrigger}
             />
           </Suspense>
         );
@@ -398,9 +406,9 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <CommunityView
-              key={`community-${refreshKey}`}
               currentUser={currentUser}
               userId={user.id}
+              refreshTrigger={refreshTrigger}
             />
           </Suspense>
         );
@@ -409,7 +417,6 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <AccountView
-              key={`account-${refreshKey}`}
               accountSection={accountSection}
               setAccountSection={setAccountSection}
               currentUser={currentUser}
@@ -417,6 +424,7 @@ const App = () => {
               onSignOut={handleSignOut}
               userId={user.id}
               onProfileLoad={handleProfileUpdate}
+              refreshTrigger={refreshTrigger}
             />
           </Suspense>
         );
@@ -425,11 +433,11 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <WalletView
-              key={`wallet-${refreshKey}`}
               userBalance={userBalance}
               setUserBalance={setUserBalance}
               isMobile={isMobile}
               userId={user.id}
+              refreshTrigger={refreshTrigger}
             />
           </Suspense>
         );
@@ -438,11 +446,11 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <HomeView
-              key={`home-default-${refreshKey}`}
               homeSection={homeSection}
               setHomeSection={setHomeSection}
               currentUser={currentUser}
               userId={user.id}
+              refreshTrigger={refreshTrigger}
             />
           </Suspense>
         );
@@ -596,7 +604,7 @@ const App = () => {
             }}
           >
             {isMobile && (
-              <Pulltorefreshindicator
+              <PullToRefreshIndicator
                 pullDistance={pullDistance}
                 isRefreshing={isRefreshing || isPulling}
               />
