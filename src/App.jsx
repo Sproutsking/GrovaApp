@@ -26,7 +26,7 @@ import Sidebar from "./components/Shared/Sidebar";
 import AuthPage from "./components/Auth/AuthPage";
 import SupportSidebar from "./components/Shared/SupportSidebar";
 import NotificationSidebar from "./components/Shared/NotificationSidebar";
-import PullToRefreshIndicator from "./components/Shared/PullToRefreshIndicator";
+import Pulltorefreshindicator from "./components/Shared/PullToRefreshIndicator";
 
 const HomeView = lazy(() => import("./components/Home/HomeView"));
 const ExploreView = lazy(() => import("./components/Explore/ExploreView"));
@@ -99,20 +99,19 @@ const App = () => {
 
   const { showExitPrompt } = useBackButton(isAtRoot);
 
-  // Pull to refresh handler
+  // Pull to refresh handler - fast 1 second refresh
   const handleRefresh = async () => {
-    console.log("🔄 Refreshing content...");
+    console.log("🔄 Fast refresh triggered");
 
-    // Force reload user data
-    if (user?.id) {
-      await loadUserDataAsync(user.id);
-    }
-
-    // Trigger content refresh by updating key
+    // Just increment key to force remount - super fast
     setRefreshKey((prev) => prev + 1);
 
-    // Small delay for smooth UX
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Optionally refresh user data in background
+    if (user?.id) {
+      loadUserDataAsync(user.id).catch((err) =>
+        console.log("Background refresh error:", err),
+      );
+    }
   };
 
   const { containerRef, isPulling, pullDistance, isRefreshing } =
@@ -138,11 +137,29 @@ const App = () => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
 
-    // Clear service worker cache on PWA load if needed
+    // CRITICAL: Clear service worker cache on PWA startup
     if (isStandalone.current && "serviceWorker" in navigator) {
-      console.log("🔧 PWA detected - ensuring fresh data");
-      // Force cache bypass for API calls
-      navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_CACHE" });
+      console.log("📱 PWA Mode Detected - Clearing cache for fresh data");
+
+      // Wait for service worker to be ready
+      navigator.serviceWorker.ready.then((registration) => {
+        // Send clear cache message
+        if (registration.active) {
+          registration.active.postMessage({ type: "CLEAR_CACHE" });
+        }
+
+        // Also manually delete caches
+        if ("caches" in window) {
+          caches.keys().then((cacheNames) => {
+            return Promise.all(
+              cacheNames.map((cacheName) => {
+                console.log("Deleting cache:", cacheName);
+                return caches.delete(cacheName);
+              }),
+            );
+          });
+        }
+      });
     }
 
     return () => {
@@ -153,8 +170,10 @@ const App = () => {
 
   const initializeApp = async () => {
     try {
+      // Longer timeout for PWA on mobile
+      const timeout = isStandalone.current ? 5000 : 2000;
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 2000),
+        setTimeout(() => reject(new Error("timeout")), timeout),
       );
 
       const sessionPromise = authService.getSession();
@@ -162,15 +181,18 @@ const App = () => {
       try {
         const session = await Promise.race([sessionPromise, timeoutPromise]);
         if (session?.user) {
+          console.log("✅ Session found:", session.user.id);
           setUser(session.user);
           await loadUserDataAsync(session.user.id);
+        } else {
+          console.log("⚠️ No session found");
         }
       } catch (err) {
         if (err.message !== "timeout") throw err;
         console.log("⚠️ Session check timed out, continuing...");
       }
     } catch (error) {
-      console.error("Init error:", error);
+      console.error("❌ Init error:", error);
     } finally {
       setLoading(false);
     }
@@ -188,13 +210,10 @@ const App = () => {
         fullName: "Loading...",
       });
 
-      // Force network request, bypass cache
-      const fetchOptions = {
-        headers: {
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-      };
+      // CRITICAL: Force fresh network request - no cache
+      const timestamp = Date.now();
+
+      console.log("📡 Fetching profile from Supabase...");
 
       const [profileResult, walletResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
@@ -204,6 +223,9 @@ const App = () => {
           .eq("user_id", userId)
           .maybeSingle(),
       ]);
+
+      console.log("📊 Profile result:", profileResult);
+      console.log("💰 Wallet result:", walletResult);
 
       let userData = null;
       let headerProfile = null;
@@ -219,14 +241,13 @@ const App = () => {
           if (baseUrl && typeof baseUrl === "string") {
             const cleanUrl = baseUrl.split("?")[0];
             if (cleanUrl.includes("supabase")) {
-              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp&t=${Date.now()}`;
+              // Add cache-busting timestamp
+              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp&t=${timestamp}`;
             } else {
               avatarUrl = baseUrl;
             }
           }
         }
-
-        console.log("✅ Avatar URL processed:", avatarUrl);
 
         userData = {
           id: profile.id,
@@ -250,8 +271,9 @@ const App = () => {
 
         isPro = profile.is_pro || false;
 
-        console.log("✅ Header profile ready:", headerProfile);
+        console.log("✅ Profile loaded:", headerProfile);
       } else {
+        console.log("⚠️ No profile data found");
         userData = {
           id: userId,
           name: "Grova User",
@@ -275,6 +297,7 @@ const App = () => {
           tokens: wallet.grova_tokens || 0,
           points: wallet.engagement_points || 0,
         };
+        console.log("✅ Wallet loaded:", balance);
       }
 
       setCurrentUser(userData);
@@ -304,7 +327,7 @@ const App = () => {
   };
 
   const handleProfileUpdate = (updatedProfile) => {
-    console.log("🔄 Profile updated, refreshing header:", updatedProfile);
+    console.log("🔄 Profile updated:", updatedProfile);
     setProfileData(updatedProfile);
     setCurrentUser((prev) => ({
       ...prev,
@@ -573,7 +596,7 @@ const App = () => {
             }}
           >
             {isMobile && (
-              <PullToRefreshIndicator
+              <Pulltorefreshindicator
                 pullDistance={pullDistance}
                 isRefreshing={isRefreshing || isPulling}
               />

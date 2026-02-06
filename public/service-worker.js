@@ -1,10 +1,10 @@
 // service-worker.js
-// Updated with better caching strategy for mobile PWA
+// Critical fix for mobile PWA - API calls always bypass cache
 
-const CACHE_NAME = "grova-cache-v2";
-const RUNTIME_CACHE = "grova-runtime-v2";
+const CACHE_NAME = "grova-cache-v3";
+const RUNTIME_CACHE = "grova-runtime-v3";
 
-// Files to cache immediately on install
+// Only cache static assets, NEVER data
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -14,9 +14,9 @@ const PRECACHE_URLS = [
   "/logo512.png",
 ];
 
-// Install event - cache core assets
+// Install event
 self.addEventListener("install", (event) => {
-  console.log("[Service Worker] Installing...");
+  console.log("[Service Worker] Installing v3...");
   event.waitUntil(
     caches
       .open(CACHE_NAME)
@@ -33,7 +33,7 @@ self.addEventListener("install", (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener("activate", (event) => {
-  console.log("[Service Worker] Activating...");
+  console.log("[Service Worker] Activating v3...");
   event.waitUntil(
     caches
       .keys()
@@ -51,12 +51,12 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - Network First for API, Cache First for static assets
+// Fetch event - CRITICAL: Never cache API/Supabase
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
+  // Skip cross-origin requests (let browser handle)
   if (url.origin !== location.origin) {
     return;
   }
@@ -66,45 +66,53 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // CRITICAL: Always use network for API calls and Supabase
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.href.includes("supabase") ||
-    url.href.includes("cloudflare") ||
-    url.href.includes("googleapis") ||
-    url.href.includes("gstatic") ||
-    url.href.includes("unpkg") ||
-    url.href.includes("fontawesome")
-  ) {
-    // Network only - never cache API responses
+  // CRITICAL: NEVER cache these - always use network
+  const noCachePatterns = [
+    "/api/",
+    "supabase",
+    "cloudflare",
+    "googleapis",
+    "gstatic",
+  ];
+
+  const shouldNeverCache = noCachePatterns.some((pattern) =>
+    url.href.includes(pattern),
+  );
+
+  if (shouldNeverCache) {
+    console.log("[SW] Network-only (no cache):", url.pathname);
     event.respondWith(
-      fetch(request).catch(() => {
-        return new Response(JSON.stringify({ error: "Network unavailable" }), {
-          status: 503,
-          headers: { "Content-Type": "application/json" },
-        });
+      fetch(request, {
+        cache: "no-store",
+        headers: {
+          ...request.headers,
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      }).catch(() => {
+        return new Response(
+          JSON.stringify({ error: "Network unavailable", offline: true }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }),
     );
     return;
   }
 
-  // For navigation requests (HTML pages)
+  // For HTML navigation - always try network first
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Don't cache HTML responses to prevent stale app
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cached index.html only when offline
-          return caches.match("/index.html");
-        }),
+      fetch(request, { cache: "no-store" })
+        .then((response) => response)
+        .catch(() => caches.match("/index.html")),
     );
     return;
   }
 
-  // For static assets (JS, CSS, images) - Cache First
+  // For static assets (JS, CSS, images) - cache first with network update
   if (
     request.destination === "script" ||
     request.destination === "style" ||
@@ -113,20 +121,8 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          // Return cached version, update in background
-          fetch(request).then((response) => {
-            if (response && response.status === 200) {
-              caches.open(RUNTIME_CACHE).then((cache) => {
-                cache.put(request, response.clone());
-              });
-            }
-          });
-          return cachedResponse;
-        }
-
-        // Not in cache, fetch from network
-        return fetch(request).then((response) => {
+        // Return cached version
+        const fetchPromise = fetch(request).then((response) => {
           if (response && response.status === 200) {
             const responseClone = response.clone();
             caches.open(RUNTIME_CACHE).then((cache) => {
@@ -135,29 +131,25 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         });
+
+        return cachedResponse || fetchPromise;
       }),
     );
     return;
   }
 
-  // For everything else - Network First
+  // Default: network first
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        return response;
-      })
+    fetch(request, { cache: "no-store" })
+      .then((response) => response)
       .catch(() => {
         return caches.match(request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-
-          return new Response("Offline - Resource not available", {
+          return new Response("Offline", {
             status: 503,
             statusText: "Service Unavailable",
-            headers: new Headers({
-              "Content-Type": "text/plain",
-            }),
           });
         });
       }),
@@ -170,8 +162,9 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
 
-  // Clear cache on demand
+  // Force clear all caches
   if (event.data && event.data.type === "CLEAR_CACHE") {
+    console.log("[SW] Clearing all caches");
     event.waitUntil(
       caches.keys().then((cacheNames) => {
         return Promise.all(

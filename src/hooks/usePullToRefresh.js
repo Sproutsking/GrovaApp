@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from "react";
 export const usePullToRefresh = (onRefresh, enabled = true) => {
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const containerRef = useRef(null);
   const startYRef = useRef(0);
-  const currentYRef = useRef(0);
-  const isRefreshingRef = useRef(false);
+  const isTouchingRef = useRef(false);
 
   const PULL_THRESHOLD = 80;
   const MAX_PULL = 120;
@@ -17,24 +17,20 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
     const container = containerRef.current;
     if (!container) return;
 
-    let touchStartY = 0;
-    let isTouching = false;
-
     const handleTouchStart = (e) => {
       // Only enable pull-to-refresh when scrolled to top
-      if (container.scrollTop > 0) return;
+      if (container.scrollTop > 5) return;
 
-      touchStartY = e.touches[0].clientY;
-      startYRef.current = touchStartY;
-      isTouching = true;
+      startYRef.current = e.touches[0].clientY;
+      isTouchingRef.current = true;
     };
 
     const handleTouchMove = (e) => {
-      if (!isTouching || isRefreshingRef.current) return;
-      if (container.scrollTop > 0) return;
+      if (!isTouchingRef.current || isRefreshing) return;
+      if (container.scrollTop > 5) return;
 
-      currentYRef.current = e.touches[0].clientY;
-      const pullDelta = currentYRef.current - startYRef.current;
+      const currentY = e.touches[0].clientY;
+      const pullDelta = currentY - startYRef.current;
 
       if (pullDelta > 0) {
         // Prevent default scroll behavior when pulling down
@@ -50,26 +46,32 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
     };
 
     const handleTouchEnd = async () => {
-      if (!isTouching) return;
-      isTouching = false;
+      if (!isTouchingRef.current) return;
+      isTouchingRef.current = false;
 
-      if (pullDistance >= PULL_THRESHOLD && !isRefreshingRef.current) {
-        isRefreshingRef.current = true;
+      if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+        // Start refreshing
+        setIsRefreshing(true);
         setPullDistance(PULL_THRESHOLD);
 
         try {
-          await onRefresh();
+          // Call refresh function with 1 second max timeout
+          await Promise.race([
+            onRefresh(),
+            new Promise((resolve) => setTimeout(resolve, 1000)),
+          ]);
         } catch (error) {
           console.error("Refresh failed:", error);
-        } finally {
-          // Smooth collapse animation
-          setTimeout(() => {
-            setPullDistance(0);
-            setIsPulling(false);
-            isRefreshingRef.current = false;
-          }, 300);
         }
+
+        // Auto-close after exactly 1 second
+        setTimeout(() => {
+          setPullDistance(0);
+          setIsPulling(false);
+          setIsRefreshing(false);
+        }, 1000);
       } else {
+        // Quick snap back if threshold not met
         setPullDistance(0);
         setIsPulling(false);
       }
@@ -82,18 +84,22 @@ export const usePullToRefresh = (onRefresh, enabled = true) => {
       passive: false,
     });
     container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("touchcancel", handleTouchEnd, {
+      passive: true,
+    });
 
     return () => {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [enabled, onRefresh, pullDistance]);
+  }, [enabled, onRefresh, pullDistance, isRefreshing]);
 
   return {
     containerRef,
     isPulling,
     pullDistance,
-    isRefreshing: isRefreshingRef.current,
+    isRefreshing,
   };
 };
