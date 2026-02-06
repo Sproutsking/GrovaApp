@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import GrovaApp from "./App.jsx";
 import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -11,15 +12,13 @@ root.render(
   </React.StrictMode>,
 );
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/service-worker.js")
-      .then((registration) => {
-        console.log("✅ Service Worker registered:", registration.scope);
-      })
-      .catch((error) => {
-        console.log("❌ Service Worker registration failed:", error);
-      });
-  });
-}
+// Register the service worker with optional callbacks
+serviceWorkerRegistration.register({
+  onUpdate: (registration) => {
+    console.log("New update available!");
+    // You can add logic here to prompt user to reload or auto-refresh
+  },
+  onSuccess: (registration) => {
+    console.log("Service worker registered successfully!");
+  },
+});
