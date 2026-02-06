@@ -2,2279 +2,2158 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GROVA — The Economy of Attention</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Grova" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <title>GROVA - The Economy of Attention</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <style>
-      /* ============================================================
-   TOKENS & RESET
-============================================================ */
-      :root {
-        --lime: #c8f542;
-        --lime-dim: rgba(200, 245, 66, 0.15);
-        --lime-glow: rgba(200, 245, 66, 0.4);
-        --ink: #0a0a0a;
-        --ink2: #111;
-        --ink3: #1a1a1a;
-        --dust: #3a3a3a;
-        --mist: #7a7a7a;
-        --fog: #a8a8a8;
-        --snow: #e8e8e8;
-        --white: #f5f5f0;
-        --red: #ff4c4c;
-        --teal: #2dd4bf;
-      }
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-      html {
-        scroll-behavior: smooth;
-        overflow-x: hidden;
-      }
-      body {
-        background: #0a0a0a;
-        color: #e8e8e8;
-        font-family: "DM Mono", monospace;
-        overflow-x: hidden;
-        -webkit-font-smoothing: antialiased;
+
+      :root {
+        --black: #0a0a0a;
+        --white: #ffffff;
+        --gray: #a0a0b8;
+        --lime: #c8f542;
       }
 
-      /* noise */
-      body::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 0.5;
+      body {
+        font-family: "DM Mono", monospace;
+        background: var(--black);
+        color: var(--white);
+        line-height: 1.6;
+        overflow-x: hidden;
       }
 
       /* ============================================================
-   NAV
-============================================================ */
-      nav {
+           ANIMATED BACKGROUND GRID
+        ============================================================ */
+      .bg-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .grid-lines {
+        position: absolute;
+        inset: 0;
+        background-image:
+          repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 80px,
+            rgba(200, 245, 66, 0.03) 80px,
+            rgba(200, 245, 66, 0.03) 81px
+          ),
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 80px,
+            rgba(200, 245, 66, 0.03) 80px,
+            rgba(200, 245, 66, 0.03) 81px
+          );
+        animation: gridShift 20s linear infinite;
+      }
+
+      @keyframes gridShift {
+        0% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 0.7;
+        }
+        100% {
+          opacity: 0.4;
+        }
+      }
+
+      .accent-lines {
+        position: absolute;
+        inset: 0;
+      }
+
+      .h-line,
+      .v-line {
+        position: absolute;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(200, 245, 66, 0.15),
+          transparent
+        );
+        animation: linePulse 4s ease-in-out infinite;
+      }
+
+      .h-line {
+        left: 0;
+        right: 0;
+        height: 1px;
+      }
+
+      .v-line {
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: linear-gradient(
+          180deg,
+          transparent,
+          rgba(200, 245, 66, 0.15),
+          transparent
+        );
+      }
+
+      .h-line:nth-child(1) {
+        top: 20%;
+        animation-delay: 0s;
+      }
+      .h-line:nth-child(2) {
+        top: 50%;
+        animation-delay: 1.5s;
+      }
+      .h-line:nth-child(3) {
+        top: 80%;
+        animation-delay: 3s;
+      }
+
+      .v-line:nth-child(4) {
+        left: 25%;
+        animation-delay: 0.5s;
+      }
+      .v-line:nth-child(5) {
+        left: 50%;
+        animation-delay: 2s;
+      }
+      .v-line:nth-child(6) {
+        left: 75%;
+        animation-delay: 3.5s;
+      }
+
+      @keyframes linePulse {
+        0%,
+        100% {
+          opacity: 0.2;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      .node {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        background: var(--lime);
+        border-radius: 50%;
+        box-shadow: 0 0 20px rgba(200, 245, 66, 0.8);
+        animation: nodeGlow 3s ease-in-out infinite;
+      }
+
+      @keyframes nodeGlow {
+        0%,
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 20px rgba(200, 245, 66, 0.6);
+        }
+        50% {
+          transform: scale(1.5);
+          box-shadow: 0 0 30px rgba(200, 245, 66, 1);
+        }
+      }
+
+      .node:nth-child(7) {
+        top: 20%;
+        left: 25%;
+        animation-delay: 0s;
+      }
+      .node:nth-child(8) {
+        top: 50%;
+        left: 50%;
+        animation-delay: 1s;
+      }
+      .node:nth-child(9) {
+        top: 80%;
+        left: 75%;
+        animation-delay: 2s;
+      }
+
+      .ambient-glow {
+        position: absolute;
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(
+          circle,
+          rgba(200, 245, 66, 0.05),
+          transparent 70%
+        );
+        filter: blur(100px);
+        animation: glowFloat 25s ease-in-out infinite;
+      }
+
+      .ambient-glow:nth-child(10) {
+        top: -20%;
+        left: -10%;
+      }
+      .ambient-glow:nth-child(11) {
+        bottom: -20%;
+        right: -10%;
+        animation-delay: 12s;
+      }
+
+      @keyframes glowFloat {
+        0%,
+        100% {
+          transform: translate(0, 0);
+        }
+        50% {
+          transform: translate(50px, -50px);
+        }
+      }
+
+      .content-wrap {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ============================================================
+           NAV
+        ============================================================ */
+      header {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 100;
+        background: rgba(10, 10, 10, 0.8);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(200, 245, 66, 0.1);
+        z-index: 1000;
+      }
+
+      nav {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        padding: 22px 40px;
-        background: linear-gradient(
-          180deg,
-          rgba(10, 10, 10, 0.96) 0%,
-          transparent 100%
-        );
-        transition: background 0.4s;
+        align-items: center;
+        padding: 16px 32px;
+        max-width: 1400px;
+        margin: 0 auto;
       }
-      nav.scrolled {
-        background: rgba(10, 10, 10, 0.93);
-        backdrop-filter: blur(14px);
-      }
-      .nav-logo {
+
+      .logo {
         font-family: "Bebas Neue", sans-serif;
-        font-size: 26px;
-        letter-spacing: 6px;
+        font-size: 28px;
         color: var(--lime);
-        text-decoration: none;
+        letter-spacing: 6px;
+        text-shadow: 0 0 20px rgba(200, 245, 66, 0.5);
       }
+
       .nav-links {
         display: flex;
-        gap: 28px;
-        list-style: none;
+        gap: 40px;
+        align-items: center;
       }
+
       .nav-links a {
-        color: var(--mist);
-        font-size: 10px;
-        letter-spacing: 2.5px;
-        text-transform: uppercase;
+        color: var(--gray);
+        font-size: 13px;
+        font-weight: 600;
         text-decoration: none;
-        transition: color 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        transition: all 0.3s;
         position: relative;
       }
-      .nav-links a::after {
+
+      .nav-links a::before {
         content: "";
         position: absolute;
         bottom: -4px;
         left: 0;
         width: 0;
-        height: 1px;
+        height: 2px;
         background: var(--lime);
         transition: width 0.3s;
       }
+
       .nav-links a:hover {
         color: var(--lime);
       }
-      .nav-links a:hover::after {
+
+      .nav-links a:hover::before {
         width: 100%;
       }
+
       .nav-cta {
         font-family: "Bebas Neue", sans-serif;
-        font-size: 13px;
-        letter-spacing: 3px;
-        color: var(--ink);
         background: var(--lime);
+        color: var(--black);
         border: none;
-        padding: 10px 26px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition:
-          box-shadow 0.3s,
-          transform 0.2s;
-      }
-      .nav-cta:hover {
-        box-shadow: 0 0 22px var(--lime-glow);
-        transform: translateY(-1px);
-      }
-
-      /* mobile hamburger */
-      .hamburger {
-        display: none;
-        flex-direction: column;
-        gap: 5px;
-        cursor: pointer;
-        padding: 4px;
-      }
-      .hamburger span {
-        width: 22px;
-        height: 1.5px;
-        background: var(--fog);
-        transition: all 0.3s;
-      }
-      .hamburger.open span:nth-child(1) {
-        transform: rotate(45deg) translate(4px, 4px);
-      }
-      .hamburger.open span:nth-child(2) {
-        opacity: 0;
-      }
-      .hamburger.open span:nth-child(3) {
-        transform: rotate(-45deg) translate(4px, -4px);
-      }
-
-      /* mobile drawer */
-      .mobile-drawer {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 99;
-        background: rgba(10, 10, 10, 0.97);
-        backdrop-filter: blur(20px);
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 28px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.35s;
-      }
-      .mobile-drawer.open {
-        opacity: 1;
-        pointer-events: all;
-      }
-      .mobile-drawer a {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 28px;
-        letter-spacing: 5px;
-        color: var(--fog);
-        text-decoration: none;
-        transition: color 0.3s;
-      }
-      .mobile-drawer a:hover {
-        color: var(--lime);
-      }
-      .mobile-drawer .nav-cta {
+        padding: 12px 32px;
+        border-radius: 50px;
         font-size: 15px;
-        margin-top: 16px;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 20px rgba(200, 245, 66, 0.3);
+      }
+
+      .nav-cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(200, 245, 66, 0.5);
       }
 
       /* ============================================================
-   HERO
-============================================================ */
+           HERO
+        ============================================================ */
       .hero {
+        margin-top: 80px;
         min-height: 100vh;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        position: relative;
-        padding: 140px 24px 80px;
-        overflow: hidden;
-      }
-      /* radial atmosphere */
-      .hero::before {
-        content: "";
-        position: absolute;
-        top: -10%;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 140vw;
-        height: 110vh;
-        background: radial-gradient(
-          ellipse 55% 45% at 50% 42%,
-          rgba(200, 245, 66, 0.1) 0%,
-          transparent 70%
-        );
-        pointer-events: none;
-      }
-      /* grid */
-      .hero-grid {
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(
-            90deg,
-            rgba(200, 245, 66, 0.035) 1px,
-            transparent 1px
-          ),
-          linear-gradient(0deg, rgba(200, 245, 66, 0.035) 1px, transparent 1px);
-        background-size: 72px 72px;
-        -webkit-mask-image: radial-gradient(
-          ellipse 65% 55% at 50% 50%,
-          black 15%,
-          transparent 75%
-        );
-        mask-image: radial-gradient(
-          ellipse 65% 55% at 50% 50%,
-          black 15%,
-          transparent 75%
-        );
-        pointer-events: none;
+        padding: 100px 32px 80px;
       }
 
-      /* hook line — the thing that makes you stop */
-      .hero-hook {
-        font-size: clamp(10px, 1.4vw, 12px);
-        letter-spacing: clamp(2px, 0.8vw, 4px);
-        text-transform: uppercase;
-        color: var(--lime);
-        position: relative;
-        z-index: 1;
-        margin-bottom: clamp(28px, 4vw, 44px);
-        text-align: center;
-        animation: fadeDown 0.8s 0.15s both;
-        display: flex;
-        align-items: center;
-        gap: clamp(10px, 2vw, 18px);
-      }
-      .hero-hook .line {
-        width: clamp(20px, 4vw, 36px);
-        height: 1px;
-        background: var(--lime);
-        opacity: 0.5;
-      }
-
-      /* TITLE */
-      .hero-title {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(52px, 11.5vw, 148px);
-        line-height: 0.88;
-        letter-spacing: clamp(-1px, -0.2vw, -3px);
-        text-align: center;
-        color: var(--white);
-        position: relative;
-        z-index: 1;
-        animation: fadeUp 0.9s 0.25s both;
-      }
-      .hero-title .line-1 {
-        display: block;
-      }
-      .hero-title .line-2 {
-        display: block;
-        color: var(--lime);
-      }
-      .hero-title .line-3 {
-        display: block;
-        -webkit-text-stroke: clamp(1px, 0.18vw, 1.8px) var(--fog);
-        color: transparent;
-        margin-top: clamp(2px, 0.3vw, 6px);
-      }
-
-      /* sub */
-      .hero-sub {
-        max-width: 520px;
-        text-align: center;
-        color: var(--mist);
-        font-size: clamp(12px, 1.4vw, 14px);
-        line-height: 1.85;
-        margin-top: clamp(28px, 4vw, 44px);
-        position: relative;
-        z-index: 1;
-        animation: fadeUp 0.9s 0.42s both;
-        padding: 0 8px;
-      }
-
-      /* CTA */
-      .hero-actions {
-        display: flex;
-        gap: 14px;
-        margin-top: clamp(32px, 5vw, 48px);
-        position: relative;
-        z-index: 1;
-        animation: fadeUp 0.9s 0.55s both;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-      .btn-primary {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(14px, 1.8vw, 17px);
-        letter-spacing: 3px;
-        color: var(--ink);
-        background: var(--lime);
-        border: none;
-        padding: clamp(13px, 1.6vw, 16px) clamp(28px, 4vw, 40px);
-        border-radius: 5px;
-        cursor: pointer;
-        transition:
-          box-shadow 0.3s,
-          transform 0.15s;
-      }
-      .btn-primary:hover {
-        box-shadow: 0 0 32px var(--lime-glow);
-        transform: translateY(-2px);
-      }
-      .btn-outline {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(14px, 1.8vw, 17px);
-        letter-spacing: 3px;
-        color: var(--snow);
-        background: transparent;
-        border: 1px solid var(--dust);
-        padding: clamp(13px, 1.6vw, 16px) clamp(28px, 4vw, 40px);
-        border-radius: 5px;
-        cursor: pointer;
-        transition:
-          border-color 0.3s,
-          color 0.3s;
-      }
-      .btn-outline:hover {
-        border-color: var(--lime);
-        color: var(--lime);
-      }
-
-      /* ---- HERO STATS — single scrollable pill row ---- */
-      .hero-stats {
-        position: relative;
-        z-index: 1;
-        margin-top: clamp(44px, 6vw, 72px);
-        animation: fadeUp 0.9s 0.68s both;
+      .hero-content {
+        max-width: 1400px;
+        margin: 0 auto;
         width: 100%;
-        display: flex;
-        justify-content: center;
-        gap: clamp(10px, 2vw, 20px);
-        flex-wrap: wrap; /* wraps gracefully on small screens */
-      }
-      .stat-pill {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--ink3);
-        border-radius: 8px;
-        padding: clamp(11px, 1.4vw, 15px) clamp(18px, 2.8vw, 28px);
-        display: flex;
-        align-items: center;
-        gap: clamp(10px, 1.5vw, 16px);
-        transition: border-color 0.3s;
-        flex-shrink: 0; /* pills never squish */
-      }
-      .stat-pill:hover {
-        border-color: rgba(200, 245, 66, 0.25);
-      }
-      .stat-pill .s-val {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(18px, 2.6vw, 26px);
-        color: var(--lime);
-        letter-spacing: 1px;
-        white-space: nowrap;
-      }
-      .stat-pill .s-label {
-        font-size: clamp(9px, 1.1vw, 11px);
-        letter-spacing: clamp(1.5px, 0.4vw, 2.5px);
-        text-transform: uppercase;
-        color: var(--dust);
-        white-space: nowrap;
-        line-height: 1.3;
       }
 
-      /* scroll hint */
-      .scroll-hint {
-        position: absolute;
-        bottom: clamp(24px, 4vw, 36px);
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        flex-direction: column;
+      .hero-badge {
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
-        color: var(--dust);
-        font-size: 9px;
-        letter-spacing: 3px;
+        gap: 12px;
+        padding: 10px 24px;
+        background: transparent;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(200, 245, 66, 0.3);
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--lime);
+        margin-bottom: 40px;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
-        animation: fadeUp 1s 0.85s both;
+        box-shadow: 0 0 30px rgba(200, 245, 66, 0.2);
+        animation: badgeFloat 3s ease-in-out infinite;
       }
-      .scroll-hint .line {
-        width: 1px;
-        height: 28px;
-        background: var(--dust);
-        animation: scrollDrop 1.8s infinite;
-      }
-      @keyframes scrollDrop {
-        0% {
-          transform: scaleY(0);
-          transform-origin: top;
+
+      @keyframes badgeFloat {
+        0%,
+        100% {
+          transform: translateY(0);
         }
         50% {
-          transform: scaleY(1);
-          transform-origin: top;
-        }
-        51% {
-          transform: scaleY(1);
-          transform-origin: bottom;
-        }
-        100% {
-          transform: scaleY(0);
-          transform-origin: bottom;
-        }
-      }
-      @keyframes fadeUp {
-        from {
-          opacity: 0;
-          transform: translateY(34px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes fadeDown {
-        from {
-          opacity: 0;
-          transform: translateY(-16px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
+          transform: translateY(-8px);
         }
       }
 
-      /* ============================================================
-   MARQUEE
-============================================================ */
-      .marquee-wrap {
-        overflow: hidden;
-        white-space: nowrap;
-        padding: clamp(24px, 3vw, 36px) 0;
-        border-top: 1px solid var(--ink3);
-        border-bottom: 1px solid var(--ink3);
-        background: var(--ink2);
-      }
-      .marquee {
-        display: inline-flex;
-        animation: marquee 32s linear infinite;
-      }
-      .marquee-item {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(12px, 1.6vw, 15px);
-        letter-spacing: 4px;
-        color: var(--dust);
-        padding: 0 clamp(24px, 4vw, 48px);
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        white-space: nowrap;
-      }
-      .marquee-item .sep {
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: var(--lime);
-        flex-shrink: 0;
-      }
-      @keyframes marquee {
-        to {
-          transform: translateX(-50%);
-        }
-      }
-
-      /* ============================================================
-   SECTIONS COMMONS
-============================================================ */
-      section {
-        padding: clamp(72px, 10vw, 120px) clamp(20px, 4vw, 48px);
-        position: relative;
-      }
-      .section-label {
-        font-size: clamp(9px, 1.1vw, 10px);
-        letter-spacing: 4px;
-        text-transform: uppercase;
-        color: var(--lime);
-        margin-bottom: 14px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .section-label::before {
-        content: "";
-        width: 28px;
-        height: 1px;
-        background: var(--lime);
-      }
-      .section-title {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(30px, 5vw, 54px);
-        font-weight: 800;
-        line-height: 1.1;
-        color: var(--white);
-        max-width: 680px;
-      }
-      .section-title .accent {
-        color: var(--lime);
-      }
-
-      /* ============================================================
-   THE INSIGHT
-============================================================ */
-      .insight-wrap {
-        max-width: 1140px;
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: clamp(40px, 8vw, 120px);
-        align-items: center;
-      }
-      .insight-left .section-title {
-        margin-bottom: 28px;
-      }
-      .insight-left p {
-        color: var(--mist);
-        font-size: clamp(12px, 1.4vw, 14px);
-        line-height: 1.9;
-        margin-bottom: 18px;
-      }
-      .insight-card {
-        background: var(--ink2);
-        border: 1px solid var(--ink3);
-        border-radius: 14px;
-        padding: clamp(28px, 4vw, 40px);
-        position: relative;
-        overflow: hidden;
-      }
-      .insight-card::before {
-        content: "";
-        position: absolute;
-        top: -50px;
-        right: -50px;
-        width: 180px;
-        height: 180px;
-        border-radius: 50%;
-        background: var(--lime-dim);
-        filter: blur(44px);
-      }
-      .insight-card .quote-mark {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(80px, 12vw, 130px);
-        color: rgba(200, 245, 66, 0.08);
-        position: absolute;
-        top: -14px;
-        left: 16px;
-        line-height: 1;
-        pointer-events: none;
-      }
-      .insight-card h4 {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(16px, 2vw, 19px);
-        font-weight: 700;
-        color: var(--white);
-        margin-bottom: 10px;
-        position: relative;
-      }
-      .insight-card p {
-        color: var(--mist);
-        font-size: clamp(12px, 1.3vw, 13px);
-        line-height: 1.85;
-        position: relative;
-      }
-
-      /* ============================================================
-   PROBLEM
-============================================================ */
-      .problem-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-        max-width: 1140px;
-        margin: 0 auto;
-      }
-      .problem-card {
-        background: linear-gradient(
-          145deg,
-          rgba(26, 7, 7, 0.95),
-          rgba(18, 4, 4, 0.97)
-        );
-        border: 1px solid rgba(239, 68, 68, 0.18);
-        border-radius: 14px;
-        padding: clamp(24px, 3.5vw, 36px);
-        transition:
-          border-color 0.3s,
-          transform 0.3s;
-      }
-      .problem-card:hover {
-        border-color: rgba(239, 68, 68, 0.38);
-        transform: translateY(-5px);
-      }
-      .problem-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        background: rgba(239, 68, 68, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 20px;
+      .hero-badge::before {
+        content: "⚡";
         font-size: 16px;
-      }
-      .problem-card h3 {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(15px, 1.9vw, 17px);
-        font-weight: 700;
-        color: var(--white);
-        margin-bottom: 8px;
-      }
-      .problem-card p {
-        color: var(--mist);
-        font-size: clamp(11px, 1.3vw, 13px);
-        line-height: 1.75;
+        animation: sparkle 2s ease-in-out infinite;
       }
 
-      /* ============================================================
-   DUAL TOKEN
-============================================================ */
-      .token-wrap {
-        max-width: 1140px;
-        margin: 0 auto;
+      @keyframes sparkle {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 1;
+        }
       }
-      .token-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 22px;
+
+      .hero h1 {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: clamp(56px, 12vw, 120px);
+        line-height: 0.9;
+        margin-bottom: 32px;
+        letter-spacing: -3px;
       }
-      .token-card {
-        border-radius: 16px;
-        padding: clamp(32px, 5vw, 48px);
+
+      .hero h1 .line {
+        display: block;
+        opacity: 0;
+        animation: fadeInUp 0.8s ease forwards;
+      }
+
+      .hero h1 .line-1 {
+        animation-delay: 0s;
+      }
+
+      .hero h1 .line-2 {
+        color: var(--lime);
+        text-shadow: 0 0 40px rgba(200, 245, 66, 0.6);
+        animation-delay: 0.2s;
+      }
+
+      .hero h1 .line-3 {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .hero-subtitle {
+        font-size: clamp(16px, 2.5vw, 22px);
+        color: var(--gray);
+        max-width: 800px;
+        margin-bottom: 48px;
+        line-height: 1.8;
+        opacity: 0;
+        animation: fadeInUp 0.8s ease 0.6s forwards;
+      }
+
+      .hero-subtitle .highlight {
+        color: var(--lime);
+        font-weight: 700;
+      }
+
+      .hero-cta-group {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 80px;
+        flex-wrap: wrap;
+        opacity: 0;
+        animation: fadeInUp 0.8s ease 0.8s forwards;
+      }
+
+      .cta-primary {
+        font-family: "Bebas Neue", sans-serif;
+        padding: 18px 48px;
+        background: var(--lime);
+        color: var(--black);
+        border: none;
+        border-radius: 50px;
+        font-size: 18px;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 8px 30px rgba(200, 245, 66, 0.4);
         position: relative;
         overflow: hidden;
-        transition: transform 0.3s;
       }
-      .token-card:hover {
+
+      .cta-primary::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          45deg,
+          transparent,
+          rgba(255, 255, 255, 0.3),
+          transparent
+        );
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+      }
+
+      .cta-primary:hover::before {
+        transform: translateX(100%);
+      }
+
+      .cta-primary:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(200, 245, 66, 0.6);
+      }
+
+      .cta-secondary {
+        font-family: "Bebas Neue", sans-serif;
+        padding: 18px 48px;
+        background: transparent;
+        color: var(--white);
+        border: 2px solid rgba(200, 245, 66, 0.3);
+        border-radius: 50px;
+        font-size: 18px;
+        letter-spacing: 2px;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s;
+        backdrop-filter: blur(20px);
+      }
+
+      .cta-secondary:hover {
+        border-color: var(--lime);
+        background: rgba(200, 245, 66, 0.05);
         transform: translateY(-4px);
       }
-      .token-card.ep {
-        background: linear-gradient(148deg, #111 0%, #141a14 100%);
-        border: 1px solid rgba(200, 245, 66, 0.18);
-      }
-      .token-card.gt {
-        background: linear-gradient(148deg, #0d1513 0%, #111 100%);
-        border: 1px solid rgba(45, 212, 191, 0.18);
-      }
-      .glow-blob {
-        position: absolute;
-        width: 240px;
-        height: 240px;
-        border-radius: 50%;
-        filter: blur(75px);
-        pointer-events: none;
-        opacity: 0.35;
-      }
-      .token-card.ep .glow-blob {
-        background: var(--lime);
-        top: -70px;
-        right: -70px;
-      }
-      .token-card.gt .glow-blob {
-        background: var(--teal);
-        bottom: -70px;
-        left: -70px;
+
+      .hero-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 24px;
+        max-width: 1000px;
+        opacity: 0;
+        animation: fadeInUp 0.8s ease 1s forwards;
       }
 
-      .token-badge {
-        display: inline-flex;
+      /* ============================================================
+           GLASSMORPHISM CARDS - TRUE TRANSPARENCY
+        ============================================================ */
+      .glass-card {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        border-radius: 20px;
+        padding: 32px 24px;
+        text-align: center;
+        transition: all 0.4s;
+        position: relative;
+      }
+
+      .glass-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 20px;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          rgba(200, 245, 66, 0.4),
+          transparent
+        );
+        -webkit-mask:
+          linear-gradient(#fff 0 0) content-box,
+          linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0;
+        transition: opacity 0.4s;
+      }
+
+      .glass-card:hover::before {
+        opacity: 1;
+      }
+
+      .glass-card:hover {
+        border-color: var(--lime);
+        transform: translateY(-8px);
+        box-shadow: 0 16px 40px rgba(200, 245, 66, 0.15);
+        background: rgba(200, 245, 66, 0.02);
+      }
+
+      .stat-number {
         font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(32px, 5vw, 42px);
-        letter-spacing: 3px;
-        width: clamp(64px, 9vw, 80px);
-        height: clamp(64px, 9vw, 80px);
+        font-size: 42px;
+        color: var(--lime);
+        margin-bottom: 8px;
+        letter-spacing: 1px;
+        text-shadow: 0 0 20px rgba(200, 245, 66, 0.5);
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 600;
+      }
+
+      /* ============================================================
+           SECTIONS
+        ============================================================ */
+      section {
+        padding: clamp(80px, 12vw, 140px) 32px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .section-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: clamp(42px, 7vw, 64px);
+        text-align: center;
+        margin-bottom: 64px;
+        letter-spacing: -1px;
+      }
+
+      .section-title .accent {
+        color: var(--lime);
+        text-shadow: 0 0 30px rgba(200, 245, 66, 0.5);
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 28px;
+      }
+
+      .card {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.15);
+        border-radius: 20px;
+        padding: 44px;
+        transition: all 0.4s;
+      }
+
+      .card:hover {
+        border-color: var(--lime);
+        transform: translateY(-8px);
+        box-shadow: 0 20px 50px rgba(200, 245, 66, 0.15);
+        background: rgba(200, 245, 66, 0.02);
+      }
+
+      .card h3 {
+        font-family: "Syne", sans-serif;
+        font-size: 24px;
+        margin-bottom: 16px;
+      }
+
+      .card p {
+        font-size: 15px;
+        color: var(--gray);
+        line-height: 1.9;
+      }
+
+      .card-icon {
+        width: 72px;
+        height: 72px;
+        background: transparent;
+        border: 1px solid rgba(200, 245, 66, 0.3);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 14px;
-        margin-bottom: 24px;
-        position: relative;
+        font-size: 36px;
+        margin-bottom: 28px;
+        transition: all 0.3s;
       }
-      .token-card.ep .token-badge {
-        background: rgba(200, 245, 66, 0.1);
-        color: var(--lime);
-        border: 1px solid rgba(200, 245, 66, 0.22);
+
+      .card:hover .card-icon {
+        background: rgba(200, 245, 66, 0.05);
+        border-color: var(--lime);
+        transform: scale(1.1) rotate(5deg);
       }
-      .token-card.gt .token-badge {
-        background: rgba(45, 212, 191, 0.1);
-        color: var(--teal);
-        border: 1px solid rgba(45, 212, 191, 0.22);
+
+      /* Token cards */
+      .token-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+        gap: 32px;
       }
+
+      .token-card {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        border-radius: 24px;
+        padding: 56px;
+        transition: all 0.4s;
+      }
+
+      .token-card:hover {
+        border-color: var(--lime);
+        transform: translateY(-10px);
+        box-shadow: 0 24px 60px rgba(200, 245, 66, 0.2);
+        background: rgba(200, 245, 66, 0.02);
+      }
+
+      .token-icon {
+        width: 88px;
+        height: 88px;
+        background: var(--lime);
+        color: var(--black);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 40px;
+        font-weight: 900;
+        margin-bottom: 32px;
+        box-shadow: 0 8px 30px rgba(200, 245, 66, 0.4);
+      }
+
       .token-card h3 {
         font-family: "Syne", sans-serif;
-        font-size: clamp(18px, 2.4vw, 22px);
-        font-weight: 700;
-        color: var(--white);
-        margin-bottom: 8px;
-        position: relative;
+        font-size: 32px;
+        margin-bottom: 16px;
       }
+
       .token-card > p {
-        color: var(--mist);
-        font-size: clamp(12px, 1.3vw, 13px);
-        line-height: 1.85;
-        margin-bottom: 24px;
-        position: relative;
+        font-size: 15px;
+        color: var(--gray);
+        line-height: 1.9;
+        margin-bottom: 32px;
       }
+
       .token-features {
         list-style: none;
-        position: relative;
       }
+
       .token-features li {
-        color: var(--fog);
-        font-size: clamp(11px, 1.2vw, 12px);
-        line-height: 1.65;
-        padding: 9px 0;
-        border-bottom: 1px solid var(--ink3);
+        font-size: 14px;
+        color: var(--gray);
+        padding: 16px 0;
+        border-bottom: 1px solid rgba(200, 245, 66, 0.08);
         display: flex;
-        align-items: flex-start;
-        gap: 10px;
+        gap: 14px;
       }
+
       .token-features li:last-child {
         border-bottom: none;
       }
-      .token-features .check {
+
+      .check {
+        color: var(--lime);
         flex-shrink: 0;
-        width: 15px;
-        height: 15px;
-        border-radius: 4px;
+      }
+
+      /* Steps */
+      .step-number {
+        width: 72px;
+        height: 72px;
+        background: var(--lime);
+        color: var(--black);
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-top: 1px;
-        font-size: 9px;
-      }
-      .token-card.ep .check {
-        background: rgba(200, 245, 66, 0.13);
-        color: var(--lime);
-      }
-      .token-card.gt .check {
-        background: rgba(45, 212, 191, 0.13);
-        color: var(--teal);
-      }
-
-      /* ============================================================
-   MECHANICS — flow + definitive pricing
-============================================================ */
-      .mechanics-wrap {
-        max-width: 1100px;
-        margin: 0 auto;
-      }
-      .mech-flow {
-        display: flex;
-        gap: 0;
-        position: relative;
-      }
-      .mech-step {
-        flex: 1;
-        background: var(--ink2);
-        border: 1px solid var(--ink3);
-        padding: clamp(28px, 4vw, 40px) clamp(20px, 3vw, 32px);
-        position: relative;
-        transition: background 0.3s;
-      }
-      .mech-step:first-child {
-        border-radius: 12px 0 0 12px;
-      }
-      .mech-step:last-child {
-        border-radius: 0 12px 12px 0;
-      }
-      .mech-step:hover {
-        background: #161616;
-      }
-      .mech-step .step-num {
         font-family: "Bebas Neue", sans-serif;
-        font-size: 10px;
-        letter-spacing: 3px;
-        color: var(--lime);
-        margin-bottom: 18px;
+        font-size: 36px;
+        font-weight: 900;
+        margin: 0 auto 28px;
+        box-shadow: 0 8px 30px rgba(200, 245, 66, 0.4);
       }
-      .mech-step h4 {
+
+      /* Pricing */
+      .pricing-box {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        border-radius: 24px;
+        padding: 48px;
+        margin-top: 56px;
+      }
+
+      .pricing-title {
         font-family: "Syne", sans-serif;
-        font-size: clamp(16px, 2vw, 18px);
-        font-weight: 700;
-        color: var(--white);
-        margin-bottom: 8px;
-      }
-      .mech-step p {
-        color: var(--mist);
-        font-size: clamp(11px, 1.2vw, 12px);
-        line-height: 1.75;
-      }
-      .mech-step:not(:last-child)::after {
-        content: "→";
-        position: absolute;
-        right: -16px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--lime);
-        font-size: 18px;
-        z-index: 2;
-      }
-
-      /* definitive pricing pills */
-      .pricing-label {
-        font-size: 10px;
-        letter-spacing: 3px;
-        text-transform: uppercase;
-        color: var(--lime);
-        margin-top: clamp(44px, 6vw, 60px);
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .pricing-label::before {
-        content: "";
-        width: 20px;
-        height: 1px;
-        background: var(--lime);
-      }
-      .pricing-row {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .price-pill {
-        background: var(--ink2);
-        border: 1px solid var(--ink3);
-        border-radius: 8px;
-        padding: clamp(12px, 1.5vw, 15px) clamp(18px, 2.5vw, 24px);
-        display: flex;
-        align-items: center;
-        gap: clamp(10px, 1.5vw, 14px);
-        transition: border-color 0.3s;
-        flex-shrink: 0;
-      }
-      .price-pill:hover {
-        border-color: rgba(200, 245, 66, 0.22);
-      }
-      .price-pill .action {
-        font-size: clamp(10px, 1.1vw, 11px);
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--fog);
-      }
-      .price-pill .cost {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(18px, 2.4vw, 22px);
-        color: var(--lime);
-        letter-spacing: 1px;
-      }
-      .price-pill .eq {
-        color: var(--dust);
-        font-size: 10px;
-      }
-
-      /* conversion rule box */
-      .conversion-box {
-        margin-top: clamp(28px, 4vw, 36px);
-        background: linear-gradient(
-          135deg,
-          rgba(200, 245, 66, 0.06),
-          rgba(200, 245, 66, 0.02)
-        );
-        border: 1px solid rgba(200, 245, 66, 0.15);
-        border-radius: 12px;
-        padding: clamp(22px, 3vw, 32px) clamp(24px, 3.5vw, 32px);
-        display: flex;
-        align-items: flex-start;
-        gap: 20px;
-      }
-      .conversion-box .cb-icon {
-        font-size: 22px;
-        flex-shrink: 0;
-        margin-top: 2px;
-      }
-      .conversion-box h4 {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(14px, 1.8vw, 16px);
-        font-weight: 700;
-        color: var(--lime);
-        margin-bottom: 6px;
-      }
-      .conversion-box p {
-        color: var(--fog);
-        font-size: clamp(11px, 1.2vw, 12px);
-        line-height: 1.75;
-      }
-
-      /* ============================================================
-   ANTI-ABUSE
-============================================================ */
-      .anti-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 18px;
-        max-width: 1140px;
-        margin: 0 auto;
-      }
-      .anti-card {
-        background: var(--ink2);
-        border: 1px solid var(--ink3);
-        border-radius: 12px;
-        padding: clamp(24px, 3.2vw, 32px) clamp(18px, 2.2vw, 24px);
+        font-size: 28px;
         text-align: center;
-        transition:
-          border-color 0.3s,
-          transform 0.3s;
+        margin-bottom: 40px;
       }
-      .anti-card:hover {
-        border-color: rgba(200, 245, 66, 0.2);
+
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 24px;
+      }
+
+      .price-item {
+        background: transparent;
+        border: 1px solid rgba(200, 245, 66, 0.15);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        padding: 28px;
+        text-align: center;
+        transition: all 0.3s;
+      }
+
+      .price-item:hover {
+        border-color: var(--lime);
+        background: rgba(200, 245, 66, 0.03);
         transform: translateY(-4px);
       }
-      .anti-icon {
-        font-size: clamp(22px, 3vw, 28px);
-        margin-bottom: 14px;
-      }
-      .anti-card h4 {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(13px, 1.7vw, 15px);
-        font-weight: 700;
-        color: var(--white);
-        margin-bottom: 6px;
-      }
-      .anti-card p {
-        color: var(--mist);
-        font-size: clamp(10px, 1.1vw, 11px);
-        line-height: 1.7;
-      }
 
-      /* ============================================================
-   ALLOCATION
-============================================================ */
-      .alloc-wrap {
-        max-width: 1100px;
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: clamp(48px, 8vw, 80px);
-        align-items: center;
-      }
-      .alloc-left .section-title {
-        margin-bottom: 14px;
-      }
-      .alloc-left > p {
-        color: var(--mist);
-        font-size: clamp(12px, 1.3vw, 13px);
-        line-height: 1.85;
-        margin-bottom: 10px;
-      }
-      .alloc-legend {
-        margin-top: 28px;
-        display: flex;
-        flex-direction: column;
-        gap: 9px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-      }
-      .legend-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 3px;
-        flex-shrink: 0;
-      }
-      .legend-label {
-        font-size: clamp(11px, 1.2vw, 12px);
-        color: var(--fog);
-        flex: 1;
-      }
-      .legend-pct {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(13px, 1.6vw, 15px);
-        color: var(--white);
-        letter-spacing: 1px;
-      }
-
-      .pie-wrap {
-        width: clamp(240px, 38vw, 300px);
-        height: clamp(240px, 38vw, 300px);
-        position: relative;
-        margin: 0 auto;
-      }
-      .pie-wrap svg {
-        width: 100%;
-        height: 100%;
-        transform: rotate(-90deg);
-      }
-      .pie-center {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-      }
-      .pie-center .big {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(22px, 3.5vw, 28px);
-        letter-spacing: 2px;
-        color: var(--white);
-      }
-      .pie-center .small {
-        font-size: clamp(9px, 1.1vw, 10px);
-        letter-spacing: 2px;
-        color: var(--mist);
+      .price-item .label {
+        font-size: 12px;
+        color: var(--gray);
         text-transform: uppercase;
-        margin-top: 2px;
-      }
-
-      /* ============================================================
-   CREATOR ECONOMY
-============================================================ */
-      .creator-wrap {
-        max-width: 1100px;
-        margin: 0 auto;
-      }
-      .creator-grid {
-        display: grid;
-        grid-template-columns: 1.15fr 1fr;
-        gap: clamp(40px, 6vw, 64px);
-        align-items: start;
-        margin-top: clamp(36px, 5vw, 56px);
-      }
-      .creator-card {
-        background: var(--ink2);
-        border: 1px solid var(--ink3);
-        border-radius: 12px;
-        padding: clamp(22px, 3vw, 32px);
+        letter-spacing: 1.5px;
         margin-bottom: 14px;
-        display: flex;
-        gap: 18px;
-        align-items: flex-start;
-        transition: border-color 0.3s;
-      }
-      .creator-card:hover {
-        border-color: rgba(200, 245, 66, 0.2);
-      }
-      .cc-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        background: var(--lime-dim);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 16px;
-      }
-      .creator-card h4 {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(14px, 1.7vw, 15px);
+        display: block;
         font-weight: 700;
-        color: var(--white);
-        margin-bottom: 3px;
-      }
-      .creator-card p {
-        color: var(--mist);
-        font-size: clamp(11px, 1.2vw, 12px);
-        line-height: 1.7;
       }
 
-      .revenue-panel {
-        background: linear-gradient(140deg, #111, #131a13);
-        border: 1px solid rgba(200, 245, 66, 0.14);
-        border-radius: 16px;
-        padding: clamp(28px, 4vw, 40px);
-        position: relative;
-        overflow: hidden;
+      .price-item .value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 32px;
+        color: var(--lime);
+        letter-spacing: 1px;
+        text-shadow: 0 0 20px rgba(200, 245, 66, 0.3);
       }
-      .revenue-panel::before {
-        content: "";
-        position: absolute;
-        top: -50px;
-        right: -50px;
-        width: 160px;
-        height: 160px;
-        border-radius: 50%;
-        background: var(--lime-dim);
-        filter: blur(40px);
+
+      /* Allocation */
+      .alloc-card {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.15);
+        border-radius: 20px;
+        padding: 36px;
+        transition: all 0.3s;
       }
-      .revenue-panel h3 {
+
+      .alloc-card:hover {
+        border-color: var(--lime);
+        transform: translateY(-6px);
+        background: rgba(200, 245, 66, 0.02);
+      }
+
+      .alloc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .alloc-title {
         font-family: "Syne", sans-serif;
-        font-size: clamp(17px, 2.2vw, 20px);
+        font-size: 17px;
         font-weight: 700;
-        color: var(--white);
-        margin-bottom: 20px;
-        position: relative;
       }
+
+      .alloc-percent {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 36px;
+        color: var(--lime);
+        text-shadow: 0 0 20px rgba(200, 245, 66, 0.3);
+      }
+
+      .alloc-desc {
+        font-size: 14px;
+        color: var(--gray);
+        line-height: 1.8;
+      }
+
+      /* Revenue */
+      .revenue-card {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.15);
+        border-radius: 20px;
+        padding: 40px;
+      }
+
+      .revenue-card h3 {
+        font-family: "Syne", sans-serif;
+        font-size: 24px;
+        margin-bottom: 28px;
+      }
+
       .rev-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 11px 0;
-        border-bottom: 1px solid var(--ink3);
-        position: relative;
+        padding: 16px 0;
+        border-bottom: 1px solid rgba(200, 245, 66, 0.08);
       }
-      .rev-row:last-of-type {
+
+      .rev-row:last-child {
         border-bottom: none;
       }
+
       .rev-label {
-        font-size: clamp(11px, 1.2vw, 12px);
-        color: var(--fog);
+        font-size: 15px;
+        color: var(--gray);
       }
-      .rev-val {
+
+      .rev-value {
         font-family: "Bebas Neue", sans-serif;
-        font-size: clamp(15px, 1.9vw, 17px);
+        font-size: 22px;
         color: var(--lime);
+      }
+
+      /* FAQ */
+      .faq-container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .faq-item {
+        background: transparent;
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(200, 245, 66, 0.15);
+        border-radius: 20px;
+        margin-bottom: 18px;
+        overflow: hidden;
+      }
+
+      .faq-question {
+        padding: 28px 32px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        width: 100%;
+        text-align: left;
+      }
+
+      .faq-question h3 {
+        font-family: "Syne", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--white);
+      }
+
+      .faq-icon {
+        color: var(--lime);
+        font-size: 16px;
+        transition: transform 0.3s;
+      }
+
+      .faq-item.active .faq-icon {
+        transform: rotate(180deg);
+      }
+
+      .faq-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s;
+      }
+
+      .faq-item.active .faq-answer {
+        max-height: 500px;
+        padding: 0 32px 28px;
+      }
+
+      .faq-answer p {
+        font-size: 15px;
+        color: var(--gray);
+        line-height: 1.9;
+      }
+
+      /* Footer */
+      footer {
+        padding: 80px 32px 40px;
+        border-top: 1px solid rgba(200, 245, 66, 0.1);
+      }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 56px;
+        max-width: 1400px;
+        margin: 0 auto 48px;
+      }
+
+      .footer-logo {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 32px;
+        color: var(--lime);
+        letter-spacing: 6px;
+        margin-bottom: 20px;
+        text-shadow: 0 0 20px rgba(200, 245, 66, 0.5);
+      }
+
+      .footer-social {
+        display: flex;
+        gap: 14px;
+        margin-top: 24px;
+      }
+
+      .footer-social a {
+        width: 44px;
+        height: 44px;
+        background: transparent;
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        backdrop-filter: blur(20px);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray);
+        text-decoration: none;
+        transition: all 0.3s;
+      }
+
+      .footer-social a:hover {
+        color: var(--lime);
+        background: rgba(200, 245, 66, 0.05);
+        border-color: var(--lime);
+        transform: translateY(-3px);
+      }
+
+      .footer-column h4 {
+        font-family: "Syne", sans-serif;
+        font-size: 15px;
+        font-weight: 800;
+        margin-bottom: 20px;
+        text-transform: uppercase;
         letter-spacing: 1px;
       }
-      .rev-footer {
-        margin-top: 20px;
-        padding-top: 18px;
-        border-top: 1px solid var(--ink3);
-        font-size: clamp(10px, 1.1vw, 11px);
-        color: var(--dust);
-        font-style: italic;
-        line-height: 1.6;
-        position: relative;
+
+      .footer-column ul {
+        list-style: none;
+      }
+
+      .footer-column ul li {
+        margin-bottom: 12px;
+      }
+
+      .footer-column ul li a {
+        font-size: 14px;
+        color: var(--gray);
+        text-decoration: none;
+        transition: color 0.3s;
+      }
+
+      .footer-column ul li a:hover {
+        color: var(--lime);
+      }
+
+      .footer-bottom {
+        text-align: center;
+        padding-top: 32px;
+        border-top: 1px solid rgba(200, 245, 66, 0.1);
+        font-size: 14px;
+        color: var(--gray);
       }
 
       /* ============================================================
-   FAQ
-============================================================ */
-      .faq-wrap {
-        max-width: 740px;
-        margin: 0 auto;
+           PWA INSTALL MODAL
+        ============================================================ */
+      .install-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(20px);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
       }
-      .faq-item {
-        border-bottom: 1px solid var(--ink3);
-        overflow: hidden;
+
+      .install-modal-overlay.active {
+        display: flex;
       }
-      .faq-q {
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .install-modal {
+        background: rgba(10, 10, 10, 0.95);
+        border: 1px solid rgba(200, 245, 66, 0.3);
+        border-radius: 24px;
+        max-width: 600px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        animation: slideUp 0.4s ease;
+        box-shadow: 0 20px 60px rgba(200, 245, 66, 0.2);
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(40px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .modal-header {
+        padding: 32px 32px 24px;
+        border-bottom: 1px solid rgba(200, 245, 66, 0.1);
+        position: relative;
+      }
+
+      .modal-close {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        width: 40px;
+        height: 40px;
+        background: transparent;
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        border-radius: 50%;
+        color: var(--gray);
+        font-size: 20px;
+        cursor: pointer;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: clamp(18px, 2.5vw, 24px) 0;
+        justify-content: center;
+        transition: all 0.3s;
+      }
+
+      .modal-close:hover {
+        background: rgba(200, 245, 66, 0.1);
+        color: var(--lime);
+        border-color: var(--lime);
+        transform: rotate(90deg);
+      }
+
+      .modal-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 32px;
+        color: var(--lime);
+        margin-bottom: 8px;
+        letter-spacing: 2px;
+      }
+
+      .modal-subtitle {
+        font-size: 14px;
+        color: var(--gray);
+        line-height: 1.6;
+      }
+
+      .modal-body {
+        padding: 32px;
+      }
+
+      .device-detection {
+        background: rgba(200, 245, 66, 0.05);
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 24px;
+        text-align: center;
+      }
+
+      .device-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+      }
+
+      .device-name {
+        font-family: "Syne", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .device-desc {
+        font-size: 13px;
+        color: var(--gray);
+      }
+
+      .install-steps {
+        margin-bottom: 32px;
+      }
+
+      .install-steps h4 {
+        font-family: "Syne", sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--lime);
+      }
+
+      .step {
+        display: flex;
+        gap: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
+        background: rgba(200, 245, 66, 0.03);
+        border: 1px solid rgba(200, 245, 66, 0.1);
+        border-radius: 12px;
+        transition: all 0.3s;
+      }
+
+      .step:hover {
+        background: rgba(200, 245, 66, 0.05);
+        border-color: rgba(200, 245, 66, 0.2);
+      }
+
+      .step-num {
+        width: 32px;
+        height: 32px;
+        background: var(--lime);
+        color: var(--black);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+
+      .step-content {
+        flex: 1;
+      }
+
+      .step-text {
+        font-size: 14px;
+        color: var(--white);
+        line-height: 1.6;
+      }
+
+      .qr-section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 24px;
+      }
+
+      .qr-code {
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 16px;
+        background: white;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .qr-label {
+        font-size: 13px;
+        color: #0a0a0a;
+        font-weight: 600;
+      }
+
+      .terms-section {
+        background: rgba(200, 245, 66, 0.03);
+        border: 1px solid rgba(200, 245, 66, 0.2);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+
+      .terms-title {
+        font-family: "Syne", sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--lime);
+      }
+
+      .checkbox-group {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 12px;
         cursor: pointer;
         user-select: none;
       }
-      .faq-q h4 {
-        font-family: "Syne", sans-serif;
-        font-size: clamp(13px, 1.7vw, 15px);
-        font-weight: 600;
-        color: var(--white);
-        transition: color 0.3s;
-      }
-      .faq-q:hover h4 {
-        color: var(--lime);
-      }
-      .faq-q .arrow {
-        font-size: 12px;
-        color: var(--dust);
-        transition:
-          transform 0.3s,
-          color 0.3s;
-        flex-shrink: 0;
-        margin-left: 14px;
-      }
-      .faq-item.open .arrow {
-        transform: rotate(180deg);
-        color: var(--lime);
-      }
-      .faq-a {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .faq-a p {
-        color: var(--mist);
-        font-size: clamp(12px, 1.3vw, 13px);
-        line-height: 1.85;
-        padding-bottom: clamp(16px, 2.5vw, 24px);
+
+      .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        cursor: pointer;
+        accent-color: var(--lime);
       }
 
-      /* ============================================================
-   FOOTER
-============================================================ */
-      footer {
-        border-top: 1px solid var(--ink3);
-        padding: clamp(56px, 8vw, 80px) clamp(20px, 4vw, 48px)
-          clamp(28px, 4vw, 40px);
-        background: linear-gradient(180deg, var(--ink) 0%, #070707 100%);
+      .checkbox-label {
+        font-size: 13px;
+        color: var(--gray);
+        line-height: 1.6;
+        flex: 1;
       }
-      .footer-grid {
-        max-width: 1140px;
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr;
-        gap: clamp(32px, 5vw, 64px);
-        margin-bottom: clamp(40px, 6vw, 60px);
-      }
-      .footer-brand .nav-logo {
-        display: block;
-        margin-bottom: 14px;
-        font-size: 28px;
-      }
-      .footer-brand > p {
-        color: var(--mist);
-        font-size: clamp(11px, 1.2vw, 12px);
-        line-height: 1.8;
-        max-width: 280px;
-      }
-      .footer-col h5 {
-        font-family: "Syne", sans-serif;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--fog);
-        margin-bottom: 18px;
-      }
-      .footer-col a {
-        display: block;
-        color: var(--mist);
-        font-size: clamp(11px, 1.2vw, 12px);
+
+      .checkbox-label a {
+        color: var(--lime);
         text-decoration: none;
-        padding: 4px 0;
+        font-weight: 600;
         transition: color 0.3s;
       }
-      .footer-col a:hover {
+
+      .checkbox-label a:hover {
+        color: var(--white);
+        text-decoration: underline;
+      }
+
+      .install-button {
+        width: 100%;
+        font-family: "Bebas Neue", sans-serif;
+        padding: 18px;
+        background: var(--lime);
+        color: var(--black);
+        border: none;
+        border-radius: 50px;
+        font-size: 18px;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 8px 30px rgba(200, 245, 66, 0.4);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .install-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .install-button:not(:disabled):hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(200, 245, 66, 0.6);
+      }
+
+      .install-button::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          45deg,
+          transparent,
+          rgba(255, 255, 255, 0.3),
+          transparent
+        );
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+      }
+
+      .install-button:not(:disabled):hover::before {
+        transform: translateX(100%);
+      }
+
+      .fallback-link {
+        margin-top: 16px;
+        text-align: center;
+      }
+
+      .fallback-link a {
+        color: var(--gray);
+        font-size: 13px;
+        text-decoration: none;
+        transition: color 0.3s;
+      }
+
+      .fallback-link a:hover {
         color: var(--lime);
       }
-      .footer-bottom {
-        max-width: 1140px;
-        margin: 0 auto;
-        border-top: 1px solid var(--ink3);
-        padding-top: 28px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .footer-bottom p {
-        font-size: clamp(10px, 1.1vw, 11px);
-        color: var(--dust);
-      }
-      .footer-status {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        font-size: clamp(10px, 1.1vw, 11px);
-        color: var(--dust);
-      }
-      .status-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--lime);
-        animation: pulse 2s infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.3;
-        }
-      }
 
-      /* ============================================================
-   REVEAL
-============================================================ */
-      .reveal {
-        opacity: 0;
-        transform: translateY(32px);
-        transition:
-          opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
-          transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .reveal.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .reveal-d1 {
-        transition-delay: 0.1s;
-      }
-      .reveal-d2 {
-        transition-delay: 0.2s;
-      }
-      .reveal-d3 {
-        transition-delay: 0.3s;
-      }
-
-      /* ============================================================
-   RESPONSIVE — TABLET
-============================================================ */
-      @media (max-width: 900px) {
-        nav {
-          padding: 18px 24px;
-        }
-        .nav-links,
-        .nav-cta {
+      @media (max-width: 768px) {
+        .nav-links {
           display: none;
         }
-        .hamburger {
-          display: flex;
-        }
-        .mobile-drawer {
-          display: flex;
+
+        .token-grid,
+        .footer-grid,
+        .card-grid {
+          grid-template-columns: 1fr;
         }
 
-        .insight-wrap {
-          grid-template-columns: 1fr;
-          gap: 40px;
-        }
-        .problem-grid {
-          grid-template-columns: 1fr;
-          max-width: 560px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-        .token-grid {
-          grid-template-columns: 1fr;
-        }
-        .mech-flow {
-          flex-direction: column;
-        }
-        .mech-step {
-          border-radius: 12px !important;
-        }
-        .mech-step:not(:last-child)::after {
-          content: "↓";
-          top: auto;
-          bottom: -14px;
-          left: 50%;
-          right: auto;
-          transform: translateX(-50%);
-        }
-        .anti-grid {
-          grid-template-columns: repeat(2, 1fr);
-        }
-        .alloc-wrap {
-          grid-template-columns: 1fr;
-          gap: 40px;
-        }
-        .creator-grid {
-          grid-template-columns: 1fr;
-        }
-        .footer-grid {
-          grid-template-columns: 1fr 1fr;
-          gap: 28px;
-        }
-      }
-      /* ============================================================
-   RESPONSIVE — MOBILE
-============================================================ */
-      @media (max-width: 580px) {
-        .hero {
-          padding: 110px 18px 64px;
-        }
         .hero-stats {
-          gap: 8px;
-        }
-        .anti-grid {
           grid-template-columns: 1fr;
         }
-        .footer-grid {
-          grid-template-columns: 1fr;
+
+        .modal-header {
+          padding: 24px 24px 20px;
         }
-        .footer-bottom {
-          flex-direction: column;
-          align-items: flex-start;
+
+        .modal-body {
+          padding: 24px;
+        }
+
+        .modal-title {
+          font-size: 24px;
+        }
+
+        .install-modal {
+          margin: 0 10px;
         }
       }
     </style>
   </head>
   <body>
-    <!-- NAV -->
-    <nav id="nav">
-      <a href="#" class="nav-logo">GROVA</a>
-      <ul class="nav-links">
-        <li><a href="#insight">Insight</a></li>
-        <li><a href="#tokens">Tokens</a></li>
-        <li><a href="#mechanics">Mechanics</a></li>
-        <li><a href="#allocation">Allocation</a></li>
-        <li><a href="#creator">Creators</a></li>
-        <li><a href="#faq">FAQ</a></li>
-      </ul>
-      <button class="nav-cta">Join Waitlist</button>
-      <div class="hamburger" id="hamburger">
-        <span></span><span></span><span></span>
-      </div>
-    </nav>
-    <!-- mobile drawer -->
-    <div class="mobile-drawer" id="mobileDrawer">
-      <a href="#insight" class="drawer-link">Insight</a>
-      <a href="#tokens" class="drawer-link">Tokens</a>
-      <a href="#mechanics" class="drawer-link">Mechanics</a>
-      <a href="#allocation" class="drawer-link">Allocation</a>
-      <a href="#creator" class="drawer-link">Creators</a>
-      <a href="#faq" class="drawer-link">FAQ</a>
-      <button class="nav-cta">Join Waitlist</button>
-    </div>
-
-    <!-- ============================================================
-     HERO
-============================================================ -->
-    <section class="hero">
-      <div class="hero-grid"></div>
-
-      <!-- the hook that makes you stop -->
-      <div class="hero-hook">
-        <span class="line"></span>
-        Every like you've ever given made someone else rich. Not anymore.
-        <span class="line"></span>
-      </div>
-
-      <h1 class="hero-title">
-        <span class="line-1">Your Attention</span>
-        <span class="line-2">Is Worth Money</span>
-        <span class="line-3">And Now You Own It</span>
-      </h1>
-
-      <p class="hero-sub">
-        Grova is social infrastructure for the next era — a network where every
-        interaction is priced, every creator is paid, and every user owns the
-        value they generate. No ads. No extraction. Code decides.
-      </p>
-
-      <div class="hero-actions">
-        <button class="btn-primary">Join the Economy</button>
-        <button class="btn-outline">Read the Paper</button>
-      </div>
-
-      <!-- stats — pill row, wraps cleanly on any screen -->
-      <div class="hero-stats">
-        <div class="stat-pill">
-          <span class="s-val">EP + GT</span>
-          <span class="s-label">Dual Token<br />System</span>
-        </div>
-        <div class="stat-pill">
-          <span class="s-val">$1 = 100 EP</span>
-          <span class="s-label">Fixed<br />Pricing</span>
-        </div>
-        <div class="stat-pill">
-          <span class="s-val">1T GT</span>
-          <span class="s-label">Total<br />Supply</span>
-        </div>
-        <div class="stat-pill">
-          <span class="s-val">0%</span>
-          <span class="s-label">Ad<br />Revenue</span>
-        </div>
-      </div>
-
-      <div class="scroll-hint">
-        <span>Scroll</span>
-        <div class="line"></div>
-      </div>
-    </section>
-
-    <!-- MARQUEE -->
-    <div class="marquee-wrap">
-      <div class="marquee">
-        <span class="marquee-item"
-          ><span class="sep"></span>Intentional Engagement</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Peer-to-Peer Value</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Creator-First Economy</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Anti-Spam by Design</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Time-Weighted Rewards</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Zero Ads · Zero Extraction</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Smart Contract Governance</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Social Infrastructure</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Intentional Engagement</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Peer-to-Peer Value</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Creator-First Economy</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Anti-Spam by Design</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Time-Weighted Rewards</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Zero Ads · Zero Extraction</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Smart Contract Governance</span
-        >
-        <span class="marquee-item"
-          ><span class="sep"></span>Social Infrastructure</span
-        >
+    <div class="bg-layer">
+      <div class="grid-lines"></div>
+      <div class="accent-lines">
+        <div class="h-line"></div>
+        <div class="h-line"></div>
+        <div class="h-line"></div>
+        <div class="v-line"></div>
+        <div class="v-line"></div>
+        <div class="v-line"></div>
+        <div class="node"></div>
+        <div class="node"></div>
+        <div class="node"></div>
+        <div class="ambient-glow"></div>
+        <div class="ambient-glow"></div>
       </div>
     </div>
 
-    <!-- ============================================================
-     THE INSIGHT
-============================================================ -->
-    <section id="insight">
-      <div class="insight-wrap">
-        <div class="insight-left reveal">
-          <div class="section-label">The Insight</div>
-          <h2 class="section-title">
-            Attention has value.<br /><span class="accent"
-              >Intention has weight.</span
+    <div class="content-wrap">
+      <header>
+        <nav>
+          <div class="logo">GROVA</div>
+          <div class="nav-links">
+            <a href="#insight">Insight</a>
+            <a href="#tokens">Tokens</a>
+            <a href="#mechanics">Mechanics</a>
+            <a href="#allocation">Allocation</a>
+            <a href="#revenue">Revenue</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <button class="nav-cta" onclick="openInstallModal()">
+            Join Waitlist
+          </button>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="hero-content">
+          <div class="hero-badge">
+            Every like made someone else rich. Not anymore.
+          </div>
+
+          <h1>
+            <span class="line line-1">Your Attention</span>
+            <span class="line line-2">Is Worth Money</span>
+            <span class="line line-3">And Now You Own It</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            Grova is
+            <span class="highlight"
+              >social infrastructure for the next era</span
             >
-          </h2>
-          <p>
-            Every platform you have ever used turned your time into someone
-            else's revenue. Your likes fed their ad auctions. Your comments
-            built their recommendation engines. You built the product — they
-            took the profit.
+            — where every interaction is priced, every creator is paid, and
+            every user owns the value they generate.
           </p>
-          <p>
-            Grova flips this. Social actions become economic primitives. Value
-            is routed by smart contracts directly to the people who created it.
-            The future of social isn't a better feed — it's a better economy.
-          </p>
-        </div>
-        <div class="reveal reveal-d2">
-          <div class="insight-card">
-            <div class="quote-mark">"</div>
-            <h4>
-              When engagement has cost, it has meaning. When meaning has value,
-              communities thrive.
-            </h4>
-            <p>
-              Grova is not a social app. It is social infrastructure — built for
-              the era where intention becomes economy and attention becomes
-              ownership.
-            </p>
+
+          <div class="hero-cta-group">
+            <button class="cta-primary" onclick="openInstallModal()">
+              Join the Economy
+            </button>
+            <a href="#insight" class="cta-secondary">Learn More</a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="glass-card">
+              <div class="stat-number">EP + GT</div>
+              <div class="stat-label">Dual Token</div>
+            </div>
+            <div class="glass-card">
+              <div class="stat-number">$1 = 100 EP</div>
+              <div class="stat-label">Fixed Price</div>
+            </div>
+            <div class="glass-card">
+              <div class="stat-number">1T GT</div>
+              <div class="stat-label">Supply</div>
+            </div>
+            <div class="glass-card">
+              <div class="stat-number">0%</div>
+              <div class="stat-label">Ads</div>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ============================================================
-     THE PROBLEM
-============================================================ -->
-    <section>
-      <div style="max-width: 1140px; margin: 0 auto">
-        <div class="reveal" style="margin-bottom: clamp(40px, 6vw, 56px)">
-          <div class="section-label">The Problem</div>
+      <section id="insight">
+        <div class="container">
+          <h2 class="section-title">The <span class="accent">Insight</span></h2>
+          <div class="card-grid">
+            <div class="card">
+              <h3>Attention Has Value. Intention Has Weight.</h3>
+              <p>
+                Every platform turned your time into their revenue. Your likes
+                fed ad auctions. Grova flips this — value routes directly to
+                creators through code.
+              </p>
+            </div>
+            <div class="card">
+              <h3>When Engagement Has Cost, It Has Meaning</h3>
+              <p>
+                Free engagement becomes meaningless. Priced engagement becomes
+                deliberate. The future of social isn't a better feed — it's a
+                better economy.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <h2 class="section-title">The <span class="accent">Problem</span></h2>
+          <div class="card-grid">
+            <div class="card">
+              <div class="card-icon">⚡</div>
+              <h3>Engagement Is Free</h3>
+              <p>
+                When engagement costs nothing, spam floods in. Signal drowns in
+                noise.
+              </p>
+            </div>
+            <div class="card">
+              <div class="card-icon">💸</div>
+              <h3>Value Flows Up</h3>
+              <p>
+                Platforms monetize attention. Users generate value but don't own
+                it.
+              </p>
+            </div>
+            <div class="card">
+              <div class="card-icon">🔓</div>
+              <h3>You Own Nothing</h3>
+              <p>
+                One algorithm change and your reach disappears. All controlled
+                by others.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tokens">
+        <div class="container">
+          <h2 class="section-title">Dual <span class="accent">Token</span></h2>
+          <div class="token-grid">
+            <div class="token-card">
+              <div class="token-icon">EP</div>
+              <h3>Engagement Points</h3>
+              <p>
+                Consumable social energy. Minted when deposited. Burned when
+                spent.
+              </p>
+              <ul class="token-features">
+                <li>
+                  <span class="check">✓</span> Elastic supply —
+                  expands/contracts with activity
+                </li>
+                <li>
+                  <span class="check">✓</span> Destroyed upon use — no hoarding
+                </li>
+                <li><span class="check">✓</span> Not traded externally</li>
+                <li>
+                  <span class="check">✓</span> $1 = 100 EP — simple pricing
+                </li>
+              </ul>
+            </div>
+            <div class="token-card">
+              <div class="token-icon">GT</div>
+              <h3>Grova Token</h3>
+              <p>
+                Stored value. Fixed 1 trillion. Earned, withdrawable, stakeable.
+              </p>
+              <ul class="token-features">
+                <li>
+                  <span class="check">✓</span> Fixed: 1,000,000,000,000 GT
+                </li>
+                <li>
+                  <span class="check">✓</span> 40% monthly conversion from EP
+                </li>
+                <li><span class="check">✓</span> Ownership and governance</li>
+                <li>
+                  <span class="check">✓</span> Prevents speculation corruption
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="mechanics">
+        <div class="container">
           <h2 class="section-title">
-            The system was never<br /><span
-              class="accent"
-              style="color: var(--red)"
-              >built for you</span
-            >
+            How It <span class="accent">Works</span>
           </h2>
-        </div>
-        <div class="problem-grid">
-          <div class="problem-card reveal">
-            <div class="problem-icon">⚡</div>
-            <h3>Engagement Is Free</h3>
-            <p>
-              When engagement costs nothing, spam and bots flood in. Signal
-              drowns in noise. Quality content gets buried by volume.
-            </p>
-          </div>
-          <div class="problem-card reveal reveal-d1">
-            <div class="problem-icon">💸</div>
-            <h3>Value Flows Up</h3>
-            <p>
-              Platforms monetize your attention through ads. Creators receive
-              nothing for their content. Users generate value they will never
-              own.
-            </p>
-          </div>
-          <div class="problem-card reveal reveal-d2">
-            <div class="problem-icon">🔓</div>
-            <h3>You Own Nothing</h3>
-            <p>
-              One algorithm change and your reach disappears. Your content, your
-              audience, your earnings — all controlled by someone else.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- ============================================================
-     DUAL TOKEN
-============================================================ -->
-    <section id="tokens">
-      <div class="token-wrap">
-        <div class="reveal" style="margin-bottom: clamp(40px, 6vw, 56px)">
-          <div class="section-label">The Architecture</div>
-          <h2 class="section-title">
-            Two tokens.<br /><span class="accent">One economy.</span>
-          </h2>
-        </div>
-        <div class="token-grid">
-          <!-- EP -->
-          <div class="token-card ep reveal">
-            <div class="glow-blob"></div>
-            <div class="token-badge">EP</div>
-            <h3>Engagement Points</h3>
-            <p>
-              Consumable social energy. Minted when users deposit value. Burned
-              the moment it's spent. The fuel that powers every interaction on
-              Grova.
-            </p>
-            <ul class="token-features">
-              <li>
-                <span class="check">✓</span>Like = 2 EP · Comment = 4 EP · Post
-                = 10 EP
-              </li>
-              <li>
-                <span class="check">✓</span>Elastic supply — expands and
-                contracts with real activity
-              </li>
-              <li>
-                <span class="check">✓</span>Destroyed upon use — no hoarding, no
-                speculation
-              </li>
-              <li>
-                <span class="check">✓</span>Not traded externally — pure
-                engagement energy
-              </li>
-            </ul>
+          <div class="card-grid">
+            <div class="card" style="text-align: center">
+              <div class="step-number">1</div>
+              <h3>Deposit & Mint</h3>
+              <p>
+                $1 activation. Deposit cash or crypto. EP minted at $1 = 100 EP.
+              </p>
+            </div>
+            <div class="card" style="text-align: center">
+              <div class="step-number">2</div>
+              <h3>Engage & Burn</h3>
+              <p>Creators get 84% (subscribed) or 80%. Protocol keeps 2%.</p>
+            </div>
+            <div class="card" style="text-align: center">
+              <div class="step-number">3</div>
+              <h3>Earn & Convert</h3>
+              <p>40% monthly converts to GT for long-term value.</p>
+            </div>
           </div>
-          <!-- GT -->
-          <div class="token-card gt reveal reveal-d2">
-            <div class="glow-blob"></div>
-            <div class="token-badge">GT</div>
-            <h3>Grova Token</h3>
-            <p>
-              Stored social value. Fixed supply of 1 trillion GT. Earned through
-              EP conversion — withdrawable, stakeable, and governable.
-            </p>
-            <ul class="token-features">
-              <li>
-                <span class="check">✓</span>Fixed supply: 1,000,000,000,000 GT —
-                forever
-              </li>
-              <li>
-                <span class="check">✓</span>Users convert 40% of monthly
-                earnings into GT
-              </li>
-              <li>
-                <span class="check">✓</span>Represents ownership, settlement,
-                and governance
-              </li>
-              <li>
-                <span class="check">✓</span>Separation keeps speculation from
-                corrupting participation
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- ============================================================
-     MECHANICS
-============================================================ -->
-    <section id="mechanics">
-      <div class="mechanics-wrap">
-        <div class="reveal" style="margin-bottom: clamp(40px, 6vw, 56px)">
-          <div class="section-label">How It Works</div>
-          <h2 class="section-title">
-            Value flows by <span class="accent">code</span>,<br />not by
-            permission
-          </h2>
-        </div>
-
-        <div class="mech-flow">
-          <div class="mech-step reveal">
-            <div class="step-num">STEP 01</div>
-            <h4>Deposit & Mint</h4>
-            <p>
-              Users deposit via bank, card, or crypto. EP is minted at $1 = 100
-              EP. Supply expands with activity — no artificial scarcity.
-            </p>
-          </div>
-          <div class="mech-step reveal reveal-d1">
-            <div class="step-num">STEP 02</div>
-            <h4>Engage & Burn</h4>
-            <p>
-              EP is spent to like, comment, or post. Smart contracts split value
-              instantly among creator, community pool, and protocol treasury. No
-              middleman.
-            </p>
-          </div>
-          <div class="mech-step reveal reveal-d2">
-            <div class="step-num">STEP 03</div>
-            <h4>Earn & Convert</h4>
-            <p>
-              Creators earn EP from engagement on their content. 40% of monthly
-              earnings convert to GT for long-term value. The rest stays as
-              ecosystem energy.
-            </p>
-          </div>
-        </div>
-
-        <!-- Definitive pricing -->
-        <div class="reveal" style="margin-top: clamp(44px, 6vw, 60px)">
-          <div class="pricing-label">Engagement Costs</div>
-          <div class="pricing-row">
-            <div class="price-pill">
-              <span class="action">Like</span>
-              <span class="eq">=</span>
-              <span class="cost">2 EP</span>
-            </div>
-            <div class="price-pill">
-              <span class="action">Comment</span>
-              <span class="eq">=</span>
-              <span class="cost">4 EP</span>
-            </div>
-            <div class="price-pill">
-              <span class="action">Post</span>
-              <span class="eq">=</span>
-              <span class="cost">10 EP</span>
-            </div>
-            <div class="price-pill">
-              <span class="action">Protocol Fee</span>
-              <span class="eq">=</span>
-              <span class="cost">2–4%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Conversion rule — definitive -->
-        <div
-          class="conversion-box reveal"
-          style="margin-top: clamp(20px, 3vw, 28px)"
-        >
-          <div class="cb-icon">🔄</div>
-          <div>
-            <h4>Monthly Conversion Rule</h4>
-            <p>
-              Users convert exactly 40% of their monthly EP earnings into GT.
-              This single rule keeps the ecosystem stable — it funds long-term
-              value creation while ensuring enough energy stays circulating to
-              power daily engagement. No guessing. No variables. 40%, every
-              month.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
-     ANTI-ABUSE
-============================================================ -->
-    <section>
-      <div style="max-width: 1140px; margin: 0 auto">
-        <div class="reveal" style="margin-bottom: clamp(40px, 6vw, 56px)">
-          <div class="section-label">Integrity</div>
-          <h2 class="section-title">
-            Abuse becomes <span class="accent">uneconomical</span>
-          </h2>
-        </div>
-        <div class="anti-grid">
-          <div class="anti-card reveal">
-            <div class="anti-icon">💰</div>
-            <h4>Cost Barrier</h4>
-            <p>
-              Every action costs EP. Spam and bot farming become economically
-              irrational at any scale.
-            </p>
-          </div>
-          <div class="anti-card reveal reveal-d1">
-            <div class="anti-icon">⏳</div>
-            <h4>Time-Weighted</h4>
-            <p>
-              Conversion rewards patience. Rapid extraction is structurally
-              penalized — farming yields nothing.
-            </p>
-          </div>
-          <div class="anti-card reveal reveal-d2">
-            <div class="anti-icon">📊</div>
-            <h4>Reputation Scoring</h4>
-            <p>
-              Bad actors pay more. Yield efficiency is tied to reputation, not
-              just balance size.
-            </p>
-          </div>
-          <div class="anti-card reveal reveal-d3">
-            <div class="anti-icon">📉</div>
-            <h4>Diminishing Returns</h4>
-            <p>
-              Whales cannot monopolize attention. Quality scales. Noise does
-              not. The math enforces it.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
-     TOKEN ALLOCATION
-============================================================ -->
-    <section id="allocation">
-      <div class="alloc-wrap">
-        <div class="alloc-left reveal">
-          <div class="section-label">Token Supply</div>
-          <h2 class="section-title">
-            1 Trillion GT.<br /><span class="accent">Fixed. Forever.</span>
-          </h2>
-          <p>
-            Early circulating supply is kept intentionally low. Founders and
-            team are locked behind a 12–18 month cliff, then vest linearly over
-            48–60 months. Alignment is enforced on-chain — not by trust.
-          </p>
-          <p>
-            Protocol sustainability is governed by multi-sig, audit-focused, and
-            fully transparent.
-          </p>
-          <div class="alloc-legend">
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #c8f542"></div>
-              <span class="legend-label">Ecosystem Rewards</span
-              ><span class="legend-pct">38%</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #2dd4bf"></div>
-              <span class="legend-label">Treasury / Stability</span
-              ><span class="legend-pct">22%</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #7a7a7a"></div>
-              <span class="legend-label">Founders & Team</span
-              ><span class="legend-pct">12%</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #a8a8a8"></div>
-              <span class="legend-label">Investors / Partners</span
-              ><span class="legend-pct">10%</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #3a3a3a"></div>
-              <span class="legend-label">Community / Early Users</span
-              ><span class="legend-pct">10%</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #555"></div>
-              <span class="legend-label">Governance Reserve</span
-              ><span class="legend-pct">5%</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background: #ddd"></div>
-              <span class="legend-label">Protocol R&D</span
-              ><span class="legend-pct">3%</span>
-            </div>
-          </div>
-        </div>
-        <div class="reveal reveal-d2">
-          <div class="pie-wrap">
-            <svg viewBox="0 0 200 200">
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#c8f542"
-                stroke-width="26"
-                stroke-dasharray="185.9 305"
-                stroke-dashoffset="0"
-                opacity=".9"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#2dd4bf"
-                stroke-width="26"
-                stroke-dasharray="107.6 383.3"
-                stroke-dashoffset="-185.9"
-                opacity=".85"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#7a7a7a"
-                stroke-width="26"
-                stroke-dasharray="58.7 432.2"
-                stroke-dashoffset="-293.5"
-                opacity=".8"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#a8a8a8"
-                stroke-width="26"
-                stroke-dasharray="49.0 441.9"
-                stroke-dashoffset="-352.2"
-                opacity=".75"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#3a3a3a"
-                stroke-width="26"
-                stroke-dasharray="49.0 441.9"
-                stroke-dashoffset="-401.2"
-                opacity=".7"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#555"
-                stroke-width="26"
-                stroke-dasharray="24.5 466.4"
-                stroke-dashoffset="-450.2"
-                opacity=".65"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="78"
-                fill="none"
-                stroke="#ddd"
-                stroke-width="26"
-                stroke-dasharray="14.7 476.2"
-                stroke-dashoffset="-474.7"
-                opacity=".55"
-              />
-            </svg>
-            <div class="pie-center">
-              <div class="big">1T GT</div>
-              <div class="small">Total Supply</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
-     CREATOR ECONOMY
-============================================================ -->
-    <section id="creator">
-      <div class="creator-wrap">
-        <div class="reveal">
-          <div class="section-label">Creator Economy</div>
-          <h2 class="section-title">
-            Creators become<br /><span class="accent">economies</span>
-          </h2>
-        </div>
-        <div class="creator-grid">
-          <div>
-            <div class="creator-card reveal">
-              <div class="cc-icon">✍️</div>
-              <div>
-                <h4>Direct Engagement Earnings</h4>
-                <p>
-                  Earn from every like, comment, and interaction on your
-                  content. Value is distributed automatically by smart contract
-                  — no waiting, no applying.
-                </p>
+          <div class="pricing-box">
+            <h3 class="pricing-title">Engagement Costs</h3>
+            <div class="pricing-grid">
+              <div class="price-item">
+                <span class="label">Like</span>
+                <span class="value">2 EP</span>
               </div>
-            </div>
-            <div class="creator-card reveal reveal-d1">
-              <div class="cc-icon">💬</div>
-              <div>
-                <h4>Comment Attribution</h4>
-                <p>
-                  Earn when engagement happens on comments within your posts.
-                  The entire thread generates value for the creator.
-                </p>
+              <div class="price-item">
+                <span class="label">Comment</span>
+                <span class="value">4 EP</span>
               </div>
-            </div>
-            <div class="creator-card reveal reveal-d2">
-              <div class="cc-icon">🏦</div>
-              <div>
-                <h4>Creator Vaults</h4>
-                <p>
-                  Optional community vaults let audiences co-grow value with
-                  creators over time. Communities, not content mills.
-                </p>
+              <div class="price-item">
+                <span class="label">Post</span>
+                <span class="value">10 EP</span>
+              </div>
+              <div class="price-item">
+                <span class="label">Protocol Fee</span>
+                <span class="value">2%</span>
+              </div>
+              <div class="price-item">
+                <span class="label">Entry</span>
+                <span class="value">$1</span>
+              </div>
+              <div class="price-item">
+                <span class="label">Conversion</span>
+                <span class="value">40%</span>
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div class="revenue-panel reveal reveal-d1">
-            <h3>How Grova Earns — Without Ads</h3>
-            <div class="rev-row">
-              <span class="rev-label">EP Issuance Spread</span
-              ><span class="rev-val">Primary</span>
+      <section id="allocation">
+        <div class="container">
+          <h2 class="section-title">
+            Token <span class="accent">Allocation</span>
+          </h2>
+          <div class="card-grid">
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">Ecosystem Rewards</div>
+                <div class="alloc-percent">38%</div>
+              </div>
+              <div class="alloc-desc">
+                Staking rewards and creator incentives.
+              </div>
             </div>
-            <div class="rev-row">
-              <span class="rev-label">EP → GT Conversion Fee</span
-              ><span class="rev-val">2–4%</span>
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">Treasury</div>
+                <div class="alloc-percent">22%</div>
+              </div>
+              <div class="alloc-desc">
+                Partnerships, marketing, development.
+              </div>
             </div>
-            <div class="rev-row">
-              <span class="rev-label">Treasury Share from Engagement</span
-              ><span class="rev-val">Auto</span>
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">Team</div>
+                <div class="alloc-percent">12%</div>
+              </div>
+              <div class="alloc-desc">
+                12-18 month cliff, 48-60 month vesting.
+              </div>
             </div>
-            <div class="rev-row">
-              <span class="rev-label">Subscriptions (Tools & Analytics)</span
-              ><span class="rev-val">Optional</span>
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">Investors</div>
+                <div class="alloc-percent">10%</div>
+              </div>
+              <div class="alloc-desc">Strategic partners and capital.</div>
             </div>
-            <div class="rev-footer">
-              No ads. No data selling. No algorithmic manipulation. Grova earns
-              by keeping the economy healthy — and so does everyone in it.
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">Community</div>
+                <div class="alloc-percent">10%</div>
+              </div>
+              <div class="alloc-desc">Early adopters and builders.</div>
+            </div>
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">Governance</div>
+                <div class="alloc-percent">5%</div>
+              </div>
+              <div class="alloc-desc">Future protocol upgrades.</div>
+            </div>
+            <div class="alloc-card">
+              <div class="alloc-header">
+                <div class="alloc-title">R&D</div>
+                <div class="alloc-percent">3%</div>
+              </div>
+              <div class="alloc-desc">Research and innovation.</div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ============================================================
-     FAQ
-============================================================ -->
-    <section id="faq">
-      <div class="faq-wrap">
-        <div
-          class="reveal"
-          style="margin-bottom: clamp(40px, 6vw, 56px); text-align: center"
-        >
-          <div class="section-label" style="justify-content: center">
-            Questions
+      <section id="revenue">
+        <div class="container">
+          <h2 class="section-title">
+            Revenue <span class="accent">Distribution</span>
+          </h2>
+
+          <div class="card-grid">
+            <div class="revenue-card">
+              <h3>Ecosystem Return (45%)</h3>
+              <div class="rev-row">
+                <div class="rev-label">Staked GT</div>
+                <div class="rev-value">20%</div>
+              </div>
+              <div class="rev-row">
+                <div class="rev-label">Creator Pool</div>
+                <div class="rev-value">20%</div>
+              </div>
+              <div class="rev-row">
+                <div class="rev-label">Global Impact</div>
+                <div class="rev-value">5%</div>
+              </div>
+            </div>
+
+            <div class="revenue-card">
+              <h3>Platform (55%)</h3>
+              <div class="rev-row">
+                <div class="rev-label">Founder</div>
+                <div class="rev-value">10%</div>
+              </div>
+              <div class="rev-row">
+                <div class="rev-label">Operations</div>
+                <div class="rev-value">20%</div>
+              </div>
+              <div class="rev-row">
+                <div class="rev-label">Treasury</div>
+                <div class="rev-value">25%</div>
+              </div>
+            </div>
+
+            <div class="revenue-card">
+              <h3>Creator Share</h3>
+              <div class="rev-row">
+                <div class="rev-label">Subscribed</div>
+                <div class="rev-value">84%</div>
+              </div>
+              <div class="rev-row">
+                <div class="rev-label">Non-Subscribed</div>
+                <div class="rev-value">80%</div>
+              </div>
+              <div class="rev-row">
+                <div class="rev-label">Protocol Pool</div>
+                <div class="rev-value">16-20%</div>
+              </div>
+            </div>
           </div>
-          <h2 class="section-title" style="max-width: 100%; text-align: center">
+        </div>
+      </section>
+
+      <section id="faq">
+        <div class="container">
+          <h2 class="section-title">
             Frequently <span class="accent">Asked</span>
           </h2>
-        </div>
+          <div class="faq-container">
+            <div class="faq-item">
+              <button class="faq-question" onclick="toggleFAQ(this)">
+                <h3>What is Grova?</h3>
+                <span class="faq-icon">▼</span>
+              </button>
+              <div class="faq-answer">
+                <p>
+                  Grova is a social network built as an economy. EP powers
+                  engagement, GT stores value. Every interaction is priced,
+                  every creator is paid.
+                </p>
+              </div>
+            </div>
 
-        <div class="faq-item reveal">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <h4>What exactly is Grova?</h4>
-            <span class="arrow">▼</span>
+            <div class="faq-item">
+              <button class="faq-question" onclick="toggleFAQ(this)">
+                <h3>How much does engagement cost?</h3>
+                <span class="faq-icon">▼</span>
+              </button>
+              <div class="faq-answer">
+                <p>
+                  Like = 2 EP, Comment = 4 EP, Post = 10 EP. $1 = 100 EP. $1
+                  one-time activation.
+                </p>
+              </div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-question" onclick="toggleFAQ(this)">
+                <h3>How does conversion work?</h3>
+                <span class="faq-icon">▼</span>
+              </button>
+              <div class="faq-answer">
+                <p>40% of monthly EP earnings convert to GT automatically.</p>
+              </div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-question" onclick="toggleFAQ(this)">
+                <h3>How is value distributed?</h3>
+                <span class="faq-icon">▼</span>
+              </button>
+              <div class="faq-answer">
+                <p>
+                  Subscribed creators get 84%, non-subscribed get 80%. 2%
+                  protocol fee on all transactions.
+                </p>
+              </div>
+            </div>
           </div>
-          <div class="faq-a">
-            <p>
-              Grova is a social network built as an economy. It converts
-              intentional social actions into measurable value using a
-              dual-token system: EP as consumable engagement energy, and GT as
-              stored social value. Every interaction is priced, every creator is
-              paid, and every user owns what they earn. No ads. No data
-              extraction. Just infrastructure.
+        </div>
+      </section>
+
+      <footer>
+        <div class="footer-grid">
+          <div>
+            <div class="footer-logo">GROVA</div>
+            <p style="font-size: 15px; color: var(--gray); line-height: 1.8">
+              Social capital powered by intentional engagement.
             </p>
+            <div class="footer-social">
+              <a href="#">𝕏</a>
+              <a href="#">💬</a>
+              <a href="#">📘</a>
+            </div>
+          </div>
+          <div class="footer-column">
+            <h4>Platform</h4>
+            <ul>
+              <li><a href="#insight">Insight</a></li>
+              <li><a href="#tokens">Tokens</a></li>
+              <li><a href="#mechanics">Mechanics</a></li>
+            </ul>
+          </div>
+          <div class="footer-column">
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="#">Whitepaper</a></li>
+              <li><a href="#">Docs</a></li>
+              <li><a href="#">Blog</a></li>
+            </ul>
+          </div>
+          <div class="footer-column">
+            <h4>Legal</h4>
+            <ul>
+              <li><a href="#">Privacy</a></li>
+              <li><a href="#">Terms</a></li>
+              <li><a href="#">Contact</a></li>
+            </ul>
           </div>
         </div>
+        <div class="footer-bottom">© 2025 GROVA. All rights reserved.</div>
+      </footer>
+    </div>
 
-        <div class="faq-item reveal reveal-d1">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <h4>How much does engagement cost?</h4>
-            <span class="arrow">▼</span>
-          </div>
-          <div class="faq-a">
-            <p>
-              Costs are fixed and transparent. A like costs 2 EP. A comment
-              costs 4 EP. A post costs 10 EP. EP is purchased at $1 = 100 EP.
-              These are set prices — not estimates. This structure makes spam
-              uneconomical while keeping real engagement affordable.
-            </p>
-          </div>
-        </div>
-
-        <div class="faq-item reveal reveal-d2">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <h4>How does the EP to GT conversion work?</h4>
-            <span class="arrow">▼</span>
-          </div>
-          <div class="faq-a">
-            <p>
-              Users convert 40% of their monthly EP earnings into GT. This is
-              the rule — it keeps the ecosystem stable by ensuring enough EP
-              stays circulating to power engagement, while rewarding creators
-              with long-term value through GT. The conversion is automatic and
-              happens on a monthly cycle.
-            </p>
-          </div>
-        </div>
-
-        <div class="faq-item reveal">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <h4>How is value distributed when someone engages?</h4>
-            <span class="arrow">▼</span>
-          </div>
-          <div class="faq-a">
-            <p>
-              When EP is spent, smart contracts split the value automatically
-              among the content creator, the comment author if applicable, the
-              community pool, and the protocol treasury. No negotiation. No
-              intermediaries. The code decides — instantly and transparently.
-            </p>
-          </div>
-        </div>
-
-        <div class="faq-item reveal reveal-d1">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <h4>How does Grova make money?</h4>
-            <span class="arrow">▼</span>
-          </div>
-          <div class="faq-a">
-            <p>
-              Grova earns through the EP issuance spread, a 2–4% fee on EP to GT
-              conversions, its share of the treasury from engagement
-              distributions, and optional subscriptions for yield boosts, tools,
-              and analytics. No ads. No data selling. The platform profits when
-              the economy is healthy — which aligns its incentives with yours.
-            </p>
-          </div>
-        </div>
-
-        <div class="faq-item reveal reveal-d2">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <h4>What is the total GT supply?</h4>
-            <span class="arrow">▼</span>
-          </div>
-          <div class="faq-a">
-            <p>
-              1 trillion GT. Fixed forever. Early circulating supply is
-              intentionally low. Founders and team are locked behind a 12–18
-              month cliff with 48–60 month linear vesting. Everything is
-              enforced on-chain — not by promise.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
-     FOOTER
-============================================================ -->
-    <footer>
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="#" class="nav-logo">GROVA</a>
-          <p>
-            A social capital network powered by intentional engagement. Build
-            with intention.
+    <!-- PWA INSTALL MODAL -->
+    <div class="install-modal-overlay" id="installModal">
+      <div class="install-modal">
+        <div class="modal-header">
+          <button class="modal-close" onclick="closeInstallModal()">×</button>
+          <h2 class="modal-title">Get Grova</h2>
+          <p class="modal-subtitle">
+            Install the app and join the attention economy
           </p>
         </div>
-        <div class="footer-col">
-          <h5>Platform</h5>
-          <a href="#insight">The Insight</a>
-          <a href="#tokens">Dual Tokens</a>
-          <a href="#mechanics">Mechanics</a>
-          <a href="#allocation">Allocation</a>
-          <a href="#creator">Creators</a>
-        </div>
-        <div class="footer-col">
-          <h5>Resources</h5>
-          <a href="#">Whitepaper</a>
-          <a href="#">Documentation</a>
-          <a href="#">Blog</a>
-          <a href="#">Community</a>
-        </div>
-        <div class="footer-col">
-          <h5>Legal</h5>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">KYC / AML</a>
-          <a href="#">Contact</a>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <p>© 2025 GROVA. All rights reserved.</p>
-        <div class="footer-status">
-          <span class="status-dot"></span> All Systems Operational
-        </div>
-      </div>
-    </footer>
 
-    <!-- ============================================================
-     JS
-============================================================ -->
+        <div class="modal-body">
+          <div class="device-detection" id="deviceInfo">
+            <div class="device-icon">📱</div>
+            <div class="device-name">Detecting your device...</div>
+            <div class="device-desc">Please wait</div>
+          </div>
+
+          <div class="install-steps" id="installInstructions">
+            <!-- Steps will be dynamically inserted -->
+          </div>
+
+          <div class="qr-section" id="qrSection" style="display: none">
+            <div class="qr-code" id="qrCode">
+              <svg width="200" height="200" viewBox="0 0 200 200">
+                <rect width="200" height="200" fill="white" />
+                <text
+                  x="100"
+                  y="100"
+                  text-anchor="middle"
+                  dominant-baseline="middle"
+                  font-size="14"
+                  fill="#0a0a0a"
+                >
+                  QR Code
+                </text>
+              </svg>
+            </div>
+            <p class="qr-label">Scan to install on mobile</p>
+          </div>
+
+          <div class="terms-section">
+            <h4 class="terms-title">Before you continue</h4>
+            <label class="checkbox-group">
+              <input type="checkbox" id="termsCheck" />
+              <span class="checkbox-label">
+                I agree to Grova's
+                <a href="#" target="_blank">Terms of Service</a> and
+                <a href="#" target="_blank">Privacy Policy</a>
+              </span>
+            </label>
+            <label class="checkbox-group">
+              <input type="checkbox" id="ageCheck" />
+              <span class="checkbox-label">
+                I confirm that I am 18 years or older
+              </span>
+            </label>
+          </div>
+
+          <button class="install-button" id="installButton" disabled>
+            Install Grova
+          </button>
+
+          <div class="fallback-link">
+            <a href="/" id="webLink">Continue in browser instead</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
-      // Nav scroll
-      window.addEventListener("scroll", () => {
-        document
-          .getElementById("nav")
-          .classList.toggle("scrolled", window.scrollY > 40);
-      });
+      let deferredPrompt;
+      let deviceType = "unknown";
+      let installUrl = window.location.origin;
 
-      // Mobile drawer
-      const hamburger = document.getElementById("hamburger");
-      const drawer = document.getElementById("mobileDrawer");
-      hamburger.addEventListener("click", () => {
-        hamburger.classList.toggle("open");
-        drawer.classList.toggle("open");
-      });
-      drawer.querySelectorAll("a").forEach((a) => {
-        a.addEventListener("click", () => {
-          hamburger.classList.remove("open");
-          drawer.classList.remove("open");
-        });
-      });
+      // Detect device
+      function detectDevice() {
+        const ua = navigator.userAgent.toLowerCase();
+        const isIOS = /iphone|ipad|ipod/.test(ua);
+        const isAndroid = /android/.test(ua);
+        const isMobile = /mobile/.test(ua);
+        const isDesktop = !isMobile;
 
-      // Reveal on scroll
-      const reveals = document.querySelectorAll(".reveal");
-      const obs = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting) {
-              e.target.classList.add("visible");
-              obs.unobserve(e.target);
-            }
-          });
-        },
-        { threshold: 0.1, rootMargin: "0px 0px -36px 0px" },
-      );
-      reveals.forEach((el) => obs.observe(el));
+        if (isIOS) return "ios";
+        if (isAndroid) return "android";
+        if (isDesktop && ua.includes("win")) return "windows";
+        if (isDesktop && ua.includes("mac")) return "macos";
+        if (isDesktop && ua.includes("linux")) return "linux";
+        return "desktop";
+      }
 
-      // FAQ
-      function toggleFaq(el) {
-        const item = el.parentElement;
-        const wasOpen = item.classList.contains("open");
-        document.querySelectorAll(".faq-item").forEach((i) => {
-          i.classList.remove("open");
-          i.querySelector(".faq-a").style.maxHeight = "0";
-        });
-        if (!wasOpen) {
-          item.classList.add("open");
-          const ans = item.querySelector(".faq-a");
-          ans.style.maxHeight = ans.scrollHeight + "px";
+      // Generate install instructions based on device
+      function getInstallInstructions(device) {
+        const instructions = {
+          ios: {
+            icon: "📱",
+            name: "iPhone / iPad",
+            desc: "iOS Device Detected",
+            steps: [
+              "Tap the Share button (square with arrow) in Safari",
+              'Scroll down and tap "Add to Home Screen"',
+              'Tap "Add" in the top right corner',
+              "Launch Grova from your home screen",
+            ],
+          },
+          android: {
+            icon: "📱",
+            name: "Android Device",
+            desc: "Android Device Detected",
+            steps: [
+              "Tap the menu button (three dots) in your browser",
+              'Select "Install app" or "Add to Home screen"',
+              'Tap "Install" when prompted',
+              "Launch Grova from your app drawer",
+            ],
+          },
+          windows: {
+            icon: "💻",
+            name: "Windows PC",
+            desc: "Windows Desktop Detected",
+            steps: [
+              "Click the install icon (⊕) in the address bar",
+              'Click "Install" in the popup dialog',
+              "Launch Grova from your Start menu",
+              "Pin to taskbar for quick access",
+            ],
+          },
+          macos: {
+            icon: "💻",
+            name: "Mac",
+            desc: "macOS Desktop Detected",
+            steps: [
+              "Click the install icon in the address bar",
+              'Click "Install" in the popup dialog',
+              "Launch Grova from Applications",
+              "Add to Dock for quick access",
+            ],
+          },
+          linux: {
+            icon: "💻",
+            name: "Linux PC",
+            desc: "Linux Desktop Detected",
+            steps: [
+              "Click the install icon in the address bar",
+              'Click "Install" in the popup dialog',
+              "Launch Grova from your applications menu",
+              "Pin to favorites for quick access",
+            ],
+          },
+          desktop: {
+            icon: "💻",
+            name: "Desktop Browser",
+            desc: "Desktop Detected",
+            steps: [
+              "Look for the install icon in your browser's address bar",
+              'Click "Install" when prompted',
+              "Launch Grova as a desktop app",
+              "Enjoy full-screen experience",
+            ],
+          },
+        };
+
+        return instructions[device] || instructions.desktop;
+      }
+
+      // Render device info and instructions
+      function renderInstallUI() {
+        deviceType = detectDevice();
+        const info = getInstallInstructions(deviceType);
+
+        // Update device info
+        document.getElementById("deviceInfo").innerHTML = `
+                <div class="device-icon">${info.icon}</div>
+                <div class="device-name">${info.name}</div>
+                <div class="device-desc">${info.desc}</div>
+            `;
+
+        // Update instructions
+        const stepsHTML = info.steps
+          .map(
+            (step, i) => `
+                <div class="step">
+                    <div class="step-num">${i + 1}</div>
+                    <div class="step-content">
+                        <div class="step-text">${step}</div>
+                    </div>
+                </div>
+            `,
+          )
+          .join("");
+
+        document.getElementById("installInstructions").innerHTML = `
+                <h4>Installation Steps</h4>
+                ${stepsHTML}
+            `;
+
+        // Show QR code for desktop users
+        if (["windows", "macos", "linux", "desktop"].includes(deviceType)) {
+          document.getElementById("qrSection").style.display = "block";
+          generateQRCode(installUrl);
         }
       }
 
-      // Smooth scroll
+      // Simple QR code generator (using a service)
+      function generateQRCode(url) {
+        const qrContainer = document.getElementById("qrCode");
+        const qrImg = document.createElement("img");
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+        qrImg.style.width = "200px";
+        qrImg.style.height = "200px";
+        qrImg.style.borderRadius = "12px";
+        qrContainer.innerHTML = "";
+        qrContainer.appendChild(qrImg);
+      }
+
+      // Open modal
+      function openInstallModal() {
+        document.getElementById("installModal").classList.add("active");
+        renderInstallUI();
+      }
+
+      // Close modal
+      function closeInstallModal() {
+        document.getElementById("installModal").classList.remove("active");
+      }
+
+      // Enable install button when terms accepted
+      document
+        .getElementById("termsCheck")
+        .addEventListener("change", updateInstallButton);
+      document
+        .getElementById("ageCheck")
+        .addEventListener("change", updateInstallButton);
+
+      function updateInstallButton() {
+        const termsChecked = document.getElementById("termsCheck").checked;
+        const ageChecked = document.getElementById("ageCheck").checked;
+        document.getElementById("installButton").disabled = !(
+          termsChecked && ageChecked
+        );
+      }
+
+      // Capture beforeinstallprompt event
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log("Install prompt captured");
+      });
+
+      // Handle install button click
+      document
+        .getElementById("installButton")
+        .addEventListener("click", async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Install prompt outcome: ${outcome}`);
+            deferredPrompt = null;
+
+            if (outcome === "accepted") {
+              closeInstallModal();
+            }
+          } else {
+            // For iOS or if prompt not available, just redirect to app
+            window.location.href = installUrl;
+          }
+        });
+
+      // FAQ toggle
+      function toggleFAQ(btn) {
+        const item = btn.parentElement;
+        const was = item.classList.contains("active");
+        document
+          .querySelectorAll(".faq-item")
+          .forEach((i) => i.classList.remove("active"));
+        if (!was) item.classList.add("active");
+      }
+
+      // Smooth scrolling
       document.querySelectorAll('a[href^="#"]').forEach((a) => {
         a.addEventListener("click", (e) => {
           e.preventDefault();
           const t = document.querySelector(a.getAttribute("href"));
-          if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (t) t.scrollIntoView({ behavior: "smooth" });
         });
+      });
+
+      // Register service worker
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/service-worker.js")
+            .then((reg) => console.log("✅ Service Worker registered"))
+            .catch((err) => console.log("❌ SW registration failed:", err));
+        });
+      }
+
+      // Close modal on overlay click
+      document.getElementById("installModal").addEventListener("click", (e) => {
+        if (e.target.id === "installModal") {
+          closeInstallModal();
+        }
       });
     </script>
   </body>

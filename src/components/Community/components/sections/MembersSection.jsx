@@ -231,25 +231,6 @@ const MembersSection = ({ community, onBack }) => {
       </div>
 
       <style>{`
-        .back-button {
-          width: fit-content;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px;
-          cursor: pointer;
-          color: #9cff00;
-          font-weight: 600;
-          font-size: 13px;
-          transition: all 0.2s;
-          margin: 16px;
-        }
-
-        .back-button:hover {
-          transform: translateX(-4px);
-          color: #84cc16;
-        }
-
         .members-header {
           padding: 0 12px;
           margin: 20px;
@@ -274,18 +255,19 @@ const MembersSection = ({ community, onBack }) => {
         }
 
         .members-controls {
+          flex: 1;
           display: flex;
-          gap: 12px;
-          padding: 0 12px;
+          gap: 5px;
+          padding: 0 10px;
           margin-bottom: 20px;
         }
 
         .search-bar {
-          flex: 1;
+          width:70%;
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 12px 16px;
+          padding: 6px 10px;
           background: rgba(26, 26, 26, 0.6);
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 10px;
@@ -311,10 +293,12 @@ const MembersSection = ({ community, onBack }) => {
         }
 
         .filter-dropdown {
+          width: fit-content;
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
+          // gap: 8px;
+          font-size: 12px;
+          padding: 8px 12px;
           background: rgba(26, 26, 26, 0.6);
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 10px;
@@ -383,10 +367,11 @@ const MembersSection = ({ community, onBack }) => {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 12px 16px;
+          padding: 5px 8px;
           background: linear-gradient(135deg, rgba(156, 255, 0, 0.05) 0%, rgba(102, 126, 234, 0.05) 100%);
+          border: 1px solid;
           border-left: 4px solid;
-          border-radius: 8px;
+          border-radius: 18px;
           font-size: 13px;
           font-weight: 700;
           text-transform: uppercase;
@@ -410,9 +395,9 @@ const MembersSection = ({ community, onBack }) => {
         }
 
         .member-card {
-          padding: 16px;
-          background: rgba(26, 26, 26, 0.6);
-          border: 2px solid rgba(42, 42, 42, 0.6);
+          padding: 0 0 10px 0;
+          background: rgb(26, 26, 26);
+          border: 1px solid rgba(42, 42, 42, 0.6);
           border-radius: 12px;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
@@ -421,10 +406,7 @@ const MembersSection = ({ community, onBack }) => {
         }
 
         .member-card:hover {
-          background: rgba(26, 26, 26, 0.9);
-          border-color: rgba(156, 255, 0, 0.3);
-          transform: translateY(-4px);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+          transform: translateY(-2px);
         }
 
         .member-card-header {
@@ -437,12 +419,15 @@ const MembersSection = ({ community, onBack }) => {
           display: flex;
           flex-direction: row;
           gap: 8px;
+          padding: 10px;
+          padding-bottom: 0;
           align-items: center;
         }
         .member-avatar {
           width: 56px;
           height: 56px;
           border-radius: 50%;
+          border: 3px solid #9dff00d2;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           display: flex;
           align-items: center;
@@ -467,12 +452,13 @@ const MembersSection = ({ community, onBack }) => {
           position: absolute;
           bottom: 2px;
           right: 2px;
-          width: 14px;
-          height: 14px;
+          width: 15px;
+          height: 15px;
           border-radius: 50%;
           background: #10b981;
           border: 3px solid rgba(26, 26, 26, 0.9);
           box-shadow: 0 0 12px #10b981;
+          z-index: 3000;
         }
 
         .verified-icon {
@@ -488,7 +474,7 @@ const MembersSection = ({ community, onBack }) => {
         .member-name {
           font-size: 14px;
           font-weight: 600;
-          color: #fff;
+          color: #ffffffd3;
           margin-bottom: 4px;
           white-space: nowrap;
           overflow: hidden;
@@ -506,7 +492,7 @@ const MembersSection = ({ community, onBack }) => {
         .member-role-badge {
           display: inline-flex;
           align-items: center;
-          padding: 6px 12px;
+          padding: 4px 12px;
           border-radius: 8px;
           font-size: 11px;
           font-weight: 700;

@@ -1,4 +1,3 @@
-// src/App.jsx - FIXED with proper userId passing to headers
 import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import "./styles/global.css";
 import "./styles/comment.css";
@@ -16,6 +15,8 @@ import authService from "./services/auth/authService";
 import { supabase } from "./services/config/supabase";
 import mediaUrlService from "./services/shared/mediaUrlService";
 import { ToastProvider } from "./contexts/ToastContext";
+import { useNavigation } from "./hooks/useNavigation";
+import { useBackButton } from "./hooks/useBackButton";
 
 import DesktopHeader from "./components/Shared/DesktopHeader";
 import MobileHeader from "./components/Shared/MobileHeader";
@@ -79,6 +80,17 @@ const App = () => {
 
   const feedRef = useRef(null);
   const authUnsubscribe = useRef(null);
+
+  const { isAtRoot } = useNavigation(
+    activeTab,
+    homeSection,
+    accountSection,
+    setActiveTab,
+    setHomeSection,
+    setAccountSection,
+  );
+
+  const { showExitPrompt } = useBackButton(isAtRoot);
 
   useEffect(() => {
     initializeApp();
@@ -174,7 +186,6 @@ const App = () => {
       if (profileResult.data) {
         const profile = profileResult.data;
 
-        // Process avatar with HIGH QUALITY for headers
         let avatarUrl = null;
         if (profile.avatar_id) {
           const baseUrl = mediaUrlService.getImageUrl(profile.avatar_id);
@@ -201,7 +212,6 @@ const App = () => {
           fullName: profile.full_name || "Grova User",
         };
 
-        // Separate profile data for headers with avatar URL
         headerProfile = {
           id: profile.id,
           fullName: profile.full_name,
@@ -531,6 +541,29 @@ const App = () => {
           <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
         )}
 
+        {showExitPrompt && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: isMobile ? "80px" : "20px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "rgba(0, 0, 0, 0.9)",
+              color: "#84cc16",
+              padding: "12px 24px",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontWeight: "600",
+              zIndex: 10000,
+              border: "1px solid #84cc16",
+              boxShadow: "0 4px 12px rgba(132, 204, 22, 0.3)",
+              animation: "slideUp 0.3s ease-out",
+            }}
+          >
+            Press back again to exit
+          </div>
+        )}
+
         <NotificationSidebar
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}
@@ -542,6 +575,19 @@ const App = () => {
           onClose={() => setShowSupport(false)}
           isMobile={isMobile}
         />
+
+        <style>{`
+          @keyframes slideUp {
+            from {
+              transform: translateX(-50%) translateY(20px);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(-50%) translateY(0);
+              opacity: 1;
+            }
+          }
+        `}</style>
       </div>
     </ToastProvider>
   );

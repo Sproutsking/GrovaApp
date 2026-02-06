@@ -779,7 +779,7 @@ const CommunityMenu = ({
           width: 36px;
           height: 36px;
           border-radius: 8px;
-          background: rgba(26, 26, 26, 0.6);
+          background: rgb(20, 20, 20);
           border: 2px solid rgba(42, 42, 42, 0.8);
           color: #999;
           cursor: pointer;

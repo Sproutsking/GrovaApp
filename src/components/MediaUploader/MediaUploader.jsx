@@ -25,6 +25,7 @@ import {
   RotateCw,
   Crop,
   Sliders,
+  Camera,
 } from "lucide-react";
 import videoEditorService from "../../services/media/videoEditorService";
 import "./MediaUploader.css";
@@ -158,7 +159,6 @@ const MediaUploader = ({
   ];
 
   useEffect(() => {
-    // Listen for clear event
     const handleClear = () => {
       clearAll();
     };
@@ -408,15 +408,28 @@ const MediaUploader = ({
     }
   };
 
+  const getAcceptType = () => {
+    if (defaultType === "video") return "video/*";
+    if (defaultType === "image") return "image/*";
+    return "image/*,video/*";
+  };
+
+  const getCaptureMode = () => {
+    // Enable camera capture on mobile
+    if (defaultType === "video") return "environment";
+    return undefined;
+  };
+
   return (
     <div className="media-uploader">
       <div className="uploader-header">
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/*"
-          multiple
+          accept={getAcceptType()}
+          multiple={maxItems > 1}
           onChange={handleFileSelect}
+          capture={getCaptureMode()}
           style={{ display: "none" }}
         />
 
@@ -463,10 +476,10 @@ const MediaUploader = ({
           <p className="empty-title">Add your media</p>
           <p className="empty-subtitle">
             {allowMixed
-              ? "Images and videos"
+              ? "Images and videos · Tap to upload or capture"
               : defaultType === "video"
-                ? "Videos only"
-                : "Images only"}
+                ? "Videos only · Tap to upload or capture"
+                : "Images only · Tap to upload or capture"}
           </p>
         </div>
       ) : (
