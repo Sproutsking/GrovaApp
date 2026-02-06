@@ -371,17 +371,6 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     }
   };
 
-  const handleCloseAttempt = () => {
-    if (hasUnsavedChanges) {
-      setPendingNavigation(() => () => {
-        if (onClose) onClose();
-      });
-      setShowExitDialog(true);
-    } else {
-      if (onClose) onClose();
-    }
-  };
-
   const handlePublishPost = async () => {
     try {
       setLoading(true);

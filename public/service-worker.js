@@ -1,97 +1,139 @@
-const CACHE_NAME = "grova-v1";
+// service-worker.js
+// Place this file in /public/service-worker.js
 
-// Only cache files that definitely exist
-const urlsToCache = ["/", "/index.html"];
+const CACHE_NAME = "grova-cache-v1";
+const RUNTIME_CACHE = "grova-runtime-v1";
 
+// Files to cache immediately on install
+const PRECACHE_URLS = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/favicon.ico",
+  "/logo192.png",
+  "/logo512.png",
+];
+
+// Install event - cache core assets
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing...");
+  console.log("[Service Worker] Installing...");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("[SW] Caching app shell");
-      // Use addAll with error handling
-      return cache.addAll(urlsToCache).catch((err) => {
-        console.error("[SW] Failed to cache:", err);
-        // Don't fail the install if caching fails
-        return Promise.resolve();
-      });
-    }),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("[Service Worker] Precaching app shell");
+        return cache.addAll(PRECACHE_URLS);
+      })
+      .then(() => self.skipWaiting())
+      .catch((error) => {
+        console.error("[Service Worker] Precaching failed:", error);
+      }),
   );
-  self.skipWaiting();
 });
 
+// Activate event - clean up old caches
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating...");
+  console.log("[Service Worker] Activating...");
   event.waitUntil(
     caches
       .keys()
       .then((cacheNames) => {
         return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log("[SW] Deleting old cache:", cacheName);
-              return caches.delete(cacheName);
-            }
-          }),
+          cacheNames
+            .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
+            .map((name) => {
+              console.log("[Service Worker] Deleting old cache:", name);
+              return caches.delete(name);
+            }),
         );
       })
-      .then(() => {
-        console.log("[SW] Claiming clients");
-        return self.clients.claim();
-      }),
+      .then(() => self.clients.claim()),
   );
 });
 
+// Fetch event - network first, fallback to cache
 self.addEventListener("fetch", (event) => {
-  // Only handle GET requests
-  if (event.request.method !== "GET") return;
+  const { request } = event;
+  const url = new URL(request.url);
 
-  // Skip API calls, external resources
-  if (
-    event.request.url.includes("/api/") ||
-    event.request.url.includes("supabase") ||
-    event.request.url.includes("cloudflare") ||
-    event.request.url.includes("googleapis") ||
-    event.request.url.includes("gstatic") ||
-    event.request.url.includes("unpkg")
-  ) {
-    // Network only for these
-    event.respondWith(fetch(event.request));
+  // Skip cross-origin requests
+  if (url.origin !== location.origin) {
     return;
   }
 
-  // Network first, then cache strategy
+  // Skip non-GET requests
+  if (request.method !== "GET") {
+    return;
+  }
+
+  // Skip API calls and external resources
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.href.includes("supabase") ||
+    url.href.includes("cloudflare") ||
+    url.href.includes("googleapis") ||
+    url.href.includes("gstatic") ||
+    url.href.includes("unpkg") ||
+    url.href.includes("fontawesome")
+  ) {
+    // Network only for these
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // For navigation requests
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache successful responses
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cached index.html for navigation
+          return caches.match("/index.html");
+        }),
+    );
+    return;
+  }
+
+  // For all other requests - Network First strategy
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
         // Check if valid response
-        if (!response || response.status !== 200 || response.type === "error") {
+        if (!response || response.status !== 200) {
           return response;
         }
 
-        // Clone the response
-        const responseToCache = response.clone();
-
-        // Cache successful responses
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+        // Clone and cache successful responses
+        const responseClone = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => {
+          cache.put(request, responseClone);
         });
 
         return response;
       })
       .catch(() => {
-        // If network fails, try cache
-        return caches.match(event.request).then((cachedResponse) => {
+        // Network failed, try cache
+        return caches.match(request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
 
-          // If requesting a page, return index.html from cache
-          if (event.request.destination === "document") {
+          // If it's a page request and not cached, return index.html
+          if (request.destination === "document") {
             return caches.match("/index.html");
           }
 
-          // Return a basic offline response
-          return new Response("Offline", {
+          // Return offline response
+          return new Response("Offline - Resource not available", {
             status: 503,
             statusText: "Service Unavailable",
             headers: new Headers({
@@ -101,4 +143,11 @@ self.addEventListener("fetch", (event) => {
         });
       }),
   );
+});
+
+// Handle messages from clients
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
