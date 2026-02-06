@@ -17,6 +17,7 @@ import mediaUrlService from "./services/shared/mediaUrlService";
 import { ToastProvider } from "./contexts/ToastContext";
 import { useNavigation } from "./hooks/useNavigation";
 import { useBackButton } from "./hooks/useBackButton";
+import { usePullToRefresh } from "./hooks/usePullToRefresh";
 
 import DesktopHeader from "./components/Shared/DesktopHeader";
 import MobileHeader from "./components/Shared/MobileHeader";
@@ -25,6 +26,7 @@ import Sidebar from "./components/Shared/Sidebar";
 import AuthPage from "./components/Auth/AuthPage";
 import SupportSidebar from "./components/Shared/SupportSidebar";
 import NotificationSidebar from "./components/Shared/NotificationSidebar";
+import PullToRefreshIndicator from "./components/Shared/PullToRefreshIndicator";
 
 const HomeView = lazy(() => import("./components/Home/HomeView"));
 const ExploreView = lazy(() => import("./components/Explore/ExploreView"));
@@ -77,9 +79,14 @@ const App = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const feedRef = useRef(null);
   const authUnsubscribe = useRef(null);
+  const isStandalone = useRef(
+    window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true,
+  );
 
   const { isAtRoot } = useNavigation(
     activeTab,
@@ -92,8 +99,28 @@ const App = () => {
 
   const { showExitPrompt } = useBackButton(isAtRoot);
 
+  // Pull to refresh handler
+  const handleRefresh = async () => {
+    console.log("🔄 Refreshing content...");
+
+    // Force reload user data
+    if (user?.id) {
+      await loadUserDataAsync(user.id);
+    }
+
+    // Trigger content refresh by updating key
+    setRefreshKey((prev) => prev + 1);
+
+    // Small delay for smooth UX
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  };
+
+  const { containerRef, isPulling, pullDistance, isRefreshing } =
+    usePullToRefresh(handleRefresh, isMobile && user !== null);
+
   useEffect(() => {
     initializeApp();
+
     authUnsubscribe.current = authService.onAuthStateChange(
       (authenticatedUser) => {
         if (authenticatedUser) {
@@ -111,6 +138,13 @@ const App = () => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
 
+    // Clear service worker cache on PWA load if needed
+    if (isStandalone.current && "serviceWorker" in navigator) {
+      console.log("🔧 PWA detected - ensuring fresh data");
+      // Force cache bypass for API calls
+      navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_CACHE" });
+    }
+
     return () => {
       window.removeEventListener("resize", handleResize);
       if (authUnsubscribe.current) authUnsubscribe.current();
@@ -120,7 +154,7 @@ const App = () => {
   const initializeApp = async () => {
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 1500),
+        setTimeout(() => reject(new Error("timeout")), 2000),
       );
 
       const sessionPromise = authService.getSession();
@@ -129,10 +163,11 @@ const App = () => {
         const session = await Promise.race([sessionPromise, timeoutPromise]);
         if (session?.user) {
           setUser(session.user);
-          loadUserDataAsync(session.user.id);
+          await loadUserDataAsync(session.user.id);
         }
       } catch (err) {
         if (err.message !== "timeout") throw err;
+        console.log("⚠️ Session check timed out, continuing...");
       }
     } catch (error) {
       console.error("Init error:", error);
@@ -153,11 +188,15 @@ const App = () => {
         fullName: "Loading...",
       });
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 5000),
-      );
+      // Force network request, bypass cache
+      const fetchOptions = {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      };
 
-      const fetchPromise = Promise.all([
+      const [profileResult, walletResult] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
         supabase
           .from("wallets")
@@ -165,18 +204,6 @@ const App = () => {
           .eq("user_id", userId)
           .maybeSingle(),
       ]);
-
-      let profileResult, walletResult;
-
-      try {
-        [profileResult, walletResult] = await Promise.race([
-          fetchPromise,
-          timeoutPromise,
-        ]);
-      } catch (err) {
-        if (err.message === "timeout") return;
-        throw err;
-      }
 
       let userData = null;
       let headerProfile = null;
@@ -192,7 +219,7 @@ const App = () => {
           if (baseUrl && typeof baseUrl === "string") {
             const cleanUrl = baseUrl.split("?")[0];
             if (cleanUrl.includes("supabase")) {
-              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
+              avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp&t=${Date.now()}`;
             } else {
               avatarUrl = baseUrl;
             }
@@ -316,6 +343,7 @@ const App = () => {
           <Suspense fallback={<LoadingFallback />}>
             <div ref={feedRef}>
               <HomeView
+                key={`home-${refreshKey}`}
                 homeSection={homeSection}
                 setHomeSection={setHomeSection}
                 currentUser={currentUser}
@@ -328,7 +356,11 @@ const App = () => {
       case "search":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ExploreView currentUser={currentUser} userId={user.id} />
+            <ExploreView
+              key={`explore-${refreshKey}`}
+              currentUser={currentUser}
+              userId={user.id}
+            />
           </Suspense>
         );
 
@@ -342,7 +374,11 @@ const App = () => {
       case "community":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <CommunityView currentUser={currentUser} userId={user.id} />
+            <CommunityView
+              key={`community-${refreshKey}`}
+              currentUser={currentUser}
+              userId={user.id}
+            />
           </Suspense>
         );
 
@@ -350,6 +386,7 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <AccountView
+              key={`account-${refreshKey}`}
               accountSection={accountSection}
               setAccountSection={setAccountSection}
               currentUser={currentUser}
@@ -365,6 +402,7 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <WalletView
+              key={`wallet-${refreshKey}`}
               userBalance={userBalance}
               setUserBalance={setUserBalance}
               isMobile={isMobile}
@@ -377,6 +415,7 @@ const App = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <HomeView
+              key={`home-default-${refreshKey}`}
               homeSection={homeSection}
               setHomeSection={setHomeSection}
               currentUser={currentUser}
@@ -523,10 +562,23 @@ const App = () => {
           )}
 
           <main
+            ref={containerRef}
             className={
               isMobile ? "main-content-mobile" : "main-content-desktop"
             }
+            style={{
+              position: "relative",
+              overflowY: "auto",
+              overflowX: "hidden",
+            }}
           >
+            {isMobile && (
+              <PullToRefreshIndicator
+                pullDistance={pullDistance}
+                isRefreshing={isRefreshing || isPulling}
+              />
+            )}
+
             {renderContent()}
           </main>
 

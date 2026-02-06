@@ -1,8 +1,8 @@
 // service-worker.js
-// Place this file in /public/service-worker.js
+// Updated with better caching strategy for mobile PWA
 
-const CACHE_NAME = "grova-cache-v1";
-const RUNTIME_CACHE = "grova-runtime-v1";
+const CACHE_NAME = "grova-cache-v2";
+const RUNTIME_CACHE = "grova-runtime-v2";
 
 // Files to cache immediately on install
 const PRECACHE_URLS = [
@@ -51,7 +51,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - network first, fallback to cache
+// Fetch event - Network First for API, Cache First for static assets
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -66,7 +66,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Skip API calls and external resources
+  // CRITICAL: Always use network for API calls and Supabase
   if (
     url.pathname.startsWith("/api/") ||
     url.href.includes("supabase") ||
@@ -76,17 +76,57 @@ self.addEventListener("fetch", (event) => {
     url.href.includes("unpkg") ||
     url.href.includes("fontawesome")
   ) {
-    // Network only for these
-    event.respondWith(fetch(request));
+    // Network only - never cache API responses
+    event.respondWith(
+      fetch(request).catch(() => {
+        return new Response(JSON.stringify({ error: "Network unavailable" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
     return;
   }
 
-  // For navigation requests
+  // For navigation requests (HTML pages)
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful responses
+          // Don't cache HTML responses to prevent stale app
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cached index.html only when offline
+          return caches.match("/index.html");
+        }),
+    );
+    return;
+  }
+
+  // For static assets (JS, CSS, images) - Cache First
+  if (
+    request.destination === "script" ||
+    request.destination === "style" ||
+    request.destination === "image" ||
+    request.destination === "font"
+  ) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // Return cached version, update in background
+          fetch(request).then((response) => {
+            if (response && response.status === 200) {
+              caches.open(RUNTIME_CACHE).then((cache) => {
+                cache.put(request, response.clone());
+              });
+            }
+          });
+          return cachedResponse;
+        }
+
+        // Not in cache, fetch from network
+        return fetch(request).then((response) => {
           if (response && response.status === 200) {
             const responseClone = response.clone();
             caches.open(RUNTIME_CACHE).then((cache) => {
@@ -94,45 +134,24 @@ self.addEventListener("fetch", (event) => {
             });
           }
           return response;
-        })
-        .catch(() => {
-          // Fallback to cached index.html for navigation
-          return caches.match("/index.html");
-        }),
+        });
+      }),
     );
     return;
   }
 
-  // For all other requests - Network First strategy
+  // For everything else - Network First
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Check if valid response
-        if (!response || response.status !== 200) {
-          return response;
-        }
-
-        // Clone and cache successful responses
-        const responseClone = response.clone();
-        caches.open(RUNTIME_CACHE).then((cache) => {
-          cache.put(request, responseClone);
-        });
-
         return response;
       })
       .catch(() => {
-        // Network failed, try cache
         return caches.match(request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
 
-          // If it's a page request and not cached, return index.html
-          if (request.destination === "document") {
-            return caches.match("/index.html");
-          }
-
-          // Return offline response
           return new Response("Offline - Resource not available", {
             status: 503,
             statusText: "Service Unavailable",
@@ -149,5 +168,16 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+
+  // Clear cache on demand
+  if (event.data && event.data.type === "CLEAR_CACHE") {
+    event.waitUntil(
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => caches.delete(cacheName)),
+        );
+      }),
+    );
   }
 });

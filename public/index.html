@@ -196,6 +196,13 @@
     <div id="root"></div>
 
     <script>
+      // Check if running as PWA
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      console.log("[PWA] Standalone mode:", isStandalone);
+
       // PWA Install Prompt
       let deferredPrompt;
 
@@ -257,9 +264,23 @@
         }, 100);
       });
 
-      // Check if app is installed
-      if (window.matchMedia("(display-mode: standalone)").matches) {
-        console.log("[PWA] Running in standalone mode");
+      // Force reload on first PWA launch to ensure fresh data
+      if (isStandalone) {
+        const hasReloadedForPWA = sessionStorage.getItem("pwa_reloaded");
+        if (!hasReloadedForPWA) {
+          console.log("[PWA] First launch - ensuring fresh data");
+          sessionStorage.setItem("pwa_reloaded", "true");
+
+          // Clear any stale cache
+          if (
+            "serviceWorker" in navigator &&
+            navigator.serviceWorker.controller
+          ) {
+            navigator.serviceWorker.controller.postMessage({
+              type: "CLEAR_CACHE",
+            });
+          }
+        }
       }
     </script>
   </body>
