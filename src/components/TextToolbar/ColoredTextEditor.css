@@ -1,0 +1,70 @@
+/* ============================================================================
+   COLORED TEXT EDITOR — ContentEditable Textarea Replacement
+   ============================================================================ */
+
+.colored-text-editor {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  overflow-y: auto;
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  transition: border-color 0.2s ease;
+}
+
+.colored-text-editor:focus,
+.colored-text-editor.focused {
+  border-color: #84cc16;
+}
+
+.colored-text-editor:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  position: absolute;
+}
+
+.colored-text-editor[contenteditable="false"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Preserve spacing and formatting */
+.colored-text-editor br {
+  display: block;
+  content: "";
+  margin: 0;
+}
+
+/* Style for colored symbols */
+.colored-text-editor span[style*="color"] {
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Scrollbar styling */
+.colored-text-editor::-webkit-scrollbar {
+  width: 6px;
+}
+
+.colored-text-editor::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.colored-text-editor::-webkit-scrollbar-thumb {
+  background: rgba(132, 204, 22, 0.3);
+  border-radius: 3px;
+}
+
+.colored-text-editor::-webkit-scrollbar-thumb:hover {
+  background: rgba(132, 204, 22, 0.5);
+}

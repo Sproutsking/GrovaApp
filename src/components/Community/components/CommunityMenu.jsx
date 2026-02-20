@@ -7,16 +7,17 @@ import {
   LogOut,
   Crown,
   ChevronRight,
+  ChevronLeft,
   Bell,
   Trash2,
   Plus,
   Star,
   TrendingUp,
   Activity,
-  ChevronLeft,
   AlertTriangle,
   Palette,
 } from "lucide-react";
+import permissionService from "../../../services/community/permissionService";
 
 // Import all section components
 import RolesPermissionsSection from "./sections/RolesPermissionsSection";
@@ -200,6 +201,7 @@ const CommunityMenu = ({
   const [userRole, setUserRole] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [userPermissions, setUserPermissions] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({
     show: false,
     title: "",
@@ -213,6 +215,7 @@ const CommunityMenu = ({
       setMenuView("main");
       setSelectedRole(null);
       loadUserRole();
+      loadUserPermissions();
     }
   }, [show, community]);
 
@@ -231,9 +234,22 @@ const CommunityMenu = ({
     }
   };
 
+  const loadUserPermissions = async () => {
+    try {
+      const permissions = await permissionService.getUserPermissions(
+        community.id,
+        userId,
+      );
+      setUserPermissions(permissions);
+    } catch (error) {
+      console.error("Error loading permissions:", error);
+    }
+  };
+
   const isOwner = community?.owner_id === userId;
-  const canManageRoles = userRole?.permissions?.manageRoles || isOwner;
-  const canManageCommunity = userRole?.permissions?.manageCommunity || isOwner;
+  const canManageRoles = userPermissions?.manageRoles || isOwner;
+  const canManageCommunity = userPermissions?.manageCommunity || isOwner;
+  const canCreateChannels = userPermissions?.createChannels || isOwner;
 
   const handleInviteClick = () => {
     onClose();
@@ -343,23 +359,20 @@ const CommunityMenu = ({
                   </div>
                 </div>
               ) : (
-                <div className="back-header">
+                <div className="section-header-with-back">
                   <button
-                    className="back-btn"
-                    onClick={() => {
-                      setMenuView("main");
-                      setSelectedRole(null);
-                    }}
+                    className="back-button"
+                    onClick={() => setMenuView("main")}
                   >
                     <ChevronLeft size={20} />
                   </button>
-                  <span className="view-title">
+                  <div className="view-title">
                     {menuView === "members" && "Members"}
                     {menuView === "settings" && "Settings"}
                     {menuView === "roles" && "Roles & Permissions"}
                     {menuView === "analytics" && "Analytics"}
                     {menuView === "notifications" && "Notifications"}
-                  </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -434,21 +447,26 @@ const CommunityMenu = ({
                     </div>
                   </div>
 
-                  <div className="menu-item" onClick={onCreateChannel}>
-                    <div
-                      className="menu-item-icon"
-                      style={{
-                        background:
-                          "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-                      }}
-                    >
-                      <Plus size={18} />
+                  {/* Only show Create Channel if user has permission */}
+                  {canCreateChannels && (
+                    <div className="menu-item" onClick={onCreateChannel}>
+                      <div
+                        className="menu-item-icon"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+                        }}
+                      >
+                        <Plus size={18} />
+                      </div>
+                      <div className="menu-item-content">
+                        <span className="menu-item-title">Create Channel</span>
+                        <span className="menu-item-desc">
+                          Add a new channel
+                        </span>
+                      </div>
                     </div>
-                    <div className="menu-item-content">
-                      <span className="menu-item-title">Create Channel</span>
-                      <span className="menu-item-desc">Add a new channel</span>
-                    </div>
-                  </div>
+                  )}
 
                   <div className="menu-item" onClick={handleBackgroundClick}>
                     <div
@@ -631,16 +649,12 @@ const CommunityMenu = ({
 
             {/* Render section components */}
             {menuView === "members" && (
-              <MembersSection
-                community={community}
-                onBack={() => setMenuView("main")}
-              />
+              <MembersSection community={community} userId={userId} />
             )}
 
             {menuView === "notifications" && (
               <NotificationsSection
                 community={community}
-                onBack={() => setMenuView("main")}
                 onUpdateNotifications={handleUpdateNotifications}
               />
             )}
@@ -654,13 +668,6 @@ const CommunityMenu = ({
                 canManageRoles={canManageRoles}
                 onUpdateRole={handleUpdateRole}
                 onCreateRole={handleCreateRole}
-                onBack={() => {
-                  if (selectedRole) {
-                    setSelectedRole(null);
-                  } else {
-                    setMenuView("main");
-                  }
-                }}
               />
             )}
 
@@ -674,10 +681,7 @@ const CommunityMenu = ({
             )}
 
             {menuView === "analytics" && (
-              <AnalyticsSection
-                community={community}
-                onBack={() => setMenuView("main")}
-              />
+              <AnalyticsSection community={community} />
             )}
           </div>
         </div>
@@ -694,7 +698,6 @@ const CommunityMenu = ({
       />
 
       <style jsx>{`
-        /* All styles from original file remain the same */
         .menu-overlay {
           position: fixed;
           top: 0;
@@ -769,36 +772,39 @@ const CommunityMenu = ({
           align-items: center;
           gap: 16px;
         }
-        .back-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .back-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          background: rgb(20, 20, 20);
-          border: 2px solid rgba(42, 42, 42, 0.8);
-          color: #999;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-          background: rgba(26, 26, 26, 0.9);
-          border-color: rgba(156, 255, 0, 0.3);
-          color: #9cff00;
-        }
 
         .view-title {
           font-size: 16px;
           font-weight: 700;
           color: #fff;
+        }
+
+        .section-header-with-back {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .back-button {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(26, 26, 26, 0.6);
+          border: 2px solid rgba(42, 42, 42, 0.8);
+          color: #9cff00;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .back-button:hover {
+          background: rgba(26, 26, 26, 0.9);
+          border-color: rgba(156, 255, 0, 0.6);
+          transform: translateX(-4px);
+          box-shadow: 0 0 20px rgba(156, 255, 0, 0.2);
         }
 
         .community-icon-large {

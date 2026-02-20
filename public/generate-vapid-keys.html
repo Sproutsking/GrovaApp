@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VAPID Key Generator</title>
+</head>
+<body>
+    <h1>VAPID Keys Generator</h1>
+    <button onclick="generateKeys()">Generate Keys</button>
+    <div id="output" style="margin-top: 20px; font-family: monospace;"></div>
+
+    <script>
+        async function generateKeys() {
+            const keyPair = await crypto.subtle.generateKey(
+                {
+                    name: 'ECDSA',
+                    namedCurve: 'P-256'
+                },
+                true,
+                ['sign', 'verify']
+            );
+
+            const publicKey = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+            const privateKey = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+
+            const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKey)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+
+            const privateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(privateKey)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+
+            document.getElementById('output').innerHTML = `
+                <h3>Public Key (use in pushService.js):</h3>
+                <textarea style="width: 100%; height: 100px;">${publicKeyBase64}</textarea>
+                
+                <h3>Private Key (use in Supabase Edge Function secrets):</h3>
+                <textarea style="width: 100%; height: 150px;">${privateKeyBase64}</textarea>
+                
+                <h3>Instructions:</h3>
+                <ol>
+                    <li>Copy the Public Key above</li>
+                    <li>Paste it in src/services/notifications/pushService.js as VAPID_PUBLIC_KEY</li>
+                    <li>Copy the Private Key above</li>
+                    <li>Go to Supabase Dashboard > Edge Functions > Secrets</li>
+                    <li>Add secret: VAPID_PRIVATE_KEY = [paste private key]</li>
+                    <li>Add secret: VAPID_PUBLIC_KEY = [paste public key]</li>
+                </ol>
+            `;
+        }
+    </script>
+</body>
+</html>

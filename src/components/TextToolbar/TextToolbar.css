@@ -1,0 +1,483 @@
+/* ============================================================================
+   TEXT TOOLBAR — POSITIONED ABOVE TEXTAREA
+   Clean design, sits on top of textarea border
+   ============================================================================ */
+
+.text-toolbar-container {
+  position: absolute;
+  top: -36px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+}
+
+/* ── ACTIVE MODE DISPLAY ────────────────────────────────────────────────── */
+.tt-active-mode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(132, 204, 22, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.tt-cancel-btn {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 4px;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tt-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+  transform: scale(1.1);
+}
+
+.tt-active-symbol-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.tt-active-symbol-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tt-active-symbol-btn span {
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.tt-chevron {
+  opacity: 0.5;
+  color: #fff;
+}
+
+/* Color Picker Dropdown */
+.tt-color-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tt-color-option {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.tt-color-option:hover {
+  transform: scale(1.15);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+
+.tt-active-symbol {
+  font-size: 14px;
+  font-weight: 800;
+  color: #000;
+  line-height: 1;
+}
+
+/* ── RECENT TOOLS ───────────────────────────────────────────────────────── */
+.tt-recent-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tt-recent-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+}
+
+.tt-recent-btn:hover {
+  transform: scale(1.12) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.5);
+}
+
+.tt-recent-btn:active {
+  transform: scale(1.05);
+}
+
+.tt-recent-btn.tt-number {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+/* ── MENU BUTTON ────────────────────────────────────────────────────────── */
+.tt-menu-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+}
+
+.tt-menu-btn:hover {
+  transform: scale(1.12) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.5);
+}
+
+.tt-menu-btn:active {
+  transform: scale(1.05);
+}
+
+/* ============================================================================
+   FULL PANEL — EXPANDABLE TOOLKIT
+   ============================================================================ */
+
+.tt-panel {
+  position: fixed;
+  top: auto;
+  right: 10px;
+  width: 320px;
+  max-height: 360px;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 15, 15, 0.98) 0%,
+    rgba(0, 0, 0, 0.96) 100%
+  );
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  border-radius: 14px;
+  box-shadow:
+    0 10px 35px rgba(0, 0, 0, 0.7),
+    0 4px 12px rgba(132, 204, 22, 0.2);
+  z-index: 9999;
+  overflow: visible;
+  animation: panelSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── PANEL HEADER ───────────────────────────────────────────────────────── */
+.tt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(132, 204, 22, 0.08);
+  border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+}
+
+.tt-categories {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tt-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.tt-category {
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: #a3a3a3;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.tt-category:hover {
+  background: rgba(132, 204, 22, 0.15);
+  border-color: rgba(132, 204, 22, 0.3);
+  color: #84cc16;
+}
+
+.tt-category.active {
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  border-color: #84cc16;
+  color: #000;
+  box-shadow: 0 2px 6px rgba(132, 204, 22, 0.4);
+}
+
+.tt-close-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  color: #a3a3a3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tt-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+/* ── PANEL CONTENT ──────────────────────────────────────────────────────── */
+.tt-panel-content {
+  padding: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.tt-panel-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tt-panel-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.tt-panel-content::-webkit-scrollbar-thumb {
+  background: #84cc16;
+  border-radius: 3px;
+}
+
+/* ── TOOL GRID ──────────────────────────────────────────────────────────── */
+.tt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.tt-special-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.tt-tool-btn {
+  padding: 10px 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(132, 204, 22, 0.1) 0%,
+    rgba(132, 204, 22, 0.05) 100%
+  );
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.tt-tool-btn:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(132, 204, 22, 0.2) 0%,
+    rgba(132, 204, 22, 0.1) 100%
+  );
+  border-color: #84cc16;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 14px rgba(132, 204, 22, 0.25);
+}
+
+.tt-tool-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.tt-symbol {
+  font-size: 22px;
+  font-weight: 800;
+  color: #84cc16;
+  text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+}
+
+.tt-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #a3a3a3;
+  letter-spacing: 0.01em;
+}
+
+/* ── NUMBER BUTTONS ─────────────────────────────────────────────────────── */
+.tt-number-btn {
+  padding: 14px 10px;
+}
+
+.tt-number-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #84cc16;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+}
+
+/* ── CHAR BUTTONS ───────────────────────────────────────────────────────── */
+.tt-char-btn {
+  padding: 8px;
+  aspect-ratio: 1;
+}
+
+.tt-char {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 6px rgba(132, 204, 22, 0.3));
+}
+
+/* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .text-toolbar-container {
+    top: -34px;
+  }
+
+  .tt-recent-btn,
+  .tt-menu-btn {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+  }
+
+  .tt-recent-btn {
+    font-size: 14px;
+  }
+
+  .tt-recent-btn.tt-number {
+    font-size: 9px;
+  }
+
+  .tt-panel {
+    width: 290px;
+    max-height: 300px;
+  }
+
+  .tt-grid {
+    gap: 5px;
+  }
+
+  .tt-tool-btn {
+    padding: 8px 12px;
+  }
+
+  .tt-symbol {
+    font-size: 18px;
+  }
+
+  .tt-char {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .text-toolbar-container {
+    top: -32px;
+    gap: 3px;
+  }
+
+  .tt-recent-btn,
+  .tt-menu-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+
+  .tt-recent-btn {
+    font-size: 13px;
+  }
+
+  .tt-recent-btn.tt-number {
+    font-size: 8px;
+  }
+
+  .tt-panel {
+    width: calc(100vw - 30px);
+    left: 15px;
+    right: auto;
+  }
+
+  .tt-category {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+}

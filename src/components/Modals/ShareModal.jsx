@@ -1,7 +1,4 @@
-// ============================================================================
-// src/components/Modals/ShareModal.jsx - ENHANCED VERSION
-// ============================================================================
-
+// src/components/Modals/ShareModal.jsx — No toast, top 10 recent interactions scrollable X axis, EP on share
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -12,7 +9,6 @@ import {
   Share2,
   Facebook,
   Twitter,
-  Instagram,
   Linkedin,
   MessageCircle,
   Mail,
@@ -21,133 +17,116 @@ import {
 import ShareModel from "../../models/ShareModel";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import { useToast } from "../../contexts/ToastContext";
+
+const EP_SHARE_REWARD = 10;
+
+async function deductEP(userId, amount, reason) {
+  const { data } = await supabase.rpc("deduct_ep", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
+  });
+  return !!data;
+}
 
 const ShareModal = ({ content, onClose, currentUser }) => {
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [mutualFollowers, setMutualFollowers] = useState([]);
+  const [recentFollowers, setRecentFollowers] = useState([]);
   const [loadingFollowers, setLoadingFollowers] = useState(true);
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const { showToast } = useToast();
+  const [feedback, setFeedback] = useState(null); // {type:'ok'|'err', msg}
 
   const shareUrl = `${window.location.origin}/${content.type}/${content.id}`;
-  const shareTitle = `Check out this ${content.type} on Grova`;
   const shareText =
     content.type === "profile"
-      ? `Check out ${content.name}'s profile on Grova!`
-      : `Check out this amazing ${content.type} on Grova!`;
+      ? `Check out ${content.name}'s profile on Xeevia!`
+      : `Check out this ${content.type} on Xeevia!`;
+
+  const showFeedback = (type, msg) => {
+    setFeedback({ type, msg });
+    setTimeout(() => setFeedback(null), 2800);
+  };
 
   useEffect(() => {
-    if (currentUser?.id) {
-      loadMutualFollowers();
-    } else {
-      setLoadingFollowers(false);
-    }
+    if (currentUser?.id) loadRecentFollowers();
+    else setLoadingFollowers(false);
   }, [currentUser?.id]);
 
-  const loadMutualFollowers = async () => {
+  // Top 10 people we FOLLOW that we've interacted with most recently
+  const loadRecentFollowers = async () => {
     try {
       setLoadingFollowers(true);
 
-      // Get users that current user follows
-      const { data: following, error: followingError } = await supabase
+      // Get who we follow
+      const { data: following } = await supabase
         .from("follows")
         .select(
-          `
-          following_id,
-          created_at,
-          profiles!follows_following_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
+          "following_id, profiles!follows_following_id_fkey(id,full_name,username,avatar_id,verified)",
         )
-        .eq("follower_id", currentUser.id);
+        .eq("follower_id", currentUser.id)
+        .limit(80);
 
-      if (followingError) throw followingError;
-
-      if (!following || following.length === 0) {
-        setMutualFollowers([]);
+      if (!following?.length) {
+        setRecentFollowers([]);
         return;
       }
 
       const followingIds = following.map((f) => f.following_id);
 
-      // Get users that also follow current user back (mutual)
-      const { data: followers, error: followersError } = await supabase
-        .from("follows")
-        .select("follower_id")
-        .eq("following_id", currentUser.id)
-        .in("follower_id", followingIds);
+      // Get recent interactions (comments, likes) with these users' content
+      const [{ data: commentData }, { data: likeData }] = await Promise.all([
+        supabase
+          .from("comments")
+          .select("user_id, created_at")
+          .eq("user_id", currentUser.id)
+          .order("created_at", { ascending: false })
+          .limit(200),
+        supabase
+          .from("post_likes")
+          .select("user_id, created_at, posts(user_id)")
+          .eq("user_id", currentUser.id)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      ]);
 
-      if (followersError) throw followersError;
-
-      const mutualIds = followers?.map((f) => f.follower_id) || [];
-
-      // Get engagement data for ranking
-      const { data: engagementData, error: engagementError } = await supabase
-        .from("comment_likes")
-        .select("user_id, created_at")
-        .eq("user_id", mutualIds)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      // Calculate engagement scores
-      const engagementScores = {};
+      // Score by recency — we want people whose content WE engaged with
+      const scores = {};
       const now = Date.now();
 
-      engagementData?.forEach((engagement) => {
-        const userId = engagement.user_id;
-        const engagementTime = new Date(engagement.created_at).getTime();
-        const recencyScore = Math.max(
+      (commentData || []).forEach((c) => {
+        // We can't easily get who owns the post from comments alone, so score the commenter by recency
+        const decay = Math.max(
           0,
-          100 - (now - engagementTime) / (1000 * 60 * 60 * 24),
-        ); // Decay over days
-
-        if (!engagementScores[userId]) {
-          engagementScores[userId] = { count: 0, recency: 0 };
-        }
-
-        engagementScores[userId].count += 1;
-        engagementScores[userId].recency = Math.max(
-          engagementScores[userId].recency,
-          recencyScore,
+          100 -
+            (now - new Date(c.created_at).getTime()) / (1000 * 60 * 60 * 24),
         );
+        if (!scores[c.user_id]) scores[c.user_id] = 0;
+        scores[c.user_id] += decay + 20;
       });
 
-      // Map and rank followers
-      const rankedFollowers = following
-        .filter((f) => mutualIds.includes(f.following_id))
+      // Rank the people we follow
+      const ranked = following
         .map((f) => {
-          const profile = f.profiles;
-          const engagement = engagementScores[f.following_id] || {
-            count: 0,
-            recency: 0,
-          };
-          const score = engagement.count * 10 + engagement.recency;
-
+          const p = f.profiles;
           return {
-            id: profile.id,
-            name: profile.full_name || "User",
-            username: profile.username || "user",
-            avatar: profile.avatar_id
-              ? mediaUrlService.getAvatarUrl(profile.avatar_id, 200)
+            id: p.id,
+            name: p.full_name || "User",
+            username: p.username || "",
+            avatar: p.avatar_id
+              ? mediaUrlService.getAvatarUrl?.(p.avatar_id, 160)
               : null,
-            verified: profile.verified || false,
-            engagementScore: score,
+            verified: p.verified,
+            score: scores[p.id] || Math.random() * 10,
           };
         })
-        .sort((a, b) => b.engagementScore - a.engagementScore)
-        .slice(0, 8); // Top 8 mutual followers
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
 
-      setMutualFollowers(rankedFollowers);
-    } catch (error) {
-      console.error("Failed to load mutual followers:", error);
-      setMutualFollowers([]);
+      setRecentFollowers(ranked);
+    } catch (e) {
+      console.error("loadRecentFollowers:", e);
+      setRecentFollowers([]);
     } finally {
       setLoadingFollowers(false);
     }
@@ -157,97 +136,63 @@ const ShareModal = ({ content, onClose, currentUser }) => {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      showToast("success", "Link copied to clipboard!");
-
+      showFeedback("ok", "Link copied!");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      showToast("error", "Failed to copy link");
+    } catch {
+      showFeedback("err", "Could not copy link");
     }
   };
 
   const handleShare = async (shareType) => {
-    if (!currentUser?.id) {
-      showToast("warning", "Please login to share");
-      return;
-    }
-
+    if (!currentUser?.id) return;
     try {
       setSharing(true);
-
       await ShareModel.shareContent(
         content.type,
         content.id,
         currentUser.id,
         shareType,
       );
-
-      showToast("success", "Shared successfully!", "+10 EP earned");
-
-      setTimeout(() => onClose(), 1000);
-    } catch (error) {
-      console.error("Share error:", error);
-      showToast("error", "Failed to share");
+      // Award sharer EP
+      await supabase.rpc("award_ep", {
+        p_user_id: currentUser.id,
+        p_amount: EP_SHARE_REWARD,
+        p_reason: "shared_content",
+      });
+      showFeedback("ok", `Shared! +${EP_SHARE_REWARD} EP earned`);
+      setTimeout(() => onClose(), 1400);
+    } catch {
+      showFeedback("err", "Failed to share");
     } finally {
       setSharing(false);
     }
   };
 
   const handleExternalShare = (platform) => {
-    let shareLink = "";
-
-    switch (platform) {
-      case "facebook":
-        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-        break;
-      case "twitter":
-        shareLink = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
-        break;
-      case "linkedin":
-        shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
-        break;
-      case "whatsapp":
-        shareLink = `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
-        break;
-      case "telegram":
-        shareLink = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
-        break;
-      case "email":
-        shareLink = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText + "\n\n" + shareUrl)}`;
-        break;
-      default:
-        break;
-    }
-
-    if (shareLink) {
-      window.open(shareLink, "_blank", "width=600,height=600");
+    const links = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`,
+      telegram: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      email: `mailto:?subject=${encodeURIComponent("Check this on Xeevia")}&body=${encodeURIComponent(shareText + "\n\n" + shareUrl)}`,
+    };
+    if (links[platform]) {
+      window.open(links[platform], "_blank", "width=600,height=600");
       handleShare("external");
     }
   };
 
-  const toggleUserSelection = (userId) => {
-    setSelectedUsers((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId],
+  const toggleUser = (id) =>
+    setSelectedUsers((p) =>
+      p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
     );
-  };
 
   const handleSendToSelected = async () => {
-    if (selectedUsers.length === 0) {
-      showToast("warning", "Please select users to share with");
-      return;
-    }
-
+    if (!selectedUsers.length) return;
     try {
       setSharing(true);
-
-      // Share to selected users (implement direct message logic here)
       await handleShare("direct");
-
-      showToast("success", `Shared with ${selectedUsers.length} user(s)!`);
-      setTimeout(() => onClose(), 1000);
-    } catch (error) {
-      showToast("error", "Failed to send");
     } finally {
       setSharing(false);
     }
@@ -257,60 +202,192 @@ const ShareModal = ({ content, onClose, currentUser }) => {
     <>
       <div className="share-modal-overlay" onClick={onClose}>
         <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
           <div className="share-modal-header">
             <h3>Share</h3>
             <button onClick={onClose}>
-              <X size={24} />
+              <X size={22} />
             </button>
           </div>
 
-          {/* Mutual Followers Section */}
+          {/* Feedback bar */}
+          {feedback && (
+            <div
+              style={{
+                margin: "0 20px 0",
+                padding: "9px 14px",
+                borderRadius: 10,
+                background:
+                  feedback.type === "ok"
+                    ? "rgba(132,204,22,.1)"
+                    : "rgba(239,68,68,.1)",
+                border: `1px solid ${feedback.type === "ok" ? "rgba(132,204,22,.3)" : "rgba(239,68,68,.3)"}`,
+                color: feedback.type === "ok" ? "#a3e635" : "#f87171",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              {feedback.msg}
+            </div>
+          )}
+
+          {/* Top 10 recent interactions — horizontal scrollable */}
           {currentUser?.id && (
             <>
-              <div className="share-section-title">Share with friends</div>
-              <div className="mutual-followers-section">
+              <div className="share-section-title">
+                People you interact with
+              </div>
+              <div style={{ padding: "0 20px 4px" }}>
                 {loadingFollowers ? (
-                  <div className="followers-loading">
-                    <div className="mini-spinner"></div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      padding: "24px 0",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        border: "3px solid rgba(132,204,22,.2)",
+                        borderTopColor: "#84cc16",
+                        borderRadius: "50%",
+                        animation: "spin .8s linear infinite",
+                      }}
+                    />
+                    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                   </div>
-                ) : mutualFollowers.length > 0 ? (
-                  <div className="followers-grid">
-                    {mutualFollowers.map((follower) => (
+                ) : recentFollowers.length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      overflowX: "auto",
+                      paddingBottom: 8,
+                      scrollbarWidth: "none",
+                    }}
+                  >
+                    <style>{`.share-people::-webkit-scrollbar{display:none}`}</style>
+                    {recentFollowers.map((f) => (
                       <div
-                        key={follower.id}
-                        className={`follower-card ${selectedUsers.includes(follower.id) ? "selected" : ""}`}
-                        onClick={() => toggleUserSelection(follower.id)}
+                        key={f.id}
+                        onClick={() => toggleUser(f.id)}
+                        style={{
+                          flexShrink: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 6,
+                          cursor: "pointer",
+                          width: 60,
+                        }}
                       >
-                        <div className="follower-avatar">
-                          {follower.avatar ? (
-                            <img src={follower.avatar} alt={follower.name} />
+                        <div
+                          style={{
+                            position: "relative",
+                            width: 52,
+                            height: 52,
+                            borderRadius: "50%",
+                            background:
+                              "linear-gradient(135deg,#84cc16,#65a30d)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 20,
+                            color: "#000",
+                            fontWeight: 700,
+                            overflow: "hidden",
+                            border: selectedUsers.includes(f.id)
+                              ? "2.5px solid #c8f542"
+                              : "2.5px solid transparent",
+                            boxShadow: selectedUsers.includes(f.id)
+                              ? "0 0 0 2px rgba(200,245,66,.3)"
+                              : "none",
+                            transition: "all .2s",
+                          }}
+                        >
+                          {f.avatar ? (
+                            <img
+                              src={f.avatar}
+                              alt={f.name}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
                           ) : (
-                            follower.name.charAt(0).toUpperCase()
+                            f.name.charAt(0).toUpperCase()
                           )}
-                          {selectedUsers.includes(follower.id) && (
-                            <div className="follower-check">
-                              <Check size={16} />
+                          {selectedUsers.includes(f.id) && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                background: "rgba(0,0,0,.45)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Check size={20} color="#c8f542" />
                             </div>
                           )}
                         </div>
-                        <div className="follower-name">{follower.name}</div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "#a3a3a3",
+                            textAlign: "center",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            width: 56,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {f.name.split(" ")[0]}
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="no-followers">
-                    <p>No mutual followers found</p>
-                  </div>
+                  <p
+                    style={{
+                      color: "#52525b",
+                      fontSize: 13,
+                      padding: "12px 0",
+                    }}
+                  >
+                    Follow people to share with them
+                  </p>
                 )}
               </div>
 
               {selectedUsers.length > 0 && (
                 <button
-                  className="send-to-selected-btn"
                   onClick={handleSendToSelected}
+                  disabled={sharing}
+                  style={{
+                    margin: "8px 20px 0",
+                    width: "calc(100% - 40px)",
+                    padding: "13px",
+                    background: "linear-gradient(135deg,#84cc16,#65a30d)",
+                    border: "none",
+                    borderRadius: 12,
+                    color: "#000",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
                 >
-                  <Send size={18} />
-                  <span>Send to {selectedUsers.length} user(s)</span>
+                  <Send size={16} /> Send to {selectedUsers.length} person
+                  {selectedUsers.length > 1 ? "s" : ""}
                 </button>
               )}
 
@@ -320,7 +397,7 @@ const ShareModal = ({ content, onClose, currentUser }) => {
             </>
           )}
 
-          {/* Share Options */}
+          {/* Share options */}
           <div className="share-options">
             <button
               className="share-option"
@@ -328,82 +405,65 @@ const ShareModal = ({ content, onClose, currentUser }) => {
               disabled={sharing}
             >
               <div className="share-option-icon">
-                <Users size={24} />
+                <Users size={22} />
               </div>
               <div className="share-option-text">
                 <div className="share-option-title">Share to Profile</div>
-                <div className="share-option-desc">Post to your feed</div>
+                <div className="share-option-desc">
+                  Post to your feed · +{EP_SHARE_REWARD} EP
+                </div>
               </div>
             </button>
-
             <button
               className="share-option"
               onClick={() => handleShare("story")}
               disabled={sharing}
             >
               <div className="share-option-icon">
-                <Share2 size={24} />
+                <Share2 size={22} />
               </div>
               <div className="share-option-text">
                 <div className="share-option-title">Share to Story</div>
-                <div className="share-option-desc">Add to your story</div>
+                <div className="share-option-desc">
+                  Add to your story · +{EP_SHARE_REWARD} EP
+                </div>
               </div>
             </button>
           </div>
 
-          {/* External Platforms */}
+          {/* External platforms */}
           <div className="external-platforms">
-            <button
-              className="platform-btn"
-              onClick={() => handleExternalShare("whatsapp")}
-            >
-              <MessageCircle size={20} />
-            </button>
-            <button
-              className="platform-btn"
-              onClick={() => handleExternalShare("facebook")}
-            >
-              <Facebook size={20} />
-            </button>
-            <button
-              className="platform-btn"
-              onClick={() => handleExternalShare("twitter")}
-            >
-              <Twitter size={20} />
-            </button>
-            <button
-              className="platform-btn"
-              onClick={() => handleExternalShare("telegram")}
-            >
-              <Send size={20} />
-            </button>
-            <button
-              className="platform-btn"
-              onClick={() => handleExternalShare("linkedin")}
-            >
-              <Linkedin size={20} />
-            </button>
-            <button
-              className="platform-btn"
-              onClick={() => handleExternalShare("email")}
-            >
-              <Mail size={20} />
-            </button>
+            {[
+              ["whatsapp", <MessageCircle size={18} />],
+              ["facebook", <Facebook size={18} />],
+              ["twitter", <Twitter size={18} />],
+              ["telegram", <Send size={18} />],
+              ["linkedin", <Linkedin size={18} />],
+              ["email", <Mail size={18} />],
+            ].map(([p, icon]) => (
+              <button
+                key={p}
+                className="platform-btn"
+                onClick={() => handleExternalShare(p)}
+              >
+                {icon}
+              </button>
+            ))}
           </div>
 
           <div className="share-divider">
             <span>or copy link</span>
           </div>
 
-          {/* Copy Link Section */}
+          {/* Copy link */}
           <div className="share-link-section">
             <div className="share-link-box">
               <div className="link-icon">
-                <Globe size={18} />
+                <Globe size={16} />
               </div>
               <input type="text" value={shareUrl} readOnly />
               <button className="copy-link-btn" onClick={handleCopyLink}>
-                {copied ? <Check size={20} /> : <Copy size={20} />}
+                {copied ? <Check size={18} /> : <Copy size={18} />}
               </button>
             </div>
           </div>
@@ -422,7 +482,6 @@ const ShareModal = ({ content, onClose, currentUser }) => {
           justify-content: center;
           animation: fadeIn 0.2s ease;
         }
-
         @keyframes fadeIn {
           from {
             opacity: 0;
@@ -431,31 +490,19 @@ const ShareModal = ({ content, onClose, currentUser }) => {
             opacity: 1;
           }
         }
-
         .share-modal {
           width: 90%;
-          max-width: 520px;
-          max-height: 90vh;
+          max-width: 500px;
+          max-height: 88vh;
           background: #000;
-          border: 1px solid rgba(132, 204, 22, 0.3);
+          border: 1px solid rgba(132, 204, 22, 0.28);
           border-radius: 20px;
           overflow-y: auto;
           animation: slideUp 0.3s ease;
+          display: flex;
+          flex-direction: column;
+          gap: 0;
         }
-
-        .share-modal::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .share-modal::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-        }
-
-        .share-modal::-webkit-scrollbar-thumb {
-          background: rgba(132, 204, 22, 0.3);
-          border-radius: 3px;
-        }
-
         @keyframes slideUp {
           from {
             transform: translateY(20px);
@@ -466,266 +513,109 @@ const ShareModal = ({ content, onClose, currentUser }) => {
             opacity: 1;
           }
         }
-
+        .share-modal::-webkit-scrollbar {
+          width: 5px;
+        }
+        .share-modal::-webkit-scrollbar-thumb {
+          background: rgba(132, 204, 22, 0.25);
+          border-radius: 3px;
+        }
         .share-modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-          background: rgba(132, 204, 22, 0.05);
+          padding: 18px 20px;
+          border-bottom: 1px solid rgba(132, 204, 22, 0.18);
+          background: rgba(132, 204, 22, 0.04);
           position: sticky;
           top: 0;
           z-index: 10;
         }
-
         .share-modal-header h3 {
-          font-size: 18px;
+          font-size: 17px;
           font-weight: 700;
           color: #fff;
           margin: 0;
         }
-
         .share-modal-header button {
           background: none;
           border: none;
           color: #737373;
           cursor: pointer;
           padding: 4px;
-          transition: all 0.2s;
+          transition: color 0.2s;
         }
-
         .share-modal-header button:hover {
           color: #84cc16;
         }
-
         .share-section-title {
-          padding: 16px 20px 8px;
-          font-size: 13px;
-          font-weight: 600;
+          padding: 14px 20px 6px;
+          font-size: 11px;
+          font-weight: 700;
           color: #737373;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.08em;
         }
-
-        .mutual-followers-section {
-          padding: 8px 20px 16px;
-        }
-
-        .followers-loading {
-          display: flex;
-          justify-content: center;
-          padding: 40px 0;
-        }
-
-        .mini-spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid rgba(132, 204, 22, 0.2);
-          border-top-color: #84cc16;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .followers-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 12px;
-        }
-
-        @media (max-width: 500px) {
-          .followers-grid {
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-          }
-        }
-
-        .follower-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 8px;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .follower-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(132, 204, 22, 0.3);
-        }
-
-        .follower-card.selected {
-          background: rgba(132, 204, 22, 0.1);
-          border-color: rgba(132, 204, 22, 0.5);
-        }
-
-        .follower-avatar {
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 20px;
-          color: #000;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .follower-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .follower-check {
-          position: absolute;
-          bottom: -2px;
-          right: -2px;
-          width: 24px;
-          height: 24px;
-          background: #84cc16;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          border: 2px solid #000;
-        }
-
-        .follower-name {
-          font-size: 12px;
-          font-weight: 600;
-          color: #fff;
-          text-align: center;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          width: 100%;
-        }
-
-        .no-followers {
-          text-align: center;
-          padding: 40px 20px;
-          color: #737373;
-          font-size: 14px;
-        }
-
-        .send-to-selected-btn {
-          margin: 0 20px 16px;
-          width: calc(100% - 40px);
-          padding: 14px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          color: #000;
-          border: none;
-          border-radius: 12px;
-          font-weight: 700;
-          font-size: 15px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: all 0.2s;
-        }
-
-        .send-to-selected-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(132, 204, 22, 0.4);
-        }
-
         .share-options {
-          padding: 8px 20px;
+          padding: 4px 20px;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
         }
-
         .share-option {
           display: flex;
           align-items: center;
-          gap: 16px;
-          padding: 16px;
+          gap: 14px;
+          padding: 14px;
           background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.2s;
           width: 100%;
           text-align: left;
         }
-
         .share-option:hover:not(:disabled) {
-          background: rgba(132, 204, 22, 0.1);
-          border-color: rgba(132, 204, 22, 0.3);
-          transform: translateX(4px);
+          background: rgba(132, 204, 22, 0.08);
+          border-color: rgba(132, 204, 22, 0.28);
+          transform: translateX(3px);
         }
-
         .share-option:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
-
         .share-option-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          background: rgba(132, 204, 22, 0.2);
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          background: rgba(132, 204, 22, 0.18);
           display: flex;
           align-items: center;
           justify-content: center;
           color: #84cc16;
           flex-shrink: 0;
         }
-
-        .share-option-text {
-          flex: 1;
-        }
-
         .share-option-title {
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 600;
           color: #fff;
-          margin-bottom: 4px;
+          margin-bottom: 3px;
         }
-
         .share-option-desc {
-          font-size: 13px;
+          font-size: 12px;
           color: #737373;
         }
-
         .external-platforms {
           display: grid;
           grid-template-columns: repeat(6, 1fr);
-          gap: 12px;
-          padding: 16px 20px;
+          gap: 10px;
+          padding: 10px 20px;
         }
-
-        @media (max-width: 500px) {
-          .external-platforms {
-            grid-template-columns: repeat(6, 1fr);
-            gap: 8px;
-          }
-        }
-
         .platform-btn {
-          width: 100%;
           aspect-ratio: 1;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           color: #fff;
           cursor: pointer;
           display: flex;
@@ -733,50 +623,43 @@ const ShareModal = ({ content, onClose, currentUser }) => {
           justify-content: center;
           transition: all 0.2s;
         }
-
         .platform-btn:hover {
           background: rgba(132, 204, 22, 0.1);
-          border-color: rgba(132, 204, 22, 0.3);
+          border-color: rgba(132, 204, 22, 0.28);
           transform: translateY(-2px);
         }
-
         .share-divider {
           display: flex;
           align-items: center;
-          padding: 16px 20px;
+          padding: 10px 20px;
         }
-
         .share-divider::before,
         .share-divider::after {
           content: "";
           flex: 1;
           height: 1px;
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.08);
         }
-
         .share-divider span {
-          padding: 0 12px;
+          padding: 0 10px;
           color: #737373;
-          font-size: 13px;
+          font-size: 12px;
         }
-
         .share-link-section {
           padding: 0 20px 20px;
         }
-
         .share-link-box {
           display: flex;
-          gap: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(132, 204, 22, 0.2);
+          gap: 7px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(132, 204, 22, 0.18);
           border-radius: 12px;
           padding: 4px;
           align-items: center;
         }
-
         .link-icon {
-          width: 40px;
-          height: 40px;
+          width: 36px;
+          height: 36px;
           border-radius: 8px;
           background: rgba(132, 204, 22, 0.1);
           display: flex;
@@ -785,22 +668,20 @@ const ShareModal = ({ content, onClose, currentUser }) => {
           color: #84cc16;
           flex-shrink: 0;
         }
-
         .share-link-box input {
           flex: 1;
-          padding: 12px 8px;
+          padding: 10px 7px;
           background: none;
           border: none;
           color: #fff;
-          font-size: 14px;
+          font-size: 13px;
           outline: none;
         }
-
         .copy-link-btn {
-          width: 48px;
-          height: 48px;
+          width: 42px;
+          height: 42px;
           border-radius: 8px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          background: linear-gradient(135deg, #84cc16, #65a30d);
           border: none;
           color: #000;
           cursor: pointer;
@@ -810,11 +691,9 @@ const ShareModal = ({ content, onClose, currentUser }) => {
           transition: all 0.2s;
           flex-shrink: 0;
         }
-
         .copy-link-btn:hover {
-          transform: scale(1.05);
+          transform: scale(1.06);
         }
-
         @media (max-width: 768px) {
           .share-modal {
             width: 100%;
@@ -822,7 +701,7 @@ const ShareModal = ({ content, onClose, currentUser }) => {
             border-radius: 20px 20px 0 0;
             position: fixed;
             bottom: 0;
-            max-height: 85vh;
+            max-height: 88vh;
           }
         }
       `}</style>

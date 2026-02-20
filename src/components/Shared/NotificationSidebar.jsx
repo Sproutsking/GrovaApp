@@ -1,4 +1,3 @@
-// Key changes: Added real-time subscription, removed loading spinner, auto-refresh
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -10,8 +9,8 @@ import {
   CheckCheck,
   Settings,
 } from "lucide-react";
-import notificationService from "../../services/notifications/notificationService";
-import authService from "../../services/auth/authService";
+import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import SettingsSection from "../Account/SettingsSection";
 import UserProfileModal from "../Modals/UserProfileModal";
 
@@ -22,56 +21,103 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  // ─── LOAD NOTIFICATIONS ──────────────────────────────────────────────────
-
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && currentUser?.id) {
+      setUserId(currentUser.id);
       loadNotifications();
+      subscribeToNotifications();
     }
-  }, [isOpen]);
-
-  // ─── REAL-TIME SUBSCRIPTION ──────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const unsubscribe = notificationService.subscribeToNotifications(
-      userId,
-      () => {
-        // Refresh notifications when new ones arrive
-        loadNotifications();
-      },
-    );
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [userId]);
+  }, [isOpen, currentUser]);
 
   const loadNotifications = async () => {
     try {
-      const user = await authService.getCurrentUser();
-      if (!user) {
-        setNotifications([]);
-        return;
-      }
+      if (!currentUser?.id) return;
 
-      setUserId(user.id);
+      const { data, error } = await supabase
+        .from("notifications")
+        .select(
+          `
+          *,
+          actor:actor_user_id(id, full_name, username, avatar_id, verified)
+        `,
+        )
+        .eq("recipient_user_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-      // Get cached notifications first for instant display
-      const notifs = await notificationService.getNotifications(
-        user.id,
-        50,
-        false,
-      );
-      setNotifications(notifs);
+      if (error) throw error;
+
+      const enrichedNotifications = (data || []).map((notif) => ({
+        id: notif.id,
+        type: notif.type,
+        message: notif.message,
+        is_read: notif.is_read,
+        created_at: notif.created_at,
+        entity_id: notif.entity_id,
+        actor: notif.actor
+          ? {
+              id: notif.actor.id,
+              name: notif.actor.full_name,
+              username: notif.actor.username,
+              avatar: notif.actor.avatar_id
+                ? mediaUrlService.getImageUrl(notif.actor.avatar_id, {
+                    width: 100,
+                    height: 100,
+                  })
+                : null,
+              verified: notif.actor.verified,
+            }
+          : {
+              id: null,
+              name: "Someone",
+              username: "user",
+              avatar: null,
+              verified: false,
+            },
+      }));
+
+      setNotifications(enrichedNotifications);
     } catch (error) {
       console.error("❌ Failed to load notifications:", error);
       setNotifications([]);
     }
   };
 
-  // ─── HANDLERS ────────────────────────────────────────────────────────────
+  const subscribeToNotifications = () => {
+    if (!currentUser?.id) return;
+
+    const channel = supabase
+      .channel(`notifications:${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${currentUser.id}`,
+        },
+        () => {
+          loadNotifications();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${currentUser.id}`,
+        },
+        () => {
+          loadNotifications();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -85,27 +131,10 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
         return <Share2 size={20} className="notif-icon share" />;
       case "unlock":
         return <Unlock size={20} className="notif-icon unlock" />;
+      case "profile_view":
+        return <UserPlus size={20} className="notif-icon follow" />;
       default:
         return <Heart size={20} className="notif-icon" />;
-    }
-  };
-
-  const getNotificationText = (notification) => {
-    const { type, contentType } = notification;
-
-    switch (type) {
-      case "like":
-        return `liked your ${contentType}`;
-      case "comment":
-        return `commented on your ${contentType}`;
-      case "follow":
-        return "started following you";
-      case "share":
-        return `shared your ${contentType}`;
-      case "unlock":
-        return `unlocked your ${contentType}`;
-      default:
-        return "interacted with your content";
     }
   };
 
@@ -123,8 +152,15 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
 
   const handleMarkAllRead = async () => {
     try {
-      await notificationService.markAllAsRead(userId);
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("recipient_user_id", userId)
+        .eq("is_read", false);
+
+      if (error) throw error;
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (error) {
       console.error("Failed to mark all as read:", error);
     }
@@ -133,11 +169,11 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
   const handleUserClick = (notification, e) => {
     e?.stopPropagation();
 
-    if (!notification.actor) return;
+    if (!notification.actor || !notification.actor.id) return;
 
     const userData = {
-      id: notification.actor.id || notification.actorId,
-      user_id: notification.actor.id || notification.actorId,
+      id: notification.actor.id,
+      user_id: notification.actor.id,
       name: notification.actor.name,
       author: notification.actor.name,
       avatar: notification.actor.avatar,
@@ -150,11 +186,24 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
   };
 
   const handleNotificationClick = async (notification) => {
-    // Mark as read
-    await notificationService.markAsRead(notification.id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)),
-    );
+    if (!notification.is_read) {
+      try {
+        const { error } = await supabase
+          .from("notifications")
+          .update({ is_read: true })
+          .eq("id", notification.id);
+
+        if (!error) {
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === notification.id ? { ...n, is_read: true } : n,
+            ),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to mark as read:", error);
+      }
+    }
   };
 
   if (!isOpen && !showUserProfile) return null;
@@ -190,6 +239,8 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
     );
   }
 
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
   return (
     <>
       {isOpen && (
@@ -201,7 +252,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
             <div className="notification-header">
               <div className="notification-title">Notifications</div>
               <div className="notification-actions">
-                {notifications.length > 0 && (
+                {unreadCount > 0 && (
                   <button className="mark-read-btn" onClick={handleMarkAllRead}>
                     <CheckCheck size={16} />
                     Mark all read
@@ -234,7 +285,7 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`notification-item ${notification.read ? "" : "unread"}`}
+                    className={`notification-item ${!notification.is_read ? "unread" : ""}`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div
@@ -255,23 +306,11 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
 
                     <div className="notification-content">
                       <div className="notification-text">
-                        <span
-                          className="notification-actor"
-                          onClick={(e) => handleUserClick(notification, e)}
-                        >
-                          {notification.actor.name}
-                        </span>{" "}
-                        {getNotificationText(notification)}
+                        {notification.message}
                       </div>
 
-                      {notification.content?.preview && (
-                        <div className="notification-preview">
-                          {notification.content.preview}
-                        </div>
-                      )}
-
                       <div className="notification-time">
-                        {getTimeAgo(notification.createdAt)}
+                        {getTimeAgo(notification.created_at)}
                       </div>
                     </div>
 
@@ -303,16 +342,6 @@ const NotificationSidebar = ({ isOpen, onClose, isMobile, currentUser }) => {
 };
 
 const getStyles = () => `
-  /* Same styles as before - copy from the original file */
-  .notification-sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    z-index: 10000;
-    animation: fadeIn 0.2s ease;
-  }
-
   .notification-sidebar-overlay {
     position: fixed;
     inset: 0;
@@ -323,12 +352,8 @@ const getStyles = () => `
   }
 
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .notification-sidebar {
@@ -350,12 +375,8 @@ const getStyles = () => `
   }
 
   @keyframes slideInRight {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: translateX(0);
-    }
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
   }
 
   @media (max-width: 768px) {
@@ -370,12 +391,8 @@ const getStyles = () => `
     }
 
     @keyframes slideInUp {
-      from {
-        transform: translateY(100%);
-      }
-      to {
-        transform: translateY(0);
-      }
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
     }
   }
 
@@ -523,26 +540,6 @@ const getStyles = () => `
     line-height: 1.4;
   }
 
-  .notification-actor {
-    font-weight: 700;
-    color: #84cc16;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .notification-actor:hover {
-    text-decoration: underline;
-  }
-
-  .notification-preview {
-    font-size: 13px;
-    color: #737373;
-    margin-bottom: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .notification-time {
     font-size: 12px;
     color: #525252;
@@ -582,35 +579,6 @@ const getStyles = () => `
   .notif-icon.unlock {
     color: #f59e0b;
     background: rgba(245, 158, 11, 0.1);
-  }
-
-  .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    gap: 16px;
-  }
-
-  .loading-spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid rgba(132, 204, 22, 0.2);
-    border-top-color: #84cc16;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .loading-text {
-    color: #737373;
-    font-size: 14px;
   }
 
   .empty-state {

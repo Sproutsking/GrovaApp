@@ -1,4 +1,4 @@
-// components/Community/tabs/ChatTab.jsx - FIXED TYPING INDICATOR
+// components/Community/tabs/ChatTab.jsx - MOBILE BACK BUTTON & SIDEBAR TOGGLE
 import React, { useState, useEffect, useRef } from "react";
 import {
   Menu,
@@ -8,6 +8,7 @@ import {
   Lock,
   Palette,
   ChevronDown,
+  ArrowLeft,
 } from "lucide-react";
 import MessageList from "../components/MessageList";
 import ContextMenu from "../components/ContextMenu";
@@ -34,6 +35,8 @@ const ChatTab = ({
   onCommunityUpdate,
   onOpenInvite,
   onDeleteCommunity,
+  onBack,
+  onToggleSidebar,
 }) => {
   const [channels, setChannels] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -52,6 +55,7 @@ const ChatTab = ({
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const [backgroundId, setBackgroundId] = useState('space');
+  const [isMobile, setIsMobile] = useState(false);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
 
@@ -61,6 +65,17 @@ const ChatTab = ({
   const unsubscribeTyping = useRef(null);
   const typingTimeout = useRef(null);
   const isAtBottom = useRef(true);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     if (community) {
@@ -298,6 +313,12 @@ const ChatTab = ({
       <ChatBackground key={backgroundId} theme={backgroundTheme.id} />
 
       <div className="channels-bar">
+        {isMobile && onBack && (
+          <button className="back-button" onClick={onBack} title="Back to Discover">
+            <ArrowLeft size={20} />
+          </button>
+        )}
+
         <div className="menu-button" onClick={() => setShowMenu(true)}>
           <Menu size={18} />
         </div>
@@ -603,6 +624,27 @@ const ChatTab = ({
           z-index: 10;
         }
 
+        .back-button {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #9cff00;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .back-button:hover {
+          background: rgba(156, 255, 0, 0.1);
+          border-color: rgba(156, 255, 0, 0.3);
+          transform: translateX(-2px);
+        }
+
         .menu-button {
           width: 36px;
           height: 36px;
@@ -615,6 +657,7 @@ const ChatTab = ({
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
+          flex-shrink: 0;
         }
 
         .menu-button:hover {
@@ -657,6 +700,7 @@ const ChatTab = ({
           cursor: pointer;
           white-space: nowrap;
           transition: all 0.2s;
+          flex-shrink: 0;
         }
 
         .channel-item:hover {
@@ -678,6 +722,7 @@ const ChatTab = ({
         .channel-nav-btns {
           display: flex;
           gap: 4px;
+          flex-shrink: 0;
         }
 
         .channel-nav-btn {
@@ -692,6 +737,7 @@ const ChatTab = ({
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
+          flex-shrink: 0;
         }
 
         .channel-nav-btn:hover:not(:disabled) {
@@ -747,6 +793,40 @@ const ChatTab = ({
         .jump-btn:hover {
           transform: scale(1.1);
           box-shadow: 0 6px 16px rgba(156, 255, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+          .channels-bar {
+            padding: 6px 8px;
+            gap: 6px;
+          }
+
+          .back-button,
+          .menu-button {
+            width: 32px;
+            height: 32px;
+          }
+
+          .channel-item {
+            padding: 6px 10px;
+            font-size: 12px;
+          }
+
+          .channel-nav-btns {
+            gap: 3px;
+          }
+
+          .channel-nav-btn {
+            width: 28px;
+            height: 28px;
+          }
+
+          .jump-btn {
+            bottom: 80px;
+            right: 12px;
+            width: 36px;
+            height: 36px;
+          }
         }
       `}</style>
     </div>

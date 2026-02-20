@@ -1,4 +1,4 @@
-// components/Messages/ChatView.jsx - REALTIME-FIRST PERFECTION
+// components/Messages/ChatView.jsx - WITH GEOMETRIC TAILS ⚡
 import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, MoreVertical, Palette, ChevronDown } from "lucide-react";
 import dmMessageService from "../../services/messages/dmMessageService";
@@ -16,6 +16,9 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showJump, setShowJump] = useState(false);
+  const [selectedBg, setSelectedBg] = useState(
+    backgroundService.getConversationBackground(conversation.id)
+  );
 
   const endRef = useRef(null);
   const containerRef = useRef(null);
@@ -27,7 +30,6 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
   const otherUser = conversation.otherUser;
 
   const backgrounds = backgroundService.getBackgrounds();
-  const selectedBg = backgroundService.getConversationBackground(conversationId);
   const bg = backgrounds[selectedBg];
   const bgStyle = bg?.image
     ? { backgroundImage: `url(${bg.image})`, backgroundSize: "cover" }
@@ -161,6 +163,12 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
     }
   };
 
+  const handleBgChange = (index) => {
+    backgroundService.setConversationBackground(conversationId, index);
+    setSelectedBg(index);
+    setShowBgPicker(false);
+  };
+
   const getStatus = (msg) => {
     if (msg._optimistic || msg._failed === undefined) {
       return <span className="tick gray">✓</span>;
@@ -236,11 +244,7 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
                 <button
                   key={i}
                   className={`bg-opt ${selectedBg === i ? "active" : ""}`}
-                  onClick={() => {
-                    backgroundService.setConversationBackground(conversationId, i);
-                    setShowBgPicker(false);
-                    window.location.reload();
-                  }}
+                  onClick={() => handleBgChange(i)}
                 >
                   {b.image ? (
                     <img src={b.image} alt={b.name} />
@@ -268,7 +272,8 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
             messages.map((msg, idx) => {
               const isMe = msg.sender_id === currentUser.id;
               const prev = messages[idx - 1];
-              const showAvatar = !isMe && (!prev || prev.sender_id !== msg.sender_id);
+              const showTail = !prev || prev.sender_id !== msg.sender_id;
+              const showAvatar = !isMe && showTail;
 
               return (
                 <div 
@@ -286,7 +291,7 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
                   )}
                   {!showAvatar && !isMe && <div className="chat-avatar-spacer" />}
 
-                  <div className={`chat-bubble ${isMe ? "me" : "them"}`}>
+                  <div className={`chat-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}`}>
                     <div className="chat-content">{msg.content}</div>
                     <div className="chat-meta">
                       <span className="chat-time">{formatTime(msg.created_at)}</span>
@@ -350,23 +355,76 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
         .chat-loading { display: flex; justify-content: center; padding: 20px; }
         .chat-spinner { width: 20px; height: 20px; border: 2px solid rgba(132, 204, 22, 0.2); border-top-color: #84cc16; border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .chat-msg { display: flex; align-items: flex-end; gap: 6px; animation: slideIn 0.2s ease-out; }
+        .chat-msg { display: flex; align-items: flex-end; gap: 8px; animation: slideIn 0.2s ease-out; }
         .chat-msg.me { flex-direction: row-reverse; }
         .chat-msg.optimistic { opacity: 0.7; }
         .chat-msg.failed { opacity: 0.5; }
         .chat-msg.typing-indicator { animation: fadeIn 0.3s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .chat-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a, #222); border: 1px solid rgba(132, 204, 22, 0.2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #84cc16; overflow: hidden; }
+        .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a, #222); border: 2px solid rgba(132, 204, 22, 0.2); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #84cc16; overflow: hidden; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
         .chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .chat-avatar-spacer { width: 26px; }
-        .chat-bubble { max-width: 70%; padding: 6px 10px; border-radius: 14px; backdrop-filter: blur(10px); }
-        .chat-bubble.them { background: rgba(26, 26, 26, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-bottom-left-radius: 3px; }
-        .chat-bubble.me { background: linear-gradient(135deg, rgba(132, 204, 22, 0.25), rgba(132, 204, 22, 0.15)); border: 1px solid rgba(132, 204, 22, 0.3); border-bottom-right-radius: 3px; }
-        .chat-content { font-size: 13px; color: #fff; line-height: 1.4; word-break: break-word; }
-        .chat-meta { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+        .chat-avatar-spacer { width: 36px; flex-shrink: 0; }
+        .chat-bubble { max-width: 70%; padding: 8px 12px; border-radius: 16px; backdrop-filter: blur(10px); position: relative; }
+        .chat-bubble.them { background: rgba(26, 26, 26, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-bottom-left-radius: 4px; }
+        .chat-bubble.me { background: linear-gradient(135deg, rgba(132, 204, 22, 0.18), rgba(132, 204, 22, 0.12)); border: 1px solid rgba(132, 204, 22, 0.25); border-bottom-right-radius: 4px; }
+
+        /* GEOMETRIC TAILS ⚡ */
+        .chat-bubble.them.has-tail { border-bottom-left-radius: 3px; }
+        .chat-bubble.them.has-tail::before {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: -7px;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 0 10px 8px;
+          border-color: transparent transparent rgba(26, 26, 26, 0.95) transparent;
+        }
+        .chat-bubble.them.has-tail::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: -8px;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 0 11px 9px;
+          border-color: transparent transparent rgba(255, 255, 255, 0.1) transparent;
+          z-index: -1;
+        }
+        .chat-bubble.me.has-tail { border-bottom-right-radius: 3px; }
+        .chat-bubble.me.has-tail::before {
+          content: '';
+          position: absolute;
+          bottom: -0.5px;
+          right: -7.5px;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 0 10px 8px;
+          border-color: transparent transparent rgba(132, 204, 22, 0.15) transparent;
+          transform: scaleX(-1);
+        }
+        .chat-bubble.me.has-tail::after {
+          content: '';
+          position: absolute;
+          bottom: -0.5px;
+          right: -8.5px;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 0 11px 9px;
+          border-color: transparent transparent rgba(132, 204, 22, 0.25) transparent;
+          z-index: -1;
+          transform: scaleX(-1);
+        }
+
+        .chat-content { font-size: 14px; color: #fff; line-height: 1.5; word-break: break-word; }
+        .chat-meta { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
         .chat-msg.me .chat-meta { justify-content: flex-end; }
-        .chat-time { font-size: 9px; color: #666; }
+        .chat-time { font-size: 10px; color: #666; }
         .tick { font-size: 10px; font-weight: 600; }
         .tick.gray { color: #666; }
         .tick.green { color: #22c55e; }
@@ -377,6 +435,16 @@ const ChatView = ({ conversation, currentUser, onBack }) => {
         .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
         .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
         @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+        @media (max-width: 768px) {
+          .chat-avatar { width: 40px; height: 40px; }
+          .chat-avatar-spacer { width: 40px; }
+          .chat-bubble { max-width: 80%; padding: 7px 11px; border-radius: 14px; }
+          .chat-bubble.them.has-tail::before { border-width: 0 0 9px 7px; left: -6px; }
+          .chat-bubble.them.has-tail::after { border-width: 0 0 10px 8px; left: -7px; }
+          .chat-bubble.me.has-tail::before { border-width: 0 0 9px 7px; right: -6.5px; bottom: -0.5px; }
+          .chat-bubble.me.has-tail::after { border-width: 0 0 10px 8px; right: -7.5px; bottom: -0.5px; }
+        }
       `}</style>
     </div>
   );

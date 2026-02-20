@@ -1,16 +1,18 @@
-// components/Header/DesktopHeader.jsx - WITH MESSAGE TOAST
 import React, { useState, useEffect, useRef } from "react";
 import { Clock, Bell, HelpCircle, MessageCircle } from "lucide-react";
-import notificationService from "../../services/notifications/notificationService";
+import { supabase } from "../../services/config/supabase";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
-import messageNotificationService from "../../services/messages/MessageNotificationService";
 import DMMessagesView from "../Messages/DMMessagesView";
-import { useToast } from "../../contexts/ToastContext";
 
 const DesktopHeader = ({
   currentUser,
-  getGreeting,
+  getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  },
   onNotificationClick,
   onSupportClick,
   setActiveTab,
@@ -28,7 +30,7 @@ const DesktopHeader = ({
 
   const timerRef = useRef(null);
   const typeIntervalRef = useRef(null);
-  const toast = useToast();
+  const notificationChannelRef = useRef(null);
 
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
@@ -48,29 +50,64 @@ const DesktopHeader = ({
   useEffect(() => {
     if (userId) {
       onlineStatusService.start(userId);
-
-      // Initialize message notifications
-      messageNotificationService.init(userId, toast.showToast);
-
-      const unsubNotif = notificationService.onUpdate(() => {
-        setUnreadCount(notificationService.getUnreadCount());
-      });
+      loadUnreadCount();
+      subscribeToNotifications();
 
       const unsubConv = conversationState.subscribe(() => {
-        const count = conversationState.getTotalUnreadCount();
-        setUnreadMessages(count);
+        setUnreadMessages(conversationState.getTotalUnreadCount());
       });
 
-      setUnreadCount(notificationService.getUnreadCount());
       setUnreadMessages(conversationState.getTotalUnreadCount());
 
       return () => {
-        unsubNotif();
         unsubConv();
-        messageNotificationService.cleanup();
+        if (notificationChannelRef.current) {
+          supabase.removeChannel(notificationChannelRef.current);
+          notificationChannelRef.current = null;
+        }
       };
     }
-  }, [userId, toast]);
+  }, [userId]);
+
+  const loadUnreadCount = async () => {
+    if (!userId) return;
+
+    try {
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("recipient_user_id", userId)
+        .eq("is_read", false);
+
+      if (!error) {
+        setUnreadCount(count || 0);
+      }
+    } catch (error) {
+      console.error("Failed to load unread count:", error);
+    }
+  };
+
+  const subscribeToNotifications = () => {
+    if (!userId || notificationChannelRef.current) return;
+
+    const channel = supabase
+      .channel(`notification-count-desktop:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${userId}`,
+        },
+        () => {
+          loadUnreadCount();
+        },
+      )
+      .subscribe();
+
+    notificationChannelRef.current = channel;
+  };
 
   const handleMessagesClick = () => {
     if (!currentUser?.id && !userId) return;

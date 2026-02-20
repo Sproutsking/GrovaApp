@@ -6,6 +6,7 @@ import {
   Wallet,
   Download,
   Repeat,
+  Settings,
   TrendingUp,
 } from "lucide-react";
 
@@ -65,6 +66,15 @@ const QuickActions = ({ setActiveTab }) => {
           <Wallet size={20} />
         </div>
         <span>Pay Wave</span>
+      </button>
+      <button
+        className="quick-action-btn"
+        onClick={() => setActiveTab("settings")}
+      >
+        <div className="button-icon">
+          <Settings size={20} />
+        </div>
+        <span>Settings</span>
       </button>
     </div>
   );

@@ -1,0 +1,206 @@
+/* ============================================================================
+   CARD POST — FULLY ISOLATED DESIGN SYSTEM
+   Namespace: cp-* (no overlap with image/video/media styles)
+   
+   Cards are NOT images. They live in their own world.
+   - 10px left/right margins always
+   - Smart height: breathes with content
+   - cp-wrapper controls height; cp-card fills it
+   ============================================================================ */
+
+/* ── WRAPPER ─────────────────────────────────────────────────────────────────
+   This is the ONLY thing that controls card height.
+   Height is set inline via JS (getCardHeight) so it responds to content.
+   min/max guard against edge cases.
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-wrapper {
+  margin: 0 10px; /* ← THE 10px margin requirement */
+  min-height: 140px; /* Never smaller than this */
+  max-height: 480px; /* Never taller than this */
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  /* Explicit flex so height resolves properly */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── CARD SURFACE ─────────────────────────────────────────────────────────────
+   The gradient card itself. Fills the wrapper completely.
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-card {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  cursor: pointer;
+
+  /* Elevated shadow — card feels physical */
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.32),
+    0 20px 56px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease;
+}
+
+.cp-card:hover {
+  transform: translateY(-3px) scale(1.005);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.16),
+    0 16px 40px rgba(0, 0, 0, 0.4),
+    0 32px 72px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.cp-card:active {
+  transform: translateY(-1px) scale(1.002);
+}
+
+/* ── NOISE TEXTURE ────────────────────────────────────────────────────────────
+   Adds micro-grain — makes gradients feel matte/printed, not digital-flat.
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-noise {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+
+/* ── SHINE LAYER ──────────────────────────────────────────────────────────────
+   Top-left light catch — like light hitting a physical surface.
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.04) 35%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
+}
+
+/* ── GRAIN LAYER ──────────────────────────────────────────────────────────────
+   Bottom subtle darkening for depth and grounding.
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 50%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+}
+
+/* ── EDGE VIGNETTE ────────────────────────────────────────────────────────────
+   Applied via inline style (background from EDGE_STYLES map).
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── TEXT LAYER ───────────────────────────────────────────────────────────────
+   The actual content. Always on top. Fills the card and centers text.
+   ──────────────────────────────────────────────────────────────────────────── */
+.cp-text-layer {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* padding and textAlign/alignItems set inline per-card */
+  width: 100%;
+}
+
+.cp-text-layer p {
+  margin: 0;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  max-width: 100%;
+
+  /* Render-quality */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Elevated text shadow for legibility on any gradient */
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+
+  /* Font stack — system fonts that look premium */
+  font-family:
+    -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────────────────
+   On mobile: slightly tighter margins, same smart height logic still applies.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .cp-wrapper {
+    margin: 0 10px; /* Keep the 10px on mobile too */
+    border-radius: 16px;
+    min-height: 130px;
+    max-height: 440px;
+  }
+
+  .cp-card {
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cp-wrapper {
+    margin: 0 10px; /* Stays 10px even on small phones */
+    border-radius: 14px;
+    min-height: 120px;
+    max-height: 400px;
+  }
+
+  .cp-card {
+    border-radius: 14px;
+  }
+
+  .cp-text-layer p {
+    /* On very small screens, scale down slightly but keep impact */
+    font-size: clamp(14px, 5.5vw, inherit) !important;
+  }
+}
+
+/* ── PRINT ────────────────────────────────────────────────────────────────────
+   Remove shadows and margins when printing.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media print {
+  .cp-wrapper {
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .cp-card {
+    box-shadow: none;
+  }
+}

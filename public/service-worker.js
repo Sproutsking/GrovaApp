@@ -1,152 +1,221 @@
-// service-worker.js
-// Optimized for mobile PWA - API calls always bypass cache
+/* ================================
+   XEEVIA SERVICE WORKER v7
+   ================================ */
 
-const CACHE_NAME = "grova-cache-v4";
-const RUNTIME_CACHE = "grova-runtime-v4";
+const CACHE_NAME = "xeevia-static-v7";
+const RUNTIME_CACHE = "xeevia-runtime-v7";
 
 const PRECACHE_URLS = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/favicon.ico",
+  "/favicon.png",
   "/logo192.png",
   "/logo512.png",
 ];
 
+/* ================================
+   INSTALL
+   ================================ */
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing v4...");
+  console.log("[SW] Xeevia v7 installing");
+
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("[SW] Precaching app shell");
-        return cache.addAll(PRECACHE_URLS);
-      })
-      .then(() => self.skipWaiting())
-      .catch((error) => {
-        console.error("[SW] Precache failed:", error);
-      }),
+      .then((cache) =>
+        Promise.all(
+          PRECACHE_URLS.map((url) =>
+            fetch(url)
+              .then((res) => (res.ok ? cache.put(url, res) : null))
+              .catch(() => null),
+          ),
+        ),
+      )
+      .then(() => self.skipWaiting()),
   );
 });
 
+/* ================================
+   ACTIVATE
+   ================================ */
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating v4...");
+  console.log("[SW] Xeevia v7 activating");
+
   event.waitUntil(
     caches
       .keys()
-      .then((cacheNames) => {
-        return Promise.all(
+      .then((cacheNames) =>
+        Promise.all(
           cacheNames
             .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
-            .map((name) => {
-              console.log("[SW] Deleting old cache:", name);
-              return caches.delete(name);
-            }),
-        );
-      })
+            .map((name) => caches.delete(name)),
+        ),
+      )
       .then(() => self.clients.claim()),
   );
 });
 
+/* ================================
+   FETCH
+   ================================ */
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
-    return;
-  }
+  if (request.method !== "GET") return;
+  if (!url.protocol.startsWith("http")) return;
 
-  // Skip non-GET requests
-  if (request.method !== "GET") {
-    return;
-  }
-
-  // CRITICAL: NEVER cache API/Supabase calls
-  const noCachePatterns = [
-    "/api/",
-    "supabase",
-    "cloudflare",
-    "googleapis",
-    "gstatic",
-  ];
-
-  const shouldNeverCache = noCachePatterns.some((pattern) =>
-    url.href.includes(pattern),
-  );
-
-  if (shouldNeverCache) {
-    event.respondWith(
-      fetch(request, {
-        cache: "no-store",
-      }).catch(() => {
-        return new Response(
-          JSON.stringify({ error: "Network unavailable", offline: true }),
-          {
-            status: 503,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }),
-    );
-    return;
-  }
-
-  // For HTML navigation
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request, { cache: "no-store" })
-        .then((response) => response)
-        .catch(() => caches.match("/index.html")),
-    );
-    return;
-  }
-
-  // For static assets - cache first
-  if (
-    request.destination === "script" ||
-    request.destination === "style" ||
-    request.destination === "image" ||
-    request.destination === "font"
-  ) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        });
-
-        return cachedResponse || fetchPromise;
-      }),
-    );
-    return;
-  }
-
-  // Default: network first
   event.respondWith(
-    fetch(request, { cache: "no-store" })
-      .then((response) => response)
-      .catch(() => {
-        return caches.match(request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+    (async () => {
+      // Cache-first for static assets
+      if (isStaticAsset(url.pathname)) {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse.ok) {
+            const cache = await caches.open(RUNTIME_CACHE);
+            cache.put(request, networkResponse.clone());
           }
-          return new Response("Offline", {
+          return networkResponse;
+        } catch {
+          if (request.mode === "navigate") {
+            const indexPage = await caches.match("/index.html");
+            if (indexPage) return indexPage;
+          }
+          return new Response("", {
             status: 503,
             statusText: "Service Unavailable",
           });
+        }
+      }
+
+      // Network-first for API and dynamic content
+      try {
+        const networkResponse = await fetch(request);
+        if (networkResponse.ok && !isApiCall(url.pathname)) {
+          const cache = await caches.open(RUNTIME_CACHE);
+          cache.put(request, networkResponse.clone());
+        }
+        return networkResponse;
+      } catch {
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) return cachedResponse;
+
+        if (request.mode === "navigate") {
+          const indexPage = await caches.match("/index.html");
+          if (indexPage) return indexPage;
+        }
+
+        return new Response("", {
+          status: 503,
+          statusText: "Service Unavailable",
         });
+      }
+    })(),
+  );
+});
+
+/* ================================
+   HELPERS
+   ================================ */
+function isStaticAsset(pathname) {
+  return (
+    pathname.startsWith("/static/") ||
+    [
+      ".js",
+      ".css",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".svg",
+      ".woff",
+      ".woff2",
+      ".ttf",
+      ".ico",
+    ].some((ext) => pathname.endsWith(ext))
+  );
+}
+
+function isApiCall(pathname) {
+  return (
+    pathname.startsWith("/api/") ||
+    pathname.includes("supabase.co") ||
+    pathname.includes("functions/v1/")
+  );
+}
+
+/* ================================
+   PUSH NOTIFICATIONS
+   ================================ */
+self.addEventListener("push", (event) => {
+  console.log("[SW] Push received");
+
+  let data = {
+    title: "Xeevia",
+    body: "You have a new notification",
+    icon: "/logo192.png",
+    badge: "/logo192.png",
+    data: { url: "/" },
+  };
+
+  if (event.data) {
+    try {
+      data = { ...data, ...event.data.json() };
+    } catch (e) {
+      console.error("[SW] Push parse error", e);
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: data.badge,
+      data: data.data,
+      tag: data.tag || "xeevia",
+      requireInteraction: data.requireInteraction || false,
+      vibrate: data.vibrate || [200, 100, 200],
+      actions: [
+        { action: "open", title: "View" },
+        { action: "dismiss", title: "Dismiss" },
+      ],
+    }),
+  );
+});
+
+/* ================================
+   NOTIFICATION CLICK
+   ================================ */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  if (event.action === "dismiss") return;
+
+  const urlToOpen = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientsArr) => {
+        for (const client of clientsArr) {
+          if ("focus" in client) {
+            client.focus();
+            if (client.navigate) return client.navigate(urlToOpen);
+          }
+        }
+        if (clients.openWindow) return clients.openWindow(urlToOpen);
       }),
   );
 });
 
+/* ================================
+   MESSAGES
+   ================================ */
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+  if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
 });

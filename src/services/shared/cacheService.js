@@ -45,10 +45,10 @@ class CacheService {
    * @param {string|RegExp} keyOrPattern - Specific key or pattern to match
    */
   invalidate(keyOrPattern) {
-    if (typeof keyOrPattern === 'string') {
+    if (typeof keyOrPattern === "string") {
       // Exact match or prefix match
       const keys = Array.from(this.cache.keys());
-      keys.forEach(key => {
+      keys.forEach((key) => {
         if (key === keyOrPattern || key.startsWith(keyOrPattern)) {
           this.cache.delete(key);
           this.timestamps.delete(key);
@@ -57,7 +57,7 @@ class CacheService {
     } else if (keyOrPattern instanceof RegExp) {
       // Pattern match
       const keys = Array.from(this.cache.keys());
-      keys.forEach(key => {
+      keys.forEach((key) => {
         if (keyOrPattern.test(key)) {
           this.cache.delete(key);
           this.timestamps.delete(key);
@@ -73,17 +73,19 @@ class CacheService {
   invalidatePattern(pattern) {
     const keys = Array.from(this.cache.keys());
     const deleted = [];
-    
-    keys.forEach(key => {
+
+    keys.forEach((key) => {
       if (key.startsWith(pattern)) {
         this.cache.delete(key);
         this.timestamps.delete(key);
         deleted.push(key);
       }
     });
-    
+
     if (deleted.length > 0) {
-      console.log(`🗑️ Cleared ${deleted.length} cache entries matching: ${pattern}`);
+      console.log(
+        `🗑️ Cleared ${deleted.length} cache entries matching: ${pattern}`,
+      );
     }
   }
 
@@ -93,7 +95,7 @@ class CacheService {
   clear() {
     this.cache.clear();
     this.timestamps.clear();
-    console.log('🗑️ Cache cleared completely');
+    console.log("🗑️ Cache cleared completely");
   }
 
   /**
@@ -109,8 +111,8 @@ class CacheService {
   cleanup() {
     const now = Date.now();
     const keys = Array.from(this.timestamps.keys());
-    
-    keys.forEach(key => {
+
+    keys.forEach((key) => {
       const timestamp = this.timestamps.get(key);
       if (timestamp && now > timestamp) {
         this.cache.delete(key);

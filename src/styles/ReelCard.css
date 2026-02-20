@@ -1,11 +1,11 @@
 .reel-card {
-  background: #171717;
+  background: rgba(0, 0, 0, 0.6);
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #262626;
+  border: 1px solid #4444;
   position: relative;
   transition: transform 0.15s ease;
-  max-height: 86vh;
+  max-height: 84vh;
 }
 
 .reel-card:hover {
@@ -156,7 +156,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
   padding: 8px 12px 8px 12px;
   display: flex;
   flex-direction: column;
@@ -311,8 +311,8 @@
 
 .reel-caption-section {
   padding: 3px 12px;
-  background: #171717;
-  border-top: 1px solid #262626;
+  background: black;
+  /* border-top: 1px solid #4444; */
   cursor: default;
 }
 
@@ -321,7 +321,7 @@
 }
 
 .reel-caption-section.has-more:hover {
-  background: #1f1f1f;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .reel-caption {
@@ -347,7 +347,7 @@
 
 .reel-footer {
   padding: 0;
-  background: #171717;
+  background: black;
 }
 
 @media (max-width: 768px) {
@@ -355,7 +355,8 @@
     border-radius: 0;
     border-left: none;
     border-right: none;
-    max-height: 86vh;
+    max-height: 88vh;
+    background: rgba(0, 0, 0, 0.8);
   }
 
   .reel-video-container {

@@ -1,16 +1,15 @@
 ﻿/* ==========================================================================
-   ORGANIZED GLOBAL.CSS - FULL & COMPLETE
+   ORGANIZED GLOBAL.CSS - CLEANED & DEDUPLICATED
    ========================================================================== 
-   Your original CSS has been meticulously restructured with clear, logical sections.
-   - All code preserved exactly (no deletions, no modifications, no errors).
-   - Duplicates resolved by keeping the final overriding version.
-   - Sections grouped by feature/component for easy navigation and maintenance.
-   - Consistent comment banners for quick scanning.
+   - All duplicates removed (kept latest/most complete versions)
+   - Conflicting bottom nav styles removed
+   - Logical sectioning with clear labels
+   - Ready for production use
    ========================================================================== */
-/* ============================================================================
-   Z-INDEX HIERARCHY - Add to your global styles or App.css
-   ============================================================================ */
 
+/* ==========================================================================
+   Z-INDEX HIERARCHY
+   ========================================================================== */
 /* 
   Z-Index Scale:
   1-99: Base content layers
@@ -22,49 +21,41 @@
   1000+: Critical UI (toasts, notifications)
 */
 
-/* Base content */
 .post-card,
 .reel-card {
   z-index: 1;
 }
 
-/* Sidebars */
 .sidebar-left,
 .sidebar-right {
   z-index: 200;
 }
 
-/* Navigation */
 .navbar,
 .mobile-nav {
   z-index: 250;
 }
 
-/* Dropdowns and menus */
 .dropdown-menu,
 .action-menu,
 .context-menu {
   z-index: 300;
 }
 
-/* Profile preview modal */
 .profile-preview-modal,
 .profile-modal {
   z-index: 450 !important;
 }
 
-/* Comment modal, Share modal */
 .comment-modal,
 .share-modal {
   z-index: 400;
 }
 
-/* Full-screen reels - LOWER than modals */
 .fullscreen-reels-container {
   z-index: 999;
 }
 
-/* On desktop, fullscreen reels should be in main content area */
 @media (min-width: 1024px) {
   .fullscreen-reels-container {
     position: relative !important;
@@ -72,53 +63,120 @@
   }
 }
 
-/* Ensure modals opened from fullscreen reels are above */
 .fullscreen-reels-container .comment-modal,
 .fullscreen-reels-container .share-modal,
 .fullscreen-reels-container .profile-preview-modal {
   z-index: 1000 !important;
 }
 
-/* Critical UI elements */
 .toast-container,
 .notification-popup {
   z-index: 1100;
 }
 
-/* Loading overlays */
 .loading-overlay {
   z-index: 1200;
 }
 
-/* Emergency modals (errors, confirmations) */
 .confirm-dialog,
 .alert-modal {
   z-index: 1300;
 }
+
+.mobile-header {
+  z-index: 100;
+}
+
+.mobile-bottom-nav {
+  z-index: 100;
+}
+
+.community-view {
+  z-index: 1;
+}
+
+.channels-bar {
+  z-index: 10;
+}
+
+.message-input-container {
+  z-index: 10;
+}
+
 /* ==========================================================================
-   RESET & BASE
+   PWA & MOBILE FOUNDATION
    ========================================================================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  background: #000000;
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  box-sizing: border-box;
+  height: 100%;
+  background: #000000;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+#root {
+  height: 100%;
+  background: #000000;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 .app-container {
-  margin: 0;
-  padding: 0;
-  /* min-height: 100vh; */
-  background-color: #000000;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: #000000;
   color: #ffffff;
 }
+
 .app-header {
   margin: 0;
+}
+
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img,
+video {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ==========================================================================
@@ -132,7 +190,8 @@ body {
   background-color: rgba(0, 0, 0, 0.98);
   backdrop-filter: blur(24px);
   border-bottom: 1px solid #1a1a1a;
-  z-index: 40;
+  z-index: 100;
+  pointer-events: auto;
 }
 
 .desktop-header-content {
@@ -152,7 +211,8 @@ body {
   background-color: rgba(0, 0, 0, 0.98);
   backdrop-filter: blur(24px);
   border-bottom: 1px solid #1a1a1a;
-  z-index: 40;
+  z-index: 100;
+  pointer-events: auto;
 }
 
 .mobile-header-content {
@@ -163,7 +223,7 @@ body {
 }
 
 /* ==========================================================================
-   LOGO & NAVIGATION
+   LOGO & BRANDING
    ========================================================================== */
 .logo-section {
   display: flex;
@@ -226,6 +286,9 @@ body {
   color: #84cc16;
 }
 
+/* ==========================================================================
+   NAVIGATION
+   ========================================================================== */
 .desktop-nav {
   display: flex;
   align-items: center;
@@ -311,7 +374,6 @@ body {
     opacity: 0;
     transform: translateX(-50%) translateY(-20px);
   }
-
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
@@ -319,68 +381,113 @@ body {
 }
 
 /* ==========================================================================
-   MAIN CONTENT AREAS & MOBILE BOTTOM NAVIGATION
+   LAYOUT STRUCTURE
    ========================================================================== */
-.mobile-bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: rgba(0, 0, 0, 0.98);
-  backdrop-filter: blur(24px);
-  border-top: 1px solid #1a1a1a;
-  z-index: 40;
+.desktop-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  max-width: 1600px;
+  margin-left: calc(6% + 6px);
+  transition:
+    margin 0.2s ease,
+    max-width 0.2s ease;
 }
 
-.mobile-nav-content {
+.left-sidebar-placeholder {
+  width: 280px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.main-content-desktop {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+.main-content-mobile {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  padding: 0 !important;
+  margin: 0 !important;
+  padding-bottom: 100px !important;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+.trending-sidebar {
+  width: 340px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 1px solid #1a1a1a;
+  border-right: 1px solid #1a1a1a;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 60px);
+  position: sticky;
+  margin: 0;
+  margin-right: 12%;
+}
+
+.trending-header {
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  padding: 4px 8px;
-}
-
-.mobile-nav-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 20px;
-  border-radius: 12px;
-  border: none;
-  background: transparent;
-  color: #737373;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.mobile-nav-btn-active {
+  gap: 12px;
+  margin-bottom: 24px;
   color: #84cc16;
 }
 
-.mobile-nav-label {
-  font-size: 10px;
-  font-weight: 600;
+.trending-header h3 {
+  font-size: 20px;
+  font-weight: bold;
 }
 
-.mobile-nav-btn-create {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  border-radius: 16px;
-  padding: 12px 24px;
-  color: #000000;
-  margin-top: -24px;
-  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.5);
-  border: none;
+.trending-item {
+  padding: 16px 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.trending-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.trending-posts {
+  font-size: 14px;
+  color: #737373;
+}
+
+.show-more-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid #1a1a1a;
+  color: #84cc16;
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 16px;
   cursor: pointer;
 }
 
-.mobile-nav-label-create {
-  font-size: 10px;
-  font-weight: bold;
-}
 /* ==========================================================================
    HOME VIEW
    ========================================================================== */
@@ -438,20 +545,6 @@ body {
 .home-subtitle {
   color: #737373;
   font-size: 16px;
-}
-
-@media (max-width: 768px) {
-  .home-header-card {
-    padding: 24px;
-  }
-
-  .home-title {
-    font-size: 28px;
-  }
-
-  .home-subtitle {
-    font-size: 14px;
-  }
 }
 
 .home-tabs {
@@ -518,6 +611,9 @@ body {
   font-size: 14px;
 }
 
+/* ==========================================================================
+   EXPLORE VIEW
+   ========================================================================== */
 .explore-header {
   top: 0px;
   position: sticky;
@@ -579,6 +675,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  height: auto;
+  overflow: visible;
 }
 
 .form-group {
@@ -701,7 +799,7 @@ body {
 }
 
 /* ==========================================================================
-   ACCOUNT, PROFILE, DASHBOARD & ELITE LEADERBOARD
+   ACCOUNT VIEW
    ========================================================================== */
 .account-view {
   display: flex;
@@ -712,7 +810,9 @@ body {
 .account-tabs {
   display: flex;
   gap: 8px;
+  padding: 4px 8px;
   margin-bottom: 8px;
+  border-bottom: 1px solid #4444;
 }
 
 .account-tab {
@@ -721,7 +821,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-radius: 12px;
   font-weight: 600;
   font-size: 14px;
@@ -737,16 +837,21 @@ body {
 }
 
 .account-tab-active {
-  background: #84cc16;
-  color: #000000;
+  background: linear-gradient(136deg, #84cc16, black);
+  color: #ffffff;
   border-color: #84cc16;
   box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
 }
 
+/* ==========================================================================
+   PROFILE SECTION
+   ========================================================================== */
 .profile-section {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: auto;
+  overflow: visible;
 }
 
 .profile-header-card {
@@ -926,6 +1031,65 @@ body {
   border-color: rgba(132, 204, 22, 0.5);
 }
 
+.profile-view {
+  padding-bottom: 5%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-view.pop-up {
+  position: fixed;
+  right: 5px;
+  top: 70px;
+  background: #000;
+  border: 1px solid #84cc16;
+  border-radius: 24px;
+  width: fit-content;
+  z-index: 50;
+  height: 86vh;
+}
+
+.profile-view.pop-up > .profile-content {
+  padding: 20px;
+}
+
+.profile-view.full-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-header {
+  position: fixed;
+  display: flex;
+  gap: 20px;
+  padding: 10px 12px;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #4444;
+  border-top: 1px solid #4444;
+}
+
+.profile-header button {
+  background: transparent;
+  color: #84cc16;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: black;
+  box-shadow: 0 0 3px #354411;
+  border: 1px solid #354411;
+}
+
+/* ==========================================================================
+   SETTINGS SECTION
+   ========================================================================== */
 .settings-section {
   display: flex;
   flex-direction: column;
@@ -1011,10 +1175,15 @@ body {
   color: #84cc16;
 }
 
+/* ==========================================================================
+   DASHBOARD & ELITE LEADERBOARD
+   ========================================================================== */
 .dashboard-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  height: auto;
+  overflow: visible;
 }
 
 .dashboard-header-card {
@@ -1073,20 +1242,6 @@ body {
 .dashboard-subtitle {
   color: #737373;
   font-size: 16px;
-}
-
-@media (max-width: 768px) {
-  .dashboard-header-card {
-    padding: 24px;
-  }
-
-  .dashboard-title {
-    font-size: 28px;
-  }
-
-  .dashboard-subtitle {
-    font-size: 14px;
-  }
 }
 
 .elite-list {
@@ -1277,48 +1432,13 @@ body {
 }
 
 /* ==========================================================================
-    ANIMATIONS & UTILITY CLASSES
+   WALLET VIEW
    ========================================================================== */
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.list-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-  color: #000000;
-  font-weight: bold;
-  padding: 10px 24px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
-}
-
-.list-btn:hover {
-  background: linear-gradient(90deg, #a3e635 0%, #84cc16 100%);
-  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.5);
-  transform: scale(1.05);
+.wallet-view {
+  overflow: hidden;
+  height: 100vh;
+  padding: 20px;
+  background: white;
 }
 
 /* ==========================================================================
@@ -1372,74 +1492,6 @@ body {
   background: #ff0000;
 }
 
-/* ==========================================================================
-   MOBILE OPTIMIZATIONS & REDUCED SPACING
-   ========================================================================== */
-@media (max-width: 768px) {
-  .story-card {
-    padding: 12px;
-    margin-bottom: 8px;
-  }
-
-  .home-tabs {
-    top: 0;
-    gap: 4px;
-    padding: 0;
-  }
-
-  .home-tabs button {
-    padding: 6px 16px;
-    font-size: 14px;
-  }
-
-  .transaction-title {
-    font-size: 16px;
-  }
-
-  .story-card {
-    padding: 16px;
-  }
-
-  .story-title {
-    font-size: 18px;
-  }
-
-  .profile-stats-row {
-    gap: 24px;
-  }
-
-  .profile-stat-value {
-    font-size: 24px;
-  }
-
-  .elite-rank {
-    width: 56px;
-    height: 56px;
-    font-size: 24px;
-  }
-
-  .elite-name {
-    font-size: 16px;
-  }
-
-  .elite-earnings {
-    font-size: 18px;
-  }
-
-  .account-tab {
-    font-size: 12px;
-    padding: 10px 12px;
-  }
-
-  .account-tab svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-/* ==========================================================================
-   TRANSACTION & PROFILE MODALS
-   ========================================================================== */
 .transaction-modal {
   gap: 12px;
   display: flex;
@@ -1488,91 +1540,6 @@ body {
   animation: pulse 1.5s infinite;
 }
 
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.7);
-  }
-
-  70% {
-    box-shadow: 0 0 0 10px rgba(132, 204, 22, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(132, 204, 22, 0);
-  }
-}
-
-.profile-view {
-  padding-bottom: 5%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.profile-view.pop-up {
-  position: fixed;
-  right: 5px;
-  top: 70px;
-  background: #000;
-  border: 1px solid #84cc16;
-  border-radius: 24px;
-  width: fit-content;
-  z-index: 50;
-  height: 86vh;
-}
-
-.profile-view.pop-up > .profile-content {
-  padding: 20px;
-}
-
-.profile-view.full-screen {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  background: #000;
-  z-index: 100;
-  align-items: center;
-  justify-content: center;
-}
-
-.profile-header {
-  /* width: 100%; */
-  position: fixed;
-  display: flex;
-  gap: 20px;
-  padding: 10px 12px;
-  align-items: center;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #4444;
-  border-top: 1px solid #4444;
-}
-
-@media (max-width: 780px) {
-  .profile-header {
-    top: 0;
-    width: 100%;
-    padding: 10px 4%;
-    position: fixed;
-    display: flex;
-    align-items: center;
-    margin-bottom: 24px;
-    justify-content: space-between;
-    border-bottom: 1px solid #4444;
-  }
-}
-
-.profile-header button {
-  background: transparent;
-  color: #84cc16;
-  padding: 6px 12px;
-  border-radius: 12px;
-  background: black;
-  box-shadow: 0 0 3px #354411;
-  border: 1px solid #354411;
-}
-
 .save-modal {
   background: #000;
   border: 1px solid #84cc16;
@@ -1600,232 +1567,6 @@ body {
   margin-bottom: 16px;
 }
 
-.desktop-layout {
-  display: flex;
-  width: 100%;
-  max-width: 1600px;
-  /* padding-top: 70px; */
-  height: 100vh;
-  overflow: hidden;
-  margin-left: 5%;
-  /* margin-right: 5%; */
-}
-
-.desktop-layout::-webkit-scrollbar {
-  display: none;
-}
-
-::-webkit-scrollbar {
-  display: none;
-}
-
-.left-sidebar-placeholder {
-  width: 280px;
-  flex-shrink: 0;
-}
-
-.trending-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  color: #84cc16;
-}
-
-.trending-header h3 {
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.trending-item {
-  padding: 16px 0;
-  border-bottom: 1px solid #1a1a1a;
-}
-
-.trending-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #ffffff;
-  margin-bottom: 4px;
-}
-
-.trending-posts {
-  font-size: 14px;
-  color: #737373;
-}
-
-.show-more-btn {
-  width: 100%;
-  background: transparent;
-  border: 1px solid #1a1a1a;
-  color: #84cc16;
-  padding: 12px;
-  border-radius: 12px;
-  margin-top: 16px;
-  cursor: pointer;
-}
-
-.sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 280px;
-  background: #000000;
-  border-right: 1px solid #1a1a1a;
-  z-index: 50;
-  overflow-y: auto;
-}
-
-/* ==========================================================================
-   END OF GLOBAL.CSS
-   ========================================================================== */
-/* ==========================================================================
-   CRITICAL FIXES FOR SCROLLING AND SPACING ISSUES
-   Add these to the END of your global.css file
-   ========================================================================== */
-
-/* FIX 2: Desktop Layout - Remove height constraint and overflow hidden */
-.desktop-layout {
-  display: flex;
-  width: 100%;
-  max-width: 1600px;
-  height: 100vh;
-  margin-left: calc(6% + 6px);
-}
-
-/* FIX 3: Main Content - Remove ALL internal padding, only top/bottom */
-.main-content-desktop {
-  flex: 1;
-  padding: 0;
-  overflow-y: auto;
-}
-
-@media (max-width: 780px) {
-  .main-content-desktop {
-    margin-right: 0;
-    margin: 0;
-    padding: 0;
-  }
-
-  .desktop-layout {
-    margin: 0;
-    padding: 0;
-  }
-}
-
-/* FIX 4: Mobile Content - Remove ALL internal padding */
-.main-content-mobile {
-  padding: 0 !important;
-  /* CRITICAL: Zero padding */
-  margin: 0 !important;
-  /* CRITICAL: Zero margin */
-  /* padding-top: 57px !important; */
-  /* Only top for header */
-  padding-bottom: 100px !important;
-  /* Only bottom for nav */
-  width: 100%;
-  overflow-y: auto;
-}
-
-/* FIX 5: Content inside views should handle their own spacing */
-.home-view,
-.explore-view,
-.create-view,
-.account-view,
-.wallet-view {
-  padding: 0;
-}
-
-.account-view,
-.create-view {
-  padding: 10px;
-}
-
-/* FIX 6: Story cards spacing from edges */
-.story-card {
-  margin-left: 0;
-  /* No extra margin */
-  margin-right: 0;
-  margin-bottom: 16px;
-}
-
-/* FIX 7: Remove any transforms that could block scrolling */
-.desktop-layout::-webkit-scrollbar,
-.main-content-desktop::-webkit-scrollbar,
-.main-content-mobile::-webkit-scrollbar {
-  width: 0px;
-  /* Hide scrollbar but keep functionality */
-  display: none;
-}
-
-/* FIX 8: Ensure sidebars don't interfere with main content */
-.left-sidebar-placeholder {
-  width: 280px;
-  flex-shrink: 0;
-  pointer-events: none;
-  /* Don't block interactions */
-}
-
-.trending-sidebar {
-  width: 340px;
-  padding: 24px;
-  background: rgba(255, 255, 255, 0.02);
-  border-left: 1px solid #1a1a1a;
-  border-right: 1px solid #1a1a1a;
-  flex-shrink: 0;
-  overflow-y: auto;
-  max-height: calc(100vh - 60px);
-  position: sticky;
-  /* top: 70px; */
-  margin: 0;
-  margin-right: 12%;
-}
-
-/* FIX 10: Headers must be truly fixed */
-.desktop-header,
-.mobile-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  /* Above everything */
-  pointer-events: auto;
-  /* Ensure clickable */
-}
-
-/* FIX 14: Ensure form sections can scroll */
-.create-form,
-.profile-section,
-.dashboard-section {
-  height: auto;
-  overflow: visible;
-}
-
-/* FIX 16: Mobile specific - ensure no horizontal scroll */
-@media (max-width: 768px) {
-  * {
-    max-width: 100vw;
-    /* Prevent overflow */
-  }
-
-  .story-card,
-  .home-header-card,
-  .create-header-card,
-  .dashboard-header-card,
-  .profile-header-card {
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  .main-content-mobile {
-    padding: 0;
-    margin: 0;
-  }
-}
-
-/* FIX 4: Cancel button styling for modals */
 .cancel-btn {
   width: 50%;
   background: rgba(255, 255, 255, 0.05);
@@ -1846,1035 +1587,8 @@ body {
   color: #ff4444;
 }
 
-@media (max-width: 780px) {
-  .main-content-desktop {
-    margin-right: 0;
-    margin: 0;
-    padding: 0;
-  }
-
-  .main-content-mobile {
-    padding: 0;
-    margin: 0;
-  }
-
-  .desktop-layout {
-    margin: 0;
-    padding: 0;
-  }
-
-  .home-view,
-  .explore-view,
-  .create-view,
-  .account-view,
-  .wallet-view {
-    padding: 0;
-    margin: 0;
-  }
-
-  .account-view,
-  .create-view {
-    padding: 10px;
-    margin-bottom: 100px;
-  }
-
-  .home-tabs {
-    margin: 0;
-  }
-}
-
-.wallet-view {
-  overflow: hidden;
-  height: 100vh;
-  background: red;
-  padding: 20px;
-  background: white;
-}
-
-/* ============================================
-   ADD THIS TO THE END OF YOUR GLOBAL.CSS
-   COMMUNITY VIEW - FULL WIDTH OVERRIDE
-   ============================================ */
-
-/* When Community View is active, use full width except left sidebar */
-.desktop-layout:has(.community-view) {
-  max-width: none !important;
-  margin-left: calc(6% + 6px);
-  margin-right: 0 !important;
-}
-
-/* Main content takes full remaining space when community is active */
-.main-content-desktop:has(.community-view) {
-  flex: 1;
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden;
-}
-
-/* Hide trending sidebar when in community view */
-.desktop-layout:has(.community-view) .trending-sidebar {
-  display: none !important;
-}
-
-/* Ensure community view fills the height properly */
-.main-content-desktop:has(.community-view) {
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Community view wrapper should be full height */
-.community-view {
-  width: 100%;
-  height: 100%;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  overflow: hidden;
-}
-
-/* ============================================
-   MOBILE - COMMUNITY VIEW
-   ============================================ */
-
-@media (max-width: 768px) {
-  /* On mobile, community takes full viewport except header/nav */
-  .main-content-mobile:has(.community-view) {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden;
-  }
-
-  .community-view {
-    height: 100%;
-    width: 100%;
-  }
-}
-
-/* ============================================
-   FIX FOR OTHER VIEWS TO MAINTAIN CENTER LAYOUT
-   ============================================ */
-
-/* Ensure other views still respect max-width and centering */
-.main-content-desktop:not(:has(.community-view)) {
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.desktop-layout:not(:has(.community-view)) .trending-sidebar {
-  display: block;
-}
-
-/* ============================================
-   ENSURE PROPER HEIGHT CASCADE
-   ============================================ */
-
-html,
-body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-}
-
-#root {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.app-container {
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-}
-
-.desktop-layout {
-  flex: 1;
-  display: flex;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-.main-content-desktop {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-}
-
-.main-content-mobile {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-  padding-bottom: 70px;
-}
-
-/* ============================================
-   TABLET ADJUSTMENTS
-   ============================================ */
-
-@media (max-width: 1024px) and (min-width: 769px) {
-  .desktop-layout:has(.community-view) {
-    margin-left: 0;
-    padding-left: 200px; /* Collapsed sidebar */
-  }
-}
-
-/* ============================================
-   PREVENT LAYOUT SHIFT
-   ============================================ */
-/* ============================================
-   ADD THIS TO THE VERY END OF YOUR GLOBAL.CSS
-   FINAL PERFECT COMMUNITY VIEW FIX
-   ============================================ */
-
-/* ============================================
-   DESKTOP - COMMUNITY RESPECTS APP LAYOUT
-   ============================================ */
-
-/* Community view should NOT stretch full screen - respects sidebar boundaries */
-.main-content-desktop:has(.community-view) {
-  max-width: none !important;
-  flex: 1;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden;
-  /* Stays within desktop-layout boundaries */
-}
-
-/* Hide trending sidebar ONLY when community is active */
-.desktop-layout:has(.community-view) .trending-sidebar {
-  display: none !important;
-}
-
-/* Desktop layout maintains its margins when community is active */
-.desktop-layout:has(.community-view) {
-  margin-left: calc(6% + 6px); /* Your original left margin */
-  margin-right: 6%; /* Add right margin to prevent full width stretch */
-  max-width: none;
-}
-
-/* Ensure community view fills available space without overflow */
-.community-view {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-/* ============================================
-   MOBILE - PERFECT POSITIONING
-   ============================================ */
-
-@media (max-width: 768px) {
-  /* Remove desktop margins on mobile */
-  .desktop-layout:has(.community-view) {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* Mobile content should have no padding when community is active */
-  .main-content-mobile:has(.community-view) {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden;
-  }
-
-  /* Community view positioned to avoid header and bottom nav */
-  .main-content-mobile .community-view {
-    position: fixed;
-    top: 46px; /* Below mobile header */
-    left: 0;
-    right: 0;
-    bottom: 56px; /* Above mobile bottom nav */
-    height: auto;
-    z-index: 5;
-  }
-
-  /* Ensure mobile bottom nav stays above community */
-  .mobile-bottom-nav {
-    z-index: 50 !important;
-    position: fixed;
-  }
-
-  /* Mobile header stays above */
-  .mobile-header {
-    z-index: 50 !important;
-  }
-}
-
-/* ============================================
-   MAINTAIN OTHER VIEWS' LAYOUT
-   ============================================ */
-
-/* Other views maintain centered layout with max-width */
-.main-content-desktop:not(:has(.community-view)) {
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Trending sidebar shows for other views */
-.desktop-layout:not(:has(.community-view)) .trending-sidebar {
-  display: block;
-}
-
-/* ============================================
-   HEIGHT CASCADE FIX
-   ============================================ */
-
-html,
-body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-}
-
-#root {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.app-container {
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-  background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
-}
-
-.desktop-layout {
-  flex: 1;
-  display: flex;
-  min-height: 0; /* CRITICAL */
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-  max-width: 1600px;
-}
-
-.main-content-desktop {
-  flex: 1;
-  min-height: 0; /* CRITICAL */
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-}
-
-.main-content-mobile {
-  flex: 1;
-  min-height: 0; /* CRITICAL */
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-  padding-bottom: 70px;
-}
-
-/* ============================================
-   TABLET ADJUSTMENTS
-   ============================================ */
-
-@media (max-width: 1024px) and (min-width: 769px) {
-  .desktop-layout:has(.community-view) {
-    margin-left: 200px; /* Collapsed sidebar width */
-    margin-right: 3%;
-  }
-
-  .left-sidebar-placeholder {
-    width: 200px;
-  }
-}
-
-/* ============================================
-   PREVENT LAYOUT SHIFT
-   ============================================ */
-
-/* Smooth transitions when switching views */
-.main-content-desktop,
-.desktop-layout {
-  transition:
-    margin 0.2s ease,
-    max-width 0.2s ease;
-}
-
-/* But no transition for community to prevent flicker */
-.main-content-desktop:has(.community-view),
-.desktop-layout:has(.community-view) {
-  transition: none;
-}
-
-/* Prevent body scroll */
-body:has(.community-view) {
-  overflow: hidden;
-}
-
-/* ============================================
-   Z-INDEX FIXES
-   ============================================ */
-
-.mobile-header {
-  z-index: 100;
-}
-
-.mobile-bottom-nav {
-  z-index: 100;
-}
-
-.community-view {
-  z-index: 1;
-}
-
-.channels-bar {
-  z-index: 10;
-}
-
-.message-input-container {
-  z-index: 10;
-}
-
-/* ============================================
-   SCROLLBAR CONSISTENCY
-   ============================================ */
-
-.main-content-desktop::-webkit-scrollbar,
-.main-content-mobile::-webkit-scrollbar {
-  width: 0px;
-  display: none;
-}
-
-/* ============================================
-   ULTRA-WIDE SCREEN SUPPORT
-   ============================================ */
-
-@media (min-width: 1920px) {
-  .desktop-layout:has(.community-view) {
-    margin-left: calc(8% + 6px);
-    margin-right: 8%;
-  }
-}
-
-/* ============================================
-   SAFETY OVERRIDES
-   ============================================ */
-
-/* Ensure no elements in community can exceed bounds */
-.community-view,
-.community-view * {
-  max-width: 100%;
-}
-
-/* Fix any potential overflow issues */
-.chat-tab,
-.discover-tab {
-  contain: layout style paint;
-}
-
-/* Ensure proper touch scrolling on mobile */
-.messages-container {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Prevent zoom on mobile input focus */
-.message-input {
-  font-size: 16px !important;
-}
-
-@media (max-width: 768px) {
-  .message-input {
-    font-size: 14px !important;
-  }
-}
-
-/* Mobile PWA optimizations */
-html {
-  height: 100%;
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: #000;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: none;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: pan-y;
-}
-
-#root {
-  height: 100%;
-  background: #000;
-}
-
-/* PWA viewport handling - fills entire screen */
-@supports (height: 100dvh) {
-  html,
-  body,
-  #root {
-    height: 100dvh;
-  }
-}
-
-/* Safe area insets for notched devices */
-@supports (padding: env(safe-area-inset-bottom)) {
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
-/* Performance optimizations */
-* {
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-}
-
-button {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-img,
-video {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* ==========================================================================
-   PWA & MOBILE FOUNDATION
-   ========================================================================== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  height: 100%;
-  -webkit-text-size-adjust: 100%;
-  background: #000;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: #000;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: none;
-  touch-action: pan-y;
-}
-
-#root {
-  height: 100%;
-  background: #000;
-}
-
-@supports (height: 100dvh) {
-  html,
-  body,
-  #root {
-    height: 100dvh;
-  }
-}
-
-@supports (padding: env(safe-area-inset-bottom)) {
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
-.app-container {
-  min-height: 100vh;
-  background: #000;
-  color: #fff;
-  overflow-x: hidden;
-}
-
-button {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-img,
-video {
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
 /* ==========================================================================
    CONTENT CARDS
-   ========================================================================== */
-.content-card {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid #333;
-  border-radius: 16px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-}
-
-.card-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.category-badge {
-  padding: 4px 12px;
-  background: rgba(132, 204, 22, 0.2);
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #84cc16;
-}
-
-.action-menu-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #737373;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.post-content {
-  padding: 0 16px;
-}
-
-.post-text {
-  font-size: 15px;
-  color: #e5e5e5;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.post-text.collapsed {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.view-more-text {
-  color: #737373;
-  cursor: pointer;
-  font-weight: 500;
-  margin-left: 4px;
-}
-
-/* ==========================================================================
-   MEDIA GALLERY
-   ========================================================================== */
-.post-media-container {
-  position: relative;
-  width: 100%;
-  height: 80vh;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #000;
-}
-
-.post-media-viewer {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.media-slide {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s;
-}
-
-.media-slide.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.media-content {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: #000;
-}
-
-.media-content.image {
-  cursor: pointer;
-}
-
-.video-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: #000;
-}
-
-.video-play-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 2;
-}
-
-.video-play-button {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  border: 3px solid rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  padding-left: 4px;
-}
-
-.video-mute-button {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 3;
-}
-
-.video-duration-badge {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  z-index: 3;
-}
-
-.media-error {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(132, 204, 22, 0.05);
-  color: #737373;
-  font-size: 14px;
-}
-
-.media-nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 4;
-}
-
-.media-nav-btn.prev {
-  left: 16px;
-}
-.media-nav-btn.next {
-  right: 16px;
-}
-
-.media-indicators {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 4;
-}
-
-.media-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  padding: 0;
-}
-
-.media-indicator.active {
-  background: #84cc16;
-  width: 24px;
-  border-radius: 4px;
-}
-
-.media-counter {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  z-index: 4;
-}
-
-.image-lightbox-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.95);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.image-lightbox-content {
-  position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-.image-lightbox-img {
-  max-width: 100%;
-  max-height: 90vh;
-  object-fit: contain;
-  border-radius: 8px;
-}
-
-.image-lightbox-close {
-  position: absolute;
-  top: -50px;
-  right: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.card-footer {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* ==========================================================================
-   MOBILE RESPONSIVE
-   ========================================================================== */
-@media (max-width: 768px) {
-  .content-card {
-    margin-bottom: 0;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-  }
-
-  .card-header {
-    padding: 10px 12px;
-  }
-
-  .post-content {
-    padding: 0 12px;
-  }
-
-  .post-text {
-    font-size: 14px;
-    margin-bottom: 12px;
-  }
-
-  .post-media-container {
-    height: 62vh;
-    border-radius: 0;
-  }
-
-  .media-nav-btn {
-    display: none;
-  }
-
-  .media-indicator {
-    width: 6px;
-    height: 6px;
-  }
-
-  .media-indicator.active {
-    width: 20px;
-  }
-
-  .video-play-button {
-    width: 56px;
-    height: 56px;
-  }
-
-  .video-mute-button {
-    width: 36px;
-    height: 36px;
-    top: 12px;
-    right: 12px;
-  }
-
-  .image-lightbox-overlay {
-    padding: 0;
-  }
-
-  .image-lightbox-content {
-    max-width: 100vw;
-    max-height: 100vh;
-  }
-
-  .image-lightbox-img {
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
-  .image-lightbox-close {
-    top: 20px;
-    right: 20px;
-  }
-}
-/* ==========================================================================
-   SMOOTH SCROLL FOUNDATION - 2026 QUALITY
-   ========================================================================== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  height: 100%;
-  -webkit-text-size-adjust: 100%;
-  background: #000;
-  scroll-behavior: smooth;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: #000;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
-#root {
-  height: 100%;
-  background: #000;
-}
-
-@supports (height: 100dvh) {
-  html,
-  body,
-  #root {
-    height: 100dvh;
-  }
-}
-
-@supports (padding: env(safe-area-inset-bottom)) {
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
-.app-container {
-  min-height: 100vh;
-  background: #000;
-  color: #fff;
-  overflow-x: hidden;
-}
-
-/* CRITICAL: Smooth native scroll - never block */
-.main-content-mobile,
-.main-content-desktop {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  scroll-behavior: smooth;
-}
-
-button {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-img,
-video {
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
-/* ==========================================================================
-   CONTENT CARDS - MINIMAL RESISTANCE
    ========================================================================== */
 .content-card {
   background: rgba(0, 0, 0, 0.6);
@@ -2948,8 +1662,12 @@ video {
   margin-left: 4px;
 }
 
+.card-footer {
+  background: rgba(0, 0, 0, 0.3);
+}
+
 /* ==========================================================================
-   MEDIA GALLERY - GPU ACCELERATED
+   MEDIA GALLERY
    ========================================================================== */
 .post-media-container {
   position: relative;
@@ -3087,6 +1805,7 @@ video {
 .media-nav-btn.prev {
   left: 16px;
 }
+
 .media-nav-btn.next {
   right: 16px;
 }
@@ -3171,14 +1890,211 @@ video {
   cursor: pointer;
 }
 
-.card-footer {
-  background: rgba(0, 0, 0, 0.3);
+/* ==========================================================================
+   COMMUNITY VIEW LAYOUT
+   ========================================================================== */
+.desktop-layout:has(.community-view) {
+  max-width: none !important;
+  margin-left: calc(6% + 6px);
+  margin-right: 6%;
+}
+
+.main-content-desktop:has(.community-view) {
+  max-width: none !important;
+  flex: 1;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.desktop-layout:has(.community-view) .trending-sidebar {
+  display: none !important;
+}
+
+.community-view {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.desktop-layout:not(:has(.community-view)) .trending-sidebar {
+  display: block;
+}
+
+.desktop-layout:has(.community-view) {
+  transition: none;
+}
+
+.main-content-desktop:has(.community-view) {
+  transition: none;
+}
+
+body:has(.community-view) {
+  overflow: hidden;
+}
+
+.community-view,
+.community-view * {
+  max-width: 100%;
+}
+
+.chat-tab,
+.discover-tab {
+  contain: layout style paint;
+}
+
+.messages-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+.message-input {
+  font-size: 16px !important;
 }
 
 /* ==========================================================================
-   MOBILE RESPONSIVE - EFFORTLESS SCROLL
+   UTILITY CLASSES
+   ========================================================================== */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.main-content-desktop::-webkit-scrollbar,
+.main-content-mobile::-webkit-scrollbar,
+.desktop-layout::-webkit-scrollbar {
+  width: 0px;
+  display: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.list-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+  color: #000000;
+  font-weight: bold;
+  padding: 10px 24px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
+}
+
+.list-btn:hover {
+  background: linear-gradient(90deg, #a3e635 0%, #84cc16 100%);
+  box-shadow: 0 6px 16px rgba(132, 204, 22, 0.5);
+  transform: scale(1.05);
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(132, 204, 22, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(132, 204, 22, 0);
+  }
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE
    ========================================================================== */
 @media (max-width: 768px) {
+  .home-header-card,
+  .dashboard-header-card {
+    padding: 24px;
+  }
+
+  .home-title,
+  .dashboard-title {
+    font-size: 28px;
+  }
+
+  .home-subtitle,
+  .dashboard-subtitle {
+    font-size: 14px;
+  }
+
+  .home-tabs {
+    top: 0;
+    gap: 4px;
+    padding: 0;
+    margin: 0;
+  }
+
+  .home-tab {
+    padding: 6px 16px;
+    font-size: 14px;
+  }
+
+  .story-card,
+  .transaction-title {
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+
+  .story-title,
+  .transaction-title {
+    font-size: 18px;
+  }
+
+  .profile-stats-row {
+    gap: 24px;
+  }
+
+  .profile-stat-value {
+    font-size: 24px;
+  }
+
+  .elite-rank {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  .elite-name {
+    font-size: 16px;
+  }
+
+  .elite-earnings {
+    font-size: 18px;
+  }
+
+  .account-tab {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
+  .account-tab svg {
+    width: 16px;
+    height: 16px;
+  }
+
   .content-card {
     margin-bottom: 0;
     border-radius: 0;
@@ -3247,5 +2163,309 @@ video {
   .image-lightbox-close {
     top: 20px;
     right: 20px;
+  }
+
+  .profile-header {
+    top: 0;
+    width: 100%;
+    padding: 10px 4%;
+    position: fixed;
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+    justify-content: space-between;
+    border-bottom: 1px solid #4444;
+  }
+
+  .main-content-desktop,
+  .main-content-mobile,
+  .desktop-layout {
+    margin: 0;
+    padding: 0;
+  }
+
+  .home-view,
+  .explore-view,
+  .create-view,
+  .account-view,
+  .wallet-view {
+    padding: 0;
+    margin: 0;
+  }
+
+  .account-view,
+  .create-view {
+    padding: 10px;
+    margin-bottom: 100px;
+  }
+
+  .message-input {
+    font-size: 14px !important;
+  }
+
+  .desktop-layout:has(.community-view) {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .main-content-mobile:has(.community-view) {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden;
+  }
+
+  .main-content-mobile .community-view {
+    position: fixed;
+    top: 46px;
+    left: 0;
+    right: 0;
+    bottom: 56px;
+    height: auto;
+    z-index: 5;
+  }
+
+  .mobile-bottom-nav {
+    z-index: 50 !important;
+    position: fixed;
+  }
+
+  .mobile-header {
+    z-index: 50 !important;
+  }
+}
+
+/* ==========================================================================
+   TABLET RESPONSIVE
+   ========================================================================== */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .desktop-layout:has(.community-view) {
+    margin-left: 200px;
+    margin-right: 3%;
+  }
+
+  .left-sidebar-placeholder {
+    width: 200px;
+  }
+}
+
+/* ==========================================================================
+   ULTRA-WIDE SCREEN
+   ========================================================================== */
+@media (min-width: 1920px) {
+  .desktop-layout:has(.community-view) {
+    margin-left: calc(8% + 6px);
+    margin-right: 8%;
+  }
+}
+
+/* ==========================================================================
+   END OF GLOBAL.CSS
+   ========================================================================== */
+/* Card Template Grid - Compact Design */
+.card-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+}
+
+.card-template-item {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.card-template-item:hover {
+  transform: scale(1.05);
+  border-color: rgba(132, 204, 22, 0.5);
+}
+
+.card-template-item.selected {
+  border-color: #84cc16;
+  box-shadow: 0 0 16px rgba(132, 204, 22, 0.6);
+  transform: scale(1.1);
+}
+
+.card-template-item svg {
+  color: #fff;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Custom Color Picker Modal */
+.custom-color-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.custom-color-content {
+  background: #1a1a1a;
+  border-radius: 16px;
+  padding: 30px;
+  width: 100%;
+  max-width: 400px;
+  border: 2px solid rgba(132, 204, 22, 0.3);
+}
+
+.custom-color-content h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+.color-input-group {
+  margin-bottom: 20px;
+}
+
+.color-input-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #84cc16;
+  margin-bottom: 8px;
+}
+
+.color-input-group input[type="color"] {
+  width: 100%;
+  height: 50px;
+  border: 2px solid rgba(132, 204, 22, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-input-group input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-input-group input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 8px;
+}
+
+.custom-color-preview {
+  width: 100%;
+  height: 120px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  border: 2px solid rgba(132, 204, 22, 0.3);
+}
+
+.apply-custom-color {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  border: none;
+  border-radius: 12px;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.apply-custom-color:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card-template-grid {
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 6px;
+  }
+
+  .custom-color-content {
+    max-width: 100%;
+  }
+}
+
+/* Add these new styles to your existing global.css */
+
+/* TEXT CARD POST - Isolation from regular posts */
+.content-card.text-card-post {
+  background: transparent;
+  border: none;
+}
+
+.content-card.text-card-post .post-content {
+  padding: 0;
+  padding-top: 0;
+  margin: 0;
+}
+
+.content-card.text-card-post .card-header {
+  padding: 16px;
+  padding-bottom: 12px;
+}
+
+.content-card.text-card-post .card-footer {
+  padding: 12px 16px;
+  background: transparent;
+}
+
+/* CAPTION FOR TEXT CARDS (separate from post-text) */
+.post-caption {
+  font-size: 14px;
+  color: #d4d4d4;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0 6px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.post-caption.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Ensure text cards don't get media container styles */
+.content-card.text-card-post .post-media-container {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .content-card.text-card-post {
+    border-radius: 0;
+  }
+
+  .content-card.text-card-post .post-content {
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .content-card.text-card-post .card-header {
+    padding: 12px;
+    padding-bottom: 8px;
   }
 }

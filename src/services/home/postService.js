@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/home/postService.js - WITH IMAGE & VIDEO SUPPORT
+// src/services/home/postService.js - COMPLETE FIX WITH TEXT CARD DELETION
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -23,7 +23,6 @@ class PostService {
         return cached;
       }
 
-      // Start query
       let query = supabase
         .from("posts")
         .select(
@@ -41,6 +40,9 @@ class PostService {
           shares,
           views,
           created_at,
+          is_text_card,
+          text_card_metadata,
+          card_caption,
           profiles!inner(
             id,
             full_name,
@@ -78,6 +80,10 @@ class PostService {
       }
 
       console.log(`✅ Fetched ${data?.length || 0} posts`);
+
+      // Log text card detection
+      const textCardCount = data?.filter((p) => p.is_text_card).length || 0;
+      console.log(`🎨 Text cards in batch: ${textCardCount}`);
 
       // Cache the result
       cacheService.set(cacheKey, data, 300000); // 5 minutes
@@ -162,6 +168,9 @@ class PostService {
         video_ids: videoIds,
         video_metadata: videoMetadata,
         category: postData.category || "General",
+        is_text_card: postData.is_text_card || false,
+        text_card_metadata: postData.text_card_metadata || null,
+        card_caption: postData.card_caption || null,
       };
 
       console.log("📤 Inserting post:", {
@@ -292,7 +301,7 @@ class PostService {
 
   async deletePost(postId) {
     try {
-      console.log("🗑️ Deleting post:", postId);
+      console.log("🗑️ Attempting to delete post:", postId);
 
       const {
         data: { user },
@@ -300,45 +309,82 @@ class PostService {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
+        console.error("❌ User authentication failed:", userError);
         throw new Error("You must be logged in to delete a post");
       }
 
-      // Verify ownership
+      console.log("✅ User authenticated:", user.id);
+
+      // Verify ownership - select ALL fields to debug text cards
       const { data: post, error: fetchError } = await supabase
         .from("posts")
-        .select("user_id")
+        .select("*")
         .eq("id", postId)
+        .is("deleted_at", null)
         .single();
 
       if (fetchError) {
-        console.error("❌ Failed to fetch post:", fetchError);
-        throw new Error("Post not found");
+        console.error("❌ Failed to fetch post for deletion:", fetchError);
+        throw new Error("Post not found or already deleted");
       }
 
+      console.log("📋 Post found:", {
+        id: post.id,
+        user_id: post.user_id,
+        is_text_card: post.is_text_card,
+        deleted_at: post.deleted_at,
+      });
+
       if (post.user_id !== user.id) {
+        console.error("❌ Ownership mismatch:", {
+          post_owner: post.user_id,
+          current_user: user.id,
+        });
         throw new Error("You can only delete your own posts");
       }
 
-      // Soft delete
-      const { error } = await supabase
-        .from("posts")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", postId);
+      console.log("✅ Ownership verified. Proceeding with soft delete...");
 
-      if (error) {
-        console.error("❌ Delete error:", error);
-        throw error;
+      // Soft delete with explicit timestamp
+      const deleteTimestamp = new Date().toISOString();
+      const { data: deletedPost, error: deleteError } = await supabase
+        .from("posts")
+        .update({ deleted_at: deleteTimestamp })
+        .eq("id", postId)
+        .eq("user_id", user.id) // Double-check ownership
+        .is("deleted_at", null) // Only delete if not already deleted
+        .select()
+        .single();
+
+      if (deleteError) {
+        console.error("❌ Delete operation failed:", deleteError);
+        throw deleteError;
       }
+
+      if (!deletedPost) {
+        console.error(
+          "❌ No post was deleted. Possible causes: post already deleted or doesn't exist",
+        );
+        throw new Error("Failed to delete post");
+      }
+
+      console.log("✅ Post soft-deleted successfully:", {
+        id: deletedPost.id,
+        deleted_at: deletedPost.deleted_at,
+      });
 
       // Clear ALL post-related cache
       cacheService.invalidate(`post:${postId}`);
       cacheService.invalidatePattern("posts");
       console.log("🗑️ Cleared all post cache");
 
-      console.log("✅ Post deleted successfully");
-      return { success: true };
+      return {
+        success: true,
+        deletedAt: deleteTimestamp,
+        postId: postId,
+      };
     } catch (error) {
-      console.error("❌ Delete failed:", error);
+      console.error("❌ Delete failed with error:", error);
       throw handleError(error, "Failed to delete post");
     }
   }

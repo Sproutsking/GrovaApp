@@ -1,28 +1,45 @@
 // components/Community/components/sections/MembersSection.jsx - FIXED VERSION
 import React, { useState, useEffect } from "react";
-import {
-  ChevronLeft,
-  Crown,
-  Users,
-  Search,
-  Filter,
-  CheckCircle,
-} from "lucide-react";
+import { Crown, Users, Search, Filter, CheckCircle } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import mediaUrlService from "../../../../services/shared/mediaUrlService";
+import communityOnlineStatusService from "../../../../services/community/communityOnlineStatusService";
 
-const MembersSection = ({ community, onBack }) => {
+const MembersSection = ({ community, userId }) => {
   const [members, setMembers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+  const [onlineStatuses, setOnlineStatuses] = useState({});
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   useEffect(() => {
     if (community?.id) {
       loadData();
+
+      // Start online status tracking
+      if (userId) {
+        communityOnlineStatusService.start(userId, community.id);
+      }
+
+      // Subscribe to status updates
+      const unsubscribe = communityOnlineStatusService.subscribe(
+        (memberId, status) => {
+          setOnlineStatuses((prev) => ({
+            ...prev,
+            [memberId]: status,
+          }));
+        },
+      );
+
+      return () => {
+        unsubscribe();
+        communityOnlineStatusService.stop();
+      };
     }
-  }, [community?.id]);
+  }, [community?.id, userId]);
 
   const loadData = async () => {
     try {
@@ -64,6 +81,14 @@ const MembersSection = ({ community, onBack }) => {
 
       if (membersError) throw membersError;
       setMembers(membersData || []);
+
+      // Fetch online statuses for all members
+      if (membersData && membersData.length > 0) {
+        const memberIds = membersData.map((m) => m.user_id);
+        const statuses =
+          await communityOnlineStatusService.fetchMemberStatuses(memberIds);
+        setOnlineStatuses(statuses);
+      }
     } catch (error) {
       console.error("Error loading members:", error);
     } finally {
@@ -99,29 +124,102 @@ const MembersSection = ({ community, onBack }) => {
       </div>
 
       <div className="members-controls">
-        <div className="search-bar">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        {/* Search Button with Dropdown */}
+        <div className="control-wrapper">
+          <button
+            className={`control-button ${showSearchPanel ? "active" : ""} ${searchQuery ? "has-value" : ""}`}
+            onClick={() => {
+              setShowSearchPanel(!showSearchPanel);
+              setShowFilterPanel(false);
+            }}
+          >
+            <Search size={16} />
+            <span>{searchQuery || "Search members"}</span>
+          </button>
+
+          {showSearchPanel && (
+            <div className="dropdown-panel search-panel">
+              <div className="panel-header">
+                <Search size={14} />
+                <span>Search Members</span>
+              </div>
+              <input
+                type="text"
+                className="panel-input"
+                placeholder="Type name or username..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  className="clear-button"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="filter-dropdown">
-          <Filter size={16} />
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
+        {/* Filter Button with Dropdown */}
+        <div className="control-wrapper">
+          <button
+            className={`control-button ${showFilterPanel ? "active" : ""} ${filterRole !== "all" ? "has-value" : ""}`}
+            onClick={() => {
+              setShowFilterPanel(!showFilterPanel);
+              setShowSearchPanel(false);
+            }}
           >
-            <option value="all">All Roles</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
+            <Filter size={16} />
+            <span>
+              {filterRole === "all"
+                ? "All Roles"
+                : roles.find((r) => r.id === filterRole)?.name || "Filter"}
+            </span>
+          </button>
+
+          {showFilterPanel && (
+            <div className="dropdown-panel filter-panel">
+              <div className="panel-header">
+                <Filter size={14} />
+                <span>Filter by Role</span>
+              </div>
+              <div className="filter-options">
+                <button
+                  className={`filter-option ${filterRole === "all" ? "selected" : ""}`}
+                  onClick={() => {
+                    setFilterRole("all");
+                    setShowFilterPanel(false);
+                  }}
+                >
+                  <div className="option-indicator" />
+                  <span>All Roles</span>
+                  <span className="option-count">{members.length}</span>
+                </button>
+                {roles.map((role) => (
+                  <button
+                    key={role.id}
+                    className={`filter-option ${filterRole === role.id ? "selected" : ""}`}
+                    onClick={() => {
+                      setFilterRole(role.id);
+                      setShowFilterPanel(false);
+                    }}
+                  >
+                    <div
+                      className="option-indicator"
+                      style={{ background: role.color }}
+                    />
+                    <span>{role.name}</span>
+                    <span className="option-count">
+                      {members.filter((m) => m.role_id === role.id).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -157,6 +255,11 @@ const MembersSection = ({ community, onBack }) => {
                     ? mediaUrlService.getAvatarUrl(member.user.avatar_id, 200)
                     : null;
 
+                  const memberStatus = onlineStatuses[member.user_id] || {
+                    online: false,
+                  };
+                  const isOnline = memberStatus.online;
+
                   return (
                     <div key={member.id} className="member-card">
                       <div className="member-card-contents">
@@ -173,7 +276,11 @@ const MembersSection = ({ community, onBack }) => {
                                   "?"}
                               </span>
                             )}
-                            {member.is_online && <div className="online-dot" />}
+                            {isOnline && (
+                              <div className="online-status-ring">
+                                <div className="online-dot" />
+                              </div>
+                            )}
                           </div>
 
                           {member.user?.verified && (
@@ -194,17 +301,6 @@ const MembersSection = ({ community, onBack }) => {
                           <div className="member-username">
                             @{member.user?.username || "unknown"}
                           </div>
-                        </div>
-
-                        <div
-                          className="member-role-badge"
-                          style={{
-                            background: `${role.color}15`,
-                            color: role.color,
-                            borderColor: `${role.color}40`,
-                          }}
-                        >
-                          {role.name}
                         </div>
                       </div>
 
@@ -255,69 +351,213 @@ const MembersSection = ({ community, onBack }) => {
         }
 
         .members-controls {
-          flex: 1;
           display: flex;
-          gap: 5px;
-          padding: 0 10px;
+          gap: 8px;
+          padding: 0 12px;
           margin-bottom: 20px;
         }
 
-        .search-bar {
-          width:70%;
+        .control-wrapper {
+          flex: 1;
+          position: relative;
+        }
+
+        .control-button {
+          width: 100%;
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 6px 10px;
+          gap: 8px;
+          padding: 12px 16px;
           background: rgba(26, 26, 26, 0.6);
           border: 2px solid rgba(42, 42, 42, 0.8);
           border-radius: 10px;
+          color: #999;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
           transition: all 0.2s;
         }
 
-        .search-bar:focus-within {
+        .control-button:hover {
+          background: rgba(26, 26, 26, 0.9);
+          border-color: rgba(156, 255, 0, 0.3);
+          color: #d4d4d4;
+        }
+
+        .control-button.active {
+          border-color: rgba(156, 255, 0, 0.6);
+          background: rgba(26, 26, 26, 0.9);
+          color: #9cff00;
+        }
+
+        .control-button.has-value {
+          border-color: rgba(156, 255, 0, 0.4);
+          color: #9cff00;
+        }
+
+        .control-button span {
+          flex: 1;
+          text-align: left;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .dropdown-panel {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          right: 0;
+          background: rgba(15, 15, 15, 0.98);
+          border: 2px solid rgba(156, 255, 0, 0.3);
+          border-radius: 12px;
+          padding: 12px;
+          z-index: 1000;
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.6),
+            0 0 40px rgba(156, 255, 0, 0.1);
+          animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .panel-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          border-bottom: 1px solid rgba(156, 255, 0, 0.2);
+          margin-bottom: 12px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #9cff00;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .panel-input {
+          width: 100%;
+          padding: 12px 16px;
+          background: rgba(26, 26, 26, 0.8);
+          border: 2px solid rgba(42, 42, 42, 0.8);
+          border-radius: 8px;
+          color: #fff;
+          font-size: 14px;
+          transition: all 0.2s;
+        }
+
+        .panel-input:focus {
+          outline: none;
           border-color: rgba(156, 255, 0, 0.6);
           box-shadow: 0 0 0 3px rgba(156, 255, 0, 0.1);
         }
 
-        .search-bar input {
-          flex: 1;
-          background: none;
-          border: none;
-          outline: none;
-          color: #fff;
-          font-size: 14px;
-        }
-
-        .search-bar input::placeholder {
+        .panel-input::placeholder {
           color: #666;
         }
 
-        .filter-dropdown {
-          width: fit-content;
+        .clear-button {
+          width: 100%;
+          padding: 8px;
+          margin-top: 8px;
+          background: rgba(255, 107, 107, 0.1);
+          border: 1px solid rgba(255, 107, 107, 0.3);
+          border-radius: 6px;
+          color: #ff6b6b;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .clear-button:hover {
+          background: rgba(255, 107, 107, 0.2);
+          border-color: rgba(255, 107, 107, 0.5);
+        }
+
+        .filter-options {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          max-height: 300px;
+          overflow-y: auto;
+        }
+
+        .filter-options::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .filter-options::-webkit-scrollbar-track {
+          background: rgba(26, 26, 26, 0.3);
+        }
+
+        .filter-options::-webkit-scrollbar-thumb {
+          background: rgba(156, 255, 0, 0.3);
+          border-radius: 2px;
+        }
+
+        .filter-option {
           display: flex;
           align-items: center;
-          // gap: 8px;
-          font-size: 12px;
-          padding: 8px 12px;
-          background: rgba(26, 26, 26, 0.6);
-          border: 2px solid rgba(42, 42, 42, 0.8);
-          border-radius: 10px;
-          min-width: 160px;
-        }
-
-        .filter-dropdown select {
-          flex: 1;
-          background: none;
-          border: none;
-          outline: none;
-          color: #fff;
-          font-size: 14px;
+          gap: 10px;
+          padding: 10px 12px;
+          background: rgba(26, 26, 26, 0.4);
+          border: 1px solid rgba(42, 42, 42, 0.6);
+          border-radius: 8px;
+          color: #d4d4d4;
+          font-size: 13px;
+          font-weight: 500;
           cursor: pointer;
+          transition: all 0.2s;
+          text-align: left;
         }
 
-        .filter-dropdown select option {
-          background: #1a1a1a;
-          color: #fff;
+        .filter-option:hover {
+          background: rgba(26, 26, 26, 0.8);
+          border-color: rgba(156, 255, 0, 0.3);
+          transform: translateX(4px);
+        }
+
+        .filter-option.selected {
+          background: rgba(156, 255, 0, 0.1);
+          border-color: rgba(156, 255, 0, 0.6);
+          color: #9cff00;
+        }
+
+        .option-indicator {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: rgba(156, 255, 0, 0.3);
+          flex-shrink: 0;
+          transition: all 0.2s;
+        }
+
+        .filter-option.selected .option-indicator {
+          box-shadow: 0 0 12px rgba(156, 255, 0, 0.6);
+        }
+
+        .filter-option span:first-of-type {
+          flex: 1;
+        }
+
+        .option-count {
+          padding: 2px 8px;
+          background: rgba(156, 255, 0, 0.1);
+          border: 1px solid rgba(156, 255, 0, 0.3);
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #9cff00;
         }
 
         .members-content {
@@ -427,19 +667,21 @@ const MembersSection = ({ community, onBack }) => {
           width: 56px;
           height: 56px;
           border-radius: 50%;
-          border: 3px solid #9dff00d2;
+          border: 3px solid rgba(156, 255, 0, 0.2);
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           display: flex;
           align-items: center;
           justify-content: center;
           position: relative;
-          overflow: hidden;
+          overflow: visible;
+          transition: all 0.3s;
         }
 
         .member-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          border-radius: 50%;
         }
 
         .avatar-fallback {
@@ -448,17 +690,42 @@ const MembersSection = ({ community, onBack }) => {
           color: #fff;
         }
 
-        .online-dot {
+        .online-status-ring {
           position: absolute;
-          bottom: 2px;
-          right: 2px;
-          width: 15px;
-          height: 15px;
+          top: -3px;
+          right: -3px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+        }
+
+        .online-dot {
+          width: 12px;
+          height: 12px;
           border-radius: 50%;
           background: #10b981;
-          border: 3px solid rgba(26, 26, 26, 0.9);
-          box-shadow: 0 0 12px #10b981;
-          z-index: 3000;
+          box-shadow: 
+            0 0 0 2px rgba(16, 185, 129, 0.3),
+            0 0 12px rgba(16, 185, 129, 0.6);
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 
+              0 0 0 2px rgba(16, 185, 129, 0.3),
+              0 0 12px rgba(16, 185, 129, 0.6);
+          }
+          50% {
+            box-shadow: 
+              0 0 0 2px rgba(16, 185, 129, 0.5),
+              0 0 16px rgba(16, 185, 129, 0.8);
+          }
         }
 
         .verified-icon {
@@ -487,17 +754,6 @@ const MembersSection = ({ community, onBack }) => {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-        }
-
-        .member-role-badge {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 12px;
-          border-radius: 8px;
-          font-size: 11px;
-          font-weight: 700;
-          border: 1px solid;
-          align-self: flex-start;
         }
 
         .member-joined {

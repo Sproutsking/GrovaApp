@@ -1,0 +1,251 @@
+/* ═══════════════════════════════════════════════════════════════
+   SHARE MODAL - Mobile-Optimized Bottom Sheet
+   ═══════════════════════════════════════════════════════════════ */
+
+.share-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 4000;
+  animation: fadeIn 0.2s ease;
+}
+
+.share-modal-content {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  border-radius: 20px 20px 0 0;
+  padding: 0 0 max(20px, env(safe-area-inset-bottom)) 0;
+  z-index: 4001;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-bottom: none;
+}
+
+/* Desktop modal styling */
+@media (min-width: 769px) {
+  .share-modal-content {
+    position: fixed;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    border-radius: 16px;
+    border: 1px solid rgba(132, 204, 22, 0.3);
+    padding-bottom: 20px;
+  }
+}
+
+.share-modal-handle {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 8px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.share-modal-handle:active {
+  cursor: grabbing;
+}
+
+.share-modal-knob {
+  width: 40px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.share-modal-handle:hover .share-modal-knob {
+  background: #84cc16;
+  width: 50px;
+}
+
+/* Hide handle on desktop */
+@media (min-width: 769px) {
+  .share-modal-handle {
+    display: none;
+  }
+}
+
+.share-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 16px;
+  border-bottom: 1px solid rgba(132, 204, 22, 0.15);
+}
+
+.share-modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.share-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.share-modal-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.share-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 14px;
+  padding: 20px;
+}
+
+.share-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.share-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--option-color);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.share-option:hover::before {
+  opacity: 0.08;
+}
+
+.share-option:hover {
+  border-color: var(--option-color);
+  transform: translateY(-2px);
+}
+
+.share-option:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.share-option-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.share-option:hover .share-option-icon {
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.share-option-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d4d4d4;
+  text-align: center;
+  transition: color 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.share-option:hover .share-option-name {
+  color: #fff;
+}
+
+.share-modal-footer {
+  padding: 12px 20px 0;
+  border-top: 1px solid rgba(132, 204, 22, 0.15);
+}
+
+.share-watermark-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #84cc16;
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(132, 204, 22, 0.08);
+  border-radius: 8px;
+}
+
+.share-watermark-notice span {
+  font-size: 16px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Mobile optimization */
+@media (max-width: 480px) {
+  .share-options-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .share-option {
+    padding: 12px 8px;
+  }
+
+  .share-option-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .share-option-name {
+    font-size: 11px;
+  }
+}

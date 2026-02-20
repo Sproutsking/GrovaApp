@@ -15,14 +15,22 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta name="apple-mobile-web-app-title" content="Grova" />
-    <meta name="application-name" content="Grova" />
+    <meta name="apple-mobile-web-app-title" content="Xeevia" />
+    <meta name="application-name" content="Xeevia" />
     <meta name="msapplication-TileColor" content="#000000" />
     <meta name="msapplication-TileImage" content="/logo192.png" />
     <meta
       name="description"
-      content="The future of blockchain-powered social media"
+      content="Own your content. Build your network. Earn engagement."
     />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Xeevia — Own Your Social" />
+    <meta
+      property="og:description"
+      content="Own your content. Build your network. Earn engagement."
+    />
+    <meta property="og:type" content="website" />
 
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
@@ -39,6 +47,161 @@
       href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
       rel="stylesheet"
     />
+
+    <!--
+      ══════════════════════════════════════════════════════════════════════
+      ABORT ERROR SUPPRESSOR — MUST be first script in the document
+      ══════════════════════════════════════════════════════════════════════
+      CRA's react-error-overlay is injected by webpack at the very top of
+      bundle.js. It registers its unhandledrejection + error listeners
+      before any of your application code runs. A <script> tag here in
+      <head> is the only code that executes before bundle.js.
+
+      React StrictMode double-invokes effects → Supabase navigator.locks
+      emits "signal is aborted without reason" → NOT a real error.
+      This IIFE installs capture-phase handlers that block those events
+      before they reach the overlay. Plain ES5, zero dependencies.
+      ══════════════════════════════════════════════════════════════════════
+    -->
+    <script>
+      (function () {
+        "use strict";
+
+        var ABORT_PATTERNS = [
+          "aborterror",
+          "signal is aborted",
+          "signal is aborted without reason",
+          "aborted without reason",
+          "the user aborted",
+          "the operation was aborted",
+          "user aborted a request",
+          "operation was aborted",
+          "request was aborted",
+          "fetch was aborted",
+          "the fetch was aborted",
+        ];
+
+        function isAbortLike(value) {
+          if (value === null || value === undefined) return false;
+          if (value.name === "AbortError") return true;
+          if (value.code === 20) return true; // DOMException.ABORT_ERR = 20
+
+          var combined = "";
+          try {
+            if (typeof value === "string") {
+              combined = value;
+            } else {
+              var parts = [
+                value.message,
+                value.reason,
+                value.reason && value.reason.message,
+                value.reason && value.reason.name,
+                value.name,
+                value.type,
+              ];
+              for (var i = 0; i < parts.length; i++) {
+                var p = parts[i];
+                if (p === null || p === undefined) continue;
+                combined += " " + (typeof p === "string" ? p : String(p));
+              }
+            }
+          } catch (e) {
+            return false;
+          }
+
+          var lower = combined.toLowerCase();
+          for (var j = 0; j < ABORT_PATTERNS.length; j++) {
+            if (lower.indexOf(ABORT_PATTERNS[j]) !== -1) return true;
+          }
+          return false;
+        }
+
+        // 1. unhandledrejection — capture phase fires BEFORE overlay's listener
+        function suppressAbort(event) {
+          if (isAbortLike(event.reason)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }
+        window.addEventListener("unhandledrejection", suppressAbort, true);
+        window.addEventListener("unhandledrejection", suppressAbort, false);
+
+        // 2. error event — capture phase
+        window.addEventListener(
+          "error",
+          function (event) {
+            if (
+              isAbortLike(event.error) ||
+              isAbortLike({ message: event.message || "" })
+            ) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true,
+        );
+
+        // 3. window.onerror
+        window.onerror = function (msg, src, line, col, err) {
+          if (isAbortLike(err) || isAbortLike({ message: String(msg || "") })) {
+            return true;
+          }
+          return false;
+        };
+
+        // 4. console.error — patched here before overlay hooks it on DOMContentLoaded
+        var _origConsoleError = console.error;
+        console.error = function () {
+          var args = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < args.length; i++) {
+            var a = args[i];
+            if (!a) continue;
+            if (isAbortLike(a)) return;
+            if (typeof a === "string" && isAbortLike({ message: a })) return;
+            try {
+              var s = String(a);
+              if (s !== "[object Object]" && isAbortLike({ message: s }))
+                return;
+            } catch (e) {
+              /* ignore */
+            }
+          }
+          _origConsoleError.apply(console, args);
+        };
+
+        // 5. window.dispatchEvent — overlay dispatches synthetic events to show popup
+        var _origDispatch = window.dispatchEvent.bind(window);
+        window.dispatchEvent = function (event) {
+          try {
+            if (
+              event instanceof ErrorEvent &&
+              isAbortLike({ message: event.message || "" })
+            ) {
+              return true;
+            }
+            if (
+              typeof PromiseRejectionEvent !== "undefined" &&
+              event instanceof PromiseRejectionEvent &&
+              isAbortLike(event.reason)
+            ) {
+              return true;
+            }
+          } catch (e) {
+            /* never throw from suppressor */
+          }
+          return _origDispatch(event);
+        };
+
+        // 6. window.reportError — React 18.3+ uncaught error pathway
+        if (typeof window.reportError === "function") {
+          var _origReportError = window.reportError;
+          window.reportError = function (err) {
+            if (isAbortLike(err)) return;
+            _origReportError.call(window, err);
+          };
+        }
+      })();
+    </script>
 
     <style>
       * {
@@ -70,35 +233,64 @@
         font-size: 16px !important;
       }
 
+      /* ── LOADING SCREEN ── */
       #loading-screen {
         position: fixed;
         inset: 0;
-        background: linear-gradient(135deg, #000 0%, #0a0a0a 100%);
+        background: #000;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         z-index: 9999;
+        gap: 0;
+      }
+
+      .loading-wordmark {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 40px;
+        animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
       }
 
       .loading-logo {
-        font-size: 72px;
+        font-size: 64px;
         font-weight: 900;
-        background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+        background: linear-gradient(
+          135deg,
+          #a3e635 0%,
+          #84cc16 50%,
+          #65a30d 100%
+        );
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 24px;
+        background-clip: text;
         font-family: "Space Grotesk", sans-serif;
         letter-spacing: -2px;
+        line-height: 1;
+      }
+
+      .loading-tagline {
+        font-size: 12px;
+        font-weight: 500;
+        color: #3f3f46;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+      }
+
+      .spinner-wrap {
+        animation: fadeUp 0.6s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
       }
 
       .spinner {
-        width: 48px;
-        height: 48px;
-        border: 3px solid rgba(132, 204, 22, 0.15);
+        width: 32px;
+        height: 32px;
+        border: 2px solid rgba(132, 204, 22, 0.12);
         border-top-color: #84cc16;
         border-radius: 50%;
-        animation: spin 0.7s linear infinite;
+        animation: spin 0.8s linear infinite;
       }
 
       @keyframes spin {
@@ -107,26 +299,32 @@
         }
       }
 
-      /* Modern Install Prompt */
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── PWA INSTALL PROMPT ── */
       .install-prompt {
         position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
-        background: linear-gradient(
-          to top,
-          rgba(0, 0, 0, 0.98) 0%,
-          rgba(0, 0, 0, 0.95) 100%
-        );
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-top: 1px solid rgba(132, 204, 22, 0.2);
+        background: rgba(9, 9, 11, 0.97);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-top: 1px solid rgba(132, 204, 22, 0.15);
         padding: 16px;
-        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
         z-index: 10000;
         display: none;
-        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+        animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .install-prompt.show {
@@ -138,22 +336,24 @@
         margin: 0 auto;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
       }
 
       .install-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+        width: 50px;
+        height: 50px;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
-        font-weight: 800;
+        font-size: 20px;
+        font-weight: 900;
         color: #000;
         flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
+        font-family: "Space Grotesk", sans-serif;
+        letter-spacing: -0.5px;
+        box-shadow: 0 4px 16px rgba(132, 204, 22, 0.25);
       }
 
       .install-text {
@@ -165,13 +365,13 @@
         font-size: 15px;
         font-weight: 700;
         color: #fff;
-        margin: 0 0 2px 0;
+        margin: 0 0 3px;
         letter-spacing: -0.2px;
       }
 
       .install-subtitle {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.6);
+        font-size: 12px;
+        color: #71717a;
         margin: 0;
       }
 
@@ -182,35 +382,35 @@
       }
 
       .install-btn {
-        padding: 10px 20px;
+        padding: 10px 18px;
         border-radius: 10px;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         cursor: pointer;
         border: none;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.18s ease;
         white-space: nowrap;
+        font-family: "Inter", sans-serif;
       }
 
       .install-btn.primary {
-        background: #84cc16;
+        background: linear-gradient(135deg, #84cc16, #65a30d);
         color: #000;
-        box-shadow: 0 2px 8px rgba(132, 204, 22, 0.25);
+        box-shadow: 0 2px 10px rgba(132, 204, 22, 0.3);
       }
 
       .install-btn.primary:active {
         transform: scale(0.96);
-        box-shadow: 0 1px 4px rgba(132, 204, 22, 0.3);
       }
 
       .install-btn.secondary {
-        background: transparent;
-        color: rgba(255, 255, 255, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+        color: #71717a;
+        border: 1px solid rgba(255, 255, 255, 0.08);
       }
 
       .install-btn.secondary:active {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.08);
       }
 
       @keyframes slideUp {
@@ -224,40 +424,183 @@
         }
       }
 
-      /* Mobile Responsive */
+      /* ── CUSTOM INSTALL MODAL ── */
+      .install-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        z-index: 10001;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .install-modal-overlay.show {
+        display: flex;
+      }
+
+      .install-modal {
+        background: rgba(18, 18, 18, 0.98);
+        border: 1px solid rgba(132, 204, 22, 0.25);
+        border-radius: 20px;
+        max-width: 420px;
+        width: calc(100% - 40px);
+        padding: 28px 24px 24px;
+        box-shadow:
+          0 24px 64px rgba(0, 0, 0, 0.8),
+          0 0 0 1px rgba(132, 204, 22, 0.1);
+        animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes modalSlideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px) scale(0.96);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+
+      .modal-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: 900;
+        color: #000;
+        flex-shrink: 0;
+        font-family: "Space Grotesk", sans-serif;
+        box-shadow: 0 6px 20px rgba(132, 204, 22, 0.35);
+      }
+
+      .modal-text {
+        flex: 1;
+      }
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #fff;
+        margin: 0 0 6px;
+        letter-spacing: -0.3px;
+      }
+
+      .modal-subtitle {
+        font-size: 13px;
+        color: #a1a1aa;
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      .modal-features {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 20px;
+      }
+
+      .modal-feature {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+        font-size: 13px;
+        color: #d4d4d8;
+      }
+
+      .modal-feature-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(132, 204, 22, 0.15);
+        color: #84cc16;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        flex-shrink: 0;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 10px;
+      }
+
+      .modal-btn {
+        flex: 1;
+        padding: 14px 20px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        font-family: "Inter", sans-serif;
+      }
+
+      .modal-btn.primary {
+        background: linear-gradient(135deg, #84cc16, #65a30d);
+        color: #000;
+        box-shadow: 0 4px 16px rgba(132, 204, 22, 0.3);
+      }
+
+      .modal-btn.primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(132, 204, 22, 0.4);
+      }
+
+      .modal-btn.primary:active {
+        transform: scale(0.97);
+      }
+
+      .modal-btn.secondary {
+        background: rgba(255, 255, 255, 0.05);
+        color: #a1a1aa;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .modal-btn.secondary:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #d4d4d8;
+      }
+
       @media (max-width: 480px) {
         .loading-logo {
-          font-size: 56px;
+          font-size: 52px;
         }
-
-        .install-prompt {
-          padding: 12px;
-          padding-bottom: max(12px, env(safe-area-inset-bottom));
-        }
-
         .install-content {
           flex-wrap: wrap;
         }
-
-        .install-icon {
-          width: 44px;
-          height: 44px;
-          font-size: 22px;
-        }
-
-        .install-title {
-          font-size: 14px;
-        }
-
-        .install-subtitle {
-          font-size: 12px;
-        }
-
         .install-actions {
           width: 100%;
-          margin-top: 8px;
+          margin-top: 4px;
         }
-
         .install-btn {
           flex: 1;
           padding: 12px 16px;
@@ -265,47 +608,94 @@
         }
       }
 
-      /* Desktop */
       @media (min-width: 769px) {
         .install-prompt {
-          bottom: 20px;
-          left: 20px;
+          bottom: 24px;
+          left: 24px;
           right: auto;
-          max-width: 400px;
-          border-radius: 16px;
-          border: 1px solid rgba(132, 204, 22, 0.3);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+          max-width: 380px;
+          border-radius: 18px;
+          border: 1px solid rgba(132, 204, 22, 0.2);
+          box-shadow:
+            0 16px 48px rgba(0, 0, 0, 0.7),
+            0 0 0 1px rgba(132, 204, 22, 0.05);
         }
-
         .install-content {
           max-width: none;
         }
       }
     </style>
-
-    <title>Grova</title>
   </head>
+
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
 
+    <!-- Loading screen -->
     <div id="loading-screen">
-      <div class="loading-logo">GROVA</div>
-      <div class="spinner"></div>
+      <div class="loading-wordmark">
+        <div class="loading-logo">XEEVIA</div>
+        <div class="loading-tagline">Own Your Social</div>
+      </div>
+      <div class="spinner-wrap">
+        <div class="spinner"></div>
+      </div>
     </div>
 
+    <!-- PWA install prompt -->
     <div id="install-prompt" class="install-prompt">
       <div class="install-content">
-        <div class="install-icon">G</div>
+        <div class="install-icon">X</div>
         <div class="install-text">
-          <div class="install-title">Install Grova</div>
-          <div class="install-subtitle">Get the full experience</div>
+          <div class="install-title">Install Xeevia</div>
+          <div class="install-subtitle">Own your content. Earn engagement.</div>
         </div>
         <div class="install-actions">
           <button id="install-button" class="install-btn primary">
             Install
           </button>
           <button id="dismiss-install" class="install-btn secondary">
-            Not now
+            Later
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom install confirmation modal -->
+    <div id="install-modal" class="install-modal-overlay">
+      <div class="install-modal">
+        <div class="modal-header">
+          <div class="modal-icon">X</div>
+          <div class="modal-text">
+            <div class="modal-title">Add Xeevia to Home Screen</div>
+            <div class="modal-subtitle">
+              Get the full app experience with instant access
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-features">
+          <div class="modal-feature">
+            <div class="modal-feature-icon">✓</div>
+            <div>Launch from your home screen</div>
+          </div>
+          <div class="modal-feature">
+            <div class="modal-feature-icon">✓</div>
+            <div>Work offline with cached content</div>
+          </div>
+          <div class="modal-feature">
+            <div class="modal-feature-icon">✓</div>
+            <div>Instant push notifications</div>
+          </div>
+          <div class="modal-feature">
+            <div class="modal-feature-icon">✓</div>
+            <div>Native app-like experience</div>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="modal-cancel" class="modal-btn secondary">Not Now</button>
+          <button id="modal-confirm" class="modal-btn primary">
+            Add to Home Screen
           </button>
         </div>
       </div>
@@ -317,68 +707,102 @@
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         window.navigator.standalone === true;
-      let deferredPrompt;
+
+      console.log("[PWA] Standalone:", isStandalone);
+
+      const INSTALL_KEY = "xeevia_app_installed";
+      const DISMISS_KEY = "xeevia_installDismissed";
+
+      let deferredPrompt = null;
 
       window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
+
+        if (localStorage.getItem(INSTALL_KEY) === "true") {
+          console.log("[PWA] App already installed on this device");
+          return;
+        }
+
         deferredPrompt = e;
+        console.log("[PWA] Install prompt deferred, will show custom banner");
 
         setTimeout(() => {
-          const installPrompt = document.getElementById("install-prompt");
-          if (installPrompt && !localStorage.getItem("installDismissed")) {
-            installPrompt.classList.add("show");
+          const prompt = document.getElementById("install-prompt");
+          if (prompt && !localStorage.getItem(DISMISS_KEY)) {
+            prompt.classList.add("show");
           }
-        }, 3000);
+        }, 4000);
       });
 
       document
         .getElementById("install-button")
-        ?.addEventListener("click", async () => {
-          if (!deferredPrompt) return;
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`Install: ${outcome}`);
-          deferredPrompt = null;
+        ?.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!deferredPrompt) {
+            console.log("[PWA] No deferred prompt available");
+            return;
+          }
           document.getElementById("install-prompt").classList.remove("show");
+          document.getElementById("install-modal").classList.add("show");
+        });
+
+      document
+        .getElementById("modal-cancel")
+        ?.addEventListener("click", (e) => {
+          e.preventDefault();
+          document.getElementById("install-modal").classList.remove("show");
+          localStorage.setItem(DISMISS_KEY, "true");
+        });
+
+      document
+        .getElementById("modal-confirm")
+        ?.addEventListener("click", async (e) => {
+          e.preventDefault();
+          if (!deferredPrompt) {
+            console.log("[PWA] No deferred prompt available");
+            return;
+          }
+          document.getElementById("install-modal").classList.remove("show");
+          console.log("[PWA] Showing browser install prompt...");
+          await deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log("[PWA] Install outcome:", outcome);
+          if (outcome === "accepted") {
+            localStorage.setItem(INSTALL_KEY, "true");
+            console.log("[PWA] Install accepted - marked as installed");
+          }
+          deferredPrompt = null;
         });
 
       document
         .getElementById("dismiss-install")
-        ?.addEventListener("click", () => {
+        ?.addEventListener("click", (e) => {
+          e.preventDefault();
           document.getElementById("install-prompt").classList.remove("show");
-          localStorage.setItem("installDismissed", "true");
+          localStorage.setItem(DISMISS_KEY, "true");
         });
 
       window.addEventListener("appinstalled", () => {
-        console.log("App installed");
+        console.log("[PWA] Xeevia installed successfully");
+        localStorage.setItem(INSTALL_KEY, "true");
         deferredPrompt = null;
       });
+
+      if (isStandalone) {
+        localStorage.setItem(INSTALL_KEY, "true");
+      }
 
       window.addEventListener("load", () => {
         setTimeout(() => {
           const loading = document.getElementById("loading-screen");
           if (loading) {
             loading.style.opacity = "0";
-            loading.style.transition = "opacity 0.3s";
-            setTimeout(() => loading.remove(), 300);
+            loading.style.transition = "opacity 0.4s ease";
+            setTimeout(() => loading.remove(), 400);
           }
-        }, 100);
+        }, 500);
       });
-
-      if (isStandalone) {
-        const hasReloaded = sessionStorage.getItem("pwa_reloaded");
-        if (!hasReloaded) {
-          sessionStorage.setItem("pwa_reloaded", "true");
-          if (
-            "serviceWorker" in navigator &&
-            navigator.serviceWorker.controller
-          ) {
-            navigator.serviceWorker.controller.postMessage({
-              type: "CLEAR_CACHE",
-            });
-          }
-        }
-      }
     </script>
   </body>
 </html>

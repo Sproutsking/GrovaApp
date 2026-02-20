@@ -1,616 +1,748 @@
 // ============================================================================
-// src/components/Modals/PhoneVerificationModal.jsx - COMPLETE PHONE VERIFICATION
+// src/components/Modals/PhoneVerificationModal.jsx
+// Full flow: Security Gate (password + optional 2FA) → Enter/Change Phone → Verify Code
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, Phone, Shield, Loader, Check, ArrowLeft } from "lucide-react";
+import {
+  X,
+  Phone,
+  Shield,
+  Loader,
+  Check,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Lock,
+  KeyRound,
+  AlertCircle,
+} from "lucide-react";
 import settingsService from "../../services/account/settingsService";
 
-const PhoneVerificationModal = ({
+// ─── Styles ────────────────────────────────────────────────────────────────
+const STYLES = `
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-6px); }
+    40%,80% { transform: translateX(6px); }
+  }
+
+  .pvm-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.88);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; padding: 20px;
+    animation: fadeIn .2s ease;
+  }
+
+  .pvm-card {
+    background: #0d0d0d;
+    border: 1.5px solid rgba(132,204,22,.25);
+    border-radius: 28px;
+    width: 100%; max-width: 460px;
+    overflow: hidden;
+    animation: slideUp .3s ease;
+    box-shadow: 0 40px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(132,204,22,.08);
+  }
+
+  /* — header — */
+  .pvm-header {
+    padding: 22px 24px;
+    background: rgba(132,204,22,.06);
+    border-bottom: 1px solid rgba(132,204,22,.15);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pvm-header-left { display: flex; align-items: center; gap: 14px; }
+  .pvm-icon {
+    width: 46px; height: 46px; border-radius: 14px;
+    background: linear-gradient(135deg,#84cc16,#4d7c0f);
+    display: flex; align-items: center; justify-content: center;
+    color: #000; flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(132,204,22,.35);
+  }
+  .pvm-title { font-size: 18px; font-weight: 800; color: #fff; margin: 0; }
+  .pvm-subtitle { font-size: 12px; color: #737373; margin: 3px 0 0; }
+  .pvm-close {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    color: #a3a3a3; cursor: pointer; transition: all .2s;
+  }
+  .pvm-close:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+  /* — progress steps — */
+  .pvm-steps {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 18px 24px 0;
+  }
+  .pvm-step-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,.1); transition: all .3s;
+  }
+  .pvm-step-dot.done { background: #4d7c0f; }
+  .pvm-step-dot.active { background: #84cc16; width: 24px; border-radius: 4px; }
+  .pvm-step-line { width: 32px; height: 1px; background: rgba(255,255,255,.08); }
+
+  /* — body — */
+  .pvm-body { padding: 24px; }
+
+  .pvm-info-text {
+    text-align: center; color: #a3a3a3; font-size: 14px;
+    margin-bottom: 24px; line-height: 1.65;
+  }
+  .pvm-info-text strong { color: #fff; }
+  .pvm-info-text .accent { color: #84cc16; font-weight: 700; }
+
+  /* — error / warning banners — */
+  .pvm-error {
+    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+    border-radius: 12px; padding: 12px 14px; color: #ef4444;
+    font-size: 13px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+    animation: shake .35s ease;
+  }
+
+  /* — input group — */
+  .pvm-label {
+    font-size: 12px; font-weight: 700; color: #737373;
+    text-transform: uppercase; letter-spacing: .6px;
+    display: block; margin-bottom: 8px;
+  }
+  .pvm-input-wrap { position: relative; margin-bottom: 16px; }
+  .pvm-input {
+    width: 100%; padding: 13px 44px 13px 14px; box-sizing: border-box;
+    background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.1);
+    border-radius: 12px; color: #fff; font-size: 15px; font-weight: 600;
+    transition: all .2s;
+  }
+  .pvm-input::placeholder { color: #525252; }
+  .pvm-input:focus {
+    outline: none;
+    border-color: #84cc16;
+    background: rgba(132,204,22,.06);
+  }
+  .pvm-input-icon {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: #525252; cursor: pointer;
+  }
+  .pvm-input-icon:hover { color: #a3a3a3; }
+
+  /* — phone row — */
+  .pvm-phone-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .pvm-country {
+    width: 110px; padding: 13px 8px;
+    background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.1);
+    border-radius: 12px; color: #fff; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .2s; flex-shrink: 0;
+  }
+  .pvm-country:focus {
+    outline: none; border-color: #84cc16;
+    background: rgba(132,204,22,.06);
+  }
+  .pvm-country option { background: #1a1a1a; }
+
+  /* — OTP inputs — */
+  .pvm-otp-row {
+    display: flex; gap: 10px; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .pvm-otp-input {
+    width: 52px; height: 60px;
+    background: rgba(255,255,255,.04); border: 2px solid rgba(255,255,255,.1);
+    border-radius: 14px; color: #fff; font-size: 22px; font-weight: 800;
+    text-align: center; transition: all .2s;
+  }
+  .pvm-otp-input:focus {
+    outline: none; border-color: #84cc16;
+    background: rgba(132,204,22,.08);
+    transform: scale(1.06);
+  }
+  .pvm-otp-input.filled {
+    border-color: rgba(132,204,22,.5);
+    background: rgba(132,204,22,.06);
+  }
+
+  /* — buttons — */
+  .pvm-btn {
+    width: 100%; padding: 15px; border: none; border-radius: 14px;
+    font-size: 15px; font-weight: 800; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all .25s;
+  }
+  .pvm-btn-primary {
+    background: linear-gradient(135deg,#84cc16,#4d7c0f);
+    color: #000;
+    box-shadow: 0 4px 20px rgba(132,204,22,.3);
+  }
+  .pvm-btn-primary:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(132,204,22,.5);
+  }
+  .pvm-btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+  .pvm-btn-ghost {
+    background: rgba(255,255,255,.05); border: 1.5px solid rgba(255,255,255,.1);
+    color: #84cc16; margin-top: 12px;
+  }
+  .pvm-btn-ghost:hover:not(:disabled) {
+    background: rgba(132,204,22,.08);
+    border-color: rgba(132,204,22,.4);
+  }
+  .pvm-btn-ghost:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* — back link — */
+  .pvm-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: #737373; font-size: 13px; font-weight: 600;
+    background: none; border: none; cursor: pointer;
+    margin-bottom: 20px; padding: 0; transition: color .2s;
+  }
+  .pvm-back:hover { color: #84cc16; }
+
+  /* — 2FA optional hint — */
+  .pvm-optional-hint {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2);
+    border-radius: 12px; padding: 13px 14px;
+    color: #93c5fd; font-size: 13px; margin-bottom: 20px; line-height: 1.5;
+  }
+`;
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+const STEPS = ["security", "phone", "verify"];
+// If no existing phone → steps: security → phone → verify
+// If changing existing  → same steps, but different headings
+
+export default function PhoneVerificationModal({
   show,
   onClose,
   userId,
   currentPhone,
   onSuccess,
-}) => {
-  const [step, setStep] = useState(currentPhone ? "verify" : "enter");
-  const [phoneNumber, setPhoneNumber] = useState(currentPhone || "");
-  const [countryCode, setCountryCode] = useState("+234"); // Default Nigeria
-  const [verificationCode, setVerificationCode] = useState([
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-  ]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+}) {
+  const isChanging = Boolean(currentPhone);
+
+  // flow state
+  const [stepIndex, setStepIndex] = useState(0); // 0=security, 1=phone, 2=verify
+  const step = STEPS[stepIndex];
+
+  // security gate
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [twoFACode, setTwoFACode] = useState("");
+  const [has2FA, setHas2FA] = useState(false);
+  const [securityError, setSecurityError] = useState("");
+
+  // phone entry
+  const [countryCode, setCountryCode] = useState("+234");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  // OTP
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(0);
   const inputRefs = useRef([]);
 
+  // generic
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // check 2FA on mount
+  useEffect(() => {
+    if (show && userId) {
+      settingsService.userHas2FA(userId).then(setHas2FA);
+    }
+  }, [show, userId]);
+
+  // countdown timer
   useEffect(() => {
     if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+      return () => clearTimeout(t);
     }
   }, [countdown]);
 
-  const formatPhoneNumber = (value) => {
-    // Remove all non-digits
-    const cleaned = value.replace(/\D/g, "");
-
-    // Format as: (XXX) XXX-XXXX
-    if (cleaned.length <= 3) {
-      return cleaned;
-    } else if (cleaned.length <= 6) {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
-    } else {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-    }
-  };
-
-  const handlePhoneChange = (e) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setPhoneNumber(formatted);
-    setError("");
-  };
-
-  const validatePhone = () => {
-    const cleaned = phoneNumber.replace(/\D/g, "");
-    if (cleaned.length < 10) {
-      setError("Please enter a valid 10-digit phone number");
-      return false;
-    }
-    return true;
-  };
-
-  const handleSendCode = async () => {
-    if (!validatePhone()) return;
-
-    try {
-      setLoading(true);
+  // reset on close
+  useEffect(() => {
+    if (!show) {
+      setStepIndex(0);
+      setPassword("");
+      setTwoFACode("");
+      setPhoneNumber("");
+      setOtp(["", "", "", "", "", ""]);
       setError("");
+      setSecurityError("");
+      setCountdown(0);
+    }
+  }, [show]);
 
-      const cleaned = phoneNumber.replace(/\D/g, "");
-      const fullNumber = `${countryCode}${cleaned}`;
+  if (!show) return null;
 
-      // Send verification code via service
-      await settingsService.sendVerificationCode(userId, fullNumber);
+  // ── helpers ──────────────────────────────────────────────────────────────
 
-      // Move to verification step
-      setStep("verify");
-      setCountdown(60); // 60 second countdown
+  const formatPhone = (v) => {
+    const d = v.replace(/\D/g, "");
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+  };
 
-      console.log("📲 Verification code sent to:", fullNumber);
-    } catch (err) {
-      console.error("Failed to send code:", err);
-      setError(err.message || "Failed to send verification code");
+  const fullPhone = () => `${countryCode}${phoneNumber.replace(/\D/g, "")}`;
+
+  // ── step handlers ────────────────────────────────────────────────────────
+
+  const handleSecuritySubmit = async () => {
+    setSecurityError("");
+    if (!password) {
+      setSecurityError("Please enter your password");
+      return;
+    }
+    setLoading(true);
+    try {
+      const pwResult = await settingsService.verifyPassword(password);
+      if (!pwResult.success) {
+        setSecurityError(pwResult.message || "Incorrect password");
+        return;
+      }
+      if (has2FA) {
+        if (!twoFACode || twoFACode.length !== 6) {
+          setSecurityError("Please enter your 6-digit authenticator code");
+          return;
+        }
+        const tfaResult = await settingsService.verify2FACode(
+          userId,
+          twoFACode,
+        );
+        if (!tfaResult.success) {
+          setSecurityError(tfaResult.message || "Invalid 2FA code");
+          return;
+        }
+      }
+      setStepIndex(1); // go to phone entry
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCodeChange = (index, value) => {
-    // Only allow digits
-    if (value && !/^\d$/.test(value)) return;
-
-    const newCode = [...verificationCode];
-    newCode[index] = value;
-    setVerificationCode(newCode);
+  const handleSendCode = async () => {
+    const digits = phoneNumber.replace(/\D/g, "");
+    if (digits.length < 10) {
+      setError("Please enter a valid 10-digit phone number");
+      return;
+    }
+    setLoading(true);
     setError("");
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+    try {
+      // Save new phone first (unverified), then send code
+      await settingsService.updateContactInfo(userId, { phone: fullPhone() });
+      await settingsService.sendVerificationCode(userId, fullPhone());
+      setCountdown(60);
+      setStepIndex(2);
+    } catch (e) {
+      setError(e.message || "Failed to send verification code");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCodeKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !verificationCode[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+  const handleVerify = async () => {
+    const code = otp.join("");
+    if (code.length !== 6) {
+      setError("Please enter the complete 6-digit code");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const result = await settingsService.verifyPhoneNumber(userId, code);
+      if (!result.success) {
+        setError(result.message || "Invalid code. Please try again.");
+        setOtp(["", "", "", "", "", ""]);
+        inputRefs.current[0]?.focus();
+        return;
+      }
+      onSuccess?.(fullPhone());
+      onClose();
+    } catch (e) {
+      setError(e.message || "Verification failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCodePaste = (e) => {
+  const handleResend = async () => {
+    if (countdown > 0) return;
+    setLoading(true);
+    setError("");
+    try {
+      await settingsService.sendVerificationCode(userId, fullPhone());
+      setCountdown(60);
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } catch (e) {
+      setError(e.message || "Failed to resend code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── OTP input helpers ────────────────────────────────────────────────────
+
+  const handleOtpChange = (i, v) => {
+    if (v && !/^\d$/.test(v)) return;
+    const next = [...otp];
+    next[i] = v;
+    setOtp(next);
+    setError("");
+    if (v && i < 5) inputRefs.current[i + 1]?.focus();
+  };
+
+  const handleOtpKey = (i, e) => {
+    if (e.key === "Backspace" && !otp[i] && i > 0)
+      inputRefs.current[i - 1]?.focus();
+  };
+
+  const handleOtpPaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "");
-
-    if (pastedData.length === 6) {
-      const newCode = pastedData.split("");
-      setVerificationCode(newCode);
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "");
+    if (digits.length === 6) {
+      setOtp(digits.split(""));
       inputRefs.current[5]?.focus();
     }
   };
 
-  const handleVerifyCode = async () => {
-    const code = verificationCode.join("");
+  // ── step meta ─────────────────────────────────────────────────────────────
 
-    if (code.length !== 6) {
-      setError("Please enter the 6-digit verification code");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError("");
-
-      const cleaned = phoneNumber.replace(/\D/g, "");
-      const fullNumber = `${countryCode}${cleaned}`;
-
-      // First update the phone number
-      await settingsService.updateContactInfo(userId, { phone: fullNumber });
-
-      // Then verify it
-      await settingsService.verifyPhoneNumber(userId, code);
-
-      console.log("✅ Phone verified successfully");
-
-      // Call success callback
-      if (onSuccess) {
-        onSuccess(fullNumber);
-      }
-
-      // Close modal
-      onClose();
-    } catch (err) {
-      console.error("Failed to verify code:", err);
-      setError(err.message || "Invalid verification code");
-      setVerificationCode(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
-    } finally {
-      setLoading(false);
-    }
+  const meta = {
+    security: {
+      icon: <Lock size={22} />,
+      title: isChanging ? "Security Check" : "Add Phone Number",
+      subtitle: "Confirm it's you before continuing",
+    },
+    phone: {
+      icon: <Phone size={22} />,
+      title: isChanging ? "New Phone Number" : "Enter Phone Number",
+      subtitle: "We'll send a one-time code",
+    },
+    verify: {
+      icon: <Shield size={22} />,
+      title: "Enter Verification Code",
+      subtitle: "Check your messages",
+    },
   };
 
-  const handleResendCode = async () => {
-    if (countdown > 0) return;
+  const current = meta[step];
 
-    try {
-      setLoading(true);
-      setError("");
-
-      const cleaned = phoneNumber.replace(/\D/g, "");
-      const fullNumber = `${countryCode}${cleaned}`;
-
-      await settingsService.sendVerificationCode(userId, fullNumber);
-
-      setCountdown(60);
-      setVerificationCode(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
-
-      console.log("📲 Verification code resent");
-    } catch (err) {
-      console.error("Failed to resend code:", err);
-      setError(err.message || "Failed to resend code");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!show) return null;
+  // ── render ─────────────────────────────────────────────────────────────────
 
   return (
     <>
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.9);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          padding: 20px;
-          animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .modal-content {
-          background: #0a0a0a;
-          border: 2px solid rgba(132, 204, 22, 0.3);
-          border-radius: 24px;
-          width: 100%;
-          max-width: 480px;
-          overflow: hidden;
-          animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-header {
-          padding: 24px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-          background: rgba(132, 204, 22, 0.05);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .modal-header-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .modal-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-        }
-
-        .modal-body {
-          padding: 32px 24px;
-        }
-
-        .input-group {
-          margin-bottom: 24px;
-        }
-
-        .input-label {
-          font-size: 13px;
-          font-weight: 600;
-          color: #a3a3a3;
-          margin-bottom: 8px;
-          display: block;
-        }
-
-        .phone-input-wrapper {
-          display: flex;
-          gap: 12px;
-        }
-
-        .country-code-select {
-          width: 100px;
-          padding: 14px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(132, 204, 22, 0.3);
-          border-radius: 12px;
-          color: #fff;
-          font-size: 15px;
-          font-weight: 600;
-        }
-
-        .phone-input {
-          flex: 1;
-          padding: 14px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(132, 204, 22, 0.3);
-          border-radius: 12px;
-          color: #fff;
-          font-size: 15px;
-          font-weight: 600;
-        }
-
-        .phone-input:focus, .country-code-select:focus {
-          outline: none;
-          border-color: #84cc16;
-          background: rgba(132, 204, 22, 0.08);
-        }
-
-        .code-inputs {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-        }
-
-        .code-input {
-          width: 56px;
-          height: 64px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 2px solid rgba(132, 204, 22, 0.3);
-          border-radius: 12px;
-          color: #fff;
-          font-size: 24px;
-          font-weight: 700;
-          text-align: center;
-          transition: all 0.2s;
-        }
-
-        .code-input:focus {
-          outline: none;
-          border-color: #84cc16;
-          background: rgba(132, 204, 22, 0.08);
-          transform: scale(1.05);
-        }
-
-        .info-text {
-          text-align: center;
-          color: #a3a3a3;
-          font-size: 14px;
-          margin-bottom: 24px;
-          line-height: 1.6;
-        }
-
-        .highlight-phone {
-          color: #84cc16;
-          font-weight: 700;
-        }
-
-        .error-message {
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: 12px;
-          padding: 12px;
-          color: #ef4444;
-          font-size: 13px;
-          margin-bottom: 20px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .action-btn {
-          width: 100%;
-          padding: 16px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          border: none;
-          border-radius: 14px;
-          color: #000;
-          font-size: 16px;
-          font-weight: 700;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          transition: all 0.3s;
-        }
-
-        .action-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(132, 204, 22, 0.4);
-        }
-
-        .action-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .resend-btn {
-          width: 100%;
-          padding: 14px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(132, 204, 22, 0.3);
-          border-radius: 12px;
-          color: #84cc16;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-top: 16px;
-          transition: all 0.2s;
-        }
-
-        .resend-btn:hover:not(:disabled) {
-          background: rgba(132, 204, 22, 0.1);
-          border-color: #84cc16;
-        }
-
-        .resend-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .back-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-          color: #a3a3a3;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-bottom: 24px;
-          transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-          color: #84cc16;
-        }
-      `}</style>
-
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <div className="modal-header-left">
-              <div className="modal-icon">
-                {step === "verify" ? <Shield size={24} /> : <Phone size={24} />}
-              </div>
+      <style>{STYLES}</style>
+      <div className="pvm-overlay" onClick={onClose}>
+        <div className="pvm-card" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="pvm-header">
+            <div className="pvm-header-left">
+              <div className="pvm-icon">{current.icon}</div>
               <div>
-                <h2
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: "800",
-                    color: "#fff",
-                    margin: 0,
-                  }}
-                >
-                  {step === "verify"
-                    ? "Verify Phone Number"
-                    : "Add Phone Number"}
-                </h2>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#a3a3a3",
-                    margin: "4px 0 0 0",
-                  }}
-                >
-                  {step === "verify"
-                    ? "Enter the code we sent"
-                    : "Secure your account"}
-                </p>
+                <p className="pvm-title">{current.title}</p>
+                <p className="pvm-subtitle">{current.subtitle}</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#a3a3a3",
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              <X size={24} />
+            <button className="pvm-close" onClick={onClose}>
+              <X size={16} />
             </button>
           </div>
 
-          <div className="modal-body">
-            {step === "enter" && (
+          {/* Progress */}
+          <div className="pvm-steps">
+            {STEPS.map((s, i) => (
+              <React.Fragment key={s}>
+                <div
+                  className={`pvm-step-dot ${
+                    i < stepIndex ? "done" : i === stepIndex ? "active" : ""
+                  }`}
+                />
+                {i < STEPS.length - 1 && <div className="pvm-step-line" />}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Body */}
+          <div className="pvm-body">
+            {/* ── STEP 0: Security Gate ── */}
+            {step === "security" && (
               <>
-                <div className="info-text">
-                  Enter your phone number to receive a verification code
-                </div>
+                <p className="pvm-info-text">
+                  {isChanging ? (
+                    <>
+                      To <strong>change your phone number</strong>, confirm your
+                      identity first.
+                    </>
+                  ) : (
+                    <>
+                      To <strong>add a phone number</strong>, confirm your
+                      password to continue.
+                    </>
+                  )}
+                </p>
 
-                {error && <div className="error-message">⚠️ {error}</div>}
-
-                <div className="input-group">
-                  <label className="input-label">Phone Number</label>
-                  <div className="phone-input-wrapper">
-                    <select
-                      className="country-code-select"
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                    >
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+234">🇳🇬 +234</option>
-                      <option value="+254">🇰🇪 +254</option>
-                      <option value="+27">🇿🇦 +27</option>
-                      <option value="+91">🇮🇳 +91</option>
-                    </select>
-                    <input
-                      type="tel"
-                      className="phone-input"
-                      placeholder="(XXX) XXX-XXXX"
-                      value={phoneNumber}
-                      onChange={handlePhoneChange}
-                      maxLength={16}
-                    />
+                {securityError && (
+                  <div className="pvm-error">
+                    <AlertCircle size={16} />
+                    {securityError}
                   </div>
+                )}
+
+                <label className="pvm-label">Password</label>
+                <div className="pvm-input-wrap">
+                  <input
+                    type={showPw ? "text" : "password"}
+                    className="pvm-input"
+                    placeholder="Enter your current password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setSecurityError("");
+                    }}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && !has2FA && handleSecuritySubmit()
+                    }
+                    autoFocus
+                  />
+                  <span
+                    className="pvm-input-icon"
+                    onClick={() => setShowPw(!showPw)}
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </span>
                 </div>
+
+                {has2FA ? (
+                  <>
+                    <label className="pvm-label">Authenticator Code</label>
+                    <div className="pvm-input-wrap">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="pvm-input"
+                        placeholder="6-digit code from your authenticator app"
+                        value={twoFACode}
+                        maxLength={6}
+                        onChange={(e) => {
+                          setTwoFACode(e.target.value.replace(/\D/g, ""));
+                          setSecurityError("");
+                        }}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleSecuritySubmit()
+                        }
+                      />
+                      <span
+                        className="pvm-input-icon"
+                        style={{ cursor: "default" }}
+                      >
+                        <KeyRound size={16} />
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="pvm-optional-hint">
+                    <Shield size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>
+                      Enable two-factor authentication in Security settings for
+                      extra account protection.
+                    </span>
+                  </div>
+                )}
 
                 <button
-                  className="action-btn"
-                  onClick={handleSendCode}
-                  disabled={loading || !phoneNumber}
+                  className="pvm-btn pvm-btn-primary"
+                  onClick={handleSecuritySubmit}
+                  disabled={loading || !password}
                 >
                   {loading ? (
                     <>
                       <Loader
-                        size={20}
+                        size={18}
                         style={{ animation: "spin 1s linear infinite" }}
-                      />
-                      Sending Code...
+                      />{" "}
+                      Verifying...
                     </>
                   ) : (
                     <>
-                      <Phone size={20} />
-                      Send Verification Code
+                      <Lock size={18} /> Continue
                     </>
                   )}
                 </button>
               </>
             )}
 
-            {step === "verify" && (
+            {/* ── STEP 1: Enter Phone ── */}
+            {step === "phone" && (
               <>
-                {step !== "enter" && (
-                  <button className="back-btn" onClick={() => setStep("enter")}>
-                    <ArrowLeft size={16} />
-                    Change Number
-                  </button>
+                <button className="pvm-back" onClick={() => setStepIndex(0)}>
+                  <ArrowLeft size={14} /> Back
+                </button>
+
+                <p className="pvm-info-text">
+                  {isChanging ? (
+                    <>
+                      Enter the <strong>new phone number</strong> you want to
+                      use.
+                    </>
+                  ) : (
+                    <>
+                      Enter your phone number to receive a{" "}
+                      <strong>verification code</strong>.
+                    </>
+                  )}
+                </p>
+
+                {error && (
+                  <div className="pvm-error">
+                    <AlertCircle size={16} />
+                    {error}
+                  </div>
                 )}
 
-                <div className="info-text">
-                  We sent a 6-digit code to{" "}
-                  <span className="highlight-phone">
-                    {countryCode} {phoneNumber}
-                  </span>
-                </div>
-
-                {error && <div className="error-message">⚠️ {error}</div>}
-
-                <div className="input-group">
-                  <label
-                    className="input-label"
-                    style={{ textAlign: "center" }}
+                <label className="pvm-label">Phone Number</label>
+                <div className="pvm-phone-row">
+                  <select
+                    className="pvm-country"
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
                   >
-                    Enter Verification Code
-                  </label>
-                  <div className="code-inputs">
-                    {[0, 1, 2, 3, 4, 5].map((index) => (
-                      <input
-                        key={index}
-                        ref={(el) => (inputRefs.current[index] = el)}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="\d{1}"
-                        maxLength={1}
-                        className="code-input"
-                        value={verificationCode[index]}
-                        onChange={(e) =>
-                          handleCodeChange(index, e.target.value)
-                        }
-                        onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                        onPaste={index === 0 ? handleCodePaste : undefined}
-                        autoFocus={index === 0}
-                      />
-                    ))}
-                  </div>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+234">🇳🇬 +234</option>
+                    <option value="+254">🇰🇪 +254</option>
+                    <option value="+27">🇿🇦 +27</option>
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+33">🇫🇷 +33</option>
+                    <option value="+49">🇩🇪 +49</option>
+                    <option value="+86">🇨🇳 +86</option>
+                    <option value="+81">🇯🇵 +81</option>
+                  </select>
+                  <input
+                    type="tel"
+                    className="pvm-input"
+                    style={{ flex: 1, marginBottom: 0 }}
+                    placeholder="(XXX) XXX-XXXX"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      setPhoneNumber(formatPhone(e.target.value));
+                      setError("");
+                    }}
+                    maxLength={16}
+                    autoFocus
+                  />
                 </div>
 
                 <button
-                  className="action-btn"
-                  onClick={handleVerifyCode}
-                  disabled={loading || verificationCode.join("").length !== 6}
+                  className="pvm-btn pvm-btn-primary"
+                  style={{ marginTop: 8 }}
+                  onClick={handleSendCode}
+                  disabled={
+                    loading || phoneNumber.replace(/\D/g, "").length < 10
+                  }
                 >
                   {loading ? (
                     <>
                       <Loader
-                        size={20}
+                        size={18}
                         style={{ animation: "spin 1s linear infinite" }}
-                      />
+                      />{" "}
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Phone size={18} /> Send Verification Code
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+
+            {/* ── STEP 2: Enter OTP ── */}
+            {step === "verify" && (
+              <>
+                <button className="pvm-back" onClick={() => setStepIndex(1)}>
+                  <ArrowLeft size={14} /> Change Number
+                </button>
+
+                <p className="pvm-info-text">
+                  We sent a 6-digit code to{" "}
+                  <span className="accent">
+                    {countryCode} {phoneNumber}
+                  </span>
+                  .<br />
+                  The code expires in <strong>10 minutes</strong>.
+                </p>
+
+                {error && (
+                  <div className="pvm-error">
+                    <AlertCircle size={16} />
+                    {error}
+                  </div>
+                )}
+
+                <label
+                  className="pvm-label"
+                  style={{ textAlign: "center", display: "block" }}
+                >
+                  Verification Code
+                </label>
+                <div className="pvm-otp-row" onPaste={handleOtpPaste}>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <input
+                      key={i}
+                      ref={(el) => (inputRefs.current[i] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{1}"
+                      maxLength={1}
+                      className={`pvm-otp-input ${otp[i] ? "filled" : ""}`}
+                      value={otp[i]}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKey(i, e)}
+                      autoFocus={i === 0}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  className="pvm-btn pvm-btn-primary"
+                  onClick={handleVerify}
+                  disabled={loading || otp.join("").length !== 6}
+                >
+                  {loading ? (
+                    <>
+                      <Loader
+                        size={18}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />{" "}
                       Verifying...
                     </>
                   ) : (
                     <>
-                      <Check size={20} />
-                      Verify Phone Number
+                      <Check size={18} /> Verify Phone Number
                     </>
                   )}
                 </button>
 
                 <button
-                  className="resend-btn"
-                  onClick={handleResendCode}
+                  className="pvm-btn pvm-btn-ghost"
+                  onClick={handleResend}
                   disabled={countdown > 0 || loading}
                 >
-                  {countdown > 0
-                    ? `Resend Code in ${countdown}s`
-                    : "Resend Verification Code"}
+                  {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
                 </button>
               </>
             )}
@@ -619,6 +751,4 @@ const PhoneVerificationModal = ({
       </div>
     </>
   );
-};
-
-export default PhoneVerificationModal;
+}

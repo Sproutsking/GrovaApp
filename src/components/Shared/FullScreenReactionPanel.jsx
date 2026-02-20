@@ -1,8 +1,29 @@
+// src/components/Reactions/FullScreenReactionPanel.jsx
+// EP costs: Like=2 per action
 import React, { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import LikeModel from "../../models/LikeModel";
 import SaveModel from "../../models/SaveModel";
-import { useToast } from "../../contexts/ToastContext";
+import { supabase } from "../../services/config/supabase";
+
+const EP_COSTS = { like: 2, comment: 4, share: 10 };
+
+async function deductEP(userId, amount, reason) {
+  const { data } = await supabase.rpc("deduct_ep", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
+  });
+  return !!data;
+}
+
+async function awardEP(userId, amount, reason) {
+  await supabase.rpc("award_ep", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
+  });
+}
 
 const FullScreenReactionPanel = ({
   content,
@@ -13,119 +34,105 @@ const FullScreenReactionPanel = ({
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(content.likes || 0);
-  const [isLiking, setIsLiking] = useState(false);
-  const { showToast } = useToast();
+  const [epError, setEpError] = useState(null);
 
   useEffect(() => {
     if (currentUser?.id) {
-      checkLikedStatus();
-      checkSavedStatus();
+      LikeModel.checkIfLiked(content.type, content.id, currentUser.id).then(
+        setLiked,
+      );
+      SaveModel.checkIfSaved?.(content.type, content.id, currentUser.id)
+        .then(setSaved)
+        .catch(() => {});
     }
   }, [content.id, currentUser?.id]);
 
-  const checkLikedStatus = async () => {
-    const isLiked = await LikeModel.checkIfLiked(
-      content.type,
-      content.id,
-      currentUser.id,
-    );
-    setLiked(isLiked);
-  };
-
-  const checkSavedStatus = async () => {
-    const isSaved = await SaveModel.checkIfSaved(
-      content.type,
-      content.id,
-      currentUser.id,
-    );
-    setSaved(isSaved);
+  const showEpError = (msg) => {
+    setEpError(msg);
+    setTimeout(() => setEpError(null), 3000);
   };
 
   const handleLike = async (e) => {
     e.stopPropagation();
+    if (!currentUser?.id) return;
 
-    if (!currentUser?.id) {
-      showToast("warning", "Please login to like");
+    if (liked) {
+      setLiked(false);
+      setLikeCount((c) => Math.max(0, c - 1));
+      LikeModel.toggleLike(content.type, content.id, currentUser.id).catch(
+        () => {
+          setLiked(true);
+          setLikeCount((c) => c + 1);
+        },
+      );
       return;
     }
 
-    if (isLiking) return;
-
-    try {
-      setIsLiking(true);
-
-      const result = await LikeModel.toggleLike(
-        content.type,
-        content.id,
-        currentUser.id,
-      );
-
-      setLiked(result.liked);
-      setLikeCount(result.newCount);
-
-      if (result.liked) {
-        showToast("success", "Liked!", "+1 EP earned");
-      }
-    } catch (error) {
-      console.error("Like error:", error);
-      showToast("error", "Failed to like");
-    } finally {
-      setIsLiking(false);
+    const ok = await deductEP(
+      currentUser.id,
+      EP_COSTS.like,
+      `like_${content.type}`,
+    );
+    if (!ok) {
+      showEpError(`Need ${EP_COSTS.like} EP to like`);
+      return;
     }
-  };
 
-  const handleComment = (e) => {
-    e.stopPropagation();
-    if (onComment) {
-      onComment(content);
+    setLiked(true);
+    setLikeCount((c) => c + 1);
+    if (content.user_id && content.user_id !== currentUser.id) {
+      const net = EP_COSTS.like * 0.82;
+      awardEP(content.user_id, net, "received_like");
     }
-  };
-
-  const handleShare = (e) => {
-    e.stopPropagation();
-    if (onShare) {
-      onShare(content);
-    }
+    LikeModel.toggleLike(content.type, content.id, currentUser.id).catch(() => {
+      setLiked(false);
+      setLikeCount((c) => Math.max(0, c - 1));
+    });
   };
 
   const handleSave = async (e) => {
     e.stopPropagation();
-
-    if (!currentUser?.id) {
-      showToast("warning", "Please login to save");
-      return;
-    }
-
-    try {
-      const result = await SaveModel.saveContent(
-        content.type,
-        content.id,
-        currentUser.id,
-      );
-      setSaved(result.saved);
-
-      showToast("success", result.saved ? "Saved!" : "Removed from saved");
-    } catch (error) {
-      console.error("Save error:", error);
-      showToast("error", "Failed to save");
-    }
+    if (!currentUser?.id) return;
+    const wasSaved = saved;
+    setSaved(!saved);
+    SaveModel.saveContent(content.type, content.id, currentUser.id).catch(() =>
+      setSaved(wasSaved),
+    );
   };
 
-  const formatNumber = (num) => {
-    if (!num || num === 0) return "0";
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
+  const fmt = (n) => {
+    if (!n) return "0";
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+    if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+    return String(n);
   };
 
   return (
     <>
+      {epError && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 120,
+            right: 16,
+            background: "#18181b",
+            border: "1px solid rgba(239,68,68,.4)",
+            color: "#f87171",
+            padding: "8px 14px",
+            borderRadius: 10,
+            fontSize: 12,
+            fontWeight: 600,
+            zIndex: 9999,
+          }}
+        >
+          ⚡ {epError}
+        </div>
+      )}
       <div className="fullscreen-reactions">
         <div className="fs-action-wrapper">
           <button
             className={`fs-action-btn ${liked ? "active" : ""}`}
             onClick={handleLike}
-            disabled={isLiking}
           >
             <Heart
               size={24}
@@ -134,19 +141,25 @@ const FullScreenReactionPanel = ({
             />
           </button>
           {likeCount > 0 && (
-            <span className="action-count">{formatNumber(likeCount)}</span>
+            <span className="action-count">{fmt(likeCount)}</span>
           )}
+          <span className="action-ep">{EP_COSTS.like}EP</span>
         </div>
 
         <div className="fs-action-wrapper">
-          <button className="fs-action-btn" onClick={handleComment}>
+          <button
+            className="fs-action-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onComment?.(content);
+            }}
+          >
             <MessageCircle size={24} color="#ffffff" />
           </button>
           {content.comments_count > 0 && (
-            <span className="action-count">
-              {formatNumber(content.comments_count)}
-            </span>
+            <span className="action-count">{fmt(content.comments_count)}</span>
           )}
+          <span className="action-ep">{EP_COSTS.comment}EP</span>
         </div>
 
         <div className="fs-action-wrapper">
@@ -163,11 +176,17 @@ const FullScreenReactionPanel = ({
         </div>
 
         <div className="fs-action-wrapper">
-          <button className="fs-action-btn" onClick={handleShare}>
+          <button
+            className="fs-action-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare?.(content);
+            }}
+          >
             <Share2 size={24} color="#ffffff" />
           </button>
           {content.shares > 0 && (
-            <span className="action-count">{formatNumber(content.shares)}</span>
+            <span className="action-count">{fmt(content.shares)}</span>
           )}
         </div>
       </div>
@@ -176,74 +195,61 @@ const FullScreenReactionPanel = ({
         .fullscreen-reactions {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 16px;
         }
-
         .fs-action-wrapper {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 6px;
+          gap: 3px;
         }
-
         .fs-action-btn {
           background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: white;
-          width: 46px;
-          height: 46px;
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
         }
-
-        .fs-action-btn:hover {
-          background: rgba(0, 0, 0, 0.8);
-          transform: scale(1.05);
-        }
-
         .fs-action-btn:active {
-          transform: scale(0.95);
+          transform: scale(0.92);
+          background: rgba(0, 0, 0, 0.8);
         }
-
-        .fs-action-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
         .action-count {
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 700;
           color: white;
           text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
           line-height: 1;
         }
-
+        .action-ep {
+          font-size: 9px;
+          color: rgba(200, 245, 66, 0.7);
+          font-weight: 700;
+          line-height: 1;
+        }
         @media (max-width: 768px) {
           .fullscreen-reactions {
-            gap: 18px;
+            gap: 14px;
           }
-
-          .fs-action-wrapper {
-            gap: 5px;
-          }
-
           .fs-action-btn {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
           }
-
           .fs-action-btn svg {
-            width: 22px;
-            height: 22px;
+            width: 21px;
+            height: 21px;
           }
-
           .action-count {
-            font-size: 10px;
+            font-size: 9px;
           }
         }
       `}</style>

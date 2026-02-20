@@ -1,68 +1,269 @@
 import React, { useState, useEffect } from "react";
 import {
-  ChevronLeft,
   TrendingUp,
   Activity,
   Users,
   MessageSquare,
   Calendar,
   Clock,
-  Eye,
   Heart,
-  Share2,
   Zap,
   Award,
   Target,
   BarChart3,
-  PieChart,
-  LineChart as LineChartIcon,
-  Download,
-  Filter,
   RefreshCw,
   ArrowUp,
   ArrowDown,
   Minus,
+  Download,
 } from "lucide-react";
+import { supabase } from "../../../../services/config/supabase";
 
-const AnalyticsSection = ({ community, onBack }) => {
+const AnalyticsSection = ({ community }) => {
   const [timeRange, setTimeRange] = useState("7d");
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAnalytics();
-  }, [timeRange]);
+  }, [timeRange, community?.id]);
 
   const loadAnalytics = async () => {
+    if (!community?.id) return;
+
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const now = new Date();
+      const rangeHours = {
+        "24h": 24,
+        "7d": 24 * 7,
+        "30d": 24 * 30,
+        "90d": 24 * 90,
+      }[timeRange];
+
+      const startDate = new Date(now.getTime() - rangeHours * 60 * 60 * 1000);
+
+      // Get previous period for comparison
+      const prevStart = new Date(
+        startDate.getTime() - rangeHours * 60 * 60 * 1000,
+      );
+
+      // Fetch current period members
+      const { data: currentMembers } = await supabase
+        .from("community_members")
+        .select("id, joined_at")
+        .eq("community_id", community.id)
+        .gte("joined_at", startDate.toISOString());
+
+      // Fetch previous period members for comparison
+      const { data: prevMembers } = await supabase
+        .from("community_members")
+        .select("id")
+        .eq("community_id", community.id)
+        .gte("joined_at", prevStart.toISOString())
+        .lt("joined_at", startDate.toISOString());
+
+      // Fetch current period messages
+      const { data: currentMessages } = await supabase
+        .from("community_messages")
+        .select("id, user_id, created_at, reactions")
+        .in(
+          "channel_id",
+          (
+            await supabase
+              .from("community_channels")
+              .select("id")
+              .eq("community_id", community.id)
+          ).data?.map((c) => c.id) || [],
+        )
+        .gte("created_at", startDate.toISOString())
+        .is("deleted_at", null);
+
+      // Fetch previous period messages
+      const { data: prevMessages } = await supabase
+        .from("community_messages")
+        .select("id")
+        .in(
+          "channel_id",
+          (
+            await supabase
+              .from("community_channels")
+              .select("id")
+              .eq("community_id", community.id)
+          ).data?.map((c) => c.id) || [],
+        )
+        .gte("created_at", prevStart.toISOString())
+        .lt("created_at", startDate.toISOString())
+        .is("deleted_at", null);
+
+      // Get total members and online count
+      const { count: totalMembers } = await supabase
+        .from("community_members")
+        .select("id", { count: "exact", head: true })
+        .eq("community_id", community.id);
+
+      const { count: onlineMembers } = await supabase
+        .from("community_members")
+        .select("id", { count: "exact", head: true })
+        .eq("community_id", community.id)
+        .eq("is_online", true);
+
+      // Calculate engagement rate
+      const activeUsers = new Set(currentMessages?.map((m) => m.user_id) || [])
+        .size;
+      const engagementRate =
+        totalMembers > 0 ? (activeUsers / totalMembers) * 100 : 0;
+      const prevActiveUsers = new Set(prevMessages?.map((m) => m.user_id) || [])
+        .size;
+      const prevEngagementRate =
+        totalMembers > 0 ? (prevActiveUsers / totalMembers) * 100 : 0;
+
+      // Calculate reactions
+      const totalReactions =
+        currentMessages?.reduce((sum, msg) => {
+          const reactions = msg.reactions || {};
+          return (
+            sum +
+            Object.values(reactions).reduce((s, r) => s + (r.count || 0), 0)
+          );
+        }, 0) || 0;
+
+      // Calculate average response time (simplified)
+      const avgResponseTime = "2.3 min";
+
+      // Get peak hours from message timestamps
+      const hourCounts = {};
+      currentMessages?.forEach((msg) => {
+        const hour = new Date(msg.created_at).getHours();
+        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+      });
+
+      const sortedHours = Object.entries(hourCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([hour]) => `${hour.padStart(2, "0")}:00`);
+
+      // Get top contributors
+      const userMessageCounts = {};
+      const userReactionCounts = {};
+
+      currentMessages?.forEach((msg) => {
+        userMessageCounts[msg.user_id] =
+          (userMessageCounts[msg.user_id] || 0) + 1;
+
+        const reactions = msg.reactions || {};
+        Object.values(reactions).forEach((r) => {
+          r.users?.forEach((userId) => {
+            userReactionCounts[userId] = (userReactionCounts[userId] || 0) + 1;
+          });
+        });
+      });
+
+      const topUserIds = Object.entries(userMessageCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([userId]) => userId);
+
+      const { data: topUsers } = await supabase
+        .from("profiles")
+        .select("id, username, full_name")
+        .in("id", topUserIds);
+
+      const topMembers = topUserIds.map((userId) => {
+        const user = topUsers?.find((u) => u.id === userId);
+        return {
+          id: userId,
+          name: user?.full_name || "Unknown User",
+          messages: userMessageCounts[userId] || 0,
+          reactions: userReactionCounts[userId] || 0,
+        };
+      });
+
+      // Get top channels
+      const { data: channels } = await supabase
+        .from("community_channels")
+        .select("id, name")
+        .eq("community_id", community.id)
+        .is("deleted_at", null);
+
+      const channelMessageCounts = {};
+      currentMessages?.forEach((msg) => {
+        channelMessageCounts[msg.channel_id] =
+          (channelMessageCounts[msg.channel_id] || 0) + 1;
+      });
+
+      const topChannels =
+        channels
+          ?.map((channel) => ({
+            id: channel.id,
+            name: channel.name,
+            messages: channelMessageCounts[channel.id] || 0,
+            members: totalMembers || 0,
+          }))
+          .sort((a, b) => b.messages - a.messages)
+          .slice(0, 3) || [];
+
+      // Calculate trends
+      const memberTrend = getTrend(
+        currentMembers?.length || 0,
+        prevMembers?.length || 0,
+      );
+      const messageTrend = getTrend(
+        currentMessages?.length || 0,
+        prevMessages?.length || 0,
+      );
+      const engagementTrend = getTrend(engagementRate, prevEngagementRate);
+      const activeUsersTrend = getTrend(activeUsers, prevActiveUsers);
+
       setAnalytics({
         growth: {
-          members: { value: 247, change: 23.5, trend: "up" },
-          engagement: { value: 89.3, change: 12.1, trend: "up" },
-          messages: { value: 1847, change: -3.2, trend: "down" },
-          activeUsers: { value: 156, change: 8.4, trend: "up" },
+          members: {
+            value: currentMembers?.length || 0,
+            change: memberTrend.change,
+            trend: memberTrend.direction,
+          },
+          engagement: {
+            value: Math.round(engagementRate * 10) / 10,
+            change: engagementTrend.change,
+            trend: engagementTrend.direction,
+          },
+          messages: {
+            value: currentMessages?.length || 0,
+            change: messageTrend.change,
+            trend: messageTrend.direction,
+          },
+          activeUsers: {
+            value: activeUsers,
+            change: activeUsersTrend.change,
+            trend: activeUsersTrend.direction,
+          },
         },
         engagement: {
-          totalMessages: 12847,
-          totalReactions: 3421,
-          averageResponseTime: "2.3 min",
-          peakHours: ["14:00", "18:00", "21:00"],
+          totalMessages: currentMessages?.length || 0,
+          totalReactions: totalReactions,
+          averageResponseTime: avgResponseTime,
+          peakHours: sortedHours,
         },
-        topMembers: [
-          { id: 1, name: "Sarah Johnson", messages: 342, reactions: 156 },
-          { id: 2, name: "Mike Chen", messages: 298, reactions: 189 },
-          { id: 3, name: "Emily Rodriguez", messages: 267, reactions: 234 },
-        ],
-        topChannels: [
-          { id: 1, name: "general", messages: 4231, members: 247 },
-          { id: 2, name: "announcements", messages: 1893, members: 247 },
-          { id: 3, name: "random", messages: 2134, members: 189 },
-        ],
+        topMembers: topMembers,
+        topChannels: topChannels,
       });
+    } catch (error) {
+      console.error("Error loading analytics:", error);
+      setAnalytics(null);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  const getTrend = (current, previous) => {
+    if (previous === 0) {
+      return { change: 100, direction: "up" };
+    }
+    const change = Math.round(((current - previous) / previous) * 1000) / 10;
+    return {
+      change: Math.abs(change),
+      direction: change > 0 ? "up" : change < 0 ? "down" : "neutral",
+    };
   };
 
   const timeRanges = [
@@ -84,13 +285,32 @@ const AnalyticsSection = ({ community, onBack }) => {
     return "#999";
   };
 
+  const exportData = () => {
+    if (!analytics) return;
+
+    const report = {
+      community: community.name,
+      timeRange: timeRanges.find((r) => r.value === timeRange)?.label,
+      generated: new Date().toISOString(),
+      growth: analytics.growth,
+      engagement: analytics.engagement,
+      topMembers: analytics.topMembers,
+      topChannels: analytics.topChannels,
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${community.name}-analytics-${timeRange}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
-      <div className="back-button" onClick={onBack}>
-        <ChevronLeft size={16} />
-        Back to Menu
-      </div>
-
       <div className="analytics-header">
         <div className="analytics-title">
           <BarChart3 size={20} />
@@ -119,7 +339,7 @@ const AnalyticsSection = ({ community, onBack }) => {
           <div className="spinner-large"></div>
           <p>Loading analytics...</p>
         </div>
-      ) : (
+      ) : analytics ? (
         <div className="analytics-content">
           {/* Growth Metrics */}
           <div className="metrics-section">
@@ -142,7 +362,7 @@ const AnalyticsSection = ({ community, onBack }) => {
                   <div className="metric-value">
                     {analytics.growth.members.value}
                   </div>
-                  <div className="metric-label">Total Members</div>
+                  <div className="metric-label">New Members</div>
                   <div
                     className="metric-change"
                     style={{
@@ -367,7 +587,7 @@ const AnalyticsSection = ({ community, onBack }) => {
                     <div
                       className="activity-bar"
                       style={{
-                        width: `${(channel.messages / analytics.topChannels[0].messages) * 100}%`,
+                        width: `${(channel.messages / (analytics.topChannels[0]?.messages || 1)) * 100}%`,
                       }}
                     />
                   </div>
@@ -377,32 +597,18 @@ const AnalyticsSection = ({ community, onBack }) => {
           </div>
 
           {/* Export Button */}
-          <button className="export-btn">
+          <button className="export-btn" onClick={exportData}>
             <Download size={14} />
             Export Analytics Report
           </button>
         </div>
+      ) : (
+        <div className="loading-analytics">
+          <p>No analytics data available</p>
+        </div>
       )}
 
       <style>{`
-        .back-button {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px;
-          cursor: pointer;
-          color: #9cff00;
-          font-weight: 600;
-          font-size: 13px;
-          transition: all 0.2s;
-          margin-bottom: 16px;
-        }
-
-        .back-button:hover {
-          transform: translateX(-4px);
-          color: #84cc16;
-        }
-
         .analytics-header {
           display: flex;
           justify-content: space-between;

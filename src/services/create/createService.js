@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/create/createService.js - FIXED VIDEO ID EXTRACTION
+// src/services/create/createService.js
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -8,13 +8,87 @@ import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
 
 class CreateService {
-  // ==================== POST CREATION (WITH VIDEO SUPPORT) ====================
+  // ==================== POST CREATION ====================
 
   async createPost(postData, userId) {
     try {
       console.log("📝 Creating post...", postData);
-      const { content, images, videos, category } = postData;
+      const {
+        content,
+        images,
+        videos,
+        category,
+        isTextCard,
+        textCardMetadata,
+        cardCaption, // We receive it but won't use it yet
+      } = postData;
 
+      // ── TEXT CARD PATH ──────────────────────────────────────────────────────
+      // No canvas. No image upload. Pure DB record with design metadata.
+      if (isTextCard) {
+        if (!content || !content.trim()) {
+          throw new Error("Text card requires content");
+        }
+
+        console.log("🎨 Creating text card (no image upload)...");
+        console.log("🎨 Text card metadata:", textCardMetadata);
+
+        const postDataToInsert = {
+          user_id: userId,
+          content: content.trim(),
+          image_ids: [], // EMPTY — card is not an image
+          image_metadata: [],
+          video_ids: [],
+          video_metadata: [],
+          category: category || "General",
+          is_text_card: true,
+          text_card_metadata: {
+            gradient:
+              textCardMetadata?.gradient ||
+              "linear-gradient(135deg, #84cc16 0%, #65a30d 100%)",
+            textColor: textCardMetadata?.textColor || "#ffffff",
+            edgeStyle: textCardMetadata?.edgeStyle || "medium",
+            align: textCardMetadata?.align || "center",
+            fontSize: textCardMetadata?.fontSize ?? null, // null = Auto
+            cardHeight: textCardMetadata?.cardHeight || null, // User custom height
+          },
+          // ⚠️ COMMENTED OUT - Uncomment after adding card_caption column to database
+          // card_caption: cardCaption?.trim() || null,
+          likes: 0,
+          comments_count: 0,
+          shares: 0,
+          views: 0,
+        };
+
+        console.log(
+          "🎨 Inserting text card with metadata:",
+          postDataToInsert.text_card_metadata,
+        );
+
+        const { data, error } = await supabase
+          .from("posts")
+          .insert(postDataToInsert)
+          .select(
+            `*, profiles:user_id (full_name, username, avatar_id, verified)`,
+          )
+          .single();
+
+        if (error) {
+          console.error("❌ Text card insert error:", error);
+          throw error;
+        }
+
+        console.log("✅ Text card created successfully:", {
+          id: data.id,
+          is_text_card: data.is_text_card,
+          text_card_metadata: data.text_card_metadata,
+        });
+
+        cacheService.invalidate("posts");
+        return data;
+      }
+
+      // ── REGULAR POST PATH ───────────────────────────────────────────────────
       if (
         !content &&
         (!images || images.length === 0) &&
@@ -28,62 +102,40 @@ class CreateService {
       let videoIds = [];
       let videoMetadata = [];
 
-      // Upload images if provided
       if (images && images.length > 0) {
         console.log(`⬆️ Uploading ${images.length} images...`);
-
         const uploadResults = await uploadService.uploadImages(
           images,
           "grova/posts",
         );
-        console.log("✅ Image upload results:", uploadResults);
-
-        // CRITICAL: Use public_id OR id depending on what uploadService returns
-        imageIds = uploadResults.map((result) => result.public_id || result.id);
-        imageMetadata = uploadResults.map((result) => ({
-          id: result.public_id || result.id,
-          width: result.width,
-          height: result.height,
-          format: result.format,
-          bytes: result.bytes,
-          url: result.url || result.secure_url,
+        imageIds = uploadResults.map((r) => r.public_id || r.id);
+        imageMetadata = uploadResults.map((r) => ({
+          id: r.public_id || r.id,
+          width: r.width,
+          height: r.height,
+          format: r.format,
+          bytes: r.bytes,
+          url: r.url || r.secure_url,
         }));
       }
 
-      // Upload videos if provided
       if (videos && videos.length > 0) {
         console.log(`⬆️ Uploading ${videos.length} videos...`);
-
-        const videoUploadResults = await Promise.all(
-          videos.map((video) =>
-            uploadService.uploadVideo(video, "grova/posts"),
-          ),
+        const videoResults = await Promise.all(
+          videos.map((v) => uploadService.uploadVideo(v, "grova/posts")),
         );
-        console.log("✅ Video upload results:", videoUploadResults);
-
-        // CRITICAL FIX: Extract public_id (not just id)
-        videoIds = videoUploadResults.map((result) => {
-          const videoId = result.public_id || result.id;
-          console.log(`  📹 Extracted video ID: ${videoId}`);
-          return videoId;
-        });
-
-        videoMetadata = videoUploadResults.map((result) => ({
-          id: result.public_id || result.id,
-          width: result.width,
-          height: result.height,
-          duration: result.duration,
-          format: result.format,
-          bytes: result.bytes,
-          url: result.url || result.secure_url,
-          thumbnail_url: result.thumbnail_url || null,
+        videoIds = videoResults.map((r) => r.public_id || r.id);
+        videoMetadata = videoResults.map((r) => ({
+          id: r.public_id || r.id,
+          width: r.width,
+          height: r.height,
+          duration: r.duration,
+          format: r.format,
+          bytes: r.bytes,
+          url: r.url || r.secure_url,
+          thumbnail_url: r.thumbnail_url || null,
         }));
-
-        console.log("📊 Video IDs to save:", videoIds);
-        console.log("📊 Video metadata to save:", videoMetadata);
       }
-
-      console.log("💾 Inserting post to database...");
 
       const postDataToInsert = {
         user_id: userId,
@@ -93,34 +145,18 @@ class CreateService {
         video_ids: videoIds,
         video_metadata: videoMetadata,
         category: category || "General",
+        is_text_card: false,
         likes: 0,
         comments_count: 0,
         shares: 0,
         views: 0,
       };
 
-      console.log("📤 Sending to database:", {
-        user_id: userId,
-        content_length: content?.length || 0,
-        image_ids_count: imageIds.length,
-        video_ids_count: videoIds.length,
-        image_ids: imageIds,
-        video_ids: videoIds,
-      });
-
       const { data, error } = await supabase
         .from("posts")
         .insert(postDataToInsert)
         .select(
-          `
-          *,
-          profiles:user_id (
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
+          `*, profiles:user_id (full_name, username, avatar_id, verified)`,
         )
         .single();
 
@@ -129,14 +165,12 @@ class CreateService {
         throw error;
       }
 
-      console.log("✅ Post created successfully:", {
+      console.log("✅ Post created:", {
         id: data.id,
         image_ids: data.image_ids,
         video_ids: data.video_ids,
       });
-
       cacheService.invalidate("posts");
-
       return data;
     } catch (error) {
       console.error("❌ Create post error:", error);
@@ -150,25 +184,13 @@ class CreateService {
     try {
       console.log("🎬 Creating reel...");
       const { video, caption, music, category } = reelData;
-
-      if (!video) {
-        throw new Error("Video is required");
-      }
-
-      console.log("⬆️ Uploading video to Cloudinary...");
+      if (!video) throw new Error("Video is required");
 
       const videoResult = await uploadService.uploadVideo(
         video,
         "grova/reels",
         onProgress,
       );
-
-      console.log(
-        "✅ Video uploaded:",
-        videoResult.public_id || videoResult.id,
-      );
-
-      console.log("💾 Inserting reel to database...");
 
       const { data, error } = await supabase
         .from("reels")
@@ -195,15 +217,7 @@ class CreateService {
           views: 0,
         })
         .select(
-          `
-          *,
-          profiles:user_id (
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
+          `*, profiles:user_id (full_name, username, avatar_id, verified)`,
         )
         .single();
 
@@ -213,8 +227,7 @@ class CreateService {
       }
 
       cacheService.invalidate("reels");
-      console.log("✅ Reel created successfully:", data.id);
-
+      console.log("✅ Reel created:", data.id);
       return data;
     } catch (error) {
       console.error("❌ Create reel error:", error);
@@ -237,28 +250,21 @@ class CreateService {
         maxAccesses,
       } = storyData;
 
-      if (!title || title.trim().length < 3) {
+      if (!title || title.trim().length < 3)
         throw new Error("Title must be at least 3 characters");
-      }
-
-      if (!preview || preview.trim().length < 10) {
+      if (!preview || preview.trim().length < 10)
         throw new Error("Preview must be at least 10 characters");
-      }
-
-      if (!fullContent || fullContent.trim().length === 0) {
+      if (!fullContent || !fullContent.trim().length)
         throw new Error("Story content is required");
-      }
 
       let coverImageId = null;
       let coverImageMetadata = null;
 
       if (coverImage) {
-        console.log("⬆️ Uploading cover image...");
         const imageResult = await uploadService.uploadImage(
           coverImage,
           "grova/stories",
         );
-
         coverImageId = imageResult.public_id || imageResult.id;
         coverImageMetadata = {
           width: imageResult.width,
@@ -267,10 +273,7 @@ class CreateService {
           bytes: imageResult.bytes,
           url: imageResult.url || imageResult.secure_url,
         };
-        console.log("✅ Cover uploaded:", coverImageId);
       }
-
-      console.log("💾 Inserting story to database...");
 
       const { data, error } = await supabase
         .from("stories")
@@ -290,15 +293,7 @@ class CreateService {
           views: 0,
         })
         .select(
-          `
-          *,
-          profiles:user_id (
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
+          `*, profiles:user_id (full_name, username, avatar_id, verified)`,
         )
         .single();
 
@@ -308,8 +303,7 @@ class CreateService {
       }
 
       cacheService.invalidate("stories");
-      console.log("✅ Story created successfully:", data.id);
-
+      console.log("✅ Story created:", data.id);
       return data;
     } catch (error) {
       console.error("❌ Create story error:", error);
@@ -319,5 +313,4 @@ class CreateService {
 }
 
 const createService = new CreateService();
-
 export default createService;

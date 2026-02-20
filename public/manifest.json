@@ -1,14 +1,14 @@
 {
-  "name": "Grova - On-Chain Social Protocol",
-  "short_name": "Grova",
-  "description": "The future of blockchain-powered social media",
+  "name": "Xeevia - Own Your Social",
+  "short_name": "Xeevia",
+  "description": "Own your content. Build your network. Earn engagement.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#84cc16",
   "orientation": "portrait-primary",
   "scope": "/",
-  "categories": ["social", "blockchain", "entertainment"],
+  "categories": ["social", "entertainment"],
   "prefer_related_applications": false,
   "icons": [
     {

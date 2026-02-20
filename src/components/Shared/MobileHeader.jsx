@@ -1,4 +1,3 @@
-// components/Header/MobileHeader.jsx - WITH MESSAGE TOAST
 import React, { useState, useEffect, useRef } from "react";
 import {
   Bell,
@@ -7,13 +6,11 @@ import {
   TrendingUp,
   MessageCircle,
 } from "lucide-react";
-import notificationService from "../../services/notifications/notificationService";
+import { supabase } from "../../services/config/supabase";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
-import messageNotificationService from "../../services/messages/MessageNotificationService";
 import MobileTrendingModal from "./MobileTrendingModal";
 import DMMessagesView from "../Messages/DMMessagesView";
-import { useToast } from "../../contexts/ToastContext";
 
 const MobileHeader = ({
   getGreeting,
@@ -37,7 +34,7 @@ const MobileHeader = ({
   const timerRef = useRef(null);
   const cycleRef = useRef(null);
   const typeIntervalRef = useRef(null);
-  const toast = useToast();
+  const notificationChannelRef = useRef(null);
 
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
@@ -58,44 +55,63 @@ const MobileHeader = ({
   useEffect(() => {
     if (userId) {
       onlineStatusService.start(userId);
-
-      // Initialize message notifications
-      messageNotificationService.init(userId, toast.showToast);
-
-      loadNotificationCount();
+      loadUnreadCount();
+      subscribeToNotifications();
 
       const unsubConv = conversationState.subscribe(() => {
-        const count = conversationState.getTotalUnreadCount();
-        setUnreadMessages(count);
+        setUnreadMessages(conversationState.getTotalUnreadCount());
       });
 
       setUnreadMessages(conversationState.getTotalUnreadCount());
 
-      const interval = setInterval(() => {
-        loadNotificationCount();
-      }, 5000);
-
       return () => {
-        clearInterval(interval);
         unsubConv();
-        messageNotificationService.cleanup();
+        if (notificationChannelRef.current) {
+          supabase.removeChannel(notificationChannelRef.current);
+          notificationChannelRef.current = null;
+        }
       };
     }
-  }, [userId, toast]);
+  }, [userId]);
 
-  const loadNotificationCount = async () => {
+  const loadUnreadCount = async () => {
     if (!userId) return;
+
     try {
-      const count = await notificationService.getUnreadCount(userId);
-      setUnreadCount(count);
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("recipient_user_id", userId)
+        .eq("is_read", false);
+
+      if (!error) {
+        setUnreadCount(count || 0);
+      }
     } catch (error) {
-      console.error("Failed to load notification count:", error);
+      console.error("Failed to load unread count:", error);
     }
   };
 
-  const handleNotificationClick = () => {
-    onNotificationClick();
-    setTimeout(loadNotificationCount, 500);
+  const subscribeToNotifications = () => {
+    if (!userId || notificationChannelRef.current) return;
+
+    const channel = supabase
+      .channel(`notification-count-mobile:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${userId}`,
+        },
+        () => {
+          loadUnreadCount();
+        },
+      )
+      .subscribe();
+
+    notificationChannelRef.current = channel;
   };
 
   const handleMessagesClick = () => {
@@ -434,7 +450,7 @@ const MobileHeader = ({
 
             <button
               className="mobile-action-btn notification"
-              onClick={handleNotificationClick}
+              onClick={onNotificationClick}
               aria-label="Notifications"
             >
               <Bell size={18} />

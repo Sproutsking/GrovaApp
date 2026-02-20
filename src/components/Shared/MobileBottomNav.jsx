@@ -61,7 +61,8 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
       </button>
     </div>
 
-    <style jsx>{`
+    {/* FIX: NO "jsx" prop on style — that was causing the console error on every render */}
+    <style>{`
       .mobile-bottom-nav {
         position: fixed;
         bottom: 0;
@@ -72,7 +73,6 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         border-top: 1px solid rgba(132, 204, 22, 0.15);
         padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
       }
-
       .mobile-nav-content {
         display: flex;
         align-items: center;
@@ -82,7 +82,6 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         padding: 0 8px;
         gap: 2px;
       }
-
       .mobile-nav-btn {
         display: flex;
         flex-direction: column;
@@ -100,24 +99,13 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         min-width: 0;
         position: relative;
       }
-
-      .mobile-nav-btn:active {
-        transform: scale(0.95);
-      }
-
+      .mobile-nav-btn:active { transform: scale(0.95); }
       .mobile-nav-btn-active {
         color: #84cc16;
-        background: linear-gradient(
-          135deg,
-          rgba(132, 204, 22, 0.15) 0%,
-          rgba(132, 204, 22, 0.08) 100%
-        );
-        box-shadow:
-          0 0 20px rgba(132, 204, 22, 0.3),
-          inset 0 1px 1px rgba(132, 204, 22, 0.2);
-        border: 1px solid rgba(132, 204, 22, 0.3);
+        background: linear-gradient(135deg, rgba(132,204,22,0.15) 0%, rgba(132,204,22,0.08) 100%);
+        box-shadow: 0 0 20px rgba(132,204,22,0.3), inset 0 1px 1px rgba(132,204,22,0.2);
+        border: 1px solid rgba(132,204,22,0.3);
       }
-
       .mobile-nav-btn-active::before {
         content: "";
         position: absolute;
@@ -128,9 +116,8 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         height: 2px;
         background: linear-gradient(90deg, transparent, #84cc16, transparent);
         border-radius: 0 0 2px 2px;
-        box-shadow: 0 0 8px rgba(132, 204, 22, 0.6);
+        box-shadow: 0 0 8px rgba(132,204,22,0.6);
       }
-
       .mobile-nav-label {
         font-size: 10px;
         font-weight: 600;
@@ -140,34 +127,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         max-width: 100%;
         transition: all 0.3s;
       }
-
-      .mobile-nav-btn-active .mobile-nav-label {
-        text-shadow: 0 0 8px rgba(132, 204, 22, 0.5);
-      }
-
-      @media (max-width: 400px) {
-        .mobile-nav-label,
-        .mobile-nav-label-create {
-          display: none;
-        }
-
-        .mobile-nav-btn,
-        .mobile-nav-btn-active {
-          padding: 10px;
-          border-radius: 12px;
-        }
-
-        .mobile-nav-btn-create {
-          padding: 12px;
-          border-radius: 14px;
-          transform: translateY(-6px);
-        }
-
-        .mobile-nav-btn-create:active {
-          transform: translateY(-4px) scale(0.95);
-        }
-      }
-
+      .mobile-nav-btn-active .mobile-nav-label { text-shadow: 0 0 8px rgba(132,204,22,0.5); }
       .mobile-nav-btn-create {
         display: flex;
         flex-direction: column;
@@ -181,22 +141,18 @@ const MobileBottomNav = ({ activeTab, setActiveTab }) => (
         color: #000;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow:
-          0 4px 20px rgba(132, 204, 22, 0.4),
-          0 0 30px rgba(132, 204, 22, 0.2);
+        box-shadow: 0 4px 20px rgba(132,204,22,0.4), 0 0 30px rgba(132,204,22,0.2);
         transform: translateY(-4px);
         flex: 1;
         min-width: 0;
       }
-
-      .mobile-nav-btn-create:active {
-        transform: translateY(-2px) scale(0.95);
-        box-shadow: 0 2px 12px rgba(132, 204, 22, 0.4);
-      }
-
-      .mobile-nav-label-create {
-        font-size: 10px;
-        font-weight: 700;
+      .mobile-nav-btn-create:active { transform: translateY(-2px) scale(0.95); }
+      .mobile-nav-label-create { font-size: 10px; font-weight: 700; }
+      @media (max-width: 400px) {
+        .mobile-nav-label, .mobile-nav-label-create { display: none; }
+        .mobile-nav-btn, .mobile-nav-btn-active { padding: 10px; border-radius: 12px; }
+        .mobile-nav-btn-create { padding: 12px; border-radius: 14px; transform: translateY(-6px); }
+        .mobile-nav-btn-create:active { transform: translateY(-4px) scale(0.95); }
       }
     `}</style>
   </nav>

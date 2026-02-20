@@ -1,35 +1,41 @@
 // src/components/wallet/tabs/SendTab.jsx
-import React, { useState } from 'react';
-import { X, Send, Coins, Eye, ArrowBigLeft } from 'lucide-react';
+import React, { useState } from "react";
+import { X, Send, Coins, Eye, ArrowBigLeft } from "lucide-react";
 
 const SendTab = ({ setActiveTab }) => {
   const [sendType, setSendType] = useState(null);
-  const [sendForm, setSendForm] = useState({ address: '', amount: '' });
+  const [sendForm, setSendForm] = useState({ address: "", amount: "" });
   const userBalance = { tokens: 1250, points: 3420 };
   const rates = { GTtoNGN: 2.5, EPtoNGN: 1 }; // Assuming EP rate for display
 
   const handleSend = () => {
-    console.log('Sending:', sendForm, 'Type:', sendType);
+    console.log("Sending:", sendForm, "Type:", sendType);
   };
 
   if (!sendType) {
     return (
       <>
         <div className="view-header">
-          <button onClick={() => setActiveTab('overview')} className="back-btn">
-            <ArrowBigLeft size={20} />
-          </button>
           <div>
             <h2 className="view-title">Send</h2>
             <p className="view-subtitle">Choose what to send</p>
           </div>
+          <button onClick={() => setActiveTab("overview")} className="back-btn">
+            <ArrowBigLeft size={20} />
+          </button>
         </div>
         <div className="send-options">
-          <button className="send-option-btn" onClick={() => setSendType('tokens')}>
+          <button
+            className="send-option-btn"
+            onClick={() => setSendType("tokens")}
+          >
             <Coins size={18} />
             Send (GT)
           </button>
-          <button className="send-option-btn" onClick={() => setSendType('points')} style={{ marginTop: '12px' }}>
+          <button
+            className="send-option-btn"
+            onClick={() => setSendType("points")}
+          >
             <Eye size={18} />
             Send (EP)
           </button>
@@ -38,9 +44,10 @@ const SendTab = ({ setActiveTab }) => {
     );
   }
 
-  const balance = sendType === 'tokens' ? userBalance.tokens : userBalance.points;
-  const currency = sendType === 'tokens' ? 'GT' : 'EP';
-  const rate = sendType === 'tokens' ? rates.GTtoNGN : rates.EPtoNGN;
+  const balance =
+    sendType === "tokens" ? userBalance.tokens : userBalance.points;
+  const currency = sendType === "tokens" ? "GT" : "EP";
+  const rate = sendType === "tokens" ? rates.GTtoNGN : rates.EPtoNGN;
   const converted = (parseFloat(sendForm.amount) || 0) * rate;
 
   return (
@@ -62,7 +69,9 @@ const SendTab = ({ setActiveTab }) => {
             className="form-input"
             placeholder="0x1234...abcd"
             value={sendForm.address}
-            onChange={(e) => setSendForm({ ...sendForm, address: e.target.value })}
+            onChange={(e) =>
+              setSendForm({ ...sendForm, address: e.target.value })
+            }
           />
         </div>
         <div className="form-group">
@@ -73,7 +82,9 @@ const SendTab = ({ setActiveTab }) => {
               className="form-input"
               placeholder="0.00"
               value={sendForm.amount}
-              onChange={(e) => setSendForm({ ...sendForm, amount: e.target.value })}
+              onChange={(e) =>
+                setSendForm({ ...sendForm, amount: e.target.value })
+              }
             />
             <span className="input-suffix">{currency}</span>
           </div>
@@ -89,7 +100,9 @@ const SendTab = ({ setActiveTab }) => {
         <h4 className="summary-title">Transaction Summary</h4>
         <div className="summary-row">
           <span>Amount</span>
-          <strong>{sendForm.amount || '0.00'} {currency}</strong>
+          <strong>
+            {sendForm.amount || "0.00"} {currency}
+          </strong>
         </div>
         <div className="summary-row">
           <span>Network Fee</span>
@@ -98,11 +111,17 @@ const SendTab = ({ setActiveTab }) => {
         <div className="summary-divider"></div>
         <div className="summary-row total">
           <span>Total</span>
-          <strong>{(parseFloat(sendForm.amount) + 0.002 || 0.002).toFixed(3)} {currency}</strong>
+          <strong>
+            {(parseFloat(sendForm.amount) + 0.002 || 0.002).toFixed(3)}{" "}
+            {currency}
+          </strong>
         </div>
         <div className="summary-row">
           <span>Converted Total</span>
-          <strong>≈ ₦{((parseFloat(sendForm.amount) + 0.002) * rate).toLocaleString()} NGN</strong>
+          <strong>
+            ≈ ₦{((parseFloat(sendForm.amount) + 0.002) * rate).toLocaleString()}{" "}
+            NGN
+          </strong>
         </div>
       </div>
       <button

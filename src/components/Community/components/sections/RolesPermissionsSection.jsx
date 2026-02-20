@@ -1,28 +1,17 @@
 import React, { useState } from "react";
 import {
   Crown,
-  ChevronLeft,
   Plus,
   Save,
   ChevronRight,
   Shield,
-  Lock,
   MessageSquare,
-  Image as ImageIcon,
-  Link2,
-  Smile,
-  AtSign,
   Hash,
-  Mic,
   Users,
-  UserX,
-  Ban,
-  Edit,
-  Trash2,
-  Pin,
-  Clock,
-  Eye,
   Settings as SettingsIcon,
+  Lock,
+  Edit,
+  Check,
 } from "lucide-react";
 
 const RolesPermissionsSection = ({
@@ -33,7 +22,6 @@ const RolesPermissionsSection = ({
   canManageRoles,
   onUpdateRole,
   onCreateRole,
-  onBack,
 }) => {
   const [roleTab, setRoleTab] = useState("display");
   const [roleDisplay, setRoleDisplay] = useState({
@@ -328,20 +316,6 @@ const RolesPermissionsSection = ({
 
   return (
     <>
-      <div
-        className="back-button"
-        onClick={() => {
-          if (selectedRole) {
-            setSelectedRole(null);
-          } else {
-            onBack();
-          }
-        }}
-      >
-        <ChevronLeft size={16} />
-        Back
-      </div>
-
       {!selectedRole ? (
         <>
           {/* Roles List View */}
@@ -703,24 +677,6 @@ const RolesPermissionsSection = ({
       )}
 
       <style>{`
-        .back-button {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px;
-          cursor: pointer;
-          color: #9cff00;
-          font-weight: 600;
-          font-size: 13px;
-          transition: all 0.2s;
-          margin-bottom: 16px;
-        }
-
-        .back-button:hover {
-          transform: translateX(-4px);
-          color: #84cc16;
-        }
-
         .section-header {
           display: flex;
           justify-content: space-between;

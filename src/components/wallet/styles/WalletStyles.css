@@ -200,13 +200,16 @@
 
 /* Quick Actions */
 .quick-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 32px;
+  justify-content: center;
 }
 
 .quick-action-btn {
+  width: calc(100% / 4 - 12px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -378,6 +381,7 @@
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
+  justify-content: space-between;
 }
 
 .back-btn {
@@ -496,14 +500,21 @@
   outline: none;
 }
 .send-options {
+  gap: 10px;
   width: 100%;
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .send-option-btn {
+  margin-top: 40px;
+  padding: 16px 22px;
+  color: #ffffff;
+  border-radius: 12px;
   background: black;
-  border: 1px solid #84cc16;
+  border: 1px solid #83cc169c;
 }
 /* ====================================
    TRANSACTION SUMMARY
@@ -916,7 +927,9 @@
   .wallet-header {
     padding: 12px;
     margin-bottom: 0px;
-    border-radius: 0px 0px 15px 15px;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    background: linear-gradient(90deg, black, #64a30d4b, black);
   }
 
   .quick-actions {
@@ -951,7 +964,7 @@
   }
 
   .balance-showcase {
-    border-radius: 0px 0px 15px 15px;
+    border-radius: 15px;
     padding: 20px;
   }
 
@@ -996,10 +1009,6 @@
   .balance-amount {
     font-size: 32px;
   }
-
-  .quick-actions {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
 }
 /* Responsive */
 @media (max-width: 640px) {
@@ -1020,10 +1029,6 @@
   .balance-amount {
     font-size: 32px;
   }
-
-  .quick-actions {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
 }
 
 .button-icon {
@@ -1032,6 +1037,6 @@
   /* box-shadow: 0 0 2px #65a30d; */
   /* border: 1px solid #65a30d; */
   border-radius: 15px;
-  background: rgba(255, 255, 255, 0.082);
+  background: rgba(0, 0, 0, 0.753);
   border: 1px solid #444444;
 }

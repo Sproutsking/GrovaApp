@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Eye,
   Lock,
+  Wand2,
+  Type,
 } from "lucide-react";
 import createService from "../../services/create/createService";
 import authService from "../../services/auth/authService";
@@ -23,32 +25,57 @@ import securityService from "../../services/security/SecurityService";
 import draftsService from "../../services/drafts/draftsService";
 import MediaUploader from "../MediaUploader/MediaUploader";
 import Drafts from "../Drafts/Drafts";
+import CustomCardMaker from "../MediaUploader/CustomCardMaker";
+import TemplateLibrary from "../MediaUploader/TemplateLibrary";
+import TextToolbar from "../TextToolbar/TextToolbar";
+import ColoredTextEditor from "../TextToolbar/ColoredTextEditor";
 
-const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
+const CreateStudio = ({ onPublishSuccess, onClose }) => {
   const [activeTab, setActiveTab] = useState("post");
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState(null);
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
+
+  // ── CARD DESIGNER STATE ──────────────────────────────────────────────────────
+  const [customCardColor1, setCustomCardColor1] = useState("#84cc16");
+  const [customCardColor2, setCustomCardColor2] = useState("#65a30d");
+  const [customTextColor, setCustomTextColor] = useState("#ffffff");
+  const [gradientAngle, setGradientAngle] = useState(135);
+  const [textAlign, setTextAlign] = useState("center");
+  const [cardFontSize, setCardFontSize] = useState(null);
 
   const autoSaveTimer = useRef(null);
 
+  // ── TEXTAREA REFS FOR TOOLBAR ───────────────────────────────────────────────
+  const postCaptionRef = useRef(null);
+  const postContentRef = useRef(null);
+  const reelCaptionRef = useRef(null);
+  const storyPreviewRef = useRef(null);
+  const storyContentRef = useRef(null);
+
+  // ── POST STATE ───────────────────────────────────────────────────────────────
   const [postContent, setPostContent] = useState("");
+  const [postCaption, setPostCaption] = useState("");
   const [postMedia, setPostMedia] = useState([]);
   const [postCategory, setPostCategory] = useState("General");
+  const [useTextCard, setUseTextCard] = useState(false);
 
+  // ── REEL STATE ───────────────────────────────────────────────────────────────
   const [reelCaption, setReelCaption] = useState("");
   const [reelMedia, setReelMedia] = useState(null);
-  const [reelMusic, setReelMusic] = useState("");
   const [reelCategory, setReelCategory] = useState("Entertainment");
 
+  // ── STORY STATE ──────────────────────────────────────────────────────────────
   const [storyTitle, setStoryTitle] = useState("");
   const [storyCategory, setStoryCategory] = useState("Folklore");
   const [storyContent, setStoryContent] = useState("");
@@ -60,6 +87,7 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
   const [titleColor, setTitleColor] = useState("#ffffff");
   const [textColor, setTextColor] = useState("#d4d4d4");
 
+  // ── CATEGORIES ───────────────────────────────────────────────────────────────
   const postCategories = [
     "General",
     "Technology",
@@ -186,6 +214,7 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     { name: "Light Orange", value: "#fdba74" },
   ];
 
+  // ── LIFECYCLE ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     loadUser();
     return () => {
@@ -195,7 +224,8 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
 
   useEffect(() => {
     const hasContent =
-      (activeTab === "post" && (postContent.trim() || postMedia.length > 0)) ||
+      (activeTab === "post" &&
+        (postContent.trim() || postCaption.trim() || postMedia.length > 0)) ||
       (activeTab === "reel" && (reelCaption.trim() || reelMedia)) ||
       (activeTab === "story" &&
         (storyTitle.trim() || storyPreview.trim() || storyContent.trim()));
@@ -211,6 +241,7 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
   }, [
     activeTab,
     postContent,
+    postCaption,
     postMedia,
     reelCaption,
     reelMedia,
@@ -218,7 +249,6 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     storyPreview,
     storyContent,
     postCategory,
-    reelMusic,
     reelCategory,
     storyCategory,
     unlockPrice,
@@ -242,25 +272,19 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     }
   };
 
+  // ── AUTO SAVE ─────────────────────────────────────────────────────────────────
   const handleAutoSave = async () => {
     if (!hasUnsavedChanges || !currentUser) return;
-
     try {
       setAutoSaving(true);
-
-      const draftData = {
-        contentType: activeTab,
-        title: getDraftTitle(),
-      };
-
+      const draftData = { contentType: activeTab, title: getDraftTitle() };
       if (currentDraftId) draftData.draftId = currentDraftId;
 
       if (activeTab === "post") {
-        draftData.content = postContent;
+        draftData.content = useTextCard ? postContent : postCaption;
         draftData.category = postCategory;
       } else if (activeTab === "reel") {
         draftData.caption = reelCaption;
-        draftData.music = reelMusic;
         draftData.category = reelCategory;
       } else if (activeTab === "story") {
         draftData.storyTitle = storyTitle;
@@ -287,22 +311,12 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
   };
 
   const handleManualSave = async () => {
-    if (!hasUnsavedChanges) {
-      showToast?.("info", "Nothing to save", "No changes detected");
-      return;
-    }
-
-    if (!currentUser) {
-      showToast?.("error", "Not logged in", "Please log in to save drafts");
-      return;
-    }
-
+    if (!hasUnsavedChanges || !currentUser) return;
     try {
       setAutoSaving(true);
       await handleAutoSave();
-      showToast?.("success", "Draft saved! ✅", "Your work is safe");
     } catch (err) {
-      showToast?.("error", "Save failed", "Could not save draft");
+      console.error("Save failed");
     } finally {
       setAutoSaving(false);
     }
@@ -312,12 +326,17 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     if (activeTab === "story" && storyTitle) return storyTitle;
     if (activeTab === "reel" && reelCaption)
       return reelCaption.substring(0, 50) || "Untitled Reel";
-    if (activeTab === "post" && postContent)
-      return postContent.substring(0, 50) || "Untitled Post";
+    if (activeTab === "post" && (postContent || postCaption))
+      return (
+        (useTextCard ? postContent : postCaption).substring(0, 50) ||
+        "Untitled Post"
+      );
     return `Untitled ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`;
   };
 
+  // ── MEDIA HANDLERS ────────────────────────────────────────────────────────────
   const handlePostMediaReady = (mediaData) => setPostMedia(mediaData.items);
+
   const handleReelMediaReady = (mediaData) => {
     if (mediaData.type === "video") {
       setReelMedia({
@@ -330,15 +349,19 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     }
   };
 
+  // ── CLEAR FORM ────────────────────────────────────────────────────────────────
   const clearForm = () => {
     if (activeTab === "post") {
       setPostContent("");
+      setPostCaption("");
       setPostMedia([]);
       setPostCategory("General");
+      setUseTextCard(false);
+      setTextAlign("center");
+      setCardFontSize(null);
     } else if (activeTab === "reel") {
       setReelCaption("");
       setReelMedia(null);
-      setReelMusic("");
       setReelCategory("Entertainment");
     } else if (activeTab === "story") {
       setStoryTitle("");
@@ -371,43 +394,104 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
     }
   };
 
+  // ── TEXT CARD INPUT HANDLER ───────────────────────────────────────────────────
+  const handlePostContentChange = (e) => {
+    const value = e.target.value;
+    if (useTextCard) {
+      const wordCount = value
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 0).length;
+      if (wordCount > 40) return;
+    }
+    setPostContent(value);
+  };
+
+  // ── PREVIEW FONT SIZE ────────────────────────────────────────────────────────
+  const getPreviewFontSize = () => {
+    if (cardFontSize !== null) return cardFontSize;
+    const chars = postContent.trim().length;
+    const words = postContent.trim().split(/\s+/).filter(Boolean).length;
+    if (words <= 2 && chars <= 10) return 56;
+    if (words <= 3 && chars <= 22) return 42;
+    if (words <= 6 && chars <= 40) return 32;
+    if (words <= 10 && chars <= 65) return 26;
+    if (chars <= 100) return 21;
+    if (chars <= 160) return 18;
+    return 15;
+  };
+
+  // ── PUBLISH: POST ─────────────────────────────────────────────────────────────
   const handlePublishPost = async () => {
     try {
       setLoading(true);
       if (securityService?.updateActivity) securityService.updateActivity();
       if (!currentUser || !userProfile)
         throw new Error("Please complete your profile setup");
-      if (!postContent.trim() && postMedia.length === 0)
-        throw new Error("Post must have content or media");
 
-      const images = postMedia
-        .filter((m) => m.type === "image")
-        .map((m) => m.file);
-      const videos = postMedia
-        .filter((m) => m.type === "video")
-        .map((m) => m.file);
+      if (useTextCard) {
+        if (!postContent.trim()) throw new Error("Text card requires content");
 
-      const newPost = await createService.createPost(
-        { content: postContent.trim(), images, videos, category: postCategory },
-        currentUser.id,
-      );
-      if (currentDraftId)
-        await draftsService.deleteDraft(currentDraftId, currentUser.id);
-      clearForm();
-      showToast?.("success", "Post published! 🎉", "Your post is now live");
-      if (onPublishSuccess) onPublishSuccess(newPost, "post");
+        const postData = {
+          content: postContent.trim(),
+          images: [],
+          videos: [],
+          category: postCategory,
+          isTextCard: true,
+          textCardMetadata: {
+            gradient: `linear-gradient(${gradientAngle}deg, ${customCardColor1} 0%, ${customCardColor2} 100%)`,
+            textColor: customTextColor,
+            edgeStyle: "medium",
+            align: textAlign,
+            fontSize: cardFontSize,
+          },
+          cardCaption: postCaption.trim() || null,
+        };
+
+        const newPost = await createService.createPost(
+          postData,
+          currentUser.id,
+        );
+        if (currentDraftId)
+          await draftsService.deleteDraft(currentDraftId, currentUser.id);
+        clearForm();
+        if (onPublishSuccess) onPublishSuccess(newPost, "post");
+      } else {
+        if (!postCaption.trim() && postMedia.length === 0)
+          throw new Error("Post must have caption or media");
+
+        const imagesToUpload = postMedia
+          .filter((m) => m.type === "image")
+          .map((m) => m.file);
+        const videosToUpload = postMedia
+          .filter((m) => m.type === "video")
+          .map((m) => m.file);
+
+        const postData = {
+          content: postCaption.trim() || null,
+          images: imagesToUpload,
+          videos: videosToUpload,
+          category: postCategory,
+          isTextCard: false,
+        };
+
+        const newPost = await createService.createPost(
+          postData,
+          currentUser.id,
+        );
+        if (currentDraftId)
+          await draftsService.deleteDraft(currentDraftId, currentUser.id);
+        clearForm();
+        if (onPublishSuccess) onPublishSuccess(newPost, "post");
+      }
     } catch (err) {
       console.error("Failed to publish post:", err);
-      showToast?.(
-        "error",
-        "Publishing failed",
-        err.message || "Failed to publish post",
-      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ── PUBLISH: REEL ─────────────────────────────────────────────────────────────
   const handlePublishReel = async () => {
     try {
       setLoading(true);
@@ -430,30 +514,26 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
         {
           video: videoToUpload,
           caption: reelCaption.trim(),
-          music: reelMusic.trim() || "Original Audio",
+          music: "Original Audio",
           category: reelCategory,
         },
         currentUser.id,
         (progress) => setUploadProgress(progress),
       );
+
       if (currentDraftId)
         await draftsService.deleteDraft(currentDraftId, currentUser.id);
       clearForm();
       setUploadProgress(0);
-      showToast?.("success", "Reel published! 🎬", "Your reel is now live");
       if (onPublishSuccess) onPublishSuccess(newReel, "reel");
     } catch (err) {
       console.error("Failed to publish reel:", err);
-      showToast?.(
-        "error",
-        "Publishing failed",
-        err.message || "Failed to publish reel",
-      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ── PUBLISH: STORY ────────────────────────────────────────────────────────────
   const handlePublishStory = async () => {
     try {
       setLoading(true);
@@ -468,8 +548,6 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
         throw new Error("Story preview must be between 10 and 500 characters");
       if (!storyContent.trim()) throw new Error("Story content is required");
 
-      const finalMaxAccesses = isUnlimitedAccess ? 999999 : maxAccesses;
-
       const newStory = await createService.createStory(
         {
           title: storyTitle.trim(),
@@ -478,54 +556,28 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
           coverImage: storyCover,
           category: storyCategory,
           unlockCost: unlockPrice,
-          maxAccesses: finalMaxAccesses,
+          maxAccesses: isUnlimitedAccess ? 999999 : maxAccesses,
           titleColor,
           textColor,
         },
         currentUser.id,
       );
+
       if (currentDraftId)
         await draftsService.deleteDraft(currentDraftId, currentUser.id);
       clearForm();
-
-      const potentialEarnings =
-        unlockPrice === 0
-          ? "Free Story"
-          : isUnlimitedAccess
-            ? "Unlimited earnings!"
-            : `${(unlockPrice * finalMaxAccesses).toLocaleString()} GT`;
-      showToast?.(
-        "success",
-        "Story published! 💰",
-        `Potential: ${potentialEarnings}`,
-      );
       if (onPublishSuccess) onPublishSuccess(newStory, "story");
     } catch (err) {
       console.error("Failed to publish story:", err);
-      showToast?.(
-        "error",
-        "Publishing failed",
-        err.message || "Failed to publish story",
-      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ── MISC ──────────────────────────────────────────────────────────────────────
   const handleCoverUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showToast?.(
-          "warning",
-          "Cover too large",
-          "Cover image must be less than 5MB",
-        );
-        return;
-      }
-      setStoryCover(file);
-      showToast?.("info", "Cover image selected", file.name);
-    }
+    if (file && file.size <= 5 * 1024 * 1024) setStoryCover(file);
   };
 
   const handleSaveDraft = async () => {
@@ -533,14 +585,12 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
       setAutoSaving(true);
       await handleAutoSave();
       setShowExitDialog(false);
-      showToast?.("success", "Draft saved", "Your work has been saved");
       if (pendingNavigation) {
         pendingNavigation();
         setPendingNavigation(null);
       }
     } catch (err) {
       console.error("Failed to save draft:", err);
-      showToast?.("error", "Save failed", "Could not save draft");
     } finally {
       setAutoSaving(false);
     }
@@ -565,13 +615,11 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
   const handleLoadDraft = (draft) => {
     setActiveTab(draft.content_type);
     setCurrentDraftId(draft.id);
-
     if (draft.content_type === "post") {
       setPostContent(draft.post_content || "");
       setPostCategory(draft.post_category || "General");
     } else if (draft.content_type === "reel") {
       setReelCaption(draft.reel_caption || "");
-      setReelMusic(draft.reel_music || "");
       setReelCategory(draft.reel_category || "Entertainment");
     } else if (draft.content_type === "story") {
       setStoryTitle(draft.story_title || "");
@@ -584,27 +632,29 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
       setTitleColor(draft.story_title_color || "#ffffff");
       setTextColor(draft.story_text_color || "#d4d4d4");
     }
-
     setShowDrafts(false);
     setHasUnsavedChanges(true);
     setLastSaved(new Date(draft.updated_at));
-    showToast?.("success", "Draft loaded", "Continue editing your content");
   };
 
   const formatLastSaved = () => {
     if (!lastSaved) return null;
-    const now = new Date();
-    const diffMs = now - lastSaved;
-    const diffMins = Math.floor(diffMs / 60000);
+    const diffMins = Math.floor((new Date() - lastSaved) / 60000);
     if (diffMins < 1) return "Saved just now";
     if (diffMins === 1) return "Saved 1 minute ago";
     if (diffMins < 60) return `Saved ${diffMins} minutes ago`;
     return `Saved at ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   };
 
+  // ── DERIVED ───────────────────────────────────────────────────────────────────
+  const cardGradient = `linear-gradient(${gradientAngle}deg, ${customCardColor1} 0%, ${customCardColor2} 100%)`;
+  const previewFontPx = getPreviewFontSize();
+
+  // ── RENDER ────────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="create-studio-wrapper">
+        {/* ── HEADER ── */}
         <div className="studio-header">
           <h1 className="studio-title">Creator Studio</h1>
           <p className="studio-subtitle">
@@ -616,7 +666,6 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
               className="save-draft-btn"
               onClick={handleManualSave}
               disabled={!hasUnsavedChanges || autoSaving}
-              title="Save as draft"
             >
               {autoSaving ? (
                 <>
@@ -631,13 +680,17 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
               )}
             </button>
 
-            <button
-              className="drafts-btn"
-              onClick={() => setShowDrafts(true)}
-              title="View drafts"
-            >
+            <button className="drafts-btn" onClick={() => setShowDrafts(true)}>
               <FileText size={18} />
               <span>My Drafts</span>
+            </button>
+
+            <button
+              className="drafts-btn"
+              onClick={() => setShowTemplates(true)}
+            >
+              <Sparkles size={18} />
+              <span>Templates</span>
             </button>
           </div>
 
@@ -649,18 +702,20 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
           )}
         </div>
 
+        {/* ── UPLOAD PROGRESS ── */}
         {uploadProgress > 0 && uploadProgress < 100 && (
           <div className="upload-progress-bar">
             <div
               className="upload-progress-fill"
               style={{ width: `${uploadProgress}%` }}
-            ></div>
+            />
             <span className="upload-progress-text">
               {Math.round(uploadProgress)}%
             </span>
           </div>
         )}
 
+        {/* ── TABS ── */}
         <div className="content-tabs">
           <button
             className={`content-tab ${activeTab === "post" ? "active" : ""}`}
@@ -682,36 +737,210 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
           </button>
         </div>
 
+        {/* ══════════════════════════════════════════════════════════════════════
+            POST TAB
+            ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === "post" && (
           <div className="create-form">
+            {/* Post type toggle */}
             <div className="form-group">
               <label className="form-label">
-                <Sparkles size={16} />
-                What's on your mind?
+                <Wand2 size={16} />
+                Post Type
               </label>
-              <textarea
-                className="form-textarea"
-                placeholder="Share your thoughts, ideas, or moments..."
-                value={postContent}
-                onChange={(e) => setPostContent(e.target.value)}
-                rows={5}
-                disabled={loading}
-              />
+              <div className="post-type-toggle">
+                <button
+                  className={`toggle-btn ${!useTextCard ? "active" : ""}`}
+                  onClick={() => {
+                    setUseTextCard(false);
+                    setPostContent("");
+                  }}
+                  disabled={loading}
+                >
+                  Regular Post
+                </button>
+                <button
+                  className={`toggle-btn ${useTextCard ? "active" : ""}`}
+                  onClick={() => {
+                    setUseTextCard(true);
+                    setPostContent("");
+                  }}
+                  disabled={loading}
+                >
+                  Text Card
+                </button>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                <Image size={16} />
-                Media (Images & Videos)
-              </label>
-              <MediaUploader
-                onMediaReady={handlePostMediaReady}
-                maxItems={10}
-                allowMixed={true}
-                defaultType="mixed"
-                showToast={showToast}
-              />
-            </div>
+            {/* ── TEXT CARD FIELDS ── */}
+            {useTextCard && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">
+                    <Palette size={16} />
+                    Card Designer
+                  </label>
+                  <button
+                    className="custom-card-trigger"
+                    onClick={() => setShowCustomColorPicker(true)}
+                    disabled={loading}
+                  >
+                    <Wand2 size={20} />
+                    <span>Open Card Designer</span>
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <div
+                    className="text-card-preview-studio"
+                    style={{ background: cardGradient }}
+                  >
+                    <p
+                      style={{
+                        fontSize: `${previewFontPx}px`,
+                        textAlign,
+                        color: customTextColor,
+                        fontWeight: 800,
+                        lineHeight: 1.2,
+                        letterSpacing: "-0.02em",
+                        margin: 0,
+                        wordBreak: "break-word",
+                        textShadow: "0 2px 12px rgba(0,0,0,0.3)",
+                        transition: "font-size 0.2s ease",
+                      }}
+                    >
+                      {postContent || "Your text here..."}
+                    </p>
+                  </div>
+                  {cardFontSize !== null && (
+                    <div
+                      style={{
+                        textAlign: "right",
+                        fontSize: "11px",
+                        color: "#555",
+                        marginTop: "4px",
+                      }}
+                    >
+                      Font locked at {cardFontSize}px ·{" "}
+                      <button
+                        onClick={() => setCardFontSize(null)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#84cc16",
+                          fontSize: "11px",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        Reset to Auto
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    <Type size={16} />
+                    Card Text (max 40 words)
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <textarea
+                      ref={postContentRef}
+                      className="form-textarea"
+                      placeholder="Enter text for your card..."
+                      value={postContent}
+                      onChange={handlePostContentChange}
+                      rows={3}
+                      disabled={loading}
+                    />
+                    <TextToolbar
+                      textareaRef={postContentRef}
+                      onInsert={setPostContent}
+                    />
+                  </div>
+                  <div className="word-count">
+                    {
+                      postContent
+                        .trim()
+                        .split(/\s+/)
+                        .filter((w) => w.length > 0).length
+                    }
+                    /40 words
+                    {postContent
+                      .trim()
+                      .split(/\s+/)
+                      .filter((w) => w.length > 0).length === 40 && (
+                      <span style={{ color: "#ef4444", marginLeft: "8px" }}>
+                        Max reached
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    <Sparkles size={16} />
+                    Caption (Optional)
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <textarea
+                      ref={postCaptionRef}
+                      className="form-textarea"
+                      placeholder="Add an optional caption..."
+                      value={postCaption}
+                      onChange={(e) => setPostCaption(e.target.value)}
+                      rows={3}
+                      disabled={loading}
+                    />
+                    <TextToolbar
+                      textareaRef={postCaptionRef}
+                      onInsert={setPostCaption}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── REGULAR POST FIELDS ── */}
+            {!useTextCard && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">
+                    <Sparkles size={16} />
+                    Caption
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <textarea
+                      ref={postCaptionRef}
+                      className="form-textarea"
+                      placeholder="Share your thoughts, ideas, or moments..."
+                      value={postCaption}
+                      onChange={(e) => setPostCaption(e.target.value)}
+                      rows={5}
+                      disabled={loading}
+                    />
+                    <TextToolbar
+                      textareaRef={postCaptionRef}
+                      onInsert={setPostCaption}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    <Image size={16} />
+                    Media (Images & Videos)
+                  </label>
+                  <MediaUploader
+                    onMediaReady={handlePostMediaReady}
+                    maxItems={10}
+                    allowMixed={true}
+                    defaultType="mixed"
+                  />
+                </div>
+              </>
+            )}
 
             <div className="form-group">
               <label className="form-label">
@@ -738,7 +967,10 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                 onClick={handlePublishPost}
                 disabled={
                   loading ||
-                  (!postContent.trim() && postMedia.length === 0) ||
+                  (!useTextCard &&
+                    !postCaption.trim() &&
+                    postMedia.length === 0) ||
+                  (useTextCard && !postContent.trim()) ||
                   !currentUser
                 }
               >
@@ -754,6 +986,9 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════════════════════════════
+            REEL TAB
+            ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === "reel" && (
           <div className="create-form">
             <div className="form-group">
@@ -766,7 +1001,6 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                 maxItems={10}
                 allowMixed={true}
                 defaultType="video"
-                showToast={showToast}
               />
             </div>
 
@@ -775,26 +1009,21 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                 <Sparkles size={16} />
                 Caption
               </label>
-              <textarea
-                className="form-textarea"
-                placeholder="Write a catchy caption for your reel..."
-                value={reelCaption}
-                onChange={(e) => setReelCaption(e.target.value)}
-                rows={3}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Music Track (Optional)</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Add music name or sound (e.g., 'Original Audio')"
-                value={reelMusic}
-                onChange={(e) => setReelMusic(e.target.value)}
-                disabled={loading}
-              />
+              <div style={{ position: "relative" }}>
+                <textarea
+                  ref={reelCaptionRef}
+                  className="form-textarea"
+                  placeholder="Write a catchy caption for your reel..."
+                  value={reelCaption}
+                  onChange={(e) => setReelCaption(e.target.value)}
+                  rows={3}
+                  disabled={loading}
+                />
+                <TextToolbar
+                  textareaRef={reelCaptionRef}
+                  onInsert={setReelCaption}
+                />
+              </div>
             </div>
 
             <div className="form-group">
@@ -834,6 +1063,9 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════════════════════════════
+            STORY TAB
+            ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === "story" && (
           <div className="create-form">
             <div className="form-group">
@@ -904,29 +1136,28 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                 <div className="color-picker-group">
                   <label className="color-label">Title Color</label>
                   <div className="color-options">
-                    {titleColors.map((color) => (
+                    {titleColors.map((c) => (
                       <button
-                        key={color.value}
-                        className={`color-btn ${titleColor === color.value ? "active" : ""}`}
-                        style={{ background: color.value }}
-                        onClick={() => setTitleColor(color.value)}
-                        title={color.name}
+                        key={c.value}
+                        className={`color-btn ${titleColor === c.value ? "active" : ""}`}
+                        style={{ background: c.value }}
+                        onClick={() => setTitleColor(c.value)}
+                        title={c.name}
                         disabled={loading}
                       />
                     ))}
                   </div>
                 </div>
-
                 <div className="color-picker-group">
                   <label className="color-label">Text Color</label>
                   <div className="color-options">
-                    {textColors.map((color) => (
+                    {textColors.map((c) => (
                       <button
-                        key={color.value}
-                        className={`color-btn ${textColor === color.value ? "active" : ""}`}
-                        style={{ background: color.value }}
-                        onClick={() => setTextColor(color.value)}
-                        title={color.name}
+                        key={c.value}
+                        className={`color-btn ${textColor === c.value ? "active" : ""}`}
+                        style={{ background: c.value }}
+                        onClick={() => setTextColor(c.value)}
+                        title={c.name}
                         disabled={loading}
                       />
                     ))}
@@ -940,15 +1171,22 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                 <Eye size={16} />
                 Story Preview (Free)
               </label>
-              <textarea
-                className="form-textarea"
-                placeholder="Write a preview to hook readers (10-500 characters)..."
-                value={storyPreview}
-                onChange={(e) => setStoryPreview(e.target.value)}
-                rows={3}
-                disabled={loading}
-                maxLength={500}
-              />
+              <div style={{ position: "relative" }}>
+                <textarea
+                  ref={storyPreviewRef}
+                  className="form-textarea"
+                  placeholder="Write a preview to hook readers (10-500 characters)..."
+                  value={storyPreview}
+                  onChange={(e) => setStoryPreview(e.target.value)}
+                  rows={3}
+                  disabled={loading}
+                  maxLength={500}
+                />
+                <TextToolbar
+                  textareaRef={storyPreviewRef}
+                  onInsert={setStoryPreview}
+                />
+              </div>
               <div className="char-count">{storyPreview.length}/500</div>
             </div>
 
@@ -957,14 +1195,21 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                 <Lock size={16} />
                 Full Story Content (Locked)
               </label>
-              <textarea
-                className="form-textarea"
-                placeholder="Write your full story here..."
-                value={storyContent}
-                onChange={(e) => setStoryContent(e.target.value)}
-                rows={10}
-                disabled={loading}
-              />
+              <div style={{ position: "relative" }}>
+                <textarea
+                  ref={storyContentRef}
+                  className="form-textarea"
+                  placeholder="Write your full story here..."
+                  value={storyContent}
+                  onChange={(e) => setStoryContent(e.target.value)}
+                  rows={10}
+                  disabled={loading}
+                />
+                <TextToolbar
+                  textareaRef={storyContentRef}
+                  onInsert={setStoryContent}
+                />
+              </div>
             </div>
 
             <div className="monetization-section">
@@ -1028,14 +1273,12 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
                       <Plus size={16} />
                     </button>
                   </div>
-
                   <button
                     className={`unlimited-btn ${isUnlimitedAccess ? "active" : ""}`}
                     onClick={() => setIsUnlimitedAccess(!isUnlimitedAccess)}
                     disabled={loading}
                   >
-                    <Infinity size={18} />
-                    Unlimited
+                    <Infinity size={18} /> Unlimited
                   </button>
                 </div>
               </div>
@@ -1083,11 +1326,48 @@ const CreateStudio = ({ onPublishSuccess, showToast, onClose }) => {
         )}
       </div>
 
+      {/* ── MODALS ── */}
       {showDrafts && (
         <Drafts
           onLoadDraft={handleLoadDraft}
           onClose={() => setShowDrafts(false)}
-          showToast={showToast}
+        />
+      )}
+
+      {showTemplates && (
+        <TemplateLibrary
+          onClose={() => setShowTemplates(false)}
+          onSelectTemplate={(template) => {
+            console.log("Selected template:", template);
+            setShowTemplates(false);
+          }}
+          currentUser={currentUser}
+        />
+      )}
+
+      {showCustomColorPicker && (
+        <CustomCardMaker
+          onApply={(config) => {
+            setCustomCardColor1(config.color1);
+            setCustomCardColor2(config.color2);
+            setCustomTextColor(config.textColor);
+            setGradientAngle(config.angle);
+            setTextAlign(config.align);
+            setCardFontSize(config.fontSize);
+            if (config.cardText) setPostContent(config.cardText);
+            setShowCustomColorPicker(false);
+          }}
+          onClose={() => setShowCustomColorPicker(false)}
+          initialValues={{
+            angle: gradientAngle,
+            color1: customCardColor1,
+            color2: customCardColor2,
+            textColor: customTextColor,
+            cardText: postContent,
+            align: textAlign,
+            fontSize: cardFontSize,
+          }}
+          onTextChange={setPostContent}
         />
       )}
 
