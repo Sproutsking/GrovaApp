@@ -1,28 +1,26 @@
 // ============================================================================
-// src/services/config/supabase.js — FINAL
+// src/services/config/supabase.js — v2 STORAGE FALLBACK
 //
-// CRITICAL FOR PKCE / GOOGLE OAUTH:
+// PROBLEM: If localStorage is blocked (browser privacy settings, incognito,
+// or certain mobile browsers), the PKCE code verifier AND the session token
+// are never persisted. The session exists only in memory during that page load.
+// When the edge function is called, getSession() returns the in-memory session,
+// but Supabase validates it against the stored token — if they don't match or
+// the token can't be verified, you get "Invalid JWT".
 //
-//   The PKCE flow stores a "code verifier" BEFORE redirecting to Google.
-//   Google then redirects back to /auth/callback on a NEW page load.
-//   The code verifier MUST survive that page load — it must be in localStorage.
+// FIX: Storage adapter with fallback chain:
+//   1. localStorage (preferred — survives page reload, works for PKCE)
+//   2. sessionStorage (survives tab session, not page reload)
+//   3. in-memory Map (last resort — works for the current tab only)
 //
-//   If storage is sessionStorage (or a custom adapter that uses it), the
-//   verifier is GONE when the callback page loads → navigator.locks aborts
-//   because there's nothing to exchange → "signal is aborted without reason".
-//
-// RULES:
-//   1. storage: must use localStorage (not sessionStorage)
-//   2. storageKey: custom key avoids conflicts with other Supabase projects
-//   3. flowType: 'pkce' — required for OAuth + email OTP
-//   4. detectSessionInUrl: true — lets Supabase auto-detect the ?code= param
-//   5. ONE singleton instance — multiple createClient() calls = multiple
-//      competing lock managers = guaranteed abort errors
+// The in-memory fallback means: user stays logged in during the session,
+// payment works, but they'll need to log in again after closing the tab.
+// That's acceptable. A broken payment flow is not.
 // ============================================================================
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_URL  = process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_ANON = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON) {
@@ -31,39 +29,79 @@ if (!SUPABASE_URL || !SUPABASE_ANON) {
   );
 }
 
-// ── localStorage adapter ──────────────────────────────────────────────────────
-// Explicit localStorage adapter ensures the code verifier survives
-// the OAuth redirect (page unload → page load cycle).
-// sessionStorage would lose it. This is the #1 cause of PKCE failures.
-const localStorageAdapter = {
+// ── Storage adapter with fallback chain ───────────────────────────────────────
+const memoryStore = new Map();
+
+function tryLocalStorage() {
+  try {
+    localStorage.setItem("__xv_test__", "1");
+    localStorage.removeItem("__xv_test__");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function trySessionStorage() {
+  try {
+    sessionStorage.setItem("__xv_test__", "1");
+    sessionStorage.removeItem("__xv_test__");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const hasLocalStorage   = tryLocalStorage();
+const hasSessionStorage = trySessionStorage();
+
+if (!hasLocalStorage) {
+  console.warn(
+    "[Supabase] localStorage unavailable — falling back to " +
+    (hasSessionStorage ? "sessionStorage" : "in-memory storage") +
+    ". Sessions will not persist across page reloads.",
+  );
+}
+
+const storageAdapter = {
   getItem: (key) => {
     try {
-      return localStorage.getItem(key);
+      if (hasLocalStorage)   return localStorage.getItem(key);
+      if (hasSessionStorage) return sessionStorage.getItem(key);
+      return memoryStore.get(key) ?? null;
     } catch {
-      return null;
+      return memoryStore.get(key) ?? null;
     }
   },
   setItem: (key, val) => {
     try {
-      localStorage.setItem(key, val);
-    } catch {}
+      if (hasLocalStorage)   { localStorage.setItem(key, val);   return; }
+      if (hasSessionStorage) { sessionStorage.setItem(key, val); return; }
+      memoryStore.set(key, val);
+    } catch {
+      memoryStore.set(key, val);
+    }
   },
   removeItem: (key) => {
     try {
-      localStorage.removeItem(key);
-    } catch {}
+      if (hasLocalStorage)   { localStorage.removeItem(key);   return; }
+      if (hasSessionStorage) { sessionStorage.removeItem(key); return; }
+      memoryStore.delete(key);
+    } catch {
+      memoryStore.delete(key);
+    }
   },
 };
 
 // ── Singleton client ──────────────────────────────────────────────────────────
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
-    storage: localStorageAdapter, // MUST be localStorage for PKCE
-    storageKey: "xeevia-auth-token", // custom key, no conflicts
-    flowType: "pkce", // required for OAuth + OTP
+    storage:          storageAdapter,
+    storageKey:       "xeevia-auth-token",
+    flowType:         "pkce",
     autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true, // auto-detects ?code= on callback page
+    persistSession:   true,
+    detectSessionInUrl: true,
   },
 });
 

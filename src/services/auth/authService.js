@@ -1,49 +1,120 @@
 // ============================================================================
-// src/services/auth/authService.js  —  v8
+// src/services/auth/authService.js — v11 FORTRESS FINAL
 // ============================================================================
 //
-// PROVIDERS SUPPORTED:
-//   • Google   — OAuth 2.0 PKCE via Supabase  (provider key: "google")
-//   • X        — OAuth 2.0 PKCE via Supabase  (provider key: "x")
-//   • TikTok   — OAuth 2.0 PKCE via Supabase  (provider key: "tiktok")
-//   • Discord  — OAuth 2.0 PKCE via Supabase  (provider key: "discord")
-//   • Email    — 6-digit OTP via signInWithOtp
+// ARCHITECTURE CONTRACT:
+//   • ONLY file that calls supabase.auth.* outside AuthContext.
+//   • Components get auth state ONLY via useAuth() from AuthContext.
+//   • ensureFreshSession() NEVER throws. NEVER signs user out.
+//   • All OAuth providers use PKCE flow.
+//   • getAuthHeaders() always ensures fresh token before returning.
 //
-// SUPABASE DASHBOARD SETUP FOR NEW PROVIDERS:
+// USAGE PATTERN — before ANY sensitive DB call:
+//   await authService.ensureFreshSession();
+//   const { data } = await supabase.from("payments")...
 //
-//   TIKTOK:
-//     developers.tiktok.com → App → Login Kit
-//     Redirect URI: https://rxtijxlvacqjiocdwzrh.supabase.co/auth/v1/callback
-//     In Supabase: Auth → Providers → TikTok → enable, paste Client Key + Secret
-//
-//   DISCORD:
-//     discord.com/developers/applications → OAuth2 → Redirects
-//     Add: https://rxtijxlvacqjiocdwzrh.supabase.co/auth/v1/callback
-//     In Supabase: Auth → Providers → Discord → enable, paste Client ID + Secret
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 
 class AuthService {
-  // ── Session ────────────────────────────────────────────────────────────────
+  constructor() {
+    this._refreshPromise = null; // Deduplicate concurrent refreshes
+  }
+
+  // ── Session management ────────────────────────────────────────────────────
 
   async getSession() {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       return session ?? null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   async getCurrentUser() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       return user ?? null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
-  // ── Social OAuth ───────────────────────────────────────────────────────────
+  /**
+   * ensureFreshSession — guarantees a valid, non-expired JWT before DB ops.
+   *
+   * Strategy:
+   *   1. Get current session.
+   *   2. If token expires within 2 minutes, refresh proactively.
+   *      Only ONE refresh in-flight at a time (deduped via _refreshPromise).
+   *   3. Return fresh or existing session.
+   *   4. On ANY error: return current session or null. NEVER sign out.
+   *
+   * Safe to call before every payment, wallet, admin, or sensitive DB op.
+   */
+  async ensureFreshSession() {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return null;
+
+      const nowSecs = Math.floor(Date.now() / 1000);
+      const secsLeft = (session.expires_at ?? 0) - nowSecs;
+      const BUFFER = 120; // 2 minutes
+
+      if (secsLeft < BUFFER) {
+        if (!this._refreshPromise) {
+          this._refreshPromise = supabase.auth
+            .refreshSession()
+            .then(({ data: { session: fresh }, error }) => {
+              this._refreshPromise = null;
+              if (!error && fresh) return fresh;
+              return session; // Fallback to current
+            })
+            .catch(() => {
+              this._refreshPromise = null;
+              return session; // Never fail
+            });
+        }
+        return await this._refreshPromise;
+      }
+
+      return session;
+    } catch (e) {
+      console.warn("[authService] ensureFreshSession:", e?.message);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        return session ?? null;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  /**
+   * getAuthHeaders — returns Authorization header for direct API calls.
+   * Always ensures a fresh token first.
+   */
+  async getAuthHeaders() {
+    const session = await this.ensureFreshSession();
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+
+  // ── Social OAuth ──────────────────────────────────────────────────────────
+
   async signInOAuth(provider) {
-    if (!["google", "x", "tiktok", "discord"].includes(provider)) {
+    const supported = ["google", "x", "facebook", "discord"];
+    if (!supported.includes(provider)) {
       throw new Error(`Unsupported provider: ${provider}`);
     }
 
@@ -58,80 +129,57 @@ class AuthService {
           prompt: "select_account",
         };
         break;
-
       case "x":
-        // IMPORTANT: "x" is the correct key for X/Twitter OAuth 2.0 in Supabase JS v2.
-        // "twitter" maps to the DEPRECATED OAuth 1.0a — do NOT use it.
-        // Supabase dashboard: enable "X / Twitter (OAuth 2.0)", NOT "Twitter (Deprecated)"
         options.scopes = "tweet.read users.read";
         break;
-
-      case "tiktok":
-        // Supabase dashboard: Auth → Providers → TikTok
-        // TikTok developer portal: developers.tiktok.com
-        // Redirect URI: https://rxtijxlvacqjiocdwzrh.supabase.co/auth/v1/callback
-        options.scopes = "user.info.basic";
+      case "facebook":
+        options.scopes = "email public_profile";
         break;
-
       case "discord":
-        // Supabase dashboard: Auth → Providers → Discord
-        // Discord developer portal: discord.com/developers/applications
-        // OAuth2 Redirect: https://rxtijxlvacqjiocdwzrh.supabase.co/auth/v1/callback
         options.scopes = "identify email";
         break;
-
       default:
         break;
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
-    if (error) throw error;
-  }
-
-  // ── Email OTP — send ──────────────────────────────────────────────────────
-  async signInOTP(email) {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: true },
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options,
     });
     if (error) throw error;
   }
 
-  // ── Email OTP — verify ────────────────────────────────────────────────────
-  async verifyOTP(email, token) {
-    const params = { email: email.trim().toLowerCase(), token: token.trim() };
-
-    const { data, error } = await supabase.auth.verifyOtp({ ...params, type: "email" });
-    if (!error) return data?.user ?? null;
-
-    const { data: d2, error: e2 } = await supabase.auth.verifyOtp({ ...params, type: "magiclink" });
-    if (!e2) return d2?.user ?? null;
-
-    throw error;
-  }
-
   // ── Sign out ──────────────────────────────────────────────────────────────
+
   async signOut() {
     try {
       await supabase.auth.signOut();
     } catch {
       try {
-        localStorage.removeItem("xeevia-auth-token");
+        Object.keys(localStorage)
+          .filter((k) => k.includes("supabase") || k.includes("xeevia"))
+          .forEach((k) => localStorage.removeItem(k));
         await supabase.auth.signOut({ scope: "local" });
       } catch {}
     }
   }
 
   // ── Admin helpers ─────────────────────────────────────────────────────────
+
   async checkAdminStatus(userId) {
     if (!userId) return null;
     try {
-      const { data } = await supabase.from("profiles").select("is_admin").eq("id", userId).maybeSingle();
+      await this.ensureFreshSession();
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", userId)
+        .maybeSingle();
       return data?.is_admin ? { role: "admin" } : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
-
-  async adminHas2FA() { return false; }
 }
 
 const authService = new AuthService();

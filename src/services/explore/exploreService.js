@@ -1,20 +1,62 @@
 // ============================================================================
 // src/services/explore/exploreService.js - ULTIMATE SEARCH ENGINE
+// Integrates TagModel for user-name search, mentions, and author content
 // ============================================================================
 
-import { supabase } from '../config/supabase';
-import { handleError } from '../shared/errorHandler';
-import mediaUrlService from '../shared/mediaUrlService';
-import cacheService from '../shared/cacheService';
+import { supabase } from "../config/supabase";
+import { handleError } from "../shared/errorHandler";
+import cacheService from "../shared/cacheService";
+import tagModel, { detectTagType, TAG_TYPE } from "../../models/TagModel";
 
 class ExploreService {
-  
-  // ==================== UNIVERSAL ULTIMATE SEARCH ====================
-  
-  async searchAll(query, filters = {}) {
+  // ══════════════════════════════════════════════════════════════════════
+  // SELECT BUILDERS — full DB-row shape with reaction state
+  // ══════════════════════════════════════════════════════════════════════
+
+  _postSelect(currentUserId) {
+    return `
+      id, user_id, content,
+      image_ids, image_metadata,
+      video_ids, video_metadata,
+      is_text_card, text_card_metadata, card_caption,
+      category, likes, comments_count, shares, views, created_at, updated_at,
+      profiles:user_id(id, full_name, username, avatar_id, avatar_metadata, verified),
+      ${currentUserId ? "post_likes!left(id, user_id)" : "post_likes!left(id)"}
+    `;
+  }
+
+  _reelSelect(currentUserId) {
+    return `
+      id, user_id,
+      video_id, video_metadata, thumbnail_id,
+      caption, music, category, duration,
+      likes, comments_count, shares, views, created_at,
+      profiles:user_id(id, full_name, username, avatar_id, avatar_metadata, verified),
+      ${currentUserId ? "reel_likes!left(id, user_id)" : "reel_likes!left(id)"}
+    `;
+  }
+
+  _storySelect(currentUserId) {
+    return `
+      id, user_id,
+      title, preview, full_content,
+      cover_image_id, cover_image_metadata,
+      category, unlock_cost, max_accesses, current_accesses,
+      likes, comments_count, views, created_at,
+      profiles:user_id(id, full_name, username, avatar_id, avatar_metadata, verified),
+      ${currentUserId ? "story_likes!left(id, user_id)" : "story_likes!left(id)"},
+      ${currentUserId ? "unlocked_stories!left(id, user_id)" : "unlocked_stories!left(id)"}
+    `;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // UNIVERSAL SEARCH
+  // ══════════════════════════════════════════════════════════════════════
+
+  async searchAll(query, filters = {}, currentUserId = null) {
     try {
       const { category, limit = 20 } = filters;
-      
+
       if (!query || query.trim().length < 2) {
         return {
           stories: [],
@@ -22,24 +64,18 @@ class ExploreService {
           reels: [],
           users: [],
           tags: [],
-          mentions: []
+          mentions: [],
+          userContext: null,
         };
       }
 
-      const searchTerm = query.trim().toLowerCase();
-      const cacheKey = `search:all:${searchTerm}:${category || 'all'}`;
-      
+      const searchTerm = query.trim();
+      const tagType = detectTagType(searchTerm);
+      const cacheKey = `search:all:${searchTerm.toLowerCase()}:${category || "all"}:${currentUserId || "anon"}`;
+
       const cached = cacheService.get(cacheKey);
-      if (cached) {
-        console.log('📦 Search results from cache');
-        return cached;
-      }
+      if (cached) return cached;
 
-      console.log('🔍 Ultimate Search for:', searchTerm);
-
-      // Detect search type
-      const searchType = this.detectSearchType(searchTerm);
-      
       let results = {
         stories: [],
         posts: [],
@@ -47,454 +83,425 @@ class ExploreService {
         users: [],
         tags: [],
         mentions: [],
+        userContext: null,
         query: searchTerm,
-        searchType
+        searchType: tagType,
       };
 
-      if (searchType === 'hashtag') {
-        // Prioritize hashtag search
+      if (tagType === TAG_TYPE.HASHTAG) {
+        // ── Hashtag search ──────────────────────────────────────────────
         const [tags, posts, reels, stories] = await Promise.all([
           this.searchTags(searchTerm, { limit: 15 }),
-          this.searchPostsByHashtag(searchTerm, { category, limit: 15 }),
-          this.searchReelsByHashtag(searchTerm, { category, limit: 15 }),
-          this.searchStoriesByHashtag(searchTerm, { category, limit: 10 })
+          this.searchPostsByHashtag(
+            searchTerm,
+            { category, limit: 15 },
+            currentUserId,
+          ),
+          this.searchReelsByHashtag(
+            searchTerm,
+            { category, limit: 15 },
+            currentUserId,
+          ),
+          this.searchStoriesByHashtag(
+            searchTerm,
+            { category, limit: 10 },
+            currentUserId,
+          ),
         ]);
         results = { ...results, tags, posts, reels, stories };
-      } 
-      else if (searchType === 'mention') {
-        // Prioritize user search
+      } else if (tagType === TAG_TYPE.MENTION) {
+        // ── @mention search ─────────────────────────────────────────────
         const [users, posts, reels, stories] = await Promise.all([
           this.searchUsersByMention(searchTerm, { limit: 15 }),
-          this.searchPostsByMention(searchTerm, { category, limit: 15 }),
-          this.searchReelsByMention(searchTerm, { category, limit: 15 }),
-          this.searchStoriesByMention(searchTerm, { category, limit: 10 })
+          this.searchPostsByMention(
+            searchTerm,
+            { category, limit: 15 },
+            currentUserId,
+          ),
+          this.searchReelsByMention(
+            searchTerm,
+            { category, limit: 15 },
+            currentUserId,
+          ),
+          this.searchStoriesByMention(
+            searchTerm,
+            { category, limit: 10 },
+            currentUserId,
+          ),
         ]);
-        results = { ...results, users, posts, reels, stories };
-        results.mentions = users; // Duplicate for mentions section
-      }
-      else {
-        // General search across everything
+        results = { ...results, users, posts, reels, stories, mentions: users };
+
+        // Enrich with user context (content mentioning the top matched user)
+        if (users.length > 0) {
+          const top = users[0];
+          results.userContext = await this._buildUserContext(
+            top,
+            currentUserId,
+          );
+        }
+      } else {
+        // ── General / name search ───────────────────────────────────────
         const [stories, posts, reels, users, tags] = await Promise.all([
-          this.searchStories(searchTerm, { category, limit: 12 }),
-          this.searchPosts(searchTerm, { category, limit: 12 }),
-          this.searchReels(searchTerm, { category, limit: 12 }),
+          this.searchStories(
+            searchTerm,
+            { category, limit: 12 },
+            currentUserId,
+          ),
+          this.searchPosts(searchTerm, { category, limit: 12 }, currentUserId),
+          this.searchReels(searchTerm, { category, limit: 12 }, currentUserId),
           this.searchUsers(searchTerm, { limit: 12 }),
-          this.searchTags(searchTerm, { limit: 10 })
+          this.searchTags(searchTerm, { limit: 10 }),
         ]);
         results = { ...results, stories, posts, reels, users, tags };
+
+        // ── KEY EXTENSION: if we found real users, show their world ─────
+        if (users.length > 0) {
+          const top = users[0];
+          results.userContext = await this._buildUserContext(
+            top,
+            currentUserId,
+          );
+        }
       }
 
-      results.totalResults = (results.stories?.length || 0) + 
-                            (results.posts?.length || 0) + 
-                            (results.reels?.length || 0) + 
-                            (results.users?.length || 0) +
-                            (results.tags?.length || 0);
+      results.totalResults =
+        (results.stories?.length || 0) +
+        (results.posts?.length || 0) +
+        (results.reels?.length || 0) +
+        (results.users?.length || 0) +
+        (results.tags?.length || 0);
 
-      // Cache results for 2 minutes
-      cacheService.set(cacheKey, results, 120000);
-      
-      console.log('✅ Ultimate Search complete:', {
-        type: searchType,
-        stories: results.stories?.length || 0,
-        posts: results.posts?.length || 0,
-        reels: results.reels?.length || 0,
-        users: results.users?.length || 0,
-        tags: results.tags?.length || 0,
-        total: results.totalResults
-      });
-
+      cacheService.set(cacheKey, results, 60000);
       return results;
-
     } catch (error) {
-      console.error('❌ Ultimate Search failed:', error);
-      throw handleError(error, 'Search');
+      console.error("❌ searchAll failed:", error);
+      throw handleError(error, "Search");
     }
   }
 
-  // ==================== DETECT SEARCH TYPE ====================
-  
-  detectSearchType(query) {
-    const trimmed = query.trim();
-    if (trimmed.startsWith('#')) return 'hashtag';
-    if (trimmed.startsWith('@')) return 'mention';
-    return 'general';
+  // ══════════════════════════════════════════════════════════════════════
+  // USER CONTEXT BUILDER
+  // When a real user is found, we pull:
+  //   • content they authored
+  //   • content that mentions them by @username or their real name
+  // ══════════════════════════════════════════════════════════════════════
+
+  async _buildUserContext(userRow, currentUserId) {
+    try {
+      const [mentionData, authorData] = await Promise.all([
+        tagModel.getContentMentioningUser(
+          userRow.username,
+          userRow.full_name,
+          10,
+          currentUserId,
+        ),
+        tagModel.getContentByUser(userRow.id, 10, currentUserId),
+      ]);
+
+      const totalMentions =
+        (mentionData.mentionedInPosts?.length || 0) +
+        (mentionData.mentionedInReels?.length || 0) +
+        (mentionData.mentionedInStories?.length || 0);
+
+      const totalAuthored =
+        (authorData.posts?.length || 0) +
+        (authorData.reels?.length || 0) +
+        (authorData.stories?.length || 0);
+
+      return {
+        resolvedUser: userRow,
+        // content other people posted ABOUT / MENTIONING this user
+        mentionedInPosts: mentionData.mentionedInPosts || [],
+        mentionedInReels: mentionData.mentionedInReels || [],
+        mentionedInStories: mentionData.mentionedInStories || [],
+        totalMentions,
+        // content the user themselves created
+        byUser: {
+          posts: authorData.posts || [],
+          reels: authorData.reels || [],
+          stories: authorData.stories || [],
+        },
+        totalAuthored,
+      };
+    } catch (err) {
+      console.error("_buildUserContext error:", err);
+      return null;
+    }
   }
 
-  // ==================== SEARCH STORIES ====================
-  
-  async searchStories(query, filters = {}) {
+  // ══════════════════════════════════════════════════════════════════════
+  // POSTS
+  // ══════════════════════════════════════════════════════════════════════
+
+  async searchPosts(query, filters = {}, currentUserId = null) {
     try {
       const { category, limit = 20 } = filters;
-      const cleanQuery = query.replace(/^[@#]/, '');
-      
-      let queryBuilder = supabase
-        .from('stories')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null);
+      const cleanQuery = query.replace(/^[@#]/, "");
 
-      // Search in title, preview, and full_content
-      queryBuilder = queryBuilder.or(
-        `title.ilike.%${cleanQuery}%,preview.ilike.%${cleanQuery}%,full_content.ilike.%${cleanQuery}%`
-      );
+      let q = supabase
+        .from("posts")
+        .select(this._postSelect(currentUserId))
+        .is("deleted_at", null)
+        .ilike("content", `%${cleanQuery}%`);
 
-      if (category) {
-        queryBuilder = queryBuilder.eq('category', category);
+      if (category) q = q.eq("category", category);
+      if (currentUserId) q = q.eq("post_likes.user_id", currentUserId);
+
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("❌ Post search failed:", error);
+      return [];
+    }
+  }
+
+  async searchPostsByHashtag(query, filters = {}, currentUserId = null) {
+    try {
+      const { category, limit = 20 } = filters;
+      const hashtag = query.startsWith("#") ? query : `#${query}`;
+
+      let q = supabase
+        .from("posts")
+        .select(this._postSelect(currentUserId))
+        .is("deleted_at", null)
+        .ilike("content", `%${hashtag}%`);
+
+      if (category) q = q.eq("category", category);
+      if (currentUserId) q = q.eq("post_likes.user_id", currentUserId);
+
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("❌ Post hashtag search failed:", error);
+      return [];
+    }
+  }
+
+  async searchPostsByMention(query, filters = {}, currentUserId = null) {
+    try {
+      const { category, limit = 20 } = filters;
+      const mention = query.startsWith("@") ? query : `@${query}`;
+
+      let q = supabase
+        .from("posts")
+        .select(this._postSelect(currentUserId))
+        .is("deleted_at", null)
+        .ilike("content", `%${mention}%`);
+
+      if (category) q = q.eq("category", category);
+      if (currentUserId) q = q.eq("post_likes.user_id", currentUserId);
+
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("❌ Post mention search failed:", error);
+      return [];
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // REELS
+  // ══════════════════════════════════════════════════════════════════════
+
+  async searchReels(query, filters = {}, currentUserId = null) {
+    try {
+      const { category, limit = 20 } = filters;
+      const cleanQuery = query.replace(/^[@#]/, "");
+
+      let q = supabase
+        .from("reels")
+        .select(this._reelSelect(currentUserId))
+        .is("deleted_at", null)
+        .or(`caption.ilike.%${cleanQuery}%,music.ilike.%${cleanQuery}%`);
+
+      if (category) q = q.eq("category", category);
+      if (currentUserId) q = q.eq("reel_likes.user_id", currentUserId);
+
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("❌ Reel search failed:", error);
+      return [];
+    }
+  }
+
+  async searchReelsByHashtag(query, filters = {}, currentUserId = null) {
+    try {
+      const { category, limit = 20 } = filters;
+      const hashtag = query.startsWith("#") ? query : `#${query}`;
+
+      let q = supabase
+        .from("reels")
+        .select(this._reelSelect(currentUserId))
+        .is("deleted_at", null)
+        .ilike("caption", `%${hashtag}%`);
+
+      if (category) q = q.eq("category", category);
+      if (currentUserId) q = q.eq("reel_likes.user_id", currentUserId);
+
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("❌ Reel hashtag search failed:", error);
+      return [];
+    }
+  }
+
+  async searchReelsByMention(query, filters = {}, currentUserId = null) {
+    try {
+      const { category, limit = 20 } = filters;
+      const mention = query.startsWith("@") ? query : `@${query}`;
+
+      let q = supabase
+        .from("reels")
+        .select(this._reelSelect(currentUserId))
+        .is("deleted_at", null)
+        .ilike("caption", `%${mention}%`);
+
+      if (category) q = q.eq("category", category);
+      if (currentUserId) q = q.eq("reel_likes.user_id", currentUserId);
+
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("❌ Reel mention search failed:", error);
+      return [];
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // STORIES
+  // ══════════════════════════════════════════════════════════════════════
+
+  async searchStories(query, filters = {}, currentUserId = null) {
+    try {
+      const { category, limit = 20 } = filters;
+      const cleanQuery = query.replace(/^[@#]/, "");
+
+      let q = supabase
+        .from("stories")
+        .select(this._storySelect(currentUserId))
+        .is("deleted_at", null)
+        .or(
+          `title.ilike.%${cleanQuery}%,preview.ilike.%${cleanQuery}%,full_content.ilike.%${cleanQuery}%`,
+        );
+
+      if (category) q = q.eq("category", category);
+      if (currentUserId) {
+        q = q.eq("story_likes.user_id", currentUserId);
+        q = q.eq("unlocked_stories.user_id", currentUserId);
       }
 
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
         .limit(limit);
-
       if (error) throw error;
-
-      return (data || []).map(story => this.formatStory(story));
-
+      return data || [];
     } catch (error) {
-      console.error('❌ Story search failed:', error);
+      console.error("❌ Story search failed:", error);
       return [];
     }
   }
 
-  async searchStoriesByHashtag(query, filters = {}) {
+  async searchStoriesByHashtag(query, filters = {}, currentUserId = null) {
     try {
       const { category, limit = 20 } = filters;
-      const hashtag = query.startsWith('#') ? query : `#${query}`;
-      
-      let queryBuilder = supabase
-        .from('stories')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .or(
-          `preview.ilike.%${hashtag}%,full_content.ilike.%${hashtag}%`
-        );
+      const hashtag = query.startsWith("#") ? query : `#${query}`;
 
-      if (category) queryBuilder = queryBuilder.eq('category', category);
+      let q = supabase
+        .from("stories")
+        .select(this._storySelect(currentUserId))
+        .is("deleted_at", null)
+        .or(`preview.ilike.%${hashtag}%,full_content.ilike.%${hashtag}%`);
 
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data || []).map(story => this.formatStory(story));
-    } catch (error) {
-      console.error('❌ Story hashtag search failed:', error);
-      return [];
-    }
-  }
-
-  async searchStoriesByMention(query, filters = {}) {
-    try {
-      const { category, limit = 20 } = filters;
-      const mention = query.startsWith('@') ? query : `@${query}`;
-      const username = mention.replace('@', '');
-      
-      let queryBuilder = supabase
-        .from('stories')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .or(
-          `preview.ilike.%${mention}%,full_content.ilike.%${mention}%,profiles.username.ilike.%${username}%`
-        );
-
-      if (category) queryBuilder = queryBuilder.eq('category', category);
-
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data || []).map(story => this.formatStory(story));
-    } catch (error) {
-      console.error('❌ Story mention search failed:', error);
-      return [];
-    }
-  }
-
-  // ==================== SEARCH POSTS ====================
-  
-  async searchPosts(query, filters = {}) {
-    try {
-      const { category, limit = 20 } = filters;
-      const cleanQuery = query.replace(/^[@#]/, '');
-      
-      let queryBuilder = supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .ilike('content', `%${cleanQuery}%`);
-
-      if (category) {
-        queryBuilder = queryBuilder.eq('category', category);
+      if (category) q = q.eq("category", category);
+      if (currentUserId) {
+        q = q.eq("story_likes.user_id", currentUserId);
+        q = q.eq("unlocked_stories.user_id", currentUserId);
       }
 
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
         .limit(limit);
-
       if (error) throw error;
-
-      return (data || []).map(post => this.formatPost(post));
-
+      return data || [];
     } catch (error) {
-      console.error('❌ Post search failed:', error);
+      console.error("❌ Story hashtag search failed:", error);
       return [];
     }
   }
 
-  async searchPostsByHashtag(query, filters = {}) {
+  async searchStoriesByMention(query, filters = {}, currentUserId = null) {
     try {
       const { category, limit = 20 } = filters;
-      const hashtag = query.startsWith('#') ? query : `#${query}`;
-      
-      let queryBuilder = supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .ilike('content', `%${hashtag}%`);
+      const mention = query.startsWith("@") ? query : `@${query}`;
 
-      if (category) queryBuilder = queryBuilder.eq('category', category);
+      let q = supabase
+        .from("stories")
+        .select(this._storySelect(currentUserId))
+        .is("deleted_at", null)
+        .ilike("preview", `%${mention}%`);
 
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data || []).map(post => this.formatPost(post));
-    } catch (error) {
-      console.error('❌ Post hashtag search failed:', error);
-      return [];
-    }
-  }
-
-  async searchPostsByMention(query, filters = {}) {
-    try {
-      const { category, limit = 20 } = filters;
-      const mention = query.startsWith('@') ? query : `@${query}`;
-      const username = mention.replace('@', '');
-      
-      let queryBuilder = supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .or(
-          `content.ilike.%${mention}%,profiles.username.ilike.%${username}%`
-        );
-
-      if (category) queryBuilder = queryBuilder.eq('category', category);
-
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data || []).map(post => this.formatPost(post));
-    } catch (error) {
-      console.error('❌ Post mention search failed:', error);
-      return [];
-    }
-  }
-
-  // ==================== SEARCH REELS ====================
-  
-  async searchReels(query, filters = {}) {
-    try {
-      const { category, limit = 20 } = filters;
-      const cleanQuery = query.replace(/^[@#]/, '');
-      
-      let queryBuilder = supabase
-        .from('reels')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .or(
-          `caption.ilike.%${cleanQuery}%,music.ilike.%${cleanQuery}%`
-        );
-
-      if (category) {
-        queryBuilder = queryBuilder.eq('category', category);
+      if (category) q = q.eq("category", category);
+      if (currentUserId) {
+        q = q.eq("story_likes.user_id", currentUserId);
+        q = q.eq("unlocked_stories.user_id", currentUserId);
       }
 
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
         .limit(limit);
-
       if (error) throw error;
-
-      return (data || []).map(reel => this.formatReel(reel));
-
+      return data || [];
     } catch (error) {
-      console.error('❌ Reel search failed:', error);
+      console.error("❌ Story mention search failed:", error);
       return [];
     }
   }
 
-  async searchReelsByHashtag(query, filters = {}) {
-    try {
-      const { category, limit = 20 } = filters;
-      const hashtag = query.startsWith('#') ? query : `#${query}`;
-      
-      let queryBuilder = supabase
-        .from('reels')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .ilike('caption', `%${hashtag}%`);
+  // ══════════════════════════════════════════════════════════════════════
+  // USERS
+  // ══════════════════════════════════════════════════════════════════════
 
-      if (category) queryBuilder = queryBuilder.eq('category', category);
-
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data || []).map(reel => this.formatReel(reel));
-    } catch (error) {
-      console.error('❌ Reel hashtag search failed:', error);
-      return [];
-    }
-  }
-
-  async searchReelsByMention(query, filters = {}) {
-    try {
-      const { category, limit = 20 } = filters;
-      const mention = query.startsWith('@') ? query : `@${query}`;
-      const username = mention.replace('@', '');
-      
-      let queryBuilder = supabase
-        .from('reels')
-        .select(`
-          *,
-          profiles!inner (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `)
-        .is('deleted_at', null)
-        .or(
-          `caption.ilike.%${mention}%,profiles.username.ilike.%${username}%`
-        );
-
-      if (category) queryBuilder = queryBuilder.eq('category', category);
-
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data || []).map(reel => this.formatReel(reel));
-    } catch (error) {
-      console.error('❌ Reel mention search failed:', error);
-      return [];
-    }
-  }
-
-  // ==================== SEARCH USERS ====================
-  
   async searchUsers(query, filters = {}) {
     try {
       const { limit = 20 } = filters;
-      const cleanQuery = query.replace(/^[@#]/, '').trim();
-      
+      const cleanQuery = query.replace(/^[@#]/, "").trim();
       if (cleanQuery.length < 2) return [];
 
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, avatar_id, verified, bio')
-        .is('deleted_at', null)
+        .from("profiles")
+        .select(
+          "id, full_name, username, avatar_id, avatar_metadata, verified, bio",
+        )
+        .is("deleted_at", null)
         .or(
-          `full_name.ilike.%${cleanQuery}%,username.ilike.%${cleanQuery}%,bio.ilike.%${cleanQuery}%`
+          `full_name.ilike.%${cleanQuery}%,username.ilike.%${cleanQuery}%,bio.ilike.%${cleanQuery}%`,
         )
         .limit(limit);
 
       if (error) throw error;
-
-      return (data || []).map(user => ({
-        id: user.id,
-        name: user.full_name,
-        username: user.username,
-        avatar: user.avatar_id 
-          ? mediaUrlService.getAvatarUrl(user.avatar_id)
-          : user.full_name?.[0] || 'U',
-        verified: user.verified || false,
-        bio: user.bio,
-        type: 'user'
-      }));
-
+      return data || [];
     } catch (error) {
-      console.error('❌ User search failed:', error);
+      console.error("❌ User search failed:", error);
       return [];
     }
   }
@@ -502,337 +509,163 @@ class ExploreService {
   async searchUsersByMention(query, filters = {}) {
     try {
       const { limit = 20 } = filters;
-      const username = query.replace('@', '').trim();
-      
+      const username = query.replace("@", "").trim();
       if (username.length < 2) return [];
 
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, avatar_id, verified, bio')
-        .is('deleted_at', null)
-        .ilike('username', `%${username}%`)
+        .from("profiles")
+        .select(
+          "id, full_name, username, avatar_id, avatar_metadata, verified, bio",
+        )
+        .is("deleted_at", null)
+        .ilike("username", `%${username}%`)
         .limit(limit);
 
       if (error) throw error;
-
-      return (data || []).map(user => ({
-        id: user.id,
-        name: user.full_name,
-        username: `@${user.username}`,
-        avatar: user.avatar_id 
-          ? mediaUrlService.getAvatarUrl(user.avatar_id)
-          : user.full_name?.[0] || 'U',
-        verified: user.verified || false,
-        bio: user.bio,
-        type: 'mention'
-      }));
-
+      return data || [];
     } catch (error) {
-      console.error('❌ User mention search failed:', error);
+      console.error("❌ User mention search failed:", error);
       return [];
     }
   }
 
-  // ==================== SEARCH TAGS ====================
-  
+  // ══════════════════════════════════════════════════════════════════════
+  // TAGS
+  // ══════════════════════════════════════════════════════════════════════
+
   async searchTags(query, filters = {}) {
     try {
       const { limit = 15 } = filters;
-      const hashtag = query.startsWith('#') ? query.toLowerCase() : `#${query.toLowerCase()}`;
-      
+      const hashtag = query.startsWith("#")
+        ? query.toLowerCase()
+        : `#${query.toLowerCase()}`;
       if (hashtag.length < 3) return [];
 
-      // Search across all content containing this hashtag
       const [postTags, reelTags, storyTags] = await Promise.all([
-        this.extractTagsFromPosts(hashtag, limit * 2),
-        this.extractTagsFromReels(hashtag, limit * 2),
-        this.extractTagsFromStories(hashtag, limit * 2)
+        this._extractTagsFromPosts(hashtag, limit * 2),
+        this._extractTagsFromReels(hashtag, limit * 2),
+        this._extractTagsFromStories(hashtag, limit * 2),
       ]);
 
-      // Combine and count occurrences
-      const allTags = [...postTags, ...reelTags, ...storyTags];
       const tagCounts = {};
-      
-      allTags.forEach(tag => {
-        const lowerTag = tag.toLowerCase();
-        if (lowerTag.includes(hashtag.toLowerCase())) {
-          tagCounts[lowerTag] = (tagCounts[lowerTag] || 0) + 1;
+      [...postTags, ...reelTags, ...storyTags].forEach((tag) => {
+        const t = tag.toLowerCase();
+        if (t.includes(hashtag.toLowerCase())) {
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
         }
       });
 
-      // Convert to array and sort by count
-      const results = Object.entries(tagCounts)
-        .map(([tag, count]) => ({
-          tag,
-          count,
-          type: 'tag'
-        }))
+      return Object.entries(tagCounts)
+        .map(([tag, count]) => ({ tag, count, type: "tag" }))
         .sort((a, b) => b.count - a.count)
         .slice(0, limit);
-
-      return results;
-
     } catch (error) {
-      console.error('❌ Tag search failed:', error);
+      console.error("❌ Tag search failed:", error);
       return [];
     }
   }
 
-  // ==================== EXTRACT TAGS FROM CONTENT ====================
-  
-  async extractTagsFromPosts(query, limit = 20) {
+  async _extractTagsFromPosts(query, limit = 20) {
     try {
       const { data } = await supabase
-        .from('posts')
-        .select('content')
-        .ilike('content', `%${query}%`)
-        .is('deleted_at', null)
+        .from("posts")
+        .select("content")
+        .ilike("content", `%${query}%`)
+        .is("deleted_at", null)
         .limit(limit);
-
-      return this.extractHashtags(data?.map(p => p.content).join(' ') || '');
+      return this._extractHashtags(data?.map((p) => p.content).join(" ") || "");
     } catch {
       return [];
     }
   }
 
-  async extractTagsFromReels(query, limit = 20) {
+  async _extractTagsFromReels(query, limit = 20) {
     try {
       const { data } = await supabase
-        .from('reels')
-        .select('caption')
-        .ilike('caption', `%${query}%`)
-        .is('deleted_at', null)
+        .from("reels")
+        .select("caption")
+        .ilike("caption", `%${query}%`)
+        .is("deleted_at", null)
         .limit(limit);
-
-      return this.extractHashtags(data?.map(r => r.caption).join(' ') || '');
+      return this._extractHashtags(data?.map((r) => r.caption).join(" ") || "");
     } catch {
       return [];
     }
   }
 
-  async extractTagsFromStories(query, limit = 20) {
+  async _extractTagsFromStories(query, limit = 20) {
     try {
       const { data } = await supabase
-        .from('stories')
-        .select('preview, full_content')
-        .or(`preview.ilike.%${query}%,full_content.ilike.%${query}%`)
-        .is('deleted_at', null)
+        .from("stories")
+        .select("preview")
+        .ilike("preview", `%${query}%`)
+        .is("deleted_at", null)
         .limit(limit);
-
-      const text = data?.map(s => `${s.preview} ${s.full_content}`).join(' ') || '';
-      return this.extractHashtags(text);
+      return this._extractHashtags(data?.map((s) => s.preview).join(" ") || "");
     } catch {
       return [];
     }
   }
 
-  extractHashtags(text) {
+  _extractHashtags(text) {
     if (!text) return [];
-    const hashtagRegex = /#[\w]+/g;
-    const matches = text.match(hashtagRegex) || [];
-    return Array.from(new Set(matches.map(tag => tag.toLowerCase())));
+    const matches = text.match(/#[\w]+/g) || [];
+    return Array.from(new Set(matches.map((t) => t.toLowerCase())));
   }
 
-  // ==================== GET TRENDING CONTENT ====================
-  
-  async getTrending(contentType = 'all', limit = 20) {
+  // ══════════════════════════════════════════════════════════════════════
+  // TRENDING
+  // ══════════════════════════════════════════════════════════════════════
+
+  async getTrending(contentType = "all", limit = 20, currentUserId = null) {
     try {
-      const cacheKey = `trending:${contentType}:${limit}`;
+      const cacheKey = `trending:${contentType}:${limit}:${currentUserId || "anon"}`;
       const cached = cacheService.get(cacheKey);
       if (cached) return cached;
 
-      let results = {};
+      const results = {};
+      const since = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
-      if (contentType === 'all' || contentType === 'stories') {
-        const stories = await this.getTrendingStories(limit);
-        results.stories = stories;
+      if (contentType === "all" || contentType === "stories") {
+        const { data } = await supabase
+          .from("stories")
+          .select(this._storySelect(currentUserId))
+          .is("deleted_at", null)
+          .gte("created_at", since)
+          .order("views", { ascending: false })
+          .limit(limit);
+        results.stories = data || [];
       }
 
-      if (contentType === 'all' || contentType === 'posts') {
-        const posts = await this.getTrendingPosts(limit);
-        results.posts = posts;
+      if (contentType === "all" || contentType === "posts") {
+        const { data } = await supabase
+          .from("posts")
+          .select(this._postSelect(currentUserId))
+          .is("deleted_at", null)
+          .gte("created_at", since)
+          .order("likes", { ascending: false })
+          .limit(limit);
+        results.posts = data || [];
       }
 
-      if (contentType === 'all' || contentType === 'reels') {
-        const reels = await this.getTrendingReels(limit);
-        results.reels = reels;
+      if (contentType === "all" || contentType === "reels") {
+        const { data } = await supabase
+          .from("reels")
+          .select(this._reelSelect(currentUserId))
+          .is("deleted_at", null)
+          .gte("created_at", since)
+          .order("views", { ascending: false })
+          .limit(limit);
+        results.reels = data || [];
       }
 
-      cacheService.set(cacheKey, results, 300000); // 5 min cache
+      cacheService.set(cacheKey, results, 300000);
       return results;
-
     } catch (error) {
-      throw handleError(error, 'Get trending content');
+      throw handleError(error, "Get trending content");
     }
-  }
-
-  async getTrendingStories(limit = 20) {
-    const { data } = await supabase
-      .from('stories')
-      .select(`
-        *,
-        profiles!inner (
-          id,
-          full_name,
-          username,
-          avatar_id,
-          verified
-        )
-      `)
-      .is('deleted_at', null)
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order('views', { ascending: false })
-      .limit(limit);
-
-    return (data || []).map(s => this.formatStory(s));
-  }
-
-  async getTrendingPosts(limit = 20) {
-    const { data } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles!inner (
-          id,
-          full_name,
-          username,
-          avatar_id,
-          verified
-        )
-      `)
-      .is('deleted_at', null)
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order('likes', { ascending: false })
-      .limit(limit);
-
-    return (data || []).map(p => this.formatPost(p));
-  }
-
-  async getTrendingReels(limit = 20) {
-    const { data } = await supabase
-      .from('reels')
-      .select(`
-        *,
-        profiles!inner (
-          id,
-          full_name,
-          username,
-          avatar_id,
-          verified
-        )
-      `)
-      .is('deleted_at', null)
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order('views', { ascending: false })
-      .limit(limit);
-
-    return (data || []).map(r => this.formatReel(r));
-  }
-
-  // ==================== FORMAT METHODS ====================
-  
-  formatStory(story) {
-    return {
-      id: story.id,
-      type: 'story',
-      userId: story.user_id,
-      author: story.profiles?.full_name || 'Unknown',
-      username: story.profiles?.username || '@unknown',
-      avatar: story.profiles?.avatar_id 
-        ? mediaUrlService.getAvatarUrl(story.profiles.avatar_id)
-        : story.profiles?.full_name?.[0] || 'U',
-      verified: story.profiles?.verified || false,
-      timeAgo: this.getTimeAgo(story.created_at),
-      title: story.title,
-      preview: story.preview,
-      coverImage: story.cover_image_id 
-        ? mediaUrlService.getImageUrl(story.cover_image_id)
-        : null,
-      category: story.category,
-      unlockCost: story.unlock_cost || 0,
-      maxAccesses: story.max_accesses,
-      currentAccesses: story.current_accesses,
-      likes: story.likes || 0,
-      comments: story.comments_count || 0,
-      views: story.views || 0,
-      createdAt: story.created_at
-    };
-  }
-
-  formatPost(post) {
-    return {
-      id: post.id,
-      type: 'post',
-      userId: post.user_id,
-      author: post.profiles?.full_name || 'Unknown',
-      username: post.profiles?.username || '@unknown',
-      avatar: post.profiles?.avatar_id 
-        ? mediaUrlService.getAvatarUrl(post.profiles.avatar_id)
-        : post.profiles?.full_name?.[0] || 'U',
-      verified: post.profiles?.verified || false,
-      timeAgo: this.getTimeAgo(post.created_at),
-      content: post.content,
-      images: post.image_ids?.map(id => mediaUrlService.getImageUrl(id)) || [],
-      category: post.category,
-      likes: post.likes || 0,
-      comments: post.comments_count || 0,
-      shares: post.shares || 0,
-      views: post.views || 0,
-      createdAt: post.created_at
-    };
-  }
-
-  formatReel(reel) {
-    return {
-      id: reel.id,
-      type: 'reel',
-      userId: reel.user_id,
-      author: reel.profiles?.full_name || 'Unknown',
-      username: reel.profiles?.username || '@unknown',
-      avatar: reel.profiles?.avatar_id 
-        ? mediaUrlService.getAvatarUrl(reel.profiles.avatar_id)
-        : reel.profiles?.full_name?.[0] || 'U',
-      verified: reel.profiles?.verified || false,
-      videoUrl: reel.video_id 
-        ? mediaUrlService.getVideoUrl(reel.video_id)
-        : null,
-      thumbnailUrl: reel.thumbnail_id 
-        ? mediaUrlService.getImageUrl(reel.thumbnail_id)
-        : null,
-      caption: reel.caption,
-      music: reel.music || 'Original Audio',
-      category: reel.category,
-      duration: this.formatDuration(reel.duration),
-      likes: reel.likes || 0,
-      comments: reel.comments_count || 0,
-      shares: reel.shares || 0,
-      views: reel.views || 0,
-      createdAt: reel.created_at
-    };
-  }
-
-  // ==================== HELPER METHODS ====================
-  
-  getTimeAgo(timestamp) {
-    const now = new Date();
-    const past = new Date(timestamp);
-    const diffMs = now - past;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return past.toLocaleDateString();
-  }
-
-  formatDuration(seconds) {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 }
 

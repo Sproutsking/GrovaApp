@@ -8,8 +8,9 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    width: 260px;
+    width: 280px;
     background: #030303;
+    border-left: 1px solid rgba(255,255,255,0.05);
     border-right: 1px solid rgba(255,255,255,0.05);
     display: flex;
     flex-direction: column;
@@ -273,15 +274,16 @@ const ROLE_CONFIG = {
 const NAV_ITEMS = [
   { id: "home",      label: "Home",      icon: HomeIcon      },
   { id: "search",    label: "Explore",   icon: SearchIcon    },
+  { id: "create",    label: "Create",    icon: PlusSquareIcon },
   { id: "community", label: "Community", icon: UsersIcon     },
   { id: "wallet",    label: "Wallet",    icon: WalletIcon    },
   { id: "account",   label: "Account",   icon: UserIcon      },
 ];
 
 // ─────────────────────────────────────────────
-// INLINE SVG ICONS (no extra dependency needed)
+// INLINE SVG ICONS
 // ─────────────────────────────────────────────
-function HomeIcon({ size = 16, strokeWidth = 2 }) {
+function HomeIcon({ strokeWidth = 2 }) {
   return (
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -290,7 +292,7 @@ function HomeIcon({ size = 16, strokeWidth = 2 }) {
   );
 }
 
-function SearchIcon({ size = 16, strokeWidth = 2 }) {
+function SearchIcon({ strokeWidth = 2 }) {
   return (
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
@@ -299,7 +301,17 @@ function SearchIcon({ size = 16, strokeWidth = 2 }) {
   );
 }
 
-function UsersIcon({ size = 16, strokeWidth = 2 }) {
+function PlusSquareIcon({ strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
+function UsersIcon({ strokeWidth = 2 }) {
   return (
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -310,7 +322,7 @@ function UsersIcon({ size = 16, strokeWidth = 2 }) {
   );
 }
 
-function WalletIcon({ size = 16, strokeWidth = 2 }) {
+function WalletIcon({ strokeWidth = 2 }) {
   return (
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -319,7 +331,7 @@ function WalletIcon({ size = 16, strokeWidth = 2 }) {
   );
 }
 
-function UserIcon({ size = 16, strokeWidth = 2 }) {
+function UserIcon({ strokeWidth = 2 }) {
   return (
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -367,24 +379,18 @@ export default function AdminSidebar({
   adminData,
   onOpenDashboard,
 }) {
-  const [hovered, setHovered]       = useState(null);
+  const [hovered, setHovered]           = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const headerRef = useRef(null);
 
   // Auto-detect header height so sidebar sits flush below it
   useEffect(() => {
     function measureHeader() {
-      // Try to find the header by common tag/role — adjust the selector to match yours
       const header =
         document.querySelector("header") ||
         document.querySelector("[data-role='header']") ||
         document.querySelector("#site-header");
-
-      if (header) {
-        setHeaderHeight(header.getBoundingClientRect().height);
-      }
+      if (header) setHeaderHeight(header.getBoundingClientRect().height);
     }
-
     measureHeader();
     window.addEventListener("resize", measureHeader);
     return () => window.removeEventListener("resize", measureHeader);
@@ -405,7 +411,6 @@ export default function AdminSidebar({
   const role     = ROLE_CONFIG[adminData?.role] ?? ROLE_CONFIG.a_admin;
   const initials = (adminData?.full_name || adminData?.email || "A").charAt(0).toUpperCase();
 
-  // Helper: build active nav button inline styles using the role color
   function navBtnStyle(id) {
     const isActive = activeTab === id;
     return {

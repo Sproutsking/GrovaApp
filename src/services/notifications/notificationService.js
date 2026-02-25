@@ -1,5 +1,43 @@
 // ============================================================================
-// src/services/notifications/notificationService.js - ENHANCED WITH REAL-TIME
+// src/services/notifications/notificationService.js
+// ============================================================================
+// SINGLE SOURCE OF TRUTH for all notification state.
+//
+// ── Two independent badge concepts ───────────────────────────────────────────
+//   HEADER BADGE  = notifications created AFTER badge_cleared_at
+//                   → resets when sidebar OPENS (clearHeaderBadge)
+//                   → NOT affected by is_read
+//
+//   SIDEBAR DOTS  = is_read === false per row
+//                   → cleared via markAsRead / markAllAsRead
+//                   → NOT affected by opening the sidebar
+//
+// ── API surface (matches production service exactly) ─────────────────────────
+//   init(userId)                          → lifecycle start
+//   destroy()                             → lifecycle stop
+//   subscribe(fn)                         → returns unsubscribe fn
+//   getNotifications(userId?, limit?, forceRefresh?) → async Array
+//   getHeaderBadgeCount(userId?)          → async number  (DB-authoritative)
+//   getHeaderBadgeCountSync()             → number        (in-memory fast path)
+//   clearHeaderBadge(userId?)             → async
+//   markAsRead(notifId)                   → async
+//   markAllAsRead(userId?)                → async
+//   getUnreadSidebarCount()               → number (count of is_read=false)
+//   getUnreadCount()                      → alias for getUnreadSidebarCount
+//   isLoading()                           → boolean
+//   invalidateCache()                     → void
+//   on(event, fn)                         → typed event bus (returns unsub)
+//
+// ── Design principles ────────────────────────────────────────────────────────
+//   • Singleton — one instance, imported everywhere
+//   • subscribe() for generic "something changed" UI re-renders
+//   • on("new_notification", fn) for specific event routing (toast)
+//   • Optimistic updates — UI instant, DB follows, rollback on error
+//   • Single Supabase channel — notifications + badge_state
+//   • 30s rolling cache — fast returns, no redundant DB hits
+//   • Deduplicates concurrent init() calls via _initPromise
+//   • _badgeCount computed in-memory for synchronous reads by headers
+//   • _enrich() uses mediaUrlService for avatar URLs (consistent with app)
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -7,812 +45,505 @@ import mediaUrlService from "../shared/mediaUrlService";
 
 class NotificationService {
   constructor() {
-    this.cachedNotifications = null;
-    this.lastFetch = null;
-    this.cacheTimeout = 30000; // 30 seconds
-    this.readNotifications = new Set();
-    this.activeSubscription = null;
-    this.updateCallbacks = new Set();
+    // ── Cache ──────────────────────────────────────────────────
+    this._cache = null; // Array<Notification> | null
+    this._cacheFetchedAt = null; // timestamp ms
+    this._cacheTimeout = 30_000; // 30s rolling cache
+
+    // ── Badge ──────────────────────────────────────────────────
+    this._badgeClearedAt = null; // ISO string (mirrors DB)
+    this._badgeCount = 0; // computed in-memory for sync reads
+
+    // ── Lifecycle ──────────────────────────────────────────────
+    this._userId = null;
+    this._initialized = false;
+    this._loading = false;
+    this._initPromise = null; // dedup concurrent init() calls
+
+    // ── Realtime ───────────────────────────────────────────────
+    this._channel = null; // single combined Supabase channel
+
+    // ── Pub/sub ────────────────────────────────────────────────
+    this._subscribers = new Set(); // generic "change" listeners
+    this._typedListeners = new Map(); // typed event bus
   }
 
-  /**
-   * Get unread notification count (for headers)
-   */
-  getUnreadCount() {
-    if (!this.cachedNotifications) return 0;
-    return this.cachedNotifications.filter((n) => !n.read).length;
+  // =========================================================================
+  // TYPED EVENT BUS
+  // on("new_notification", fn)  — consumed by InAppNotificationToast
+  // on("push_received", fn)     — consumed by InAppNotificationToast
+  // =========================================================================
+
+  on(event, fn) {
+    if (!this._typedListeners.has(event))
+      this._typedListeners.set(event, new Set());
+    this._typedListeners.get(event).add(fn);
+    return () => this._typedListeners.get(event)?.delete(fn);
   }
 
-  /**
-   * Register a callback for notification updates (for header)
-   */
-  onUpdate(callback) {
-    this.updateCallbacks.add(callback);
-
-    return () => {
-      this.updateCallbacks.delete(callback);
-    };
-  }
-
-  /**
-   * Notify all registered callbacks of updates
-   */
-  notifyUpdateListeners() {
-    this.updateCallbacks.forEach((cb) => {
+  _emit(event, data) {
+    this._typedListeners.get(event)?.forEach((fn) => {
       try {
-        cb();
+        fn(data);
+      } catch {}
+    });
+  }
+
+  // =========================================================================
+  // GENERIC SUBSCRIBE — all UI components use this
+  // Returns an unsubscribe function.
+  // =========================================================================
+
+  subscribe(callback) {
+    this._subscribers.add(callback);
+    return () => this._subscribers.delete(callback);
+  }
+
+  _notifySubscribers() {
+    this._subscribers.forEach((fn) => {
+      try {
+        fn();
       } catch (err) {
-        console.error("Error in update callback:", err);
+        console.error("Subscriber error:", err);
       }
     });
   }
 
+  // =========================================================================
+  // LIFECYCLE
+  // =========================================================================
+
   /**
-   * Get all notifications for a user with proper data enrichment
+   * Initialize for a user. Idempotent — safe to call multiple times.
+   * Deduplicates concurrent calls (e.g. both headers mounting simultaneously).
+   */
+  async init(userId) {
+    if (!userId) return;
+    if (this._initialized && this._userId === userId) return;
+    if (this._initPromise) return this._initPromise;
+
+    this._initPromise = this._doInit(userId).finally(() => {
+      this._initPromise = null;
+    });
+    return this._initPromise;
+  }
+
+  async _doInit(userId) {
+    this._userId = userId;
+    this._initialized = true;
+
+    // Parallel: badge state + notifications
+    await Promise.all([this._loadBadgeClearedAt(), this._fetchAndCache()]);
+
+    this._startRealtime(userId);
+  }
+
+  /**
+   * Tear down — call on sign-out.
+   */
+  destroy() {
+    if (this._channel) {
+      supabase.removeChannel(this._channel);
+      this._channel = null;
+    }
+    this._subscribers.clear();
+    this._typedListeners.clear();
+    this._cache = null;
+    this._cacheFetchedAt = null;
+    this._badgeCount = 0;
+    this._badgeClearedAt = null;
+    this._userId = null;
+    this._initialized = false;
+    this._loading = false;
+    this._initPromise = null;
+  }
+
+  // =========================================================================
+  // PUBLIC GETTERS (synchronous — for headers / render paths)
+  // =========================================================================
+
+  /**
+   * Synchronous badge count — computed in-memory.
+   * Used by DesktopHeader / MobileHeader subscribe callbacks.
+   */
+  getHeaderBadgeCountSync() {
+    return this._badgeCount;
+  }
+
+  /**
+   * Whether initial fetch is in progress.
+   */
+  isLoading() {
+    return this._loading;
+  }
+
+  /**
+   * Count of sidebar unread dots (is_read === false).
+   */
+  getUnreadSidebarCount() {
+    return this._cache?.filter((n) => !n.is_read).length ?? 0;
+  }
+
+  /** Alias kept for backward compatibility. */
+  getUnreadCount() {
+    return this.getUnreadSidebarCount();
+  }
+
+  /**
+   * Invalidate cache — forces next getNotifications() to hit DB.
+   */
+  invalidateCache() {
+    this._cache = null;
+    this._cacheFetchedAt = null;
+  }
+
+  // =========================================================================
+  // ASYNC PUBLIC API (match real service signatures exactly)
+  // =========================================================================
+
+  /**
+   * Fetch notifications for a user.
+   * Returns cached data if within cacheTimeout unless forceRefresh=true.
+   *
+   * @param {string}  [userId]       defaults to this._userId
+   * @param {number}  [limit=50]
+   * @param {boolean} [forceRefresh=false]
+   * @returns {Promise<Array>}
    */
   async getNotifications(userId, limit = 50, forceRefresh = false) {
-    try {
-      // Use cache if available and not forcing refresh
-      if (
-        !forceRefresh &&
-        this.cachedNotifications &&
-        this.lastFetch &&
-        Date.now() - this.lastFetch < this.cacheTimeout
-      ) {
-        console.log("📬 Using cached notifications");
-        return this.cachedNotifications;
-      }
+    const uid = userId || this._userId;
+    if (!uid) return [];
 
-      console.log("📬 Fetching fresh notifications for user:", userId);
-
-      // Get user preferences to filter notifications
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("preferences")
-        .eq("id", userId)
-        .single();
-
-      const preferences = profile?.preferences || {};
-      const notifications = [];
-
-      // Fetch all notification types in parallel
-      await Promise.all([
-        preferences.notify_likes !== false &&
-          this.fetchLikeNotifications(userId, notifications),
-        preferences.notify_comments !== false &&
-          this.fetchCommentNotifications(userId, notifications),
-        preferences.notify_followers !== false &&
-          this.fetchFollowerNotifications(userId, notifications),
-        preferences.notify_unlocks !== false &&
-          this.fetchUnlockNotifications(userId, notifications),
-        preferences.notify_shares !== false &&
-          this.fetchShareNotifications(userId, notifications),
-      ]);
-
-      // Sort by date and limit
-      const sortedNotifications = notifications
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, limit)
-        .map((n) => ({
-          ...n,
-          read: this.readNotifications.has(n.id),
-        }));
-
-      // Cache the results
-      this.cachedNotifications = sortedNotifications;
-      this.lastFetch = Date.now();
-
-      console.log(
-        "✅ Fetched",
-        sortedNotifications.length,
-        "notifications for user",
-      );
-
-      this.notifyUpdateListeners();
-
-      return sortedNotifications;
-    } catch (error) {
-      console.error("❌ Error fetching notifications:", error);
-      return [];
+    // Serve from cache if still fresh
+    if (
+      !forceRefresh &&
+      this._cache &&
+      this._cacheFetchedAt &&
+      Date.now() - this._cacheFetchedAt < this._cacheTimeout
+    ) {
+      return this._cache;
     }
+
+    await this._fetchAndCache(limit, uid);
+    return this._cache || [];
   }
 
   /**
-   * Fetch like notifications for posts, reels, and stories
+   * DB-authoritative header badge count.
+   * Queries the DB for notifications after badge_cleared_at.
+   * Use getHeaderBadgeCountSync() for synchronous reads in UI.
+   *
+   * @param {string} [userId]
+   * @returns {Promise<number>}
    */
-  async fetchLikeNotifications(userId, notifications) {
+  async getHeaderBadgeCount(userId) {
+    const uid = userId || this._userId;
+    if (!uid) return 0;
     try {
-      const [postLikes, reelLikes, storyLikes] = await Promise.all([
-        supabase
-          .from("post_likes")
-          .select(
-            `
-            id,
-            created_at,
-            user_id,
-            post_id,
-            profiles!post_likes_user_id_fkey (
-              id,
-              full_name,
-              username,
-              avatar_id,
-              verified
-            ),
-            posts!post_likes_post_id_fkey (
-              id,
-              user_id,
-              content
-            )
-          `,
-          )
-          .eq("posts.user_id", userId)
-          .neq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(20),
-
-        supabase
-          .from("reel_likes")
-          .select(
-            `
-            id,
-            created_at,
-            user_id,
-            reel_id,
-            profiles!reel_likes_user_id_fkey (
-              id,
-              full_name,
-              username,
-              avatar_id,
-              verified
-            ),
-            reels!reel_likes_reel_id_fkey (
-              id,
-              user_id,
-              caption
-            )
-          `,
-          )
-          .eq("reels.user_id", userId)
-          .neq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(20),
-
-        supabase
-          .from("story_likes")
-          .select(
-            `
-            id,
-            created_at,
-            user_id,
-            story_id,
-            profiles!story_likes_user_id_fkey (
-              id,
-              full_name,
-              username,
-              avatar_id,
-              verified
-            ),
-            stories!story_likes_story_id_fkey (
-              id,
-              user_id,
-              title
-            )
-          `,
-          )
-          .eq("stories.user_id", userId)
-          .neq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(20),
-      ]);
-
-      // Process post likes
-      if (postLikes.data) {
-        postLikes.data.forEach((like) => {
-          if (like.profiles && like.posts) {
-            notifications.push({
-              id: `like-post-${like.id}`,
-              type: "like",
-              contentType: "post",
-              actor: {
-                id: like.profiles.id,
-                name: like.profiles.full_name,
-                username: like.profiles.username,
-                avatar: like.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(like.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: like.profiles.verified,
-              },
-              actorId: like.profiles.id,
-              content: {
-                id: like.posts.id,
-                preview: like.posts.content?.substring(0, 100) || "your post",
-              },
-              createdAt: like.created_at,
-              read: false,
-            });
-          }
-        });
-      }
-
-      // Process reel likes
-      if (reelLikes.data) {
-        reelLikes.data.forEach((like) => {
-          if (like.profiles && like.reels) {
-            notifications.push({
-              id: `like-reel-${like.id}`,
-              type: "like",
-              contentType: "reel",
-              actor: {
-                id: like.profiles.id,
-                name: like.profiles.full_name,
-                username: like.profiles.username,
-                avatar: like.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(like.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: like.profiles.verified,
-              },
-              actorId: like.profiles.id,
-              content: {
-                id: like.reels.id,
-                preview: like.reels.caption?.substring(0, 100) || "your reel",
-              },
-              createdAt: like.created_at,
-              read: false,
-            });
-          }
-        });
-      }
-
-      // Process story likes
-      if (storyLikes.data) {
-        storyLikes.data.forEach((like) => {
-          if (like.profiles && like.stories) {
-            notifications.push({
-              id: `like-story-${like.id}`,
-              type: "like",
-              contentType: "story",
-              actor: {
-                id: like.profiles.id,
-                name: like.profiles.full_name,
-                username: like.profiles.username,
-                avatar: like.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(like.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: like.profiles.verified,
-              },
-              actorId: like.profiles.id,
-              content: {
-                id: like.stories.id,
-                preview: like.stories.title,
-              },
-              createdAt: like.created_at,
-              read: false,
-            });
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching like notifications:", error);
+      const clearedAt = await this._getBadgeClearedAt(uid);
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_user_id", uid)
+        .gt("created_at", clearedAt);
+      if (error) throw error;
+      return count || 0;
+    } catch (err) {
+      console.error("❌ getHeaderBadgeCount:", err);
+      return this._badgeCount; // fall back to in-memory
     }
   }
 
   /**
-   * Fetch comment notifications
+   * Called when NotificationSidebar OPENS.
+   * Optimistically resets header badge in-memory (UI instant),
+   * then persists to DB non-blocking.
+   * Does NOT touch is_read — sidebar dots are independent.
+   *
+   * @param {string} [userId]
    */
-  async fetchCommentNotifications(userId, notifications) {
-    try {
-      const { data: comments } = await supabase
-        .from("comments")
-        .select(
-          `
-          id,
-          created_at,
-          user_id,
-          text,
-          post_id,
-          reel_id,
-          story_id,
-          profiles!comments_user_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
-        )
-        .neq("user_id", userId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(50);
+  async clearHeaderBadge(userId) {
+    const uid = userId || this._userId;
+    if (!uid) return;
 
-      if (comments) {
-        const postIds = comments.filter((c) => c.post_id).map((c) => c.post_id);
-        const reelIds = comments.filter((c) => c.reel_id).map((c) => c.reel_id);
-        const storyIds = comments
-          .filter((c) => c.story_id)
-          .map((c) => c.story_id);
+    // Optimistic — headers see 0 instantly via subscribe()
+    const now = new Date().toISOString();
+    this._badgeClearedAt = now;
+    this._badgeCount = 0;
+    this._notifySubscribers();
 
-        const [posts, reels, stories] = await Promise.all([
-          postIds.length > 0
-            ? supabase
-                .from("posts")
-                .select("id, user_id, content")
-                .in("id", postIds)
-                .eq("user_id", userId)
-            : { data: [] },
-          reelIds.length > 0
-            ? supabase
-                .from("reels")
-                .select("id, user_id, caption")
-                .in("id", reelIds)
-                .eq("user_id", userId)
-            : { data: [] },
-          storyIds.length > 0
-            ? supabase
-                .from("stories")
-                .select("id, user_id, title")
-                .in("id", storyIds)
-                .eq("user_id", userId)
-            : { data: [] },
-        ]);
-
-        const ownedPosts = new Map(posts.data?.map((p) => [p.id, p]) || []);
-        const ownedReels = new Map(reels.data?.map((r) => [r.id, r]) || []);
-        const ownedStories = new Map(stories.data?.map((s) => [s.id, s]) || []);
-
-        comments.forEach((comment) => {
-          if (!comment.profiles) return;
-
-          let contentType = null;
-          let contentId = null;
-          let contentPreview = null;
-
-          if (comment.post_id && ownedPosts.has(comment.post_id)) {
-            contentType = "post";
-            contentId = comment.post_id;
-            contentPreview = comment.text.substring(0, 100);
-          } else if (comment.reel_id && ownedReels.has(comment.reel_id)) {
-            contentType = "reel";
-            contentId = comment.reel_id;
-            contentPreview = comment.text.substring(0, 100);
-          } else if (comment.story_id && ownedStories.has(comment.story_id)) {
-            contentType = "story";
-            contentId = comment.story_id;
-            contentPreview = comment.text.substring(0, 100);
-          }
-
-          if (contentType) {
-            notifications.push({
-              id: `comment-${comment.id}`,
-              type: "comment",
-              contentType: contentType,
-              actor: {
-                id: comment.profiles.id,
-                name: comment.profiles.full_name,
-                username: comment.profiles.username,
-                avatar: comment.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(comment.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: comment.profiles.verified,
-              },
-              actorId: comment.profiles.id,
-              content: {
-                id: contentId,
-                preview: contentPreview,
-              },
-              createdAt: comment.created_at,
-              read: false,
-            });
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching comment notifications:", error);
-    }
+    // Persist non-blocking
+    supabase
+      .from("notification_badge_state")
+      .upsert(
+        { user_id: uid, badge_cleared_at: now, updated_at: now },
+        { onConflict: "user_id" },
+      )
+      .then(({ error }) => {
+        if (error) console.error("❌ clearHeaderBadge:", error);
+      });
   }
 
   /**
-   * Fetch follower notifications
-   */
-  async fetchFollowerNotifications(userId, notifications) {
-    try {
-      const { data: followers } = await supabase
-        .from("follows")
-        .select(
-          `
-          id,
-          created_at,
-          follower_id,
-          profiles!follows_follower_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
-        )
-        .eq("following_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-
-      if (followers) {
-        followers.forEach((follow) => {
-          if (follow.profiles) {
-            notifications.push({
-              id: `follow-${follow.id}`,
-              type: "follow",
-              contentType: null,
-              actor: {
-                id: follow.profiles.id,
-                name: follow.profiles.full_name,
-                username: follow.profiles.username,
-                avatar: follow.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(follow.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: follow.profiles.verified,
-              },
-              actorId: follow.profiles.id,
-              content: null,
-              createdAt: follow.created_at,
-              read: false,
-            });
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching follower notifications:", error);
-    }
-  }
-
-  /**
-   * Fetch unlock notifications
-   */
-  async fetchUnlockNotifications(userId, notifications) {
-    try {
-      const { data: unlocks } = await supabase
-        .from("unlocked_stories")
-        .select(
-          `
-          id,
-          created_at,
-          user_id,
-          story_id,
-          profiles!unlocked_stories_user_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          ),
-          stories!unlocked_stories_story_id_fkey (
-            id,
-            user_id,
-            title
-          )
-        `,
-        )
-        .eq("stories.user_id", userId)
-        .neq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-
-      if (unlocks) {
-        unlocks.forEach((unlock) => {
-          if (unlock.profiles && unlock.stories) {
-            notifications.push({
-              id: `unlock-${unlock.id}`,
-              type: "unlock",
-              contentType: "story",
-              actor: {
-                id: unlock.profiles.id,
-                name: unlock.profiles.full_name,
-                username: unlock.profiles.username,
-                avatar: unlock.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(unlock.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: unlock.profiles.verified,
-              },
-              actorId: unlock.profiles.id,
-              content: {
-                id: unlock.stories.id,
-                preview: unlock.stories.title,
-              },
-              createdAt: unlock.created_at,
-              read: false,
-            });
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching unlock notifications:", error);
-    }
-  }
-
-  /**
-   * Fetch share notifications
-   */
-  async fetchShareNotifications(userId, notifications) {
-    try {
-      const { data: shares } = await supabase
-        .from("shares")
-        .select(
-          `
-          id,
-          created_at,
-          user_id,
-          content_type,
-          content_id,
-          profiles!shares_user_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
-          )
-        `,
-        )
-        .neq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-
-      if (shares) {
-        for (const share of shares) {
-          if (!share.profiles) continue;
-
-          let isOwner = false;
-          let contentPreview = null;
-
-          if (share.content_type === "post") {
-            const { data: post } = await supabase
-              .from("posts")
-              .select("user_id, content")
-              .eq("id", share.content_id)
-              .single();
-
-            if (post && post.user_id === userId) {
-              isOwner = true;
-              contentPreview = post.content?.substring(0, 100) || "your post";
-            }
-          } else if (share.content_type === "reel") {
-            const { data: reel } = await supabase
-              .from("reels")
-              .select("user_id, caption")
-              .eq("id", share.content_id)
-              .single();
-
-            if (reel && reel.user_id === userId) {
-              isOwner = true;
-              contentPreview = reel.caption?.substring(0, 100) || "your reel";
-            }
-          } else if (share.content_type === "story") {
-            const { data: story } = await supabase
-              .from("stories")
-              .select("user_id, title")
-              .eq("id", share.content_id)
-              .single();
-
-            if (story && story.user_id === userId) {
-              isOwner = true;
-              contentPreview = story.title;
-            }
-          }
-
-          if (isOwner) {
-            notifications.push({
-              id: `share-${share.id}`,
-              type: "share",
-              contentType: share.content_type,
-              actor: {
-                id: share.profiles.id,
-                name: share.profiles.full_name,
-                username: share.profiles.username,
-                avatar: share.profiles.avatar_id
-                  ? mediaUrlService.getImageUrl(share.profiles.avatar_id, {
-                      width: 100,
-                      height: 100,
-                    })
-                  : null,
-                verified: share.profiles.verified,
-              },
-              actorId: share.profiles.id,
-              content: {
-                id: share.content_id,
-                preview: contentPreview,
-              },
-              createdAt: share.created_at,
-              read: false,
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching share notifications:", error);
-    }
-  }
-
-  /**
-   * Get unread notification count
-   */
-  async getUnreadCount(userId) {
-    try {
-      const notifications = await this.getNotifications(userId, 100);
-      const count = notifications.filter((n) => !n.read).length;
-      console.log(`🔔 Unread count for user ${userId}: ${count}`);
-      return count;
-    } catch (error) {
-      console.error("Error getting unread count:", error);
-      return 0;
-    }
-  }
-
-  /**
-   * Mark notification as read
+   * Mark a single notification as read (removes sidebar unread dot).
+   * Optimistic with rollback on DB error.
+   *
+   * @param {string} notificationId
    */
   async markAsRead(notificationId) {
-    this.readNotifications.add(notificationId);
+    if (!this._cache) return;
+    const target = this._cache.find((n) => n.id === notificationId);
+    if (!target || target.is_read) return; // already read — skip DB call
 
-    // Update cache
-    if (this.cachedNotifications) {
-      this.cachedNotifications = this.cachedNotifications.map((n) =>
-        n.id === notificationId ? { ...n, read: true } : n,
+    // Optimistic
+    this._cache = this._cache.map((n) =>
+      n.id === notificationId ? { ...n, is_read: true } : n,
+    );
+    this._notifySubscribers();
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", notificationId);
+
+    if (error) {
+      // Rollback
+      this._cache = this._cache.map((n) =>
+        n.id === notificationId ? { ...n, is_read: false } : n,
       );
+      this._notifySubscribers();
+      console.error("❌ markAsRead:", error);
     }
-
-    this.notifyUpdateListeners();
-
-    return true;
   }
 
   /**
-   * Mark all notifications as read
+   * Mark ALL as read + clear header badge simultaneously.
+   * Optimistic with single DB call per operation.
+   *
+   * @param {string} [userId]
    */
   async markAllAsRead(userId) {
-    // Add all current notifications to read set
-    if (this.cachedNotifications) {
-      this.cachedNotifications.forEach((n) => {
-        this.readNotifications.add(n.id);
+    const uid = userId || this._userId;
+    if (!this._cache || !uid) return;
+
+    // Optimistic
+    this._cache = this._cache.map((n) => ({ ...n, is_read: true }));
+    this._badgeCount = 0;
+    this._notifySubscribers();
+
+    await Promise.all([
+      supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("recipient_user_id", uid)
+        .eq("is_read", false),
+      this.clearHeaderBadge(uid),
+    ]).catch((err) => console.error("❌ markAllAsRead:", err));
+  }
+
+  // =========================================================================
+  // INTERNAL — FETCH
+  // =========================================================================
+
+  async _fetchAndCache(limit = 60, uid) {
+    const userId = uid || this._userId;
+    if (!userId || this._loading) return;
+    this._loading = true;
+
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select(
+          `
+          id, type, message, entity_id, is_read, metadata, created_at,
+          actor:actor_user_id (
+            id, full_name, username, avatar_id, verified
+          )
+        `,
+        )
+        .eq("recipient_user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      this._cache = (data || []).map((n) => this._enrich(n));
+      this._cacheFetchedAt = Date.now();
+      this._recomputeBadge();
+      this._notifySubscribers();
+    } catch (err) {
+      console.error("❌ NotificationService fetch failed:", err);
+    } finally {
+      this._loading = false;
+    }
+  }
+
+  /**
+   * Enrich a raw DB row into a consistent notification object.
+   * Method name matches real service for zero confusion.
+   */
+  _enrich(n) {
+    let avatarUrl = null;
+    if (n.actor?.avatar_id) {
+      const raw = mediaUrlService.getImageUrl(n.actor.avatar_id, {
+        width: 100,
+        height: 100,
       });
-
-      // Update cache
-      this.cachedNotifications = this.cachedNotifications.map((n) => ({
-        ...n,
-        read: true,
-      }));
+      avatarUrl = typeof raw === "string" ? raw : null;
     }
 
-    this.notifyUpdateListeners();
-
-    return true;
-  }
-
-  /**
-   * Clear cache to force refresh
-   */
-  clearCache() {
-    this.cachedNotifications = null;
-    this.lastFetch = null;
-  }
-
-  /**
-   * Subscribe to real-time notification updates
-   */
-  subscribeToNotifications(userId, callback) {
-    // Prevent duplicate subscriptions
-    if (this.activeSubscription) {
-      console.log("⚠️ Already subscribed to notifications");
-      return this.activeSubscription;
-    }
-
-    // Subscribe to all notification-related tables
-    const channels = [];
-
-    // Post likes
-    const postLikesChannel = supabase
-      .channel(`notifications-post-likes:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "post_likes",
-        },
-        () => {
-          this.clearCache();
-          this.notifyUpdateListeners();
-          callback();
-        },
-      )
-      .subscribe();
-    channels.push(postLikesChannel);
-
-    // Reel likes
-    const reelLikesChannel = supabase
-      .channel(`notifications-reel-likes:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "reel_likes",
-        },
-        () => {
-          this.clearCache();
-          this.notifyUpdateListeners();
-          callback();
-        },
-      )
-      .subscribe();
-    channels.push(reelLikesChannel);
-
-    // Comments
-    const commentsChannel = supabase
-      .channel(`notifications-comments:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "comments",
-        },
-        () => {
-          this.clearCache();
-          this.notifyUpdateListeners();
-          callback();
-        },
-      )
-      .subscribe();
-    channels.push(commentsChannel);
-
-    // Follows
-    const followsChannel = supabase
-      .channel(`notifications-follows:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "follows",
-          filter: `following_id=eq.${userId}`,
-        },
-        () => {
-          this.clearCache();
-          this.notifyUpdateListeners();
-          callback();
-        },
-      )
-      .subscribe();
-    channels.push(followsChannel);
-
-    const unsubscribe = () => {
-      channels.forEach((channel) => supabase.removeChannel(channel));
-      this.activeSubscription = null;
+    return {
+      id: n.id,
+      type: n.type,
+      message: n.message,
+      entity_id: n.entity_id,
+      is_read: n.is_read,
+      metadata: n.metadata || {},
+      created_at: n.created_at,
+      actor: n.actor
+        ? {
+            id: n.actor.id,
+            name: n.actor.full_name,
+            username: n.actor.username,
+            avatar: avatarUrl,
+            verified: n.actor.verified || false,
+          }
+        : {
+            id: null,
+            name: "Someone",
+            username: "user",
+            avatar: null,
+            verified: false,
+          },
     };
+  }
 
-    this.activeSubscription = unsubscribe;
-    return unsubscribe;
+  // =========================================================================
+  // INTERNAL — BADGE
+  // =========================================================================
+
+  async _loadBadgeClearedAt() {
+    if (!this._userId) return;
+    try {
+      const { data } = await supabase
+        .from("notification_badge_state")
+        .select("badge_cleared_at")
+        .eq("user_id", this._userId)
+        .maybeSingle();
+      // Default to epoch so ALL existing notifications count if never cleared
+      this._badgeClearedAt =
+        data?.badge_cleared_at || new Date(0).toISOString();
+    } catch {
+      this._badgeClearedAt = new Date(0).toISOString();
+    }
+  }
+
+  async _getBadgeClearedAt(userId) {
+    if (this._badgeClearedAt) return this._badgeClearedAt;
+    this._userId = userId;
+    await this._loadBadgeClearedAt();
+    return this._badgeClearedAt || new Date(0).toISOString();
+  }
+
+  /**
+   * Recompute _badgeCount from cache + _badgeClearedAt.
+   * Called after every fetch and after badge cleared.
+   */
+  _recomputeBadge() {
+    if (!this._cache) {
+      this._badgeCount = 0;
+      return;
+    }
+    const clearedMs = new Date(this._badgeClearedAt || 0).getTime();
+    this._badgeCount = this._cache.filter(
+      (n) => new Date(n.created_at).getTime() > clearedMs,
+    ).length;
+  }
+
+  // =========================================================================
+  // INTERNAL — REALTIME
+  // Single channel, three event listeners (notifications + badge_state)
+  // =========================================================================
+
+  _startRealtime(userId) {
+    if (this._channel) supabase.removeChannel(this._channel);
+
+    this._channel = supabase
+      .channel(`notifications-realtime:${userId}`)
+
+      // 1. New notification arrives
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${userId}`,
+        },
+        (payload) => {
+          // Prepend to cache immediately (no actor join — show optimistically)
+          const enriched = this._enrich(payload.new);
+          if (this._cache) {
+            this._cache = [enriched, ...this._cache];
+          } else {
+            this._cache = [enriched];
+          }
+          this._cacheFetchedAt = Date.now();
+          // Increment badge
+          this._badgeCount = (this._badgeCount || 0) + 1;
+          this._notifySubscribers();
+          // Fire typed event → InAppNotificationToast can also react
+          this._emit("new_notification", payload.new);
+          // Re-fetch in background to get actor JOIN
+          setTimeout(() => this._fetchAndCache(), 800);
+        },
+      )
+
+      // 2. is_read updated (from another tab / markAllAsRead)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (!this._cache) return;
+          this._cache = this._cache.map((n) =>
+            n.id === payload.new.id
+              ? { ...n, is_read: payload.new.is_read }
+              : n,
+          );
+          this._notifySubscribers();
+        },
+      )
+
+      // 3. Badge cleared from another tab / device
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notification_badge_state",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (!payload.new?.badge_cleared_at) return;
+          this._badgeClearedAt = payload.new.badge_cleared_at;
+          this._recomputeBadge();
+          this._notifySubscribers();
+        },
+      )
+
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("✅ NotificationService realtime connected");
+        }
+      });
   }
 }
 
+// Singleton
 const notificationService = new NotificationService();
-
 export default notificationService;

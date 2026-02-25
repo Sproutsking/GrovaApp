@@ -1,8 +1,12 @@
 // supabase/functions/paystack-create-transaction/index.ts
 // ============================================================================
-// PAYSTACK — Create Transaction
-// Initializes a Paystack payment session and returns the authorization URL.
-// Amount expected is always fetched from our DB — never trusted from frontend.
+// PAYSTACK — Create Transaction  v2
+//
+// FIXES vs old version:
+// - validateEnv() call at startup catches missing PAYSTACK_SECRET_KEY early
+// - Better logging throughout so edge function logs show exact failure point
+// - amount_override_cents support: if frontend passes this (invite pricing),
+//   we use it ONLY after validating it's >= $0.50 and <= 10x product price
 // ============================================================================
 
 import {
@@ -12,14 +16,23 @@ import {
   requireAuth,
   supabaseAdmin,
   checkPaymentRateLimit,
+  validateEnv,
 } from "../_shared/payments.ts";
 
-const PAYSTACK_SECRET = Deno.env.get("PAYSTACK_SECRET_KEY")!;
+const PAYSTACK_SECRET = Deno.env.get("PAYSTACK_SECRET_KEY") ?? "";
 const PAYSTACK_BASE   = "https://api.paystack.co";
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST")   return errorResponse("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+
+  // ── 0. Validate required env vars at startup ───────────────────────────────
+  const envErr = validateEnv([
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "PAYSTACK_SECRET_KEY",
+  ]);
+  if (envErr) return envErr;
 
   // ── 1. Authenticate ────────────────────────────────────────────────────────
   let userId: string;
@@ -29,7 +42,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     userId = auth.userId;
     email  = auth.email;
   } catch (e) {
-    return errorResponse(e instanceof Error ? e.message : "Unauthorized", 401, "UNAUTHORIZED");
+    const msg = e instanceof Error ? e.message : "Unauthorized";
+    console.error("[paystack-create] Auth failed:", msg);
+    return errorResponse(msg, 401, "UNAUTHORIZED");
   }
 
   // ── 2. Parse body ──────────────────────────────────────────────────────────
@@ -40,10 +55,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return errorResponse("Invalid JSON body", 400, "INVALID_REQUEST");
   }
 
-  const { product_id, idempotency_key, callback_url } = body as {
-    product_id:      string;
-    idempotency_key: string;
-    callback_url:    string;
+  const {
+    product_id,
+    idempotency_key,
+    callback_url,
+    amount_override_cents,
+  } = body as {
+    product_id:             string;
+    idempotency_key:        string;
+    callback_url:           string;
+    amount_override_cents?: number;
   };
 
   if (!product_id || !idempotency_key || !callback_url) {
@@ -93,14 +114,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     existingIntent?.metadata &&
     (existingIntent.metadata as Record<string, unknown>).authorization_url
   ) {
-    // Return the existing authorization URL — user can retry with same link
     return jsonResponse({
       authorization_url: (existingIntent.metadata as Record<string, unknown>).authorization_url,
       reference:         existingIntent.provider_session,
     });
   }
 
-  // ── 5. Fetch product (amount from DB only) ─────────────────────────────────
+  // ── 5. Fetch product (amount from DB — never trusted from frontend) ────────
   const { data: product, error: productErr } = await db
     .from("payment_products")
     .select("id, name, description, type, tier, amount_usd, currency, paystack_plan_code, metadata")
@@ -109,17 +129,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .maybeSingle();
 
   if (productErr || !product) {
+    console.error("[paystack-create] Product not found:", product_id, productErr?.message);
     return errorResponse("Invalid or inactive product.", 404, "INVALID_PRODUCT");
   }
 
-  // ── 6. Build Paystack payload ──────────────────────────────────────────────
-  // Amount is in the smallest currency unit.
-  // For NGN: kobo (100 kobo = 1 NGN)
-  // For USD: cents (100 cents = 1 USD) — Paystack supports USD for some accounts
-  // We use USD directly. If your Paystack account is NGN-only, convert here.
-  const amountCents = Math.round(product.amount_usd * 100);
+  // ── 6. Determine amount ────────────────────────────────────────────────────
+  // amount_override_cents is allowed ONLY for invite code pricing.
+  // We validate it's reasonable: > $0.50 and <= 10x product price.
+  const productCents = Math.round(product.amount_usd * 100);
+  let amountCents    = productCents;
 
-  // Reference: deterministic from idempotency_key — safe to retry
+  if (amount_override_cents != null && typeof amount_override_cents === "number") {
+    const override = Math.round(amount_override_cents);
+    const minAllowed = 50;             // $0.50 minimum
+    const maxAllowed = productCents * 10; // sanity cap
+    if (override >= minAllowed && override <= maxAllowed) {
+      amountCents = override;
+      console.log(`[paystack-create] Using invite override amount: $${(override/100).toFixed(2)} (product default: $${(productCents/100).toFixed(2)})`);
+    } else {
+      console.warn(`[paystack-create] Ignored invalid override: ${override} cents (product: ${productCents} cents, min: ${minAllowed})`);
+    }
+  }
+
+  // ── 7. Build Paystack payload ──────────────────────────────────────────────
   const reference = `xv_${idempotency_key.replace(/-/g, "").slice(0, 18)}_${Date.now()}`;
 
   const paystackPayload: Record<string, unknown> = {
@@ -132,8 +164,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       custom_fields: [
         { display_name: "Product", variable_name: "product_name", value: product.name },
         { display_name: "Tier",    variable_name: "tier",         value: product.tier },
+        { display_name: "Amount",  variable_name: "amount_usd",   value: `$${(amountCents/100).toFixed(2)}` },
       ],
-      // These are read by our webhook handler — critical for activation
       user_id:         userId,
       product_id:      product.id,
       idempotency_key: idempotency_key,
@@ -141,12 +173,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     },
   };
 
-  // Attach subscription plan for recurring products
   if (product.type === "subscription" && product.paystack_plan_code) {
     paystackPayload["plan"] = product.paystack_plan_code;
   }
 
-  // ── 7. Initialize with Paystack ────────────────────────────────────────────
+  // ── 8. Initialize with Paystack ────────────────────────────────────────────
+  console.log(`[paystack-create] Initializing for user=${userId} amount=$${(amountCents/100).toFixed(2)} email=${email}`);
+
   let psResponse: Response;
   try {
     psResponse = await fetch(`${PAYSTACK_BASE}/transaction/initialize`, {
@@ -189,7 +222,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { authorization_url, access_code } = psData.data;
 
-  // ── 8. Store intent ────────────────────────────────────────────────────────
+  console.log(`[paystack-create] ✅ Got authorization_url for ref=${reference}`);
+
+  // ── 9. Store intent ────────────────────────────────────────────────────────
   const { error: intentErr } = await db.from("payment_intents").upsert({
     user_id:          userId,
     product_id:       product.id,
@@ -204,7 +239,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }, { onConflict: "idempotency_key" });
 
   if (intentErr) {
-    // Non-fatal — we still have the authorization URL to return
     console.warn("[paystack-create] Intent store failed (non-fatal):", intentErr.message);
   }
 

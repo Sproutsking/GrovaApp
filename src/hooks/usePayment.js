@@ -16,7 +16,7 @@ import {
   createPaystackTransaction,
   verifyWeb3Payment,
   applyInviteCode,
-} from "../services/wallet/paymentService";
+} from "../services/auth/paymentService";
 import { supabase } from "../services/config/supabase";
 
 export function usePayment() {

@@ -1,11 +1,24 @@
 // ============================================================================
-// src/services/auth/sessionManager.js — v3 FINAL
+// src/services/auth/sessionManager.js — v4 HARDENED
+// ============================================================================
 //
-// FACEBOOK MODEL — session ends only on explicit sign-out.
-//   • startSession() — idempotent, safe to call multiple times (StrictMode)
-//   • stopSession()  — call ONLY on explicit sign-out, never on unmount
-//   • All DB writes are fire-and-forget, throttled to max 1 per 2 min
-//   • Offline-safe — checks navigator.onLine before any network call
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │  SESSION MANAGER — FACEBOOK MODEL                                      │
+// │                                                                         │
+// │  Session ends ONLY on explicit user sign-out.                          │
+// │  NEVER on: network drops, tab switch, app update, JWT expiry,          │
+// │            component unmount, error, timeout, or any other event.      │
+// │                                                                         │
+// │  What this does:                                                        │
+// │    1. Records session start in user_sessions table                     │
+// │    2. Tracks last_seen in profiles via periodic heartbeat              │
+// │    3. Records session end when user explicitly signs out               │
+// │                                                                         │
+// │  What this does NOT do:                                                 │
+// │    - Does NOT call supabase.auth.signOut()                             │
+// │    - Does NOT clear auth tokens                                         │
+// │    - Does NOT affect AuthContext state                                  │
+// └─────────────────────────────────────────────────────────────────────────┘
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -32,11 +45,16 @@ class SessionManager {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  /**
+   * Call once on login / app mount with authenticated user.
+   * Safe to call multiple times — idempotent.
+   */
   async startSession(userId) {
-    if (this._active) return; // idempotent
+    if (this._active) return;
     this._active = true;
     this._userId = userId;
 
+    // Non-blocking — session DB write is fire-and-forget
     this._createOrUpdateSession().catch(() => {});
 
     for (const ev of ACTIVITY_EVENTS) {
@@ -46,6 +64,10 @@ class SessionManager {
     this._heartbeat = setInterval(() => this._updateActivity(), HEARTBEAT_MS);
   }
 
+  /**
+   * Call ONLY on explicit user sign-out.
+   * NEVER call this on network drop, error, timeout, or unmount.
+   */
   async stopSession() {
     if (!this._active) return;
     this._active = false;
@@ -53,14 +75,21 @@ class SessionManager {
     for (const ev of ACTIVITY_EVENTS) {
       window.removeEventListener(ev, this._boundActivity);
     }
+
     clearInterval(this._heartbeat);
     this._heartbeat = null;
 
+    // Non-blocking end-session write
     await this._endSessionInDb().catch(() => {});
+
     this._userId = null;
     this._sessionId = null;
   }
 
+  /**
+   * Check if there's a valid Supabase auth session.
+   * Does NOT sign out if false — just returns status.
+   */
   async isValid() {
     try {
       const {
@@ -82,6 +111,7 @@ class SessionManager {
   }
 
   async _updateActivity() {
+    // Offline check — don't waste failed DB requests
     if (!this._active || !this._userId || !navigator.onLine) return;
     try {
       const now = new Date().toISOString();
@@ -97,7 +127,10 @@ class SessionManager {
               .eq("id", this._sessionId)
           : Promise.resolve(),
       ]);
-    } catch {}
+    } catch {
+      // Silent — activity tracking failure is non-critical
+      // NEVER sign out here
+    }
   }
 
   async _createOrUpdateSession() {
@@ -111,6 +144,7 @@ class SessionManager {
       const tokenSuffix =
         (authSession.access_token || "").slice(-20) || "unknown";
 
+      // Look for an existing active session for this user
       const { data: existing } = await supabase
         .from("user_sessions")
         .select("id")
@@ -147,7 +181,9 @@ class SessionManager {
 
         if (ns?.id) this._sessionId = ns.id;
       }
-    } catch {}
+    } catch {
+      // Silent — session creation failure doesn't affect auth
+    }
   }
 
   async _endSessionInDb() {
@@ -166,7 +202,9 @@ class SessionManager {
           .eq("user_id", this._userId)
           .eq("is_active", true);
       }
-    } catch {}
+    } catch {
+      // Silent — session end recording is non-critical
+    }
   }
 }
 

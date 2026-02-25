@@ -1,78 +1,44 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "../../services/config/supabase";
+import React, { useState, useEffect, useCallback } from "react";
+import notificationService from "../../services/notifications/notificationService";
+
+// ============================================================================
+// NotificationFeed
+// A simpler feed component (used in other contexts besides the sidebar).
+// Reads from notificationService so it stays in sync with everything else.
+// ============================================================================
 
 const NotificationFeed = ({ userId, onClose }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadNotifications();
-    subscribeToNotifications();
+  const load = useCallback(async () => {
+    if (!userId) return;
+    const data = await notificationService.getNotifications(userId, 50, true);
+    setNotifications(data);
+    setLoading(false);
   }, [userId]);
 
-  const loadNotifications = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select(
-          `
-          *,
-          actor:actor_user_id(id, full_name, username, avatar_id, verified)
-        `
-        )
-        .eq("recipient_user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(50);
+  useEffect(() => {
+    if (!userId) return;
+    load();
 
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error("Failed to load notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const unsub = notificationService.subscribe(() => {
+      const cached = notificationService._cache;
+      if (cached) setNotifications([...cached]);
+    });
 
-  const subscribeToNotifications = () => {
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient_user_id=eq.${userId}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new, ...prev]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
+    return unsub;
+  }, [userId, load]);
 
   const markAsRead = async (notificationId) => {
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", notificationId);
-
+    await notificationService.markAsRead(notificationId);
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
+      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)),
     );
   };
 
   const markAllAsRead = async () => {
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("recipient_user_id", userId)
-      .eq("is_read", false);
-
+    await notificationService.markAllAsRead(userId);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };
 
@@ -115,14 +81,17 @@ const NotificationItem = ({ notification, onRead }) => {
       onClick={handleClick}
     >
       <div className="notification-avatar">
-        {notification.actor?.avatar_id ? (
+        {notification.actor?.avatar ? (
           <img
-            src={notification.actor.avatar_id}
-            alt={notification.actor.full_name}
+            src={notification.actor.avatar}
+            alt={notification.actor.name}
+            onError={(e) => {
+              e.target.style.display = "none";
+            }}
           />
         ) : (
           <div className="avatar-placeholder">
-            {notification.actor?.full_name?.[0] || "G"}
+            {notification.actor?.name?.[0]?.toUpperCase() || "G"}
           </div>
         )}
       </div>
@@ -132,13 +101,14 @@ const NotificationItem = ({ notification, onRead }) => {
           {formatTime(notification.created_at)}
         </span>
       </div>
+      {!notification.is_read && <div className="unread-dot" />}
     </div>
   );
 };
 
 function formatTime(timestamp) {
   const diff = Date.now() - new Date(timestamp).getTime();
-  const minutes = Math.floor(diff / 60000);
+  const minutes = Math.floor(diff / 60_000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 

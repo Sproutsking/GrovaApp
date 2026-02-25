@@ -1,5 +1,5 @@
 // ============================================================================
-// src/services/home/postService.js - COMPLETE FIX WITH TEXT CARD DELETION
+// src/services/home/postService.js - COMPLETE FIX
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -13,10 +13,7 @@ class PostService {
     try {
       const { userId = null, category = null, following = false } = filters;
 
-      // Build cache key
       const cacheKey = `posts:${userId || "all"}:${category || "all"}:${following}:${offset}:${limit}`;
-
-      // Check cache first
       const cached = cacheService.get(cacheKey);
       if (cached) {
         console.log("📦 Posts loaded from cache");
@@ -56,7 +53,6 @@ class PostService {
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
-      // Apply filters
       if (userId && typeof userId === "string") {
         query = query.eq("user_id", userId);
       }
@@ -64,13 +60,6 @@ class PostService {
       if (category) {
         query = query.eq("category", category);
       }
-
-      console.log("🔍 Fetching posts with filters:", {
-        userId,
-        category,
-        offset,
-        limit,
-      });
 
       const { data, error } = await query;
 
@@ -80,14 +69,7 @@ class PostService {
       }
 
       console.log(`✅ Fetched ${data?.length || 0} posts`);
-
-      // Log text card detection
-      const textCardCount = data?.filter((p) => p.is_text_card).length || 0;
-      console.log(`🎨 Text cards in batch: ${textCardCount}`);
-
-      // Cache the result
-      cacheService.set(cacheKey, data, 300000); // 5 minutes
-
+      cacheService.set(cacheKey, data, 300000);
       return data || [];
     } catch (error) {
       console.error("[Failed to fetch posts]", error);
@@ -145,21 +127,33 @@ class PostService {
         throw new Error("You must be logged in to create a post");
       }
 
-      // CRITICAL FIX: Ensure arrays are properly formatted
-      const imageIds = Array.isArray(postData.imageIds)
-        ? postData.imageIds
-        : [];
-      const imageMetadata = Array.isArray(postData.imageMetadata)
-        ? postData.imageMetadata
-        : [];
-      const videoIds = Array.isArray(postData.videoIds)
-        ? postData.videoIds
-        : [];
-      const videoMetadata = Array.isArray(postData.videoMetadata)
-        ? postData.videoMetadata
-        : [];
+      // ── CRITICAL: Check profile exists and is minimally set up ──────────
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, account_status, account_activated")
+        .eq("id", user.id)
+        .single();
 
-      // Build the post object
+      if (profileError || !profile) {
+        throw new Error("Profile not found. Please refresh the page.");
+      }
+
+      // Only block if account is explicitly suspended
+      if (profile.account_status === "suspended") {
+        throw new Error("Your account is suspended. Please contact support.");
+      }
+
+      // ── FIX: Don't require account_activated - many users skip that ─────
+      // Original code was too strict. Only require username.
+      if (!profile.username) {
+        throw new Error("Please set a username in your profile settings.");
+      }
+
+      const imageIds = Array.isArray(postData.imageIds) ? postData.imageIds : [];
+      const imageMetadata = Array.isArray(postData.imageMetadata) ? postData.imageMetadata : [];
+      const videoIds = Array.isArray(postData.videoIds) ? postData.videoIds : [];
+      const videoMetadata = Array.isArray(postData.videoMetadata) ? postData.videoMetadata : [];
+
       const newPost = {
         user_id: user.id,
         content: postData.content || null,
@@ -172,14 +166,6 @@ class PostService {
         text_card_metadata: postData.text_card_metadata || null,
         card_caption: postData.card_caption || null,
       };
-
-      console.log("📤 Inserting post:", {
-        ...newPost,
-        image_ids_count: imageIds.length,
-        image_metadata_count: imageMetadata.length,
-        video_ids_count: videoIds.length,
-        video_metadata_count: videoMetadata.length,
-      });
 
       const { data, error } = await supabase
         .from("posts")
@@ -203,14 +189,12 @@ class PostService {
         throw error;
       }
 
-      // Invalidate cache
       cacheService.invalidatePattern("posts");
-
       console.log("✅ Post created successfully:", data);
       return data;
     } catch (error) {
       console.error("❌ Failed to create post:", error);
-      throw handleError(error, "Failed to create post");
+      throw handleError(error, error.message || "Failed to create post");
     }
   }
 
@@ -229,48 +213,35 @@ class PostService {
         throw new Error("You must be logged in to update a post");
       }
 
-      // Verify ownership
       const { data: post, error: fetchError } = await supabase
         .from("posts")
         .select("user_id")
         .eq("id", postId)
         .single();
 
-      if (fetchError) {
-        console.error("❌ Failed to fetch post:", fetchError);
-        throw new Error("Post not found");
-      }
+      if (fetchError) throw new Error("Post not found");
+      if (post.user_id !== user.id) throw new Error("You can only update your own posts");
 
-      if (post.user_id !== user.id) {
-        throw new Error("You can only update your own posts");
-      }
-
-      // Prepare update data
       const updateData = {
         ...updates,
         updated_at: new Date().toISOString(),
       };
 
-      // Ensure arrays are properly formatted if they exist
       if (updates.imageIds !== undefined) {
-        updateData.image_ids = Array.isArray(updates.imageIds)
-          ? updates.imageIds
-          : [];
+        updateData.image_ids = Array.isArray(updates.imageIds) ? updates.imageIds : [];
+        delete updateData.imageIds;
       }
       if (updates.imageMetadata !== undefined) {
-        updateData.image_metadata = Array.isArray(updates.imageMetadata)
-          ? updates.imageMetadata
-          : [];
+        updateData.image_metadata = Array.isArray(updates.imageMetadata) ? updates.imageMetadata : [];
+        delete updateData.imageMetadata;
       }
       if (updates.videoIds !== undefined) {
-        updateData.video_ids = Array.isArray(updates.videoIds)
-          ? updates.videoIds
-          : [];
+        updateData.video_ids = Array.isArray(updates.videoIds) ? updates.videoIds : [];
+        delete updateData.videoIds;
       }
       if (updates.videoMetadata !== undefined) {
-        updateData.video_metadata = Array.isArray(updates.videoMetadata)
-          ? updates.videoMetadata
-          : [];
+        updateData.video_metadata = Array.isArray(updates.videoMetadata) ? updates.videoMetadata : [];
+        delete updateData.videoMetadata;
       }
 
       const { data, error } = await supabase
@@ -280,12 +251,8 @@ class PostService {
         .select()
         .single();
 
-      if (error) {
-        console.error("❌ Update error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      // Invalidate cache
       cacheService.invalidate(`post:${postId}`);
       cacheService.invalidatePattern("posts");
 
@@ -309,51 +276,44 @@ class PostService {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.error("❌ User authentication failed:", userError);
         throw new Error("You must be logged in to delete a post");
       }
 
       console.log("✅ User authenticated:", user.id);
 
-      // Verify ownership - select ALL fields to debug text cards
+      // ── Verify ownership ────────────────────────────────────────────────
       const { data: post, error: fetchError } = await supabase
         .from("posts")
-        .select("*")
+        .select("id, user_id, deleted_at")
         .eq("id", postId)
-        .is("deleted_at", null)
-        .single();
+        .single(); // Don't filter deleted_at here so we can give better errors
 
       if (fetchError) {
         console.error("❌ Failed to fetch post for deletion:", fetchError);
-        throw new Error("Post not found or already deleted");
+        throw new Error("Post not found");
       }
 
-      console.log("📋 Post found:", {
-        id: post.id,
-        user_id: post.user_id,
-        is_text_card: post.is_text_card,
-        deleted_at: post.deleted_at,
-      });
+      if (post.deleted_at) {
+        // Already deleted - treat as success (idempotent)
+        console.log("⚠️ Post already deleted");
+        cacheService.invalidate(`post:${postId}`);
+        cacheService.invalidatePattern("posts");
+        return { success: true, postId };
+      }
 
       if (post.user_id !== user.id) {
-        console.error("❌ Ownership mismatch:", {
-          post_owner: post.user_id,
-          current_user: user.id,
-        });
+        console.error("❌ Ownership mismatch:", { post_owner: post.user_id, current_user: user.id });
         throw new Error("You can only delete your own posts");
       }
 
-      console.log("✅ Ownership verified. Proceeding with soft delete...");
-
-      // Soft delete with explicit timestamp
+      // ── Soft delete ────────────────────────────────────────────────────
       const deleteTimestamp = new Date().toISOString();
       const { data: deletedPost, error: deleteError } = await supabase
         .from("posts")
         .update({ deleted_at: deleteTimestamp })
         .eq("id", postId)
-        .eq("user_id", user.id) // Double-check ownership
-        .is("deleted_at", null) // Only delete if not already deleted
-        .select()
+        .eq("user_id", user.id)
+        .select("id, deleted_at")
         .single();
 
       if (deleteError) {
@@ -361,31 +321,106 @@ class PostService {
         throw deleteError;
       }
 
-      if (!deletedPost) {
-        console.error(
-          "❌ No post was deleted. Possible causes: post already deleted or doesn't exist",
-        );
-        throw new Error("Failed to delete post");
-      }
+      console.log("✅ Post soft-deleted successfully:", deletedPost?.id);
 
-      console.log("✅ Post soft-deleted successfully:", {
-        id: deletedPost.id,
-        deleted_at: deletedPost.deleted_at,
-      });
-
-      // Clear ALL post-related cache
       cacheService.invalidate(`post:${postId}`);
       cacheService.invalidatePattern("posts");
-      console.log("🗑️ Cleared all post cache");
 
-      return {
-        success: true,
-        deletedAt: deleteTimestamp,
-        postId: postId,
-      };
+      return { success: true, deletedAt: deleteTimestamp, postId };
     } catch (error) {
-      console.error("❌ Delete failed with error:", error);
-      throw handleError(error, "Failed to delete post");
+      console.error("❌ Delete failed:", error);
+      throw handleError(error, error.message || "Failed to delete post");
+    }
+  }
+
+  // ==================== SHARE POST ====================
+
+  async sharePost(postId, shareType = "external") {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from("shares").insert([{
+        content_type: "post",
+        content_id: postId,
+        user_id: user.id,
+        share_type: shareType,
+      }]);
+
+      const { data: post } = await supabase
+        .from("posts")
+        .select("shares")
+        .eq("id", postId)
+        .single();
+
+      if (post) {
+        await supabase
+          .from("posts")
+          .update({ shares: (post.shares || 0) + 1 })
+          .eq("id", postId);
+      }
+    } catch (error) {
+      console.error("Failed to record share:", error);
+    }
+  }
+
+  // ==================== GET TOP INTERACTIONS ====================
+
+  async getTopInteractions(userId, limit = 3) {
+    try {
+      // Get users this person has recently interacted with
+      // via conversations (DMs)
+      const { data: conversations } = await supabase
+        .from("conversations")
+        .select(`
+          id,
+          user1_id,
+          user2_id,
+          last_message_at
+        `)
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .order("last_message_at", { ascending: false })
+        .limit(limit);
+
+      if (!conversations?.length) {
+        // Fallback: get most recent followers
+        const { data: follows } = await supabase
+          .from("follows")
+          .select(`
+            following_id,
+            profiles!follows_following_id_fkey(
+              id,
+              full_name,
+              username,
+              avatar_id,
+              verified
+            )
+          `)
+          .eq("follower_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+
+        return (follows || []).map(f => f.profiles).filter(Boolean);
+      }
+
+      // Extract the OTHER user from each conversation
+      const otherUserIds = conversations.map(c =>
+        c.user1_id === userId ? c.user2_id : c.user1_id
+      );
+
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_id, verified")
+        .in("id", otherUserIds)
+        .is("deleted_at", null);
+
+      // Keep conversation order
+      return otherUserIds
+        .map(id => (profiles || []).find(p => p.id === id))
+        .filter(Boolean);
+    } catch (error) {
+      console.error("Failed to get top interactions:", error);
+      return [];
     }
   }
 
@@ -393,12 +428,9 @@ class PostService {
 
   async toggleLike(postId) {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("You must be logged in");
 
-      // Check if already liked
       const { data: existingLike } = await supabase
         .from("post_likes")
         .select("id")
@@ -407,44 +439,14 @@ class PostService {
         .maybeSingle();
 
       if (existingLike) {
-        // Unlike
         await supabase.from("post_likes").delete().eq("id", existingLike.id);
-
-        // Decrement likes count
-        const { data: post } = await supabase
-          .from("posts")
-          .select("likes")
-          .eq("id", postId)
-          .single();
-
-        if (post) {
-          await supabase
-            .from("posts")
-            .update({ likes: Math.max(0, (post.likes || 1) - 1) })
-            .eq("id", postId);
-        }
-
+        const { data: post } = await supabase.from("posts").select("likes").eq("id", postId).single();
+        if (post) await supabase.from("posts").update({ likes: Math.max(0, (post.likes || 1) - 1) }).eq("id", postId);
         return { liked: false };
       } else {
-        // Like
-        await supabase
-          .from("post_likes")
-          .insert([{ post_id: postId, user_id: user.id }]);
-
-        // Increment likes count
-        const { data: post } = await supabase
-          .from("posts")
-          .select("likes")
-          .eq("id", postId)
-          .single();
-
-        if (post) {
-          await supabase
-            .from("posts")
-            .update({ likes: (post.likes || 0) + 1 })
-            .eq("id", postId);
-        }
-
+        await supabase.from("post_likes").insert([{ post_id: postId, user_id: user.id }]);
+        const { data: post } = await supabase.from("posts").select("likes").eq("id", postId).single();
+        if (post) await supabase.from("posts").update({ likes: (post.likes || 0) + 1 }).eq("id", postId);
         return { liked: true };
       }
     } catch (error) {
@@ -456,18 +458,8 @@ class PostService {
 
   async incrementViews(postId) {
     try {
-      const { data: post } = await supabase
-        .from("posts")
-        .select("views")
-        .eq("id", postId)
-        .single();
-
-      if (post) {
-        await supabase
-          .from("posts")
-          .update({ views: (post.views || 0) + 1 })
-          .eq("id", postId);
-      }
+      const { data: post } = await supabase.from("posts").select("views").eq("id", postId).single();
+      if (post) await supabase.from("posts").update({ views: (post.views || 0) + 1 }).eq("id", postId);
     } catch (error) {
       console.error("Failed to increment views:", error);
     }
@@ -475,5 +467,4 @@ class PostService {
 }
 
 const postService = new PostService();
-
 export default postService;
