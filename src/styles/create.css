@@ -7,7 +7,7 @@
 
 .create-studio-wrapper {
   max-width: 900px;
-  margin: 0 auto;
+  margin: 0;
   /* FIX: was min-height:100vh — this forced the scroll container (.main-content-*)
      to grow taller than the viewport, which caused the whole page to scroll
      instead of just the content area. Removed entirely. */

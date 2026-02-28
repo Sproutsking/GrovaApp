@@ -1,212 +1,286 @@
-// supabase/functions/paystack-create-transaction/index.ts
 // ============================================================================
-// PAYSTACK — Create Transaction
-// Initializes a Paystack payment session and returns the authorization URL.
-// Amount expected is always fetched from our DB — never trusted from frontend.
+// supabase/functions/paystack-webhook/index.ts  —  v6 PAYSTACK_SECRET_KEY FIX
+// ============================================================================
+//
+//  ⚠️  PAYSTACK DOES NOT HAVE A SEPARATE WEBHOOK SECRET.
+//  They sign webhooks using your PAYSTACK_SECRET_KEY via HMAC-SHA512.
+//  The signature is in the header: x-paystack-signature
+//
+//  Required Supabase secrets for this function:
+//    SUPABASE_URL                ← auto-set by Supabase
+//    SUPABASE_SERVICE_ROLE_KEY   ← auto-set by Supabase
+//    PAYSTACK_SECRET_KEY         ← sk_test_... or sk_live_... (you have this ✅)
+//
+//  Webhook URL to set in Paystack Dashboard:
+//    Settings → API Keys & Webhooks → Test Webhook URL:
+//    https://rxtijxlvacqjiocdwzrh.supabase.co/functions/v1/paystack-webhook
+//
+//  ALWAYS returns HTTP 200 to Paystack — even on activation failure —
+//  to prevent infinite retry storms. Failures are logged to webhook_events.
+//
 // ============================================================================
 
 import {
   corsHeaders,
-  errorResponse,
-  jsonResponse,
-  requireAuth,
   supabaseAdmin,
-  checkPaymentRateLimit,
+  activateAccount,
+  validateEnv,
 } from "../_shared/payments.ts";
-
-const PAYSTACK_SECRET = Deno.env.get("PAYSTACK_SECRET_KEY")!;
-const PAYSTACK_BASE   = "https://api.paystack.co";
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST")   return errorResponse("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+  if (req.method !== "POST")   return new Response("Method not allowed", { status: 405 });
 
-  // ── 1. Authenticate ────────────────────────────────────────────────────────
-  let userId: string;
-  let email: string;
+  // ── 0. Validate env — only needs PAYSTACK_SECRET_KEY now ─────────────────
+  const envErr = validateEnv([
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "PAYSTACK_SECRET_KEY",         // ← used for HMAC signing, not a separate secret
+  ]);
+  if (envErr) {
+    // Return 200 so Paystack doesn't retry (can't fix missing secrets by retrying)
+    console.error("[paystack-webhook] Missing env vars — cannot process");
+    return new Response("ok", { status: 200 });
+  }
+
+  const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY")!;
+
+  // ── 1. Read raw body FIRST (must be before any .json() call) ─────────────
+  let rawBody: string;
+  try { rawBody = await req.text(); }
+  catch { return new Response("Cannot read body", { status: 400 }); }
+
+  // ── 2. Verify HMAC-SHA512 using PAYSTACK_SECRET_KEY ──────────────────────
+  //  Paystack signs: HMAC-SHA512(rawBody, secretKey)
+  //  and puts the hex result in header: x-paystack-signature
+  const signature = req.headers.get("x-paystack-signature") ?? "";
+
+  if (!signature) {
+    console.warn("[paystack-webhook] ⚠️ No x-paystack-signature header — rejecting");
+    return new Response("Missing signature", { status: 400 });
+  }
+
   try {
-    const auth = await requireAuth(req);
-    userId = auth.userId;
-    email  = auth.email;
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(PAYSTACK_SECRET_KEY),
+      { name: "HMAC", hash: "SHA-512" },
+      false,
+      ["sign"],
+    );
+    const sigBuf   = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
+    const computed = Array.from(new Uint8Array(sigBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (computed !== signature) {
+      console.error("[paystack-webhook] ❌ Signature mismatch — possible spoofed request");
+      return new Response("Invalid signature", { status: 400 });
+    }
+    console.log("[paystack-webhook] ✅ Signature verified");
   } catch (e) {
-    return errorResponse(e instanceof Error ? e.message : "Unauthorized", 401, "UNAUTHORIZED");
+    console.error("[paystack-webhook] Signature check error:", e);
+    return new Response("Signature error", { status: 400 });
   }
 
-  // ── 2. Parse body ──────────────────────────────────────────────────────────
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return errorResponse("Invalid JSON body", 400, "INVALID_REQUEST");
-  }
+  // ── 3. Parse event ────────────────────────────────────────────────────────
+  let event: Record<string, unknown>;
+  try { event = JSON.parse(rawBody); }
+  catch { return new Response("Invalid JSON", { status: 400 }); }
 
-  const { product_id, idempotency_key, callback_url } = body as {
-    product_id:      string;
-    idempotency_key: string;
-    callback_url:    string;
-  };
+  const eventType = String(event.event ?? "");
+  const eventData = (event.data ?? {}) as Record<string, unknown>;
+  console.log(`[paystack-webhook] Event: ${eventType}`);
 
-  if (!product_id || !idempotency_key || !callback_url) {
-    return errorResponse(
-      "Missing required fields: product_id, idempotency_key, callback_url",
-      400,
-      "MISSING_FIELDS"
-    );
-  }
-
-  // Validate UUID format
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!UUID_RE.test(product_id) || !UUID_RE.test(idempotency_key)) {
-    return errorResponse(
-      "product_id and idempotency_key must be valid UUID v4",
-      400,
-      "INVALID_FIELDS"
-    );
+  // Only process successful charges
+  if (eventType !== "charge.success") {
+    console.log(`[paystack-webhook] Ignoring: ${eventType}`);
+    return new Response("ok", { status: 200 });
   }
 
   const db = supabaseAdmin();
 
-  // ── 3. Rate limit ──────────────────────────────────────────────────────────
-  const allowed = await checkPaymentRateLimit(userId);
-  if (!allowed) {
-    return errorResponse(
-      "Too many payment attempts. Please wait a few minutes before trying again.",
-      429,
-      "RATE_LIMITED"
+  // ── 4. Extract fields ─────────────────────────────────────────────────────
+  const reference     = String(eventData.reference ?? "");
+  const status        = String(eventData.status    ?? "");
+  const amountCents   = Number(eventData.amount    ?? 0);
+  const currency      = String(eventData.currency  ?? "USD");
+  const customerEmail = String(
+    (eventData.customer as Record<string, unknown>)?.email ?? ""
+  );
+  const metadata       = (eventData.metadata ?? {}) as Record<string, unknown>;
+  const userId         = String(metadata.user_id         ?? "");
+  const productId      = String(metadata.product_id      ?? "");
+  const idempotencyKey = String(metadata.idempotency_key ?? reference);
+  const tier           = String(metadata.tier            ?? "standard");
+
+  if (!reference || status !== "success") {
+    console.warn("[paystack-webhook] Not a success event:", status);
+    return new Response("ok", { status: 200 });
+  }
+
+  // ── 5. Idempotency — never process the same reference twice ──────────────
+  const { data: existingEvent } = await db
+    .from("webhook_events")
+    .select("id, processed")
+    .eq("event_id",  reference)
+    .eq("provider",  "paystack")
+    .maybeSingle();
+
+  if (existingEvent?.processed) {
+    console.log(`[paystack-webhook] Already processed ref=${reference}`);
+    return new Response("ok", { status: 200 });
+  }
+
+  // ── 6. Resolve user — metadata.user_id first, fallback to email ──────────
+  let resolvedUserId = userId;
+  if (!resolvedUserId && customerEmail) {
+    const { data: profile } = await db
+      .from("profiles")
+      .select("id")
+      .eq("email", customerEmail)
+      .maybeSingle();
+    resolvedUserId = profile?.id ?? "";
+  }
+
+  if (!resolvedUserId) {
+    console.error(
+      `[paystack-webhook] ❌ Cannot resolve user for ref=${reference} email=${customerEmail}`
     );
+    await logWebhookEvent(db, eventType, reference, eventData, false, null, null);
+    return new Response("ok", { status: 200 });
   }
 
-  // ── 4. Idempotency — return existing session if already created ────────────
-  const { data: existingIntent } = await db
-    .from("payment_intents")
-    .select("status, provider_session, metadata")
-    .eq("idempotency_key", idempotency_key)
-    .eq("user_id", userId)
-    .maybeSingle();
+  // ── 7. Resolve product ────────────────────────────────────────────────────
+  let resolvedProductId = productId;
+  let productMeta: Record<string, unknown> = {};
+  let resolvedTier = tier;
 
-  if (existingIntent?.status === "completed") {
-    return jsonResponse({ already_completed: true });
+  if (resolvedProductId) {
+    const { data: prod } = await db
+      .from("payment_products")
+      .select("id, tier, metadata")
+      .eq("id", resolvedProductId)
+      .maybeSingle();
+    if (prod) {
+      resolvedTier = prod.tier ?? tier;
+      productMeta  = (prod.metadata as Record<string, unknown>) ?? {};
+    }
+  } else {
+    // Fallback: cheapest active product
+    const { data: defaultProd } = await db
+      .from("payment_products")
+      .select("id, tier, metadata")
+      .eq("is_active", true)
+      .order("amount_usd", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (defaultProd) {
+      resolvedProductId = defaultProd.id;
+      resolvedTier      = defaultProd.tier ?? tier;
+      productMeta       = (defaultProd.metadata as Record<string, unknown>) ?? {};
+    }
   }
 
-  if (
-    existingIntent?.provider_session &&
-    existingIntent?.metadata &&
-    (existingIntent.metadata as Record<string, unknown>).authorization_url
-  ) {
-    // Return the existing authorization URL — user can retry with same link
-    return jsonResponse({
-      authorization_url: (existingIntent.metadata as Record<string, unknown>).authorization_url,
-      reference:         existingIntent.provider_session,
-    });
-  }
-
-  // ── 5. Fetch product (amount from DB only) ─────────────────────────────────
-  const { data: product, error: productErr } = await db
-    .from("payment_products")
-    .select("id, name, description, type, tier, amount_usd, currency, paystack_plan_code, metadata")
-    .eq("id", product_id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (productErr || !product) {
-    return errorResponse("Invalid or inactive product.", 404, "INVALID_PRODUCT");
-  }
-
-  // ── 6. Build Paystack payload ──────────────────────────────────────────────
-  // Amount is in the smallest currency unit.
-  // For NGN: kobo (100 kobo = 1 NGN)
-  // For USD: cents (100 cents = 1 USD) — Paystack supports USD for some accounts
-  // We use USD directly. If your Paystack account is NGN-only, convert here.
-  const amountCents = Math.round(product.amount_usd * 100);
-
-  // Reference: deterministic from idempotency_key — safe to retry
-  const reference = `xv_${idempotency_key.replace(/-/g, "").slice(0, 18)}_${Date.now()}`;
-
-  const paystackPayload: Record<string, unknown> = {
-    email,
-    amount:       amountCents,
-    reference,
-    currency:     "USD",
-    callback_url: `${callback_url}?ref=${reference}&product_id=${product_id}`,
-    metadata: {
-      custom_fields: [
-        { display_name: "Product", variable_name: "product_name", value: product.name },
-        { display_name: "Tier",    variable_name: "tier",         value: product.tier },
-      ],
-      // These are read by our webhook handler — critical for activation
-      user_id:         userId,
-      product_id:      product.id,
-      idempotency_key: idempotency_key,
-      tier:            product.tier,
-    },
-  };
-
-  // Attach subscription plan for recurring products
-  if (product.type === "subscription" && product.paystack_plan_code) {
-    paystackPayload["plan"] = product.paystack_plan_code;
-  }
-
-  // ── 7. Initialize with Paystack ────────────────────────────────────────────
-  let psResponse: Response;
+  // ── 8. Record payment ─────────────────────────────────────────────────────
+  let paymentId: string | null = null;
   try {
-    psResponse = await fetch(`${PAYSTACK_BASE}/transaction/initialize`, {
-      method:  "POST",
-      headers: {
-        Authorization:  `Bearer ${PAYSTACK_SECRET}`,
-        "Content-Type": "application/json",
+    const payRecord: Record<string, unknown> = {
+      user_id:             resolvedUserId,
+      provider:            "paystack",
+      provider_payment_id: reference,
+      amount_cents:        amountCents,
+      currency,
+      status:              "completed",
+      idempotency_key:     idempotencyKey,
+      webhook_received_at: new Date().toISOString(),
+      completed_at:        new Date().toISOString(),
+      metadata: {
+        paystack_reference: reference,
+        customer_email:     customerEmail,
+        tier:               resolvedTier,
       },
-      body: JSON.stringify(paystackPayload),
-    });
-  } catch (networkErr) {
-    console.error("[paystack-create] Network error calling Paystack:", networkErr);
-    return errorResponse(
-      "Could not reach payment provider. Please try again.",
-      503,
-      "PROVIDER_UNAVAILABLE"
+    };
+    if (resolvedProductId) payRecord["product_id"] = resolvedProductId;
+
+    const { data: payment, error: payErr } = await db
+      .from("payments")
+      .upsert(payRecord, { onConflict: "idempotency_key" })
+      .select("id")
+      .single();
+
+    if (payErr) console.warn("[paystack-webhook] Payment record warning:", payErr.message);
+    else paymentId = payment?.id ?? null;
+  } catch (e) {
+    console.error("[paystack-webhook] Payment record error:", e);
+  }
+
+  // ── 9. Activate account ───────────────────────────────────────────────────
+  let activationError: string | null = null;
+  try {
+    await activateAccount(
+      resolvedUserId,
+      resolvedTier,
+      productMeta,
+      paymentId,
+      resolvedProductId || null,
     );
-  }
-
-  if (!psResponse.ok) {
-    const errBody = await psResponse.text().catch(() => "unknown");
-    console.error(`[paystack-create] Paystack API error ${psResponse.status}:`, errBody);
-    return errorResponse(
-      "Payment provider returned an error. Please try again.",
-      502,
-      "PROVIDER_ERROR"
+    console.log(
+      `[paystack-webhook] ✅ Activated user=${resolvedUserId} tier=${resolvedTier}`
     );
+  } catch (e) {
+    activationError = e instanceof Error ? e.message : String(e);
+    console.error(`[paystack-webhook] ❌ Activation failed:`, activationError);
+    // DON'T return error — Paystack would retry → duplicate payments
   }
 
-  const psData = await psResponse.json();
-
-  if (!psData.status || !psData.data?.authorization_url) {
-    console.error("[paystack-create] Unexpected Paystack response:", psData);
-    return errorResponse(
-      psData.message ?? "Payment initialization failed.",
-      502,
-      "PROVIDER_ERROR"
+  // ── 10. Mark payment_intent completed ────────────────────────────────────
+  await db
+    .from("payment_intents")
+    .update({ status: "completed" })
+    .eq("idempotency_key", idempotencyKey)
+    .eq("user_id", resolvedUserId)
+    .then(() => {})
+    .catch((e) =>
+      console.warn("[paystack-webhook] Intent update non-fatal:", e)
     );
-  }
 
-  const { authorization_url, access_code } = psData.data;
+  // ── 11. Log webhook event ─────────────────────────────────────────────────
+  await logWebhookEvent(
+    db, eventType, reference, eventData,
+    !activationError, paymentId, resolvedUserId,
+  );
 
-  // ── 8. Store intent ────────────────────────────────────────────────────────
-  const { error: intentErr } = await db.from("payment_intents").upsert({
-    user_id:          userId,
-    product_id:       product.id,
-    idempotency_key:  idempotency_key,
-    provider:         "paystack",
-    provider_session: reference,
-    amount_cents:     amountCents,
-    currency:         "USD",
-    status:           "created",
-    expires_at:       new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-    metadata:         { authorization_url, access_code, reference },
-  }, { onConflict: "idempotency_key" });
-
-  if (intentErr) {
-    // Non-fatal — we still have the authorization URL to return
-    console.warn("[paystack-create] Intent store failed (non-fatal):", intentErr.message);
-  }
-
-  return jsonResponse({ authorization_url, reference });
+  // ALWAYS 200 — Paystack will retry forever on non-200 → duplicate charges
+  return new Response("ok", { status: 200 });
 });
+
+// ── logWebhookEvent ───────────────────────────────────────────────────────────
+async function logWebhookEvent(
+  db:        ReturnType<typeof supabaseAdmin>,
+  eventType: string,
+  reference: string,
+  payload:   unknown,
+  processed: boolean,
+  paymentId: string | null,
+  userId:    string | null,
+): Promise<void> {
+  try {
+    await db.from("webhook_events").upsert(
+      {
+        provider:     "paystack",
+        event_id:     reference,
+        event_type:   eventType,
+        payload,
+        verified:     true,
+        processed,
+        payment_id:   paymentId,
+        processed_at: processed ? new Date().toISOString() : null,
+      },
+      { onConflict: "provider, event_id" },
+    );
+  } catch (e) {
+    console.warn("[webhook] Log failed (non-fatal):", e);
+  }
+}

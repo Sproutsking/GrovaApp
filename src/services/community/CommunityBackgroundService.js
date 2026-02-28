@@ -5,36 +5,23 @@ class CommunityBackgroundService {
     this.listeners = new Set();
     
     this.backgrounds = [
-      { id: "space", name: "Space Nebula", icon: "🌌", description: "Deep cosmic stars" },
-      { id: "neon", name: "Neon Pulse", icon: "✨", description: "Electric neon waves" },
-      { id: "tech", name: "Tech Grid", icon: "🎮", description: "Digital circuit lines" },
-      { id: "matrix", name: "Matrix Rain", icon: "⚡", description: "Cascading code" },
-      { id: "security", name: "Cyber Shield", icon: "🔒", description: "Encrypted network" },
-      { id: "minimal", name: "Pure Dark", icon: "⬛", description: "Simple elegance" },
-      { id: "lime", name: "Lime Glow", icon: "💚", description: "Vibrant green energy" },
-      { id: "gold", name: "Golden Hour", icon: "🌅", description: "Warm luxury shine" },
-      { id: "noir", name: "Absolute Void", icon: "🌑", description: "Pure black canvas" },
-      { id: "midnight", name: "Midnight Sky", icon: "🌃", description: "Dual aurora glow" },
-      { id: "ocean", name: "Deep Ocean", icon: "🌊", description: "Underwater depths" },
-      { id: "sunset", name: "Sunset Vibes", icon: "🌇", description: "Warm twilight" },
-      { id: "forest", name: "Emerald Forest", icon: "🌲", description: "Deep woodland" },
-      { id: "aurora", name: "Aurora Waves", icon: "🌈", description: "Northern lights" },
-      { id: "cyber", name: "Cyber Pink", icon: "💖", description: "Neon cyberpunk" },
-      { id: "royal", name: "Royal Purple", icon: "👑", description: "Majestic luxury" },
+      { id: "minimal", name: "Pure Dark",   icon: "⬛", description: "Simple elegance"     },
+      { id: "matrix",  name: "Matrix Rain", icon: "⚡", description: "Cascading code"       },
+      { id: "lime",    name: "Lime Glow",   icon: "💚", description: "Vibrant green energy" },
     ];
   }
 
   getBackground(userId, communityId) {
     try {
       const stored = localStorage.getItem(this.storageKey);
-      if (!stored) return "space";
+      if (!stored) return "minimal";
 
       const backgrounds = JSON.parse(stored);
       const key = `${userId}_${communityId}`;
-      return backgrounds[key] || "space";
+      return backgrounds[key] || "minimal";
     } catch (error) {
       console.error("Error getting background:", error);
-      return "space";
+      return "minimal";
     }
   }
 

@@ -1,33 +1,14 @@
 // ============================================================================
-// src/components/Admin/useAdminData.js — v6 FORTRESS FINAL
-// ============================================================================
-//
-// ARCHITECTURE CONTRACT:
-//
-//   All hooks ONLY read/write admin & platform data.
-//   They NEVER touch auth state, session state, or user login flows.
-//   They communicate with Supabase directly using the shared client.
-//
-//   DATA INTEGRITY RULES:
-//     1. Every hook has loading, error, and data state.
-//     2. Every DB call is wrapped in try/catch — no silent failures.
-//     3. useTeam: online = last_seen within past 5 minutes.
-//     4. useStats: all queries parallelized with Promise.all for speed.
-//     5. Mutations call load() to re-sync after every change.
-//     6. These hooks are ISOLATED — changes to app sections cannot break them.
-//
-//   ONLINE STATUS FIX:
-//     Online derived from profiles.last_seen (updated by sessionManager).
-//     Online threshold = 5 minutes.
-//
+// src/components/Admin/useAdminData.js
+// ALL REAL DATABASE DATA — ZERO MOCK DATA — PRODUCTION GRADE
+// xa_id (Xeevia Admin sequential ID) is now selected and assigned throughout
 // ============================================================================
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../services/config/supabase";
 import { ROLE_PERMISSIONS } from "./permissions.js";
 
-// ── Supabase client alias (allows test override) ──────────────────────────────
-
+// ─── Convenience alias ─────────────────────────────────────────────────────
 let _override = null;
 export function initSupabase(client) {
   _override = client;
@@ -36,8 +17,7 @@ function sb() {
   return _override || supabase;
 }
 
-// ── useTable — generic paginated table ───────────────────────────────────────
-
+// ─── useTable helper ───────────────────────────────────────────────────────
 export function useTable(tableName, options = {}) {
   const {
     select = "*",
@@ -65,7 +45,10 @@ export function useTable(tableName, options = {}) {
         .range(page * ps, page * ps + ps - 1);
 
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) q = q.eq(key, value);
+        if (value !== undefined && value !== null) {
+          if (value === null) q = q.is(key, null);
+          else q = q.eq(key, value);
+        }
       });
 
       if (search && searchColumns.length) {
@@ -93,7 +76,7 @@ export function useTable(tableName, options = {}) {
     JSON.stringify(order),
     page,
     ps,
-  ]); // eslint-disable-line
+  ]);
 
   useEffect(() => {
     load();
@@ -111,8 +94,7 @@ export function useTable(tableName, options = {}) {
   };
 }
 
-// ── useStats ──────────────────────────────────────────────────────────────────
-
+// ─── Dashboard Stats ───────────────────────────────────────────────────────
 export function useStats() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -197,8 +179,15 @@ export function useStats() {
           .gte("created_at", weekAgo),
       ]);
 
-      const sumCents = (arr) =>
-        (arr || []).reduce((s, r) => s + (r.amount_cents || 0), 0) / 100;
+      const totalRevenue =
+        (revenueData || []).reduce((s, r) => s + (r.amount_cents || 0), 0) /
+        100;
+      const revToday =
+        (revenueToday || []).reduce((s, r) => s + (r.amount_cents || 0), 0) /
+        100;
+      const revWeek =
+        (revenueWeek || []).reduce((s, r) => s + (r.amount_cents || 0), 0) /
+        100;
 
       setStats({
         totalUsers: totalUsers || 0,
@@ -214,12 +203,12 @@ export function useStats() {
         totalContent:
           (totalPosts || 0) + (totalReels || 0) + (totalStories || 0),
         totalCommunities: totalCommunities || 0,
-        totalRevenue: sumCents(revenueData),
-        revenueToday: sumCents(revenueToday),
-        revenueWeek: sumCents(revenueWeek),
+        totalRevenue,
+        revenueToday: revToday,
+        revenueWeek: revWeek,
       });
     } catch (e) {
-      console.error("[useStats]", e);
+      console.error("Stats error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -232,8 +221,7 @@ export function useStats() {
   return { stats, loading, error, reload: load };
 }
 
-// ── useUsers ──────────────────────────────────────────────────────────────────
-
+// ─── Users ─────────────────────────────────────────────────────────────────
 export function useUsers(pageSize = 20) {
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -250,28 +238,23 @@ export function useUsers(pageSize = 20) {
       let query = sb()
         .from("profiles")
         .select(
-          "id,email,full_name,username,verified,is_pro,account_status," +
-            "subscription_tier,payment_status,created_at,deleted_at,last_seen," +
-            "engagement_points,account_activated,deactivated_reason," +
-            "account_locked_until,failed_login_attempts,require_2fa," +
-            "invite_code_used,is_admin",
+          "id,email,full_name,username,verified,is_pro,account_status,subscription_tier,payment_status,created_at,deleted_at,last_seen,engagement_points,account_activated,deactivated_reason,account_locked_until,failed_login_attempts,require_2fa,invite_code_used,is_admin",
           { count: "exact" },
         )
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
 
-      if (search) {
+      if (search)
         query = query.or(
           `email.ilike.%${search}%,full_name.ilike.%${search}%,username.ilike.%${search}%`,
         );
-      }
 
       const { data, count, error } = await query;
       if (error) throw error;
       setUsers(data || []);
       setTotal(count || 0);
     } catch (e) {
-      console.error("[useUsers]", e);
+      console.error("Users error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -296,27 +279,21 @@ export function useUsers(pageSize = 20) {
       account_status: "suspended",
       deactivated_reason: reason,
     });
-
   const unbanUser = async (userId) =>
     updateUser(userId, {
       account_status: "active",
       deactivated_reason: null,
       account_locked_until: null,
-      failed_login_attempts: 0,
     });
-
   const deleteUser = async (userId) =>
     updateUser(userId, {
       deleted_at: new Date().toISOString(),
       account_status: "deactivated",
     });
-
   const restoreUser = async (userId) =>
     updateUser(userId, { deleted_at: null, account_status: "active" });
-
   const verifyUser = async (userId, verified) =>
     updateUser(userId, { verified });
-
   const setUserTier = async (userId, tier) =>
     updateUser(userId, { subscription_tier: tier });
 
@@ -326,7 +303,6 @@ export function useUsers(pageSize = 20) {
       .select("engagement_points")
       .eq("id", userId)
       .single();
-
     const currentPoints = profile?.engagement_points || 0;
     await updateUser(userId, {
       engagement_points: Math.max(0, currentPoints + (points || 0)),
@@ -338,7 +314,6 @@ export function useUsers(pageSize = 20) {
         .select("grova_tokens")
         .eq("user_id", userId)
         .maybeSingle();
-
       if (wallet) {
         await sb()
           .from("wallets")
@@ -366,8 +341,7 @@ export function useUsers(pageSize = 20) {
         target_type: "user",
         target_id: userId,
         details: { tokens, points, reason },
-      })
-      .catch(() => {}); // Non-fatal audit log
+      });
   };
 
   return {
@@ -391,7 +365,26 @@ export function useUsers(pageSize = 20) {
   };
 }
 
-// ── useInvites ────────────────────────────────────────────────────────────────
+// ─── Invites ───────────────────────────────────────────────────────────────
+//
+// SCHEMA REALITY CHECK (invite_codes table):
+//   REAL columns: id, code, type, max_uses, uses_count, created_by,
+//     created_by_name, created_at, updated_at, expires_at, status,
+//     metadata (jsonb), community_id, community_name, price_override,
+//     entry_price
+//
+//   NOT in schema (must live in metadata):
+//     invite_name, invite_category, invite_label_custom, entry_price_cents,
+//     whitelist_price_cents, waitlist_batch_size, whitelist_opens_at,
+//     is_active, enable_waitlist, waitlist_count
+//
+//   MAPPING:
+//     is_active   ← derived from status === 'active'
+//     entry_price ← real column (USD float, e.g. 4.00)
+//     price_override ← real column — used as whitelist price (USD float)
+//     All other extended fields → metadata jsonb
+//
+// NOTE: The invite_codes table has NO is_active column. We use status field.
 
 export function useInvites(pageSize = 50) {
   const [invites, setInvites] = useState([]);
@@ -406,9 +399,18 @@ export function useInvites(pageSize = 50) {
     setError(null);
     try {
       const from = page * pageSize;
+      // Only select columns that actually exist in the schema
       let query = sb()
         .from("invite_codes")
-        .select("*", { count: "exact" })
+        .select(
+          "id, code, type, max_uses, uses_count, created_by, created_by_name, created_at, updated_at, expires_at, status, metadata, community_id, community_name, price_override, entry_price",
+          { count: "exact" }
+        )
+        // Only show invites created by admin — exclude community invites and
+        // auto-generated codes by filtering on community_id being null OR
+        // metadata having our admin-created marker.
+        // We also exclude invite_codes that are purely community-generated
+        // (community_id is set and metadata.admin_created is not true).
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
 
@@ -417,26 +419,38 @@ export function useInvites(pageSize = 50) {
       const { data, count, error } = await query;
       if (error) throw error;
 
-      const enriched = (data || []).map((inv) => ({
-        ...inv,
-        invite_category: inv.invite_category ?? inv.type ?? "community",
-        invite_label_custom: inv.invite_label_custom ?? null,
-        entry_price_cents:
-          inv.entry_price_cents ?? Math.round((inv.entry_price ?? 4) * 100),
-        whitelist_price_cents:
-          inv.whitelist_price_cents ??
-          Math.round((inv.price_override ?? inv.entry_price ?? 1) * 100),
-        uses_count: inv.uses_count ?? inv.uses ?? 0,
-        is_active:
-          inv.is_active !== undefined ? inv.is_active : inv.status === "active",
-        waitlist_batch_size: inv.waitlist_batch_size ?? 50,
-        whitelist_opens_at: inv.whitelist_opens_at ?? null,
-      }));
+      // Filter to only show admin-created invites (those with our marker in metadata)
+      // This prevents community invite codes and any legacy/seeded codes from showing.
+      const adminInvites = (data || []).filter(
+        (inv) => inv.metadata?.admin_created === true
+      );
+
+      // Normalise into a consistent shape that the UI can consume.
+      // All extended fields are read from metadata with safe fallbacks.
+      const enriched = adminInvites.map((inv) => {
+        const meta = inv.metadata ?? {};
+        return {
+          ...inv,
+          // Derived active state from real 'status' column
+          is_active: inv.status === "active",
+          // Extended fields from metadata
+          invite_name:           meta.invite_name           ?? "",
+          invite_category:       meta.invite_category       ?? inv.type ?? "community",
+          invite_label_custom:   meta.invite_label_custom   ?? null,
+          entry_price_cents:     meta.entry_price_cents     ?? Math.round((Number(inv.entry_price) || 4) * 100),
+          whitelist_price_cents: meta.whitelist_price_cents ?? Math.round((Number(inv.price_override) || 0) * 100),
+          waitlist_batch_size:   meta.waitlist_batch_size   ?? 50,
+          whitelist_opens_at:    meta.whitelist_opens_at    ?? inv.whitelist_opens_at ?? null,
+          enable_waitlist:       meta.enable_waitlist       ?? true,
+          uses_count:            inv.uses_count             ?? 0,
+          is_full:               (inv.uses_count ?? 0) >= (inv.max_uses ?? 1),
+        };
+      });
 
       setInvites(enriched);
-      setTotal(count || 0);
+      setTotal(enriched.length);
     } catch (e) {
-      console.error("[useInvites]", e);
+      console.error("Invites error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -447,274 +461,265 @@ export function useInvites(pageSize = 50) {
     load();
   }, [load]);
 
+  // ── Display name helper ─────────────────────────────────────────────────
   const getInviteDisplayName = useCallback((invite) => {
     if (!invite) return "Unknown";
     const category = invite.invite_category ?? invite.type ?? "community";
-    if (category === "custom" && invite.invite_label_custom)
+    if (category === "custom" && invite.invite_label_custom) {
       return invite.invite_label_custom;
+    }
     const labels = {
       community: "Community",
-      user: "User",
-      vip: "VIP",
-      standard: "Standard",
+      user:      "User",
+      vip:       "VIP",
+      standard:  "Standard",
       whitelist: "Whitelist",
-      admin: "Admin",
-      custom: "Custom",
+      admin:     "Admin",
+      custom:    "Custom",
     };
-    return (
-      labels[category] ?? category.charAt(0).toUpperCase() + category.slice(1)
-    );
+    return labels[category] ?? category.charAt(0).toUpperCase() + category.slice(1);
   }, []);
 
-  const createInvite = useCallback(
-    async (invite) => {
-      const now = new Date().toISOString();
-      const category = invite.invite_category ?? "community";
-      const isCustom = category === "custom";
+  // ── Create invite ────────────────────────────────────────────────────────
+  // Only writes to columns that actually exist in the schema.
+  // All extended/UI fields go into metadata.
+  const createInvite = useCallback(async (invite) => {
+    const now = new Date().toISOString();
+    const category = invite.invite_category ?? "community";
+    const isCustom = category === "custom";
 
-      const record = {
-        code: invite.code,
-        type: isCustom
-          ? "standard"
-          : ["vip", "whitelist", "admin"].includes(category)
-            ? category
-            : "standard",
-        max_uses: invite.max_uses ?? 100,
-        uses_count: 0,
-        status: "active",
-        is_active: true,
-        expires_at: invite.expires_at ?? null,
-        entry_price: (invite.entry_price_cents ?? 400) / 100,
-        price_override: (invite.whitelist_price_cents ?? 100) / 100,
-        invite_category: category,
-        invite_label_custom: isCustom
-          ? (invite.invite_label_custom ?? null)
-          : null,
-        entry_price_cents: invite.entry_price_cents ?? 400,
-        whitelist_price_cents: invite.whitelist_price_cents ?? 100,
-        waitlist_batch_size: invite.waitlist_batch_size ?? 50,
-        whitelist_opens_at: invite.whitelist_opens_at ?? null,
-        created_at: now,
-        updated_at: now,
-        metadata: {
-          invite_category: category,
-          entry_price_cents: invite.entry_price_cents ?? 400,
-          whitelist_price_cents: invite.whitelist_price_cents ?? 100,
-          waitlist_batch_size: invite.waitlist_batch_size ?? 50,
-          enable_waitlist: true,
-          waitlist_count: 0,
-        },
-      };
+    // Map category to the allowed 'type' enum values
+    const typeMap = { vip: "vip", whitelist: "whitelist", admin: "admin" };
+    const type = typeMap[category] ?? "standard";
 
-      const { data, error } = await sb()
-        .from("invite_codes")
-        .insert(record)
-        .select()
-        .single();
-      if (error) throw error;
-      await load();
-      return data;
-    },
-    [load],
-  );
+    const entryPriceCents     = Number(invite.entry_price_cents)     || 400;
+    const whitelistPriceCents = Number(invite.whitelist_price_cents) || 0;
 
-  const toggleInvite = useCallback(
-    async (id, isActive) => {
-      const { error } = await sb()
-        .from("invite_codes")
-        .update({
-          is_active: isActive,
-          status: isActive ? "active" : "inactive",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-      if (error) throw error;
-      await load();
-    },
-    [load],
-  );
+    // Build metadata — this is the source of truth for all extended fields
+    const metadata = {
+      admin_created:         true,               // ← marker so we know this is admin-created
+      invite_name:           invite.invite_name          ?? "",
+      invite_category:       category,
+      invite_label_custom:   isCustom ? (invite.invite_label_custom ?? null) : null,
+      entry_price_cents:     entryPriceCents,
+      whitelist_price_cents: whitelistPriceCents,
+      waitlist_batch_size:   Number(invite.waitlist_batch_size) || 50,
+      whitelist_opens_at:    invite.whitelist_opens_at ?? null,
+      enable_waitlist:       true,
+      waitlist_count:        0,
+      waitlist_entries:      [],
+      whitelisted_user_ids:  [],
+      target_tier:
+        isCustom     ? "standard" :
+        category === "vip"       ? "vip" :
+        category === "community" ? "whitelist" : "standard",
+    };
 
-  const updateInvite = useCallback(
-    async (id, updates) => {
-      const { error } = await sb()
-        .from("invite_codes")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-      await load();
-    },
-    [load],
-  );
+    // Only insert real schema columns
+    const record = {
+      code:           invite.code.trim().toUpperCase(),
+      type,
+      max_uses:       Number(invite.max_uses) || 100,
+      uses_count:     0,
+      status:         "active",
+      expires_at:     invite.expires_at ?? null,
+      entry_price:    entryPriceCents / 100,     // real column (USD float)
+      price_override: whitelistPriceCents / 100, // real column (USD float)
+      metadata,
+      created_at:     now,
+      updated_at:     now,
+    };
 
-  const deleteInvite = useCallback(
-    async (id) => {
-      const { error } = await sb().from("invite_codes").delete().eq("id", id);
-      if (error) throw error;
-      await load();
-    },
-    [load],
-  );
+    const { data, error } = await sb()
+      .from("invite_codes")
+      .insert(record)
+      .select()
+      .single();
 
+    if (error) throw error;
+    await load();
+    return data;
+  }, [load]);
+
+  // ── Toggle invite active state ───────────────────────────────────────────
+  // Uses the real 'status' column — no is_active column exists.
+  const toggleInvite = useCallback(async (id, makeActive) => {
+    const { error } = await sb()
+      .from("invite_codes")
+      .update({
+        status:     makeActive ? "active" : "inactive",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  // ── Update invite ────────────────────────────────────────────────────────
+  const updateInvite = useCallback(async (id, updates) => {
+    const { error } = await sb()
+      .from("invite_codes")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  // ── Delete invite ────────────────────────────────────────────────────────
+  const deleteInvite = useCallback(async (id) => {
+    const { error } = await sb().from("invite_codes").delete().eq("id", id);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  // ── Get waitlist entries ─────────────────────────────────────────────────
   const getWaitlistEntries = useCallback(async (inviteId) => {
     try {
       const { data: inviteData } = await sb()
         .from("invite_codes")
-        .select("metadata,max_uses,uses_count")
+        .select("metadata, max_uses, uses_count")
         .eq("id", inviteId)
         .single();
 
       const meta = inviteData?.metadata ?? {};
       const waitlistEntries = meta.waitlist_entries ?? [];
-      const whitelistedIds = new Set(meta.whitelisted_user_ids ?? []);
+      const whitelistedIds  = new Set(meta.whitelisted_user_ids ?? []);
 
-      if (waitlistEntries.length > 0) {
-        const userIds = waitlistEntries.map((e) => e.user_id).filter(Boolean);
-        let profiles = {};
-        if (userIds.length > 0) {
-          const { data: profileData } = await sb()
-            .from("profiles")
-            .select("id,full_name,email")
-            .in("id", userIds);
-          (profileData || []).forEach((p) => {
-            profiles[p.id] = p;
-          });
-        }
+      if (waitlistEntries.length === 0) return [];
 
-        return waitlistEntries.map((entry, idx) => {
-          const profile = profiles[entry.user_id] ?? {};
-          const isWhitelisted = whitelistedIds.has(entry.user_id);
-          return {
-            id: entry.user_id ?? `waitlist_${idx}`,
-            user_id: entry.user_id,
-            full_name: profile.full_name ?? entry.full_name ?? "—",
-            email: profile.email ?? entry.email ?? "—",
-            status: isWhitelisted ? "whitelisted" : "waiting",
-            whitelisted_at: entry.whitelisted_at ?? null,
-            joined_at: entry.joined_at ?? null,
-            position: idx + 1,
-          };
-        });
+      const userIds = waitlistEntries.map((e) => e.user_id).filter(Boolean);
+      let profiles = {};
+      if (userIds.length > 0) {
+        const { data: profileData } = await sb()
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", userIds);
+        (profileData || []).forEach((p) => { profiles[p.id] = p; });
       }
-      return [];
+
+      return waitlistEntries.map((entry, idx) => {
+        const profile    = profiles[entry.user_id] ?? {};
+        const isWhitelisted = whitelistedIds.has(entry.user_id);
+        return {
+          id:               entry.user_id ?? `waitlist_${idx}`,
+          user_id:          entry.user_id,
+          full_name:        profile.full_name    ?? entry.full_name ?? "—",
+          email:            profile.email        ?? entry.email     ?? "—",
+          status:           isWhitelisted ? "whitelisted" : "waiting",
+          authenticated_at: entry.authenticated_at ?? null,
+          whitelisted_at:   entry.whitelisted_at   ?? null,
+          joined_at:        entry.joined_at         ?? null,
+          account_activated: !!entry.account_activated,
+          position:         idx + 1,
+        };
+      });
     } catch (e) {
-      console.error("[getWaitlistEntries]", e);
+      console.error("getWaitlistEntries error:", e);
       return [];
     }
   }, []);
 
-  const promoteWaitlist = useCallback(
-    async (inviteId, count, adminId) => {
-      const { data: inviteData, error: inviteErr } = await sb()
-        .from("invite_codes")
-        .select("metadata,max_uses,uses_count")
-        .eq("id", inviteId)
-        .single();
+  // ── Promote waitlist ─────────────────────────────────────────────────────
+  const promoteWaitlist = useCallback(async (inviteId, count, adminId) => {
+    const { data: inviteData, error: inviteErr } = await sb()
+      .from("invite_codes")
+      .select("metadata, max_uses, uses_count, entry_price, price_override")
+      .eq("id", inviteId)
+      .single();
 
-      if (inviteErr) throw inviteErr;
+    if (inviteErr) throw inviteErr;
 
-      const meta = inviteData?.metadata ?? {};
-      const waitlistEntries = meta.waitlist_entries ?? [];
-      const whitelistedIds = new Set(meta.whitelisted_user_ids ?? []);
-      const waiting = waitlistEntries.filter(
-        (e) => !whitelistedIds.has(e.user_id),
-      );
+    const meta           = inviteData?.metadata ?? {};
+    const waitlistEntries = meta.waitlist_entries ?? [];
+    const whitelistedIds  = new Set(meta.whitelisted_user_ids ?? []);
+    const waiting         = waitlistEntries.filter((e) => !whitelistedIds.has(e.user_id));
 
-      if (waiting.length === 0) throw new Error("No users on the waitlist.");
+    if (waiting.length === 0) throw new Error("No users on the waitlist.");
 
-      const sorted = [...waiting].sort((a, b) =>
-        (a.full_name ?? "").localeCompare(b.full_name ?? ""),
-      );
-      const toPromote = sorted.slice(0, Math.min(count, sorted.length));
-      const nowISO = new Date().toISOString();
+    const toPromote = waiting.slice(0, Math.min(count, waiting.length));
+    const nowISO    = new Date().toISOString();
 
-      toPromote.forEach((u) => whitelistedIds.add(u.user_id));
+    toPromote.forEach((u) => whitelistedIds.add(u.user_id));
 
-      const updatedEntries = waitlistEntries.map((entry) => {
-        if (toPromote.find((u) => u.user_id === entry.user_id)) {
-          return { ...entry, whitelisted_at: nowISO };
-        }
-        return entry;
-      });
+    const updatedEntries = waitlistEntries.map((entry) =>
+      toPromote.find((u) => u.user_id === entry.user_id)
+        ? { ...entry, whitelisted_at: nowISO }
+        : entry
+    );
 
-      const newMeta = {
-        ...meta,
-        waitlist_entries: updatedEntries,
-        whitelisted_user_ids: [...whitelistedIds],
-      };
+    const newMeta = {
+      ...meta,
+      waitlist_entries:     updatedEntries,
+      whitelisted_user_ids: [...whitelistedIds],
+    };
 
-      const { error: updateErr } = await sb()
-        .from("invite_codes")
-        .update({
-          metadata: newMeta,
-          max_uses: (inviteData.max_uses ?? 0) + toPromote.length,
-          updated_at: nowISO,
-        })
-        .eq("id", inviteId);
+    const { error: updateErr } = await sb()
+      .from("invite_codes")
+      .update({
+        metadata:   newMeta,
+        max_uses:   (inviteData.max_uses ?? 0) + toPromote.length,
+        updated_at: nowISO,
+      })
+      .eq("id", inviteId);
 
-      if (updateErr) throw updateErr;
+    if (updateErr) throw updateErr;
 
-      const promotedUserIds = toPromote.map((u) => u.user_id).filter(Boolean);
-      if (promotedUserIds.length > 0) {
-        for (const uid of promotedUserIds) {
-          const { data: pd } = await sb()
+    const promotedUserIds = toPromote.map((u) => u.user_id).filter(Boolean);
+    if (promotedUserIds.length > 0) {
+      for (const uid of promotedUserIds) {
+        const { data: profileData } = await sb()
+          .from("profiles")
+          .select("account_activated, subscription_tier")
+          .eq("id", uid)
+          .maybeSingle();
+
+        if (profileData && !profileData.account_activated) {
+          await sb()
             .from("profiles")
-            .select("account_activated,subscription_tier")
-            .eq("id", uid)
-            .maybeSingle();
-          if (pd && !pd.account_activated) {
-            await sb()
-              .from("profiles")
-              .update({ subscription_tier: "whitelist", updated_at: nowISO })
-              .eq("id", uid)
-              .catch(() => {});
-          }
+            .update({ subscription_tier: "whitelist", updated_at: nowISO })
+            .eq("id", uid);
         }
-
-        await sb()
-          .from("audit_log")
-          .insert({
-            admin_id: adminId,
-            action: "waitlist_promote",
-            target_type: "invite",
-            target_id: inviteId,
-            details: {
-              promoted_count: toPromote.length,
-              promoted_user_ids: promotedUserIds,
-            },
-            created_at: nowISO,
-          })
-          .catch(() => {});
       }
 
-      await load();
-      return toPromote.length;
-    },
-    [load],
-  );
-
-  const updateWaitlistOpenTime = useCallback(
-    async (inviteId, opensAt) => {
-      const { data: inviteData } = await sb()
-        .from("invite_codes")
-        .select("metadata")
-        .eq("id", inviteId)
-        .single();
-
-      const meta = inviteData?.metadata ?? {};
-      const { error } = await sb()
-        .from("invite_codes")
-        .update({
-          whitelist_opens_at: opensAt ?? null,
-          metadata: { ...meta, whitelist_opens_at: opensAt ?? null },
-          updated_at: new Date().toISOString(),
+      await sb()
+        .from("audit_log")
+        .insert({
+          admin_id:    adminId,
+          action:      "waitlist_promote",
+          target_type: "invite",
+          target_id:   inviteId,
+          details:     { promoted_count: toPromote.length, promoted_user_ids: promotedUserIds },
+          created_at:  nowISO,
         })
-        .eq("id", inviteId);
+        .then(() => {})
+        .catch(() => {});
+    }
 
-      if (error) throw error;
-      await load();
-    },
-    [load],
-  );
+    await load();
+    return toPromote.length;
+  }, [load]);
+
+  // ── Update waitlist open time ────────────────────────────────────────────
+  const updateWaitlistOpenTime = useCallback(async (inviteId, opensAt) => {
+    const { data: inviteData } = await sb()
+      .from("invite_codes")
+      .select("metadata")
+      .eq("id", inviteId)
+      .single();
+
+    const meta = inviteData?.metadata ?? {};
+
+    const { error } = await sb()
+      .from("invite_codes")
+      .update({
+        metadata:   { ...meta, whitelist_opens_at: opensAt ?? null },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", inviteId);
+
+    if (error) throw error;
+    await load();
+  }, [load]);
 
   return {
     invites,
@@ -726,27 +731,27 @@ export function useInvites(pageSize = 50) {
     search,
     setSearch,
     reload: load,
+    // Core CRUD
     createInvite,
     updateInvite,
     toggleInvite,
     deleteInvite,
+    // Waitlist management
     getWaitlistEntries,
     promoteWaitlist,
     updateWaitlistOpenTime,
+    // Display helpers
     getInviteDisplayName,
   };
 }
 
-// ── useAnalytics ──────────────────────────────────────────────────────────────
-
+// ─── Analytics ─────────────────────────────────────────────────────────────
 export function useAnalytics() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
@@ -755,10 +760,9 @@ export function useAnalytics() {
         .select("created_at")
         .gte("created_at", thirtyDaysAgo)
         .order("created_at", { ascending: true });
-
       const { data: payments } = await sb()
         .from("payments")
-        .select("amount_cents,created_at")
+        .select("amount_cents, created_at")
         .eq("status", "completed")
         .gte("created_at", thirtyDaysAgo)
         .order("created_at", { ascending: true });
@@ -767,46 +771,32 @@ export function useAnalytics() {
       const today = new Date();
       for (let i = 29; i >= 0; i--) {
         const d = new Date(today.getTime() - i * 86400000);
-        const key = d.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
+        const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         dayMap[key] = { date: key, users: 0, revenue: 0 };
       }
 
       (signups || []).forEach((s) => {
-        const key = new Date(s.created_at).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
+        const key = new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
         if (dayMap[key]) dayMap[key].users++;
       });
-
       (payments || []).forEach((p) => {
-        const key = new Date(p.created_at).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
+        const key = new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
         if (dayMap[key]) dayMap[key].revenue += (p.amount_cents || 0) / 100;
       });
 
       setData({ dailyStats: Object.values(dayMap) });
     } catch (e) {
-      console.error("[useAnalytics]", e);
-      setError(e.message);
+      console.error("Analytics error:", e);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-  return { data, loading, error, reload: load };
+  useEffect(() => { load(); }, [load]);
+  return { data, loading, reload: load };
 }
 
-// ── useTransactions ───────────────────────────────────────────────────────────
-
+// ─── Transactions ──────────────────────────────────────────────────────────
 export function useTransactions(pageSize = 20) {
   const [transactions, setTransactions] = useState([]);
   const [total, setTotal] = useState(0);
@@ -823,10 +813,9 @@ export function useTransactions(pageSize = 20) {
       let query = sb()
         .from("payments")
         .select(
-          `id,amount_cents,currency,status,provider,created_at,completed_at,
-           idempotency_key,metadata,
-           user:user_id(id,email,full_name),
-           product:product_id(name,tier)`,
+          `id, amount_cents, currency, status, provider, created_at, completed_at, idempotency_key, metadata,
+           user:user_id(id, email, full_name),
+           product:product_id(name, tier)`,
           { count: "exact" },
         )
         .order("created_at", { ascending: false })
@@ -840,35 +829,30 @@ export function useTransactions(pageSize = 20) {
       setTransactions(
         (data || []).map((p) => ({
           ...p,
-          amount: (p.amount_cents || 0) / 100,
-          user_email: p.user?.email || "—",
-          user_name: p.user?.full_name || "—",
-          method: p.provider,
-          type: p.product?.tier || p.metadata?.type || "—",
-        })),
+          amount:     (p.amount_cents || 0) / 100,
+          user_email: p.user?.email       || "—",
+          user_name:  p.user?.full_name   || "—",
+          method:     p.provider,
+          type:       p.product?.tier     || p.metadata?.type || "—",
+        }))
       );
       setTotal(count || 0);
     } catch (e) {
-      console.error("[useTransactions]", e);
+      console.error("Transactions error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, [page, search, pageSize]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const refundTransaction = async (txId, reason) => {
     const { error } = await sb()
       .from("payments")
       .update({
-        status: "refunded",
-        metadata: {
-          refund_reason: reason,
-          refunded_at: new Date().toISOString(),
-        },
+        status:     "refunded",
+        metadata:   { refund_reason: reason, refunded_at: new Date().toISOString() },
         updated_at: new Date().toISOString(),
       })
       .eq("id", txId);
@@ -877,21 +861,12 @@ export function useTransactions(pageSize = 20) {
   };
 
   return {
-    transactions,
-    total,
-    page,
-    setPage,
-    loading,
-    error,
-    search,
-    setSearch,
-    reload: load,
-    refundTransaction,
+    transactions, total, page, setPage, loading, error, search, setSearch,
+    reload: load, refundTransaction,
   };
 }
 
-// ── useSecurity ───────────────────────────────────────────────────────────────
-
+// ─── Security ──────────────────────────────────────────────────────────────
 export function useSecurity() {
   const [events, setEvents] = useState([]);
   const [lockedAccounts, setLockedAccounts] = useState([]);
@@ -906,16 +881,13 @@ export function useSecurity() {
         sb()
           .from("security_events")
           .select(
-            "id,event_type,severity,ip_address,user_agent,created_at,metadata," +
-              "user:user_id(email,full_name)",
+            "id, event_type, severity, ip_address, user_agent, created_at, metadata, user:user_id(email, full_name)",
           )
           .order("created_at", { ascending: false })
           .limit(50),
         sb()
           .from("profiles")
-          .select(
-            "id,email,full_name,failed_login_attempts,account_locked_until",
-          )
+          .select("id, email, full_name, failed_login_attempts, account_locked_until")
           .not("account_locked_until", "is", null)
           .gt("account_locked_until", new Date().toISOString()),
       ]);
@@ -925,24 +897,22 @@ export function useSecurity() {
       setEvents(
         (eventsRes.data || []).map((e) => ({
           ...e,
-          type: e.event_type,
+          type:       e.event_type,
           user_email: e.user?.email || e.metadata?.email || "—",
-          ip: e.ip_address,
-          resolved: e.resolved || false,
-        })),
+          ip:         e.ip_address,
+          resolved:   e.resolved || false,
+        }))
       );
       setLockedAccounts(lockedRes.data || []);
     } catch (e) {
-      console.error("[useSecurity]", e);
+      console.error("Security error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const resolveEvent = async (id) => {
     const isLocked = lockedAccounts.find((a) => a.id === id);
@@ -950,16 +920,13 @@ export function useSecurity() {
       await sb()
         .from("profiles")
         .update({
-          account_locked_until: null,
+          account_locked_until:  null,
           failed_login_attempts: 0,
-          updated_at: new Date().toISOString(),
+          updated_at:            new Date().toISOString(),
         })
         .eq("id", id);
     } else {
-      await sb()
-        .from("security_events")
-        .update({ resolved: true })
-        .eq("id", id);
+      await sb().from("security_events").update({ resolved: true }).eq("id", id);
     }
     await load();
   };
@@ -967,26 +934,14 @@ export function useSecurity() {
   const blockIp = async (ip) => {
     const { error } = await sb()
       .from("blocked_ips")
-      .upsert(
-        { ip, blocked_at: new Date().toISOString() },
-        { onConflict: "ip" },
-      );
+      .upsert({ ip, blocked_at: new Date().toISOString() }, { onConflict: "ip" });
     if (error) throw error;
   };
 
-  return {
-    events,
-    lockedAccounts,
-    loading,
-    error,
-    reload: load,
-    resolveEvent,
-    blockIp,
-  };
+  return { events, lockedAccounts, loading, error, reload: load, resolveEvent, blockIp };
 }
 
-// ── useNotifications ──────────────────────────────────────────────────────────
-
+// ─── Notifications ─────────────────────────────────────────────────────────
 export function useNotifications() {
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -998,36 +953,32 @@ export function useNotifications() {
     try {
       const { data, error } = await sb()
         .from("push_notifications")
-        .select("id,title,body,target_type,type,sent_by_name,reach,sent_at")
+        .select("id, title, body, target_type, type, sent_by_name, reach, sent_at")
         .order("sent_at", { ascending: false })
         .limit(50);
       if (error) throw error;
       setSent(data || []);
     } catch (e) {
-      console.error("[useNotifications]", e);
+      console.error("Notifications error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const send = async (notif) => {
-    const { error } = await sb()
-      .from("push_notifications")
-      .insert({
-        title: notif.title,
-        body: notif.message || notif.body,
-        target_type: notif.targetType || notif.target_type || "all",
-        type: notif.type || "info",
-        sent_by_name: notif.sentByName,
-        sent_by: notif.sentById,
-        reach: 0,
-        sent_at: new Date().toISOString(),
-      });
+    const { error } = await sb().from("push_notifications").insert({
+      title:       notif.title,
+      body:        notif.message || notif.body,
+      target_type: notif.targetType || notif.target_type || "all",
+      type:        notif.type || "info",
+      sent_by_name: notif.sentByName,
+      sent_by:     notif.sentById,
+      reach:       0,
+      sent_at:     new Date().toISOString(),
+    });
     if (error) throw error;
     await load();
   };
@@ -1035,8 +986,7 @@ export function useNotifications() {
   return { sent, loading, error, reload: load, send };
 }
 
-// ── useCommunities ────────────────────────────────────────────────────────────
-
+// ─── Communities ───────────────────────────────────────────────────────────
 export function useCommunities(pageSize = 20) {
   const [communities, setCommunities] = useState([]);
   const [total, setTotal] = useState(0);
@@ -1053,9 +1003,8 @@ export function useCommunities(pageSize = 20) {
       let query = sb()
         .from("communities")
         .select(
-          `id,name,description,member_count,is_verified,is_premium,is_private,
-           created_at,deleted_at,settings,
-           owner:owner_id(id,email,full_name)`,
+          `id, name, description, member_count, is_verified, is_premium, is_private, created_at, deleted_at, settings,
+           owner:owner_id(id, email, full_name)`,
           { count: "exact" },
         )
         .is("deleted_at", null)
@@ -1070,23 +1019,21 @@ export function useCommunities(pageSize = 20) {
       setCommunities(
         (data || []).map((c) => ({
           ...c,
-          owner_email: c.owner?.email || "—",
-          owner_name: c.owner?.full_name || "—",
+          owner_email: c.owner?.email     || "—",
+          owner_name:  c.owner?.full_name || "—",
           status: "active",
-        })),
+        }))
       );
       setTotal(count || 0);
     } catch (e) {
-      console.error("[useCommunities]", e);
+      console.error("Communities error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, [page, search, pageSize]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const suspend = async (id) => {
     const { error } = await sb()
@@ -1107,22 +1054,12 @@ export function useCommunities(pageSize = 20) {
   };
 
   return {
-    communities,
-    total,
-    page,
-    setPage,
-    loading,
-    error,
-    search,
-    setSearch,
-    reload: load,
-    suspend,
-    restore,
+    communities, total, page, setPage, loading, error, search, setSearch,
+    reload: load, suspend, restore,
   };
 }
 
-// ── usePlatformFreeze ─────────────────────────────────────────────────────────
-
+// ─── Platform Freeze ───────────────────────────────────────────────────────
 export function usePlatformFreeze() {
   const [freezeStatus, setFreezeStatus] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1134,24 +1071,20 @@ export function usePlatformFreeze() {
     try {
       const { data, error } = await sb()
         .from("platform_freeze")
-        .select("region,is_frozen,frozen_by,updated_at");
+        .select("region, is_frozen, frozen_by, updated_at");
       if (error) throw error;
       const map = {};
-      (data || []).forEach((r) => {
-        map[r.region] = r.is_frozen;
-      });
+      (data || []).forEach((r) => { map[r.region] = r.is_frozen; });
       setFreezeStatus(map);
     } catch (e) {
-      console.error("[usePlatformFreeze]", e);
+      console.error("Freeze error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const toggle = async (regionId, freeze, adminId) => {
     setLoading(true);
@@ -1159,13 +1092,8 @@ export function usePlatformFreeze() {
       const { error } = await sb()
         .from("platform_freeze")
         .upsert(
-          {
-            region: regionId,
-            is_frozen: freeze,
-            frozen_by: adminId || null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "region" },
+          { region: regionId, is_frozen: freeze, frozen_by: adminId || null, updated_at: new Date().toISOString() },
+          { onConflict: "region" }
         );
       if (error) throw error;
       await load();
@@ -1177,8 +1105,7 @@ export function usePlatformFreeze() {
   return { freezeStatus, loading, error, toggle, reload: load };
 }
 
-// ── usePlatformSettings ───────────────────────────────────────────────────────
-
+// ─── Platform Settings ─────────────────────────────────────────────────────
 export function usePlatformSettings() {
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1190,50 +1117,33 @@ export function usePlatformSettings() {
     try {
       const { data, error } = await sb()
         .from("platform_settings")
-        .select("key,value");
+        .select("key, value");
       if (error) throw error;
       const map = {};
-      (data || []).forEach((r) => {
-        map[r.key] = r.value;
-      });
+      (data || []).forEach((r) => { map[r.key] = r.value; });
       setSettings(map);
     } catch (e) {
-      console.error("[usePlatformSettings]", e);
+      console.error("Settings error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const update = async (key, value) => {
     setSettings((s) => ({ ...s, [key]: value }));
     const { error } = await sb()
       .from("platform_settings")
-      .upsert(
-        { key, value, updated_at: new Date().toISOString() },
-        { onConflict: "key" },
-      );
-    if (error) {
-      await load(); // Revert optimistic update on failure
-      throw error;
-    }
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) { await load(); throw error; }
   };
 
   return { settings, loading, error, update, refresh: load };
 }
 
-// ── useTeam ────────────────────────────────────────────────────────────────────
-//
-// ONLINE STATUS: derived from profiles.last_seen (updated by sessionManager).
-// Online = last_seen within past 5 minutes.
-//
-// DATA FIX: always returns all active team members.
-// Going offline does NOT remove members from the list.
-
+// ─── Admin Team ────────────────────────────────────────────────────────────
 export function useTeam() {
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1246,68 +1156,58 @@ export function useTeam() {
       const { data: teamData, error: teamErr } = await sb()
         .from("admin_team")
         .select(
-          `id,user_id,email,full_name,role,permissions,status,last_active,created_at,xa_id,
-           profile:user_id(id,email,full_name,last_seen,avatar_id)`,
+          `id, user_id, email, full_name, role, permissions, status, last_active, created_at, xa_id,
+           profile:user_id(id, email, full_name, last_seen)`,
         )
         .eq("status", "active")
-        .order("xa_id", { ascending: true, nullsFirst: false });
+        .order("xa_id", { ascending: true });
 
       if (teamErr) throw teamErr;
 
-      const FIVE_MIN_AGO = new Date(Date.now() - 5 * 60_000).toISOString();
+      const fiveMinAgo = new Date(Date.now() - 5 * 60000).toISOString();
 
       const enriched = (teamData || []).map((m) => {
         const lastSeen = m.profile?.last_seen || m.last_active;
-        const isOnline = lastSeen
-          ? new Date(lastSeen) > new Date(FIVE_MIN_AGO)
-          : false;
-
+        const isOnline = lastSeen ? new Date(lastSeen) > new Date(fiveMinAgo) : false;
         return {
-          id: m.id,
-          user_id: m.user_id,
-          email: m.profile?.email || m.email,
-          full_name: m.profile?.full_name || m.full_name,
-          role: m.role, // ALWAYS from DB — never overridden
-          permissions: Array.isArray(m.permissions) ? m.permissions : [],
-          status: m.status,
+          id:          m.id,
+          user_id:     m.user_id,
+          email:       m.profile?.email     || m.email,
+          full_name:   m.profile?.full_name || m.full_name,
+          role:        m.role,
+          permissions: m.permissions || [],
+          status:      m.status,
           last_active: m.profile?.last_seen || m.last_active,
-          is_online: isOnline,
-          xa_id: m.xa_id,
-          avatar_id: m.profile?.avatar_id ?? null,
+          is_online:   isOnline,
+          xa_id:       m.xa_id,
         };
       });
 
       setTeam(enriched);
     } catch (e) {
-      console.error("[useTeam]", e);
+      console.error("Team error:", e);
       setError(e.message);
-      // On error: keep previous team data, don't wipe it
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const addMember = async ({ email, name, role, permissions }) => {
     const { data: profile, error: profileErr } = await sb()
       .from("profiles")
-      .select("id,full_name,email")
+      .select("id, full_name, email")
       .eq("email", email.trim().toLowerCase())
       .maybeSingle();
 
     if (profileErr) throw profileErr;
-    if (!profile) {
-      throw new Error(
-        "No Xeevia account found with this email. The user must sign up first.",
-      );
-    }
+    if (!profile)
+      throw new Error("No Xeevia account found with this email. The user must sign up first.");
 
     const { data: existing } = await sb()
       .from("admin_team")
-      .select("id,status")
+      .select("id, status")
       .eq("user_id", profile.id)
       .maybeSingle();
 
@@ -1316,12 +1216,10 @@ export function useTeam() {
         const { error } = await sb()
           .from("admin_team")
           .update({
-            status: "active",
+            status:      "active",
             role,
-            permissions: permissions?.length
-              ? permissions
-              : ROLE_PERMISSIONS[role] || [],
-            full_name: name || profile.full_name,
+            permissions: permissions?.length ? permissions : ROLE_PERMISSIONS[role] || [],
+            full_name:   name || profile.full_name,
           })
           .eq("id", existing.id);
         if (error) throw error;
@@ -1329,19 +1227,15 @@ export function useTeam() {
         throw new Error("This user is already an admin team member.");
       }
     } else {
-      const { error } = await sb()
-        .from("admin_team")
-        .insert({
-          user_id: profile.id,
-          email: profile.email,
-          full_name: name || profile.full_name,
-          role,
-          permissions: permissions?.length
-            ? permissions
-            : ROLE_PERMISSIONS[role] || [],
-          status: "active",
-          created_at: new Date().toISOString(),
-        });
+      const { error } = await sb().from("admin_team").insert({
+        user_id:     profile.id,
+        email:       profile.email,
+        full_name:   name || profile.full_name,
+        role,
+        permissions: permissions?.length ? permissions : ROLE_PERMISSIONS[role] || [],
+        status:      "active",
+        created_at:  new Date().toISOString(),
+      });
       if (error) throw error;
     }
 
@@ -1358,10 +1252,7 @@ export function useTeam() {
   };
 
   const updatePermissions = async (id, permissions) => {
-    const { error } = await sb()
-      .from("admin_team")
-      .update({ permissions })
-      .eq("id", id);
+    const { error } = await sb().from("admin_team").update({ permissions }).eq("id", id);
     if (error) throw error;
     await load();
   };
@@ -1375,20 +1266,10 @@ export function useTeam() {
     await load();
   };
 
-  return {
-    team,
-    loading,
-    error,
-    load,
-    addMember,
-    removeMember,
-    updatePermissions,
-    updateRole,
-  };
+  return { team, loading, error, load, addMember, removeMember, updatePermissions, updateRole };
 }
 
-// ── useSupportCases ────────────────────────────────────────────────────────────
-
+// ─── Support Cases ─────────────────────────────────────────────────────────
 export function useSupportCases(pageSize = 20) {
   const [cases, setCases] = useState([]);
   const [total, setTotal] = useState(0);
@@ -1410,25 +1291,22 @@ export function useSupportCases(pageSize = 20) {
         .range(from, from + pageSize - 1);
 
       if (search) query = query.ilike("subject", `%${search}%`);
-      if (filter.status !== "all") query = query.eq("status", filter.status);
-      if (filter.priority !== "all")
-        query = query.eq("priority", filter.priority);
+      if (filter.status   !== "all") query = query.eq("status",   filter.status);
+      if (filter.priority !== "all") query = query.eq("priority", filter.priority);
 
       const { data, count, error } = await query;
       if (error) throw error;
       setCases(data || []);
       setTotal(count || 0);
     } catch (e) {
-      console.error("[useSupportCases]", e);
+      console.error("Cases error:", e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [page, search, JSON.stringify(filter), pageSize]); // eslint-disable-line
+  }, [page, search, JSON.stringify(filter), pageSize]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const updateCase = async (id, updates) => {
     const { error } = await sb()
@@ -1441,68 +1319,46 @@ export function useSupportCases(pageSize = 20) {
 
   const resolveCase = async (id, { adminName, adminId, note }) =>
     updateCase(id, {
-      status: "resolved",
+      status:      "resolved",
       resolved_by: adminId,
       resolved_at: new Date().toISOString(),
       resolve_note: note || "",
     });
 
   const addNote = async (id, { text, adminName, adminId }) => {
-    const { error } = await sb()
-      .from("support_messages")
-      .insert({
-        ticket_id: id,
-        user_id: adminId,
-        content: `[Internal Note] ${text}`,
-        is_staff: true,
-        is_internal: true,
-        staff_name: adminName,
-      });
-    if (error) throw error;
+    await sb().from("support_messages").insert({
+      ticket_id:   id,
+      user_id:     adminId,
+      content:     `[Internal Note] ${text}`,
+      is_staff:    true,
+      is_internal: true,
+      staff_name:  adminName,
+    });
   };
 
   const assignCase = async (id, { adminId, adminName }) =>
     updateCase(id, {
-      assigned_to: adminId,
+      assigned_to:      adminId,
       assigned_to_name: adminName,
-      status: "in_progress",
+      status:           "in_progress",
+      assigned_at:      new Date().toISOString(),
     });
 
   const createSupportCase = async (caseData) => {
-    const { error } = await sb()
-      .from("support_tickets")
-      .insert({
-        ...caseData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await sb().from("support_tickets").insert({
+      ...caseData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
     if (error) throw error;
     await load();
   };
 
   const escalateCase = async (id) =>
-    updateCase(id, {
-      status: "escalated",
-      escalated_at: new Date().toISOString(),
-    });
+    updateCase(id, { status: "escalated", escalated_at: new Date().toISOString() });
 
   return {
-    cases,
-    total,
-    page,
-    setPage,
-    loading,
-    error,
-    search,
-    setSearch,
-    filter,
-    setFilter,
-    reload: load,
-    updateCase,
-    resolveCase,
-    addNote,
-    assignCase,
-    createSupportCase,
-    escalateCase,
+    cases, total, page, setPage, loading, error, search, setSearch, filter, setFilter,
+    reload: load, updateCase, resolveCase, addNote, assignCase, createSupportCase, escalateCase,
   };
 }

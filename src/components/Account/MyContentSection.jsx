@@ -50,38 +50,20 @@ const timeAgo = (d) => {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-// Build an image URL from a Supabase media ID via mediaUrlService
-const buildUrl = (mediaId, opts = "") => {
+// Build image URL — plain URL only (no transform params that cause 400s on Supabase Storage)
+const buildUrl = (mediaId) => {
   if (!mediaId) return null;
   try {
     const url = mediaUrlService.getImageUrl(mediaId);
     if (!url || typeof url !== "string") return null;
     const base = url.split("?")[0];
     if (!base.startsWith("http")) return null;
-    return base.includes("supabase") ? `${base}?${opts}` : url;
+    return base;
   } catch { return null; }
 };
 
-const thumbUrl = (mediaId) => buildUrl(mediaId, "quality=70&width=300&height=300&resize=cover&format=webp");
+const thumbUrl = (mediaId) => buildUrl(mediaId);
 
-// Get the best thumbnail URL for any content type
-const getThumb = (item, tab) => {
-  if (tab === "posts") {
-    // image_ids is an array — first item is the thumbnail
-    if (item.image_ids?.length > 0) return thumbUrl(item.image_ids[0]);
-    // text card: no image
-    return null;
-  }
-  if (tab === "reels") {
-    if (item.thumbnail_id) return thumbUrl(item.thumbnail_id);
-    if (item.video_metadata?.thumbnail_url) return item.video_metadata.thumbnail_url;
-    return null;
-  }
-  if (tab === "stories") {
-    return thumbUrl(item.cover_image_id);
-  }
-  return null; // comments
-};
 
 // Enrich a raw DB row so PostTab / StoryTab / ReelsTab can render it properly
 const enrich = (item, profileData, tab) => ({
@@ -103,63 +85,213 @@ const enrich = (item, profileData, tab) => ({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THUMBNAIL CARD — actual image + minimal overlay
+// VIDEO FRAME EXTRACTOR — pulls a frame from a video URL as a data-URL
+// ─────────────────────────────────────────────────────────────────────────────
+const extractVideoFrame = (videoUrl) =>
+  new Promise((resolve) => {
+    if (!videoUrl || typeof videoUrl !== "string") return resolve(null);
+    try {
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.preload = "metadata";
+      video.playsInline = true;
+      const cleanup = () => { try { video.src = ""; } catch {} };
+      const timeout = setTimeout(() => { cleanup(); resolve(null); }, 8000);
+      video.onloadedmetadata = () => { video.currentTime = Math.min(1.5, video.duration * 0.1 || 0); };
+      video.onseeked = () => {
+        clearTimeout(timeout);
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width  = 300;
+          canvas.height = 300;
+          const ctx = canvas.getContext("2d");
+          // letterbox/pillarbox the frame to fill 300×300
+          const vw = video.videoWidth || 1;
+          const vh = video.videoHeight || 1;
+          const scale = Math.max(300 / vw, 300 / vh);
+          const sw = vw * scale, sh = vh * scale;
+          ctx.drawImage(video, (300 - sw) / 2, (300 - sh) / 2, sw, sh);
+          resolve(canvas.toDataURL("image/jpeg", 0.75));
+        } catch { resolve(null); }
+        cleanup();
+      };
+      video.onerror = () => { clearTimeout(timeout); cleanup(); resolve(null); };
+      video.src = videoUrl;
+    } catch { resolve(null); }
+  });
+
+// Build a full CDN URL from a raw video_id or metadata
+const getVideoUrl = (item) => {
+  try {
+    if (item.video_metadata?.url) return item.video_metadata.url;
+    if (item.video_id) return mediaUrlService.getVideoUrl?.(item.video_id) || null;
+  } catch {}
+  return null;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THUMBNAIL CARD — skeleton-first, multi-source, content-aware fallbacks
 // ─────────────────────────────────────────────────────────────────────────────
 const ThumbCard = ({ item, tab, index, onClick }) => {
-  const [loaded, setLoaded] = useState(false);
-  const [err,    setErr]    = useState(false);
+  // Phase: "skeleton" → "loading" (img present, not loaded) → "ready" → "fallback"
+  const [phase,   setPhase]   = useState("skeleton");
+  const [imgSrc,  setImgSrc]  = useState(null);  // final resolved URL
+  const mountedRef = useRef(true);
 
-  const src  = err ? null : getThumb(item, tab);
-  const meta = TAB_META[tab];
-  const text = item.content?.slice(0, 80) || item.caption?.slice(0, 80)
-             || item.title?.slice(0, 80)  || item.preview?.slice(0, 80) || "";
+  const meta   = TAB_META[tab];
   const isReel = tab === "reels";
+  const text   = item.body?.slice(0, 120)    || item.content?.slice(0, 120)
+               || item.caption?.slice(0, 120) || item.title?.slice(0, 120)
+               || item.preview?.slice(0, 120) || "";
+
+  // ── Try every possible source in priority order ──────────────────────────
+  useEffect(() => {
+    mountedRef.current = true;
+    let cancelled = false;
+
+    const attempt = async () => {
+      // 1. Build the candidate URL list from DB fields
+      const candidates = [];
+
+      if (tab === "posts") {
+        const ids = item.image_ids || [];
+        for (const id of ids.slice(0, 3)) {
+          const u = thumbUrl(id);
+          if (u) candidates.push(u);
+        }
+      } else if (tab === "reels") {
+        if (item.thumbnail_id) {
+          const u = thumbUrl(item.thumbnail_id);
+          if (u) candidates.push(u);
+        }
+        // direct thumbnail URL in metadata
+        const tmeta = item.video_metadata || {};
+        if (tmeta.thumbnail_url && tmeta.thumbnail_url.startsWith("http"))
+          candidates.push(tmeta.thumbnail_url);
+        if (tmeta.thumbnailUrl && tmeta.thumbnailUrl.startsWith("http"))
+          candidates.push(tmeta.thumbnailUrl);
+        if (tmeta.poster && tmeta.poster.startsWith("http"))
+          candidates.push(tmeta.poster);
+      } else if (tab === "stories") {
+        const u = thumbUrl(item.cover_image_id);
+        if (u) candidates.push(u);
+        if (item.cover_url?.startsWith("http")) candidates.push(item.cover_url);
+      }
+
+      // 2. Try each candidate: probe with an Image object so we don't block render
+      for (const url of candidates) {
+        if (cancelled) return;
+        const ok = await new Promise((res) => {
+          const img = new window.Image();
+          img.onload  = () => res(true);
+          img.onerror = () => res(false);
+          img.src = url;
+          setTimeout(() => res(false), 6000);
+        });
+        if (ok && !cancelled) {
+          setImgSrc(url);
+          setPhase("ready");
+          return;
+        }
+      }
+
+      // 3. For reels — try extracting a frame from the actual video
+      if (!cancelled && tab === "reels") {
+        const videoUrl = getVideoUrl(item);
+        if (videoUrl) {
+          const frame = await extractVideoFrame(videoUrl);
+          if (frame && !cancelled) {
+            setImgSrc(frame);
+            setPhase("ready");
+            return;
+          }
+        }
+      }
+
+      // 4. Nothing worked — use rich content-aware fallback
+      if (!cancelled) setPhase("fallback");
+    };
+
+    // Start skeleton briefly so the grid paints immediately, then resolve
+    setPhase("skeleton");
+    const t = setTimeout(attempt, index < 9 ? index * 16 : 0); // stagger first row slightly
+    return () => { cancelled = true; clearTimeout(t); mountedRef.current = false; };
+  }, [item.id, tab]);
+
+  // ── Derived display values ────────────────────────────────────────────────
+  const hasStats  = (item.views > 0) || (item.likes > 0);
+  const cardCount = Array.isArray(item.image_ids) && item.image_ids.length > 1 ? item.image_ids.length : null;
 
   return (
     <button
-      className="mcs-card"
+      className={`mcs-card mcs-card-phase-${phase}`}
       onClick={onClick}
-      style={{ animationDelay: `${Math.min(index * 20, 400)}ms` }}
-      aria-label={`Open ${meta.label.slice(0,-1)} ${index + 1}`}
+      style={{ animationDelay: phase === "skeleton" ? "0ms" : `${Math.min(index * 15, 300)}ms` }}
+      aria-label={`Open ${meta.label.slice(0, -1)} ${index + 1}`}
     >
-      {/* ── Media area (1:1) ── */}
       <div className="mcs-card-media">
-        {src ? (
-          <>
-            {!loaded && <div className="mcs-shimmer" />}
-            <img
-              src={src} alt=""
-              onLoad={() => setLoaded(true)}
-              onError={() => { setErr(true); setLoaded(false); }}
-              style={{ opacity: loaded ? 1 : 0 }}
-            />
-          </>
-        ) : (
-          /* Fallback: colour-tinted bg + text preview */
+
+        {/* ── SKELETON: shown immediately while resolving ── */}
+        {phase === "skeleton" && (
+          <div className="mcs-card-skeleton">
+            <div className="mcs-shimmer" />
+          </div>
+        )}
+
+        {/* ── READY: actual image ── */}
+        {phase === "ready" && imgSrc && (
+          <img src={imgSrc} alt="" className="mcs-card-img" />
+        )}
+
+        {/* ── FALLBACK: rich content-aware placeholder ── */}
+        {phase === "fallback" && (
           <div className="mcs-card-fallback" style={{ "--tc": meta.color }}>
-            <meta.Icon size={18} style={{ color: meta.color, opacity: 0.8 }} />
-            {text && <span className="mcs-card-text-preview">{text}</span>}
+            {/* Background pattern */}
+            <div className="mcs-fb-bg" />
+
+            {/* Big icon */}
+            <div className="mcs-fb-icon" style={{ color: meta.color }}>
+              <meta.Icon size={22} strokeWidth={1.5} />
+            </div>
+
+            {/* Text content — as much as fits */}
+            {text && (
+              <p className="mcs-fb-text">{text}</p>
+            )}
+
+            {/* For reels with no thumbnail, show a "video" label */}
+            {tab === "reels" && !text && (
+              <span className="mcs-fb-label" style={{ color: meta.color }}>Video</span>
+            )}
           </div>
         )}
 
-        {/* Reels: play badge */}
-        {isReel && (
+        {/* ── Reel: multi-item or play badge ── */}
+        {isReel && phase !== "skeleton" && (
           <div className="mcs-play-badge">
-            <Play size={11} fill="#fff" style={{ marginLeft: 1 }} />
+            <Play size={10} fill="#fff" style={{ marginLeft: 1 }} />
           </div>
         )}
 
-        {/* Hover: stats */}
-        <div className="mcs-card-hover">
-          {item.views > 0 && (
-            <span><Eye size={10} />{fmt(item.views)}</span>
-          )}
-          {item.likes > 0 && (
-            <span><Heart size={10} />{fmt(item.likes)}</span>
-          )}
-        </div>
+        {/* ── Multi-image indicator (posts with > 1 image) ── */}
+        {cardCount && phase !== "skeleton" && (
+          <div className="mcs-multi-badge">
+            <Image size={8} />
+            <span>{cardCount}</span>
+          </div>
+        )}
 
-        {/* Type dot */}
+        {/* ── Hover overlay — stats ── */}
+        {phase !== "skeleton" && (
+          <div className="mcs-card-hover">
+            {item.views > 0 && <span><Eye size={10} />{fmt(item.views)}</span>}
+            {item.likes > 0 && <span><Heart size={10} />{fmt(item.likes)}</span>}
+            {!hasStats && <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>View</span>}
+          </div>
+        )}
+
+        {/* ── Type accent dot ── */}
         <div className="mcs-dot" style={{ background: meta.color }} />
       </div>
 
@@ -335,13 +467,19 @@ const MyContentSection = ({
         if (error) throw error;
         rows = data || [];
       } else if (tab === "comments") {
+        // Use * so we don't fail on unknown column names — the text field may be
+        // named "body", "text", "comment_text", or "content" depending on schema.
         const { data, error } = await supabase
           .from("comments")
-          .select("id, content, created_at, post_id, reel_id, story_id, likes, user_id")
+          .select("*")
           .eq("user_id", userId)
           .order("created_at", { ascending: false }).limit(60);
         if (error) throw error;
-        rows = data || [];
+        // Normalise: always expose the text under `body` regardless of real col name
+        rows = (data || []).map(r => ({
+          ...r,
+          body: r.body ?? r.content ?? r.text ?? r.comment_text ?? r.message ?? "",
+        }));
       }
       setItems(p  => ({ ...p, [tab]: rows }));
       setLoaded(p => ({ ...p, [tab]: true }));
@@ -453,71 +591,129 @@ const MyContentSection = ({
         .mcs-card {
           background: none; border: none; padding: 0; cursor: pointer;
           border-radius: 3px; overflow: hidden; display: flex; flex-direction: column;
-          animation: mcs-pop 0.28s ease both;
-          transition: transform 0.1s;
+          transition: transform 0.12s;
         }
-        .mcs-card:hover { transform: scale(0.95); }
-        .mcs-card:hover .mcs-card-hover { opacity: 1; }
+        /* Skeleton cards: show immediately, no pop animation, flat bg */
+        .mcs-card-phase-skeleton { cursor: default; }
+        /* Ready/fallback cards: pop in */
+        .mcs-card-phase-ready,
+        .mcs-card-phase-fallback {
+          animation: mcs-pop 0.3s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        .mcs-card:not(.mcs-card-phase-skeleton):hover { transform: scale(0.95); }
+        .mcs-card:not(.mcs-card-phase-skeleton):hover .mcs-card-hover { opacity: 1; }
         @keyframes mcs-pop {
-          from { opacity: 0; transform: scale(0.84); }
+          from { opacity: 0; transform: scale(0.88); }
           to   { opacity: 1; transform: scale(1); }
         }
 
         .mcs-card-media {
           position: relative; width: 100%; padding-bottom: 100%;
-          background: #0d0d0d; overflow: hidden;
+          background: #0c0c0c; overflow: hidden;
         }
-        .mcs-card-media img {
+
+        /* Actual image */
+        .mcs-card-img {
           position: absolute; inset: 0; width: 100%; height: 100%;
-          object-fit: cover; transition: opacity 0.2s;
+          object-fit: cover;
+        }
+
+        /* Skeleton state */
+        .mcs-card-skeleton {
+          position: absolute; inset: 0;
         }
         .mcs-shimmer {
           position: absolute; inset: 0;
-          background: linear-gradient(90deg, #111 25%, #191919 50%, #111 75%);
+          background: linear-gradient(90deg, #0e0e0e 25%, #1a1a1a 50%, #0e0e0e 75%);
           background-size: 200% 100%;
-          animation: mcs-shimmer 1.4s infinite;
+          animation: mcs-shimmer 1.6s ease-in-out infinite;
         }
-        @keyframes mcs-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes mcs-shimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
 
-        /* Fallback (text content / no image) */
+        /* ─── FALLBACK: rich content-aware placeholder ─── */
         .mcs-card-fallback {
           position: absolute; inset: 0;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 6px; padding: 10px;
-          background: linear-gradient(145deg, color-mix(in srgb, var(--tc) 8%, #000) 0%, #0d0d0d 100%);
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          gap: 6px; padding: 10px; overflow: hidden;
         }
-        .mcs-card-text-preview {
-          font-size: 7.5px; color: #525252; text-align: center; line-height: 1.5;
+        /* Dark gradient tinted toward tab color */
+        .mcs-fb-bg {
+          position: absolute; inset: 0;
+          background: linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--tc, #fff) 10%, #000) 0%,
+            #090909 60%
+          );
+        }
+        .mcs-fb-bg::after {
+          /* subtle radial glow in the center */
+          content: "";
+          position: absolute; inset: 0;
+          background: radial-gradient(ellipse 70% 70% at 50% 40%,
+            color-mix(in srgb, var(--tc, #fff) 8%, transparent) 0%,
+            transparent 70%
+          );
+        }
+        .mcs-fb-icon {
+          position: relative; z-index: 1; opacity: 0.55;
+          filter: drop-shadow(0 0 8px var(--tc, #fff));
+        }
+        .mcs-fb-text {
+          position: relative; z-index: 1;
+          font-size: 7.5px; color: rgba(255,255,255,0.28);
+          text-align: center; line-height: 1.6; margin: 0;
           overflow: hidden; display: -webkit-box;
-          -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+          -webkit-line-clamp: 5; -webkit-box-orient: vertical;
+          word-break: break-word;
+        }
+        .mcs-fb-label {
+          position: relative; z-index: 1;
+          font-size: 9px; font-weight: 800; letter-spacing: 1px;
+          text-transform: uppercase; opacity: 0.6;
         }
 
         /* Hover overlay */
         .mcs-card-hover {
           position: absolute; inset: 0;
-          background: rgba(0,0,0,0.6);
+          background: rgba(0,0,0,0.62);
           opacity: 0; transition: opacity 0.15s;
-          display: flex; align-items: center; justify-content: center; gap: 10px;
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          z-index: 3;
         }
         .mcs-card-hover span {
           display: flex; align-items: center; gap: 3px;
-          color: #fff; font-size: 11px; font-weight: 700;
-          text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+          color: #fff; font-size: 12px; font-weight: 800;
+          text-shadow: 0 1px 6px rgba(0,0,0,0.9);
         }
 
         /* Reel play badge */
         .mcs-play-badge {
           position: absolute; bottom: 6px; right: 6px;
           width: 22px; height: 22px; border-radius: 50%;
-          background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+          background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
           display: flex; align-items: center; justify-content: center;
+          z-index: 2;
+        }
+
+        /* Multi-image badge */
+        .mcs-multi-badge {
+          position: absolute; top: 5px; left: 5px;
+          display: flex; align-items: center; gap: 2px;
+          background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+          border-radius: 6px; padding: 2px 5px;
+          color: #fff; font-size: 8px; font-weight: 700;
+          z-index: 2;
         }
 
         /* Type dot */
         .mcs-dot {
           position: absolute; top: 5px; right: 5px;
           width: 6px; height: 6px; border-radius: 50%;
-          border: 1px solid rgba(0,0,0,0.5);
+          border: 1px solid rgba(0,0,0,0.6); z-index: 2;
         }
 
         /* Foot */
@@ -741,7 +937,7 @@ const MyContentSection = ({
                   <MessageSquare size={13} style={{ color: "#34d399", flexShrink: 0, marginTop: 2 }} />
                 </div>
                 <div className="mcs-cpc-body">
-                  <p className="mcs-cpc-text">{item.content}</p>
+                  <p className="mcs-cpc-text">{item.body}</p>
                   <span className="mcs-cpc-time">{timeAgo(item.created_at)}</span>
                 </div>
                 <div className="mcs-cpc-right">

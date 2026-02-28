@@ -1,305 +1,328 @@
 // paywave/tabs/AccountTab.jsx
-import React, { useState } from "react";
-import { User, Phone, Mail, Calendar, MapPin, Shield, Lock, Bell, HelpCircle, FileText, ChevronRight, LogOut, Copy, Check, Fingerprint, Key, AlertTriangle, FileWarning, Info } from "lucide-react";
-import { Header, Avatar, Toggle, CopyField, ListRow } from "../components/UI";
-import { DocUploadModal, ReviewModal, SuccessModal, CodeModal } from "../modals/index";
+// Renders REAL user data from Supabase profiles table.
+// Incomplete fields show motivating CTAs to encourage completion.
+// Tier system: Tier 1 (basic) → Tier 2 (verified)
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  User, Phone, Mail, Calendar, MapPin, Shield, Lock,
+  Bell, HelpCircle, FileText, LogOut, ChevronRight,
+  Copy, CheckCircle, Star, Zap, Edit3, AlertCircle,
+  Award, TrendingUp,
+} from "lucide-react";
+import { supabase } from "../../../../services/config/supabase";
+import { useAuth } from "../../../../components/Auth/AuthContext";
 
-// ── Edit field sub-page ────────────────────────────────────
-function EditFieldPage({ field, onBack, onSuccess, setDocUpload }) {
-  const needsVerif = ["Full Name", "Phone Number", "Email Address"].includes(field.label);
-  const [val, setVal] = useState(field.value);
+const MOTIVATIONS = {
+  phone: {
+    icon: "📱",
+    cta: "Add phone number",
+    why: "Enable OTP security & faster transfers",
+    color: "#a3e635",
+    points: 50,
+  },
+  dob: {
+    icon: "🎂",
+    cta: "Add date of birth",
+    why: "Required for KYC & Tier 2 upgrade",
+    color: "#d4a847",
+    points: 25,
+  },
+  address: {
+    icon: "🏠",
+    cta: "Add home address",
+    why: "Unlock higher transaction limits",
+    color: "#60a5fa",
+    points: 50,
+  },
+  bio: {
+    icon: "✍️",
+    cta: "Write a short bio",
+    why: "Let people know who you are on Xeevia",
+    color: "#a855f7",
+    points: 10,
+  },
+};
+
+function ProfileCompletion({ profile }) {
+  const fields = [
+    { key: "phone",    done: !!profile?.phone         },
+    { key: "dob",      done: !!profile?.date_of_birth },
+    { key: "address",  done: !!profile?.home_address   },
+    { key: "bio",      done: !!profile?.bio            },
+  ];
+  const done  = fields.filter(f=>f.done).length + 2; // +2 for name + email always present
+  const total = fields.length + 2;
+  const pct   = Math.round((done/total)*100);
 
   return (
-    <div className="pw-scroll">
-      <Header title={`Edit ${field.label}`} onBack={onBack} />
-      <div className="f-section f-stack">
-        <div>
-          <label className="f-label">{field.label}</label>
-          <div className="f-card"><input type="text" value={val} onChange={e => setVal(e.target.value)} className="f-input" /></div>
+    <div style={{ borderRadius:12, overflow:"hidden", background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.055)", padding:"12px 13px", marginBottom:14 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:7 }}>
+        <div style={{ fontSize:12, fontFamily:"var(--font-b)", color:"rgba(255,255,255,0.5)" }}>Profile Completeness</div>
+        <div style={{ fontFamily:"var(--font-d)", fontSize:14, fontWeight:800, color:pct===100?"var(--lime)":"var(--gold)" }}>{pct}%</div>
+      </div>
+      <div style={{ height:5, borderRadius:3, background:"rgba(255,255,255,0.06)", overflow:"hidden", marginBottom:6 }}>
+        <div style={{ height:"100%", width:`${pct}%`, borderRadius:3, background:pct===100?"var(--lime)":"linear-gradient(90deg,var(--gold),var(--lime))", transition:"width 0.8s ease" }} />
+      </div>
+      {pct < 100 && (
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>
+          Complete your profile to unlock higher transfer limits & Tier 2 benefits
         </div>
-        {needsVerif && (
-          <div className="info-gold" style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
-            <Info size={14} color="var(--gold)" style={{ flexShrink: 0, marginTop: 1 }} />
-            <span style={{ color: "var(--gold)", fontSize: 12 }}>This field requires document verification.</span>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value, onEdit, isSet, motivation }) {
+  return (
+    <button
+      onClick={onEdit}
+      style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", background:isSet?"transparent":"rgba(255,255,255,0.01)", border:"none", borderBottom:"1px solid rgba(255,255,255,0.04)", cursor:"pointer", textAlign:"left", transition:"background .15s" }}
+      onMouseEnter={e=>{ if(!isSet) e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}
+      onMouseLeave={e=>{ e.currentTarget.style.background=isSet?"transparent":"rgba(255,255,255,0.01)"; }}>
+      <div style={{ display:"flex", alignItems:"center", gap:11 }}>
+        <div style={{ width:34, height:34, borderRadius:9, background:isSet?"rgba(255,255,255,0.04)":"rgba(163,230,53,0.06)", border:`1px solid ${isSet?"rgba(255,255,255,0.055)":"rgba(163,230,53,0.12)"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <Icon size={14} color={isSet?"rgba(255,255,255,0.35)":"rgba(163,230,53,0.6)"} />
+        </div>
+        <div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.28)", marginBottom:1, fontFamily:"var(--font-b)" }}>{label}</div>
+          {isSet ? (
+            <div style={{ fontSize:13.5, color:"rgba(255,255,255,0.65)", fontFamily:"var(--font-b)", fontWeight:500 }}>{value}</div>
+          ) : (
+            <div style={{ fontSize:13, color:"rgba(163,230,53,0.65)", fontFamily:"var(--font-b)", fontWeight:600 }}>
+              {motivation?.cta || `Set ${label}`}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+        {!isSet && motivation?.points && (
+          <div style={{ padding:"2px 7px", background:"rgba(163,230,53,0.1)", border:"1px solid rgba(163,230,53,0.18)", borderRadius:10, fontSize:9.5, color:"var(--lime)", fontWeight:700 }}>
+            +{motivation.points} EP
           </div>
         )}
-        <button className="btn-lime full" onClick={() => {
-          if (needsVerif) { onBack(); setDocUpload(true); }
-          else { onSuccess(`${field.label} updated successfully!`); onBack(); }
-        }}>Save Changes</button>
+        <ChevronRight size={13} color="rgba(255,255,255,0.2)" />
       </div>
-    </div>
+    </button>
   );
 }
 
-// ── Security settings sub-page ─────────────────────────────
-function SecurityPage({ onBack }) {
-  const items = [
-    { icon: Fingerprint, label: "Biometric Login",    desc: "Fingerprint or face ID",       on: true  },
-    { icon: Key,         label: "Two-Factor Auth",    desc: "Extra layer for every login",   on: true  },
-    { icon: Lock,        label: "Transaction PIN",    desc: "Required on all payments",      on: true  },
-    { icon: Shield,      label: "Login Alerts",       desc: "Notify me of new logins",       on: false },
-  ];
+// Edit modal
+function EditModal({ field, label, value, onClose, onSave }) {
+  const [val, setVal] = useState(value || "");
   return (
-    <div className="pw-scroll">
-      <Header title="Security" onBack={onBack} />
-      <div style={{ padding: 15 }}>
-        {/* Hero — lime accent */}
-        <div className="glass glass-lime" style={{ padding: 14, display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(163,230,53,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Shield size={20} color="var(--lime)" />
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(18px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:999 }}>
+      <div className="glass" style={{ padding:20, width:"100%", maxWidth:480, borderRadius:"20px 20px 0 0", borderBottomColor:"transparent", borderColor:"rgba(163,230,53,0.18)" }}>
+        <div style={{ fontFamily:"var(--font-d)", fontSize:17, fontWeight:800, marginBottom:4 }}>Edit {label}</div>
+        {MOTIVATIONS[field] && (
+          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:14, padding:"8px 11px", background:"rgba(163,230,53,0.06)", border:"1px solid rgba(163,230,53,0.12)", borderRadius:9 }}>
+            <span style={{ fontSize:14 }}>{MOTIVATIONS[field].icon}</span>
+            <span style={{ fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{MOTIVATIONS[field].why}</span>
           </div>
-          <div>
-            <div style={{ fontFamily: "var(--font-d)", fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Account is secure</div>
-            <div style={{ color: "var(--lime)", fontSize: 12 }}>All security features active</div>
-          </div>
+        )}
+        <div className="f-card" style={{ marginBottom:16 }}>
+          {field === "address" || field === "bio" ? (
+            <textarea value={val} onChange={e=>setVal(e.target.value)} placeholder={`Enter your ${label.toLowerCase()}`} className="f-input" style={{ minHeight:80, resize:"none" }} />
+          ) : (
+            <input type={field==="dob"?"date":field==="phone"?"tel":"text"} value={val} onChange={e=>setVal(e.target.value)} placeholder={`Enter your ${label.toLowerCase()}`} className="f-input" />
+          )}
         </div>
-        <div className="space-y">
-          {items.map((item, i) => (
-            <ListRow key={i} icon={item.icon} label={item.label} sub={item.desc}
-              right={<Toggle on={item.on} />} onClick={() => {}} />
-          ))}
+        <div style={{ display:"flex", gap:8 }}>
+          <button className="btn-ghost" style={{ flex:1 }} onClick={onClose}>Cancel</button>
+          <button className="btn-lime" style={{ flex:1 }} disabled={!val} onClick={()=>onSave(val)}>Save</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Change password sub-page ───────────────────────────────
-function ChangePasswordPage({ onBack }) {
-  const [cur, setCur] = useState("");
-  const [nw, setNw] = useState("");
-  const [cn, setCn] = useState("");
-  const [codeOpen, setCodeOpen] = useState(false);
-  const [done, setDone] = useState(false);
+export default function AccountTab({ setPage, onSuccess }) {
+  const { profile, signOut } = useAuth();
+  const [userData,    setUserData]    = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [editField,   setEditField]   = useState(null);
+  const [copied,      setCopied]      = useState(false);
+  const [savingField, setSavingField] = useState(false);
 
-  const handle = () => {
-    if (!cur || !nw || !cn) return alert("Fill all fields");
-    if (nw !== cn) return alert("Passwords don't match");
-    if (nw.length < 8) return alert("Min 8 characters");
-    setCodeOpen(true);
+  const fetchUser = useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, email, phone, bio, date_of_birth, home_address, payment_status, created_at, verified, is_pro")
+        .eq("id", profile.id)
+        .maybeSingle();
+      setUserData(data);
+    } catch { }
+    finally { setLoading(false); }
+  }, [profile?.id]);
+
+  useEffect(() => { fetchUser(); }, [fetchUser]);
+
+  const displayName  = userData?.full_name || profile?.full_name || "Xeevia User";
+  const initials     = displayName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const email        = userData?.email || profile?.email || "";
+  const maskedEmail  = email ? email.replace(/(.)(.*?)(@.*)/, (_, f, m, d) => f + "*".repeat(Math.min(m.length,4)) + d) : "";
+  const accountNo    = "9040" + Math.floor(100000 + parseInt((profile?.id || "0").replace(/-/g,"").slice(-6), 16) % 899999);
+
+  const tier = userData?.payment_status === "vip" ? 2 : userData?.payment_status === "paid" ? 2 : 1;
+
+  const copyAccount = () => {
+    navigator.clipboard.writeText(accountNo).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
-  if (done) return <SuccessModal message="Password changed successfully!" onClose={onBack} />;
+  const saveField = async (field, val) => {
+    setSavingField(true);
+    try {
+      const update = {
+        phone:        field==="phone"    ? val : undefined,
+        date_of_birth:field==="dob"      ? val : undefined,
+        home_address: field==="address"  ? val : undefined,
+        bio:          field==="bio"      ? val : undefined,
+      };
+      // Remove undefined keys
+      Object.keys(update).forEach(k => update[k]===undefined && delete update[k]);
+      await supabase.from("profiles").update(update).eq("id", profile.id);
+      await fetchUser();
+      setEditField(null);
+      onSuccess?.(`${editFieldLabel(field)} saved!`);
+    } catch { alert("Save failed. Try again."); }
+    finally { setSavingField(false); }
+  };
 
-  return (
-    <div className="pw-scroll">
-      <Header title="Change Password" onBack={onBack} />
-      <div className="f-section f-stack">
-        <div className="info-lime" style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <Info size={13} color="var(--lime)" /><span style={{ color: "var(--lime)", fontSize: 12 }}>Minimum 8 characters required</span>
-        </div>
-        {[["Current Password", cur, setCur], ["New Password", nw, setNw], ["Confirm New Password", cn, setCn]].map(([label, val, setter], i) => (
-          <div key={i}>
-            <label className="f-label">{label}</label>
-            <div className="f-card"><input type="password" value={val} onChange={e => setter(e.target.value)} placeholder={`Enter ${label.toLowerCase()}`} className="f-input" /></div>
-          </div>
-        ))}
-        <button className="btn-lime full" disabled={!cur || !nw || !cn || nw !== cn} onClick={handle}>Update Password</button>
-      </div>
-      {codeOpen && <CodeModal onClose={() => setCodeOpen(false)} onVerify={code => { if (code === "123456") { setCodeOpen(false); setDone(true); } else alert("Wrong code"); }} />}
-    </div>
-  );
-}
+  const editFieldLabel = (f) => ({ phone:"Phone Number", dob:"Date of Birth", address:"Home Address", bio:"Bio" }[f] || f);
 
-// ── Notification settings sub-page ────────────────────────
-function NotifSettingsPage({ onBack }) {
-  const items = [
-    { label: "Transaction Alerts",  desc: "Notify on all transactions",  on: true  },
-    { label: "Promotional Offers",  desc: "Special deals and cashback",   on: true  },
-    { label: "Security Alerts",     desc: "Critical security notices",    on: true  },
-    { label: "Payment Reminders",   desc: "Upcoming bill reminders",      on: false },
-    { label: "Weekly Summary",      desc: "Spending summary every week",  on: false },
+  const settings = [
+    { icon: Shield,    label: "Security",        sub: "PIN, biometrics, 2FA",   page: null },
+    { icon: Lock,      label: "Change Password",  sub: "Update your password",   page: null },
+    { icon: Bell,      label: "Notifications",    sub: "Manage alerts",          page: "notifications" },
+    { icon: HelpCircle,label: "Help & Support",   sub: "24/7 support",           page: null },
+    { icon: FileText,  label: "Terms & Privacy",  sub: "Legal information",      page: null },
   ];
+
+  if (loading) {
+    return (
+      <div className="pw-scroll">
+        <div style={{ padding:20, display:"flex", flexDirection:"column", gap:12 }}>
+          {[100,60,80,60,80].map((w,i)=>(
+            <div key={i} style={{ height:w==="100"?100:48, borderRadius:12, background:"rgba(255,255,255,0.03)", animation:"pw-shimmer 1.4s infinite" }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pw-scroll">
-      <Header title="Notifications" onBack={onBack} />
-      <div style={{ padding: 15 }}>
-        <div className="space-y">
-          {items.map((item, i) => (
-            <div key={i} className="glass click" style={{ padding: "12px 14px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ flex: 1, marginRight: 12 }}>
-                  <div style={{ fontFamily: "var(--font-d)", fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
-                  <div style={{ color: "var(--text-soft)", fontSize: 11.5 }}>{item.desc}</div>
-                </div>
-                <Toggle on={item.on} />
+      <div style={{ paddingTop:0, flexShrink:0, display:"flex", alignItems:"center", height:50, gap:10, padding:"0 var(--pw-pad-left)", borderBottom:"1px solid var(--border)" }}>
+        <span style={{ fontFamily:"var(--font-d)", fontSize:15, fontWeight:700 }}>Account</span>
+      </div>
+
+      <div style={{ padding:"15px 15px 0" }}>
+        {/* Profile hero */}
+        <div className="glass" style={{ padding:"18px 16px", marginBottom:12, textAlign:"center", position:"relative", overflow:"hidden" }}>
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:60, background:"linear-gradient(180deg,rgba(163,230,53,0.05),transparent)" }} />
+          <div style={{ position:"relative" }}>
+            <div style={{ width:64, height:64, borderRadius:"50%", background:"linear-gradient(135deg,var(--lime),#65a30d)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px", fontFamily:"var(--font-d)", fontWeight:800, fontSize:22, color:"#0a0e06", boxShadow:"0 4px 16px rgba(163,230,53,0.25)" }}>
+              {initials}
+            </div>
+            <div style={{ fontFamily:"var(--font-d)", fontSize:18, fontWeight:800, marginBottom:3 }}>{displayName}</div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              <div style={{ padding:"3px 10px", background:`rgba(${tier===2?"163,230,53":"212,168,71"},0.12)`, border:`1px solid rgba(${tier===2?"163,230,53":"212,168,71"},0.25)`, borderRadius:20, fontSize:11, fontWeight:700, color:tier===2?"var(--lime)":"var(--gold)" }}>
+                Tier {tier} Account
               </div>
+              {userData?.verified && <div style={{ padding:"3px 10px", background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.25)", borderRadius:20, fontSize:11, fontWeight:700, color:"#60a5fa" }}>✓ Verified</div>}
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
-// ── Help sub-page ──────────────────────────────────────────
-function HelpPage({ onBack }) {
-  const items = [
-    { icon: Phone,       label: "Call Us",        desc: "+234 123 456 7890"         },
-    { icon: Mail,        label: "Email Support",  desc: "support@paywave.com"       },
-    { icon: HelpCircle,  label: "FAQs",           desc: "Common questions answered" },
-    { icon: FileText,    label: "Report Issue",   desc: "Describe your problem"     },
-  ];
-  return (
-    <div className="pw-scroll">
-      <Header title="Help & Support" onBack={onBack} />
-      <div style={{ padding: 15 }}>
-        {/* Gold hero — the other gold touch */}
-        <div className="glass glass-gold" style={{ padding: "16px 14px", textAlign: "center", marginBottom: 14 }}>
-          <div style={{ width: 48, height: 48, margin: "0 auto 10px", borderRadius: "50%", background: "var(--gold-dim)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <HelpCircle size={24} color="var(--gold)" />
-          </div>
-          <div style={{ fontFamily: "var(--font-d)", fontWeight: 700, fontSize: 15, color: "var(--text)" }}>We're here to help</div>
-          <div style={{ color: "var(--gold)", fontSize: 12, marginTop: 2 }}>24/7 customer support</div>
-        </div>
-        <div className="space-y">
-          {items.map((item, i) => (
-            <ListRow key={i} icon={item.icon} label={item.label} sub={item.desc}
-              right={<ChevronRight size={13} color="var(--text-muted)" />}
-              onClick={() => alert(`${item.label}\n${item.desc}`)} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Terms sub-page ─────────────────────────────────────────
-function TermsPage({ onBack }) {
-  return (
-    <div className="pw-scroll">
-      <Header title="Terms & Privacy" onBack={onBack} />
-      <div style={{ padding: 15 }}>
-        <div className="info-gold" style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14 }}>
-          <AlertTriangle size={14} color="var(--gold)" style={{ flexShrink: 0, marginTop: 1 }} />
-          <span style={{ color: "var(--gold)", fontSize: 12 }}>Please read carefully. By using this app you agree to our terms.</span>
-        </div>
-        {[
-          ["Terms of Service", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip."],
-          ["Privacy Policy", "We take your privacy seriously. All personal data is encrypted at rest and in transit. We never sell your data to third parties. You may request deletion of your account and data at any time through the app settings."],
-        ].map(([title, body], i) => (
-          <div key={i} style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: "var(--font-d)", fontWeight: 700, fontSize: 14, color: "var(--text)", marginBottom: 6 }}>{title}</div>
-            <p style={{ color: "var(--text-soft)", fontSize: 12.5, lineHeight: 1.75 }}>{body}</p>
-          </div>
-        ))}
-        <div className="info-red" style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-          <FileWarning size={14} color="var(--c-red, #f87171)" style={{ flexShrink: 0, marginTop: 1 }} />
-          <span style={{ color: "#f87171", fontSize: 12 }}>Disclaimer: This is a demo app. No real transactions occur.</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main AccountTab ────────────────────────────────────────
-export default function AccountTab({ setPage, onSuccess }) {
-  const [subPage, setSubPage] = useState(null);
-  const [editField, setEditField] = useState(null);
-  const [docUpload, setDocUpload] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const accountNumber = "9040273157";
-
-  const copyAcct = () => { navigator.clipboard?.writeText(accountNumber); setCopied(true); setTimeout(() => setCopied(false), 2000); };
-
-  // sub-page routing
-  if (editField)   return <EditFieldPage field={editField} onBack={() => setEditField(null)} onSuccess={onSuccess} setDocUpload={setDocUpload} />;
-  if (subPage === "security")         return <SecurityPage onBack={() => setSubPage(null)} />;
-  if (subPage === "change-password")  return <ChangePasswordPage onBack={() => setSubPage(null)} />;
-  if (subPage === "notif-settings")   return <NotifSettingsPage onBack={() => setSubPage(null)} />;
-  if (subPage === "help")             return <HelpPage onBack={() => setSubPage(null)} />;
-  if (subPage === "terms")            return <TermsPage onBack={() => setSubPage(null)} />;
-
-  const personalFields = [
-    { icon: User,     label: "Full Name",     value: "SUNDAY ALI"         },
-    { icon: Phone,    label: "Phone Number",  value: "+2349040273157"     },
-    { icon: Mail,     label: "Email Address", value: "d*@gmail.com"       },
-    { icon: Calendar, label: "Date of Birth", value: "**-**-17"           },
-    { icon: MapPin,   label: "Home Address",  value: "Not set"            },
-  ];
-
-  const settingsItems = [
-    { icon: Shield,      label: "Security",         desc: "PIN, biometrics, 2FA",   key: "security"        },
-    { icon: Lock,        label: "Change Password",  desc: "Update your password",   key: "change-password" },
-    { icon: Bell,        label: "Notifications",    desc: "Manage alerts",          key: "notif-settings"  },
-    { icon: HelpCircle,  label: "Help & Support",   desc: "24/7 support",           key: "help"            },
-    { icon: FileText,    label: "Terms & Privacy",  desc: "Legal information",      key: "terms"           },
-  ];
-
-  return (
-    <div className="pw-scroll">
-      <Header title="Account" />
-      <div style={{ padding: 15 }}>
-
-        {/* ── Profile card ─────────────────────────────────── */}
-        <div className="glass" style={{ padding: "17px 15px", marginBottom: 14 }}>
-          <div style={{ textAlign: "center", marginBottom: 14 }}>
-            <Avatar letter="E" size="lg" style={{ margin: "0 auto 9px" }} />
-            <div style={{ margin: "9px 0 0" }}>
-              <div style={{ fontFamily: "var(--font-d)", fontSize: 16, fontWeight: 800, color: "var(--text)" }}>Emmanuel Walker</div>
-              <div style={{ color: "var(--lime)", fontSize: 12, marginTop: 2 }}>Tier 1 Account</div>
-            </div>
-          </div>
-
-          {/* Account number row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 13px", borderRadius: "var(--r-sm)", background: "var(--surface)", border: "1px solid var(--border)", marginBottom: 11 }}>
-            <span style={{ color: "var(--text-soft)", fontSize: 12 }}>Account No.</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ fontFamily: "var(--font-m)", color: "var(--text)", fontSize: 14 }}>{accountNumber}</span>
-              <button style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-soft)", display: "flex" }} onClick={copyAcct}>
-                {copied ? <Check size={12} color="var(--lime)" /> : <Copy size={12} />}
+            {/* Account number */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginTop:12, padding:"8px 14px", background:"rgba(0,0,0,0.2)", borderRadius:9 }}>
+              <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)", fontFamily:"var(--font-b)" }}>Account No.</span>
+              <span style={{ fontFamily:"var(--font-m)", fontSize:14, color:"rgba(255,255,255,0.7)" }}>{accountNo}</span>
+              <button style={{ background:"transparent", border:"none", cursor:"pointer", color:copied?"var(--lime)":"rgba(255,255,255,0.3)", display:"flex", alignItems:"center", padding:0, transition:"color .2s" }} onClick={copyAccount}>
+                {copied ? <CheckCircle size={13}/> : <Copy size={13}/>}
               </button>
             </div>
-          </div>
 
-          {/* Upgrade — gold accent for the "premium" cue */}
-          <button className="btn-lime full sm" onClick={() => alert("Upgrade to Tier 2\n\nBenefits:\n- Higher transaction limits\n- International transfers\n- Priority support")}>
-            Upgrade to Tier 2
-          </button>
+            {/* Tier upgrade CTA */}
+            {tier < 2 && (
+              <button className="btn-lime full" style={{ marginTop:12 }}>
+                <Award size={13}/> Upgrade to Tier 2
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* ── Personal Information ──────────────────────────── */}
-        <div className="sec-hd"><span className="sec-title">Personal Information</span></div>
-        <div className="space-y mb-4">
-          {personalFields.map((field, i) => (
-            <div key={i} className="glass click" style={{ padding: "10px 13px" }} onClick={() => setEditField(field)}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <field.icon size={13} color="var(--text-muted)" />
-                  <span style={{ color: "var(--text-soft)", fontSize: 12 }}>{field.label}</span>
+        {/* Profile completion */}
+        <ProfileCompletion profile={userData} />
+
+        {/* Personal Information */}
+        <div style={{ fontFamily:"var(--font-d)", fontSize:13.5, fontWeight:800, marginBottom:10, color:"var(--text)" }}>Personal Information</div>
+        <div className="glass" style={{ padding:0, marginBottom:14, overflow:"hidden" }}>
+          <InfoRow icon={User}     label="Full Name"    value={displayName}   isSet={true}   onEdit={()=>{}} />
+          <InfoRow icon={Phone}    label="Phone Number" value={userData?.phone} isSet={!!userData?.phone} motivation={MOTIVATIONS.phone} onEdit={()=>setEditField("phone")} />
+          <InfoRow icon={Mail}     label="Email Address" value={maskedEmail}   isSet={true}   onEdit={()=>{}} />
+          <InfoRow icon={Calendar} label="Date of Birth" value={userData?.date_of_birth ? new Date(userData.date_of_birth).toLocaleDateString("en-NG",{day:"numeric",month:"long",year:"numeric"}) : null} isSet={!!userData?.date_of_birth} motivation={MOTIVATIONS.dob} onEdit={()=>setEditField("dob")} />
+          <InfoRow icon={MapPin}   label="Home Address"  value={userData?.home_address}  isSet={!!userData?.home_address} motivation={MOTIVATIONS.address} onEdit={()=>setEditField("address")} style={{ borderBottom:"none" }} />
+        </div>
+
+        {/* Bio CTA if not set */}
+        {!userData?.bio && (
+          <button className="btn-ghost full" style={{ marginBottom:14, fontSize:12.5 }} onClick={()=>setEditField("bio")}>
+            <Edit3 size={13}/> Write a short bio — tell people who you are ✨
+          </button>
+        )}
+
+        {/* Incomplete fields reminder */}
+        {(!userData?.phone || !userData?.date_of_birth || !userData?.home_address) && (
+          <div style={{ borderRadius:12, padding:"12px 13px", background:"rgba(163,230,53,0.04)", border:"1px solid rgba(163,230,53,0.1)", marginBottom:14, fontSize:12, color:"rgba(255,255,255,0.35)", lineHeight:1.65 }}>
+            <div style={{ color:"rgba(163,230,53,0.7)", fontWeight:700, marginBottom:4 }}>Complete your profile for more 🚀</div>
+            {!userData?.phone      && <div>📱 Add phone → enable PIN-free transfers</div>}
+            {!userData?.date_of_birth && <div>🎂 Add date of birth → unlock KYC & Tier 2</div>}
+            {!userData?.home_address && <div>🏠 Add address → higher transaction limits</div>}
+          </div>
+        )}
+
+        {/* Settings */}
+        <div style={{ fontFamily:"var(--font-d)", fontSize:13.5, fontWeight:800, marginBottom:10, color:"var(--text)" }}>Settings</div>
+        <div className="glass" style={{ padding:0, marginBottom:14, overflow:"hidden" }}>
+          {settings.map((s,i)=>(
+            <button key={i} onClick={()=>s.page&&setPage(s.page)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", background:"transparent", border:"none", borderBottom:i<settings.length-1?"1px solid rgba(255,255,255,0.04)":"none", cursor:"pointer", textAlign:"left", transition:"background .15s" }}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.025)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{ display:"flex", alignItems:"center", gap:11 }}>
+                <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.055)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <s.icon size={14} color="rgba(255,255,255,0.35)" />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ color: "var(--text)", fontSize: 13.5 }}>{field.value}</span>
-                  <ChevronRight size={12} color="var(--text-muted)" />
+                <div>
+                  <div style={{ fontSize:13.5, color:"rgba(255,255,255,0.7)", fontFamily:"var(--font-b)", fontWeight:500 }}>{s.label}</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.28)", fontFamily:"var(--font-b)" }}>{s.sub}</div>
                 </div>
               </div>
-            </div>
+              <ChevronRight size={13} color="rgba(255,255,255,0.15)" />
+            </button>
           ))}
         </div>
 
-        {/* ── Settings ──────────────────────────────────────── */}
-        <div className="sec-hd"><span className="sec-title">Settings</span></div>
-        <div className="space-y mb-4">
-          {settingsItems.map((item, i) => (
-            <ListRow key={i} icon={item.icon} label={item.label} sub={item.desc}
-              right={<ChevronRight size={13} color="var(--text-muted)" />}
-              onClick={() => setSubPage(item.key)} />
-          ))}
-        </div>
-
-        {/* ── Sign out ───────────────────────────────────────── */}
-        <div className="glass click" style={{ padding: "11px 14px", borderColor: "rgba(239,68,68,0.18)" }}
-          onClick={() => { if (window.confirm("Sign out of PayWave?")) alert("Signed out."); }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, color: "#f87171", fontFamily: "var(--font-d)", fontWeight: 600, fontSize: 14 }}>
-            <LogOut size={14} /> Sign Out
-          </div>
-        </div>
+        {/* Sign out */}
+        <button onClick={signOut} style={{ width:"100%", padding:"13px 0", background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)", borderRadius:12, color:"#f87171", fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:24, transition:"all .15s", fontFamily:"var(--font-b)" }}
+          onMouseEnter={e=>{ e.currentTarget.style.background="rgba(239,68,68,0.1)"; e.currentTarget.style.borderColor="rgba(239,68,68,0.25)"; }}
+          onMouseLeave={e=>{ e.currentTarget.style.background="rgba(239,68,68,0.06)"; e.currentTarget.style.borderColor="rgba(239,68,68,0.15)"; }}>
+          <LogOut size={14}/> Sign Out
+        </button>
       </div>
 
-      {docUpload && <DocUploadModal onClose={() => setDocUpload(false)} onSubmit={() => { setDocUpload(false); setReviewOpen(true); }} />}
-      {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} />}
+      {/* Edit modal */}
+      {editField && (
+        <EditModal
+          field={editField}
+          label={editFieldLabel(editField)}
+          value={editField==="phone"?userData?.phone:editField==="dob"?userData?.date_of_birth:editField==="address"?userData?.home_address:userData?.bio}
+          onClose={()=>setEditField(null)}
+          onSave={(val)=>saveField(editField,val)}
+        />
+      )}
     </div>
   );
 }

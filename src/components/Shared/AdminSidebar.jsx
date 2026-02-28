@@ -1,5 +1,6 @@
 // src/components/Shared/AdminSidebar.jsx
 import React, { useState, useEffect, useRef } from "react";
+import ServicesModal from "./ServicesModal";
 
 // ─────────────────────────────────────────────
 // STYLES — all CSS lives here, nothing inline
@@ -8,18 +9,18 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    width: 280px;
     background: #030303;
     border-left: 1px solid rgba(255,255,255,0.05);
     border-right: 1px solid rgba(255,255,255,0.05);
     display: flex;
     flex-direction: column;
     position: fixed;
-    left: 0;
     z-index: 100;
-    left: calc(6% + 5px);
     font-family: 'Syne', sans-serif;
     /* top and height are set via inline style using measured header height */
+    left: 4%;
+    bottom: 0;
+    width: 300px;
   }
 
   /* ── TOP ACCENT BAR ── */
@@ -141,6 +142,32 @@ const STYLES = `
     width: 16px;
     height: 16px;
     flex-shrink: 0;
+  }
+
+  /* ── MENU BUTTON ── */
+  .xv-menu-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #71717a;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    margin-bottom: 2px;
+    text-align: left;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .xv-menu-btn:hover {
+    background: rgba(255,255,255,0.04);
+    color: #d4d4d8;
+    border-color: rgba(255,255,255,0.1);
   }
 
   /* ── ADMIN DASHBOARD BUTTON ── */
@@ -340,6 +367,17 @@ function UserIcon({ strokeWidth = 2 }) {
   );
 }
 
+function MenuGridIcon() {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
 function ShieldIcon() {
   return (
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -378,9 +416,11 @@ export default function AdminSidebar({
   user,
   adminData,
   onOpenDashboard,
+  currentUser,
 }) {
   const [hovered, setHovered]           = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [showServices, setShowServices] = useState(false);
 
   // Auto-detect header height so sidebar sits flush below it
   useEffect(() => {
@@ -421,126 +461,149 @@ export default function AdminSidebar({
   }
 
   return (
-    <aside
-      className="xv-sidebar"
-      style={{
-        top:    headerHeight,
-        height: `calc(100vh - ${headerHeight}px)`,
-      }}
-    >
-      {/* TOP ACCENT BAR */}
-      <div
-        className="xv-accent-bar"
-        style={{ background: `linear-gradient(90deg, ${role.color}, transparent)` }}
-      />
-
-      {/* LOGO */}
-      <div className="xv-logo">
+    <>
+      <aside
+        className="xv-sidebar"
+        style={{
+          top:    headerHeight,
+          height: `calc(100vh - ${headerHeight}px)`,
+        }}
+      >
+        {/* TOP ACCENT BAR */}
         <div
-          className="xv-logo-icon"
-          style={{
-            background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`,
-            boxShadow:  `0 4px 16px ${role.glow}`,
-          }}
-        >
-          X
-        </div>
-        <div>
-          <div className="xv-logo-name">Xeevia</div>
-          <div className="xv-logo-sub" style={{ color: role.color }}>Admin Console</div>
-        </div>
-      </div>
+          className="xv-accent-bar"
+          style={{ background: `linear-gradient(90deg, ${role.color}, transparent)` }}
+        />
 
-      {/* NAVIGATION */}
-      <nav className="xv-nav">
-
-        <div className="xv-section-label">Navigation</div>
-
-        {NAV_ITEMS.map((item) => {
-          const Icon     = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              className={`xv-nav-btn${isActive ? " xv-nav-btn--active" : ""}`}
-              style={navBtnStyle(item.id)}
-              onClick={() => setActiveTab(item.id)}
-              onMouseEnter={() => setHovered(item.id)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {isActive && (
-                <span
-                  className="xv-active-bar"
-                  style={{
-                    background: role.color,
-                    boxShadow:  `0 0 8px ${role.glow}`,
-                  }}
-                />
-              )}
-              <Icon strokeWidth={isActive ? 2.5 : 2} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-
-        <div className="xv-section-label xv-section-label--spaced">Administration</div>
-
-        <button
-          className="xv-admin-btn"
-          style={{
-            background:  hovered === "dashboard" ? `${role.color}18` : `${role.color}0e`,
-            border:      `1px solid ${role.color}30`,
-            color:       role.color,
-            boxShadow:   hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none",
-          }}
-          onClick={onOpenDashboard}
-          onMouseEnter={() => setHovered("dashboard")}
-          onMouseLeave={() => setHovered(null)}
-        >
-          <ShieldIcon />
-          <span className="xv-admin-btn-label">Admin Dashboard</span>
-          <ChevronRightIcon />
-        </button>
-
-      </nav>
-
-      {/* FOOTER */}
-      <div className="xv-footer">
-
-        {/* Profile card */}
-        <div
-          className="xv-profile-card"
-          style={{ border: `1px solid ${role.color}20` }}
-        >
+        {/* LOGO */}
+        <div className="xv-logo">
           <div
-            className="xv-avatar"
+            className="xv-logo-icon"
             style={{
-              background: `${role.color}18`,
-              border:     `1.5px solid ${role.color}40`,
-              color:      role.color,
-              boxShadow:  `0 2px 12px ${role.glow}`,
+              background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`,
+              boxShadow:  `0 4px 16px ${role.glow}`,
             }}
           >
-            {initials}
+            X
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="xv-profile-name">
-              {adminData?.full_name || "Admin"}
-            </div>
-            <div className="xv-profile-role" style={{ color: role.color }}>
-              {role.label}
-            </div>
+          <div>
+            <div className="xv-logo-name">Xeevia</div>
+            <div className="xv-logo-sub" style={{ color: role.color }}>Admin Console</div>
           </div>
         </div>
 
-        {/* Sign out */}
-        <button className="xv-signout-btn" onClick={onSignOut}>
-          <LogOutIcon />
-          Sign Out
-        </button>
+        {/* NAVIGATION */}
+        <nav className="xv-nav">
 
-        <div className="xv-credits">Platform Administration · Xeevia</div>
-      </div>
-    </aside>
+          <div className="xv-section-label">Navigation</div>
+
+          {NAV_ITEMS.map((item) => {
+            const Icon     = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                className={`xv-nav-btn${isActive ? " xv-nav-btn--active" : ""}`}
+                style={navBtnStyle(item.id)}
+                onClick={() => setActiveTab(item.id)}
+                onMouseEnter={() => setHovered(item.id)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                {isActive && (
+                  <span
+                    className="xv-active-bar"
+                    style={{
+                      background: role.color,
+                      boxShadow:  `0 0 8px ${role.glow}`,
+                    }}
+                  />
+                )}
+                <Icon strokeWidth={isActive ? 2.5 : 2} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+
+          {/* ── Menu button ── */}
+          <button
+            className="xv-menu-btn"
+            onClick={() => setShowServices(true)}
+            onMouseEnter={() => setHovered("menu")}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Open menu"
+          >
+            <MenuGridIcon />
+            <span>Menu</span>
+          </button>
+
+          <div className="xv-section-label xv-section-label--spaced">Administration</div>
+
+          <button
+            className="xv-admin-btn"
+            style={{
+              background:  hovered === "dashboard" ? `${role.color}18` : `${role.color}0e`,
+              border:      `1px solid ${role.color}30`,
+              color:       role.color,
+              boxShadow:   hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none",
+            }}
+            onClick={onOpenDashboard}
+            onMouseEnter={() => setHovered("dashboard")}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <ShieldIcon />
+            <span className="xv-admin-btn-label">Admin Dashboard</span>
+            <ChevronRightIcon />
+          </button>
+
+        </nav>
+
+        {/* FOOTER */}
+        <div className="xv-footer">
+
+          {/* Profile card */}
+          <div
+            className="xv-profile-card"
+            style={{ border: `1px solid ${role.color}20` }}
+          >
+            <div
+              className="xv-avatar"
+              style={{
+                background: `${role.color}18`,
+                border:     `1.5px solid ${role.color}40`,
+                color:      role.color,
+                boxShadow:  `0 2px 12px ${role.glow}`,
+              }}
+            >
+              {initials}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="xv-profile-name">
+                {adminData?.full_name || "Admin"}
+              </div>
+              <div className="xv-profile-role" style={{ color: role.color }}>
+                {role.label}
+              </div>
+            </div>
+          </div>
+
+          {/* Sign out */}
+          <button className="xv-signout-btn" onClick={onSignOut}>
+            <LogOutIcon />
+            Sign Out
+          </button>
+
+          <div className="xv-credits">Platform Administration · Xeevia</div>
+        </div>
+      </aside>
+
+      {/* Services Modal */}
+      {showServices && (
+        <ServicesModal
+          onClose={() => setShowServices(false)}
+          setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
+          currentUser={currentUser || user}
+        />
+      )}
+    </>
   );
 }

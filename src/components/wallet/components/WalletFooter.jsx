@@ -8,8 +8,10 @@ const WalletFooter = () => {
       <div className="footer-notice">
         <Shield size={16} />
         <div>
-          <p className="footer-label">Platform Stability Protocol</p>
-          <p className="footer-text">Next withdrawal available in <strong>45 days</strong></p>
+          <p className="footer-label">Xeevia Stability Protocol</p>
+          <p className="footer-text">
+            Next withdrawal available in <strong>45 days</strong>
+          </p>
         </div>
       </div>
     </div>

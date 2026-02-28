@@ -1,68 +1,104 @@
 // supabase/functions/enhance-post/utils/shorten.ts
-import type { Change }         from "../index.ts";
-import type { AdaptiveRules }  from "./adaptiveEngine.ts";
+// ─────────────────────────────────────────────────────────────────────────────
+// shortenText — removes redundancy, padding, and filler without changing meaning.
+// FIX: imports Change from ./types (not ../index.ts which never exported it)
+// ─────────────────────────────────────────────────────────────────────────────
+import type { Change }        from "./types.ts";
+import type { AdaptiveRules } from "./adaptiveEngine.ts";
 
-// ── Filler words to strip when standalone ────────────────────────────────────
-const FILLER_WORDS = new Set([
-  "very", "really", "just", "quite", "rather", "somewhat",
-  "basically", "literally", "actually", "honestly", "truly",
-  "definitely", "certainly", "absolutely", "totally", "completely",
-  "simply", "merely", "only", "even", "already", "still",
-  "anyway", "anyways", "like", "you know", "i mean",
-  "kind of", "sort of",
-  "to be honest", "to be fair",
-  "at the end of the day",
-  "needless to say",
-  "as a matter of fact",
-  "in actual fact",
-]);
+const FILLER_ADVERBS = [
+  "basically", "literally", "honestly", "actually", "simply",
+  "just", "really", "very", "quite", "rather", "somewhat",
+  "pretty much", "kind of", "sort of", "a little bit",
+  "you know", "you see", "I mean", "I guess", "I suppose",
+  "needless to say", "it goes without saying that",
+  "as a matter of fact", "at the end of the day",
+  "at this point in time", "due to the fact that",
+  "in spite of the fact that", "in actual fact",
+  "all things considered", "with that being said",
+  "it is worth noting that", "it should be noted that",
+  "it is important to note that",
+];
 
-// ── Verbose phrase → concise replacement ─────────────────────────────────────
-const COMPRESSION_MAP: Record<string, string> = {
-  "in order to":                       "to",
-  "due to the fact that":              "because",
-  "at this point in time":             "now",
-  "in the event that":                 "if",
-  "with regard to":                    "about",
-  "in reference to":                   "about",
-  "for the purpose of":                "to",
-  "in spite of the fact that":         "although",
-  "on a regular basis":                "regularly",
-  "on a daily basis":                  "daily",
-  "in the near future":                "soon",
-  "at the present time":               "currently",
-  "in the process of":                 "currently",
-  "make a decision":                   "decide",
-  "come to a conclusion":              "conclude",
-  "give consideration to":             "consider",
-  "take into account":                 "consider",
-  "be in a position to":               "be able to",
-  "a large number of":                 "many",
-  "a small number of":                 "few",
-  "the majority of":                   "most",
-  "in close proximity to":             "near",
-  "in the vicinity of":                "near",
-  "prior to":                          "before",
-  "subsequent to":                     "after",
-  "in addition to":                    "besides",
-  "as well as":                        "and",
-  "despite the fact that":             "although",
-  "provided that":                     "if",
-  "in the case of":                    "for",
-  "in terms of":                       "for",
-  "with the exception of":             "except",
-  "it is important to note that":      "",
-  "it should be noted that":           "",
-  "please note that":                  "",
-  "i wanted to let you know that":     "",
-  "i just wanted to say that":         "",
-  "i think that":                      "",
-  "i believe that":                    "",
-  "i feel that":                       "",
-  "what i mean is":                    "",
-};
+const REDUNDANT_PAIRS: Array<[RegExp, string]> = [
+  [/\beach and every\b/gi,          "every"],
+  [/\bfirst and foremost\b/gi,      "first"],
+  [/\btrue and accurate\b/gi,       "accurate"],
+  [/\bnew and improved\b/gi,        "improved"],
+  [/\bfree of charge\b/gi,          "free"],
+  [/\bend result\b/gi,              "result"],
+  [/\bfinal outcome\b/gi,           "outcome"],
+  [/\bfuture plans\b/gi,            "plans"],
+  [/\bpast history\b/gi,            "history"],
+  [/\bunexpected surprise\b/gi,     "surprise"],
+  [/\bassemble together\b/gi,       "assemble"],
+  [/\bcollaborate together\b/gi,    "collaborate"],
+  [/\bjoined together\b/gi,         "joined"],
+  [/\bmerge together\b/gi,          "merge"],
+  [/\bplan ahead\b/gi,              "plan"],
+  [/\brepeat again\b/gi,            "repeat"],
+  [/\brevert back\b/gi,             "revert"],
+  [/\brise up\b/gi,                 "rise"],
+  [/\bclose proximity\b/gi,         "proximity"],
+  [/\bexact same\b/gi,              "same"],
+  [/\bvery unique\b/gi,             "unique"],
+  [/\bon a daily basis\b/gi,        "daily"],
+  [/\bon a regular basis\b/gi,      "regularly"],
+  [/\bin the event that\b/gi,       "if"],
+  [/\bat this point in time\b/gi,   "now"],
+  [/\bprior to\b/gi,                "before"],
+  [/\bin order to\b/gi,             "to"],
+  [/\bfor the purpose of\b/gi,      "to"],
+  [/\bwith the exception of\b/gi,   "except"],
+  [/\bin the near future\b/gi,      "soon"],
+  [/\bthe majority of\b/gi,         "most"],
+  [/\ba large number of\b/gi,       "many"],
+  [/\ba small number of\b/gi,       "few"],
+  [/\bdue to the fact that\b/gi,    "because"],
+  [/\bowing to the fact that\b/gi,  "because"],
+  [/\bdespite the fact that\b/gi,   "although"],
+];
 
-interface ShortenResult {
+const PADDING_OPENERS = [
+  /^(so,?\s+)?I (just |really |wanted|felt|thought|needed) (to )?share\s+(that\s+)?/i,
+  /^(so,?\s+)?I (just |really |wanted|felt|thought|needed) (to )?say\s+(that\s+)?/i,
+  /^(so,?\s+)?I (just |really |wanted|felt|thought|needed) (to )?let (you|everyone) know\s+(that\s+)?/i,
+  /^(so,?\s+)?I (just |really |wanted|felt|thought|needed) (to )?take a moment\s+(to\s+)?/i,
+  /^(so,?\s+)?I (just |really |wanted|felt|thought|needed) (to )?reach out\s+(and\s+)?/i,
+  /^(honestly|basically|frankly|truthfully|candidly|genuinely),?\s+/i,
+  /^(as you (may|might|probably|already) know,?\s+)/i,
+  /^(let me (start|begin) by saying that\s+)/i,
+];
+
+const PADDING_CLOSERS = [
+  /\s+I hope this (makes sense|helps|is useful|is helpful|is clear)\.?$/i,
+  /\s+Let me know (your thoughts|what you think|if you have any questions)\.?$/i,
+  /\s+Feel free to (ask|reach out|comment|share).+\.?$/i,
+  /\s+Thank you for (reading|your time|taking the time|your attention)\.?$/i,
+  /\s+(As always,?\s+)?stay (safe|tuned|positive|motivated|inspired)\.?$/i,
+];
+
+const VERBOSE_VERBS: Array<[RegExp, string]> = [
+  [/\bis able to\b/gi,           "can"],
+  [/\bare able to\b/gi,          "can"],
+  [/\bwas able to\b/gi,          "could"],
+  [/\bwere able to\b/gi,         "could"],
+  [/\bhas the ability to\b/gi,   "can"],
+  [/\bhave the ability to\b/gi,  "can"],
+  [/\bhas a tendency to\b/gi,    "tends to"],
+  [/\bhave a tendency to\b/gi,   "tend to"],
+  [/\bis in need of\b/gi,        "needs"],
+  [/\bare in need of\b/gi,       "need"],
+  [/\bmake use of\b/gi,          "use"],
+  [/\bcome to the conclusion\b/gi, "conclude"],
+  [/\bprovide support for\b/gi,  "support"],
+  [/\bgive consideration to\b/gi,"consider"],
+  [/\bcarry out\b/gi,            "do"],
+  [/\bput in place\b/gi,         "implement"],
+  [/\bin order to\b/gi,          "to"],
+];
+
+export interface ShortenResult {
   text:    string;
   changes: Change[];
 }
@@ -71,53 +107,58 @@ export function shortenText(text: string, rules: AdaptiveRules): ShortenResult {
   const changes: Change[] = [];
   let result = text;
 
-  // 1. Apply compression map — longest phrases first to avoid partial matches
-  const sortedPhrases = Object.keys(COMPRESSION_MAP).sort((a, b) => b.length - a.length);
-
-  for (const phrase of sortedPhrases) {
-    const replacement = COMPRESSION_MAP[phrase];
-    const regex = new RegExp(`\\b${escapeRegex(phrase)}\\b`, "gi");
-
-    if (regex.test(result)) {
-      const before = result;
-      result = result
-        .replace(regex, replacement)
-        .replace(/\s{2,}/g, " ")
-        .trim();
-
-      if (before !== result) {
-        changes.push({ from: phrase, to: replacement, type: "compression" });
-      }
+  for (const [regex, replacement] of REDUNDANT_PAIRS) {
+    const before = result;
+    result = result.replace(regex, replacement);
+    if (before !== result) {
+      changes.push({ from: before.match(regex)?.[0] || "", to: replacement, type: "compression" });
     }
   }
 
-  // 2. Remove standalone filler words
-  for (const filler of FILLER_WORDS) {
-    // Respect user's preserved fillers (they've rejected removing this before)
-    if (rules.preservedFillers?.includes(filler)) continue;
-
-    const regex = new RegExp(`\\b${escapeRegex(filler)}\\b`, "gi");
+  for (const [regex, replacement] of VERBOSE_VERBS) {
     const before = result;
-    result = result.replace(regex, "").replace(/\s{2,}/g, " ").trim();
+    result = result.replace(regex, replacement);
+    if (before !== result) {
+      changes.push({ from: before.match(regex)?.[0] || "", to: replacement, type: "compression" });
+    }
+  }
 
+  for (const filler of FILLER_ADVERBS) {
+    if (rules.preservedFillers?.includes(filler.toLowerCase())) continue;
+    const escaped = filler.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex   = new RegExp(`\\b${escaped}\\b,?\\s*`, "gi");
+    const before  = result;
+    result = result.replace(regex, " ").replace(/\s{2,}/g, " ").trim();
     if (before !== result) {
       changes.push({ from: filler, to: "", type: "compression" });
     }
   }
 
-  // 3. Clean up punctuation and spacing artifacts
-  result = result
-    .replace(/\s+([.,!?])/g, "$1")  // no space before punct
-    .replace(/^[,;]\s*/g, "")        // no leading punct
-    .replace(/\s{2,}/g, " ")         // double spaces
-    .trim();
+  for (const opener of PADDING_OPENERS) {
+    const before = result;
+    result = result.replace(opener, "");
+    if (before !== result) {
+      result = result.charAt(0).toUpperCase() + result.slice(1);
+      changes.push({ from: "(padding opener)", to: "", type: "compression" });
+      break;
+    }
+  }
 
-  // 4. Re-capitalise after removal
-  result = result.replace(/^[a-z]/, (m) => m.toUpperCase());
+  for (const closer of PADDING_CLOSERS) {
+    const before = result;
+    result = result.replace(closer, "");
+    if (before !== result) {
+      changes.push({ from: "(padding closer)", to: "", type: "compression" });
+      break;
+    }
+  }
 
+  const stackBefore = result;
+  result = result.replace(/\b(very|really|so|quite)\s+\1\b/gi, "$1");
+  if (stackBefore !== result) {
+    changes.push({ from: "doubled intensifier", to: "single", type: "compression" });
+  }
+
+  result = result.replace(/\s{2,}/g, " ").trim();
   return { text: result, changes };
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

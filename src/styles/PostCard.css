@@ -1,25 +1,4 @@
 /* ==========================================================================
-   ORGANIZED GLOBAL.CSS - POST CARD STYLES ONLY
-   ========================================================================== */
-
-/* ==========================================================================
-   RESET & BASE
-   ========================================================================== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.app-container {
-  min-height: 100vh;
-  background-color: #000000;
-  color: #ffffff;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-/* ==========================================================================
    CONTENT CARDS - POSTS ONLY
    ========================================================================== */
 .content-card {
@@ -57,15 +36,6 @@
   padding-bottom: 0;
   padding-left: 16px;
   padding-right: 16px;
-}
-
-.post-text {
-  font-size: 15px;
-  color: #e5e5e5;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
 }
 
 /* ==========================================================================
@@ -349,7 +319,7 @@
   color: #d4d4d4;
   font-size: 15px;
   line-height: 1.6;
-  margin: 0 0 16px 0;
+  margin: 0 0 16px 12px;
   white-space: pre-wrap;
   word-wrap: break-word;
 }

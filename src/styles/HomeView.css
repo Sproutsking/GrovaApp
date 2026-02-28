@@ -1,12 +1,37 @@
+/* ==========================================================================
+   HomeView.css
+
+   Scroll contract (read this before touching anything):
+
+   THE SCROLL CONTAINER is .main-content-desktop / .main-content-mobile
+   defined in global.css. That is the ONE place overflow-y:auto lives.
+
+   .home-view      → NO height, NO overflow. Invisible to scroll.
+   .app-header     → sticky inside the scroll container, flex-shrink:0
+   .feed-container → NO height, NO overflow. Just a wrapper div.
+   PostCard / ReelCard / StoryCard → flow naturally, scroll container moves them.
+
+   The house (.home-view) is transparent.
+   The room (.feed-container) is transparent.
+   The CARDS move when you scroll.
+   ========================================================================== */
+
+/* ── House: transparent to scroll ───────────────────────────────────────── */
+.home-view {
+  /* intentionally no height, no overflow — do not add any */
+  width: 100%;
+}
+
+/* ── Tab bar: sticks to top of the scroll container ─────────────────────── */
 .app-header {
   position: sticky;
   top: 0;
-  margin: 0;
+  width: 100%;
   background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(132, 204, 22, 0.2);
   padding: 0;
-  z-index: 100;
+  z-index: 50;
 }
 
 .tabs {
@@ -42,13 +67,20 @@
   background: rgba(132, 204, 22, 0.1);
   border-radius: 0 0 12px 12px;
   border-bottom: 4px solid #84cc16;
+  color: #84cc16;
 }
 
+/* ── Room: also transparent to scroll ───────────────────────────────────── */
 .feed-container {
-  padding: 20px;
-  min-height: 100vh;
+  /* intentionally no height, no overflow — do not add any */
+  width: 100%;
+  padding: 0px;
+  padding-left: 2vw;
+  padding-right: 2vw;
+  padding-bottom: 40px;
 }
 
+/* ── Refresh indicator ───────────────────────────────────────────────────── */
 .refresh-indicator {
   position: fixed;
   top: 80px;
@@ -64,10 +96,10 @@
   align-items: center;
   gap: 8px;
   z-index: 1000;
-  animation: slideDown 0.3s ease;
+  animation: hvSlideDown 0.3s ease;
 }
 
-@keyframes slideDown {
+@keyframes hvSlideDown {
   from {
     opacity: 0;
     transform: translateX(-50%) translateY(-20px);
@@ -78,6 +110,7 @@
   }
 }
 
+/* ── Empty states ────────────────────────────────────────────────────────── */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -111,26 +144,26 @@
   margin: 0;
 }
 
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .feed-container {
     padding: 0;
-    margin-bottom: 60px;
   }
+
   .app-header {
     border: none;
     padding: 0;
   }
+
   .tabs {
-    padding: 0px;
+    padding: 0;
     gap: 0;
-    border: 1px solid #4444;
+    border: 1px solid rgba(68, 68, 68, 0.4);
   }
+
   .tab {
     font-size: 12px;
     padding: 6px;
     border-radius: 0;
-  }
-  .tab.active {
-    /* border: 1px solid #84cc16; */
   }
 }

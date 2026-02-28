@@ -1,43 +1,93 @@
 // src/services/wallet/walletService.js
 // ════════════════════════════════════════════════════════════════
-// Wallet Service — $XEV + EP dual currency system
-// - XEV: transferable, on-chain capable, converts to NGN
-// - EP: internal-only, minted on deposit/engagement, burned on tx
+// Xeevia Wallet Service — $XEV (grova_tokens) + EP dual currency
+//
+// FIXES:
+//  1. Avatar URL built from supabase.supabaseUrl — no env var needed
+//  2. getRecentTransactions() returns PERSPECTIVE-CORRECT rows:
+//       • Sender  sees "Sent X to @username"     (change_type='debit')
+//       • Receiver sees "Received X from @user"  (change_type='credit')
+//       Both filter by user_id so each person only sees THEIR row.
+//  3. Real-time subscription on wallet_history for instant updates
+//  4. Avatar always loaded by fetching profile at query time
 // ════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
 
-// EP burn schedule (NGN equivalent determines weight)
-const EP_BURN_SCHEDULE = {
-  send_tiny: 1, // < ₦250 value
-  send_small: 2, // ₦250–₦999
-  send_medium: 4, // ₦1000–₦4999
-  send_large: 7, // ₦5000–₦24999
-  send_huge: 10, // ₦25000+
-  swap: 5, // any EP↔XEV swap
-  deposit: 0, // no burn on deposit
-  receive: 0, // no burn on receive
-  conversion: 3, // any currency conversion
-};
-
 const XEV_TO_NGN = 2.5;
-const EP_PER_NGN = 1; // 1 EP minted per ₦1 deposited
 
-function computeEPBurn(action, xevAmount) {
-  if (action === "swap") return EP_BURN_SCHEDULE.swap;
-  if (action === "conversion") return EP_BURN_SCHEDULE.conversion;
-  if (action === "deposit" || action === "receive") return 0;
-
-  const ngnValue = (parseFloat(xevAmount) || 0) * XEV_TO_NGN;
-  if (ngnValue < 250) return EP_BURN_SCHEDULE.send_tiny;
-  if (ngnValue < 1000) return EP_BURN_SCHEDULE.send_small;
-  if (ngnValue < 5000) return EP_BURN_SCHEDULE.send_medium;
-  if (ngnValue < 25000) return EP_BURN_SCHEDULE.send_large;
-  return EP_BURN_SCHEDULE.send_huge;
+// ── EP Burn ────────────────────────────────────────────────────
+function computeEPBurn(currency, amount) {
+  const a = parseFloat(amount) || 0;
+  if (currency === "EP") {
+    if (a < 100)  return 0.5;
+    if (a < 500)  return 2;
+    if (a < 2000) return 5;
+    return 10;
+  }
+  const ngn = a * XEV_TO_NGN;
+  if (ngn < 250)   return 1;
+  if (ngn < 1000)  return 2;
+  if (ngn < 5000)  return 4;
+  if (ngn < 25000) return 7;
+  return 10;
 }
 
+// ── Avatar URL — read base from the live supabase client ───────
+function getAvatarUrl(avatarId) {
+  if (!avatarId) return null;
+  try {
+    const base = supabase.supabaseUrl;
+    if (!base) return null;
+    return `${base}/storage/v1/object/public/avatars/${avatarId}`;
+  } catch {
+    return null;
+  }
+}
+
+// ── Recipient cache ────────────────────────────────────────────
+const _cache = new Map();
+const CACHE_TTL = 60_000;
+
+async function resolveRecipient(identifier) {
+  if (!identifier) return { error: "Invalid recipient" };
+
+  if (identifier.startsWith("0x")) {
+    // On-chain wallet address — no DB lookup needed
+    return { id: null, address: identifier, isOnChain: true };
+  }
+
+  const username = identifier.replace(/^@/, "").trim().toLowerCase();
+  if (!username) return { error: "Invalid recipient" };
+
+  const hit = _cache.get(username);
+  if (hit && hit.expires > Date.now()) return hit.data;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,username,full_name,avatar_id,verified")
+    .ilike("username", username)
+    .eq("account_status", "active")
+    .maybeSingle();
+
+  if (error || !data) return { error: "Recipient not found. Check the username." };
+
+  const result = {
+    id:        data.id,
+    username:  data.username,
+    fullName:  data.full_name,
+    avatarId:  data.avatar_id,
+    avatarUrl: getAvatarUrl(data.avatar_id),
+    verified:  data.verified,
+  };
+  _cache.set(username, { data: result, expires: Date.now() + CACHE_TTL });
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────
 export const walletService = {
-  // ── Get wallet ────────────────────────────────────────────────
+
+  // ── Get wallet ───────────────────────────────────────────────
   async getWallet(userId) {
     const { data, error } = await supabase
       .from("wallets")
@@ -48,204 +98,228 @@ export const walletService = {
     return data;
   },
 
-  // ── Get or create wallet ──────────────────────────────────────
+  // ── Ensure wallet ────────────────────────────────────────────
   async ensureWallet(userId) {
-    let wallet = await this.getWallet(userId);
-    if (!wallet) {
+    let w = await this.getWallet(userId);
+    if (!w) {
       const { data, error } = await supabase
         .from("wallets")
-        .insert({ user_id: userId, xev_tokens: 0, engagement_points: 0 })
-        .select()
-        .single();
+        .insert({ user_id: userId, grova_tokens: 0, engagement_points: 0, paywave_balance: 0 })
+        .select().single();
       if (error) throw error;
-      wallet = data;
+      w = data;
     }
-    return wallet;
+    return w;
   },
 
-  // ── Subscribe to real-time balance changes ────────────────────
+  // ── Real-time balance ────────────────────────────────────────
   subscribeToBalance(userId, callback) {
-    const channel = supabase
-      .channel(`wallet:${userId}`)
+    const ch = supabase
+      .channel(`wallet_balance:${userId}`)
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "wallets",
-          filter: `user_id=eq.${userId}`,
-        },
+        { event: "UPDATE", schema: "public", table: "wallets", filter: `user_id=eq.${userId}` },
         (payload) => {
-          if (payload.new) {
-            callback({
-              tokens: payload.new.xev_tokens || 0,
-              points: payload.new.engagement_points || 0,
-            });
-          }
-        },
+          if (payload.new) callback({
+            tokens:  payload.new.grova_tokens      ?? 0,
+            points:  payload.new.engagement_points ?? 0,
+            paywave: payload.new.paywave_balance   ?? 0,
+          });
+        }
       )
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => supabase.removeChannel(ch);
   },
 
-  // ── Get recent transactions ───────────────────────────────────
-  async getRecentTransactions(userId, limit = 20) {
+  // ── Real-time transaction feed ───────────────────────────────
+  // Subscribes to wallet_history INSERT events for this user.
+  // Fires with an enriched transaction object including counterparty avatar.
+  subscribeToTransactions(userId, onNewTx) {
+    const ch = supabase
+      .channel(`wallet_history_live:${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wallet_history", filter: `user_id=eq.${userId}` },
+        async (payload) => {
+          const row = payload.new;
+          if (!row) return;
+
+          const counterparty = await this._enrichCounterparty(row);
+          onNewTx(this._normaliseRow(row, counterparty));
+        }
+      )
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  },
+
+  // ── Recent transactions ──────────────────────────────────────
+  // wallet_history has ONE row per user per transaction.
+  // We filter by user_id — each user sees only THEIR own row.
+  // change_type='debit'  → Sender's row  → label "Sent"
+  // change_type='credit' → Receiver's row → label "Received"
+  async getRecentTransactions(userId, limit = 25) {
     const { data, error } = await supabase
       .from("wallet_history")
-      .select("*")
+      .select("id,user_id,change_type,amount,balance_before,balance_after,reason,metadata,created_at,transaction_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(limit);
+
     if (error) throw error;
-    return data || [];
+    if (!data || data.length === 0) return [];
+
+    // Enrich each row with counterparty avatar in parallel
+    const enriched = await Promise.all(
+      data.map(async (row) => {
+        const counterparty = await this._enrichCounterparty(row);
+        return this._normaliseRow(row, counterparty);
+      })
+    );
+    return enriched;
   },
 
-  // ── Send tokens (XEV or EP) ───────────────────────────────────
-  async sendTokens({
-    fromUserId,
-    toIdentifier,
-    amount,
-    currency,
-    note,
-    epBurn,
-  }) {
-    // Resolve recipient
-    let toUserId;
-    if (toIdentifier.startsWith("0x")) {
-      // On-chain address — resolve via profile wallet address
-      const { data } = await supabase
+  // ── Internal: enrich counterparty ───────────────────────────
+  async _enrichCounterparty(row) {
+    const cpUsername = row.metadata?.counterparty_username;
+    if (!cpUsername) return null;
+
+    try {
+      const { data: profile } = await supabase
         .from("profiles")
-        .select("id")
-        .ilike("wallet_address", toIdentifier)
+        .select("id,username,full_name,avatar_id,verified")
+        .ilike("username", cpUsername)
         .maybeSingle();
-      toUserId = data?.id;
-    } else {
-      const username = toIdentifier.replace("@", "");
-      const { data } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", username)
-        .maybeSingle();
-      toUserId = data?.id;
+
+      if (!profile) return null;
+      return {
+        id:        profile.id,
+        username:  profile.username,
+        fullName:  profile.full_name,
+        avatarId:  profile.avatar_id,
+        avatarUrl: getAvatarUrl(profile.avatar_id),
+        verified:  profile.verified,
+      };
+    } catch {
+      return null;
     }
+  },
 
-    if (!toUserId) return { success: false, error: "Recipient not found" };
+  // ── Internal: normalise a wallet_history row ─────────────────
+  _normaliseRow(row, counterparty) {
+    const isSent   = row.change_type === "debit";
+    const currency = row.metadata?.currency || "EP";
+    return {
+      ...row,
+      displayLabel:    isSent ? "Sent" : "Received",
+      displaySign:     isSent ? "-" : "+",
+      displayColor:    isSent ? "#f87171" : "#a3e635",
+      displayCurrency: currency,
+      counterparty,
+      note: row.metadata?.note || "",
+    };
+  },
 
-    // Call the Supabase RPC for atomic transfer
+  // ── Send tokens ──────────────────────────────────────────────
+  async sendTokens({ fromUserId, toIdentifier, amount, currency, note, epBurn }) {
+    const recipient = await resolveRecipient(toIdentifier);
+    if (recipient.error) return { success: false, error: recipient.error };
+    if (recipient.id === fromUserId) return { success: false, error: "You cannot send to yourself." };
+
+    const burn = epBurn ?? computeEPBurn(currency, amount);
+
     const { data, error } = await supabase.rpc("transfer_tokens", {
       p_from_user_id: fromUserId,
-      p_to_user_id: toUserId,
-      p_amount: parseFloat(amount),
-      p_currency: currency, // 'XEV' or 'EP'
-      p_ep_burn:
-        epBurn || computeEPBurn("send", currency === "XEV" ? amount : 0),
-      p_note: note || "",
+      p_to_user_id:   recipient.id,
+      p_amount:       parseFloat(amount),
+      p_currency:     currency,
+      p_ep_burn:      burn,
+      p_note:         note || "",
     });
 
-    if (error) return { success: false, error: error.message };
-    return { success: true, data };
+    if (error) return { success: false, error: error.message || "Transaction failed" };
+    if (!data || data.success === false) return { success: false, error: data?.error || "Transaction rejected" };
+
+    return {
+      success:        true,
+      transaction_id: data.transaction_id,
+      currency:       data.currency,
+      amount:         data.amount,
+      ep_burned:      data.ep_burned,
+      recipient,
+    };
   },
 
-  // ── Swap EP ↔ XEV ─────────────────────────────────────────────
+  // ── Search users for send UI (with avatar) ───────────────────
+  async searchUsers(query, currentUserId, limit = 7) {
+    if (!query || query.length < 2) return [];
+    const q = query.replace(/^@/, "").trim();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id,username,full_name,avatar_id,verified,account_status")
+      .eq("account_status", "active")
+      .ilike("username", `${q}%`)
+      .neq("id", currentUserId)
+      .limit(limit);
+
+    if (!data) return [];
+    return data.map(u => ({
+      ...u,
+      avatarUrl: getAvatarUrl(u.avatar_id),
+    }));
+  },
+
+  // ── Swap ─────────────────────────────────────────────────────
   async swapTokens({ userId, direction, amount, epBurn = 5 }) {
     const { data, error } = await supabase.rpc("swap_tokens", {
-      p_user_id: userId,
-      p_direction: direction, // 'EP_TO_XEV' | 'XEV_TO_EP'
-      p_amount: parseFloat(amount),
-      p_ep_burn: epBurn,
+      p_user_id: userId, p_direction: direction, p_amount: parseFloat(amount), p_ep_burn: epBurn,
     });
-
     if (error) return { success: false, error: error.message };
     return { success: true, data };
   },
 
-  // ── Verify deposit ────────────────────────────────────────────
+  // ── Verify deposit ───────────────────────────────────────────
   async verifyDeposit({ userId, txReference, method, amount, currency }) {
     const { data, error } = await supabase.rpc("verify_deposit", {
-      p_user_id: userId,
-      p_tx_reference: txReference,
-      p_method: method, // 'crypto' | 'transfer' | 'atm'
-      p_amount: parseFloat(amount),
-      p_currency: currency,
+      p_user_id: userId, p_tx_reference: txReference, p_method: method,
+      p_amount: parseFloat(amount), p_currency: currency,
     });
-
     if (error) return { success: false, error: error.message };
     return { success: true, data };
   },
 
-  // ── Credit EP from engagement (called by post/story/reel service) ──
-  async creditEngagementEP(userId, epAmount, reason) {
-    const { data, error } = await supabase.rpc("credit_ep", {
-      p_user_id: userId,
-      p_amount: epAmount,
-      p_reason: reason,
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  // ── Burn EP ───────────────────────────────────────────────────
-  async burnEP(userId, amount, reason) {
-    const { data, error } = await supabase.rpc("burn_ep", {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  // ── PayWave internal send (NGN-denominated, uses EP backing) ──
-  async payWaveSend({
-    fromUserId,
-    toIdentifier,
-    ngnAmount,
-    isOpay,
-    opayPhone,
-  }) {
+  // ── PayWave ──────────────────────────────────────────────────
+  async payWaveSend({ fromUserId, toIdentifier, ngnAmount, isOpay, opayPhone }) {
     if (isOpay) {
-      // Route through master external account
       const { data, error } = await supabase.rpc("paywave_external_send", {
-        p_from_user_id: fromUserId,
-        p_opay_phone: opayPhone,
-        p_ngn_amount: parseFloat(ngnAmount),
-        p_fee: 5,
+        p_from_user_id: fromUserId, p_opay_phone: opayPhone, p_ngn_amount: parseFloat(ngnAmount), p_fee: 5,
       });
       if (error) return { success: false, error: error.message };
       return { success: true, data };
     }
-
-    // Internal PayWave send — resolve username
-    const username = toIdentifier.replace("@", "");
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
-
-    if (!profile) return { success: false, error: "User not found" };
-
+    const recipient = await resolveRecipient(toIdentifier);
+    if (recipient.error) return { success: false, error: recipient.error };
     const { data, error } = await supabase.rpc("paywave_internal_send", {
-      p_from_user_id: fromUserId,
-      p_to_user_id: profile.id,
-      p_ngn_amount: parseFloat(ngnAmount),
+      p_from_user_id: fromUserId, p_to_user_id: recipient.id, p_ngn_amount: parseFloat(ngnAmount),
     });
-
     if (error) return { success: false, error: error.message };
     return { success: true, data };
   },
 
-  // ── Get PayWave balance (EP → NGN conversion) ─────────────────
   async getPayWaveBalance(userId) {
     const wallet = await this.getWallet(userId);
-    return {
-      ep: wallet?.engagement_points || 0,
-      ngn: (wallet?.engagement_points || 0) * 1, // 1 EP = ₦1
-    };
+    return { ep: wallet?.engagement_points ?? 0, ngn: (wallet?.engagement_points ?? 0) };
   },
 
-  // ── Helper: EP burn amount for given action ───────────────────
-  getEPBurn(action, xevAmount = 0) {
-    return computeEPBurn(action, xevAmount);
+  // ── Credit EP ────────────────────────────────────────────────
+  async creditEngagementEP(userId, epAmount, reason) {
+    const { data, error } = await supabase.rpc("credit_ep", {
+      p_user_id: userId, p_amount: epAmount, p_reason: reason,
+    });
+    if (error) throw error;
+    return data;
   },
+
+  // ── Helpers ──────────────────────────────────────────────────
+  getAvatarUrl,
+  getEPBurn: computeEPBurn,
 };

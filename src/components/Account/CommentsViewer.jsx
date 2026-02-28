@@ -44,15 +44,13 @@ const timeAgo = (d) => {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-const getImageUrl = (mediaId, w = 200, h = 200) => {
+// Plain URL — no transform params (Supabase Storage 400s without Image Transformation addon)
+const getImageUrl = (mediaId) => {
   if (!mediaId) return null;
   try {
     const url = mediaUrlService.getImageUrl(mediaId);
     if (!url || !url.startsWith("http")) return null;
-    const base = url.split("?")[0];
-    return base.includes("supabase")
-      ? `${base}?quality=75&width=${w}&height=${h}&resize=cover&format=webp`
-      : url;
+    return url.split("?")[0];
   } catch { return null; }
 };
 
@@ -60,12 +58,9 @@ const getAvatarUrl = (avatarId) => {
   if (!avatarId) return null;
   try {
     const fn = mediaUrlService.getAvatarUrl || mediaUrlService.getImageUrl;
-    const url = fn(avatarId, 80);
+    const url = fn(avatarId);
     if (!url || !url.startsWith("http")) return null;
-    const base = url.split("?")[0];
-    return base.includes("supabase")
-      ? `${base}?quality=80&width=80&height=80&resize=cover&format=webp`
-      : url;
+    return url.split("?")[0];
   } catch { return null; }
 };
 
@@ -184,7 +179,7 @@ const ReplyItem = ({ reply, currentUserId, isLast }) => {
             <span className="cv-reply-time">{timeAgo(reply.created_at)}</span>
           </div>
           <p className="cv-reply-text">
-            <ParsedText text={reply.content} />
+            <ParsedText text={reply.body ?? reply.content} />
           </p>
           <LikeButton
             commentId={reply.id}
@@ -334,14 +329,11 @@ const CommentCard = ({ comment, index, profileData, currentUser, onGoToPost }) =
       try {
         const { data } = await supabase
           .from("comments")
-          .select(`
-            id, content, created_at, likes,
-            profiles(full_name, username, avatar_id)
-          `)
+          .select("*, profiles(full_name, username, avatar_id)")
           .eq("parent_id", comment.id)
           .order("created_at", { ascending: true })
           .limit(30);
-        setReplies(data || []);
+        setReplies((data || []).map(r => ({ ...r, body: r.body ?? r.content ?? r.text ?? r.comment_text ?? "" })));
         setRepliesLoaded(true);
       } catch (e) { console.error("replies:", e); }
       finally { setLoadingReplies(false); }
@@ -373,7 +365,7 @@ const CommentCard = ({ comment, index, profileData, currentUser, onGoToPost }) =
 
       {/* ════ COMMENT TEXT ════ */}
       <div className="cv-card-body">
-        <ParsedText text={comment.content} className="cv-card-text" />
+        <ParsedText text={comment.body ?? comment.content} className="cv-card-text" />
       </div>
 
       {/* ════ ACTION ROW ════ */}

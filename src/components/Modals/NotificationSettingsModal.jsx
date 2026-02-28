@@ -3,9 +3,8 @@
 // ============================================================================
 
 import React, { useState, useEffect } from "react";
-import { X, Bell, BellOff, Check } from "lucide-react";
+import { X, Bell, Check } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
-import { useToast } from "../../contexts/ToastContext";
 
 const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
   const [settings, setSettings] = useState({
@@ -18,7 +17,7 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
   });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { showToast } = useToast();
+  const [saveStatus, setSaveStatus] = useState(null); // 'success' | 'error' | null
 
   useEffect(() => {
     loadNotificationSettings();
@@ -30,7 +29,6 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
     try {
       setLoading(true);
 
-      // Get existing notification preferences
       const { data, error } = await supabase
         .from("notification_preferences")
         .select("*")
@@ -68,14 +66,15 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
 
   const handleSave = async () => {
     if (!currentUser?.id) {
-      showToast("error", "You must be logged in");
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 3000);
       return;
     }
 
     try {
       setSaving(true);
+      setSaveStatus(null);
 
-      // Upsert notification settings
       const { error } = await supabase.from("notification_preferences").upsert(
         {
           user_id: currentUser.id,
@@ -90,11 +89,12 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
 
       if (error) throw error;
 
-      showToast("success", "Notification settings saved!");
+      setSaveStatus("success");
       setTimeout(() => onClose(), 1000);
     } catch (error) {
       console.error("Failed to save notification settings:", error);
-      showToast("error", "Failed to save settings");
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 3000);
     } finally {
       setSaving(false);
     }
@@ -204,6 +204,14 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
               <X size={24} />
             </button>
           </div>
+
+          {saveStatus && (
+            <div className={`notification-status-banner ${saveStatus}`}>
+              {saveStatus === "success"
+                ? "✓ Notification settings saved!"
+                : "✕ Failed to save settings. Please try again."}
+            </div>
+          )}
 
           <div className="notification-options">
             {notificationOptions.map((option) => (
@@ -334,6 +342,25 @@ const NotificationSettingsModal = ({ user, onClose, currentUser }) => {
 
         .notification-close-btn:hover {
           color: #84cc16;
+        }
+
+        .notification-status-banner {
+          padding: 12px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          text-align: center;
+        }
+
+        .notification-status-banner.success {
+          background: rgba(132, 204, 22, 0.15);
+          color: #84cc16;
+          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+        }
+
+        .notification-status-banner.error {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+          border-bottom: 1px solid rgba(239, 68, 68, 0.2);
         }
 
         .notification-options {

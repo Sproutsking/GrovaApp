@@ -1,16 +1,26 @@
-import React, { useState, useEffect, useRef } from "react";
+// ============================================================================
+// src/components/Header/DesktopHeader.jsx — Updated
+// Avatar now opens a dropdown with Account + Logout options.
+// ============================================================================
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Clock, Bell, HelpCircle, MessageCircle } from "lucide-react";
-import { supabase } from "../../services/config/supabase";
+import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import DMMessagesView from "../Messages/DMMessagesView";
+import AvatarDropdown from "../Shared/AvatarDropdown";
+
+// ============================================================================
+// DesktopHeader — v3
+// ============================================================================
 
 const DesktopHeader = ({
   currentUser,
   getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
+    const h = new Date().getHours();
+    if (h < 12) return "Good Morning";
+    if (h < 17) return "Good Afternoon";
     return "Good Evening";
   },
   onNotificationClick,
@@ -18,20 +28,23 @@ const DesktopHeader = ({
   setActiveTab,
   profile,
   userId,
+  onSignOut,
 }) => {
   const [displayedText, setDisplayedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [greetingText, setGreetingText] = useState(getGreeting());
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [isTyping,      setIsTyping]      = useState(false);
+  const [greetingText,  setGreetingText]  = useState(getGreeting());
+  const [imageLoaded,   setImageLoaded]   = useState(false);
+  const [imageError,    setImageError]    = useState(false);
+  const [badgeCount,    setBadgeCount]    = useState(
+    () => notificationService.getHeaderBadgeCountSync()
+  );
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [showMessages, setShowMessages] = useState(false);
+  const [showMessages,   setShowMessages]   = useState(false);
 
-  const timerRef = useRef(null);
+  const timerRef        = useRef(null);
   const typeIntervalRef = useRef(null);
-  const notificationChannelRef = useRef(null);
 
+  // ── Avatar ─────────────────────────────────────────────────────────────
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
@@ -39,7 +52,6 @@ const DesktopHeader = ({
       avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
     }
   }
-
   const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
   const isValidAvatar =
     avatarUrl &&
@@ -47,388 +59,153 @@ const DesktopHeader = ({
     !imageError &&
     (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
+  // ── Badge ───────────────────────────────────────────────────────────────
+  const syncBadge = useCallback(() => {
+    setBadgeCount(notificationService.getHeaderBadgeCountSync());
+  }, []);
+
   useEffect(() => {
-    if (userId) {
-      onlineStatusService.start(userId);
-      loadUnreadCount();
-      subscribeToNotifications();
-
-      const unsubConv = conversationState.subscribe(() => {
-        setUnreadMessages(conversationState.getTotalUnreadCount());
-      });
-
-      setUnreadMessages(conversationState.getTotalUnreadCount());
-
-      return () => {
-        unsubConv();
-        if (notificationChannelRef.current) {
-          supabase.removeChannel(notificationChannelRef.current);
-          notificationChannelRef.current = null;
-        }
-      };
-    }
-  }, [userId]);
-
-  const loadUnreadCount = async () => {
     if (!userId) return;
 
-    try {
-      const { count, error } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("recipient_user_id", userId)
-        .eq("is_read", false);
+    notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
+    const unsubNotif = notificationService.subscribe(syncBadge);
 
-      if (!error) {
-        setUnreadCount(count || 0);
-      }
-    } catch (error) {
-      console.error("Failed to load unread count:", error);
-    }
-  };
+    const unsubConv = conversationState.subscribe(() => {
+      setUnreadMessages(conversationState.getTotalUnreadCount());
+    });
+    setUnreadMessages(conversationState.getTotalUnreadCount());
 
-  const subscribeToNotifications = () => {
-    if (!userId || notificationChannelRef.current) return;
+    onlineStatusService.start(userId);
 
-    const channel = supabase
-      .channel(`notification-count-desktop:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient_user_id=eq.${userId}`,
-        },
-        () => {
-          loadUnreadCount();
-        },
-      )
-      .subscribe();
+    return () => {
+      unsubNotif();
+      unsubConv();
+    };
+  }, [userId, syncBadge]);
 
-    notificationChannelRef.current = channel;
-  };
-
-  const handleMessagesClick = () => {
-    if (!currentUser?.id && !userId) return;
-    setShowMessages(true);
-  };
-
-  const handleMessagesClose = () => {
-    setShowMessages(false);
-  };
-
+  // ── Typing animation ────────────────────────────────────────────────────
   useEffect(() => {
     const fullText = `${greetingText}, ${currentUser?.name || currentUser?.fullName || "User"}`;
+    let cancelled  = false;
 
-    const typeText = (text, callback) => {
+    const typeText = (text, cb) => {
       setIsTyping(true);
-      let index = 0;
-
-      const performTyping = () => {
-        if (index <= text.length) {
-          setDisplayedText(text.slice(0, index));
-          index++;
-          typeIntervalRef.current = setTimeout(performTyping, 100);
-        } else {
-          setIsTyping(false);
-          if (callback) callback();
-        }
+      let i = 0;
+      const tick = () => {
+        if (cancelled) return;
+        setDisplayedText(text.slice(0, i));
+        i++;
+        if (i <= text.length) typeIntervalRef.current = setTimeout(tick, 80);
+        else { setIsTyping(false); cb?.(); }
       };
-
-      performTyping();
+      tick();
     };
 
-    const unTypeText = (text, callback) => {
+    const unTypeText = (text, cb) => {
       setIsTyping(true);
-      let index = text.length;
-
-      const performUnTyping = () => {
-        if (index >= 0) {
-          setDisplayedText(text.slice(0, index));
-          index--;
-          typeIntervalRef.current = setTimeout(performUnTyping, 60);
-        } else {
-          setIsTyping(false);
-          if (callback) callback();
-        }
+      let i = text.length;
+      const tick = () => {
+        if (cancelled) return;
+        setDisplayedText(text.slice(0, i));
+        i--;
+        if (i >= 0) typeIntervalRef.current = setTimeout(tick, 45);
+        else { setIsTyping(false); cb?.(); }
       };
-
-      performUnTyping();
+      tick();
     };
 
-    const startCycle = () => {
-      const greetingCheckInterval = setInterval(() => {
-        const newGreeting = getGreeting();
-        if (newGreeting !== greetingText) {
-          setGreetingText(newGreeting);
-        }
-      }, 60000);
-
-      const initialDelay = setTimeout(() => {
-        typeText(fullText, () => {
-          timerRef.current = setTimeout(() => {
-            unTypeText(fullText, () => {
-              timerRef.current = setTimeout(() => {
-                startCycle();
-              }, 60000);
-            });
-          }, 240000);
-        });
-      }, 500);
-
-      return () => {
-        clearTimeout(initialDelay);
-        clearInterval(greetingCheckInterval);
-        if (typeIntervalRef.current) {
-          clearTimeout(typeIntervalRef.current);
-        }
-      };
+    const cycle = () => {
+      typeText(fullText, () => {
+        timerRef.current = setTimeout(() => {
+          unTypeText(fullText, () => {
+            timerRef.current = setTimeout(cycle, 60_000);
+          });
+        }, 240_000);
+      });
     };
 
-    const cycleCleanup = startCycle();
+    const greetingInterval = setInterval(() => {
+      const ng = getGreeting();
+      if (ng !== greetingText) setGreetingText(ng);
+    }, 60_000);
+
+    const startDelay = setTimeout(cycle, 500);
+
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (typeIntervalRef.current) clearTimeout(typeIntervalRef.current);
-      if (cycleCleanup) cycleCleanup();
+      cancelled = true;
+      clearTimeout(startDelay);
+      clearTimeout(timerRef.current);
+      clearTimeout(typeIntervalRef.current);
+      clearInterval(greetingInterval);
     };
   }, [greetingText, currentUser?.name, currentUser?.fullName, getGreeting]);
 
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  const handleImageError = () => {
-    setImageLoaded(false);
-    setImageError(true);
-  };
-
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <>
-      <style>{`
-        .desktop-header {
-          height: 58px;
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          background: rgba(10,10,10,0.98);
-          backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(132,204,22,0.2);
-        }
-        .desktop-header-content {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 5px 22px;
-          max-width: 1400px;
-          margin: 0 auto;
-        }
-        .desktop-left-section {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .desktop-avatar-btn {
-          width: 46px;
-          height: 46px;
-          border-radius: 50%;
-          border: 2px solid #84cc16;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          overflow: hidden;
-          transition: all 0.2s;
-          color: #000;
-          font-weight: 800;
-          font-size: 20px;
-          flex-shrink: 0;
-          box-shadow: 0 4px 18px rgba(132,204,22,0.5);
-          position: relative;
-        }
-        .desktop-avatar-btn img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          position: absolute;
-          opacity: ${imageLoaded && !imageError ? "1" : "0"};
-          transition: opacity 0.3s;
-        }
-        .desktop-avatar-placeholder {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: ${imageLoaded && !imageError ? "0" : "1"};
-          transition: opacity 0.3s;
-        }
-        .desktop-avatar-btn:hover {
-          transform: scale(1.005) translateY(-1px);
-        }
-        .desktop-avatar-btn:active {
-          transform: scale(0.98);
-        }
-        .desktop-greeting-container {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 4px 10px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid #4444;
-          border-radius: 12px;
-          min-height: 30px;
-        }
-        .desktop-greeting-icon {
-          color: #84cc16;
-          flex-shrink: 0;
-          opacity: ${displayedText ? "1" : "0"};
-          transition: opacity 0.3s;
-        }
-        .desktop-greeting-text {
-          font-size: 12px;
-          font-weight: 600;
-          color: #ffffffad;
-          position: relative;
-          white-space: nowrap;
-        }
-        .desktop-greeting-text::after {
-          content: "";
-          position: absolute;
-          right: -7px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 2px;
-          height: 16px;
-          background: #84cc16;
-          border-radius: 1px;
-          animation: ${isTyping ? "smoothBlink 1s ease-in-out infinite" : "none"};
-        }
-        @keyframes smoothBlink {
-          0%, 45% { opacity: 1; }
-          50%, 95% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-        .header-right {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .header-action-btn {
-          position: relative;
-          padding: 8px 14px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .header-action-btn.messages { color: #9cff00; }
-        .header-action-btn.notification { color: #84cc16; }
-        .header-action-btn.support { color: #3b82f6; }
-        .header-action-btn.messages:hover {
-          background: rgba(156,255,0,0.15);
-          border-color: rgba(156,255,0,0.4);
-          transform: translateY(-1px);
-        }
-        .header-action-btn.notification:hover {
-          background: rgba(132,204,22,0.15);
-          border-color: rgba(132,204,22,0.4);
-          transform: translateY(-1px);
-        }
-        .header-action-btn.support:hover {
-          background: rgba(59,130,246,0.15);
-          border-color: rgba(59,130,246,0.4);
-          transform: translateY(-1px);
-        }
-        .notification-badge {
-          position: absolute;
-          top: -5px;
-          right: -5px;
-          min-width: 18px;
-          height: 18px;
-          padding: 0 5px;
-          border-radius: 9px;
-          background: #ef4444;
-          color: #fff;
-          font-size: 10px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid #0a0a0a;
-          animation: smoothPulse 2s ease-in-out infinite;
-        }
-        @keyframes smoothPulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.85; }
-        }
-      `}</style>
+      <style>{desktopHeaderStyles(isTyping, displayedText)}</style>
 
-      <header className="desktop-header">
-        <div className="desktop-header-content">
-          <div className="desktop-left-section">
-            <button
-              className="desktop-avatar-btn"
-              onClick={() => setActiveTab("account")}
-            >
-              {isValidAvatar && (
-                <img
-                  src={avatarUrl}
-                  alt="Profile"
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  crossOrigin="anonymous"
-                />
-              )}
-              <div className="desktop-avatar-placeholder">{fallbackLetter}</div>
-            </button>
+      <header className="dh-header">
+        <div className="dh-content">
+          {/* Left: avatar dropdown + greeting */}
+          <div className="dh-left">
+            <AvatarDropdown
+              profile={profile}
+              userId={userId}
+              avatarUrl={avatarUrl}
+              fallbackLetter={fallbackLetter}
+              isValidAvatar={isValidAvatar}
+              imageLoaded={imageLoaded}
+              imageError={imageError}
+              onImageLoad={() => { setImageLoaded(true); setImageError(false); }}
+              onImageError={() => { setImageLoaded(false); setImageError(true); }}
+              onOpenAccount={() => setActiveTab("account")}
+              onSignOut={onSignOut}
+              isMobile={false}
+            />
 
-            <div className="desktop-greeting-container">
-              <Clock size={17} className="desktop-greeting-icon" />
-              <span className="desktop-greeting-text">{displayedText}</span>
+            <div className="dh-greeting-box">
+              <Clock size={15} className="dh-greeting-icon" />
+              <span className="dh-greeting-text">{displayedText}</span>
             </div>
           </div>
 
-          <div className="header-right">
+          {/* Right: action buttons */}
+          <div className="dh-right">
             <button
-              onClick={handleMessagesClick}
-              className="header-action-btn messages"
+              className="dh-action-btn messages"
+              onClick={() => { if (currentUser?.id || userId) setShowMessages(true); }}
+              aria-label="Messages"
             >
-              <MessageCircle size={17} />
+              <MessageCircle size={16} />
               <span>Messages</span>
               {unreadMessages > 0 && (
-                <span className="notification-badge">
+                <span className="dh-badge">
                   {unreadMessages > 99 ? "99+" : unreadMessages}
                 </span>
               )}
             </button>
 
             <button
+              className="dh-action-btn notification"
               onClick={onNotificationClick}
-              className="header-action-btn notification"
+              aria-label="Notifications"
             >
-              <Bell size={17} />
+              <Bell size={16} />
               <span>Notifications</span>
-              {unreadCount > 0 && (
-                <span className="notification-badge">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+              {badgeCount > 0 && (
+                <span className="dh-badge">
+                  {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
               )}
             </button>
 
             <button
+              className="dh-action-btn support"
               onClick={onSupportClick}
-              className="header-action-btn support"
+              aria-label="Support"
             >
-              <HelpCircle size={17} />
+              <HelpCircle size={16} />
               <span>Support</span>
             </button>
           </div>
@@ -446,11 +223,94 @@ const DesktopHeader = ({
             avatarId: profile?.id || currentUser?.avatarId,
             verified: currentUser?.verified || profile?.verified || false,
           }}
-          onClose={handleMessagesClose}
+          onClose={() => setShowMessages(false)}
         />
       )}
     </>
   );
 };
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const desktopHeaderStyles = (isTyping, displayedText) => `
+  .dh-header {
+    height: 58px;
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,10,0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(132,204,22,0.15);
+  }
+  .dh-content {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px; height: 100%;
+    max-width: 1400px; margin: 0 auto;
+  }
+  .dh-left  { display: flex; align-items: center; gap: 12px; }
+  .dh-right { display: flex; align-items: center; gap: 8px;  }
+
+  /* Greeting */
+  .dh-greeting-box {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 11px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    min-height: 30px; min-width: 40px;
+  }
+  .dh-greeting-icon {
+    color: #84cc16; flex-shrink: 0;
+    opacity: ${displayedText ? "1" : "0"};
+    transition: opacity 0.3s;
+  }
+  .dh-greeting-text {
+    font-size: 12px; font-weight: 600;
+    color: rgba(255,255,255,0.65);
+    white-space: nowrap; position: relative;
+  }
+  .dh-greeting-text::after {
+    content: "";
+    position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
+    width: 2px; height: 14px;
+    background: #84cc16; border-radius: 1px;
+    animation: ${isTyping ? "dhBlink 0.9s ease-in-out infinite" : "none"};
+  }
+  @keyframes dhBlink {
+    0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1}
+  }
+
+  /* Action buttons */
+  .dh-action-btn {
+    position: relative;
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .dh-action-btn.messages    { color: #a3e635; }
+  .dh-action-btn.notification{ color: #84cc16; }
+  .dh-action-btn.support     { color: #60a5fa; }
+  .dh-action-btn.messages:hover     { background: rgba(163,230,53,0.1); border-color: rgba(163,230,53,0.3); transform: translateY(-1px); }
+  .dh-action-btn.notification:hover { background: rgba(132,204,22,0.1); border-color: rgba(132,204,22,0.3); transform: translateY(-1px); }
+  .dh-action-btn.support:hover      { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); transform: translateY(-1px); }
+
+  /* Badge */
+  .dh-badge {
+    position: absolute; top: -6px; right: -6px;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px;
+    background: #ef4444; color: #fff;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #0a0a0a;
+    animation: dhBadgePulse 2.5s ease-in-out infinite;
+  }
+  @keyframes dhBadgePulse {
+    0%,100%{transform:scale(1)} 50%{transform:scale(1.12)}
+  }
+`;
 
 export default DesktopHeader;

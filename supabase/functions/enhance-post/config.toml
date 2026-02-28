@@ -1,0 +1,14 @@
+# supabase/functions/enhance-post/config.toml
+# ─────────────────────────────────────────────────────────────────────────────
+# THIS FILE FIXES THE 401 UNAUTHORIZED ERROR.
+#
+# By default Supabase enforces JWT verification on all edge functions.
+# This function receives only text content in the request body — it does NOT
+# query any RLS-protected database tables, so JWT auth is unnecessary.
+#
+# Setting verify_jwt = false tells Supabase to skip JWT enforcement.
+# The function remains protected by the apikey header (anon key) which
+# supabase-js attaches automatically to every functions.invoke() call.
+# ─────────────────────────────────────────────────────────────────────────────
+[functions.enhance-post]
+verify_jwt = false

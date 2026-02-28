@@ -54,7 +54,7 @@ const ChatTab = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
-  const [backgroundId, setBackgroundId] = useState('space');
+  const [backgroundId, setBackgroundId] = useState('minimal');
   const [isMobile, setIsMobile] = useState(false);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
@@ -422,26 +422,28 @@ const ChatTab = ({
         )}
       </div>
 
-      <CommunityMessageInput
-        value={messageInput}
-        onChange={setMessageInput}
-        onSend={handleSendMessage}
-        disabled={sending}
-        placeholder={`Message #${selectedChannel?.name || "channel"}`}
-        editingMessage={editingMessage}
-        onCancelEdit={() => {
-          setEditingMessage(null);
-          setMessageInput("");
-        }}
-        typingUsers={typingUsers}
-      />
-
-      <BackgroundDropdown
-        currentTheme={backgroundId}
-        onThemeChange={handleBackgroundChange}
-        show={showBgDropdown}
-        onClose={() => setShowBgDropdown(false)}
-      />
+      {/* Input area wrapper — gives BackgroundDropdown a relative parent to anchor to */}
+      <div className="chat-input-area">
+        <BackgroundDropdown
+          currentTheme={backgroundId}
+          onThemeChange={handleBackgroundChange}
+          show={showBgDropdown}
+          onClose={() => setShowBgDropdown(false)}
+        />
+        <CommunityMessageInput
+          value={messageInput}
+          onChange={setMessageInput}
+          onSend={handleSendMessage}
+          disabled={sending}
+          placeholder={`Message #${selectedChannel?.name || "channel"}`}
+          editingMessage={editingMessage}
+          onCancelEdit={() => {
+            setEditingMessage(null);
+            setMessageInput("");
+          }}
+          typingUsers={typingUsers}
+        />
+      </div>
 
       <CommunityMenu
         show={showMenu}
@@ -769,6 +771,13 @@ const ChatTab = ({
         .chat-msgs::-webkit-scrollbar-thumb {
           background: rgba(156, 255, 0, 0.3);
           border-radius: 3px;
+        }
+
+        /* Wrapper gives BackgroundDropdown a relative anchor
+           so bottom: calc(100% + 8px) sits just above the input */
+        .chat-input-area {
+          position: relative;
+          flex-shrink: 0;
         }
 
         .jump-btn {

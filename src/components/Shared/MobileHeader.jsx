@@ -1,16 +1,20 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Bell,
-  HeadsetIcon,
-  Clock,
-  TrendingUp,
-  MessageCircle,
-} from "lucide-react";
-import { supabase } from "../../services/config/supabase";
+// ============================================================================
+// src/components/Header/MobileHeader.jsx — Updated
+// Avatar now opens a dropdown with Account + Logout options.
+// ============================================================================
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Bell, HeadsetIcon, Clock, TrendingUp, MessageCircle } from "lucide-react";
+import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import MobileTrendingModal from "./MobileTrendingModal";
 import DMMessagesView from "../Messages/DMMessagesView";
+import AvatarDropdown from "../Shared/AvatarDropdown";
+
+// ============================================================================
+// MobileHeader — v3
+// ============================================================================
 
 const MobileHeader = ({
   getGreeting,
@@ -20,22 +24,24 @@ const MobileHeader = ({
   profile,
   userId,
   currentUser,
+  onSignOut,
 }) => {
-  const [displayedText, setDisplayedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [greetingText, setGreetingText] = useState(getGreeting());
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [showTrendingModal, setShowTrendingModal] = useState(false);
-  const [showMessages, setShowMessages] = useState(false);
+  const [displayedText,     setDisplayedText]     = useState("");
+  const [isTyping,          setIsTyping]           = useState(false);
+  const [greetingText,      setGreetingText]       = useState(getGreeting?.() || "Good Morning");
+  const [imageLoaded,       setImageLoaded]        = useState(false);
+  const [imageError,        setImageError]         = useState(false);
+  const [badgeCount,        setBadgeCount]         = useState(
+    () => notificationService.getHeaderBadgeCountSync()
+  );
+  const [unreadMessages,    setUnreadMessages]     = useState(0);
+  const [showTrendingModal, setShowTrendingModal]  = useState(false);
+  const [showMessages,      setShowMessages]       = useState(false);
 
-  const timerRef = useRef(null);
-  const cycleRef = useRef(null);
+  const timerRef        = useRef(null);
   const typeIntervalRef = useRef(null);
-  const notificationChannelRef = useRef(null);
 
+  // ── Avatar ─────────────────────────────────────────────────────────────
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
@@ -43,430 +49,165 @@ const MobileHeader = ({
       avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
     }
   }
-
   const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
-
   const isValidAvatar =
     avatarUrl &&
     typeof avatarUrl === "string" &&
     !imageError &&
     (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
+  // ── Badge ───────────────────────────────────────────────────────────────
+  const syncBadge = useCallback(() => {
+    setBadgeCount(notificationService.getHeaderBadgeCountSync());
+  }, []);
+
   useEffect(() => {
-    if (userId) {
-      onlineStatusService.start(userId);
-      loadUnreadCount();
-      subscribeToNotifications();
-
-      const unsubConv = conversationState.subscribe(() => {
-        setUnreadMessages(conversationState.getTotalUnreadCount());
-      });
-
-      setUnreadMessages(conversationState.getTotalUnreadCount());
-
-      return () => {
-        unsubConv();
-        if (notificationChannelRef.current) {
-          supabase.removeChannel(notificationChannelRef.current);
-          notificationChannelRef.current = null;
-        }
-      };
-    }
-  }, [userId]);
-
-  const loadUnreadCount = async () => {
     if (!userId) return;
 
-    try {
-      const { count, error } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("recipient_user_id", userId)
-        .eq("is_read", false);
+    notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
+    const unsubNotif = notificationService.subscribe(syncBadge);
 
-      if (!error) {
-        setUnreadCount(count || 0);
-      }
-    } catch (error) {
-      console.error("Failed to load unread count:", error);
-    }
-  };
+    const unsubConv = conversationState.subscribe(() => {
+      setUnreadMessages(conversationState.getTotalUnreadCount());
+    });
+    setUnreadMessages(conversationState.getTotalUnreadCount());
 
-  const subscribeToNotifications = () => {
-    if (!userId || notificationChannelRef.current) return;
-
-    const channel = supabase
-      .channel(`notification-count-mobile:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient_user_id=eq.${userId}`,
-        },
-        () => {
-          loadUnreadCount();
-        },
-      )
-      .subscribe();
-
-    notificationChannelRef.current = channel;
-  };
-
-  const handleMessagesClick = () => {
-    if (!currentUser?.id && !userId) return;
-    setShowMessages(true);
-  };
-
-  const handleMessagesClose = () => {
-    setShowMessages(false);
-  };
-
-  useEffect(() => {
-    const typeText = (text, callback) => {
-      setIsTyping(true);
-      let index = 0;
-
-      const performTyping = () => {
-        if (index <= text.length) {
-          setDisplayedText(text.slice(0, index));
-          index++;
-          typeIntervalRef.current = setTimeout(performTyping, 100);
-        } else {
-          setIsTyping(false);
-          if (callback) callback();
-        }
-      };
-
-      performTyping();
-    };
-
-    const unTypeText = (text, callback) => {
-      setIsTyping(true);
-      let index = text.length;
-
-      const performUnTyping = () => {
-        if (index >= 0) {
-          setDisplayedText(text.slice(0, index));
-          index--;
-          typeIntervalRef.current = setTimeout(performUnTyping, 60);
-        } else {
-          setIsTyping(false);
-          if (callback) callback();
-        }
-      };
-
-      performUnTyping();
-    };
-
-    const startCycle = () => {
-      const greetingCheckInterval = setInterval(() => {
-        const newGreeting = getGreeting();
-        if (newGreeting !== greetingText) {
-          setGreetingText(newGreeting);
-        }
-      }, 60000);
-
-      const initialDelay = setTimeout(() => {
-        typeText(greetingText, () => {
-          timerRef.current = setTimeout(() => {
-            unTypeText(greetingText, () => {
-              timerRef.current = setTimeout(() => {
-                startCycle();
-              }, 60000);
-            });
-          }, 240000);
-        });
-      }, 500);
-
-      return () => {
-        clearTimeout(initialDelay);
-        clearInterval(greetingCheckInterval);
-        if (typeIntervalRef.current) {
-          clearTimeout(typeIntervalRef.current);
-        }
-      };
-    };
-
-    cycleRef.current = startCycle();
+    onlineStatusService.start(userId);
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (typeIntervalRef.current) clearTimeout(typeIntervalRef.current);
-      if (cycleRef.current) cycleRef.current();
+      unsubNotif();
+      unsubConv();
+    };
+  }, [userId, syncBadge]);
+
+  // ── Typing animation ────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    const typeText = (text, cb) => {
+      setIsTyping(true);
+      let i = 0;
+      const tick = () => {
+        if (cancelled) return;
+        setDisplayedText(text.slice(0, i));
+        i++;
+        if (i <= text.length) typeIntervalRef.current = setTimeout(tick, 80);
+        else { setIsTyping(false); cb?.(); }
+      };
+      tick();
+    };
+
+    const unTypeText = (text, cb) => {
+      setIsTyping(true);
+      let i = text.length;
+      const tick = () => {
+        if (cancelled) return;
+        setDisplayedText(text.slice(0, i));
+        i--;
+        if (i >= 0) typeIntervalRef.current = setTimeout(tick, 45);
+        else { setIsTyping(false); cb?.(); }
+      };
+      tick();
+    };
+
+    const cycle = () => {
+      typeText(greetingText, () => {
+        timerRef.current = setTimeout(() => {
+          unTypeText(greetingText, () => {
+            timerRef.current = setTimeout(cycle, 60_000);
+          });
+        }, 240_000);
+      });
+    };
+
+    const greetingInterval = setInterval(() => {
+      const ng = getGreeting?.();
+      if (ng && ng !== greetingText) setGreetingText(ng);
+    }, 60_000);
+
+    const startDelay = setTimeout(cycle, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(startDelay);
+      clearTimeout(timerRef.current);
+      clearTimeout(typeIntervalRef.current);
+      clearInterval(greetingInterval);
     };
   }, [greetingText, getGreeting]);
 
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  const handleImageError = () => {
-    setImageLoaded(false);
-    setImageError(true);
-  };
-
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <>
-      <style>{`
-        .mobile-header {
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          background: #000000;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.15);
-        }
-        .mobile-header-content {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 6px 12px;
-          gap: 8px;
-        }
-        .mobile-left-section {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex: 1;
-          min-width: 0;
-        }
-        .mobile-avatar-btn {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          border: 2px solid #84cc16;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          overflow: hidden;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          color: #000;
-          font-weight: 800;
-          font-size: 16px;
-          flex-shrink: 0;
-          box-shadow: 0 3px 12px rgba(132, 204, 22, 0.4);
-          position: relative;
-        }
-        .mobile-avatar-btn img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          position: absolute;
-          top: 0;
-          left: 0;
-          opacity: ${imageLoaded && !imageError ? "1" : "0"};
-          transition: opacity 0.4s;
-        }
-        .mobile-avatar-placeholder {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 16px;
-          color: #000;
-          font-weight: 800;
-          opacity: ${imageLoaded && !imageError ? "0" : "1"};
-          transition: opacity 0.4s;
-        }
-        .mobile-avatar-btn:active {
-          transform: scale(0.94);
-        }
-        .mobile-greeting-container {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          min-width: 0;
-          min-height: 24px;
-          padding: 2px 8px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(132, 204, 22, 0.15);
-          border-radius: 8px;
-        }
-        .mobile-greeting-icon {
-          color: #84cc16;
-          flex-shrink: 0;
-          opacity: ${displayedText ? "1" : "0"};
-          transition: opacity 0.4s;
-        }
-        .mobile-greeting-text {
-          font-size: 10px;
-          font-weight: 600;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          position: relative;
-          letter-spacing: 0.2px;
-        }
-        .mobile-greeting-text::after {
-          content: "";
-          position: absolute;
-          right: -5px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 1.5px;
-          height: 85%;
-          background: #84cc16;
-          border-radius: 1px;
-          animation: ${isTyping ? "smoothBlink 1s ease-in-out infinite" : "none"};
-        }
-        @keyframes smoothBlink {
-          0%, 45% { opacity: 1; }
-          50%, 95% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-        .mobile-actions {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          flex-shrink: 0;
-        }
-        .mobile-action-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.3s;
-          position: relative;
-          color: #696969;
-        }
-        .mobile-action-btn.trending {
-          background: linear-gradient(135deg, rgba(132, 204, 22, 0.05), rgba(132, 204, 22, 0.08));
-          border-color: rgba(132, 204, 22, 0.2);
-        }
-        .mobile-action-btn.messages {
-          background: linear-gradient(135deg, rgba(156, 255, 0, 0.05), rgba(156, 255, 0, 0.08));
-          border-color: rgba(156, 255, 0, 0.2);
-        }
-        .mobile-action-btn.trending:hover {
-          background: linear-gradient(135deg, rgba(132, 204, 22, 0.15), rgba(132, 204, 22, 0.12));
-          border-color: rgba(132, 204, 22, 0.4);
-          color: #84cc16;
-        }
-        .mobile-action-btn.messages:hover {
-          background: linear-gradient(135deg, rgba(156, 255, 0, 0.15), rgba(156, 255, 0, 0.12));
-          border-color: rgba(156, 255, 0, 0.4);
-          color: #9cff00;
-        }
-        .mobile-action-btn.notification:hover {
-          background: rgba(132, 204, 22, 0.12);
-          border-color: rgba(132, 204, 22, 0.3);
-        }
-        .mobile-action-btn.support:hover {
-          background: rgba(59, 130, 246, 0.12);
-          border-color: rgba(59, 130, 246, 0.3);
-        }
-        .mobile-action-btn:active {
-          transform: scale(0.92);
-        }
-        .mobile-notification-badge {
-          position: absolute;
-          top: -4px;
-          right: -4px;
-          min-width: 16px;
-          height: 16px;
-          padding: 0 4px;
-          border-radius: 8px;
-          background: #ef4444;
-          color: #fff;
-          font-size: 9px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid #000000;
-          animation: smoothPulse 2s ease-in-out infinite;
-        }
-        @keyframes smoothPulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.12); opacity: 0.85; }
-        }
-        @media (max-width: 360px) {
-          .mobile-greeting-text { font-size: 9px; }
-          .mobile-header-content { padding: 6px 10px; }
-          .mobile-greeting-icon { width: 13px; height: 13px; }
-        }
-      `}</style>
+      <style>{mobileHeaderStyles(isTyping, displayedText)}</style>
 
-      <header className="mobile-header">
-        <div className="mobile-header-content">
-          <div className="mobile-left-section">
-            <button
-              className="mobile-avatar-btn"
-              onClick={() => setActiveTab("account")}
-              aria-label="Open account"
-            >
-              {isValidAvatar && (
-                <img
-                  src={avatarUrl}
-                  alt="Profile"
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  crossOrigin="anonymous"
-                />
-              )}
-              <div className="mobile-avatar-placeholder">{fallbackLetter}</div>
-            </button>
+      <header className="mh-header">
+        <div className="mh-content">
+          {/* Left: avatar dropdown + greeting */}
+          <div className="mh-left">
+            <AvatarDropdown
+              profile={profile}
+              userId={userId}
+              avatarUrl={avatarUrl}
+              fallbackLetter={fallbackLetter}
+              isValidAvatar={isValidAvatar}
+              imageLoaded={imageLoaded}
+              imageError={imageError}
+              onImageLoad={() => { setImageLoaded(true); setImageError(false); }}
+              onImageError={() => { setImageLoaded(false); setImageError(true); }}
+              onOpenAccount={() => setActiveTab("account")}
+              onSignOut={onSignOut}
+              isMobile={true}
+            />
 
-            <div className="mobile-greeting-container">
-              <Clock size={14} className="mobile-greeting-icon" />
-              <span className="mobile-greeting-text">{displayedText}</span>
+            <div className="mh-greeting-box">
+              <Clock size={13} className="mh-greeting-icon" />
+              <span className="mh-greeting-text">{displayedText}</span>
             </div>
           </div>
 
-          <div className="mobile-actions">
+          {/* Right: icon buttons */}
+          <div className="mh-actions">
             <button
-              className="mobile-action-btn trending"
+              className="mh-btn trending"
               onClick={() => setShowTrendingModal(true)}
               aria-label="Trending"
             >
-              <TrendingUp size={18} />
+              <TrendingUp size={17} />
             </button>
 
             <button
-              className="mobile-action-btn messages"
-              onClick={handleMessagesClick}
+              className="mh-btn messages"
+              onClick={() => { if (currentUser?.id || userId) setShowMessages(true); }}
               aria-label="Messages"
             >
-              <MessageCircle size={18} />
+              <MessageCircle size={17} />
               {unreadMessages > 0 && (
-                <span className="mobile-notification-badge">
+                <span className="mh-badge">
                   {unreadMessages > 99 ? "99+" : unreadMessages}
                 </span>
               )}
             </button>
 
             <button
-              className="mobile-action-btn notification"
+              className="mh-btn notification"
               onClick={onNotificationClick}
               aria-label="Notifications"
             >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="mobile-notification-badge">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+              <Bell size={17} />
+              {badgeCount > 0 && (
+                <span className="mh-badge">
+                  {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
               )}
             </button>
 
             <button
-              className="mobile-action-btn support"
+              className="mh-btn support"
               onClick={onSupportClick}
               aria-label="Support"
             >
-              <HeadsetIcon size={18} />
+              <HeadsetIcon size={17} />
             </button>
           </div>
         </div>
@@ -489,11 +230,98 @@ const MobileHeader = ({
             avatarId: profile?.id || currentUser?.avatarId,
             verified: currentUser?.verified || profile?.verified || false,
           }}
-          onClose={handleMessagesClose}
+          onClose={() => setShowMessages(false)}
         />
       )}
     </>
   );
 };
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const mobileHeaderStyles = (isTyping, displayedText) => `
+  .mh-header {
+    position: sticky; top: 0; z-index: 100;
+    background: #000;
+    border-bottom: 1px solid rgba(132,204,22,0.12);
+  }
+  .mh-content {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px; gap: 8px;
+  }
+  .mh-left {
+    display: flex; align-items: center; gap: 8px;
+    flex: 1; min-width: 0;
+  }
+
+  /* Greeting */
+  .mh-greeting-box {
+    display: flex; align-items: center; gap: 5px;
+    min-width: 0; min-height: 22px;
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(132,204,22,0.12);
+    border-radius: 7px; overflow: hidden;
+  }
+  .mh-greeting-icon {
+    color: #84cc16; flex-shrink: 0;
+    opacity: ${displayedText ? "1" : "0"};
+    transition: opacity 0.3s;
+  }
+  .mh-greeting-text {
+    font-size: 10px; font-weight: 600;
+    background: linear-gradient(135deg,#84cc16 0%,#65a30d 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    position: relative; letter-spacing: 0.1px;
+  }
+  .mh-greeting-text::after {
+    content: "";
+    position: absolute; right: -5px; top: 50%; transform: translateY(-50%);
+    width: 1.5px; height: 85%;
+    background: #84cc16; border-radius: 1px;
+    animation: ${isTyping ? "mhBlink 0.9s ease-in-out infinite" : "none"};
+  }
+  @keyframes mhBlink {
+    0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1}
+  }
+
+  /* Action buttons */
+  .mh-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .mh-btn {
+    position: relative;
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.18s;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.03); color: #666;
+  }
+  .mh-btn.trending     { border-color: rgba(132,204,22,0.2);  background: rgba(132,204,22,0.04);  color: #84cc16; }
+  .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.04);  color: #a3e635; }
+  .mh-btn.notification { border-color: rgba(132,204,22,0.15); color: #84cc16; }
+  .mh-btn.support      { color: #60a5fa; border-color: rgba(96,165,250,0.15); }
+  .mh-btn:active       { transform: scale(0.9); }
+
+  /* Badge */
+  .mh-badge {
+    position: absolute; top: -5px; right: -5px;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 8px;
+    background: #ef4444; color: #fff;
+    font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #000;
+    animation: mhBadgePulse 2.5s ease-in-out infinite;
+  }
+  @keyframes mhBadgePulse {
+    0%,100%{transform:scale(1)} 50%{transform:scale(1.14)}
+  }
+
+  @media (max-width: 360px) {
+    .mh-greeting-text { font-size: 9px; }
+    .mh-content { padding: 6px 10px; }
+    .mh-btn { width: 30px; height: 30px; }
+  }
+`;
 
 export default MobileHeader;

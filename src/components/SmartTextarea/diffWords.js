@@ -2,13 +2,11 @@
 
 /**
  * diffWords
- *
  * Computes a word-level diff between two strings.
- * Returns: Array<{ type: "equal" | "added" | "removed", value: string }>
+ * Returns an array of { type: "equal" | "added" | "removed", value: string }
  *
- * Used to animate the old → new text transition in the diff overlay.
- * Pure function, zero external dependencies.
- * Uses LCS (Longest Common Subsequence) — O(n*m), fast for post-length text.
+ * Used to animate the old → new text transition in the overlay.
+ * Pure function, zero dependencies, O(n*m) LCS — fast enough for post-length text.
  */
 export function diffWords(oldText, newText) {
   const oldWords = tokenize(oldText);
@@ -19,36 +17,36 @@ export function diffWords(oldText, newText) {
   const lcs = computeLCS(oldWords, newWords);
   const result = [];
 
-  let oi = 0; // pointer into oldWords
-  let ni = 0; // pointer into newWords
-  let li = 0; // pointer into lcs
+  let oi = 0;
+  let ni = 0;
+  let li = 0;
 
   while (li < lcs.length) {
     const commonWord = lcs[li];
 
-    // Advance oldWords pointer to the next occurrence of commonWord
+    // Find its next occurrence in old from current oi
     let oldIdx = oi;
     while (oldIdx < oldWords.length && oldWords[oldIdx] !== commonWord) {
       oldIdx++;
     }
 
-    // Advance newWords pointer to the next occurrence of commonWord
+    // Find its next occurrence in new from current ni
     let newIdx = ni;
     while (newIdx < newWords.length && newWords[newIdx] !== commonWord) {
       newIdx++;
     }
 
-    // Words skipped in old = removed
+    // Everything between oi and oldIdx is removed
     for (let i = oi; i < oldIdx; i++) {
       result.push({ type: "removed", value: oldWords[i] + " " });
     }
 
-    // Words skipped in new = added
+    // Everything between ni and newIdx is added
     for (let i = ni; i < newIdx; i++) {
       result.push({ type: "added", value: newWords[i] + " " });
     }
 
-    // The common word itself
+    // The common word
     result.push({ type: "equal", value: commonWord + " " });
 
     oi = oldIdx + 1;
@@ -56,12 +54,12 @@ export function diffWords(oldText, newText) {
     li++;
   }
 
-  // Remaining words in old after LCS = removed
+  // Remaining removed words
   for (let i = oi; i < oldWords.length; i++) {
     result.push({ type: "removed", value: oldWords[i] + " " });
   }
 
-  // Remaining words in new after LCS = added
+  // Remaining added words
   for (let i = ni; i < newWords.length; i++) {
     result.push({ type: "added", value: newWords[i] + " " });
   }
@@ -70,15 +68,16 @@ export function diffWords(oldText, newText) {
 }
 
 /**
- * computeLCS — standard DP approach.
- * Uses a flat array for memory efficiency.
+ * computeLCS — standard dynamic programming LCS.
+ * Fast enough for texts up to ~500 words (all social posts).
  */
 function computeLCS(a, b) {
   const m = a.length;
   const n = b.length;
 
-  // Flat DP array: dp[i][j] → dp[i*(n+1)+j]
+  // Use flat array for memory efficiency
   const dp = new Array((m + 1) * (n + 1)).fill(0);
+
   const idx = (i, j) => i * (n + 1) + j;
 
   for (let i = 1; i <= m; i++) {
@@ -91,7 +90,7 @@ function computeLCS(a, b) {
     }
   }
 
-  // Backtrack to reconstruct LCS
+  // Backtrack to find the actual LCS
   const lcs = [];
   let i = m;
   let j = n;

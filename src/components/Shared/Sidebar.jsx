@@ -1,7 +1,8 @@
 // src/components/Shared/Sidebar.jsx
 import React, { useState } from "react";
-import { Home, Search, PlusSquare, Wallet, Users, LogOut } from "lucide-react";
+import { Home, Search, PlusSquare, Wallet, Users, LogOut, LayoutGrid } from "lucide-react";
 import Logo from "./Assets/Logo.png";
+import ServicesModal from "./ServicesModal";
 
 const Sidebar = ({
   activeTab,
@@ -10,8 +11,10 @@ const Sidebar = ({
   setSidebarOpen,
   onSignOut,
   user,
+  currentUser,
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [showServices, setShowServices] = useState(false);
 
   // Normal user navigation - NO admin items
   const navItems = [
@@ -20,6 +23,7 @@ const Sidebar = ({
     { id: "create", icon: PlusSquare, label: "Create" },
     { id: "community", icon: Users, label: "Community" },
     { id: "wallet", icon: Wallet, label: "Wallet" },
+    { id: "menu", icon: LayoutGrid, label: "Menu", isMenu: true },
   ];
 
   const handleNavClick = (id) => setActiveTab(id);
@@ -75,6 +79,30 @@ const Sidebar = ({
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               const isHovered = hoveredItem === item.id;
+
+              // ── Menu button ──
+              if (item.isMenu) {
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setShowServices(true)}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    className="nav-item"
+                    style={{ animationDelay: `${idx * 0.05}s` }}
+                    aria-label="Open menu"
+                  >
+                    <div className={`item-glass${isHovered ? " item-glass-active" : ""}`} />
+                    <div className="icon-container">
+                      <div className={`icon-halo${isHovered ? " icon-halo-visible" : ""}`} />
+                      <Icon size={20} strokeWidth={2} />
+                    </div>
+                    <span className="item-label">{item.label}</span>
+                    {isHovered && <div className="hover-shimmer" />}
+                  </button>
+                );
+              }
+
               return (
                 <button
                   key={item.id}
@@ -158,14 +186,23 @@ const Sidebar = ({
         </div>
       </div>
 
+      {/* Services Modal */}
+      {showServices && (
+        <ServicesModal
+          onClose={() => setShowServices(false)}
+          setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
+          currentUser={currentUser || user}
+        />
+      )}
+
       <style jsx>{`
         @import url("https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=Manrope:wght@200..800&display=swap");
         .sidebar {
           position: fixed;
-          left: calc(6% + 5px);
+          left: 4%;
           top: 56px;
           bottom: 0;
-          width: 280px;
+          width: 300px;
           overflow: hidden;
           border-left: 1px solid #4444;
           font-family: "Manrope", sans-serif;
@@ -234,7 +271,7 @@ const Sidebar = ({
           display: flex;
           flex-direction: column;
           padding: 24px 16px;
-          background: rgba(0, 0, 0, 0.4);
+          background: rgba(0, 0, 0, 0.7);
           backdrop-filter: blur(20px) saturate(180%);
           border-right: 1px solid rgba(132, 204, 22, 0.1);
           z-index: 1;
@@ -254,7 +291,7 @@ const Sidebar = ({
           inset: 0;
           background: linear-gradient(
             135deg,
-            rgba(132, 204, 22, 0.08),
+            rgb(0, 0, 0),
             rgba(101, 163, 13, 0.04)
           );
           border: 1px solid rgba(132, 204, 22, 0.15);
@@ -272,8 +309,8 @@ const Sidebar = ({
           inset: -6px;
           background: radial-gradient(
             circle,
-            rgba(132, 204, 22, 0.4) 0%,
-            transparent 70%
+            #4e30028c,
+            transparent 50%
           );
           border-radius: 50%;
           animation: logoPulse 3s ease-in-out infinite;
@@ -300,8 +337,9 @@ const Sidebar = ({
           align-items: center;
           justify-content: center;
           color: #000;
-          box-shadow: 0 8px 32px rgba(132, 204, 22, 0.4);
+          box-shadow: 0 0 12px rgba(132, 204, 22, 0.4);
           overflow: hidden;
+          border: 1px solid #503103a2;
         }
         .logo-image {
           width: 100%;

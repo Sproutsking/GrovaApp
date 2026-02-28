@@ -1,4 +1,4 @@
-// src/components/Home/HomeView.jsx - COMPLETE FIXED VERSION WITH DEBUG
+// src/components/Home/HomeView.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Image, Film, BookOpen, RefreshCw } from 'lucide-react';
 
@@ -27,7 +27,7 @@ const HomeView = () => {
   const [posts, setPosts] = useState([]);
   const [reels, setReels] = useState([]);
   const [stories, setStories] = useState([]);
-  
+
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,7 +63,7 @@ const HomeView = () => {
       const user = await authService.getCurrentUser();
       setCurrentUser(user);
 
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Request timeout. Please check your connection.')), 10000)
       );
 
@@ -80,7 +80,6 @@ const HomeView = () => {
           setError(err.message || 'Failed to load content');
         }
       }
-
     } catch (err) {
       console.error('❌ Failed to initialize home:', err);
       setError(err.message || 'Failed to load content');
@@ -94,16 +93,15 @@ const HomeView = () => {
       const [postsData, reelsData, storiesData] = await Promise.all([
         postService.getPosts({ limit: 20 }).catch(() => []),
         reelService.getReels({ limit: 20 }).catch(() => []),
-        storyService.getStories({ limit: 20 }).catch(() => [])
+        storyService.getStories({ limit: 20 }).catch(() => []),
       ]);
 
       console.log('📊 Raw reels data:', reelsData);
       console.log('📊 Is array?', Array.isArray(reelsData));
-      
+
       setPosts(postsData || []);
       setReels(Array.isArray(reelsData) ? reelsData : []);
       setStories(storiesData || []);
-
     } catch (err) {
       console.error('❌ Failed to load content:', err);
       throw err;
@@ -114,9 +112,7 @@ const HomeView = () => {
     try {
       setRefreshing(true);
       setError(null);
-      
       await loadContent();
-      
       setTimeout(() => setRefreshing(false), 300);
     } catch (err) {
       console.error('❌ Failed to refresh:', err);
@@ -131,7 +127,7 @@ const HomeView = () => {
       author: content.author,
       username: content.username,
       avatar: content.avatar,
-      verified: content.verified
+      verified: content.verified,
     });
     setShowProfile(true);
   };
@@ -181,19 +177,10 @@ const HomeView = () => {
   const handleSave = async (folder) => {
     try {
       if (!selectedContent || !currentUser) return;
-
       const contentType = selectedContent.type || 'post';
-      
-      await SaveModel.saveContent(
-        contentType,
-        selectedContent.id,
-        currentUser.id,
-        folder
-      );
-      
+      await SaveModel.saveContent(contentType, selectedContent.id, currentUser.id, folder);
       alert(`Saved to ${folder}`);
       setShowSaveFolder(false);
-
     } catch (err) {
       console.error('Failed to save:', err);
       alert(err.message || 'Failed to save');
@@ -216,37 +203,21 @@ const HomeView = () => {
       const contentId = selectedContent.id;
 
       console.log('🗑️ Deleting:', contentType, contentId);
-      console.log('📊 Current reels count:', reels.length);
 
       if (contentType === 'post') {
         await postService.deletePost(contentId);
-        setPosts(prev => {
-          const updated = prev.filter(p => p.id !== contentId);
-          console.log('📊 Posts after delete:', updated.length);
-          return updated;
-        });
+        setPosts((prev) => prev.filter((p) => p.id !== contentId));
       } else if (contentType === 'reel') {
         await reelService.deleteReel(contentId);
-        setReels(prev => {
-          const updated = prev.filter(r => r.id !== contentId);
-          console.log('📊 Reels after delete:', prev.length, '→', updated.length);
-          console.log('🎯 Deleted reel ID:', contentId);
-          console.log('🎯 Remaining reel IDs:', updated.map(r => r.id));
-          return updated;
-        });
+        setReels((prev) => prev.filter((r) => r.id !== contentId));
       } else if (contentType === 'story') {
         await storyService.deleteStory(contentId);
-        setStories(prev => {
-          const updated = prev.filter(s => s.id !== contentId);
-          console.log('📊 Stories after delete:', updated.length);
-          return updated;
-        });
+        setStories((prev) => prev.filter((s) => s.id !== contentId));
       }
 
       setShowActionMenu(false);
       setSelectedContent(null);
       alert('Deleted successfully!');
-
     } catch (err) {
       console.error('❌ Failed to delete:', err);
       alert(err.message || 'Failed to delete');
@@ -268,14 +239,14 @@ const HomeView = () => {
 
   if (error && !hasLoadedContent.current) {
     return (
-      <UnifiedLoader 
-        type="page" 
-        error={error} 
+      <UnifiedLoader
+        type="page"
+        error={error}
         onRetry={() => {
           setError(null);
           setInitialLoading(true);
           initializeHome();
-        }} 
+        }}
       />
     );
   }
@@ -286,7 +257,7 @@ const HomeView = () => {
 
   return (
     <>
-      <div className="app-container">
+      <div className="home-view">
         {refreshing && (
           <div className="refresh-indicator">
             <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} />
@@ -294,23 +265,34 @@ const HomeView = () => {
           </div>
         )}
 
+        {/* Tab bar — sticky inside .main-content-desktop/.main-content-mobile */}
         <div className="app-header">
           <div className="tabs">
-            <button className={`tab ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>
+            <button
+              className={`tab ${activeTab === 'posts' ? 'active' : ''}`}
+              onClick={() => setActiveTab('posts')}
+            >
               <Image size={18} /> Posts
             </button>
-            <button className={`tab ${activeTab === 'reels' ? 'active' : ''}`} onClick={() => setActiveTab('reels')}>
+            <button
+              className={`tab ${activeTab === 'reels' ? 'active' : ''}`}
+              onClick={() => setActiveTab('reels')}
+            >
               <Film size={18} /> Reels
             </button>
-            <button className={`tab ${activeTab === 'stories' ? 'active' : ''}`} onClick={() => setActiveTab('stories')}>
+            <button
+              className={`tab ${activeTab === 'stories' ? 'active' : ''}`}
+              onClick={() => setActiveTab('stories')}
+            >
               <BookOpen size={18} /> Stories
             </button>
           </div>
         </div>
 
+        {/* Scrollable feed — flex:1, overflow-y:auto */}
         <div className="feed-container">
-          {activeTab === 'posts' && (
-            posts.length > 0 ? (
+          {activeTab === 'posts' &&
+            (posts.length > 0 ? (
               <PostTab
                 posts={posts}
                 currentUser={currentUser}
@@ -326,11 +308,10 @@ const HomeView = () => {
                 <h3 className="empty-state-title">No posts yet</h3>
                 <p className="empty-state-text">Be the first to create a post!</p>
               </div>
-            )
-          )}
+            ))}
 
-          {activeTab === 'reels' && (
-            reels.length > 0 ? (
+          {activeTab === 'reels' &&
+            (reels.length > 0 ? (
               <ReelsTab
                 reels={reels}
                 currentUser={currentUser}
@@ -346,11 +327,10 @@ const HomeView = () => {
                 <h3 className="empty-state-title">No reels yet</h3>
                 <p className="empty-state-text">Be the first to create a reel!</p>
               </div>
-            )
-          )}
+            ))}
 
-          {activeTab === 'stories' && (
-            stories.length > 0 ? (
+          {activeTab === 'stories' &&
+            (stories.length > 0 ? (
               <StoryTab
                 stories={stories}
                 currentUser={currentUser}
@@ -367,13 +347,12 @@ const HomeView = () => {
                 <h3 className="empty-state-title">No stories yet</h3>
                 <p className="empty-state-text">Be the first to share a story!</p>
               </div>
-            )
-          )}
+            ))}
         </div>
       </div>
 
       {/* ========== ALL MODALS ========== */}
-      
+
       {showProfile && selectedUser && (
         <UserProfileModal user={selectedUser} onClose={() => setShowProfile(false)} />
       )}
@@ -434,14 +413,13 @@ const HomeView = () => {
         <EditPostModal
           story={selectedContent}
           onUpdate={(updated) => {
-            // Update local state based on content type
             const contentType = selectedContent.type || 'post';
             if (contentType === 'post') {
-              setPosts(prev => prev.map(p => p.id === updated.id ? updated : p));
+              setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
             } else if (contentType === 'reel') {
-              setReels(prev => prev.map(r => r.id === updated.id ? updated : r));
+              setReels((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
             } else if (contentType === 'story') {
-              setStories(prev => prev.map(s => s.id === updated.id ? updated : s));
+              setStories((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
             }
             alert('Updated successfully!');
             setShowEditModal(false);

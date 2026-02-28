@@ -1,13 +1,30 @@
 // supabase/functions/enhance-post/utils/adaptiveEngine.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Builds personalised processing rules entirely from the history payload
+// sent by the frontend. No Supabase DB call inside the edge function — keeping
+// it stateless, fast, and offline-safe.
+//
+// History entry format: "action:from:to"
+//
+// Supported actions:
+//   enhance:good:excellent         → prefer "excellent" when replacing "good"
+//   reject_enhance:good:excellent  → never replace "good"
+//   reject_shorten:just:           → preserve "just" during shortening
+//   no_opener::                    → never prepend power openers
+//   custom:amazing:fire            → user-defined mapping (highest priority)
+//   style:casual:                  → explicit style override from user
+//   phrase:keep:[phrase]           → always preserve this phrase verbatim
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface AdaptiveRules {
   userStyle:             "casual" | "formal" | "neutral";
-  preservedFillers:      string[];   // filler words the user wants to keep
-  rejectedEnhancements:  string[];   // source words the user doesn't want replaced
-  acceptedReplacements:  string[];   // replacement words the user has kept before
-  customEnhancements:    Record<string, string>; // user-specific word upgrades
-  noOpeners:             boolean;    // user has rejected power openers
-  preferredPhrases:      string[];   // phrases user tends to use
+  preservedFillers:      string[];
+  rejectedEnhancements:  string[];
+  acceptedReplacements:  string[];
+  customEnhancements:    Record<string, string>;
+  noOpeners:             boolean;
+  preferredPhrases:      string[];  // phrases user tends to use → never shorten/replace
+  sessionStyle:          "casual" | "formal" | "neutral" | null; // explicit override
 }
 
 const DEFAULT_RULES: AdaptiveRules = {
@@ -18,57 +35,57 @@ const DEFAULT_RULES: AdaptiveRules = {
   customEnhancements:   {},
   noOpeners:            false,
   preferredPhrases:     [],
+  sessionStyle:         null,
 };
 
-/**
- * getAdaptiveRules
- *
- * Builds personalised processing rules from the user's history.
- * No external DB call needed in the edge function — all rules are
- * derived from the acceptedHistory array sent by the frontend.
- *
- * History entry format: "action:from:to"
- * Examples:
- *   "enhance:good:excellent"        → preferred replacement
- *   "reject_enhance:good:excellent" → rejected replacement, skip this word
- *   "reject_shorten:just:"          → user wants to keep "just"
- *   "no_opener::"                   → user rejected power opener
- *   "custom:amazing:fire"           → user's own word preference
- */
+// Casual / formal signal words for inferred style detection
+const CASUAL_SIGNALS = [
+  "fire", "lit", "sick", "dope", "elite", "solid", "goated", "bussin",
+  "lowkey", "highkey", "slap", "banger", "no cap", "fr fr", "on god",
+  "pumped", "stoked", "hyped", "grind", "hustle",
+];
+const FORMAL_SIGNALS = [
+  "exemplary", "paramount", "corroborate", "substantiate", "commendable",
+  "meritorious", "praiseworthy", "indispensable", "endeavour", "utilise",
+  "facilitate", "necessitate", "formulate", "procure", "augment",
+];
+
 export async function getAdaptiveRules(
   _userId:         string | undefined,
-  userStyle:       "casual" | "formal" | "neutral",
+  requestStyle:    "casual" | "formal" | "neutral",
   acceptedHistory: string[]
 ): Promise<AdaptiveRules> {
 
   const rules: AdaptiveRules = {
     ...DEFAULT_RULES,
-    userStyle,
+    userStyle: requestStyle,
   };
 
+  // ── Parse history entries ─────────────────────────────────────────────────
   for (const entry of acceptedHistory) {
-    const parts = entry.split(":");
-    if (parts.length < 3) continue;
+    const colonIdx = entry.indexOf(":");
+    if (colonIdx === -1) continue;
 
-    const [action, from, to] = parts;
+    const action = entry.substring(0, colonIdx);
+    const rest   = entry.substring(colonIdx + 1);
+    const sepIdx = rest.indexOf(":");
+    const from   = sepIdx !== -1 ? rest.substring(0, sepIdx) : rest;
+    const to     = sepIdx !== -1 ? rest.substring(sepIdx + 1) : "";
 
     switch (action) {
       case "enhance":
-        // User accepted this replacement word — prefer it in future
         if (to && !rules.acceptedReplacements.includes(to)) {
           rules.acceptedReplacements.push(to);
         }
         break;
 
       case "reject_enhance":
-        // User rejected replacing this source word — leave it alone
         if (from && !rules.rejectedEnhancements.includes(from)) {
           rules.rejectedEnhancements.push(from);
         }
         break;
 
       case "reject_shorten":
-        // User wants to keep this filler word
         if (from && !rules.preservedFillers.includes(from)) {
           rules.preservedFillers.push(from);
         }
@@ -79,23 +96,39 @@ export async function getAdaptiveRules(
         break;
 
       case "custom":
-        // User established their own word mapping
         if (from && to) {
           rules.customEnhancements[from] = to;
+        }
+        break;
+
+      case "style":
+        // Explicit style signal — highest priority
+        if (from === "casual" || from === "formal" || from === "neutral") {
+          rules.sessionStyle = from;
+        }
+        break;
+
+      case "phrase":
+        if (to && !rules.preferredPhrases.includes(to)) {
+          rules.preferredPhrases.push(to);
         }
         break;
     }
   }
 
-  // Refine style inference from accepted replacement words
-  const casualWords = ["fire", "elite", "solid", "sick", "lit", "dope", "pumped", "stoked"];
-  const formalWords = ["exemplary", "paramount", "substantiate", "corroborate", "commendable"];
+  // ── Infer style from accepted vocabulary ──────────────────────────────────
+  if (!rules.sessionStyle) {
+    const casualScore = rules.acceptedReplacements
+      .filter((w) => CASUAL_SIGNALS.includes(w.toLowerCase())).length;
+    const formalScore = rules.acceptedReplacements
+      .filter((w) => FORMAL_SIGNALS.includes(w.toLowerCase())).length;
 
-  const casualScore = rules.acceptedReplacements.filter((w) => casualWords.includes(w)).length;
-  const formalScore = rules.acceptedReplacements.filter((w) => formalWords.includes(w)).length;
-
-  if (casualScore > formalScore + 1) rules.userStyle = "casual";
-  else if (formalScore > casualScore + 1) rules.userStyle = "formal";
+    if (casualScore > formalScore + 1)      rules.userStyle = "casual";
+    else if (formalScore > casualScore + 1) rules.userStyle = "formal";
+    // else stays as requestStyle
+  } else {
+    rules.userStyle = rules.sessionStyle;
+  }
 
   return rules;
 }

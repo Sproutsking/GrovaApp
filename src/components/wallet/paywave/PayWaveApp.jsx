@@ -1,18 +1,17 @@
 // paywave/PayWaveApp.jsx
 // ─────────────────────────────────────────────────────────────
-// Root orchestrator. Owns all routing + global state.
+// Root orchestrator for PayWave — PURE ₦ NAIRA SYSTEM.
 //
-// On mobile  → position: fixed; inset: 0 (full-screen takeover)
-//              bottom nav (horizontal row)
-// On PC ≥768 → position: relative; fills parent height
-//              left vertical sidenav (70px, icon+label stacked)
-//              content fills remaining width
+// PayWave = closed-loop Naira payment network.
+// Source of truth: wallets.paywave_balance column.
+//
+// NO EP. NO XEV. No token references.
+// The only wallet connection: TradeTab P2P (separate wallet tab).
 // ─────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Home, Zap, TrendingUp, History, User, ArrowLeft } from "lucide-react";
 
-// ── Tabs ───────────────────────────────────────────────────
 import HomeTab          from "./tabs/HomeTab";
 import ServicesTab      from "./tabs/ServicesTab";
 import FinanceTab       from "./tabs/FinanceTab";
@@ -21,13 +20,11 @@ import AccountTab       from "./tabs/AccountTab";
 import BillsTab         from "./tabs/BillsTab";
 import WalletTab        from "./tabs/WalletTab";
 import NotificationsTab from "./tabs/NotificationsTab";
-
-// ── Modals ─────────────────────────────────────────────────
 import { SuccessModal } from "./modals/index";
+import { supabase } from "../../../services/config/supabase";
+import { useAuth } from "../../Auth/AuthContext";
 
-// ─────────────────────────────────────────────────────────────
-// Global CSS — injected once
-// ─────────────────────────────────────────────────────────────
+// ── Global CSS (unchanged from before, no EP references in styles) ──
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -53,61 +50,38 @@ const GLOBAL_STYLES = `
     --font-m: 'DM Mono', monospace;
     --r-xs: 8px; --r-sm: 11px; --r: 15px; --r-lg: 20px;
     --nav-h: 66px; --side-w: 70px; --header-h: 50px;
+    --pw-pad-left: 4%;
+    --pw-pad-right: 4%;
   }
 
   html, body { height: 100%; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-b); -webkit-font-smoothing: antialiased; }
 
-  /* ── Shell ── */
-  /* Mobile: full-screen fixed overlay */
   .pw-shell {
-    position: fixed; inset: 0; z-index: 100;
+    position: absolute; inset: 0;
     background: var(--bg);
     display: flex; flex-direction: column;
     overflow: hidden;
   }
-
-  /* PC: relative, fills the pw-center flex column exactly */
   @media (min-width: 768px) {
     .pw-shell {
-      position: absolute;
-      inset: 0;            /* fills pw-center which is position:relative */
-      z-index: auto;
-      flex-direction: row;
-      background: #080b09;
-      align-items: stretch;
+      position: absolute; inset: 0; z-index: auto;
+      flex-direction: row; background: #080b09; align-items: stretch;
     }
   }
 
-  /* ── Scrollable content area ── */
-  /* ── Content column fills the fixed shell completely ── */
-  .pw-content {
-    flex: 1; min-width: 0;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
+  .pw-content { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-  /* ── Scroll areas: always fill full height, content scrolls inside ──
-     The FRAME is fixed. Content lives inside it and scrolls.
-     Never shrinks the frame. ── */
   .pw-scroll, .pw-scroll-px {
-    flex: 1;
-    width: 100%;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-bottom: calc(var(--nav-h) + 10px);
+    flex: 1; width: 100%; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    padding-bottom: 16px;
     scrollbar-width: none;
-    align-self: stretch;
+    padding-left: var(--pw-pad-left);
+    padding-right: var(--pw-pad-right);
   }
-  .pw-scroll-px { padding-left: 15px; padding-right: 15px; }
   .pw-scroll::-webkit-scrollbar, .pw-scroll-px::-webkit-scrollbar { display: none; }
 
-  @media (min-width: 768px) {
-    .pw-scroll, .pw-scroll-px { padding-bottom: 16px; }
-  }
-
-  /* ── Glass utilities ── */
   .glass { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); position: relative; overflow: hidden; }
   .glass::before { content: ''; position: absolute; inset: 0; background: linear-gradient(140deg, rgba(255,255,255,0.03) 0%, transparent 55%); pointer-events: none; border-radius: inherit; }
   .glass.click { cursor: pointer; transition: background .18s, border-color .15s, transform .12s; }
@@ -116,7 +90,6 @@ const GLOBAL_STYLES = `
   .glass-lime { background: linear-gradient(140deg, rgba(163,230,53,0.07) 0%, rgba(132,204,22,0.04) 100%); border-color: var(--lime-border); }
   .glass-gold { background: linear-gradient(140deg, rgba(212,168,71,0.08) 0%, rgba(212,168,71,0.03) 100%); border-color: var(--gold-border); }
 
-  /* ── Buttons ── */
   .btn-lime { background: var(--lime); color: #0a0e06; font-family: var(--font-d); font-weight: 700; font-size: 13.5px; letter-spacing: 0.01em; padding: 11px 22px; border-radius: var(--r-sm); border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all .18s; box-shadow: 0 6px 20px rgba(163,230,53,0.22), inset 0 1px 0 rgba(255,255,255,0.18); }
   .btn-lime:hover { background: #b5f015; box-shadow: 0 8px 28px rgba(163,230,53,0.32); transform: translateY(-1px); }
   .btn-lime:active { transform: scale(0.97) translateY(0); }
@@ -127,155 +100,36 @@ const GLOBAL_STYLES = `
   .btn-ghost:hover { background: var(--surface-h); border-color: rgba(255,255,255,0.11); }
   .btn-ghost:active { transform: scale(0.97); }
 
-  /* ── Header (sub-pages) ── */
-  .pw-header { position: sticky; top: 0; height: var(--header-h); background: rgba(7,8,10,0.88); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border-bottom: 1px solid var(--border); padding: 0 15px; display: flex; align-items: center; gap: 10px; z-index: 10; flex-shrink: 0; }
+  .pw-header { position: sticky; top: 0; height: var(--header-h); background: rgba(7,8,10,0.88); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border-bottom: 1px solid var(--border); padding: 0 var(--pw-pad-left); display: flex; align-items: center; gap: 10px; z-index: 10; flex-shrink: 0; }
   .pw-back { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
   .pw-back:hover { background: var(--surface-h); border-color: rgba(163,230,53,0.25); }
   .pw-header-title { font-family: var(--font-d); font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
 
-  /* ─────────────────────────────────────────────────────────
-     BOTTOM NAV — mobile only
-  ───────────────────────────────────────────────────────── */
-  .pw-nav {
-    position: sticky; bottom: 0;
-    height: var(--nav-h);
-    background: rgba(7,8,10,0.97);
-    backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
-    border-top: 1px solid var(--border);
-    padding: 8px 4px;
-    z-index: 20; flex-shrink: 0;
-  }
-  .pw-nav-inner {
-    display: flex; align-items: center;
-    justify-content: space-around; height: 100%;
-  }
-  .pw-nav-btn {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 3px; padding: 6px 14px;
-    border-radius: var(--r-sm); border: none;
-    background: transparent; color: var(--text-soft);
-    cursor: pointer; transition: all .18s;
-    font-family: var(--font-b); font-size: 9.5px;
-    font-weight: 500; letter-spacing: 0.03em;
-  }
+  .pw-nav { position: sticky; bottom: 0; height: var(--nav-h); background: rgba(7,8,10,0.97); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border-top: 1px solid var(--border); padding: 8px 4px; z-index: 20; flex-shrink: 0; }
+  .pw-nav-inner { display: flex; align-items: center; justify-content: space-around; height: 100%; }
+  .pw-nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 14px; border-radius: var(--r-sm); border: none; background: transparent; color: var(--text-soft); cursor: pointer; transition: all .18s; font-family: var(--font-b); font-size: 9.5px; font-weight: 500; letter-spacing: 0.03em; }
   .pw-nav-btn:hover { color: rgba(255,255,255,0.55); }
-  .pw-nav-btn.active {
-    background: rgba(163,230,53,0.1);
-    border: 1px solid var(--lime-border);
-    color: var(--lime);
-  }
+  .pw-nav-btn.active { background: rgba(163,230,53,0.1); border: 1px solid var(--lime-border); color: var(--lime); }
+  @media (min-width: 768px) { .pw-nav { display: none; } }
 
-  /* Hide bottom nav on PC — replaced by vertical sidenav */
+  .pw-sidenav { display: none; }
   @media (min-width: 768px) {
-    .pw-nav { display: none; }
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     VERTICAL SIDENAV — PC only
-  ───────────────────────────────────────────────────────── */
-  .pw-sidenav {
-    display: none; /* hidden on mobile */
-  }
-
-  @media (min-width: 768px) {
-    .pw-sidenav {
-      display: flex;
-      flex-direction: column;
-      width: var(--side-w);
-      flex-shrink: 0;
-      /* height comes from parent align-items: stretch — no explicit height needed */
-      min-height: 0;
-      background: rgba(5,6,7,0.98);
-      border-right: 1px solid var(--border);
-      z-index: 20;
-      padding: 10px 0;
-      overflow: hidden;
-    }
-
-    /* Back-to-wallet button at very top */
-    .pw-side-back {
-      width: 38px; height: 38px;
-      margin: 0 auto 8px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text-soft);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all .15s;
-      flex-shrink: 0;
-    }
-    .pw-side-back:hover {
-      background: var(--surface-h);
-      border-color: rgba(163,230,53,0.25);
-      color: var(--lime);
-    }
-
-    /* Divider after back button */
-    .pw-side-divider {
-      width: 32px; height: 1px;
-      background: var(--border);
-      margin: 4px auto 8px;
-    }
-
-    /* Nav items share equal height across the remaining space */
-    .pw-side-items {
-      flex: 1; display: flex; flex-direction: column;
-      /* equal height: each item gets 1fr */
-    }
-
-    .pw-side-btn {
-      flex: 1;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 5px;
-      border: none; background: transparent;
-      color: var(--text-soft);
-      cursor: pointer;
-      transition: all .18s;
-      font-family: var(--font-b);
-      font-size: 9px; font-weight: 500;
-      letter-spacing: 0.04em;
-      width: 100%;
-      position: relative;
-    }
-    .pw-side-btn::before {
-      content: '';
-      position: absolute;
-      left: 0; top: 20%; bottom: 20%;
-      width: 2px;
-      border-radius: 0 2px 2px 0;
-      background: transparent;
-      transition: background .18s;
-    }
+    .pw-sidenav { display: flex; flex-direction: column; width: var(--side-w); flex-shrink: 0; min-height: 0; background: rgba(5,6,7,0.98); border-right: 1px solid var(--border); z-index: 20; padding: 10px 0; overflow: hidden; }
+    .pw-side-back { width: 38px; height: 38px; margin: 0 auto 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; flex-shrink: 0; }
+    .pw-side-back:hover { background: var(--surface-h); border-color: rgba(163,230,53,0.25); color: var(--lime); }
+    .pw-side-divider { width: 32px; height: 1px; background: var(--border); margin: 4px auto 8px; }
+    .pw-side-items { flex: 1; display: flex; flex-direction: column; }
+    .pw-side-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: none; background: transparent; color: var(--text-soft); cursor: pointer; transition: all .18s; font-family: var(--font-b); font-size: 9px; font-weight: 500; letter-spacing: 0.04em; width: 100%; position: relative; }
+    .pw-side-btn::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2px; border-radius: 0 2px 2px 0; background: transparent; transition: background .18s; }
     .pw-side-btn:hover { color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.02); }
-    .pw-side-btn.active {
-      color: var(--lime);
-      background: rgba(163,230,53,0.06);
-    }
-    .pw-side-btn.active::before {
-      background: var(--lime);
-    }
-
-    .pw-side-icon {
-      width: 36px; height: 36px;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .18s;
-    }
-    .pw-side-btn.active .pw-side-icon {
-      background: rgba(163,230,53,0.12);
-      box-shadow: 0 2px 12px rgba(163,230,53,0.12);
-    }
-
-    .pw-side-label {
-      text-align: center;
-      line-height: 1.2;
-    }
+    .pw-side-btn.active { color: var(--lime); background: rgba(163,230,53,0.06); }
+    .pw-side-btn.active::before { background: var(--lime); }
+    .pw-side-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: background .18s; }
+    .pw-side-btn.active .pw-side-icon { background: rgba(163,230,53,0.12); box-shadow: 0 2px 12px rgba(163,230,53,0.12); }
+    .pw-side-label { text-align: center; line-height: 1.2; }
   }
 
-  /* ── Form / layout utilities ── */
-  .f-section { padding: 15px; }
+  .f-section { padding: 15px var(--pw-pad-left); }
   .f-stack { display: flex; flex-direction: column; gap: 14px; }
   .f-label { font-family: var(--font-b); color: var(--text-soft); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 6px; }
   .f-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 11px 13px; transition: border-color .18s; }
@@ -364,11 +218,8 @@ const GLOBAL_STYLES = `
   .srv-label{color:var(--text-soft);font-size:9.5px;font-weight:500;text-align:center;line-height:1.3}
 `;
 
-// ─────────────────────────────────────────────────────────────
-// Route definitions
-// ─────────────────────────────────────────────────────────────
 const MAIN_TABS    = new Set(["home", "services", "finance", "transactions", "account"]);
-const BILLS_VIEWS  = new Set(["airtime", "data", "tv", "electricity", "betting", "giftcards", "bills", "loans"]);
+const BILLS_VIEWS  = new Set(["airtime", "data", "tv", "electricity", "betting", "giftcards", "bills", "services"]);
 const WALLET_VIEWS = new Set(["send", "receive", "invest", "save", "cards"]);
 
 const BACK_MAP = {
@@ -380,32 +231,64 @@ const BACK_MAP = {
   notifications: "home", transactions: "home",
 };
 
-// Vertical sidenav tabs
 const NAV_TABS = [
-  { id: "home",         label: "Home",    icon: Home        },
-  { id: "services",     label: "Services",icon: Zap         },
-  { id: "finance",      label: "Finance", icon: TrendingUp  },
-  { id: "transactions", label: "History", icon: History     },
-  { id: "account",      label: "Account", icon: User        },
+  { id: "home",         label: "Home",    icon: Home       },
+  { id: "services",     label: "Services",icon: Zap        },
+  { id: "finance",      label: "Finance", icon: TrendingUp },
+  { id: "transactions", label: "History", icon: History    },
+  { id: "account",      label: "Account", icon: User       },
 ];
 
-// ─────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────
-export default function PayWaveApp({ onBack }) {
+export default function PayWaveApp({ onBack, userId }) {
+  const { profile } = useAuth();
   const [page, setPage]               = useState("home");
   const [showBalance, setShowBalance] = useState(true);
   const [successMsg, setSuccessMsg]   = useState(null);
 
-  const [notifications, setNotifications] = useState([
-    { id:1, type:"success", title:"Payment Received",  desc:"₦500 from John Doe",    time:"2 mins ago",  read: false },
-    { id:2, type:"info",    title:"Daily Interest",    desc:"You earned ₦0.09 today", time:"1 hour ago",  read: false },
-    { id:3, type:"alert",   title:"Security Alert",    desc:"New login detected",     time:"3 hours ago", read: true  },
-  ]);
+  // ── PayWave Naira balance — fetched from wallets.paywave_balance ──
+  const [pwBalance, setPwBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
-  const balance = 8.01;
+  const fetchBalance = useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data } = await supabase
+        .from("wallets")
+        .select("paywave_balance")
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      setPwBalance(data?.paywave_balance ?? 0);
+    } catch (err) {
+      console.error("PayWave balance fetch:", err);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [profile?.id]);
 
-  // ── Navigation ──────────────────────────────────────────
+  useEffect(() => { fetchBalance(); }, [fetchBalance]);
+
+  // Real-time balance updates
+  useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase
+      .channel(`pw_bal:${profile.id}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "wallets",
+        filter: `user_id=eq.${profile.id}`,
+      }, (payload) => {
+        if (payload.new?.paywave_balance != null) {
+          setPwBalance(payload.new.paywave_balance);
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [profile?.id]);
+
+  // PayWave notifications state — used to pass into NotificationsTab
+  // The unread count displayed on the bell is fetched directly from DB in HomeTab.
+  // This array is kept as a local cache for the NotificationsTab display.
+  const [notifications, setNotifications] = useState([]);
+
   const goBack = () => {
     const dest = BACK_MAP[page];
     if (dest)            { setPage(dest); return; }
@@ -416,33 +299,43 @@ export default function PayWaveApp({ onBack }) {
   const handleSuccess = (msg) => setSuccessMsg(msg);
   const clearSuccess  = () => { setSuccessMsg(null); setPage("home"); };
 
-  // ── Derived ─────────────────────────────────────────────
-  const isMainTab = MAIN_TABS.has(page);
-
-  // On sub-pages, sidenav still shows but active state stays on last main tab
+  const isMainTab   = MAIN_TABS.has(page);
   const activeNavId = isMainTab ? page : (BACK_MAP[page] ?? "home");
 
-  // ── Page renderer ────────────────────────────────────────
   const renderPage = () => {
+    // All tabs receive pwBalance — the PayWave Naira balance.
+    // No EP or XEV props exist in PayWave components.
     if (page === "home")
-      return <HomeTab balance={balance} showBalance={showBalance} setShowBalance={setShowBalance} notifications={notifications} setPage={setPage} onBack={onBack} />;
-    if (page === "services")     return <ServicesTab setPage={setPage} />;
-    if (page === "finance")      return <FinanceTab balance={balance} setPage={setPage} />;
+      return (
+        <HomeTab
+          pwBalance={pwBalance}
+          showBalance={showBalance}
+          setShowBalance={setShowBalance}
+          notifications={notifications}
+          setPage={setPage}
+          onBack={onBack}
+          onRefresh={fetchBalance}
+        />
+      );
+    if (page === "services")
+      return <ServicesTab setPage={setPage} />;
+    if (page === "finance")
+      return <FinanceTab pwBalance={pwBalance} setPage={setPage} />;
     if (page === "transactions")
-      return <TransactionsTab setPage={setPage} />;
+      return <TransactionsTab setPage={setPage} userId={profile?.id} onRefresh={fetchBalance} />;
     if (page === "account")
       return <AccountTab setPage={setPage} onSuccess={handleSuccess} />;
     if (BILLS_VIEWS.has(page))
-      return <BillsTab view={page} onBack={goBack} onSuccess={handleSuccess} />;
+      return <BillsTab view={page} onBack={goBack} onSuccess={handleSuccess} setPage={setPage} />;
     if (WALLET_VIEWS.has(page))
-      return <WalletTab view={page} balance={balance} onBack={goBack} onSuccess={handleSuccess} />;
+      return <WalletTab view={page} pwBalance={pwBalance} onBack={goBack} onSuccess={handleSuccess} userId={profile?.id} onRefresh={fetchBalance} />;
     if (page === "notifications")
       return <NotificationsTab notifications={notifications} setNotifications={setNotifications} onBack={goBack} />;
 
-    // Fallback
+    // Fallback — coming soon
     return (
       <div className="pw-scroll" style={{ display:"flex", flexDirection:"column" }}>
-        <div style={{ padding:15, borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:10, height:50, flexShrink:0 }}>
+        <div style={{ padding:`0 var(--pw-pad-left)`, borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:10, height:50, flexShrink:0 }}>
           <button className="pw-back" onClick={goBack}><ArrowLeft size={14} /></button>
           <span style={{ fontFamily:"var(--font-d)", fontSize:15, fontWeight:700 }}>
             {page.charAt(0).toUpperCase() + page.slice(1).replace(/-/g," ")}
@@ -462,61 +355,36 @@ export default function PayWaveApp({ onBack }) {
   return (
     <>
       <style>{GLOBAL_STYLES}</style>
-
       <div className="pw-shell">
-
-        {/* ─── PC VERTICAL SIDENAV ──────────────────────── */}
         <nav className="pw-sidenav">
-          {/* Back to parent wallet */}
           <button className="pw-side-back" onClick={onBack} title="Back to Wallet">
             <ArrowLeft size={15} />
           </button>
-
-          {/* Thin gold divider — the rare gold touch */}
           <div className="pw-side-divider" style={{ background: "rgba(212,168,71,0.25)" }} />
-
-          {/* Nav items — share equal height via flex: 1 */}
           <div className="pw-side-items">
             {NAV_TABS.map(tab => (
-              <button
-                key={tab.id}
-                className={`pw-side-btn ${activeNavId === tab.id ? "active" : ""}`}
-                onClick={() => setPage(tab.id)}
-                title={tab.label}
-              >
-                <div className="pw-side-icon">
-                  <tab.icon size={18} />
-                </div>
+              <button key={tab.id} className={`pw-side-btn ${activeNavId === tab.id ? "active" : ""}`} onClick={() => setPage(tab.id)} title={tab.label}>
+                <div className="pw-side-icon"><tab.icon size={18} /></div>
                 <span className="pw-side-label">{tab.label}</span>
               </button>
             ))}
           </div>
         </nav>
 
-        {/* ─── MAIN CONTENT ─────────────────────────────── */}
         <div className="pw-content">
           {renderPage()}
-
-          {/* MOBILE BOTTOM NAV — hidden on PC via CSS */}
           {isMainTab && (
             <nav className="pw-nav">
               <div className="pw-nav-inner">
                 {NAV_TABS.map(tab => (
-                  <button
-                    key={tab.id}
-                    className={`pw-nav-btn ${page === tab.id ? "active" : ""}`}
-                    onClick={() => setPage(tab.id)}
-                  >
-                    <tab.icon size={19} />
-                    <span>{tab.label}</span>
+                  <button key={tab.id} className={`pw-nav-btn ${page === tab.id ? "active" : ""}`} onClick={() => setPage(tab.id)}>
+                    <tab.icon size={19} /><span>{tab.label}</span>
                   </button>
                 ))}
               </div>
             </nav>
           )}
         </div>
-
-        {/* Global success modal */}
         {successMsg && <SuccessModal message={successMsg} onClose={clearSuccess} />}
       </div>
     </>

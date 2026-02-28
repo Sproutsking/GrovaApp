@@ -159,12 +159,8 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
         }
 
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
 
         .detail-modal {
@@ -182,35 +178,22 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
         }
 
         @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(40px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(40px); }
+          to   { opacity: 1; transform: translateY(0);    }
         }
 
         .detail-close-btn {
           position: absolute;
-          top: 16px;
-          right: 16px;
-          width: 40px;
-          height: 40px;
+          top: 16px; right: 16px;
+          width: 40px; height: 40px;
           border-radius: 50%;
           background: rgba(0, 0, 0, 0.8);
           backdrop-filter: blur(10px);
           border: 2px solid rgba(255, 255, 255, 0.1);
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          z-index: 10;
+          color: #fff; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.2s; z-index: 10;
         }
-
         .detail-close-btn:hover {
           background: rgba(255, 107, 107, 0.2);
           border-color: rgba(255, 107, 107, 0.6);
@@ -219,245 +202,110 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
         }
 
         .detail-banner {
-          height: 160px;
-          position: relative;
-          overflow: hidden;
+          height: 160px; position: relative; overflow: hidden;
         }
-
         .banner-overlay {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            180deg,
-            transparent 0%,
-            rgba(15, 15, 15, 0.9) 100%
-          );
+          position: absolute; inset: 0;
+          background: linear-gradient(180deg, transparent 0%, rgba(15,15,15,0.9) 100%);
         }
-
         .banner-content {
-          position: absolute;
-          bottom: -40px;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 2;
+          position: absolute; bottom: -40px;
+          left: 50%; transform: translateX(-50%); z-index: 2;
         }
-
         .detail-icon {
-          width: 80px;
-          height: 80px;
-          border-radius: 20px;
-          background: inherit;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 80px; height: 80px; border-radius: 20px;
+          display: flex; align-items: center; justify-content: center;
           font-size: 40px;
           border: 4px solid rgba(15, 15, 15, 1);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.6);
         }
 
         .detail-content {
           padding: 60px 32px 32px;
           overflow-y: auto;
         }
+        .detail-content::-webkit-scrollbar { width: 6px; }
+        .detail-content::-webkit-scrollbar-track { background: rgba(26,26,26,0.3); }
+        .detail-content::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.3); border-radius: 3px; }
 
-        .detail-content::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .detail-content::-webkit-scrollbar-track {
-          background: rgba(26, 26, 26, 0.3);
-        }
-
-        .detail-content::-webkit-scrollbar-thumb {
-          background: rgba(156, 255, 0, 0.3);
-          border-radius: 3px;
-        }
-
-        .detail-header {
-          text-align: center;
-          margin-bottom: 20px;
-        }
-
+        .detail-header { text-align: center; margin-bottom: 20px; }
         .detail-title {
-          font-size: 28px;
-          font-weight: 900;
-          color: #fff;
-          margin-bottom: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
+          font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 12px;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-
         .privacy-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
+          display: inline-flex; align-items: center; gap: 6px;
           padding: 6px 12px;
-          background: rgba(156, 255, 0, 0.1);
-          border: 1px solid rgba(156, 255, 0, 0.3);
-          border-radius: 20px;
-          color: #9cff00;
-          font-size: 12px;
-          font-weight: 600;
+          background: rgba(156,255,0,0.1); border: 1px solid rgba(156,255,0,0.3);
+          border-radius: 20px; color: #9cff00; font-size: 12px; font-weight: 600;
         }
 
         .detail-stats-row {
-          display: flex;
-          justify-content: center;
-          gap: 20px;
-          flex-wrap: wrap;
-          margin-bottom: 24px;
-          padding-bottom: 24px;
-          border-bottom: 1px solid rgba(156, 255, 0, 0.1);
+          display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
+          margin-bottom: 24px; padding-bottom: 24px;
+          border-bottom: 1px solid rgba(156,255,0,0.1);
         }
-
         .detail-stat {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #999;
-          font-size: 13px;
-          font-weight: 600;
+          display: flex; align-items: center; gap: 6px;
+          color: #999; font-size: 13px; font-weight: 600;
         }
-
-        .detail-stat.online {
-          color: #10b981;
-        }
-
+        .detail-stat.online { color: #10b981; }
         .online-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #10b981;
-          box-shadow: 0 0 10px #10b981;
+          width: 8px; height: 8px; border-radius: 50%;
+          background: #10b981; box-shadow: 0 0 10px #10b981;
           animation: pulse 2s infinite;
         }
-
         @keyframes pulse {
-          0%,
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.6;
-            transform: scale(0.9);
-          }
+          0%,100% { opacity:1; transform:scale(1);   }
+          50%      { opacity:.6; transform:scale(.9); }
         }
 
-        .detail-description,
-        .detail-tags,
-        .detail-features {
-          margin-bottom: 24px;
+        .detail-description, .detail-tags, .detail-features { margin-bottom: 24px; }
+        .detail-description h3, .detail-tags h3, .detail-features h3 {
+          font-size: 14px; font-weight: 700; color: #9cff00;
+          text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
         }
+        .detail-description p { color: #ccc; font-size: 15px; line-height: 1.6; }
 
-        .detail-description h3,
-        .detail-tags h3,
-        .detail-features h3 {
-          font-size: 14px;
-          font-weight: 700;
-          color: #9cff00;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 12px;
-        }
-
-        .detail-description p {
-          color: #ccc;
-          font-size: 15px;
-          line-height: 1.6;
-        }
-
-        .tags-list {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
+        .tags-list { display: flex; gap: 8px; flex-wrap: wrap; }
         .tag {
           padding: 6px 12px;
-          background: rgba(156, 255, 0, 0.1);
-          border: 1px solid rgba(156, 255, 0, 0.2);
-          border-radius: 8px;
-          color: #9cff00;
-          font-size: 12px;
-          font-weight: 600;
+          background: rgba(156,255,0,0.1); border: 1px solid rgba(156,255,0,0.2);
+          border-radius: 8px; color: #9cff00; font-size: 12px; font-weight: 600;
         }
 
-        .features-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-        }
-
+        .features-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
         .feature-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px;
-          background: rgba(26, 26, 26, 0.6);
-          border: 1px solid rgba(42, 42, 42, 0.6);
-          border-radius: 10px;
-          color: #fff;
-          font-size: 13px;
-          font-weight: 600;
+          display: flex; align-items: center; gap: 10px; padding: 12px;
+          background: rgba(26,26,26,0.6); border: 1px solid rgba(42,42,42,0.6);
+          border-radius: 10px; color: #fff; font-size: 13px; font-weight: 600;
         }
 
-        .detail-actions {
-          margin-top: 32px;
-          display: flex;
-          justify-content: center;
-        }
-
+        .detail-actions { margin-top: 32px; display: flex; justify-content: center; }
         .join-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
           padding: 14px 32px;
           background: linear-gradient(135deg, #9cff00 0%, #667eea 100%);
-          border: none;
-          border-radius: 12px;
-          color: #000;
-          font-size: 16px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 16px rgba(156, 255, 0, 0.3);
+          border: none; border-radius: 12px; color: #000;
+          font-size: 16px; font-weight: 700; cursor: pointer;
+          transition: all .3s cubic-bezier(.4,0,.2,1);
+          box-shadow: 0 4px 16px rgba(156,255,0,0.3);
         }
-
         .join-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(156, 255, 0, 0.5);
+          box-shadow: 0 8px 24px rgba(156,255,0,0.5);
         }
-
         .joined-badge {
-          display: flex;
-          align-items: center;
-          gap: 10px;
+          display: flex; align-items: center; gap: 10px;
           padding: 14px 32px;
-          background: rgba(156, 255, 0, 0.15);
-          border: 2px solid rgba(156, 255, 0, 0.4);
-          border-radius: 12px;
-          color: #9cff00;
-          font-size: 16px;
-          font-weight: 700;
+          background: rgba(156,255,0,0.15); border: 2px solid rgba(156,255,0,0.4);
+          border-radius: 12px; color: #9cff00; font-size: 16px; font-weight: 700;
         }
 
         @media (max-width: 768px) {
-          .detail-modal {
-            max-width: 100%;
-            border-radius: 16px;
-          }
-
-          .detail-content {
-            padding: 50px 20px 20px;
-          }
-
-          .features-grid {
-            grid-template-columns: 1fr;
-          }
+          .detail-modal { max-width: 100%; border-radius: 16px; }
+          .detail-content { padding: 50px 20px 20px; }
+          .features-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </>
@@ -475,50 +323,39 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
   const [selectedCommunityDetail, setSelectedCommunityDetail] = useState(null);
 
   const categories = [
-    { id: "all", label: "All Categories", icon: Globe },
-    { id: "blockchain", label: "Blockchain", icon: Crown },
-    { id: "technology", label: "Technology", icon: Zap },
-    { id: "creative", label: "Creative", icon: Sparkles },
-    { id: "gaming", label: "Gaming", icon: Star },
-    { id: "business", label: "Business", icon: TrendingUp },
+    { id: "all",        label: "All",         icon: Globe      },
+    { id: "blockchain", label: "Blockchain",  icon: Crown      },
+    { id: "technology", label: "Technology",  icon: Zap        },
+    { id: "creative",   label: "Creative",    icon: Sparkles   },
+    { id: "gaming",     label: "Gaming",      icon: Star       },
+    { id: "business",   label: "Business",    icon: TrendingUp },
   ];
 
   const sortOptions = [
-    { id: "trending", label: "Trending" },
-    { id: "members", label: "Most Members" },
-    { id: "active", label: "Most Active" },
-    { id: "newest", label: "Newest" },
+    { id: "trending", label: "Trending"      },
+    { id: "members",  label: "Most Members"  },
+    { id: "active",   label: "Most Active"   },
+    { id: "newest",   label: "Newest"        },
   ];
 
-  const isMember = (communityId) => {
-    return myCommunities.some((c) => c.id === communityId);
-  };
+  const isMember = (communityId) =>
+    myCommunities.some((c) => c.id === communityId);
 
-  // Filter out ALL private communities - discover tab only shows public communities
-  // Private communities can only be accessed via invite links
   const publicCommunities = communities.filter((c) => c.is_private === false);
 
-  const getTotalAudience = () => {
-    return publicCommunities.reduce((acc, c) => acc + (c.member_count || 0), 0);
-  };
+  const getTotalAudience = () =>
+    publicCommunities.reduce((acc, c) => acc + (c.member_count || 0), 0);
 
   const handleClickOutside = (e) => {
-    if (
-      showCategoryDropdown &&
-      !e.target.closest(".category-dropdown-container")
-    ) {
+    if (showCategoryDropdown && !e.target.closest(".category-dropdown-container"))
       setShowCategoryDropdown(false);
-    }
-    if (showSortDropdown && !e.target.closest(".sort-dropdown-container")) {
+    if (showSortDropdown && !e.target.closest(".sort-dropdown-container"))
       setShowSortDropdown(false);
-    }
     if (
       showSearch &&
       !e.target.closest(".search-dropdown-panel") &&
       !e.target.closest(".search-trigger-btn")
-    ) {
-      setShowSearch(false);
-    }
+    ) setShowSearch(false);
   };
 
   useEffect(() => {
@@ -536,25 +373,16 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
       return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
-      if (sortBy === "members")
-        return (b.member_count || 0) - (a.member_count || 0);
-      if (sortBy === "active")
-        return (b.online_count || 0) - (a.online_count || 0);
-      if (sortBy === "newest")
-        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-      return (
-        (b.trending_score || b.member_count || 0) -
-        (a.trending_score || a.member_count || 0)
-      );
+      if (sortBy === "members") return (b.member_count || 0) - (a.member_count || 0);
+      if (sortBy === "active")  return (b.online_count  || 0) - (a.online_count  || 0);
+      if (sortBy === "newest")  return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      return (b.trending_score || b.member_count || 0) - (a.trending_score || a.member_count || 0);
     });
 
   const selectedCategory = categories.find((c) => c.id === filterCategory);
   const selectedSort = sortOptions.find((s) => s.id === sortBy);
 
-  const handleShowDetail = (community) => {
-    setSelectedCommunityDetail(community);
-  };
-
+  const handleShowDetail   = (community) => setSelectedCommunityDetail(community);
   const handleJoinFromModal = async (communityId) => {
     await onJoin(communityId);
     setSelectedCommunityDetail(null);
@@ -565,134 +393,113 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
       <div className="discover-view">
         <div className="chat-background"></div>
 
-        <div className="discover-header">
-          <div className="header-content">
-            <div className="title-group">
-              <Sparkles className="title-icon" size={24} />
-              <h1 className="discover-title">Discover Communities</h1>
+        {/* ── Compact top bar: stats left, filters right — single row always ── */}
+        <div className="top-bar">
+          {/* Left: community + audience counts */}
+          <div className="top-stats">
+            <div className="top-stat">
+              <Globe size={12} />
+              <span>{publicCommunities.length}</span>
             </div>
-            <p className="discover-subtitle">
-              Connect with people who share your interests
-            </p>
-          </div>
-          <div className="header-stats">
-            <div className="stat-pill">
-              <Globe size={14} />
-              <span>{publicCommunities.length} Communities</span>
-            </div>
-            <div className="stat-pill">
-              <Users size={14} />
-              <span>{getTotalAudience().toLocaleString()} Total Audience</span>
+            <div className="top-stat-divider">·</div>
+            <div className="top-stat">
+              <Users size={12} />
+              <span>{getTotalAudience().toLocaleString()}</span>
             </div>
           </div>
-        </div>
 
-        <div className="filter-bar">
-          <button
-            className="search-trigger-btn filter-btn"
-            onClick={() => setShowSearch(!showSearch)}
-          >
-            <Search size={16} />
-            <span>Search</span>
-          </button>
-
-          <div className="category-dropdown-container">
+          {/* Right: search + category + sort — icon-first, no wrap */}
+          <div className="top-controls">
+            {/* Search toggle */}
             <button
-              className="filter-btn"
-              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className={`ctrl-btn search-trigger-btn${showSearch ? " active" : ""}`}
+              onClick={() => setShowSearch(!showSearch)}
+              title="Search"
             >
-              {selectedCategory && <selectedCategory.icon size={16} />}
-              <span>{selectedCategory?.label || "Category"}</span>
-              <ChevronDown
-                size={14}
-                className={showCategoryDropdown ? "rotated" : ""}
-              />
+              <Search size={15} />
             </button>
-            {showCategoryDropdown && (
-              <div className="dropdown-menu">
-                {categories.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
+
+            {/* Category */}
+            <div className="category-dropdown-container">
+              <button
+                className={`ctrl-btn${showCategoryDropdown ? " active" : ""}`}
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                title="Category"
+              >
+                {selectedCategory && <selectedCategory.icon size={15} />}
+                <span className="ctrl-label">{selectedCategory?.label || "All"}</span>
+                <ChevronDown size={12} className={showCategoryDropdown ? "rotated" : ""} />
+              </button>
+              {showCategoryDropdown && (
+                <div className="dropdown-menu">
+                  {categories.map((cat) => {
+                    const Icon = cat.icon;
+                    return (
+                      <button
+                        key={cat.id}
+                        className={`dropdown-item${filterCategory === cat.id ? " active" : ""}`}
+                        onClick={() => { setFilterCategory(cat.id); setShowCategoryDropdown(false); }}
+                      >
+                        <Icon size={14} />
+                        {cat.label}
+                        {filterCategory === cat.id && <CheckCircle size={13} className="check-icon" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sort */}
+            <div className="sort-dropdown-container">
+              <button
+                className={`ctrl-btn${showSortDropdown ? " active" : ""}`}
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                title="Sort"
+              >
+                <TrendingUp size={15} />
+                <span className="ctrl-label">{selectedSort?.label || "Sort"}</span>
+                <ChevronDown size={12} className={showSortDropdown ? "rotated" : ""} />
+              </button>
+              {showSortDropdown && (
+                <div className="dropdown-menu">
+                  {sortOptions.map((opt) => (
                     <button
-                      key={cat.id}
-                      className={`dropdown-item ${filterCategory === cat.id ? "active" : ""}`}
-                      onClick={() => {
-                        setFilterCategory(cat.id);
-                        setShowCategoryDropdown(false);
-                      }}
+                      key={opt.id}
+                      className={`dropdown-item${sortBy === opt.id ? " active" : ""}`}
+                      onClick={() => { setSortBy(opt.id); setShowSortDropdown(false); }}
                     >
-                      <Icon size={14} />
-                      {cat.label}
-                      {filterCategory === cat.id && (
-                        <CheckCircle size={14} className="check-icon" />
-                      )}
+                      {opt.label}
+                      {sortBy === opt.id && <CheckCircle size={13} className="check-icon" />}
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="sort-dropdown-container">
-            <button
-              className="filter-btn"
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-            >
-              <TrendingUp size={16} />
-              <span>{selectedSort?.label || "Sort"}</span>
-              <ChevronDown
-                size={14}
-                className={showSortDropdown ? "rotated" : ""}
-              />
-            </button>
-            {showSortDropdown && (
-              <div className="dropdown-menu">
-                {sortOptions.map((opt) => (
-                  <button
-                    key={opt.id}
-                    className={`dropdown-item ${sortBy === opt.id ? "active" : ""}`}
-                    onClick={() => {
-                      setSortBy(opt.id);
-                      setShowSortDropdown(false);
-                    }}
-                  >
-                    {opt.label}
-                    {sortBy === opt.id && (
-                      <CheckCircle size={14} className="check-icon" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* ── Search panel — slides in below the top bar ── */}
         {showSearch && (
           <div className="search-dropdown-panel">
             <div className="search-panel-content">
-              <Search className="search-panel-icon" size={18} />
+              <Search className="search-panel-icon" size={16} />
               <input
                 type="text"
                 className="search-panel-input"
-                placeholder="Search communities..."
+                placeholder="Search communities…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
               />
               {searchQuery && (
-                <button
-                  className="clear-search-btn"
-                  onClick={() => setSearchQuery("")}
-                >
-                  <X size={16} />
+                <button className="clear-search-btn" onClick={() => setSearchQuery("")}>
+                  <X size={14} />
                 </button>
               )}
             </div>
-            <button
-              className="close-search-btn"
-              onClick={() => setShowSearch(false)}
-            >
-              <X size={18} />
+            <button className="close-search-btn" onClick={() => setShowSearch(false)}>
+              <X size={16} />
             </button>
           </div>
         )}
@@ -708,7 +515,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
             filteredCommunities.map((community) => (
               <div
                 key={community.id}
-                className={`community-card ${hoveredCard === community.id ? "hovered" : ""}`}
+                className={`community-card${hoveredCard === community.id ? " hovered" : ""}`}
                 onMouseEnter={() => setHoveredCard(community.id)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
@@ -719,7 +526,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                       community.banner_gradient ||
                       "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   }}
-                ></div>
+                />
 
                 <div className="card-content">
                   <div className="card-header">
@@ -749,17 +556,12 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                       <div className="card-stats">
                         <div className="stat-item">
                           <Users size={12} />
-                          <span>
-                            {(community.member_count || 0).toLocaleString()}
-                          </span>
+                          <span>{(community.member_count || 0).toLocaleString()}</span>
                         </div>
                         <div className="stat-divider">•</div>
                         <div className="stat-item online">
                           <div className="online-pulse"></div>
-                          <span>
-                            {(community.online_count || 0).toLocaleString()}{" "}
-                            online
-                          </span>
+                          <span>{(community.online_count || 0).toLocaleString()} online</span>
                         </div>
                       </div>
                     </div>
@@ -772,9 +574,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                   {community.tags && community.tags.length > 0 && (
                     <div className="card-tags">
                       {community.tags.slice(0, 3).map((tag, idx) => (
-                        <span key={idx} className="tag">
-                          {tag}
-                        </span>
+                        <span key={idx} className="tag">{tag}</span>
                       ))}
                     </div>
                   )}
@@ -782,32 +582,23 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                   <div className="card-actions">
                     {!isMember(community.id) ? (
                       <>
-                        <button
-                          className="card-btn join-btn"
-                          onClick={() => onJoin(community.id)}
-                        >
-                          <UserPlus size={16} />
+                        <button className="card-btn join-btn" onClick={() => onJoin(community.id)}>
+                          <UserPlus size={15} />
                           <span>Join</span>
                         </button>
-                        <button
-                          className="card-btn preview-btn"
-                          onClick={() => handleShowDetail(community)}
-                        >
-                          <Info size={16} />
+                        <button className="card-btn preview-btn" onClick={() => handleShowDetail(community)}>
+                          <Info size={15} />
                           <span>Details</span>
                         </button>
                       </>
                     ) : (
                       <>
                         <button className="card-btn joined-btn">
-                          <CheckCircle size={16} />
+                          <CheckCircle size={15} />
                           <span>Joined</span>
                         </button>
-                        <button
-                          className="card-btn view-btn"
-                          onClick={() => onSelect(community)}
-                        >
-                          <Eye size={16} />
+                        <button className="card-btn view-btn" onClick={() => onSelect(community)}>
+                          <Eye size={15} />
                           <span>View</span>
                         </button>
                       </>
@@ -832,708 +623,356 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
       )}
 
       <style>{`
+        /* ── View shell ── */
         .discover-view {
           flex: 1;
           overflow-y: auto;
-          padding: 20px;
+          padding: 12px 16px 20px;
           position: relative;
           background: #000;
         }
 
         .chat-background {
-          position: absolute;
-          inset: 0;
-          opacity: 0.03;
+          position: absolute; inset: 0; opacity: 0.03;
           background-image:
-            repeating-linear-gradient(
-              0deg,
-              transparent,
-              transparent 2px,
-              rgba(156, 255, 0, 0.1) 2px,
-              rgba(156, 255, 0, 0.1) 4px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 2px,
-              rgba(102, 126, 234, 0.1) 2px,
-              rgba(102, 126, 234, 0.1) 4px
-            );
+            repeating-linear-gradient(0deg,  transparent, transparent 2px, rgba(156,255,0,.1) 2px, rgba(156,255,0,.1) 4px),
+            repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(102,126,234,.1) 2px, rgba(102,126,234,.1) 4px);
           pointer-events: none;
         }
 
-        .discover-header {
-          margin-bottom: 20px;
-          animation: slideDown 0.6s ease;
-        }
-
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .header-content {
-          margin-bottom: 12px;
-        }
-
-        .title-group {
+        /* ── Top bar: one row, never wraps ── */
+        .top-bar {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 10px;
-          margin-bottom: 6px;
+          margin-bottom: 12px;
+          min-width: 0;
         }
 
-        .discover-title {
-          font-size: 28px;
-          font-weight: 900;
-          background: linear-gradient(
-            135deg,
-            #9cff00 0%,
-            #667eea 60%,
-            #ff00ff 100%
-          );
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          background-size: 200% auto;
-          animation: gradientFlow 3s ease infinite;
+        /* Left stats */
+        .top-stats {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
         }
-
-        @keyframes gradientFlow {
-          0%,
-          100% {
-            background-position: 0% center;
-          }
-          50% {
-            background-position: 100% center;
-          }
+        .top-stat {
+          display: flex; align-items: center; gap: 4px;
+          color: #555; font-size: 11px; font-weight: 600;
         }
+        .top-stat-divider { color: #333; font-size: 11px; }
 
-        .title-icon {
-          color: #9cff00;
-          animation: sparkle 2s ease infinite;
+        /* Right controls */
+        .top-controls {
+          display: flex;
+          align-items: center;
+          gap: 6px;
           flex-shrink: 0;
         }
 
-        @keyframes sparkle {
-          0%,
-          100% {
-            opacity: 1;
-            transform: rotate(0deg) scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: rotate(180deg) scale(1.1);
-          }
-        }
-
-        .discover-subtitle {
-          color: #999;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-
-        .header-stats {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .stat-pill {
+        /* ── Control buttons ── */
+        .ctrl-btn {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
-          background: rgba(156, 255, 0, 0.1);
-          border: 1px solid rgba(156, 255, 0, 0.2);
-          border-radius: 16px;
-          color: #9cff00;
+          gap: 5px;
+          padding: 7px 10px;
+          background: rgba(18,18,18,0.95);
+          border: 1px solid rgba(42,42,42,0.9);
+          border-radius: 9px;
+          color: #888;
           font-size: 12px;
           font-weight: 600;
-        }
-
-        .filter-bar {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 20px;
-          position: relative;
-        }
-
-        .filter-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 10px 14px;
-          background: rgba(15, 15, 15, 0.9);
-          border: 2px solid rgba(26, 26, 26, 0.8);
-          border-radius: 10px;
-          color: #fff;
-          font-size: 13px;
-          font-weight: 600;
           cursor: pointer;
-          transition: all 0.3s;
+          transition: all 0.18s;
           white-space: nowrap;
-          flex-shrink: 1;
-          min-width: 0;
+          line-height: 1;
         }
-
-        .filter-btn span {
+        .ctrl-btn:hover, .ctrl-btn.active {
+          background: rgba(156,255,0,0.08);
+          border-color: rgba(156,255,0,0.35);
+          color: #9cff00;
+        }
+        /* Label hidden on very small screens, icon always visible */
+        .ctrl-label {
+          max-width: 72px;
           overflow: hidden;
           text-overflow: ellipsis;
         }
+        .ctrl-btn .rotated { transform: rotate(180deg); }
 
-        .filter-btn:hover {
-          border-color: rgba(156, 255, 0, 0.6);
-          background: rgba(156, 255, 0, 0.05);
-          color: #9cff00;
-        }
+        /* Search-only button is icon only */
+        .search-trigger-btn { padding: 7px 9px; }
 
-        .filter-btn .rotated {
-          transform: rotate(180deg);
-        }
-
+        /* ── Dropdowns ── */
         .category-dropdown-container,
         .sort-dropdown-container {
           position: relative;
-          flex-shrink: 1;
-          min-width: 0;
         }
-
         .dropdown-menu {
           position: absolute;
           top: calc(100% + 6px);
           left: 0;
-          min-width: 180px;
-          background: rgba(15, 15, 15, 0.98);
-          border: 2px solid rgba(26, 26, 26, 0.8);
-          border-radius: 12px;
-          padding: 6px;
-          z-index: 100;
-          animation: dropdownSlide 0.2s ease;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+          min-width: 170px;
+          background: rgba(12,12,12,0.99);
+          border: 1.5px solid rgba(42,42,42,0.9);
+          border-radius: 11px;
+          padding: 5px;
+          z-index: 200;
+          box-shadow: 0 8px 28px rgba(0,0,0,0.7);
+          animation: ddSlide 0.18s ease;
         }
-
-        @keyframes dropdownSlide {
-          from {
-            opacity: 0;
-            transform: translateY(-8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        /* Sort dropdown anchors to right edge of its button so it doesn't clip off-screen */
+        .sort-dropdown-container .dropdown-menu {
+          left: auto;
+          right: 0;
         }
-
+        /* Category dropdown anchors to left edge — default */
+        @keyframes ddSlide {
+          from { opacity:0; transform:translateY(-6px); }
+          to   { opacity:1; transform:translateY(0);    }
+        }
         .dropdown-item {
           width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 12px;
-          background: transparent;
-          border: none;
-          border-radius: 8px;
-          color: #999;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          text-align: left;
+          display: flex; align-items: center; gap: 8px;
+          padding: 9px 11px;
+          background: transparent; border: none; border-radius: 7px;
+          color: #888; font-size: 13px; font-weight: 600;
+          cursor: pointer; transition: all 0.15s; text-align: left;
         }
+        .dropdown-item:hover { background: rgba(156,255,0,0.08); color: #fff; }
+        .dropdown-item.active { background: rgba(156,255,0,0.13); color: #9cff00; }
+        .dropdown-item .check-icon { margin-left: auto; color: #9cff00; }
 
-        .dropdown-item:hover {
-          background: rgba(156, 255, 0, 0.1);
-          color: #fff;
-        }
-
-        .dropdown-item.active {
-          background: rgba(156, 255, 0, 0.15);
-          color: #9cff00;
-        }
-
-        .dropdown-item .check-icon {
-          margin-left: auto;
-          color: #9cff00;
-        }
-
+        /* ── Search panel ── */
         .search-dropdown-panel {
-          position: relative;
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-bottom: 20px;
-          animation: slideDown 0.3s ease;
+          margin-bottom: 12px;
+          animation: slideDown 0.22s ease;
         }
-
+        @keyframes slideDown {
+          from { opacity:0; transform:translateY(-8px); }
+          to   { opacity:1; transform:translateY(0);    }
+        }
         .search-panel-content {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px 16px;
-          background: rgba(15, 15, 15, 0.95);
-          border: 2px solid rgba(26, 26, 26, 0.8);
-          border-radius: 12px;
-          transition: all 0.3s;
+          flex: 1; display: flex; align-items: center; gap: 9px;
+          padding: 10px 14px;
+          background: rgba(12,12,12,0.98);
+          border: 1.5px solid rgba(42,42,42,0.9);
+          border-radius: 10px; transition: border-color 0.2s;
         }
-
         .search-panel-content:focus-within {
-          border-color: rgba(156, 255, 0, 0.6);
-          box-shadow: 0 0 0 3px rgba(156, 255, 0, 0.1);
+          border-color: rgba(156,255,0,0.5);
+          box-shadow: 0 0 0 3px rgba(156,255,0,0.07);
         }
-
-        .search-panel-icon {
-          color: #666;
-          flex-shrink: 0;
-        }
-
+        .search-panel-icon { color: #555; flex-shrink: 0; }
         .search-panel-input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          color: #fff;
-          font-size: 14px;
-          outline: none;
+          flex:1; background:transparent; border:none;
+          color:#fff; font-size:13px; outline:none;
         }
-
-        .search-panel-input::placeholder {
-          color: #666;
-        }
-
+        .search-panel-input::placeholder { color: #444; }
         .clear-search-btn {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: rgba(156, 255, 0, 0.1);
-          border: none;
-          color: #9cff00;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
+          width: 20px; height: 20px; border-radius: 50%;
+          background: rgba(156,255,0,0.1); border: none; color: #9cff00;
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          transition: all 0.15s; flex-shrink: 0;
         }
-
-        .clear-search-btn:hover {
-          background: rgba(156, 255, 0, 0.2);
-          transform: scale(1.1);
-        }
-
+        .clear-search-btn:hover { background: rgba(156,255,0,0.2); transform: scale(1.1); }
         .close-search-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
-          background: rgba(15, 15, 15, 0.9);
-          border: 2px solid rgba(26, 26, 26, 0.8);
-          color: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
+          width: 36px; height: 36px; border-radius: 9px;
+          background: rgba(12,12,12,0.98);
+          border: 1.5px solid rgba(42,42,42,0.9);
+          color: #888; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.15s; flex-shrink: 0;
         }
-
         .close-search-btn:hover {
-          border-color: rgba(156, 255, 0, 0.6);
-          background: rgba(156, 255, 0, 0.05);
-          color: #9cff00;
+          border-color: rgba(156,255,0,0.4); color: #9cff00;
         }
 
+        /* ── Community cards ── */
         .communities-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 16px;
-          animation: fadeIn 0.5s ease;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 14px;
+          animation: fadeIn 0.4s ease;
         }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
+        @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
 
         .community-card {
           position: relative;
-          background: rgba(15, 15, 15, 0.95);
+          background: rgba(13,13,13,0.97);
           backdrop-filter: blur(20px);
-          border: 2px solid rgba(26, 26, 26, 0.8);
-          border-radius: 16px;
-          padding: 16px;
+          border: 1.5px solid rgba(30,30,30,0.9);
+          border-radius: 14px;
+          padding: 14px;
           cursor: pointer;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.35s cubic-bezier(.4,0,.2,1);
           overflow: hidden;
-          animation: cardSlideIn 0.5s ease backwards;
+          animation: cardSlideIn 0.45s ease backwards;
         }
-
         @keyframes cardSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity:0; transform:translateY(16px); }
+          to   { opacity:1; transform:translateY(0);    }
         }
-
-        .community-card:nth-child(1) {
-          animation-delay: 0.05s;
-        }
-        .community-card:nth-child(2) {
-          animation-delay: 0.1s;
-        }
-        .community-card:nth-child(3) {
-          animation-delay: 0.15s;
-        }
-        .community-card:nth-child(4) {
-          animation-delay: 0.2s;
-        }
-        .community-card:nth-child(5) {
-          animation-delay: 0.25s;
-        }
-        .community-card:nth-child(6) {
-          animation-delay: 0.3s;
-        }
+        .community-card:nth-child(1) { animation-delay: .05s; }
+        .community-card:nth-child(2) { animation-delay: .10s; }
+        .community-card:nth-child(3) { animation-delay: .15s; }
+        .community-card:nth-child(4) { animation-delay: .20s; }
+        .community-card:nth-child(5) { animation-delay: .25s; }
+        .community-card:nth-child(6) { animation-delay: .30s; }
 
         .card-gradient-bg {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          opacity: 0.6;
-          transition: all 0.4s;
+          position: absolute; top:0; left:0; right:0;
+          height: 3px; opacity: 0.6; transition: all 0.35s;
         }
+        .community-card:hover .card-gradient-bg { height:100%; opacity:.07; }
 
-        .community-card:hover .card-gradient-bg {
-          height: 100%;
-          opacity: 0.08;
-        }
-
-        .card-content {
-          position: relative;
-          z-index: 1;
-        }
+        .card-content { position: relative; z-index: 1; }
 
         .community-card:hover {
-          border-color: rgba(156, 255, 0, 0.6);
-          transform: translateY(-6px);
-          box-shadow:
-            0 20px 40px rgba(0, 0, 0, 0.5),
-            0 0 30px rgba(156, 255, 0, 0.15);
+          border-color: rgba(156,255,0,0.55);
+          transform: translateY(-4px);
+          box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 24px rgba(156,255,0,0.1);
         }
 
         .card-hover-overlay {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            circle at center,
-            rgba(156, 255, 0, 0.05) 0%,
-            transparent 70%
-          );
-          opacity: 0;
-          transition: opacity 0.4s;
-          pointer-events: none;
+          position: absolute; inset:0;
+          background: radial-gradient(circle at center, rgba(156,255,0,0.04) 0%, transparent 70%);
+          opacity:0; transition: opacity 0.35s; pointer-events: none;
         }
+        .community-card:hover .card-hover-overlay { opacity:1; }
 
-        .community-card:hover .card-hover-overlay {
-          opacity: 1;
-        }
-
+        /* Card header */
         .card-header {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          margin-bottom: 12px;
+          display: flex; align-items: flex-start; gap: 11px; margin-bottom: 10px;
         }
-
         .card-avatar {
-          width: 52px;
-          height: 52px;
-          border-radius: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 26px;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-          flex-shrink: 0;
-          position: relative;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          width: 48px; height: 48px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+          flex-shrink: 0; position: relative;
+          transition: all 0.35s cubic-bezier(.4,0,.2,1);
         }
-
         .community-card:hover .card-avatar {
-          transform: scale(1.05) rotate(5deg);
-          box-shadow: 0 10px 28px rgba(156, 255, 0, 0.3);
+          transform: scale(1.06) rotate(4deg);
+          box-shadow: 0 8px 24px rgba(156,255,0,0.25);
         }
-
         .premium-badge {
-          position: absolute;
-          top: -3px;
-          right: -3px;
-          width: 18px;
-          height: 18px;
-          background: #000;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid #ffd700;
-          box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+          position:absolute; top:-3px; right:-3px;
+          width:17px; height:17px; background:#000; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          border:2px solid #ffd700; box-shadow:0 0 8px rgba(255,215,0,.5);
         }
-
-        .card-info {
-          flex: 1;
-          min-width: 0;
-        }
-
+        .card-info { flex:1; min-width:0; }
         .card-name {
-          font-size: 17px;
-          font-weight: 800;
-          margin-bottom: 6px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #fff;
+          font-size: 15px; font-weight: 800; margin-bottom: 5px;
+          display:flex; align-items:center; gap:5px; color:#fff;
         }
-
         .card-stats {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #999;
-          font-size: 12px;
-          font-weight: 600;
+          display:flex; align-items:center; gap:5px;
+          color:#888; font-size:11px; font-weight:600;
         }
-
-        .stat-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .stat-item.online {
-          color: #10b981;
-        }
-
-        .stat-divider {
-          color: #333;
-        }
-
+        .stat-item { display:flex; align-items:center; gap:3px; }
+        .stat-item.online { color:#10b981; }
+        .stat-divider { color:#333; }
         .online-pulse {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #10b981;
-          box-shadow: 0 0 10px #10b981;
+          width:6px; height:6px; border-radius:50%;
+          background:#10b981; box-shadow:0 0 8px #10b981;
           animation: pulse 2s infinite;
         }
 
         .card-description {
-          color: #999;
-          font-size: 13px;
-          line-height: 1.5;
-          margin-bottom: 12px;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+          color:#777; font-size:12px; line-height:1.5; margin-bottom:10px;
+          display:-webkit-box; -webkit-line-clamp:2;
+          -webkit-box-orient:vertical; overflow:hidden;
         }
 
         .card-tags {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-          margin-bottom: 12px;
+          display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px;
         }
-
         .tag {
-          padding: 4px 8px;
-          background: rgba(156, 255, 0, 0.1);
-          border: 1px solid rgba(156, 255, 0, 0.2);
-          border-radius: 6px;
-          color: #9cff00;
-          font-size: 10px;
-          font-weight: 600;
+          padding:3px 7px;
+          background:rgba(156,255,0,0.08); border:1px solid rgba(156,255,0,0.18);
+          border-radius:5px; color:#9cff00; font-size:10px; font-weight:600;
         }
 
-        .card-actions {
-          display: flex;
-          gap: 8px;
-        }
+        /* ── Card action buttons ── */
+        .card-actions { display:flex; gap:7px; }
 
         .card-btn {
-          flex: 1;
-          padding: 10px 16px;
-          border-radius: 10px;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          border: none;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          position: relative;
-          overflow: hidden;
+          flex:1; padding:9px 12px; border-radius:9px;
+          font-size:12px; font-weight:700;
+          cursor:pointer; border:none;
+          transition:all 0.25s cubic-bezier(.4,0,.2,1);
+          display:flex; align-items:center; justify-content:center; gap:5px;
+          position:relative; overflow:hidden;
         }
-
         .card-btn::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.1) 0%,
-            transparent 100%
-          );
-          opacity: 0;
-          transition: opacity 0.3s;
+          content:""; position:absolute; inset:0;
+          background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,transparent 100%);
+          opacity:0; transition:opacity .25s;
         }
-
-        .card-btn:hover::before {
-          opacity: 1;
-        }
+        .card-btn:hover::before { opacity:1; }
 
         .join-btn {
-          background: linear-gradient(135deg, #9cff00 0%, #667eea 100%);
-          color: #000;
-          box-shadow: 0 4px 14px rgba(156, 255, 0, 0.3);
+          background:linear-gradient(135deg,#9cff00 0%,#667eea 100%);
+          color:#000; box-shadow:0 3px 12px rgba(156,255,0,.25);
         }
-
         .join-btn:hover {
-          background: linear-gradient(135deg, #b4ff33 0%, #7d8ef7 100%);
-          box-shadow: 0 6px 20px rgba(156, 255, 0, 0.5);
-          transform: translateY(-2px);
+          box-shadow:0 5px 18px rgba(156,255,0,.45);
+          transform:translateY(-1px);
         }
-
         .joined-btn {
-          background: rgba(156, 255, 0, 0.15);
-          border: 2px solid rgba(156, 255, 0, 0.4);
-          color: #9cff00;
+          background:rgba(156,255,0,0.12);
+          border:1.5px solid rgba(156,255,0,0.35);
+          color:#9cff00;
         }
-
         .preview-btn {
-          background: rgba(26, 26, 26, 0.8);
-          border: 2px solid rgba(42, 42, 42, 0.8);
-          color: #fff;
+          background:rgba(22,22,22,0.9);
+          border:1.5px solid rgba(42,42,42,0.9);
+          color:#aaa;
         }
-
         .preview-btn:hover {
-          background: rgba(26, 26, 26, 1);
-          border-color: rgba(102, 126, 234, 0.4);
-          color: #667eea;
-          transform: translateY(-2px);
+          border-color:rgba(102,126,234,0.4); color:#667eea;
+          transform:translateY(-1px);
         }
-
         .view-btn {
-          background: rgba(26, 26, 26, 0.8);
-          border: 2px solid rgba(42, 42, 42, 0.8);
-          color: #fff;
+          background:rgba(22,22,22,0.9);
+          border:1.5px solid rgba(42,42,42,0.9);
+          color:#aaa;
         }
-
         .view-btn:hover {
-          background: rgba(26, 26, 26, 1);
-          border-color: rgba(156, 255, 0, 0.4);
-          color: #9cff00;
-          transform: translateY(-2px);
+          border-color:rgba(156,255,0,0.4); color:#9cff00;
+          transform:translateY(-1px);
         }
 
+        /* ── Empty state ── */
         .empty-state {
-          grid-column: 1 / -1;
-          text-align: center;
-          padding: 60px 20px;
+          grid-column:1 / -1; text-align:center; padding:48px 20px;
         }
-
         .empty-icon {
-          font-size: 64px;
-          margin-bottom: 16px;
-          opacity: 0.5;
-          animation: float 3s ease-in-out infinite;
+          font-size:52px; margin-bottom:12px; opacity:.4;
+          animation:float 3s ease-in-out infinite;
         }
-
         @keyframes float {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
+          0%,100% { transform:translateY(0);     }
+          50%      { transform:translateY(-8px);  }
         }
+        .empty-state h3 { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
+        .empty-state p  { color:#555; font-size:13px; }
 
-        .empty-state h3 {
-          font-size: 20px;
-          font-weight: 800;
-          color: #fff;
-          margin-bottom: 6px;
-        }
-
-        .empty-state p {
-          color: #666;
-          font-size: 14px;
-        }
-
+        /* ── Mobile tweaks ── */
         @media (max-width: 768px) {
-          .discover-view {
-            padding: 16px;
-          }
+          .discover-view { padding: 10px 12px 20px; }
+          .communities-grid { grid-template-columns:1fr; gap:10px; }
 
-          .discover-title {
-            font-size: 24px;
-          }
-
-          .title-icon {
-            width: 20px;
-            height: 20px;
-          }
-
-          .discover-subtitle {
-            font-size: 13px;
-          }
-
-          .filter-bar {
-            gap: 6px;
-          }
-
-          .filter-btn {
-            padding: 8px 10px;
-            font-size: 12px;
-            gap: 4px;
-          }
-
-          .search-dropdown-panel {
-            width: 100%;
-          }
-
-          .communities-grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
-          }
-
-          .card-avatar {
-            width: 48px;
-            height: 48px;
-            font-size: 24px;
-          }
-
-          .card-name {
-            font-size: 16px;
-          }
-
-          .card-description {
-            font-size: 12px;
+          /* On very narrow screens hide text labels in control buttons */
+          @media (max-width: 380px) {
+            .ctrl-label { display:none; }
+            .ctrl-btn   { padding:7px 8px; }
           }
         }
       `}</style>
