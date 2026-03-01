@@ -8,7 +8,10 @@
   "dependencies": {
     "@cloudflare/stream-react": "^1.9.3",
     "@emailjs/browser": "^4.4.1",
+    "@emurgo/cardano-serialization-lib-browser": "^15.0.3",
     "@fortawesome/fontawesome-free": "^7.1.0",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.90.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
