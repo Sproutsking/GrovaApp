@@ -17,7 +17,7 @@ serviceWorkerRegistration.register({
   onUpdate: (registration) => {
     console.log("[PWA] New update available!");
 
-    // You can show a custom update notification here
+    // Custom update notification
     const updateNotification = document.createElement("div");
     updateNotification.style.cssText = `
       position: fixed;
@@ -34,7 +34,7 @@ serviceWorkerRegistration.register({
     `;
     updateNotification.innerHTML = `
       <div style="font-weight: 600; margin-bottom: 8px;">Update Available</div>
-      <div style="font-size: 14px; margin-bottom: 12px;">A new version of Grova is ready!</div>
+      <div style="font-size: 14px; margin-bottom: 12px;">A new version of Xeevia is ready!</div>
       <button 
         id="update-btn"
         style="
