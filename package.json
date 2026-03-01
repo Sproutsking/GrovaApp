@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@cloudflare/stream-react": "^1.9.3",
@@ -19,8 +19,8 @@
     "lucide-react": "^0.562.0",
     "otpauth": "^9.4.1",
     "qrcode": "^1.5.4",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-player": "^3.4.0",
     "react-qr-code": "^2.0.18",
     "react-scripts": "^5.0.1",

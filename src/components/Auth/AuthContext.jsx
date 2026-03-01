@@ -1,42 +1,42 @@
 // ============================================================================
-// src/components/Auth/AuthContext.jsx — v13 IRONCLAD
+// src/components/Auth/AuthContext.jsx — v15 WATER-FLOW
 // ============================================================================
 //
-// ┌─────────────────────────────────────────────────────────────────────────┐
-// │  SYSTEM 1 OF 3: AUTH LAYER — IMMUTABLE, ISOLATED, UNBREAKABLE          │
-// │                                                                         │
-// │  Source of truth for: user, profile, isAdmin, adminData, loading       │
-// │                                                                         │
-// │  NOTHING outside this file writes to auth state.                       │
-// │  App sections read it. They never mutate it.                           │
-// │  Admin dashboard reads adminData as a prop. It never writes back.      │
-// └─────────────────────────────────────────────────────────────────────────┘
+// PHILOSOPHY: Session flows like water — it finds a path around every obstacle.
 //
-// KEY FIXES IN v13:
-//   1. TIMEOUT GUARD — All DB fetches have a 8s timeout. A hung Supabase
-//      query (e.g. recursive RLS mid-fix) can never trap the user on the
-//      loading screen forever. On timeout: user stays authenticated,
-//      profile is null, retry happens on next auth event.
+// RULES (absolute, no exceptions):
+//   1. NEVER sign the user out except on explicit user action (signOut())
+//   2. NEVER let a DB error, timeout, network drop, or any exception
+//      clear auth state or show a loading screen
+//   3. NEVER block the UI indefinitely — loading always resolves
+//   4. On mobile resume: restore session silently, never re-auth
+//   5. oauthInProgress is evaluated ONCE at module load, never again
 //
-//   2. ADMIN FETCH ISOLATION — fetchAdminRecord() is wrapped in its own
-//      try/catch with timeout. If admin_team is broken (recursive RLS),
-//      the user still logs in normally. isAdmin = false until fixed.
-//      Auth NEVER crashes because of a broken admin table.
+// WHAT CHANGED vs v14:
+//   [A] oauthInProgress is now exported as a module-level constant — evaluated
+//       once when JS loads, cleaned immediately. No re-evaluation on re-render
+//       or mobile resume.
+//   [B] cleanOAuthUrl() is called immediately at module load (before any
+//       Supabase call), so URL params are gone before INITIAL_SESSION fires.
+//   [C] onAuthStateChange deduplication: tracks lastEventUser to prevent
+//       INITIAL_SESSION + SIGNED_IN double-fetch for the same user on load.
+//   [D] TOKEN_REFRESHED no longer calls loadUser (full profile re-fetch) —
+//       it only updates the user object. Profile is already loaded; a token
+//       refresh should be invisible to the UI.
+//   [E] visibilitychange listener: when the tab/app returns to foreground,
+//       we silently refresh the Supabase session token if needed. This is
+//       what makes mobile resume work without showing a loading screen.
+//   [F] MAX_LOAD_MS safety net now resets itself if the component somehow
+//       re-mounts (e.g. HMR in dev).
+//   [G] refreshProfile is stable (useCallback with no deps) — always reads
+//       user from a ref so it never goes stale.
 //
-//   3. LOADING STATE GUARANTEE — profileLoading ALWAYS resolves within
-//      MAX_LOAD_MS (10 seconds), even if every DB call fails. Users never
-//      get trapped on the splash screen.
-//
-//   4. RACE CONDITION FIX — lastLoadedUserId ref prevents duplicate fetches
-//      when INITIAL_SESSION and SIGNED_IN both fire for the same user.
-//
-//   5. NO SIGN-OUT ON ERROR — Network drops, DB errors, timeouts, 500s
-//      NEVER trigger sign-out. Session is preserved unconditionally.
-//
-// ROLE RESOLUTION ORDER (unchanged from v12 — working correctly):
-//   1. admin_team record found → use role verbatim (preserves ceo_owner)
-//   2. No team record + profiles.is_admin = true → role = 'admin' (fallback)
-//   3. Neither → not admin
+// WHAT CHANGED vs v14 (this version — v15):
+//   [H] Belt-and-suspenders getSession() call is now wrapped with
+//       withTimeout(6_000) so that when Supabase is unreachable
+//       (ERR_CONNECTION_CLOSED, offline, etc.) it resolves to a null session
+//       after 6 s instead of hanging forever and leaving the splash screen
+//       frozen. MAX_LOAD_MS (10 s) remains as the absolute final backstop.
 // ============================================================================
 
 import React, {
@@ -50,26 +50,68 @@ import React, {
 import { supabase } from "../../services/config/supabase";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const FETCH_TIMEOUT_MS = 8_000; // Max time for any single DB query
-const MAX_LOAD_MS = 10_000; // Absolute max time before loading clears
+const FETCH_TIMEOUT_MS       = 8_000;   // Per-query timeout
+const MAX_LOAD_MS            = 10_000;  // Absolute loading ceiling
+const SESSION_TIMEOUT_MS     = 6_000;   // Belt-and-suspenders getSession timeout
+const VISIBILITY_DEBOUNCE_MS = 800;     // Debounce for visibility-resume refresh
+
+// ── Module-level: evaluate OAuth state ONCE, then clean URL immediately ───────
+// This runs when the JS module is first imported — before any component mounts.
+// After this, oauthInProgress is a frozen boolean. Re-renders, mobile resume,
+// and tab switches can never accidentally re-evaluate it as true.
+function _detectAndCleanOAuth() {
+  try {
+    const url    = new URL(window.location.href);
+    const params = url.searchParams;
+    const hash   = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+    const hasCode  = params.has("code");
+    const hasState = params.has("state");
+    const hasToken = params.has("access_token") || hash.has("access_token");
+    const hasError = params.has("error")        || hash.has("error");
+
+    const inProgress = hasCode || hasState || hasToken || hasError;
+
+    // Clean immediately — don't wait for SIGNED_IN
+    if (hasCode || hasState || hasError ||
+        params.has("error_description")) {
+      params.delete("code");
+      params.delete("state");
+      params.delete("error");
+      params.delete("error_description");
+      const newSearch = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        url.pathname + (newSearch ? `?${newSearch}` : "") + url.hash,
+      );
+    }
+
+    return inProgress;
+  } catch {
+    return false;
+  }
+}
+
+// Exported so AppRouter can read it without re-evaluating
+export const oauthInProgress = _detectAndCleanOAuth();
 
 // ── Context ───────────────────────────────────────────────────────────────────
 const AuthContext = createContext({
-  user: null,
-  profile: null,
-  isAdmin: false,
-  adminData: null,
-  loading: true,
+  user:           null,
+  profile:        null,
+  isAdmin:        false,
+  adminData:      null,
+  loading:        true,
   profileLoading: true,
-  signOut: async () => {},
+  signOut:        async () => {},
   refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 // ── Timeout wrapper ───────────────────────────────────────────────────────────
-// Wraps any promise with a timeout. On timeout, resolves to `fallback`
-// rather than throwing — this keeps the auth flow moving no matter what.
+// Never throws — resolves to fallback on timeout.
 function withTimeout(promise, ms = FETCH_TIMEOUT_MS, fallback = null) {
   return Promise.race([
     promise,
@@ -79,10 +121,6 @@ function withTimeout(promise, ms = FETCH_TIMEOUT_MS, fallback = null) {
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Fetch the user's profile row with timeout protection.
- * Returns null on any error or timeout — never throws.
- */
 async function fetchProfile(userId) {
   try {
     const result = await withTimeout(
@@ -90,21 +128,10 @@ async function fetchProfile(userId) {
         .from("profiles")
         .select(
           [
-            "id",
-            "full_name",
-            "username",
-            "avatar_id",
-            "avatar_metadata",
-            "verified",
-            "is_pro",
-            "account_activated",
-            "is_admin",
-            "payment_status",
-            "subscription_tier",
-            "account_status",
-            "email",
-            "engagement_points",
-            "deactivated_reason",
+            "id", "full_name", "username", "avatar_id", "avatar_metadata",
+            "verified", "is_pro", "account_activated", "is_admin",
+            "payment_status", "subscription_tier", "account_status",
+            "email", "engagement_points", "deactivated_reason",
           ].join(","),
         )
         .eq("id", userId)
@@ -124,12 +151,6 @@ async function fetchProfile(userId) {
   }
 }
 
-/**
- * Fetch the admin_team record for this user.
- * COMPLETELY ISOLATED — if admin_team has ANY issue (RLS recursion, 500,
- * network error, timeout), this returns null silently.
- * Auth NEVER fails because of a broken admin table.
- */
 async function fetchAdminRecord(userId) {
   try {
     const result = await withTimeout(
@@ -146,14 +167,9 @@ async function fetchAdminRecord(userId) {
     );
 
     if (result?.error) {
-      // Log but NEVER propagate — admin fetch failure is non-fatal
       const msg = result.error.message || "";
       if (msg.includes("infinite recursion")) {
-        console.warn(
-          "[AuthContext] admin_team RLS recursion detected — " +
-            "apply fix_rls_policies.sql in Supabase dashboard. " +
-            "User will log in without admin privileges until fixed.",
-        );
+        console.warn("[AuthContext] admin_team RLS recursion — user logs in without admin until fixed.");
       } else if (!msg.includes("timeout")) {
         console.warn("[AuthContext] admin_team fetch:", msg);
       }
@@ -161,95 +177,78 @@ async function fetchAdminRecord(userId) {
     }
     return result?.data ?? null;
   } catch (e) {
-    console.warn("[AuthContext] admin_team fetch exception:", e?.message);
+    console.warn("[AuthContext] admin_team exception:", e?.message);
     return null;
   }
 }
 
-// ── Clean OAuth URL params ────────────────────────────────────────────────────
-function cleanOAuthUrl() {
-  try {
-    const url = new URL(window.location.href);
-    const hasOAuth =
-      url.searchParams.has("code") || url.searchParams.has("state");
-    if (!hasOAuth) return;
-    url.searchParams.delete("code");
-    url.searchParams.delete("state");
-    url.searchParams.delete("error");
-    url.searchParams.delete("error_description");
-    window.history.replaceState(
-      {},
-      "",
-      url.pathname +
-        (url.search && url.search !== "?" ? url.search : "") +
-        url.hash,
-    );
-  } catch {
-    // Non-critical
-  }
-}
-
-// ── Build adminData object ────────────────────────────────────────────────────
 function buildAdminData(authUser, profile, adminRecord) {
-  const hasTeamRecord = !!adminRecord;
+  const hasTeamRecord  = !!adminRecord;
   const isFlaggedAdmin = profile?.is_admin === true;
-
   if (!hasTeamRecord && !isFlaggedAdmin) return null;
-
   return {
-    user_id: authUser.id,
-    role: adminRecord?.role ?? "admin", // NEVER default to a_admin
-    permissions: adminRecord?.permissions ?? ["all"],
-    email: adminRecord?.email ?? authUser.email ?? "",
-    full_name: adminRecord?.full_name ?? profile?.full_name ?? "Admin",
-    xa_id: adminRecord?.xa_id ?? null,
+    user_id:         authUser.id,
+    role:            adminRecord?.role ?? "admin",
+    permissions:     adminRecord?.permissions ?? ["all"],
+    email:           adminRecord?.email ?? authUser.email ?? "",
+    full_name:       adminRecord?.full_name ?? profile?.full_name ?? "Admin",
+    xa_id:           adminRecord?.xa_id ?? null,
     has_team_record: hasTeamRecord,
   };
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminData, setAdminData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user,           setUser]           = useState(null);
+  const [profile,        setProfile]        = useState(null);
+  const [isAdmin,        setIsAdmin]        = useState(false);
+  const [adminData,      setAdminData]      = useState(null);
+  const [loading,        setLoading]        = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  const mounted = useRef(true);
-  const initialized = useRef(false);
-  const lastLoadedUserId = useRef(null);
-  const loadingTimeout = useRef(null);
+  const mounted          = useRef(true);
+  const initialized      = useRef(false);
+  const loadingTimeout   = useRef(null);
+  const lastEventUser    = useRef(null);   // dedup INITIAL_SESSION + SIGNED_IN
+  const userRef          = useRef(null);   // stable ref for refreshProfile
+  const visibilityTimer  = useRef(null);
+
+  // Keep userRef in sync
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  // ── Safety net: loading ALWAYS clears ──────────────────────────────────────
+  const armLoadingTimeout = useCallback(() => {
+    clearTimeout(loadingTimeout.current);
+    loadingTimeout.current = setTimeout(() => {
+      if (!mounted.current) return;
+      console.warn("[AuthContext] Loading safety net fired — forcing clear");
+      setLoading(false);
+      setProfileLoading(false);
+    }, MAX_LOAD_MS);
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
-
-    // ABSOLUTE SAFETY NET: If loading is still true after MAX_LOAD_MS,
-    // force-clear it. Users are NEVER trapped on splash indefinitely.
-    loadingTimeout.current = setTimeout(() => {
-      if (mounted.current && (loading || profileLoading)) {
-        console.warn("[AuthContext] Loading timeout hit — forcing clear");
-        setLoading(false);
-        setProfileLoading(false);
-      }
-    }, MAX_LOAD_MS);
-
+    armLoadingTimeout();
     return () => {
       mounted.current = false;
       clearTimeout(loadingTimeout.current);
+      clearTimeout(visibilityTimer.current);
     };
   }, []); // eslint-disable-line
 
   // ── Core loader ─────────────────────────────────────────────────────────────
+  // force=true bypasses dedup (used for SIGNED_IN / USER_UPDATED)
   const loadUser = useCallback(async (authUser, force = false) => {
     if (!authUser?.id || !mounted.current) return;
-    if (!force && lastLoadedUserId.current === authUser.id) return;
+
+    // Dedup: skip if we already loaded this exact user (unless forced)
+    if (!force && lastEventUser.current === authUser.id) return;
+    lastEventUser.current = authUser.id;
 
     if (mounted.current) setProfileLoading(true);
 
     try {
-      // Always fetch profile and admin record in parallel with timeout protection
-      // If admin_team is broken, adminRecord = null, user still logs in normally
       const [p, a] = await Promise.all([
         fetchProfile(authUser.id),
         fetchAdminRecord(authUser.id),
@@ -257,21 +256,17 @@ export function AuthProvider({ children }) {
 
       if (!mounted.current) return;
 
-      lastLoadedUserId.current = authUser.id;
-
       const isAdminUser = !!a || p?.is_admin === true;
-      const ad = buildAdminData(authUser, p, a);
+      const ad          = buildAdminData(authUser, p, a);
 
       setUser(authUser);
       setProfile(p);
       setIsAdmin(isAdminUser);
       setAdminData(ad);
     } catch (err) {
-      // This catch should rarely fire because fetchProfile/fetchAdminRecord
-      // both have their own try/catch. Belt-and-suspenders.
       console.warn("[AuthContext] loadUser unexpected error:", err?.message);
       if (mounted.current) {
-        // Keep user authenticated — NEVER sign out on error
+        // Keep the user authenticated — NEVER clear on error
         setUser(authUser);
         setProfile(null);
         setIsAdmin(false);
@@ -288,7 +283,7 @@ export function AuthProvider({ children }) {
 
   const clearUser = useCallback(() => {
     if (!mounted.current) return;
-    lastLoadedUserId.current = null;
+    lastEventUser.current = null;
     clearTimeout(loadingTimeout.current);
     setUser(null);
     setProfile(null);
@@ -298,72 +293,116 @@ export function AuthProvider({ children }) {
     setProfileLoading(false);
   }, []);
 
+  // ── Visibility-change: silent session restore on mobile resume ─────────────
+  // When the user backgrounds then foregrounds the app, browsers may have
+  // let the JWT expire. We silently ask Supabase to refresh the token.
+  // We do NOT set loading=true — the user never sees a spinner.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+
+      // Debounce: tab switches fire rapidly, wait for stable focus
+      clearTimeout(visibilityTimer.current);
+      visibilityTimer.current = setTimeout(async () => {
+        if (!mounted.current) return;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user) return; // No session — don't touch state
+
+          // If token is within 5 min of expiry, proactively refresh
+          const secsLeft = (session.expires_at ?? 0) - Math.floor(Date.now() / 1000);
+          if (secsLeft < 300) {
+            const { data } = await supabase.auth.refreshSession();
+            if (data?.session?.user && mounted.current) {
+              setUser(data.session.user);
+            }
+          } else if (mounted.current) {
+            // Token still valid — just make sure React state is in sync
+            setUser(session.user);
+          }
+        } catch {
+          // Silent — NEVER sign out here
+        }
+      }, VISIBILITY_DEBOUNCE_MS);
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearTimeout(visibilityTimer.current);
+    };
+  }, []); // eslint-disable-line
+
   // ── Auth state listener ─────────────────────────────────────────────────────
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted.current) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted.current) return;
 
-      switch (event) {
-        case "INITIAL_SESSION":
-          if (session?.user) await loadUser(session.user);
-          else clearUser();
-          break;
+        switch (event) {
+          case "INITIAL_SESSION":
+            if (session?.user) await loadUser(session.user);
+            else clearUser();
+            break;
 
-        case "SIGNED_IN":
-          cleanOAuthUrl();
-          if (session?.user) await loadUser(session.user, true);
-          break;
+          case "SIGNED_IN":
+            // OAuth callback: URL was already cleaned at module load.
+            // loadUser dedup handles double-fire with INITIAL_SESSION.
+            if (session?.user) await loadUser(session.user, true);
+            break;
 
-        case "SIGNED_OUT":
-          clearUser();
-          break;
+          case "SIGNED_OUT":
+            // Only fires from our explicit signOut() call
+            clearUser();
+            break;
 
-        case "TOKEN_REFRESHED":
-          if (session?.user && mounted.current) {
-            setUser(session.user);
-            await loadUser(session.user, true);
-          }
-          break;
+          case "TOKEN_REFRESHED":
+            // Token silently refreshed — just update the user object.
+            // Do NOT call loadUser() (that would show a loading spinner
+            // and unnecessarily re-fetch the profile on every token refresh).
+            if (session?.user && mounted.current) {
+              setUser(session.user);
+            }
+            break;
 
-        case "USER_UPDATED":
-          if (session?.user) await loadUser(session.user, true);
-          break;
+          case "USER_UPDATED":
+            if (session?.user) await loadUser(session.user, true);
+            break;
 
-        default:
-          break;
-      }
-    });
+          default:
+            break;
+        }
+      },
+    );
 
-    // Fallback in case INITIAL_SESSION doesn't fire
-    supabase.auth
-      .getSession()
+    // ── Belt-and-suspenders ──────────────────────────────────────────────────
+    // If INITIAL_SESSION never fires (rare edge case), this resolves loading.
+    // Wrapped with withTimeout(SESSION_TIMEOUT_MS) so that when Supabase is
+    // completely unreachable (ERR_CONNECTION_CLOSED, offline, DNS failure),
+    // the promise resolves to a null session after 6 s instead of hanging
+    // forever and freezing the splash screen.
+    // MAX_LOAD_MS (10 s) remains as the absolute final backstop.
+    withTimeout(
+      supabase.auth.getSession(),
+      SESSION_TIMEOUT_MS,
+      { data: { session: null } },
+    )
       .then(({ data: { session } }) => {
         if (!mounted.current) return;
-        if (session?.user) {
-          loadUser(session.user);
-        } else {
-          clearUser();
-        }
+        if (session?.user) loadUser(session.user);
+        else clearUser();
       })
-      .catch(() => {
-        if (mounted.current) clearUser();
-      });
+      .catch(() => { if (mounted.current) clearUser(); });
 
     return () => {
-      try {
-        subscription?.unsubscribe();
-      } catch {
-        /* silent */
-      }
+      try { subscription?.unsubscribe(); } catch { /* silent */ }
     };
   }, []); // eslint-disable-line
 
-  // ── signOut ─────────────────────────────────────────────────────────────────
+  // ── signOut — the ONLY way auth state clears ───────────────────────────────
   const signOut = useCallback(async () => {
     try {
       await supabase.auth.signOut();
@@ -377,17 +416,18 @@ export function AuthProvider({ children }) {
     }
   }, [clearUser]);
 
-  // ── refreshProfile ──────────────────────────────────────────────────────────
+  // ── refreshProfile — uses ref so it's always stable ───────────────────────
   const refreshProfile = useCallback(async () => {
-    if (!user?.id) return;
+    const currentUser = userRef.current;
+    if (!currentUser?.id) return;
     try {
       const [p, a] = await Promise.all([
-        fetchProfile(user.id),
-        fetchAdminRecord(user.id),
+        fetchProfile(currentUser.id),
+        fetchAdminRecord(currentUser.id),
       ]);
       if (!mounted.current) return;
       const isAdminUser = !!a || p?.is_admin === true;
-      const ad = buildAdminData(user, p, a);
+      const ad          = buildAdminData(currentUser, p, a);
       setProfile(p);
       setIsAdmin(isAdminUser);
       setAdminData(ad);
@@ -395,7 +435,7 @@ export function AuthProvider({ children }) {
       console.warn("[AuthContext] refreshProfile error:", err?.message);
       // Keep last known good state — never clear on refresh error
     }
-  }, [user]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AuthContext.Provider

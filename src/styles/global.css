@@ -1,5 +1,5 @@
 ﻿﻿/* ==========================================================================
-   GLOBAL.CSS — CLEAN ARCHITECTURE v3
+   GLOBAL.CSS — CLEAN ARCHITECTURE v4
    ==========================================================================
    Z-Index Scale:
      1–99    : Base content
@@ -24,6 +24,13 @@
    wider than its container. The trending sidebar is position:fixed
    (same pattern as the left .sidebar) — a .right-sidebar-placeholder
    in the flex row reserves its width.
+
+   MOBILE SAFE-AREA RULE (v4):
+     .mobile-bottom-nav  height = 56px (nav content) + env(safe-area-inset-bottom)
+     .main-content-mobile bottom = calc(56px + env(safe-area-inset-bottom, 0px))
+     Both sides must always use the SAME formula so there is zero gap between
+     the scroll container and the nav bar on any device (notched, gesture-bar,
+     home-indicator, regular).
    ========================================================================== */
 
 /* ==========================================================================
@@ -61,12 +68,6 @@ body {
 
 @supports (height: 100dvh) {
   html, body, #root { height: 100dvh; }
-}
-
-@supports (padding: env(safe-area-inset-bottom)) {
-  .mobile-bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
 }
 
 button {
@@ -212,6 +213,18 @@ img, video {
 
 /* ==========================================================================
    6. MOBILE LAYOUT
+   ==========================================================================
+   SAFE-AREA NOTE:
+     On devices with a home indicator (iPhone) or gesture navigation bar
+     (Android), env(safe-area-inset-bottom) is non-zero in standalone/PWA
+     mode. The nav must absorb that space via padding-bottom so the nav items
+     aren't clipped. The scroll container bottom must match the nav's TOTAL
+     rendered height (56px content + safe area) — otherwise there is a visible
+     gap between the last content item and the nav bar.
+
+     Formula used everywhere:
+       nav total height  = 56px + env(safe-area-inset-bottom, 0px)
+       content bottom    = calc(56px + env(safe-area-inset-bottom, 0px))
    ========================================================================== */
 
 .mobile-bottom-nav {
@@ -220,22 +233,28 @@ img, video {
   background: #000;
   border-top: 1px solid #1a1a1a;
   z-index: 100;
+  /* Absorb home indicator / gesture bar height so nav items are not clipped */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .mobile-nav-content {
   display: flex;
   align-items: center;
   justify-content: space-around;
+  /* Fixed at 56px — safe area is handled by padding-bottom on the container */
   height: 56px;
   padding: 0 8px;
 }
 
-/* Main content on mobile — the only scrolling container */
+/* Main content on mobile — the only scrolling container.
+   bottom must equal the nav's total rendered height so content reaches
+   flush to the top of the nav with zero gap on every device. */
 .main-content-mobile {
   position: fixed;
   top: 47px;
   left: 0; right: 0;
-  bottom: 56px;
+  /* Matches nav total height: 56px content + device safe area */
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
