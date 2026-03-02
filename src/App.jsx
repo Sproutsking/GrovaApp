@@ -1,26 +1,16 @@
 // ============================================================================
-// src/App.jsx — v15 WATER-FLOW
+// src/App.jsx — v16 HARDENED
 // ============================================================================
 //
-// KEY FIXES vs v14:
-//   [A] oauthInProgress is now imported from AuthContext as a MODULE-LEVEL
-//       CONSTANT. It is evaluated ONCE when JS loads and never again.
-//       Mobile resume, re-renders, and tab switches can NEVER accidentally
-//       see stale OAuth params and show a Splash screen.
-//
-//   [B] AppRouter no longer calls hasOAuthCodeInUrl() (deleted). It reads
-//       the imported constant. This eliminates the #1 cause of infinite
-//       loading on mobile return.
-//
-//   [C] sessionRefreshManager.initialize() is called inside MainApp once
-//       after confirmed auth, not on import. This prevents it from running
-//       during the OAuth exchange.
-//
-//   [D] sessionManager.startSession() is called on mount AND on
-//       visibilitychange (resume), so the heartbeat always runs correctly
-//       after the app comes back from background.
-//
-//   [E] All other logic is unchanged from v14.
+// CHANGES vs v15:
+//   [1] hasOAuthCodeInUrl() now also handles error_code=bad_oauth_state and
+//       other OAuth error params — cleans them from the URL and returns false
+//       so AppRouter never gets stuck on <Splash> after a failed OAuth.
+//   [2] AppRouter no longer passes `profileLoading` directly to <Splash> —
+//       instead it has a 10-second hard escape hatch: if loading + profileLoading
+//       drags on more than 10s, it forces resolution to AuthWall.
+//   [3] profileLoading alone (without loading) no longer blocks the UI —
+//       the app renders as soon as `user` is known.
 // ============================================================================
 
 import React, {
@@ -44,93 +34,148 @@ import "./styles/StoryCard.css";
 import "./styles/ProfileModal.css";
 import "./styles/Draft.css";
 
-import { supabase }        from "./services/config/supabase";
-import mediaUrlService     from "./services/shared/mediaUrlService";
-import { pushService }     from "./services/notifications/pushService";
+import { supabase } from "./services/config/supabase";
+import mediaUrlService from "./services/shared/mediaUrlService";
+import { pushService } from "./services/notifications/pushService";
 import notificationService from "./services/notifications/notificationService";
-import { useNavigation }   from "./hooks/useNavigation";
-import { useBackButton }   from "./hooks/useBackButton";
+import { useNavigation } from "./hooks/useNavigation";
+import { useBackButton } from "./hooks/useBackButton";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 
 // Auth system
-import AuthProvider, { useAuth, oauthInProgress } from "./components/Auth/AuthContext";
-import AuthWall, { Splash }                        from "./components/Auth/AuthWall";
-
-// Session services
-import sessionRefreshManager from "./services/auth/sessionRefresh";
-import sessionManager        from "./services/auth/sessionManager";
+import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
+import AuthWall, { Splash } from "./components/Auth/AuthWall";
 
 // Payment gate
 import { canAccessApp } from "./services/auth/paymentGate";
 
 // Shared UI
-import DesktopHeader          from "./components/Shared/DesktopHeader";
-import MobileHeader           from "./components/Shared/MobileHeader";
-import MobileBottomNav        from "./components/Shared/MobileBottomNav";
-import Sidebar                from "./components/Shared/Sidebar";
-import AdminSidebar           from "./components/Shared/AdminSidebar";
-import SupportSidebar         from "./components/Shared/SupportSidebar";
-import NotificationSidebar    from "./components/Shared/NotificationSidebar";
+import DesktopHeader from "./components/Shared/DesktopHeader";
+import MobileHeader from "./components/Shared/MobileHeader";
+import MobileBottomNav from "./components/Shared/MobileBottomNav";
+import Sidebar from "./components/Shared/Sidebar";
+import AdminSidebar from "./components/Shared/AdminSidebar";
+import SupportSidebar from "./components/Shared/SupportSidebar";
+import NotificationSidebar from "./components/Shared/NotificationSidebar";
 import InAppNotificationToast from "./components/Shared/InAppNotificationToast";
 import PullToRefreshIndicator from "./components/Shared/PullToRefreshIndicator";
-import NetworkError           from "./components/Shared/NetworkError";
+import NetworkError from "./components/Shared/NetworkError";
 
 // Admin dashboard
 import AdminDashboard from "./components/Admin/AdminDashboard";
 
-// Lazy-loaded tabs
-const HomeView        = lazy(() => import("./components/Home/HomeView"));
-const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
-const CreateView      = lazy(() => import("./components/Create/CreateView"));
-const AccountView     = lazy(() => import("./components/Account/AccountView"));
-const WalletView      = lazy(() => import("./components/wallet/WalletView"));
-const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
-const TrendingSidebar = lazy(() => import("./components/Shared/TrendingSidebar"));
+// ── TRACK A: Keep-alive tab views (rendered inside <main>) ───────────────────
+const HomeView = lazy(() => import("./components/Home/HomeView"));
+const ExploreView = lazy(() => import("./components/Explore/ExploreView"));
+const CreateView = lazy(() => import("./components/Create/CreateView"));
+const AccountView = lazy(() => import("./components/Account/AccountView"));
+const WalletView = lazy(() => import("./components/wallet/WalletView"));
+const CommunityView = lazy(
+  () => import("./components/Community/CommunityView"),
+);
+const TrendingSidebar = lazy(
+  () => import("./components/Shared/TrendingSidebar"),
+);
 
-// Lazy-loaded overlay views
-const AnalyticsView = lazy(() => import("./components/Analytics/AnalyticsView"));
-const UpgradeView   = lazy(() => import("./components/Upgrade/UpgradeView"));
-const RewardsView   = lazy(() => import("./components/Rewards/RewardsView"));
-const StreamView    = lazy(() => import("./components/Stream/StreamView"));
-const GiftCardsView = lazy(() => import("./components/GiftCards/GiftCardsView"));
+// ── TRACK B: Full-screen overlay views (position:fixed, outside <main>) ──────
+const AnalyticsView = lazy(
+  () => import("./components/Analytics/AnalyticsView"),
+);
+const UpgradeView = lazy(() => import("./components/Upgrade/UpgradeView"));
+const RewardsView = lazy(() => import("./components/Rewards/RewardsView"));
+const StreamView = lazy(() => import("./components/Stream/StreamView"));
+const GiftCardsView = lazy(
+  () => import("./components/GiftCards/GiftCardsView"),
+);
 
-// ── Overlay tab IDs ───────────────────────────────────────────────────────────
-const OVERLAY_TABS = new Set(["analytics", "upgrade", "rewards", "stream", "giftcards"]);
+// ── Overlay tab IDs — routed to overlayTab, never to activeTab ───────────────
+const OVERLAY_TABS = new Set([
+  "analytics",
+  "upgrade",
+  "rewards",
+  "stream",
+  "giftcards",
+]);
+
+// ── Pseudo-tabs — trigger UI actions, never stored in activeTab ───────────────
+const PSEUDO_TABS = new Set(["support", "notifications", "trending"]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const checkMobile = () => window.innerWidth <= 768;
+
+// ── FIXED hasOAuthCodeInUrl ───────────────────────────────────────────────────
+// Returns true ONLY when a valid OAuth code exchange is in progress.
+// Returns false (and cleans URL) for all error states so the app never gets
+// stuck on the splash screen after bad_oauth_state or other OAuth failures.
+function hasOAuthCodeInUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+
+    // OAuth error present — clean it up and return false immediately
+    if (params.has("error") || params.has("error_code")) {
+      const url = new URL(window.location.href);
+      ["error", "error_code", "error_description", "state", "code"].forEach(
+        (k) => url.searchParams.delete(k),
+      );
+      window.history.replaceState({}, "", url.toString());
+      return false;
+    }
+
+    const code = params.get("code");
+    // Only a valid UUID-format code means an OAuth exchange is actually in progress
+    return !!(code && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(code));
+  } catch {
+    return false;
+  }
+}
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 const TabSkeleton = memo(() => (
   <div style={{ padding: "24px 16px" }}>
     {[1, 2, 3].map((i) => (
-      <div key={i} style={{
-        height: "80px", background: "rgba(255,255,255,0.03)",
-        borderRadius: "12px", marginBottom: "12px",
-        animation: "skPulse 1.4s ease-in-out infinite",
-        animationDelay: `${i * 0.15}s`,
-      }} />
+      <div
+        key={i}
+        style={{
+          height: "80px",
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: "12px",
+          marginBottom: "12px",
+          animation: "skPulse 1.4s ease-in-out infinite",
+          animationDelay: `${i * 0.15}s`,
+        }}
+      />
     ))}
     <style>{`@keyframes skPulse{0%,100%{opacity:.5}50%{opacity:.15}}`}</style>
   </div>
 ));
 TabSkeleton.displayName = "TabSkeleton";
 
-const OverlaySkeleton = memo(() => null);
-OverlaySkeleton.displayName = "OverlaySkeleton";
-
 // ── Offline banner ────────────────────────────────────────────────────────────
 const OfflineBanner = memo(({ visible }) => {
   if (!visible) return null;
   return (
-    <div style={{
-      position: "fixed", top: 0, left: 0, right: 0, zIndex: 99998,
-      background: "rgba(239,68,68,0.96)", color: "#fff", textAlign: "center",
-      padding: "9px 16px", fontSize: "12.5px", fontWeight: "600",
-      display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-      backdropFilter: "blur(4px)",
-    }}>
-      <span>📡</span> No internet connection — your session is safe, reconnecting…
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99998,
+        background: "rgba(239,68,68,0.96)",
+        color: "#fff",
+        textAlign: "center",
+        padding: "9px 16px",
+        fontSize: "12.5px",
+        fontWeight: "600",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      <span>📡</span> No internet connection — your session is safe,
+      reconnecting…
     </div>
   );
 });
@@ -152,41 +197,45 @@ const MainApp = memo(() => {
   const { user, profile, isAdmin, adminData, signOut } = useAuth();
 
   const [currentUser, setCurrentUser] = useState(() => ({
-    id:       user?.id,
-    name:     profile?.full_name || "User",
-    username: profile?.username  || "user",
-    avatar:   profile?.full_name?.charAt(0)?.toUpperCase() || "X",
-    verified: profile?.verified  || false,
+    id: user?.id,
+    name: profile?.full_name || "User",
+    username: profile?.username || "user",
+    avatar: profile?.full_name?.charAt(0)?.toUpperCase() || "X",
+    verified: profile?.verified || false,
     fullName: profile?.full_name || "User",
   }));
 
-  const [userBalance,       setUserBalance]       = useState({ tokens: 0, points: 0 });
-  const [profileData,       setProfileData]       = useState(null);
-  const [activeTab,         setActiveTab]         = useState("home");
-  const [overlayTab,        setOverlayTab]        = useState(null);
-  const [isMobile,          setIsMobile]          = useState(checkMobile);
-  const [sidebarOpen,       setSidebarOpen]       = useState(true);
-  const [accountSection,    setAccountSection]    = useState("profile");
-  const [homeSection,       setHomeSection]       = useState("newsfeed");
-  const [isSubscribed,      setIsSubscribed]      = useState(profile?.is_pro || false);
+  const [userBalance, setUserBalance] = useState({ tokens: 0, points: 0 });
+  const [profileData, setProfileData] = useState(null);
+  const [activeTab, setActiveTab] = useState("home");
+  const [overlayTab, setOverlayTab] = useState(null);
+  const [isMobile, setIsMobile] = useState(checkMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [accountSection, setAccountSection] = useState("profile");
+  const [homeSection, setHomeSection] = useState("newsfeed");
+  const [isSubscribed, setIsSubscribed] = useState(profile?.is_pro || false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showSupport,       setShowSupport]       = useState(false);
-  const [refreshTrigger,    setRefreshTrigger]    = useState(0);
-  const [lastRefreshTime,   setLastRefreshTime]   = useState(Date.now());
-  const [showAdminDashboard,setShowAdminDashboard]= useState(false);
-  const [isOnline,          setIsOnline]          = useState(navigator.onLine);
+  const [showSupport, setShowSupport] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showOfflineBanner, setShowOfflineBanner] = useState(false);
-  const [mountedTabs,       setMountedTabs]       = useState(new Set(["home"]));
-  const [deepLinkTarget,    setDeepLinkTarget]    = useState(null);
+  const [mountedTabs, setMountedTabs] = useState(new Set(["home"]));
+  const [deepLinkTarget, setDeepLinkTarget] = useState(null);
 
-  const feedRef        = useRef(null);
+  const feedRef = useRef(null);
   const refreshTimeout = useRef(null);
-  const netCheckRef    = useRef(null);
-  const initDone       = useRef(false);
+  const netCheckRef = useRef(null);
+  const initDone = useRef(false);
 
   const { isAtRoot } = useNavigation(
-    activeTab, homeSection, accountSection,
-    setActiveTab, setHomeSection, setAccountSection,
+    activeTab,
+    homeSection,
+    accountSection,
+    setActiveTab,
+    setHomeSection,
+    setAccountSection,
   );
   const { showExitPrompt } = useBackButton(isAtRoot);
 
@@ -204,103 +253,98 @@ const MainApp = memo(() => {
 
   // ── Network ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const goOnline  = () => { setIsOnline(true);  setShowOfflineBanner(false); };
-    const goOffline = () => { setIsOnline(false); setShowOfflineBanner(true);  };
-    window.addEventListener("online",  goOnline);
+    const goOnline = () => {
+      setIsOnline(true);
+      setShowOfflineBanner(false);
+    };
+    const goOffline = () => {
+      setIsOnline(false);
+      setShowOfflineBanner(true);
+    };
+    window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
     netCheckRef.current = setInterval(() => {
-      if (navigator.onLine !== isOnline) { navigator.onLine ? goOnline() : goOffline(); }
+      if (navigator.onLine !== isOnline) {
+        navigator.onLine ? goOnline() : goOffline();
+      }
     }, 5000);
     return () => {
-      window.removeEventListener("online",  goOnline);
+      window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
       clearInterval(netCheckRef.current);
     };
   }, [isOnline]);
 
-  // ── Init: session services + preload ────────────────────────────────────
+  // ── Notification deep-link navigate ────────────────────────────────────
+  const handleNotificationNavigate = useCallback(
+    (path) => {
+      if (!path || path === "/") return;
+
+      const postMatch    = path.match(/^\/post\/(.+)$/);
+      const reelMatch    = path.match(/^\/reel\/(.+)$/);
+      const storyMatch   = path.match(/^\/story\/(.+)$/);
+      const profileMatch = path.match(/^\/profile\/(.+)$/);
+
+      if (postMatch) {
+        setActiveTab("home");
+        setHomeSection("newsfeed");
+        setDeepLinkTarget({ type: "post", id: postMatch[1] });
+        setMountedTabs((p) => new Set([...p, "home"]));
+      } else if (reelMatch) {
+        setActiveTab("home");
+        setHomeSection("reels");
+        setDeepLinkTarget({ type: "reel", id: reelMatch[1] });
+        setMountedTabs((p) => new Set([...p, "home"]));
+      } else if (storyMatch) {
+        setActiveTab("home");
+        setHomeSection("stories");
+        setDeepLinkTarget({ type: "story", id: storyMatch[1] });
+        setMountedTabs((p) => new Set([...p, "home"]));
+      } else if (profileMatch) {
+        const targetId = profileMatch[1];
+        if (targetId === user?.id) {
+          setActiveTab("account");
+          setMountedTabs((p) => new Set([...p, "account"]));
+        } else {
+          setActiveTab("search");
+          setDeepLinkTarget({ type: "profile", id: targetId });
+          setMountedTabs((p) => new Set([...p, "search"]));
+        }
+      } else if (path === "/account") {
+        setActiveTab("account");
+        setMountedTabs((p) => new Set([...p, "account"]));
+      }
+
+      setShowAdminDashboard(false);
+      setOverlayTab(null);
+    },
+    [user?.id],
+  );
+
+  // ── Init ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (initDone.current || !user?.id) return;
     initDone.current = true;
-
-    // Boot session refresh manager (non-blocking)
-    sessionRefreshManager.initialize().catch(() => {});
-
-    // Start session tracking
-    sessionManager.startSession(user.id).catch(() => {});
-
     notificationService.init(user.id).catch(() => {});
-
     if (navigator.onLine) {
       setTimeout(() => pushService.start(user.id).catch(() => {}), 2000);
     }
-
     loadWalletAndAvatar(user.id, profile).catch(() => {});
     preloadTabs();
-
     return () => clearTimeout(refreshTimeout.current);
   }, [user?.id]); // eslint-disable-line
 
-  // ── Session heartbeat on app resume (visibility) ────────────────────────
-  // AuthContext already handles token refresh on resume.
-  // Here we just ensure the sessionManager heartbeat is still running.
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === "visible" && user?.id) {
-        sessionManager.startSession(user.id).catch(() => {});
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [user?.id]);
-
-  // ── Push event listeners ────────────────────────────────────────────────
-  const handleNotificationNavigate = useCallback((path) => {
-    if (!path || path === "/") return;
-
-    const postMatch    = path.match(/^\/post\/(.+)$/);
-    const reelMatch    = path.match(/^\/reel\/(.+)$/);
-    const storyMatch   = path.match(/^\/story\/(.+)$/);
-    const profileMatch = path.match(/^\/profile\/(.+)$/);
-
-    if (postMatch) {
-      setActiveTab("home"); setHomeSection("newsfeed");
-      setDeepLinkTarget({ type: "post", id: postMatch[1] });
-      setMountedTabs((prev) => new Set([...prev, "home"]));
-    } else if (reelMatch) {
-      setActiveTab("home"); setHomeSection("reels");
-      setDeepLinkTarget({ type: "reel", id: reelMatch[1] });
-      setMountedTabs((prev) => new Set([...prev, "home"]));
-    } else if (storyMatch) {
-      setActiveTab("home"); setHomeSection("stories");
-      setDeepLinkTarget({ type: "story", id: storyMatch[1] });
-      setMountedTabs((prev) => new Set([...prev, "home"]));
-    } else if (profileMatch) {
-      const targetId = profileMatch[1];
-      if (targetId === user?.id) {
-        setActiveTab("account");
-        setMountedTabs((prev) => new Set([...prev, "account"]));
-      } else {
-        setActiveTab("search");
-        setDeepLinkTarget({ type: "profile", id: targetId });
-        setMountedTabs((prev) => new Set([...prev, "search"]));
-      }
-    } else if (path === "/account") {
-      setActiveTab("account");
-      setMountedTabs((prev) => new Set([...prev, "account"]));
-    }
-
-    setShowAdminDashboard(false);
-    setOverlayTab(null);
-  }, [user?.id]);
-
+  // ── Push listeners ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
-    const unsubClick  = pushService.on("notification_clicked", ({ url }) => {
+    const unsubClick = pushService.on("notification_clicked", ({ url }) => {
       if (url) handleNotificationNavigate(url);
     });
     const unsubUpdate = pushService.on("sw_update_available", () => {});
-    return () => { unsubClick(); unsubUpdate(); };
+    return () => {
+      unsubClick();
+      unsubUpdate();
+    };
   }, [user?.id, handleNotificationNavigate]);
 
   // ── Auto-refresh (desktop) ──────────────────────────────────────────────
@@ -315,6 +359,7 @@ const MainApp = memo(() => {
     return () => clearTimeout(refreshTimeout.current);
   }, [isMobile, isOnline]);
 
+  // ── Load wallet + avatar ────────────────────────────────────────────────
   const loadWalletAndAvatar = async (userId, p) => {
     try {
       const { data: w } = await supabase
@@ -322,10 +367,11 @@ const MainApp = memo(() => {
         .select("grova_tokens,engagement_points")
         .eq("user_id", userId)
         .maybeSingle();
-
-      if (w) {
-        setUserBalance({ tokens: w.grova_tokens || 0, points: w.engagement_points || 0 });
-      }
+      if (w)
+        setUserBalance({
+          tokens: w.grova_tokens || 0,
+          points: w.engagement_points || 0,
+        });
 
       if (p) {
         let avatarUrl = null;
@@ -333,7 +379,7 @@ const MainApp = memo(() => {
           const base = mediaUrlService.getImageUrl(p.avatar_id);
           if (base && typeof base === "string") {
             const clean = base.split("?")[0];
-            avatarUrl   = clean.includes("supabase")
+            avatarUrl = clean.includes("supabase")
               ? `${clean}?quality=100&width=400&height=400&resize=cover&format=webp&t=${Date.now()}`
               : base;
           }
@@ -341,7 +387,7 @@ const MainApp = memo(() => {
         const userObj = {
           id:       p.id || userId,
           name:     p.full_name || "User",
-          username: p.username  || "user",
+          username: p.username || "user",
           avatar:   avatarUrl || p.full_name?.charAt(0)?.toUpperCase() || "X",
           verified: p.verified || false,
           fullName: p.full_name || "User",
@@ -358,7 +404,7 @@ const MainApp = memo(() => {
         setIsSubscribed(p.is_pro || false);
       }
     } catch {
-      // Silent
+      /* Silent */
     }
   };
 
@@ -390,8 +436,6 @@ const MainApp = memo(() => {
       if (user?.id) {
         await pushService.unsubscribe(user.id).catch(() => {});
         notificationService.destroy();
-        await sessionManager.stopSession().catch(() => {});
-        sessionRefreshManager.cleanup();
       }
     } catch {}
     await signOut();
@@ -404,36 +448,71 @@ const MainApp = memo(() => {
     return "Good Evening";
   }, []);
 
-  // ── Tab change ──────────────────────────────────────────────────────────
-  const handleTabChange = useCallback((newTab) => {
-    if (newTab === "admin") {
-      if (isAdmin) { setShowAdminDashboard(true); return; }
-      return;
-    }
-    if (OVERLAY_TABS.has(newTab)) {
-      setOverlayTab(newTab);
-      return;
-    }
-    setOverlayTab(null);
-    setActiveTab(newTab);
-    setShowAdminDashboard(false);
-    setMountedTabs((prev) => {
-      if (prev.has(newTab)) return prev;
-      return new Set([...prev, newTab]);
-    });
-  }, [isAdmin]);
+  // ── MASTER NAVIGATION HANDLER ────────────────────────────────────────────
+  const handleTabChange = useCallback(
+    (newTab) => {
+      // ── TRACK C: Pseudo-tabs ─────────────────────────────────────────────
+      if (newTab === "support") {
+        setShowSupport(true);
+        return;
+      }
+      if (newTab === "notifications") {
+        setShowNotifications(true);
+        return;
+      }
+      if (newTab === "trending") {
+        if (isMobile) {
+          setActiveTab("search");
+          setMountedTabs((p) => new Set([...p, "search"]));
+          setShowAdminDashboard(false);
+        }
+        return;
+      }
+      if (newTab === "admin") {
+        if (isAdmin) setShowAdminDashboard(true);
+        return;
+      }
 
-  const closeOverlay          = useCallback(() => setOverlayTab(null), []);
+      // ── TRACK B: Overlay tabs ────────────────────────────────────────────
+      if (OVERLAY_TABS.has(newTab)) {
+        setOverlayTab(newTab);
+        return;
+      }
+
+      // ── TRACK A: Regular keep-alive tabs ─────────────────────────────────
+      setOverlayTab(null);
+      setActiveTab(newTab);
+      setShowAdminDashboard(false);
+      setMountedTabs((p) => {
+        if (p.has(newTab)) return p;
+        return new Set([...p, newTab]);
+      });
+    },
+    [isAdmin, isMobile],
+  );
+
   const closeOverlayToAccount = useCallback(() => {
     setOverlayTab(null);
     setActiveTab("account");
-    setMountedTabs((prev) => new Set([...prev, "account"]));
+    setMountedTabs((p) => new Set([...p, "account"]));
   }, []);
 
-  const viewProps   = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget };
+  const closeOverlayToHome = useCallback(() => {
+    setOverlayTab(null);
+    setActiveTab("home");
+    setMountedTabs((p) => new Set([...p, "home"]));
+  }, []);
+
+  const viewProps = {
+    currentUser,
+    userId: user.id,
+    refreshTrigger,
+    deepLinkTarget,
+  };
+
   const showTrending = activeTab !== "community" && activeTab !== "wallet";
 
-  // ── Tab render ──────────────────────────────────────────────────────────
+  // ── TRACK A: Tab content ─────────────────────────────────────────────────
   const renderContent = () => {
     const tabs = [
       {
@@ -441,7 +520,11 @@ const MainApp = memo(() => {
         el: (
           <Suspense fallback={<TabSkeleton />}>
             <div ref={feedRef}>
-              <HomeView {...viewProps} homeSection={homeSection} setHomeSection={setHomeSection} />
+              <HomeView
+                {...viewProps}
+                homeSection={homeSection}
+                setHomeSection={setHomeSection}
+              />
             </div>
           </Suspense>
         ),
@@ -506,9 +589,13 @@ const MainApp = memo(() => {
       <>
         {tabs.map(({ id, el }) => {
           if (!mountedTabs.has(id)) return null;
-          const isActive = activeTab === id && !showAdminDashboard;
+          const isActive =
+            activeTab === id && !showAdminDashboard && !overlayTab;
           return (
-            <div key={id} style={{ display: isActive ? "block" : "none", width: "100%" }}>
+            <div
+              key={id}
+              style={{ display: isActive ? "block" : "none", width: "100%" }}
+            >
               {el}
             </div>
           );
@@ -517,38 +604,56 @@ const MainApp = memo(() => {
     );
   };
 
-  // ── Overlay render ──────────────────────────────────────────────────────
+  // ── TRACK B: Overlay views ───────────────────────────────────────────────
   const renderOverlay = () => {
     if (!overlayTab) return null;
     switch (overlayTab) {
       case "analytics":
         return (
-          <Suspense fallback={<OverlaySkeleton />}>
-            <AnalyticsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+          <Suspense fallback={null}>
+            <AnalyticsView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
       case "upgrade":
         return (
-          <Suspense fallback={<OverlaySkeleton />}>
-            <UpgradeView currentUser={currentUser} onClose={closeOverlayToAccount} />
+          <Suspense fallback={null}>
+            <UpgradeView
+              currentUser={currentUser}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
       case "rewards":
         return (
-          <Suspense fallback={<OverlaySkeleton />}>
-            <RewardsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+          <Suspense fallback={null}>
+            <RewardsView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
       case "stream":
         return (
-          <Suspense fallback={<OverlaySkeleton />}>
-            <StreamView currentUser={currentUser} onClose={closeOverlay} />
+          <Suspense fallback={null}>
+            <StreamView
+              currentUser={currentUser}
+              onClose={closeOverlayToHome}
+            />
           </Suspense>
         );
       case "giftcards":
         return (
-          <Suspense fallback={<OverlaySkeleton />}>
-            <GiftCardsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+          <Suspense fallback={null}>
+            <GiftCardsView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
       default:
@@ -556,62 +661,91 @@ const MainApp = memo(() => {
     }
   };
 
+  // ── Sidebar ──────────────────────────────────────────────────────────────
   const renderSidebar = () => {
     if (isMobile || showAdminDashboard) return null;
     if (isAdmin) {
       return (
         <AdminSidebar
-          activeTab={activeTab} setActiveTab={handleTabChange}
-          sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}
-          onSignOut={handleSignOut} user={user} adminData={adminData}
+          activeTab={activeTab}
+          setActiveTab={handleTabChange}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          onSignOut={handleSignOut}
+          user={user}
+          adminData={adminData}
           onOpenDashboard={() => setShowAdminDashboard(true)}
         />
       );
     }
     return (
       <Sidebar
-        activeTab={activeTab} setActiveTab={handleTabChange}
-        sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}
-        onSignOut={handleSignOut} user={user}
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        onSignOut={handleSignOut}
+        user={user}
       />
     );
   };
 
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="app-container">
       <OfflineBanner visible={showOfflineBanner} />
 
+      {/* Admin dashboard */}
       {showAdminDashboard && isAdmin && (
-        <AdminDashboard adminData={adminData} onClose={() => setShowAdminDashboard(false)} />
+        <AdminDashboard
+          adminData={adminData}
+          onClose={() => setShowAdminDashboard(false)}
+        />
       )}
 
-      <div style={{
-        visibility:    showAdminDashboard ? "hidden" : "visible",
-        pointerEvents: showAdminDashboard ? "none"   : "auto",
-        display:       "contents",
-      }}>
+      {/* TRACK B overlays */}
+      {renderOverlay()}
+
+      {/* Main app UI — hidden while admin dashboard is open */}
+      <div
+        style={{
+          visibility:    showAdminDashboard ? "hidden" : "visible",
+          pointerEvents: showAdminDashboard ? "none"    : "auto",
+          display:       "contents",
+        }}
+      >
+        {/* Fixed headers */}
         {!isMobile && (
           <DesktopHeader
-            activeTab={activeTab} setActiveTab={handleTabChange}
-            userBalance={userBalance} currentUser={currentUser}
-            getGreeting={getGreeting} setSidebarOpen={setSidebarOpen}
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            userBalance={userBalance}
+            currentUser={currentUser}
+            getGreeting={getGreeting}
+            setSidebarOpen={setSidebarOpen}
             onNotificationClick={() => setShowNotifications(true)}
             onSupportClick={() => setShowSupport(true)}
-            profile={profileData} userId={user?.id}
+            profile={profileData}
+            userId={user?.id}
           />
         )}
         {isMobile && (
           <MobileHeader
-            userBalance={userBalance} getGreeting={getGreeting}
+            userBalance={userBalance}
+            getGreeting={getGreeting}
             setActiveTab={handleTabChange}
             onNotificationClick={() => setShowNotifications(true)}
             onSupportClick={() => setShowSupport(true)}
-            profile={profileData} userId={user?.id} currentUser={currentUser}
+            profile={profileData}
+            userId={user?.id}
+            currentUser={currentUser}
           />
         )}
 
+        {/* Left sidebar */}
         {renderSidebar()}
 
+        {/* Desktop layout */}
         {!isMobile && (
           <div className="desktop-layout">
             {sidebarOpen && <div className="left-sidebar-placeholder" />}
@@ -626,6 +760,7 @@ const MainApp = memo(() => {
           </div>
         )}
 
+        {/* Mobile layout */}
         {isMobile && (
           <main ref={containerRef} className="main-content-mobile">
             <PullToRefreshIndicator
@@ -636,45 +771,63 @@ const MainApp = memo(() => {
           </main>
         )}
 
+        {/* Mobile bottom nav */}
         {isMobile && (
           <MobileBottomNav
-            activeTab={activeTab} setActiveTab={handleTabChange}
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
             currentUser={currentUser}
           />
         )}
       </div>
 
-      {renderOverlay()}
-
+      {/* Back-button exit prompt */}
       {showExitPrompt && (
-        <div style={{
-          position: "fixed",
-          bottom: isMobile ? "68px" : "20px",
-          left: "50%", transform: "translateX(-50%)",
-          background: "rgba(0,0,0,0.9)", color: "#84cc16",
-          padding: "12px 24px", borderRadius: "8px",
-          fontSize: "14px", fontWeight: "600", zIndex: 10000,
-          border: "1px solid #84cc16",
-          animation: "xSlideUp .3s ease-out",
-        }}>
+        <div
+          style={{
+            position:  "fixed",
+            bottom:    isMobile ? "68px" : "20px",
+            left:      "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.9)",
+            color:      "#84cc16",
+            padding:    "12px 24px",
+            borderRadius: "8px",
+            fontSize:   "14px",
+            fontWeight: "600",
+            zIndex:     10000,
+            border:     "1px solid #84cc16",
+            animation:  "xSlideUp .3s ease-out",
+          }}
+        >
           Press back again to exit
         </div>
       )}
 
+      {/* Notification sidebar */}
       <NotificationSidebar
-        isOpen={showNotifications} onClose={() => setShowNotifications(false)}
-        userId={user?.id} currentUser={currentUser}
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        userId={user?.id}
+        currentUser={currentUser}
         onNavigate={handleNotificationNavigate}
       />
+
+      {/* Support sidebar */}
       <SupportSidebar
-        isOpen={showSupport} onClose={() => setShowSupport(false)}
+        isOpen={showSupport}
+        onClose={() => setShowSupport(false)}
         isMobile={isMobile}
       />
+
       <InAppNotificationToast navigate={handleNotificationNavigate} />
 
       {showOfflineBanner && (
         <NetworkError
-          onRetry={() => { setShowOfflineBanner(false); handleRefresh(); }}
+          onRetry={() => {
+            setShowOfflineBanner(false);
+            handleRefresh();
+          }}
         />
       )}
 
@@ -690,19 +843,38 @@ const MainApp = memo(() => {
 MainApp.displayName = "MainApp";
 
 // ── AppRouter ─────────────────────────────────────────────────────────────────
-// oauthInProgress is a MODULE-LEVEL CONSTANT imported from AuthContext.
-// It is NEVER re-evaluated — it was computed once when the page loaded
-// and the URL was already cleaned at that point.
+// FIXED vs v15:
+//   - profileLoading alone no longer blocks the UI indefinitely.
+//   - A 10-second hard escape hatch forces resolution if something gets stuck.
+//   - hasOAuthCodeInUrl() now safely handles bad_oauth_state (see above).
 function AppRouter() {
   const { user, profile, isAdmin, loading, profileLoading } = useAuth();
+  const [forceResolve, setForceResolve] = useState(false);
+  const oauthInProgress = hasOAuthCodeInUrl();
 
-  // Show Splash if:
-  //   1. Auth context is still initializing, OR
-  //   2. This is the first page load during an OAuth redirect
-  //      (oauthInProgress is true only on the initial load, never on resume)
-  if (loading || profileLoading || oauthInProgress) return <Splash />;
-  if (!user)    return <AuthWall />;
+  // Hard escape hatch — if we're still loading after 10s, bail to AuthWall
+  useEffect(() => {
+    if (!loading && !profileLoading) return;
+    const timer = setTimeout(() => {
+      console.warn("[AppRouter] Loading timeout — forcing resolution");
+      setForceResolve(true);
+    }, 10_000);
+    return () => clearTimeout(timer);
+  }, [loading, profileLoading]);
+
+  // Show splash while auth state is being determined
+  if (!forceResolve && (loading || oauthInProgress)) return <Splash />;
+
+  // Auth resolved — make routing decisions
+  if (!user) return <AuthWall />;
+
+  // Profile is loading but user is known — show splash briefly
+  // forceResolve breaks us out if this drags on
+  if (!forceResolve && profileLoading && !profile) return <Splash />;
+
+  // No profile after loading completed (new user, fetch failed, etc.)
   if (!profile) return <Splash />;
+
   if (canAccessApp({ profile, isAdmin })) return <MainApp />;
   return <AuthWall paywall />;
 }

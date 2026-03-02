@@ -1,16 +1,15 @@
 // ============================================================================
-// src/services/auth/authService.js — v9 WATER-FLOW
+// src/services/auth/authService.js — v10 PKCE-FLOW
 // ============================================================================
 //
-// WHAT CHANGED vs v8:
-//   [A] Added "facebook" to supported OAuth providers. AuthWall.jsx already
-//       renders a Facebook button — this was causing a silent failure.
-//   [B] redirectTo now always points to the app's origin root ("/") with no
-//       trailing slash variance. This matches the Supabase Site URL exactly.
-//   [C] signInOAuth now returns a boolean success indicator so callers can
-//       distinguish between "redirect initiated" and "error thrown".
-//   [D] verifyOTP tries both "email" and "magiclink" types (unchanged) but
-//       now rethrows the first error if both fail, with a clearer message.
+// CHANGES FROM v9:
+//   [A] Added flowType: "pkce" to signInOAuth() for all providers.
+//       This switches from implicit (hash #access_token=) to PKCE (?code=).
+//       PKCE is more secure and avoids hash timing races.
+//   [B] Removed prompt: "select_account" from Google options.
+//       This avoids forcing the account chooser every time (only shows if needed).
+//   [C] redirectTo now explicitly uses "/auth/callback" for PKCE exchange.
+//   [D] All other logic unchanged.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -39,21 +38,23 @@ class AuthService {
       throw new Error(`Unsupported provider: ${provider}`);
     }
 
-    // Always redirect to the clean origin root — matches Supabase Site URL
-    const redirectTo = `${window.location.origin}/`;
+    // PKCE callback route — exchange happens there
+    const redirectTo = `${window.location.origin}/auth/callback`;
 
-    const options = { redirectTo, skipBrowserRedirect: false };
+    const options = {
+      redirectTo,
+      skipBrowserRedirect: false,
+    };
 
     switch (provider) {
       case "google":
         options.queryParams = {
           access_type: "offline",
-          prompt:      "select_account",
+          // Removed prompt: "select_account" — avoids forcing chooser every time
         };
         break;
 
       case "x":
-        // "x" = OAuth 2.0. "twitter" = deprecated OAuth 1.0a — NEVER use twitter.
         options.scopes = "tweet.read users.read";
         break;
 
@@ -73,7 +74,11 @@ class AuthService {
         break;
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options,
+      flowType: "pkce",  // Explicit PKCE — fixes implicit hash loop
+    });
     if (error) throw error;
     return true;
   }

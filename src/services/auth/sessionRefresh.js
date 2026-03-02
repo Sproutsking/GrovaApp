@@ -1,46 +1,51 @@
 // ============================================================================
-// src/services/auth/sessionRefresh.js — v4 WATER-FLOW
+// src/services/auth/sessionRefresh.js — v5 HARDENED
 // ============================================================================
 //
-// PHILOSOPHY: Session refresh is purely a background concern.
-//   • It NEVER touches UI state
-//   • It NEVER causes a logout
-//   • It NEVER races with the OAuth callback exchange
-//   • It NEVER runs on mobile resume — AuthContext.visibilitychange owns that
-//
-// WHAT CHANGED vs v3:
-//   [A] isOAuthCallback() now reads the module-level oauthInProgress constant
-//       from AuthContext instead of re-parsing window.location. The URL is
-//       already cleaned before this module's initialize() ever runs.
-//   [B] Removed the auto-boot on import. AuthContext calls initialize()
-//       explicitly after the INITIAL_SESSION handler fires, so the refresh
-//       manager starts with a confirmed live session.
-//   [C] On hard revocation (400/401): we call supabase.auth.signOut() so
-//       AuthContext's SIGNED_OUT handler fires cleanly and the user sees the
-//       login screen. This is the ONE permitted automatic logout path — it
-//       requires explicit server-side revocation, not a network hiccup.
-//   [D] _schedule() guards against scheduling a refresh in the past
-//       (negative delay) which caused immediate infinite loops on some devices.
+// CHANGES vs v4:
+//   [A] Removed the import of `oauthInProgress` from AuthContext — that named
+//       export no longer exists in AuthContext v9. The URL-check logic is now
+//       an inline helper function `_isOAuthCallback()` so there is zero
+//       dependency on AuthContext from this module.
+//   [B] _isOAuthCallback() also returns false for error_code=bad_oauth_state
+//       and other OAuth error params, consistent with App.jsx v16 behaviour.
+//   [C] All other logic is identical to v4.
 // ============================================================================
 
 "use strict";
 
 import { supabase } from "../config/supabase";
-import { oauthInProgress } from "../../components/Auth/AuthContext";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const REFRESH_BUFFER_SECS = 5 * 60;   // Refresh 5 min before expiry
-const BASE_RETRY_MS       = 30_000;   // 30s base retry delay
+const REFRESH_BUFFER_SECS = 5 * 60;      // Refresh 5 min before expiry
+const BASE_RETRY_MS       = 30_000;      // 30s base retry delay
 const MAX_RETRY_MS        = 10 * 60_000; // 10 min cap
 const MAX_RETRIES         = 15;
-const MIN_LEAD_MS         = 60_000;   // Schedule at least 60s ahead
+const MIN_LEAD_MS         = 60_000;      // Schedule at least 60s ahead
+
+// ── Inline OAuth callback detector ───────────────────────────────────────────
+// Replaces the old `import { oauthInProgress } from AuthContext`.
+// Returns true ONLY when a valid OAuth code exchange is genuinely in progress.
+// Returns false for all error states (bad_oauth_state etc.) so the refresh
+// manager never stalls waiting on a failed OAuth flow.
+function _isOAuthCallback() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    // OAuth error present — not an active exchange
+    if (params.has("error") || params.has("error_code")) return false;
+    const code = params.get("code");
+    return !!(code && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(code));
+  } catch {
+    return false;
+  }
+}
 
 // ── SessionRefreshManager ─────────────────────────────────────────────────────
 class SessionRefreshManager {
   constructor() {
     this._refreshTimer = null;
     this._retryTimer   = null;
-    this._inFlight     = null;   // Dedup concurrent callers
+    this._inFlight     = null;  // Dedup concurrent callers
     this._initialized  = false;
     this._authSub      = null;
     this._retryCount   = 0;
@@ -64,7 +69,7 @@ class SessionRefreshManager {
 
       // Don't touch the session during an OAuth callback —
       // Supabase JS is already handling the code exchange.
-      if (!oauthInProgress) {
+      if (!_isOAuthCallback()) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) this._schedule(session);
       }
@@ -79,7 +84,7 @@ class SessionRefreshManager {
    * NEVER throws. Returns null only when genuinely no session exists.
    */
   async getValidSession() {
-    if (oauthInProgress) {
+    if (_isOAuthCallback()) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         return session ?? null;
@@ -93,7 +98,7 @@ class SessionRefreshManager {
       const secsLeft = (session.expires_at ?? 0) - Math.floor(Date.now() / 1000);
       if (secsLeft < REFRESH_BUFFER_SECS) {
         const refreshed = await this._doRefresh();
-        return refreshed ?? session; // Fall back to current on failure
+        return refreshed ?? session; // Fall back to current session on failure
       }
       return session;
     } catch {
@@ -138,11 +143,11 @@ class SessionRefreshManager {
 
   _schedule(session) {
     this._clearTimers();
-    const nowSecs    = Math.floor(Date.now() / 1000);
-    const expiresAt  = session.expires_at ?? nowSecs + 3600;
-    const secsLeft   = expiresAt - nowSecs;
+    const nowSecs   = Math.floor(Date.now() / 1000);
+    const expiresAt = session.expires_at ?? nowSecs + 3600;
+    const secsLeft  = expiresAt - nowSecs;
     // Guard against negative delay (expired token) — retry in MIN_LEAD_MS
-    const delayMs    = Math.max(
+    const delayMs   = Math.max(
       (secsLeft - REFRESH_BUFFER_SECS) * 1000,
       MIN_LEAD_MS,
     );
@@ -176,13 +181,13 @@ class SessionRefreshManager {
           // Hard server-side revocation (admin kicked user, password changed).
           // This is the ONLY path that triggers an automatic signOut.
           // Network errors, timeouts, and temporary failures NEVER reach here.
-          console.warn("[SessionRefresh] Hard token revocation detected — signing out.");
+          console.warn("[SessionRefresh] Hard token revocation — signing out.");
           this._clearTimers();
           try { await supabase.auth.signOut(); } catch {}
           return null;
         }
 
-        // Soft failure (network, 500, etc.) — retry, never logout
+        // Soft failure (network hiccup, 500, etc.) — retry, never logout
         this._scheduleRetry();
         return null;
       }
@@ -220,7 +225,7 @@ class SessionRefreshManager {
   }
 }
 
-// ── Singleton ──────────────────────────────────────────────────────────────────
+// ── Singleton ─────────────────────────────────────────────────────────────────
 // NOTE: initialize() is NOT called here automatically.
 // AuthContext calls it after confirming a valid session exists.
 const sessionRefreshManager = new SessionRefreshManager();
