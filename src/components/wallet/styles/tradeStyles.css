@@ -1,445 +1,1520 @@
-/* Trade-specific styles in WalletStyles.css */
-/* ====================================
-   TRADE TAB CONTAINER
-   ==================================== */
+﻿/* =============================================
+   TRADE TAB — COMPLETE STYLES
+   ============================================= */
+
+/* Base Container */
 .trade-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  background: #000; /* Pure black */
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow-x: hidden;
 }
 
 .trade-container.full-screen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-  background: #000;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  max-width: 100%;
+  overflow-y: auto;
 }
 
-/* ====================================
-   HEADER & FILTERS
-   ==================================== */
+/* =============================================
+   HEADER
+   ============================================= */
 .trade-header {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
-  padding: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #111111;
+  border-bottom: 1px solid #1f1f1f;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 12px;
 }
 
-.trade-filters {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-  padding: 0;
-}
-
-.trade-filter-item {
-  flex: 1;
+.header-left {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 6px 8px;
 }
 
-.trade-filter-item svg {
-  color: #84cc16;
-}
-
-.trade-filter-item select,
-.trade-filter-item input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 12px;
-}
-
-.trade-filter-item input::placeholder {
-  color: #737373;
-}
-
-.trade-filter-item select:focus,
-.trade-filter-item input:focus {
-  outline: none;
-}
-
-/* ====================================
-   QUICK ACTIONS
-   ==================================== */
-.trade-quick-actions {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 0; /* No bottom margin since filters are below */
-}
-
-.trade-tab-btn {
-  flex: 1;
-  padding: 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+.back-btn {
+  background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
-  font-weight: 600;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  transition: all 0.3s;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
 }
 
-.trade-tab-btn.active {
-  background: rgba(132, 204, 22, 0.15);
-  border-color: rgba(132, 204, 22, 0.3);
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
 }
 
-.trade-tab-btn:hover {
-  background: rgba(132, 204, 22, 0.2);
+.support-btn {
+  background: rgba(132, 204, 22, 0.12);
+  border: 1px solid rgba(132, 204, 22, 0.25);
+  color: #84cc16;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
 }
 
-/* ====================================
-   CONTENT & SECTIONS
-   ==================================== */
-.trade-content {
+.support-btn:hover {
+  background: rgba(132, 204, 22, 0.22);
+}
+
+/* =============================================
+   FILTERS
+   ============================================= */
+.trade-filters {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-button {
+  position: relative;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ccc;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.filter-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 160px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  z-index: 500;
+  overflow: hidden;
+}
+
+.filter-option {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #ccc;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.filter-option:hover {
+  background: rgba(132, 204, 22, 0.1);
+  color: #84cc16;
+}
+
+.filter-option.active {
+  color: #84cc16;
+  background: rgba(132, 204, 22, 0.08);
+  font-weight: 600;
+}
+
+.amount-filter-row {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px; /* 10px padding for trade tab section */
-  background: #000;
+  padding: 12px;
+}
+
+.amount-filter-input {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.amount-filter-input:focus {
+  border-color: #84cc16;
+}
+
+.amount-filter-button {
+  background: #84cc16;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.amount-filter-button:hover {
+  background: #a3e635;
+}
+
+/* =============================================
+   TAB NAVIGATION
+   ============================================= */
+.trade-quick-actions {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px;
+  background: #111111;
+  border-bottom: 1px solid #1f1f1f;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.trade-quick-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.trade-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #888;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.trade-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ccc;
+}
+
+.trade-tab-btn.active {
+  background: #84cc16;
+  border-color: #84cc16;
+  color: #000;
+  font-weight: 700;
+}
+
+/* =============================================
+   CONTENT AREA
+   ============================================= */
+.trade-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
 }
 
 .trade-section {
-  margin-bottom: 8px;
+  margin-bottom: 20px;
 }
 
 .trade-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 14px 0;
+}
+
+/* =============================================
+   OFFER CARDS
+   ============================================= */
+.trade-offers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trade-offer-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.trade-offer-card:hover {
+  border-color: rgba(132, 204, 22, 0.3);
+}
+
+.offer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+}
+
+.offer-avatar {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #84cc16, #4ade80);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #000;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.offer-avatar:hover {
+  transform: scale(1.08);
+}
+
+.offer-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.offer-user-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
   color: #fff;
   margin-bottom: 4px;
 }
 
-.trade-offers-list {
+.offer-user-stats {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* ====================================
-   OFFER/AD CARDS
-   ==================================== */
-.trade-offer-card,
-.trade-ad-card,
-.trade-history-card {
+.offer-stat {
   display: flex;
-  flex-direction: column;
-  padding: 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  gap: 4px;
-  position: relative;
-}
-
-.trade-offer-main,
-.trade-ad-main {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #888;
 }
 
-.trade-offer-user-info,
-.trade-ad-main span:first-child {
+.offer-price-section {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.offer-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: #84cc16;
+}
+
+.offer-currency {
+  font-size: 11px;
+  color: #555;
+}
+
+.offer-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid #1e1e1e;
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.offer-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.offer-detail {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.offer-detail strong {
+  font-size: 11px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.offer-detail span {
   font-size: 13px;
-  color: #fff;
+  color: #ccc;
 }
 
-.trade-offer-user {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.status-dot {
+/* Status Indicator */
+.status-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  display: inline-block;
+  flex-shrink: 0;
 }
 
-.status-dot.active {
-  background: #00ff00; /* green */
+.status-indicator.active {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
 }
 
-.status-dot.idle {
-  background: #ffff00; /* yellow */
+.status-indicator.idle {
+  background: #eab308;
+  box-shadow: 0 0 6px #eab308;
 }
 
-.status-dot.inactive {
-  background: #808080; /* grey */
+.status-indicator.inactive {
+  background: #555;
 }
 
-.trade-offer-rating {
-  font-size: 11px;
-  color: #737373;
+/* Verified Badge */
+.verified-badge {
+  color: #3b82f6;
+  flex-shrink: 0;
 }
 
-.trade-offer-price,
-.trade-ad-main span:last-child {
-  font-size: 13px;
-  font-weight: 600;
-  color: #84cc16;
-}
-
-.trade-offer-secondary,
-.trade-ad-secondary {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  font-size: 11px;
-  color: #737373;
-}
-
-.trade-buy-sell-btn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  padding: 4px 12px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
-  color: #000;
-  font-weight: 600;
-  font-size: 12px;
-  cursor: pointer;
-  border: none;
-  width: auto;
-}
-
-.trade-ad-actions {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+/* =============================================
+   BUTTONS
+   ============================================= */
+.btn-buy {
   display: flex;
-  gap: 4px;
-}
-
-/* ====================================
-   SUMMARY INTERFACE (PRE-INITIATE)
-   ==================================== */
-.trade-summary-interface {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
-}
-
-.trade-summary-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-  border-radius: 8px;
-  background: rgba(132, 204, 22, 0.05);
-  border: 1px solid rgba(132, 204, 22, 0.2);
-  font-size: 12px;
-  color: #737373;
-}
-
-.trade-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.trade-form-group label {
-  font-size: 12px;
-  color: #fff;
-}
-
-.trade-form-group input {
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 12px;
-}
-
-.trade-summary-calc {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  color: #fff;
-}
-
-.trade-button-center {
-  display: flex;
+  align-items: center;
   justify-content: center;
-}
-
-.trade-initiate-btn,
-.trade-create-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+  gap: 6px;
+  background: #22c55e;
   color: #000;
-  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
   font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  border: none;
-  max-width: 100px;
-  width: auto;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
 }
 
-.trade-create-btn.warning {
-  background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
-  color: #fff;
+.btn-buy:hover {
+  background: #16a34a;
 }
 
-/* ====================================
-   ONGOING SUMMARY INTERFACE
-   ==================================== */
-.trade-ongoing-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
+.btn-buy:active {
+  transform: scale(0.97);
 }
 
-.trade-chat-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.btn-buy:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.trade-action-btn.full {
-  width: 100%;
-}
-
-/* ====================================
-   CHAT MODAL
-   ==================================== */
-.trade-chat-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: #000;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  gap: 6px;
-}
-
-.trade-chat-header {
+.btn-sell {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
 }
 
-.trade-chat-messages-scroll {
-  flex: 1;
-  overflow-y: auto;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.btn-sell:hover {
+  background: #dc2626;
 }
 
-.trade-chat-messages {
+.btn-sell:active {
+  transform: scale(0.97);
+}
+
+.btn-sell:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #84cc16;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s, transform 0.1s;
 }
 
-.trade-message {
-  max-width: 75%;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
+.btn-primary:hover {
+  background: #a3e635;
 }
 
-.trade-message.you {
-  align-self: flex-end;
-  background: rgba(132, 204, 22, 0.25);
-  color: #fff;
+.btn-primary:active {
+  transform: scale(0.98);
 }
 
-.trade-message.counterparty {
-  align-self: flex-start;
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-.trade-message.system {
-  align-self: center;
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.05);
-  color: #737373;
-  font-size: 11px;
-  font-style: italic;
+  color: #aaa;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
 }
 
-.trade-chat-input-panel {
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.btn-edit {
+  background: rgba(132, 204, 22, 0.12);
+  border: 1px solid rgba(132, 204, 22, 0.3);
+  color: #84cc16;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-edit:hover {
+  background: rgba(132, 204, 22, 0.22);
+}
+
+.btn-create-ad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed rgba(132, 204, 22, 0.35);
+  border-radius: 14px;
+  background: rgba(132, 204, 22, 0.05);
+  color: #84cc16;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.btn-create-ad:hover {
+  border-color: rgba(132, 204, 22, 0.65);
+  background: rgba(132, 204, 22, 0.1);
+}
+
+.icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #aaa;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.icon-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* =============================================
+   MANAGE TAB
+   ============================================= */
+.profile-edit-section {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.profile-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.profile-display {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-display-avatar {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #84cc16, #4ade80);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.profile-display-info h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: #fff;
+}
+
+.profile-display-bio {
+  font-size: 12px;
+  color: #777;
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.profile-display-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #888;
+  flex-wrap: wrap;
+}
+
+.profile-display-stats span {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 6px;
-  padding: 4px;
 }
 
-.trade-chat-input-panel input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 12px;
+/* Ads */
+.ad-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 14px;
+  transition: border-color 0.2s;
 }
 
-.trade-upload-btn,
-.trade-send-btn {
-  padding: 4px;
-  border-radius: 4px;
-  background: rgba(132, 204, 22, 0.1);
-  color: #84cc16;
-  cursor: pointer;
+.ad-card:hover {
+  border-color: #333;
+}
+
+.ad-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.trade-upload-btn:hover,
-.trade-send-btn:hover {
-  background: rgba(132, 204, 22, 0.2);
+.ad-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
 }
 
-/* ====================================
-   FORM (CREATE/EDIT AD)
-   ==================================== */
+.ad-type.sell {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.ad-type.buy {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.ad-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-status-toggle {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ad-status-toggle.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.ad-status-toggle.inactive {
+  background: rgba(255, 255, 255, 0.05);
+  color: #666;
+  border: 1px solid #2a2a2a;
+}
+
+.ad-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ad-detail {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.ad-detail strong {
+  color: #555;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.create-ad-section {
+  padding: 4px 0 16px;
+}
+
+/* =============================================
+   TRADE FORMS
+   ============================================= */
 .trade-form {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
 }
 
-.trade-form select,
-.trade-form input {
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
   font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  color: #fff;
+  padding: 11px 14px;
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #84cc16;
+}
+
+.form-select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* =============================================
+   HISTORY TAB
+   ============================================= */
+.history-filter-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.history-filter-btn {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #888;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.history-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ccc;
+}
+
+.history-filter-btn.active {
+  background: #84cc16;
+  border-color: #84cc16;
+  color: #000;
+  font-weight: 700;
+}
+
+.history-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 14px;
+  transition: border-color 0.2s;
+}
+
+.history-card:hover {
+  border-color: #333;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.history-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.history-type.buy {
+  color: #22c55e;
+}
+
+.history-type.sell {
+  color: #ef4444;
+}
+
+.history-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.history-status.completed {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.history-status.in-progress {
+  background: rgba(234, 179, 8, 0.12);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.25);
+}
+
+.history-status.canceled {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.history-details {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.8;
+}
+
+.history-details strong {
+  color: #555;
+}
+
+/* =============================================
+   TRADE SUMMARY INTERFACE (Offer Detail & In-Progress)
+   ============================================= */
+.trade-summary-interface {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  flex: 1;
+}
+
+.view-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.view-subtitle {
+  font-size: 12px;
+  color: #666;
+  margin: 2px 0 0;
+}
+
+.summary-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.summary-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #84cc16;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.summary-detail-label {
+  color: #666;
+}
+
+.summary-detail-value {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Amount Input */
+.amount-input-group {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.amount-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.amount-input {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  color: #fff;
+  padding: 14px 16px;
+  font-size: 20px;
+  font-weight: 700;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.amount-input:focus {
+  border-color: #84cc16;
+}
+
+/* =============================================
+   CHAT MODAL
+   ============================================= */
+.trade-chat-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #0d0d0d;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #111;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+
+.chat-user-info {
+  flex: 1;
+}
+
+.chat-user-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.chat-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-message {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.chat-message.you {
+  background: #84cc16;
+  color: #000;
+  font-weight: 500;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.counterparty {
+  background: #1e1e1e;
+  color: #ddd;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-message.system {
+  background: rgba(132, 204, 22, 0.08);
+  color: #84cc16;
+  border: 1px solid rgba(132, 204, 22, 0.2);
+  border-radius: 10px;
+  font-size: 12px;
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+}
+
+.chat-input-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #111;
+  border-top: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+
+.chat-upload-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #888;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.chat-upload-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ccc;
+}
+
+.chat-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.chat-input:focus {
+  border-color: #84cc16;
+}
+
+.chat-input::placeholder {
+  color: #444;
+}
+
+.chat-send-btn {
+  background: #84cc16;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.chat-send-btn:hover {
+  background: #a3e635;
+}
+
+/* =============================================
+   PROFILE MODAL
+   ============================================= */
+.profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px);
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.profile-modal-content {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 20px;
+  position: relative;
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.profile-modal-close {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.profile-modal-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.profile-modal-header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+
+.profile-avatar-large {
+  width: 62px;
+  height: 62px;
+  background: linear-gradient(135deg, #84cc16, #4ade80);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.profile-modal-info {
+  flex: 1;
+}
+
+.profile-name-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.profile-name-badge h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.profile-stats-row {
+  display: flex;
+  gap: 14px;
+}
+
+.profile-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.profile-modal-details {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.profile-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #888;
+}
+
+.profile-modal-bio {
+  background: #1a1a1a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.profile-modal-bio h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #84cc16;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px;
+}
+
+.profile-modal-bio p {
+  font-size: 13px;
+  color: #bbb;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.profile-modal-extended {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.profile-info-card {
+  background: #1a1a1a;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.profile-info-card h4 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px;
+}
+
+.profile-info-card p {
+  font-size: 13px;
+  color: #ccc;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* =============================================
+   SUPPORT MODAL
+   ============================================= */
+.support-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #0d0d0d;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.support-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #111;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+
+.support-title h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 2px;
+}
+
+.support-title p {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+.support-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.support-message {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.support-message.you {
+  background: #84cc16;
+  color: #000;
+  font-weight: 500;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.support-message.support {
+  background: #1e1e1e;
+  color: #ddd;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.support-message-time {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+.support-input-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #111;
+  border-top: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+
+.support-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.support-input:focus {
+  border-color: #84cc16;
+}
+
+.support-input::placeholder {
+  color: #444;
+}
+
+.support-send-btn {
+  background: #84cc16;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.support-send-btn:hover {
+  background: #a3e635;
+}
+
+/* =============================================
+   EMPTY STATE
+   ============================================= */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  color: #444;
+  text-align: center;
+  gap: 12px;
+}
+
+.empty-state-icon {
+  color: #2a2a2a;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: #555;
+  margin: 0;
+}
+
+/* =============================================
+   SCROLLBARS
+   ============================================= */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+@media (max-width: 360px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .offer-details {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-modal-extended {
+    grid-template-columns: 1fr;
+  }
 }
