@@ -1,8 +1,5 @@
 /* ============================================================
    XEEVIA SERVICE WORKER v9
-   Pure ES5 — no arrow functions, no const/let at top scope.
-   CRA copies public/ files as-is but some environments
-   trip on modern syntax in SW context. ES5 is bulletproof.
    ============================================================ */
 
 var SW_VERSION = "xeevia-sw-v9";
@@ -20,11 +17,13 @@ var PRECACHE_URLS = [
 ];
 
 /* ============================================================
-   INSTALL — skipWaiting immediately, never block on precache
+   INSTALL — precache only, NO skipWaiting here.
+   skipWaiting is called only when user clicks "Update" or
+   explicitly via SKIP_WAITING message. Calling it on every
+   install causes an infinite controllerchange → reload loop.
    ============================================================ */
 self.addEventListener("install", function (event) {
   console.log("[SW] Xeevia v9 installing");
-  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE).then(function (cache) {
       return Promise.allSettled(
@@ -239,7 +238,7 @@ self.addEventListener("message", function (event) {
   if (!msg) return;
   switch (msg.type) {
     case "SKIP_WAITING":
-      console.log("[SW] SKIP_WAITING");
+      console.log("[SW] SKIP_WAITING — activating now");
       self.skipWaiting();
       break;
     case "GET_VERSION":
