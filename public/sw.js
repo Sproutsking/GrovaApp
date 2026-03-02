@@ -1,10 +1,17 @@
 /* ============================================================
-   XEEVIA SERVICE WORKER v9
+   XEEVIA SERVICE WORKER v10 — NUCLEAR RESET
+   
+   ROOT CAUSE FIX: v7 had self.skipWaiting() on install which
+   caused an infinite controllerchange → reload loop when v9
+   removed it. v10 adds skipWaiting() back on install so the
+   old v7 worker gets cleanly evicted, then v10 takes full
+   control. After this one-time fix, future versions can
+   remove skipWaiting() safely again.
    ============================================================ */
 
-var SW_VERSION = "xeevia-sw-v9";
-var STATIC_CACHE = "xeevia-static-v9";
-var RUNTIME_CACHE = "xeevia-runtime-v9";
+var SW_VERSION = "xeevia-sw-v10";
+var STATIC_CACHE = "xeevia-static-v10";
+var RUNTIME_CACHE = "xeevia-runtime-v10";
 var APP_ORIGIN = self.location.origin;
 
 var PRECACHE_URLS = [
@@ -17,13 +24,13 @@ var PRECACHE_URLS = [
 ];
 
 /* ============================================================
-   INSTALL — precache only, NO skipWaiting here.
-   skipWaiting is called only when user clicks "Update" or
-   explicitly via SKIP_WAITING message. Calling it on every
-   install causes an infinite controllerchange → reload loop.
+   INSTALL — skipWaiting immediately to evict the stuck v7 SW.
+   This is a one-time nuclear reset. Future versions (v11+)
+   should remove skipWaiting() from here again.
    ============================================================ */
 self.addEventListener("install", function (event) {
-  console.log("[SW] Xeevia v9 installing");
+  console.log("[SW] Xeevia v10 installing — nuclear reset");
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE).then(function (cache) {
       return Promise.allSettled(
@@ -42,10 +49,10 @@ self.addEventListener("install", function (event) {
 });
 
 /* ============================================================
-   ACTIVATE — purge old caches, claim all clients
+   ACTIVATE — purge ALL old caches, claim all clients
    ============================================================ */
 self.addEventListener("activate", function (event) {
-  console.log("[SW] Xeevia v9 activating");
+  console.log("[SW] Xeevia v10 activating");
   event.waitUntil(
     caches
       .keys()
