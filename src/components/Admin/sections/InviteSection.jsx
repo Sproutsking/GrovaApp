@@ -1,1038 +1,1694 @@
-// =============================================================================
-// src/components/Admin/sections/InviteSection.jsx — v6 PRICE SYNC + 3-TIER
-// =============================================================================
-//
-//  PRICE SYNC — HOW IT WORKS END TO END:
-//  ──────────────────────────────────────────────────────────────────────────
-//  Admin changes price in InviteCard (inline editor) or PublicPlanPanel.
-//
-//  PublicPlanPanel writes:
-//    payment_products.amount_usd  ← PaywallGate reads this for public users
-//    triggers realtime UPDATE → PaywallGate receives it instantly
-//
-//  InviteCard.handlePriceSave writes ALL THREE atomically:
-//    invite_codes.entry_price     = cents/100   ← real column
-//    invite_codes.price_override  = cents/100   ← PaywallGate reads this FIRST
-//    invite_codes.metadata.entry_price_cents    ← belt-and-suspenders
-//    invite_codes.metadata.last_price_update    ← forces realtime broadcast
-//
-//  PaywallGate realtime handler:
-//    Receives UPDATE, re-resolves price with same priority:
-//      1. price_override  (if != null)
-//      2. metadata.entry_price_cents (if != null)
-//      3. entry_price
-//    → PaywallGate price updates instantly, zero page reload needed.
-//
-//  PRICE HERO SLIDES — 3 TIERS:
-//  ──────────────────────────────────────────────────────────────────────────
-//  Slide 0: Public   — lime green  — always shown
-//  Slide 1: Whitelist — amber/gold — shown when invite has active whitelist
-//  Slide 2: Waitlist  — sky blue   — shown when invite.is_full = true AND waitlist on
-//
-// =============================================================================
+// src/components/Admin/sections/InviteSection.jsx — v10 COMMAND CENTER ULTIMATE
+// ─────────────────────────────────────────────────────────────────────────────
+// ARCHITECTURE:
+//  • PUBLIC ENTRY card — system invite, controls /paywall hero price + slides.
+//  • CUSTOM INVITE cards — whitelist / waitlist / VIP access per-link.
+//  • WHITELIST → auto-becomes WAITLIST when max_uses + waitlist_slots set.
+//  • VIP LOTTERY — per-invite: N winners out of M users get free access.
+//  • LIVE PAYWALL PREVIEW — right panel shows exactly what /paywall hero renders.
+//  • WAITLIST MANAGEMENT — promote, export, see position, status per user.
+//  • OPTIMISTIC UI — all updates reflect instantly, rollback on error.
+// ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useInvites } from "../useAdminData";
 import { supabase } from "../../../services/config/supabase";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function fmtDate(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
-    month:"short", day:"numeric", year:"numeric",
-    hour:"2-digit", minute:"2-digit",
-  });
-}
-
-function fmtCents(cents) {
-  if (cents == null) return "—";
-  if (cents === 0)   return "Free";
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-const CATEGORY_OPTIONS = [
-  { value:"community", label:"Community" },
-  { value:"user",      label:"User" },
-  { value:"vip",       label:"VIP" },
+// ─── Constants ────────────────────────────────────────────────────────────────
+const SLIDE_TYPES = [
+  { id: "hero",        icon: "🚀", label: "Hero",         desc: "Big headline + CTA" },
+  { id: "countdown",   icon: "⏱",  label: "Countdown",    desc: "Urgency timer" },
+  { id: "social",      icon: "👥", label: "Social Proof",  desc: "Member count + faces" },
+  { id: "testimonial", icon: "💬", label: "Testimonial",   desc: "Quote from a member" },
+  { id: "features",    icon: "✦",  label: "Features",     desc: "3-column feature grid" },
+  { id: "offer",       icon: "💎", label: "Offer",        desc: "Price + value stack" },
+  { id: "whitelist",   icon: "⭐", label: "Whitelist",    desc: "Exclusive access info" },
+  { id: "waitlist",    icon: "⏳", label: "Waitlist",     desc: "Queue position + timer" },
+  { id: "vip",         icon: "👑", label: "VIP Lottery",  desc: "Random VIP selection" },
 ];
 
-// ── PublicPlanPanel ───────────────────────────────────────────────────────────
-function PublicPlanPanel() {
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [msg,     setMsg]     = useState(null);
-  const [form,    setForm]    = useState({ amount_usd:4, name:"", description:"" });
-  const mounted = useRef(true);
+const DESIGN_MODELS = [
+  { id: "minimal",  label: "Minimal",  preview: "#0a0a0a", accent: "#e8e8e8" },
+  { id: "bold",     label: "Bold",     preview: "#0a1a00", accent: "#a3e635" },
+  { id: "dark",     label: "Dark",     preview: "#050510", accent: "#818cf8" },
+  { id: "glass",    label: "Glass",    preview: "#0f1520", accent: "#38bdf8" },
+  { id: "gradient", label: "Gradient", preview: "#1a0a1a", accent: "#f59e0b" },
+  { id: "warm",     label: "Warm",     preview: "#1a0a00", accent: "#fb923c" },
+];
 
-  useEffect(() => {
-    mounted.current = true;
-    loadProduct();
-    return () => { mounted.current = false; };
-  }, []);
+const CATEGORY_OPTIONS = [
+  { id: "community", label: "🏠 Community" },
+  { id: "whitelist", label: "⭐ Whitelist" },
+  { id: "vip",       label: "💎 VIP" },
+  { id: "standard",  label: "🎟 Standard" },
+  { id: "custom",    label: "✏️ Custom" },
+];
 
-  async function loadProduct() {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("payment_products")
-        .select("id,name,description,amount_usd,is_active,tier,metadata")
-        .eq("tier","standard")
-        .eq("is_active",true)
-        .order("created_at",{ ascending:true })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (data) {
-        setProduct(data);
-        setForm({ amount_usd:data.amount_usd, name:data.name, description:data.description??"" });
-      } else {
-        const { data:created, error:createErr } = await supabase
-          .from("payment_products")
-          .insert({
-            name:"Standard Access",
-            description:"Full platform access — one time payment",
-            type:"one_time", tier:"standard", amount_usd:4.00, currency:"USD",
-            is_active:true, metadata:{ ep_grant:300, ep_reason:"Standard access grant" },
-          })
-          .select().single();
-        if (createErr) throw createErr;
-        setProduct(created);
-        setForm({ amount_usd:created.amount_usd, name:created.name, description:created.description??"" });
-      }
-    } catch (e) {
-      setMsg({ type:"error", text:e.message });
-    } finally {
-      if (mounted.current) setLoading(false);
-    }
-  }
+const ACC_COLORS = {
+  whitelist: "#f59e0b", vip: "#a78bfa", community: "#34d399",
+  standard: "#94a3b8", admin: "#f87171", custom: "#38bdf8",
+};
 
-  async function handleSave() {
-    if (!product) return;
-    const amount = parseFloat(String(form.amount_usd));
-    if (isNaN(amount) || amount < 0.50) {
-      setMsg({ type:"error", text:"Price must be at least $0.50" });
-      return;
-    }
-    const prev = { ...product };
-    // OPTIMISTIC UPDATE
-    setProduct(p => ({ ...p, amount_usd:amount, name:form.name||"Standard Access", description:form.description }));
-    setEditing(false);
-    setSaving(true);
-    setMsg(null);
-    try {
-      const { error } = await supabase
-        .from("payment_products")
-        .update({
-          amount_usd:  amount,
-          name:        form.name.trim()||"Standard Access",
-          description: form.description.trim(),
-          updated_at:  new Date().toISOString(),
-        })
-        .eq("id", product.id);
-      if (error) throw error;
-      // Realtime broadcasts UPDATE to PaywallGate automatically
-      setMsg({ type:"success", text:"✓ Public plan updated. Synced to paywall instantly." });
-    } catch (e) {
-      // ROLLBACK
-      setProduct(prev);
-      setForm({ amount_usd:prev.amount_usd, name:prev.name, description:prev.description??"" });
-      setEditing(true);
-      setMsg({ type:"error", text:e.message });
-    } finally {
-      if (mounted.current) setSaving(false);
-    }
-  }
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = (n) =>
+  typeof n === "number" && !isNaN(n)
+    ? n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)
+    : "—";
 
-  if (loading) return (
-    <div className="xv-public-panel xv-loading">
-      <div className="xv-pub-spinner"/><span>Loading public plan…</span>
-    </div>
-  );
+const mono = { fontFamily: "'JetBrains Mono', 'Fira Mono', monospace" };
 
+function resolvePrice(invite) {
+  if (!invite) return 4;
+  const po = invite.price_override;
+  if (po != null && !isNaN(Number(po))) return Number(po);
+  const meta = invite?.metadata ?? {};
+  if (meta.entry_price_cents != null) return Number(meta.entry_price_cents) / 100;
+  if (invite.entry_price != null) return Number(invite.entry_price);
+  return 4;
+}
+
+// ─── Atoms ────────────────────────────────────────────────────────────────────
+function Pill({ label, color = "#a3e635", bg, border }) {
   return (
-    <div className="xv-public-panel">
-      <div className="xv-pub-hdr">
-        <div>
-          <div className="xv-pub-badge">🌐 Public Plan</div>
-          <h3 className="xv-pub-title">Default Access Pricing</h3>
-          <p className="xv-pub-sub">
-            All users without an invite code pay this price.
-            Changes reflect on paywall <strong style={{color:"#84cc16"}}>instantly</strong>.
-          </p>
-        </div>
-        {!editing && <button className="xv-btn xv-outline xv-sm" onClick={()=>setEditing(true)}>✏️ Edit</button>}
-      </div>
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 9, fontWeight: 800, letterSpacing: "1.8px", textTransform: "uppercase",
+      color, background: bg ?? `${color}14`,
+      border: `1px solid ${border ?? `${color}33`}`,
+      borderRadius: 20, padding: "3px 9px", whiteSpace: "nowrap",
+    }}>{label}</span>
+  );
+}
 
-      {editing ? (
-        <div className="xv-pub-form">
-          <div className="xv-2col">
-            <div className="xv-fcol">
-              <label className="xv-lbl">Plan Name</label>
-              <input className="xv-inp" value={form.name}
-                onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-                placeholder="Standard Access"/>
-            </div>
-            <div className="xv-fcol">
-              <label className="xv-lbl">Price (USD)</label>
-              <input type="number" min="0.50" step="0.50" className="xv-inp"
-                value={form.amount_usd}
-                onChange={e=>setForm(f=>({...f,amount_usd:e.target.value}))}/>
-              <span className="xv-hint xv-lime-text">
-                ${parseFloat(String(form.amount_usd)||"0").toFixed(2)} · charged at signup
-              </span>
-            </div>
-          </div>
-          <div className="xv-fcol">
-            <label className="xv-lbl">Description <span className="xv-optional">(optional)</span></label>
-            <input className="xv-inp" value={form.description}
-              onChange={e=>setForm(f=>({...f,description:e.target.value}))}
-              placeholder="Full platform access — one time payment"/>
-          </div>
-          {msg && <div className={`xv-msg ${msg.type}`}>{msg.text}</div>}
-          <div className="xv-form-actions">
-            <button className="xv-btn xv-ghost" onClick={()=>{setEditing(false);setMsg(null);}}>Cancel</button>
-            <button className="xv-btn xv-lime" onClick={handleSave} disabled={saving}>
-              {saving?"Saving…":"Save & Sync to Paywall"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="xv-pub-stats">
-          <div className="xv-pub-stat">
-            <span className="xv-pub-stat-l">Current Price</span>
-            <span className="xv-pub-stat-v xv-lime-text">${product?.amount_usd?.toFixed(2)??"4.00"}</span>
-          </div>
-          <div className="xv-pub-stat">
-            <span className="xv-pub-stat-l">Plan Name</span>
-            <span className="xv-pub-stat-v">{product?.name??"Standard Access"}</span>
-          </div>
-          <div className="xv-pub-stat">
-            <span className="xv-pub-stat-l">EP Reward</span>
-            <span className="xv-pub-stat-v" style={{color:"#a5b4fc"}}>300 EP per signup</span>
-          </div>
-          <div className="xv-pub-stat">
-            <span className="xv-pub-stat-l">Status</span>
-            <span className="xv-pub-stat-v" style={{color:"#84cc16"}}>✓ Active</span>
-          </div>
-          {msg && <div className={`xv-msg ${msg.type}`} style={{gridColumn:"1 / -1"}}>{msg.text}</div>}
-        </div>
-      )}
+function FieldLabel({ children }) {
+  return (
+    <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: "2px", textTransform: "uppercase", color: "#3a3a3a", marginBottom: 6 }}>
+      {children}
     </div>
   );
 }
 
-// ── WaitlistModal ─────────────────────────────────────────────────────────────
-function WaitlistModal({ invite, getDisplayName, getWaitlistEntries, promoteWaitlist, updateWaitlistOpenTime, onClose }) {
-  const [entries,      setEntries]      = useState([]);
-  const [loadingWL,    setLoadingWL]    = useState(true);
-  const [promoting,    setPromoting]    = useState(false);
-  const [promoteCount, setPromoteCount] = useState("");
-  const [opensAt,      setOpensAt]      = useState(
-    invite.metadata?.whitelist_opens_at ? invite.metadata.whitelist_opens_at.slice(0,16) : ""
-  );
-  const [msg, setMsg] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoadingWL(true);
-    try { setEntries(await getWaitlistEntries(invite.id)); }
-    catch (e) { setMsg({ type:"error", text:e.message }); }
-    finally { setLoadingWL(false); }
-  }, [invite.id, getWaitlistEntries]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const waiting     = entries.filter(e => e.status === "waiting");
-  const whitelisted = entries.filter(e => e.status === "whitelisted");
-  const wlPrice     = invite.whitelist_price_cents ?? 0;
-  const isFree      = wlPrice === 0;
-
-  async function handlePromote(rawN) {
-    const n = Number(rawN);
-    if (!n || n < 1) { setMsg({ type:"error", text:"Enter a valid count." }); return; }
-    setPromoting(true); setMsg(null);
-    try {
-      let adminId = null;
-      try { const { data:{user} } = await supabase.auth.getUser(); adminId = user?.id??null; } catch (_) {}
-      const count = await promoteWaitlist(invite.id, n, adminId);
-      setMsg({ type:"success", text:`✓ Promoted ${count} user${count!==1?"s":""}.` });
-      setPromoteCount("");
-      await load();
-    } catch (e) { setMsg({ type:"error", text:e.message }); }
-    finally { setPromoting(false); }
-  }
-
-  async function handleSaveTime() {
-    setMsg(null);
-    try {
-      await updateWaitlistOpenTime(invite.id, opensAt ? new Date(opensAt).toISOString() : null);
-      setMsg({ type:"success", text:"Open time saved." });
-    } catch (e) { setMsg({ type:"error", text:e.message }); }
-  }
-
+function Input({ value, onChange, onBlur, placeholder, prefix, mono: isMono, type = "text", style = {} }) {
   return (
-    <div className="xv-overlay" onClick={onClose}>
-      <div className="xv-modal" onClick={e=>e.stopPropagation()}>
-        <div className="xv-modal-hdr">
+    <div style={{ position: "relative" }}>
+      {prefix && (
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#555", fontSize: 13, pointerEvents: "none" }}>{prefix}</span>
+      )}
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={onBlur}
+        placeholder={placeholder}
+        style={{
+          width: "100%", background: "#0e0e0e", border: "1.5px solid #222",
+          borderRadius: 10, padding: prefix ? "10px 12px 10px 26px" : "10px 12px",
+          color: "#f0f0f0", fontSize: 13, outline: "none", transition: "border-color .15s",
+          fontFamily: isMono ? "'JetBrains Mono',monospace" : "inherit",
+          ...style,
+        }}
+        onFocus={e => e.target.style.borderColor = "rgba(163,230,53,.4)"}
+      />
+    </div>
+  );
+}
+
+function Textarea({ value, onChange, onBlur, placeholder, rows = 2 }) {
+  return (
+    <textarea
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      rows={rows}
+      style={{
+        width: "100%", background: "#0e0e0e", border: "1.5px solid #222",
+        borderRadius: 10, padding: "10px 12px", color: "#f0f0f0", fontSize: 12,
+        outline: "none", resize: "vertical", lineHeight: 1.7, fontFamily: "inherit",
+        transition: "border-color .15s",
+      }}
+      onFocus={e => e.target.style.borderColor = "rgba(163,230,53,.4)"}
+    />
+  );
+}
+
+function Toggle({ checked, onChange, size = "md" }) {
+  const w = size === "sm" ? 28 : 36;
+  const h = size === "sm" ? 16 : 20;
+  const d = size === "sm" ? 10 : 12;
+  const off = size === "sm" ? 14 : 16;
+  return (
+    <div
+      onClick={() => onChange(!checked)}
+      style={{
+        width: w, height: h, borderRadius: h, flexShrink: 0,
+        background: checked ? "#a3e635" : "#252525",
+        border: `1.5px solid ${checked ? "#a3e635" : "#333"}`,
+        position: "relative", transition: "all .2s", cursor: "pointer",
+      }}
+    >
+      <div style={{
+        position: "absolute", top: (h - d) / 2 - 1, left: checked ? off : 2,
+        width: d, height: d, borderRadius: "50%",
+        background: checked ? "#061000" : "#555", transition: "left .2s",
+      }} />
+    </div>
+  );
+}
+
+function SaveIndicator({ state }) {
+  if (state === "idle") return null;
+  const map = { saving: { label: "Saving…", color: "#888" }, saved: { label: "✓ Saved", color: "#a3e635" }, error: { label: "✗ Failed", color: "#f87171" } };
+  const { label, color } = map[state] ?? map.saved;
+  return <span style={{ fontSize: 10, fontWeight: 700, color, marginLeft: 6 }}>{label}</span>;
+}
+
+function Btn({ onClick, children, danger, accent, disabled, small, style = {} }) {
+  const bg = danger ? "rgba(239,68,68,.08)" : accent ? "linear-gradient(135deg,#a3e635,#65a30d)" : "transparent";
+  const border = danger ? "rgba(239,68,68,.3)" : accent ? "transparent" : "#252525";
+  const color = danger ? "#f87171" : accent ? "#061000" : "#555";
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      padding: small ? "6px 11px" : "9px 14px", borderRadius: 9,
+      border: `1px solid ${border}`, background: disabled ? "#111" : bg,
+      color: disabled ? "#333" : color,
+      fontWeight: 700, fontSize: small ? 10 : 11, cursor: disabled ? "not-allowed" : "pointer",
+      fontFamily: "inherit", transition: "all .15s", whiteSpace: "nowrap", ...style,
+    }}>{children}</button>
+  );
+}
+
+// ─── useAutoSave ──────────────────────────────────────────────────────────────
+function useAutoSave(initial, saveFn, delay = 600) {
+  const [local, setLocal] = useState(initial);
+  const [saveState, setSaveState] = useState("idle");
+  const timerRef = useRef(null);
+  const rollbackRef = useRef(initial);
+
+  useEffect(() => { setLocal(initial); rollbackRef.current = initial; }, [initial]); // eslint-disable-line
+
+  const commit = useCallback((val) => {
+    rollbackRef.current = local;
+    setSaveState("saving");
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(async () => {
+      try {
+        await saveFn(val);
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 1800);
+      } catch {
+        setLocal(rollbackRef.current);
+        setSaveState("error");
+        setTimeout(() => setSaveState("idle"), 3000);
+      }
+    }, delay);
+  }, [local, saveFn, delay]);
+
+  const change = useCallback((val) => { setLocal(val); commit(val); }, [commit]);
+  return [local, change, saveState];
+}
+
+// ─── CopyLinkButton ───────────────────────────────────────────────────────────
+function CopyLinkButton({ code, label = "Copy invite link" }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    const url = code ? `${window.location.origin}?code=${code}` : window.location.origin;
+    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+  return (
+    <button onClick={copy} style={{
+      flex: 1, padding: "9px", borderRadius: 10, fontFamily: "inherit",
+      border: `1.5px solid ${copied ? "rgba(163,230,53,.4)" : "#222"}`,
+      background: copied ? "rgba(163,230,53,.06)" : "transparent",
+      color: copied ? "#a3e635" : "#444", fontWeight: 700, fontSize: 11,
+      cursor: "pointer", transition: "all .15s",
+    }}>
+      {copied ? "✓ Copied" : `📋 ${label}`}
+    </button>
+  );
+}
+
+// ─── SlideChip ────────────────────────────────────────────────────────────────
+function SlideChip({ slide, onRemove }) {
+  const type = SLIDE_TYPES.find(t => t.id === slide.type) ?? SLIDE_TYPES[0];
+  const model = DESIGN_MODELS.find(m => m.id === slide.design) ?? DESIGN_MODELS[0];
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8,
+      background: "#111", border: `1px solid ${model.accent}22`, borderRadius: 10, padding: "7px 10px",
+    }}>
+      <div style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0, background: model.preview, border: `1px solid ${model.accent}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>{type.icon}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#c0c0c0" }}>{type.label}</div>
+        <div style={{ fontSize: 9, color: "#444", textTransform: "uppercase", letterSpacing: "1px" }}>{model.label}</div>
+      </div>
+      <button onClick={onRemove} style={{ background: "transparent", border: "none", color: "#3a3a3a", cursor: "pointer", fontSize: 13, padding: "2px 4px" }}
+        onMouseOver={e => e.target.style.color = "#f87171"} onMouseOut={e => e.target.style.color = "#3a3a3a"}>✕</button>
+    </div>
+  );
+}
+
+// ─── AddSlidePanel ────────────────────────────────────────────────────────────
+function AddSlidePanel({ onAdd, onClose }) {
+  const [selectedType, setSelectedType] = useState(null);
+  const [selectedModel, setSelectedModel] = useState("bold");
+  return (
+    <div style={{ background: "#0a0a0a", border: "1px solid #252525", borderRadius: 14, padding: 18, animation: "xvFadeUp .2s ease" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#a3e635" }}>Add Slide</div>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#444", cursor: "pointer", fontSize: 14 }}>✕</button>
+      </div>
+      <FieldLabel>Slide Type</FieldLabel>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 14 }}>
+        {SLIDE_TYPES.map(t => (
+          <button key={t.id} onClick={() => setSelectedType(t.id)} style={{
+            padding: "9px 6px", borderRadius: 9, border: "none", cursor: "pointer",
+            background: selectedType === t.id ? "rgba(163,230,53,.1)" : "#111",
+            borderWidth: 1.5, borderStyle: "solid",
+            borderColor: selectedType === t.id ? "rgba(163,230,53,.4)" : "#1e1e1e",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontFamily: "inherit",
+          }}>
+            <span style={{ fontSize: 18 }}>{t.icon}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: selectedType === t.id ? "#a3e635" : "#666" }}>{t.label}</span>
+            <span style={{ fontSize: 9, color: "#333", lineHeight: 1.3, textAlign: "center" }}>{t.desc}</span>
+          </button>
+        ))}
+      </div>
+      <FieldLabel>Design Model</FieldLabel>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+        {DESIGN_MODELS.map(m => (
+          <button key={m.id} onClick={() => setSelectedModel(m.id)} style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+            borderRadius: 8, border: "none", cursor: "pointer", fontFamily: "inherit",
+            background: selectedModel === m.id ? `${m.accent}18` : "#111",
+            borderWidth: 1.5, borderStyle: "solid",
+            borderColor: selectedModel === m.id ? `${m.accent}55` : "#1e1e1e",
+          }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: m.preview, border: `1px solid ${m.accent}66`, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: selectedModel === m.id ? m.accent : "#555" }}>{m.label}</span>
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => { if (selectedType) { onAdd({ type: selectedType, design: selectedModel }); onClose(); } }}
+        disabled={!selectedType}
+        style={{
+          width: "100%", padding: "11px", borderRadius: 10, border: "none",
+          background: selectedType ? "linear-gradient(135deg,#a3e635,#65a30d)" : "#1e1e1e",
+          color: selectedType ? "#061000" : "#333",
+          fontWeight: 800, fontSize: 13, cursor: selectedType ? "pointer" : "not-allowed", fontFamily: "inherit",
+        }}>Add Slide to PaywallGate</button>
+    </div>
+  );
+}
+
+// ─── PAYWALL LIVE PREVIEW ─────────────────────────────────────────────────────
+// Mirrors PaywallGate's PriceHero exactly:
+//   Slide 0: PUBLIC PRICE  — always (public entry price, EP, slot bar)
+//   Slide N: WHITELIST ENTRY — per active whitelist invite (not full)
+//   Slide N: WAITLIST — per full whitelist invite with waitlist_slots
+//   Slide N: VIP LOTTERY — per invite with vip_slots
+//   Slide N: CUSTOM — per custom slide attached to public entry
+function PaywallHeroPreview({ publicInvite, customInvites }) {
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [animDir, setAnimDir] = useState(null); // "in" | null
+  const [displayIdx, setDisplayIdx] = useState(0); // what's actually rendered
+  const timerRef = useRef(null);
+
+  const publicMeta = publicInvite?.metadata ?? {};
+  const publicPrice = resolvePrice(publicInvite);
+  const publicEP    = publicMeta.ep_grant ?? 300;
+  const publicSlots = publicMeta.slots_total ?? 0;
+  const publicClaimed = publicMeta.slots_claimed ?? 0;
+  const publicClaimedPct = publicSlots > 0 ? Math.min(100, Math.round((publicClaimed / publicSlots) * 100)) : 73;
+  const publicSlides = publicMeta.slides ?? [];
+
+  // Mirror PaywallGate's slide-build logic exactly
+  const previewSlides = useMemo(() => {
+    const slides = [];
+    // Slide 0: PUBLIC PRICE — always
+    slides.push({ type: "public_entry" });
+
+    // Active whitelist invites (not full) → WHITELIST ENTRY slide
+    customInvites
+      .filter(i => i.status !== "inactive" && (
+        i.type === "whitelist" ||
+        i.metadata?.invite_category === "whitelist" ||
+        i.metadata?.has_whitelist_access
+      ) && !i.is_full)
+      .forEach(inv => slides.push({ type: "whitelist_entry", invite: inv }));
+
+    // Full whitelist invites WITH waitlist_slots → WAITLIST slide
+    customInvites
+      .filter(i => i.status !== "inactive" && i.is_full &&
+        (i.type === "whitelist" || i.metadata?.invite_category === "whitelist") &&
+        (i.metadata?.waitlist_slots > 0))
+      .forEach(inv => slides.push({ type: "waitlist_entry", invite: inv }));
+
+    // Invites with vip_slots → VIP LOTTERY slide
+    customInvites
+      .filter(i => i.status !== "inactive" && i.metadata?.vip_slots > 0)
+      .forEach(inv => slides.push({ type: "vip_entry", invite: inv }));
+
+    // Custom slides from public entry metadata
+    publicSlides.forEach((s, i) => slides.push({ type: "custom_slide", slide: s, idx: i }));
+
+    return slides;
+  }, [publicInvite, customInvites, publicSlides]); // eslint-disable-line
+
+  // Auto-rotate: restart whenever slide count changes
+  useEffect(() => {
+    clearInterval(timerRef.current);
+    if (previewSlides.length <= 1) return;
+    timerRef.current = setInterval(() => {
+      setSlideIdx(prev => {
+        const next = (prev + 1) % previewSlides.length;
+        // trigger animation
+        setAnimDir("in");
+        setTimeout(() => {
+          setDisplayIdx(next);
+          setAnimDir(null);
+        }, 220);
+        return next;
+      });
+    }, 3600);
+    return () => clearInterval(timerRef.current);
+  }, [previewSlides.length]);
+
+  // Keep displayIdx in sync with slideIdx on initial render
+  useEffect(() => { setDisplayIdx(slideIdx); }, []); // eslint-disable-line
+
+  const goTo = (idx) => {
+    if (idx === slideIdx) return;
+    clearInterval(timerRef.current);
+    setAnimDir("in");
+    setSlideIdx(idx);
+    setTimeout(() => { setDisplayIdx(idx); setAnimDir(null); }, 220);
+    // Restart timer
+    if (previewSlides.length > 1) {
+      timerRef.current = setInterval(() => {
+        setSlideIdx(prev => {
+          const next = (prev + 1) % previewSlides.length;
+          setAnimDir("in");
+          setTimeout(() => { setDisplayIdx(next); setAnimDir(null); }, 220);
+          return next;
+        });
+      }, 3600);
+    }
+  };
+
+  const current = previewSlides[displayIdx] ?? previewSlides[0];
+
+  // Per-slide accent color for the glow
+  const accentFor = (s) => {
+    if (!s) return "#a3e635";
+    if (s.type === "public_entry")   return "#a3e635";
+    if (s.type === "whitelist_entry") return "#f59e0b";
+    if (s.type === "waitlist_entry") return "#38bdf8";
+    if (s.type === "vip_entry")      return "#a78bfa";
+    return "#a3e635";
+  };
+  const accent = accentFor(current);
+
+  // ── slide renderers — pixel-matched to PaywallGate's PriceHero ──────────────
+
+  const renderPublicEntry = () => (
+    <div>
+      {/* Badge */}
+      <div style={{ marginBottom: 10 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 8, fontWeight: 800, letterSpacing: "2px", textTransform: "uppercase", color: "#a3e635", background: "rgba(163,230,53,.1)", border: "1px solid rgba(163,230,53,.25)", borderRadius: 20, padding: "3px 10px" }}>PUBLIC PRICE</span>
+      </div>
+      {/* Price + EP row */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 12 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+            <span style={{ fontSize: 20, color: "#444", fontWeight: 600 }}>$</span>
+            <span style={{ fontSize: 44, fontWeight: 900, color: "#fff", letterSpacing: "-3px", lineHeight: 1, ...mono }}>{fmt(publicPrice)}</span>
+          </div>
+          <div style={{ fontSize: 9, color: "#3a3a3a", fontWeight: 600, marginTop: 4 }}>one-time · instant activation</div>
+        </div>
+        <div style={{ background: "#111", border: "1px solid rgba(163,230,53,.15)", borderRadius: 10, padding: "8px 12px", textAlign: "center", flexShrink: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#a3e635", letterSpacing: "-0.5px", lineHeight: 1 }}>{publicEP} EP</div>
+          <div style={{ fontSize: 7, fontWeight: 700, color: "#333", letterSpacing: "0.8px", textTransform: "uppercase", marginTop: 2 }}>instant reward</div>
+        </div>
+      </div>
+      {/* Slot progress bar */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+          <span style={{ fontSize: 9, color: "#333" }}>Early access slots</span>
+          <span style={{ fontSize: 9, color: "#a3e635", fontWeight: 700 }}>{publicClaimedPct}% claimed</span>
+        </div>
+        <div style={{ height: 3, background: "#1a1a1a", borderRadius: 2 }}>
+          <div style={{ width: `${publicClaimedPct}%`, height: "100%", borderRadius: 2, background: "linear-gradient(90deg,#a3e635,#f59e0b)", boxShadow: "0 0 6px rgba(163,230,53,.4)", transition: "width .5s" }} />
+        </div>
+      </div>
+      {/* Hero message */}
+      {publicMeta.hero_message && (
+        <div style={{ marginTop: 10, fontSize: 9, color: "#3a3a3a", lineHeight: 1.6 }}>{publicMeta.hero_message}</div>
+      )}
+      {/* CTA */}
+      <div style={{ marginTop: 14, background: "linear-gradient(135deg,#a3e635,#65a30d)", borderRadius: 10, padding: "10px 16px", fontSize: 11, fontWeight: 800, color: "#061000", textAlign: "center" }}>
+        Get Access Now →
+      </div>
+    </div>
+  );
+
+  const renderWhitelistEntry = (inv) => {
+    const m = inv?.metadata ?? {};
+    const wlPrice = resolvePrice(inv);
+    const isFree = wlPrice === 0;
+    const usesCount = inv?.uses_count ?? 0;
+    const maxUses = inv?.max_uses ?? 0;
+    const usedPct = maxUses > 0 ? Math.min(100, Math.round((usesCount / maxUses) * 100)) : 0;
+    const epGrant = m.ep_grant ?? 500;
+    return (
+      <div>
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 8, fontWeight: 800, letterSpacing: "2px", textTransform: "uppercase", color: isFree ? "#a3e635" : "#f59e0b", background: isFree ? "rgba(163,230,53,.1)" : "rgba(245,158,11,.1)", border: `1px solid ${isFree ? "rgba(163,230,53,.25)" : "rgba(245,158,11,.25)"}`, borderRadius: 20, padding: "3px 10px" }}>
+            {isFree ? "FREE ACCESS" : "WHITELIST ENTRY"}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 12 }}>
           <div>
-            <h2 className="xv-modal-ttl">Waitlist Control Panel</h2>
-            <div className="xv-modal-meta">
-              <code className="xv-chip">{invite.code}</code>
-              {invite.invite_name && <span className="xv-modal-name">{invite.invite_name}</span>}
-              <span className="xv-modal-cat">{getDisplayName(invite)}</span>
-              <span className="xv-modal-price">WL price: <strong style={{color:isFree?"#84cc16":"#a5b4fc"}}>{fmtCents(wlPrice)}</strong></span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+              {!isFree && <span style={{ fontSize: 20, color: "#444", fontWeight: 600 }}>$</span>}
+              <span style={{ fontSize: isFree ? 36 : 44, fontWeight: 900, color: isFree ? "#a3e635" : "#f59e0b", letterSpacing: "-3px", lineHeight: 1, ...mono }}>
+                {isFree ? "FREE" : fmt(wlPrice)}
+              </span>
+            </div>
+            <div style={{ fontSize: 9, color: "#3a3a3a", marginTop: 4 }}>
+              {m.invite_name || inv?.code || "whitelist · exclusive entry"}
             </div>
           </div>
-          <button className="xv-close" onClick={onClose}>✕</button>
+          <div style={{ background: "#111", border: `1px solid ${isFree ? "rgba(163,230,53,.15)" : "rgba(245,158,11,.15)"}`, borderRadius: 10, padding: "8px 12px", textAlign: "center", flexShrink: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, color: isFree ? "#a3e635" : "#f59e0b", letterSpacing: "-0.5px", lineHeight: 1 }}>{epGrant} EP</div>
+            <div style={{ fontSize: 7, fontWeight: 700, color: "#333", letterSpacing: "0.8px", textTransform: "uppercase", marginTop: 2 }}>instant reward</div>
+          </div>
         </div>
-
-        <div className="xv-stats-row">
-          {[
-            {n:waiting.length,     l:"Waiting",     c:"#f59e0b"},
-            {n:whitelisted.length, l:"Whitelisted",  c:"#84cc16"},
-            {n:entries.length,     l:"Total",        c:"#64748b"},
-          ].map(({n,l,c}) => (
-            <div key={l} className="xv-stat-card" style={{borderTopColor:c}}>
-              <span className="xv-stat-n" style={{color:c}}>{n}</span>
-              <span className="xv-stat-l">{l}</span>
+        {maxUses > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <span style={{ fontSize: 9, color: "#333" }}>Whitelist slots</span>
+              <span style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700 }}>{usesCount}/{maxUses}</span>
             </div>
-          ))}
-        </div>
-
-        {waiting.length > 0 && (
-          <div className="xv-box">
-            <h3 className="xv-box-ttl">Promote Users</h3>
-            {isFree
-              ? <p className="xv-muted" style={{color:"#84cc16"}}>✓ Free whitelist — promoted users activate immediately.</p>
-              : <p className="xv-muted">Promoted users pay <strong style={{color:"#84cc16"}}>{fmtCents(wlPrice)}</strong> on their next visit.</p>
-            }
-            <div className="xv-promote-row">
-              <button className="xv-btn xv-lime" disabled={promoting} onClick={()=>handlePromote(waiting.length)}>
-                {promoting?"Promoting…":`Whitelist All (${waiting.length})`}
-              </button>
-              <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
-                <input type="number" min="1" max={waiting.length} placeholder="N" value={promoteCount}
-                  onChange={e=>setPromoteCount(e.target.value)} className="xv-inp-sm" style={{width:64}}/>
-                <button className="xv-btn xv-outline" disabled={promoting||!promoteCount} onClick={()=>handlePromote(promoteCount)}>
-                  Whitelist {promoteCount||"N"}
-                </button>
-              </div>
+            <div style={{ height: 3, background: "#1a1a1a", borderRadius: 2 }}>
+              <div style={{ width: `${usedPct}%`, height: "100%", borderRadius: 2, background: "linear-gradient(90deg,#f59e0b,#f87171)" }} />
             </div>
           </div>
         )}
-
-        <div className="xv-box">
-          <h3 className="xv-box-ttl">Estimated Re-open Time</h3>
-          <p className="xv-muted">Shown to waitlisted users while they wait.</p>
-          <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
-            <input type="datetime-local" value={opensAt} onChange={e=>setOpensAt(e.target.value)} className="xv-inp-sm"/>
-            <button className="xv-btn xv-outline" onClick={handleSaveTime}>Save</button>
-          </div>
-        </div>
-
-        {msg && <div className={`xv-msg ${msg.type}`}>{msg.text}</div>}
-
-        <div>
-          <h3 className="xv-box-ttl">Waiting Queue ({waiting.length})</h3>
-          {loadingWL ? <p className="xv-muted">Loading…</p> :
-           waiting.length === 0 ? <p className="xv-muted" style={{color:"#334155"}}>No users in queue.</p> : (
-            <div className="xv-tbl-wrap">
-              <table className="xv-tbl">
-                <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Authenticated</th><th>Joined</th></tr></thead>
-                <tbody>
-                  {waiting.map((e,i) => (
-                    <tr key={e.id}>
-                      <td className="xv-td-pos">{e.position??i+1}</td>
-                      <td>{e.full_name||"—"}</td>
-                      <td className="xv-td-mono">{e.email||"—"}</td>
-                      <td className={e.authenticated_at?"xv-yes":"xv-no"}>
-                        {e.authenticated_at?`✓ ${fmtDate(e.authenticated_at)}`:"Pending sign-in"}
-                      </td>
-                      <td style={{fontSize:".78rem",color:"#64748b"}}>{fmtDate(e.joined_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {whitelisted.length > 0 && (
-            <>
-              <h3 className="xv-box-ttl" style={{marginTop:"1.5rem"}}>Whitelisted ({whitelisted.length})</h3>
-              <div className="xv-tbl-wrap">
-                <table className="xv-tbl">
-                  <thead><tr><th>Name</th><th>Email</th><th>Activated</th><th>Promoted At</th></tr></thead>
-                  <tbody>
-                    {whitelisted.map(e => (
-                      <tr key={e.id} className="xv-wl-row">
-                        <td>{e.full_name||"—"}</td>
-                        <td className="xv-td-mono">{e.email||"—"}</td>
-                        <td className={e.account_activated?"xv-yes":"xv-no"}>{e.account_activated?"✓ Active":"Pending payment"}</td>
-                        <td style={{fontSize:".78rem",color:"#64748b"}}>{fmtDate(e.whitelisted_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-        <div className="xv-modal-footer">
-          <button className="xv-btn xv-ghost" onClick={onClose}>Close</button>
+        <div style={{ marginTop: 14, background: isFree ? "linear-gradient(135deg,#a3e635,#22c55e)" : "linear-gradient(135deg,#f59e0b,#d97706)", borderRadius: 10, padding: "10px 16px", fontSize: 11, fontWeight: 800, color: "#061000", textAlign: "center" }}>
+          {isFree ? "🎉 Activate Free Access →" : "Claim Whitelist Spot →"}
         </div>
       </div>
-      <style>{MODAL_CSS}</style>
-    </div>
-  );
-}
+    );
+  };
 
-// ── CreateInviteForm ──────────────────────────────────────────────────────────
-function CreateInviteForm({ onCreate, onCancel }) {
-  const [inviteName,          setInviteName]          = useState("");
-  const [category,            setCategory]            = useState("community");
-  const [customLabel,         setCustomLabel]         = useState("");
-  const [showCustomInput,     setShowCustomInput]     = useState(false);
-  const [code,                setCode]                = useState("");
-  const [maxUses,             setMaxUses]             = useState(100);
-  const [entryPriceCents,     setEntryPriceCents]     = useState(400);
-  const [expiresAt,           setExpiresAt]           = useState("");
-  const [saving,              setSaving]              = useState(false);
-  const [error,               setError]               = useState(null);
-  const [enableWhitelist,     setEnableWhitelist]     = useState(false);
-  const [whitelistPriceCents, setWhitelistPriceCents] = useState(0);
-  const [whitelistOpensAt,    setWhitelistOpensAt]    = useState("");
-  const [enableWaitlist,      setEnableWaitlist]      = useState(true);
-  const [batchSize,           setBatchSize]           = useState(50);
+  const renderWaitlistEntry = (inv) => {
+    const m = inv?.metadata ?? {};
+    const wlCount = m.waitlist_count ?? 0;
+    const wlSlots = m.waitlist_slots ?? 0;
+    const remaining = Math.max(0, wlSlots - wlCount);
+    return (
+      <div>
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 8, fontWeight: 800, letterSpacing: "2px", textTransform: "uppercase", color: "#38bdf8", background: "rgba(56,189,248,.08)", border: "1px solid rgba(56,189,248,.22)", borderRadius: 20, padding: "3px 10px" }}>WAITLIST</span>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 9, color: "#555" }}>{m.invite_name || inv?.code || "Waitlist"}</div>
+          <div style={{ fontSize: 28, fontWeight: 900, color: "#38bdf8", lineHeight: 1.1, marginTop: 4 }}>Join the Queue</div>
+          <div style={{ fontSize: 9, color: "#3a3a3a", marginTop: 4 }}>Whitelist is full · secure your spot</div>
+        </div>
+        <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
+          <div style={{ background: "#111", border: "1px solid rgba(56,189,248,.12)", borderRadius: 9, padding: "8px 12px", textAlign: "center", flex: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#38bdf8", lineHeight: 1 }}>{wlCount}</div>
+            <div style={{ fontSize: 7, color: "#333", textTransform: "uppercase", letterSpacing: "0.8px", marginTop: 2 }}>in queue</div>
+          </div>
+          <div style={{ background: "#111", border: "1px solid rgba(163,230,53,.12)", borderRadius: 9, padding: "8px 12px", textAlign: "center", flex: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#a3e635", lineHeight: 1 }}>{remaining > 0 ? remaining : "–"}</div>
+            <div style={{ fontSize: 7, color: "#333", textTransform: "uppercase", letterSpacing: "0.8px", marginTop: 2 }}>spots left</div>
+          </div>
+        </div>
+        <div style={{ background: "linear-gradient(135deg,#38bdf8,#0284c7)", borderRadius: 10, padding: "10px 16px", fontSize: 11, fontWeight: 800, color: "#001a26", textAlign: "center" }}>
+          Join Waitlist →
+        </div>
+      </div>
+    );
+  };
 
-  function generateCode() {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let c = "";
-    for (let i = 0; i < 8; i++) c += chars[Math.floor(Math.random()*chars.length)];
-    setCode(c);
-  }
+  const renderVipEntry = (inv) => {
+    const m = inv?.metadata ?? {};
+    const vipSlots = m.vip_slots ?? 0;
+    const vipWinners = Array.isArray(m.vip_winners) ? m.vip_winners.length : (m.vip_winners ?? 0);
+    const totalUsers = inv?.uses_count ?? 0;
+    return (
+      <div>
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 8, fontWeight: 800, letterSpacing: "2px", textTransform: "uppercase", color: "#a78bfa", background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 20, padding: "3px 10px" }}>👑 VIP LOTTERY</span>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 9, color: "#555" }}>Lucky {vipSlots} out of {totalUsers || "??"} users</div>
+          <div style={{ fontSize: 44, fontWeight: 900, color: "#fff", letterSpacing: "-2px", lineHeight: 1, marginTop: 4 }}>FREE</div>
+          <div style={{ fontSize: 9, color: "#3a3a3a", marginTop: 4 }}>VIP access · randomly selected</div>
+        </div>
+        <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
+          <div style={{ background: "#111", border: "1px solid rgba(167,139,250,.12)", borderRadius: 9, padding: "8px 12px", textAlign: "center", flex: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#a78bfa", lineHeight: 1 }}>{vipSlots}</div>
+            <div style={{ fontSize: 7, color: "#333", textTransform: "uppercase", letterSpacing: "0.8px", marginTop: 2 }}>VIP slots</div>
+          </div>
+          <div style={{ background: "#111", border: "1px solid rgba(245,158,11,.12)", borderRadius: 9, padding: "8px 12px", textAlign: "center", flex: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b", lineHeight: 1 }}>{vipWinners}</div>
+            <div style={{ fontSize: 7, color: "#333", textTransform: "uppercase", letterSpacing: "0.8px", marginTop: 2 }}>selected</div>
+          </div>
+        </div>
+        <div style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)", borderRadius: 10, padding: "10px 16px", fontSize: 11, fontWeight: 800, color: "#fff", textAlign: "center" }}>
+          Enter VIP Lottery →
+        </div>
+      </div>
+    );
+  };
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!code.trim()) { setError("Enter or generate an invite code."); return; }
-    setSaving(true); setError(null);
-    try {
-      await onCreate({
-        invite_name:           inviteName.trim(),
-        code:                  code.trim().toUpperCase(),
-        invite_category:       showCustomInput?"custom":category,
-        invite_label_custom:   showCustomInput?customLabel.trim():null,
-        max_uses:              Number(maxUses),
-        entry_price_cents:     Number(entryPriceCents),
-        whitelist_price_cents: enableWhitelist?Number(whitelistPriceCents):null,
-        whitelist_opens_at:    enableWhitelist&&whitelistOpensAt?new Date(whitelistOpensAt).toISOString():null,
-        enable_waitlist:       enableWaitlist,
-        waitlist_batch_size:   enableWaitlist?Number(batchSize):null,
-        expires_at:            expiresAt?new Date(expiresAt).toISOString():null,
-      });
-      onCancel();
-    } catch (err) { setError(err.message); }
-    finally { setSaving(false); }
-  }
+  const renderSlide = (slide) => {
+    if (!slide) return null;
+    if (slide.type === "public_entry")   return renderPublicEntry();
+    if (slide.type === "whitelist_entry") return renderWhitelistEntry(slide.invite);
+    if (slide.type === "waitlist_entry") return renderWaitlistEntry(slide.invite);
+    if (slide.type === "vip_entry")      return renderVipEntry(slide.invite);
+    // custom slide
+    const st = SLIDE_TYPES.find(t => t.id === slide.slide?.type) ?? SLIDE_TYPES[0];
+    return (
+      <div style={{ textAlign: "center", color: "#555" }}>
+        <div style={{ fontSize: 28 }}>{st.icon}</div>
+        <div style={{ fontSize: 11, marginTop: 6, fontWeight: 700 }}>{st.label}</div>
+        <div style={{ fontSize: 9, color: "#333", marginTop: 3 }}>{st.desc}</div>
+      </div>
+    );
+  };
+
+  // Slide type label for footer
+  const slideLabel = (s) => {
+    if (!s) return "";
+    if (s.type === "public_entry")   return "Public Entry";
+    if (s.type === "whitelist_entry") return s.invite?.metadata?.invite_name ? `WL · ${s.invite.metadata.invite_name}` : "Whitelist";
+    if (s.type === "waitlist_entry") return s.invite?.metadata?.invite_name ? `Queue · ${s.invite.metadata.invite_name}` : "Waitlist";
+    if (s.type === "vip_entry")      return s.invite?.metadata?.invite_name ? `VIP · ${s.invite.metadata.invite_name}` : "VIP Lottery";
+    return SLIDE_TYPES.find(t => t.id === s.slide?.type)?.label ?? "Slide";
+  };
+
+  const slideIcon = (s) => {
+    if (!s) return "🌐";
+    if (s.type === "public_entry")   return "🌐";
+    if (s.type === "whitelist_entry") return "⭐";
+    if (s.type === "waitlist_entry") return "⏳";
+    if (s.type === "vip_entry")      return "👑";
+    return SLIDE_TYPES.find(t => t.id === s.slide?.type)?.icon ?? "🎞";
+  };
 
   return (
-    <div className="xv-create-wrap">
-      <h3 className="xv-form-ttl">Create New Invite</h3>
-      <div className="xv-info-box">
-        <span style={{color:"#84cc16"}}>⚡</span>&nbsp;
-        <strong style={{color:"#e2ffa0"}}>Live sync:</strong>&nbsp;
-        <span style={{color:"#94a3b8"}}>Price appears on paywall <em style={{color:"#e2e8f0"}}>instantly</em> for users with this link.</span>
+    <div style={{ position: "sticky", top: 24 }}>
+      {/* Preview label */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: "2.5px", textTransform: "uppercase", color: "#2a2a2a" }}>◆ Live Paywall Preview</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#a3e635", boxShadow: "0 0 6px rgba(163,230,53,.7)", animation: "xvGlow 2s ease-in-out infinite" }} />
+          <span style={{ fontSize: 9, color: "#3a3a3a", fontWeight: 700 }}>Live</span>
+        </div>
       </div>
-      <form onSubmit={handleSubmit} className="xv-form">
-        {/* SECTION 1: BASICS */}
-        <div className="xv-form-section">
-          <div className="xv-form-section-hdr">
-            <span className="xv-form-section-num">1</span>
-            <span className="xv-form-section-title">Basic Details</span>
-          </div>
-          <div className="xv-frow">
-            <label className="xv-lbl">Invite Name <span className="xv-optional">(helps you identify it)</span></label>
-            <input className="xv-inp" value={inviteName} onChange={e=>setInviteName(e.target.value)} placeholder="e.g. Lagos Community Wave 1"/>
-          </div>
-          <div className="xv-frow">
-            <label className="xv-lbl">Invite Code</label>
-            <div style={{display:"flex",gap:".5rem"}}>
-              <input className="xv-inp" value={code}
-                onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))}
-                placeholder="e.g. XEEVIA24" required maxLength={20}/>
-              <button type="button" className="xv-btn xv-ghost xv-sm" onClick={generateCode}>Generate</button>
-            </div>
-          </div>
-          <div className="xv-frow">
-            <label className="xv-lbl">Category</label>
-            <div className="xv-cat-row">
-              {CATEGORY_OPTIONS.map(opt=>(
-                <button key={opt.value} type="button"
-                  className={`xv-cat ${!showCustomInput&&category===opt.value?"active":""}`}
-                  onClick={()=>{setCategory(opt.value);setShowCustomInput(false);}}>
-                  {opt.label}
-                </button>
-              ))}
-              <button type="button" className={`xv-cat xv-cat-dashed ${showCustomInput?"active":""}`}
-                onClick={()=>setShowCustomInput(true)}>＋ Custom</button>
-            </div>
-            {showCustomInput && (
-              <input className="xv-inp" style={{marginTop:".5rem"}} value={customLabel}
-                onChange={e=>setCustomLabel(e.target.value)}
-                placeholder="Custom category name…" required={showCustomInput} autoFocus/>
-            )}
-          </div>
-          <div className="xv-2col">
-            <div className="xv-fcol">
-              <label className="xv-lbl">Max Public Entries</label>
-              <input type="number" min="1" className="xv-inp" value={maxUses}
-                onChange={e=>setMaxUses(Math.max(1,parseInt(e.target.value)||1))}/>
-              <span className="xv-hint">Spots before waitlist activates</span>
-            </div>
-            <div className="xv-fcol">
-              <label className="xv-lbl">Entry Price <span className="xv-optional">(cents)</span></label>
-              <input type="number" min="0" step="1" className="xv-inp" value={entryPriceCents}
-                onChange={e=>setEntryPriceCents(Math.max(0,parseInt(e.target.value)||0))}/>
-              <span className="xv-hint"><span className="xv-lime-text">{fmtCents(Number(entryPriceCents))}</span> · shown on paywall</span>
-            </div>
-          </div>
-          <div className="xv-fcol">
-            <label className="xv-lbl">Expires At <span className="xv-optional">(optional)</span></label>
-            <input type="datetime-local" className="xv-inp" value={expiresAt} onChange={e=>setExpiresAt(e.target.value)}/>
+
+      {/* Phone frame */}
+      <div style={{ background: "#0d0d0d", border: "1.5px solid #1e1e1e", borderRadius: 22, overflow: "hidden", position: "relative" }}>
+
+        {/* Status bar */}
+        <div style={{ background: "#080808", padding: "8px 14px 5px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #111" }}>
+          <span style={{ fontSize: 8, color: "#2a2a2a", fontWeight: 700, ...mono }}>9:41</span>
+          <div style={{ width: 36, height: 5, background: "#151515", borderRadius: 3 }} />
+          <div style={{ display: "flex", gap: 3 }}>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} style={{ width: 2.5, height: 4 + i * 1.5, background: i < 3 ? "#333" : "#151515", borderRadius: 1 }} />
+            ))}
           </div>
         </div>
 
-        {/* SECTION 2: WHITELIST */}
-        <div className="xv-form-section">
-          <div className="xv-form-section-hdr">
-            <span className="xv-form-section-num">2</span>
-            <span className="xv-form-section-title">Whitelist Settings</span>
-            <span className="xv-form-section-sub">Promoted users who bypass the public queue</span>
+        {/* Slide area — matches PaywallGate .xv-card */}
+        <div style={{ position: "relative", overflow: "hidden", minHeight: 300 }}>
+          {/* Accent glow — changes per slide */}
+          <div style={{ position: "absolute", top: -50, right: -50, width: 160, height: 160, borderRadius: "50%", background: `radial-gradient(circle,${accent}28 0%,transparent 70%)`, pointerEvents: "none", transition: "background .5s", zIndex: 0 }} />
+
+          {/* Slide content */}
+          <div style={{
+            position: "relative", zIndex: 1,
+            padding: "18px 16px 14px",
+            opacity: animDir === "in" ? 0 : 1,
+            transform: animDir === "in" ? "translateX(14px)" : "translateX(0)",
+            transition: animDir === "in" ? "none" : "opacity .22s ease, transform .22s ease",
+          }}>
+            {renderSlide(current)}
           </div>
-          <div className="xv-toggle-row">
-            <label className="xv-toggle-lbl">
-              <div>
-                <div style={{fontWeight:700,color:"#e2e8f0",fontSize:".88rem"}}>Enable Whitelist Tier</div>
-                <div style={{color:"#64748b",fontSize:".78rem",marginTop:2}}>Specific users can be manually promoted</div>
-              </div>
-              <div className={`xv-toggle ${enableWhitelist?"on":""}`} onClick={()=>setEnableWhitelist(v=>!v)}>
-                <div className="xv-toggle-knob"/>
-              </div>
-            </label>
+        </div>
+
+        {/* Slide dots — match PaywallGate .xv-hero-dots */}
+        {previewSlides.length > 1 && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 5, padding: "8px 0 4px" }}>
+            {previewSlides.map((s, i) => (
+              <button key={i} onClick={() => goTo(i)} style={{
+                height: 5, borderRadius: 3, border: "none", cursor: "pointer", padding: 0,
+                width: i === displayIdx ? 16 : 5,
+                background: i === displayIdx ? accentFor(s) : "#252525",
+                transition: "all .28s",
+              }} />
+            ))}
           </div>
-          {enableWhitelist && (
-            <div className="xv-subsection">
-              <div className="xv-2col">
-                <div className="xv-fcol">
-                  <label className="xv-lbl">Whitelist Price <span className="xv-optional">(cents)</span></label>
-                  <input type="number" min="0" step="1" className="xv-inp" value={whitelistPriceCents}
-                    onChange={e=>setWhitelistPriceCents(Math.max(0,parseInt(e.target.value)||0))}/>
-                  <span className="xv-hint"><span className="xv-lime-text">{fmtCents(Number(whitelistPriceCents))}</span></span>
+        )}
+
+        {/* Footer — slide label + nav */}
+        <div style={{ borderTop: "1px solid #101010", padding: "8px 14px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: "1.5px", color: accent, fontWeight: 700, transition: "color .3s" }}>{slideLabel(current)}</div>
+            <div style={{ fontSize: 9, color: "#252525", marginTop: 1 }}>{displayIdx + 1} / {previewSlides.length}</div>
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => goTo((displayIdx - 1 + previewSlides.length) % previewSlides.length)}
+              style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #252525", background: "transparent", color: "#3a3a3a", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+            <button onClick={() => goTo((displayIdx + 1) % previewSlides.length)}
+              style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid #252525", background: "transparent", color: "#3a3a3a", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Slide rotation list */}
+      <div style={{ marginTop: 10, background: "#090909", border: "1px solid #161616", borderRadius: 12, padding: "10px 12px" }}>
+        <div style={{ fontSize: 8, fontWeight: 800, color: "#2a2a2a", marginBottom: 7, textTransform: "uppercase", letterSpacing: "1.5px" }}>
+          Slides in rotation · auto every 3.6s
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {previewSlides.map((s, i) => {
+            const ac = accentFor(s);
+            const isActive = i === displayIdx;
+            return (
+              <button key={i} onClick={() => goTo(i)} style={{
+                display: "flex", alignItems: "center", gap: 7, padding: "5px 8px",
+                borderRadius: 7, border: `1px solid ${isActive ? `${ac}33` : "#141414"}`,
+                background: isActive ? `${ac}08` : "transparent",
+                cursor: "pointer", fontFamily: "inherit", textAlign: "left", width: "100%",
+              }}>
+                <span style={{ fontSize: 11, flexShrink: 0 }}>{slideIcon(s)}</span>
+                <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: isActive ? ac : "#444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {slideLabel(s)}
+                  </div>
                 </div>
-                <div className="xv-fcol">
-                  <label className="xv-lbl">Opens At <span className="xv-optional">(optional)</span></label>
-                  <input type="datetime-local" className="xv-inp" value={whitelistOpensAt} onChange={e=>setWhitelistOpensAt(e.target.value)}/>
-                </div>
-              </div>
-            </div>
-          )}
+                {isActive && (
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: ac, boxShadow: `0 0 5px ${ac}`, flexShrink: 0 }} />
+                )}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* SECTION 3: WAITLIST */}
-        <div className="xv-form-section">
-          <div className="xv-form-section-hdr">
-            <span className="xv-form-section-num">3</span>
-            <span className="xv-form-section-title">Waitlist Settings</span>
-            <span className="xv-form-section-sub">What happens when public entries are full</span>
-          </div>
-          <div className="xv-toggle-row">
-            <label className="xv-toggle-lbl">
-              <div>
-                <div style={{fontWeight:700,color:"#e2e8f0",fontSize:".88rem"}}>Auto-enable Waitlist When Full</div>
-                <div style={{color:"#64748b",fontSize:".78rem",marginTop:2}}>New users join a queue instead of being blocked</div>
-              </div>
-              <div className={`xv-toggle ${enableWaitlist?"on":""}`} onClick={()=>setEnableWaitlist(v=>!v)}>
-                <div className="xv-toggle-knob"/>
-              </div>
-            </label>
-          </div>
-          {enableWaitlist && (
-            <div className="xv-subsection">
-              <div className="xv-fcol">
-                <label className="xv-lbl">Default Promotion Batch</label>
-                <input type="number" min="1" className="xv-inp" value={batchSize}
-                  onChange={e=>setBatchSize(Math.max(1,parseInt(e.target.value)||1))}/>
-                <span className="xv-hint">Suggested count when promoting users in Waitlist Panel</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {error && <div className="xv-err">{error}</div>}
-        <div className="xv-form-actions">
-          <button type="button" className="xv-btn xv-ghost" onClick={onCancel}>Cancel</button>
-          <button type="submit" className="xv-btn xv-lime" disabled={saving}>{saving?"Creating…":"Create Invite"}</button>
-        </div>
-      </form>
+      {/* Connection note */}
+      <div style={{ marginTop: 8, padding: "8px 10px", background: "#080808", border: "1px solid #111", borderRadius: 9, fontSize: 9, color: "#252525", lineHeight: 1.7 }}>
+        ↳ Edits to price, EP, slots, and invites reflect here instantly and on <span style={{ color: "#3a3a3a" }}>/paywall</span> in real-time via Supabase.
+      </div>
     </div>
   );
 }
 
-// ── InviteCard ────────────────────────────────────────────────────────────────
-function InviteCard({ invite:inviteProp, displayName, onWaitlistClick, onToggle, onDelete, onPriceUpdate }) {
-  const [invite,       setInvite]       = useState(inviteProp);
-  const [toggling,     setToggling]     = useState(false);
-  const [deleting,     setDeleting]     = useState(false);
-  const [editingPrice, setEditingPrice] = useState(false);
-  const [priceInput,   setPriceInput]   = useState("");
-  const [priceSaving,  setPriceSaving]  = useState(false);
-  const [priceErr,     setPriceErr]     = useState("");
+// ─── WaitlistManager ──────────────────────────────────────────────────────────
+function WaitlistManager({ invite, onOptimisticUpdate, onClose }) {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [promoting, setPromoting] = useState(false);
+  const [promoteCount, setPromoteCount] = useState("5");
+  const [err, setErr] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [vipDrawing, setVipDrawing] = useState(false);
 
-  useEffect(()=>{ setInvite(inviteProp); }, [inviteProp]);
+  const meta = invite?.metadata ?? {};
+  const vipSlots = meta.vip_slots ?? 0;
+  const vipWinners = meta.vip_winners ?? [];
 
-  const uses   = invite.uses_count ?? 0;
-  const max    = invite.max_uses   ?? 1;
-  const isFull = uses >= max;
-  const isActive = invite.is_active;
-  const pct    = Math.min(100, max>0?(uses/max)*100:0);
+  useEffect(() => {
+    loadEntries();
+  }, [invite?.id]);
 
-  const waitlistCount  = invite.metadata?.waitlist_count ?? 0;
-  const meta           = invite.metadata ?? {};
-
-  // ── PRICE DISPLAY — same priority as PaywallGate & fetchInviteCodeDetails ──
-  // 1. price_override  (if != null)   ← PaywallGate reads this FIRST
-  // 2. metadata.entry_price_cents     ← belt-and-suspenders
-  // 3. entry_price                    ← real column fallback
-  const displayedCents =
-    invite.price_override != null
-      ? Math.round(Number(invite.price_override) * 100)
-      : meta.entry_price_cents != null
-        ? Number(meta.entry_price_cents)
-        : Math.round((Number(invite.entry_price) || 4) * 100);
-
-  const wlPriceCents = invite.whitelist_price_cents ?? 0;
-  const inviteName   = invite.invite_name ?? "";
-  const progColor    = pct >= 100 ? "#ef4444" : pct > 75 ? "#f59e0b" : "#84cc16";
-
-  async function handleToggle() {
-    setToggling(true);
-    try { await onToggle(invite.id, !isActive); }
-    catch (e) { alert(e.message); }
-    finally { setToggling(false); }
-  }
-
-  async function handleDelete() {
-    if (!window.confirm(`Delete invite "${invite.code}"${inviteName?` (${inviteName})`:""}? Cannot be undone.`)) return;
-    setDeleting(true);
-    try { await onDelete(invite.id); }
-    catch (e) { alert(e.message); setDeleting(false); }
-  }
-
-  // ── THE CRITICAL PRICE SAVE — writes ALL THREE fields atomically ──────────
-  // This is what was broken in v5: price_override was NOT updated.
-  // PaywallGate reads price_override FIRST, so the price never changed.
-  // Now we write entry_price + price_override + metadata all in one call.
-  async function handlePriceSave() {
-    const dollars = parseFloat(priceInput);
-    if (isNaN(dollars) || dollars < 0) { setPriceErr("Enter a valid price (0 for free)."); return; }
-
-    const cents         = Math.round(dollars * 100);
-    const prevEntry     = invite.entry_price;
-    const prevOverride  = invite.price_override;
-    const prevMeta      = invite.metadata;
-
-    // OPTIMISTIC UPDATE — UI updates instantly
-    const newMeta = {
-      ...(invite.metadata||{}),
-      entry_price_cents:  cents,
-      last_price_update:  new Date().toISOString(),
-    };
-    setInvite(prev => ({
-      ...prev,
-      entry_price:    cents/100,
-      price_override: cents/100,  // ← CRITICAL: keep in sync so display is consistent
-      metadata:       newMeta,
-    }));
-    setEditingPrice(false);
-    setPriceErr("");
-    setPriceSaving(true);
-
+  const loadEntries = async () => {
+    setLoading(true);
     try {
-      // Write ALL THREE price fields in one atomic DB call
+      const waitlistEntries = meta.waitlist_entries ?? [];
+      const whitelistedIds = new Set(meta.whitelisted_user_ids ?? []);
+      const vipIds = new Set((meta.vip_winners ?? []).map(w => w.user_id));
+      const userIds = waitlistEntries.map(e => e.user_id).filter(Boolean);
+
+      let profiles = {};
+      if (userIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from("profiles")
+          .select("id,full_name,username,avatar_id")
+          .in("id", userIds);
+        (profileRows ?? []).forEach(p => { profiles[p.id] = p; });
+      }
+
+      const enriched = waitlistEntries.map((e, idx) => ({
+        ...e,
+        position: idx + 1,
+        profile: profiles[e.user_id] ?? null,
+        isWhitelisted: whitelistedIds.has(e.user_id),
+        isVip: vipIds.has(e.user_id),
+      }));
+      setEntries(enriched);
+    } catch (e) {
+      setErr(e?.message ?? "Failed to load entries.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Promote top N from waitlist → whitelist (increment max_uses)
+  const promoteTop = async () => {
+    const n = parseInt(promoteCount, 10);
+    if (!n || n < 1) return;
+    setPromoting(true); setErr(""); setSuccessMsg("");
+    try {
+      const toPromote = entries.filter(e => !e.isWhitelisted && !e.isVip).slice(0, n);
+      if (toPromote.length === 0) { setErr("No users to promote."); setPromoting(false); return; }
+
+      const newWhitelistedIds = [
+        ...(meta.whitelisted_user_ids ?? []),
+        ...toPromote.map(e => e.user_id).filter(Boolean),
+      ];
+      const newWaitlistCount = Math.max(0, (meta.waitlist_count ?? 0) - toPromote.length);
+      const newMaxUses = (invite.max_uses ?? 0) + toPromote.length;
+
+      const newMeta = {
+        ...meta,
+        whitelisted_user_ids: newWhitelistedIds,
+        waitlist_count: newWaitlistCount,
+      };
+
       const { error } = await supabase
         .from("invite_codes")
-        .update({
-          entry_price:    cents/100,   // ← real column — primary
-          price_override: cents/100,   // ← real column — PaywallGate priority-1
-          metadata:       newMeta,     // ← belt-and-suspenders + triggers realtime broadcast
-          updated_at:     new Date().toISOString(),
-        })
+        .update({ metadata: newMeta, max_uses: newMaxUses })
         .eq("id", invite.id);
 
       if (error) throw error;
-      onPriceUpdate?.(invite.id, cents);
+      onOptimisticUpdate?.({ ...invite, metadata: newMeta, max_uses: newMaxUses });
+      setSuccessMsg(`✓ Promoted ${toPromote.length} users to whitelist.`);
+      await loadEntries();
     } catch (e) {
-      // ROLLBACK on failure
-      setInvite(prev => ({
-        ...prev,
-        entry_price:    prevEntry,
-        price_override: prevOverride,
-        metadata:       prevMeta,
-      }));
-      setPriceErr(`Failed: ${e.message}`);
+      setErr(e?.message ?? "Promotion failed.");
     } finally {
-      setPriceSaving(false);
+      setPromoting(false);
     }
-  }
+  };
+
+  // VIP lottery draw
+  const drawVipLottery = async () => {
+    if (!vipSlots || vipSlots < 1) return;
+    setVipDrawing(true); setErr(""); setSuccessMsg("");
+    try {
+      const eligible = entries.filter(e => !e.isVip && e.user_id);
+      if (eligible.length === 0) { setErr("No eligible users for VIP lottery."); setVipDrawing(false); return; }
+
+      // Fisher-Yates shuffle then pick N
+      const shuffled = [...eligible];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const winners = shuffled.slice(0, vipSlots);
+      const winnerRecords = winners.map(w => ({
+        user_id: w.user_id,
+        email: w.email ?? "",
+        selected_at: new Date().toISOString(),
+      }));
+
+      const newMeta = { ...meta, vip_winners: winnerRecords };
+      const { error } = await supabase
+        .from("invite_codes")
+        .update({ metadata: newMeta })
+        .eq("id", invite.id);
+
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, metadata: newMeta });
+      setSuccessMsg(`🎉 ${winners.length} VIP winners selected!`);
+      await loadEntries();
+    } catch (e) {
+      setErr(e?.message ?? "VIP draw failed.");
+    } finally {
+      setVipDrawing(false);
+    }
+  };
+
+  // Export waitlist as CSV
+  const exportCSV = () => {
+    const rows = [["Position","User ID","Email","Status","Joined At"]];
+    entries.forEach(e => rows.push([
+      e.position, e.user_id ?? "", e.email ?? "",
+      e.isVip ? "VIP" : e.isWhitelisted ? "Whitelisted" : "Waiting",
+      e.joined_at ?? "",
+    ]));
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `waitlist-${invite.code}-${Date.now()}.csv`; a.click();
+  };
+
+  const pendingCount = entries.filter(e => !e.isWhitelisted && !e.isVip).length;
 
   return (
-    <div className={`xv-card ${!isActive?"xv-card-off":""}`}>
-      <div className="xv-card-hdr">
-        <div className="xv-card-left">
-          <code className="xv-code-chip">{invite.code}</code>
-          {inviteName && <span className="xv-invite-name">{inviteName}</span>}
-          <span className={`xv-catbadge xv-cat-${invite.invite_category??"standard"}`}>{displayName}</span>
-          {isFull    && <span className="xv-pill xv-pill-full">Full</span>}
-          {invite.enable_waitlist && <span className="xv-pill xv-pill-wl">Waitlist On</span>}
-          {!isActive && <span className="xv-pill xv-pill-off">Inactive</span>}
-          {invite.expires_at && new Date(invite.expires_at)<new Date() && <span className="xv-pill xv-pill-exp">Expired</span>}
+    <div style={{ background: "#090909", border: "1px solid #1e1e1e", borderRadius: 14, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #1a1a1a", background: "rgba(56,189,248,.03)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>⏳</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#38bdf8" }}>Waitlist Manager</div>
+            <div style={{ fontSize: 10, color: "#444" }}>{entries.length} total · {pendingCount} pending</div>
+          </div>
         </div>
-        <div style={{display:"flex",gap:".2rem",flexShrink:0}}>
-          <button className="xv-icon-btn" title={isActive?"Deactivate":"Activate"} onClick={handleToggle} disabled={toggling}>
-            {toggling?"…":isActive?"⏸":"▶"}
-          </button>
-          <button className="xv-icon-btn xv-danger-icon" title="Delete" disabled={deleting} onClick={handleDelete}>🗑</button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Btn small onClick={exportCSV} disabled={entries.length === 0}>⬇ CSV</Btn>
+          <Btn small onClick={onClose}>✕</Btn>
         </div>
       </div>
 
-      <div className="xv-card-stats">
-        {/* Entries */}
-        <div className="xv-s">
-          <span className="xv-sl">Entries</span>
-          <span className="xv-sv">{uses}&nbsp;<span style={{color:"#334155"}}>/</span>&nbsp;{max}</span>
-          <div className="xv-prog-bar"><div className="xv-prog-fill" style={{width:`${pct}%`,background:progColor}}/></div>
-          <span style={{fontSize:".68rem",color:progColor,fontWeight:700,marginTop:"2px"}}>{pct.toFixed(0)}%</span>
-        </div>
-
-        {/* Entry price — inline editor */}
-        <div className="xv-s">
-          <span className="xv-sl">Entry Price</span>
-          {editingPrice ? (
-            <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:2}}>
-              <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                <span style={{color:"#64748b",fontSize:11}}>$</span>
-                <input type="number" min="0" step="0.01" value={priceInput}
-                  onChange={e=>{setPriceInput(e.target.value);setPriceErr("");}}
-                  onKeyDown={e=>{if(e.key==="Enter")handlePriceSave();if(e.key==="Escape"){setEditingPrice(false);setPriceErr("");}}}
-                  className="xv-inp-sm" style={{width:72}} autoFocus/>
-                <button className="xv-btn xv-lime xv-sm" onClick={handlePriceSave} disabled={priceSaving} style={{padding:"3px 8px",fontSize:10}}>
-                  {priceSaving?"…":"✓"}
-                </button>
-                <button className="xv-icon-btn" onClick={()=>{setEditingPrice(false);setPriceErr("");}} style={{fontSize:10}}>✕</button>
-              </div>
-              {priceErr && <div style={{color:"#fca5a5",fontSize:10,lineHeight:1.4}}>{priceErr}</div>}
-            </div>
-          ) : (
-            <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <span className={`xv-sv ${priceSaving?"":"xv-lime-text"}`}>
-                {priceSaving?"Saving…":fmtCents(displayedCents)}
-              </span>
-              <button className="xv-icon-btn" title="Edit price — syncs to paywall instantly"
-                onClick={()=>{setPriceInput((displayedCents/100).toFixed(2));setEditingPrice(true);setPriceErr("");}}
-                style={{fontSize:9,padding:"1px 5px",opacity:.55}}>✏️</button>
-              {priceSaving && <span style={{fontSize:9,color:"#64748b",animation:"xvSpin .6s linear infinite",display:"inline-block"}}>↻</span>}
-            </div>
-          )}
-        </div>
-
-        <div className="xv-s">
-          <span className="xv-sl">WL Price</span>
-          <span className="xv-sv" style={{color:wlPriceCents===0?"#84cc16":"#a5b4fc"}}>{fmtCents(wlPriceCents)}</span>
-        </div>
-        <div className="xv-s">
-          <span className="xv-sl">Expires</span>
-          <span className="xv-sv" style={{fontSize:".78rem",color:"#64748b"}}>{fmtDate(invite.expires_at)}</span>
-        </div>
-      </div>
-
-      <div className="xv-card-wl">
-        <button className={`xv-wl-btn ${waitlistCount>0?"xv-wl-active":""}`} onClick={()=>onWaitlistClick(invite)}>
-          <span>⏳</span>
-          <span className="xv-wl-n">{waitlistCount}</span>
-          <span>on waitlist</span>
-          <span className="xv-wl-arrow">→</span>
-        </button>
-        {invite.metadata?.whitelist_opens_at && (
-          <span style={{fontSize:".74rem",color:"#475569"}}>Opens: {fmtDate(invite.metadata.whitelist_opens_at)}</span>
+      {/* Promote controls */}
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #111", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ fontSize: 11, color: "#555", flex: 1 }}>Promote top</div>
+        <input
+          type="number" min="1" max={pendingCount} value={promoteCount}
+          onChange={e => setPromoteCount(e.target.value)}
+          style={{ width: 52, background: "#111", border: "1px solid #252525", borderRadius: 8, padding: "6px 8px", color: "#f0f0f0", fontSize: 12, textAlign: "center", fontFamily: "inherit" }}
+        />
+        <div style={{ fontSize: 11, color: "#555" }}>users →</div>
+        <Btn accent small onClick={promoteTop} disabled={promoting || pendingCount === 0}>
+          {promoting ? "Promoting…" : "Promote to Whitelist"}
+        </Btn>
+        {vipSlots > 0 && (
+          <Btn small onClick={drawVipLottery} disabled={vipDrawing || entries.length === 0}
+            style={{ background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.3)", color: "#a78bfa" }}>
+            {vipDrawing ? "Drawing…" : `🎲 Draw ${vipSlots} VIP`}
+          </Btn>
         )}
       </div>
+
+      {/* Messages */}
+      {err && <div style={{ padding: "8px 16px", background: "rgba(239,68,68,.06)", fontSize: 11, color: "#f87171" }}>{err}</div>}
+      {successMsg && <div style={{ padding: "8px 16px", background: "rgba(163,230,53,.06)", fontSize: 11, color: "#a3e635" }}>{successMsg}</div>}
+
+      {/* VIP winners */}
+      {vipWinners.length > 0 && (
+        <div style={{ padding: "10px 16px", borderBottom: "1px solid #111", background: "rgba(167,139,250,.04)" }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", marginBottom: 6, textTransform: "uppercase", letterSpacing: "1.5px" }}>VIP Winners ({vipWinners.length})</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {vipWinners.map((w, i) => (
+              <span key={i} style={{ fontSize: 10, color: "#a78bfa", background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 6, padding: "3px 8px", ...mono }}>
+                {w.email || w.user_id?.slice(0, 8)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Entry list */}
+      <div style={{ maxHeight: 280, overflowY: "auto" }}>
+        {loading ? (
+          <div style={{ padding: 24, textAlign: "center", color: "#333", fontSize: 12 }}>Loading…</div>
+        ) : entries.length === 0 ? (
+          <div style={{ padding: 24, textAlign: "center", color: "#2a2a2a", fontSize: 12 }}>No waitlist entries yet.</div>
+        ) : entries.map((e, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "9px 16px",
+            borderBottom: "1px solid #0f0f0f",
+            background: e.isVip ? "rgba(167,139,250,.03)" : e.isWhitelisted ? "rgba(163,230,53,.03)" : "transparent",
+          }}>
+            <div style={{ width: 22, height: 22, borderRadius: 6, background: "#111", border: "1px solid #222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#444", flexShrink: 0 }}>
+              {e.position}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#d0d0d0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {e.profile?.full_name || e.email || e.user_id?.slice(0, 12) + "…"}
+              </div>
+              {e.email && <div style={{ fontSize: 10, color: "#333", ...mono }}>{e.email}</div>}
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              {e.isVip
+                ? <Pill label="VIP" color="#a78bfa" />
+                : e.isWhitelisted
+                  ? <Pill label="Promoted" color="#a3e635" />
+                  : <Pill label={`#${e.position}`} color="#38bdf8" />
+              }
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ── InviteSection ─────────────────────────────────────────────────────────────
-export default function InviteSection({ invitesHook }) {
-  const {
-    invites, loading, error, reload:refetch,
-    createInvite, toggleInvite, deleteInvite,
-    getWaitlistEntries, promoteWaitlist, updateWaitlistOpenTime,
-    getInviteDisplayName,
-  } = invitesHook;
+// ─── PublicEntryCard ───────────────────────────────────────────────────────────
+// The non-deletable system card that controls the public paywall price + slides
+function PublicEntryCard({ invite, onOptimisticUpdate }) {
+  const [expanded, setExpanded] = useState(true);
+  const [showAddSlide, setShowAddSlide] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
 
-  const [showCreate,     setShowCreate]     = useState(false);
-  const [waitlistTarget, setWaitlistTarget] = useState(null);
-  const [search,         setSearch]         = useState("");
-  const [filter,         setFilter]         = useState("all");
+  const meta = invite?.metadata ?? {};
+  const currentPrice = resolvePrice(invite);
+  const slides = meta.slides ?? [];
+  const epGrant = meta.ep_grant ?? 300;
+  const slotsTotal = meta.slots_total ?? 0;
+  const slotsClaimed = meta.slots_claimed ?? 0;
+  const heroMessage = meta.hero_message ?? "";
 
-  const filtered = invites.filter(inv => {
-    const q = search.toLowerCase();
-    if (q && !((inv.code??"").toLowerCase().includes(q)||
-               (inv.invite_name??"").toLowerCase().includes(q)||
-               getInviteDisplayName(inv).toLowerCase().includes(q))) return false;
-    if (filter==="active")   return inv.is_active && !inv.is_full;
-    if (filter==="inactive") return !inv.is_active;
-    if (filter==="full")     return inv.is_full;
-    return true;
-  });
+  // Local state for all editable fields
+  const [price, setPrice] = useState(String(currentPrice));
+  const [ep, setEp] = useState(String(epGrant));
+  const [slots, setSlots] = useState(String(slotsTotal));
+  const [claimed, setClaimed] = useState(String(slotsClaimed));
+  const [heroMsg, setHeroMsg] = useState(heroMessage);
 
-  const totalWaiting = invites.reduce((s,inv)=>s+(inv.metadata?.waitlist_count??0),0);
+  useEffect(() => {
+    setPrice(String(resolvePrice(invite)));
+    setEp(String(invite?.metadata?.ep_grant ?? 300));
+    setSlots(String(invite?.metadata?.slots_total ?? 0));
+    setClaimed(String(invite?.metadata?.slots_claimed ?? 0));
+    setHeroMsg(invite?.metadata?.hero_message ?? "");
+  }, [invite?.id]); // eslint-disable-line
 
-  const handlePriceUpdate = useCallback(()=>{
-    setTimeout(()=>refetch(), 1200);
-  },[refetch]);
+  const save = async (patch) => {
+    setSaveState("saving");
+    try {
+      const priceCents = Math.round(parseFloat(patch.price ?? price) * 100);
+      const newMeta = {
+        ...meta,
+        entry_price_cents: priceCents,
+        ep_grant: parseInt(patch.ep ?? ep, 10) || 300,
+        slots_total: parseInt(patch.slots ?? slots, 10) || 0,
+        slots_claimed: parseInt(patch.claimed ?? claimed, 10) || 0,
+        hero_message: patch.heroMsg ?? heroMsg,
+        slides: patch.slides ?? slides,
+      };
+      const { error } = await supabase
+        .from("invite_codes")
+        .update({ metadata: newMeta, price_override: parseFloat(patch.price ?? price) })
+        .eq("id", invite.id);
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, metadata: newMeta, price_override: parseFloat(patch.price ?? price) });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  const addSlide = (slide) => {
+    const newSlides = [...slides, slide];
+    save({ slides: newSlides });
+  };
+
+  const removeSlide = (idx) => {
+    const newSlides = slides.filter((_, i) => i !== idx);
+    save({ slides: newSlides });
+  };
 
   return (
-    <div className="xv-section">
-      <div style={{marginBottom:"1.75rem"}}>
-        <div style={{fontSize:".7rem",fontWeight:800,color:"#334155",textTransform:"uppercase",letterSpacing:".08em",marginBottom:".6rem"}}>Built-in Plan</div>
-        <PublicPlanPanel/>
+    <div style={{ background: "#0c0c0c", border: "1.5px solid #1e1e1e", borderRadius: 16, overflow: "hidden" }}>
+      {/* Header */}
+      <div
+        onClick={() => setExpanded(v => !v)}
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer", userSelect: "none" }}
+      >
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(163,230,53,.1)", border: "1px solid rgba(163,230,53,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🌐</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>PUBLIC ENTRY</span>
+            <Pill label="System" color="#a3e635" />
+            <Pill label="Non-deletable" color="#444" />
+          </div>
+          <div style={{ fontSize: 11, color: "#3a3a3a", marginTop: 2 }}>
+            Controls paywall hero · <span style={{ color: "#a3e635", ...mono }}>${fmt(currentPrice)}</span> public price
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <SaveIndicator state={saveState} />
+          <span style={{ color: "#3a3a3a", fontSize: 16 }}>{expanded ? "▲" : "▼"}</span>
+        </div>
       </div>
 
-      <div style={{height:1,background:"rgba(255,255,255,.05)",marginBottom:"1.5rem"}}/>
+      {expanded && (
+        <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 14, borderTop: "1px solid #141414" }}>
+          {/* Price + EP row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, paddingTop: 14 }}>
+            <div>
+              <FieldLabel>Public Entry Price</FieldLabel>
+              <Input value={price} onChange={setPrice} onBlur={() => save({ price })} prefix="$" placeholder="4.00" />
+            </div>
+            <div>
+              <FieldLabel>EP Grant</FieldLabel>
+              <Input value={ep} onChange={setEp} onBlur={() => save({ ep })} placeholder="300" />
+            </div>
+            <div>
+              <FieldLabel>Total Slots</FieldLabel>
+              <Input value={slots} onChange={setSlots} onBlur={() => save({ slots })} placeholder="0 = unlimited" />
+            </div>
+            <div>
+              <FieldLabel>Claimed</FieldLabel>
+              <Input value={claimed} onChange={setClaimed} onBlur={() => save({ claimed })} placeholder="0" />
+            </div>
+          </div>
 
-      <div className="xv-section-hdr">
-        <div>
-          <h2 className="xv-section-ttl">Invite Codes</h2>
-          <p className="xv-section-sub">
-            {invites.length===0?"No invite codes yet — create your first one below":`${invites.length} invite${invites.length!==1?"s":""}`}
-            {totalWaiting>0 && <span className="xv-waiting-badge">⏳ {totalWaiting} waiting</span>}
-          </p>
+          {/* Hero message */}
+          <div>
+            <FieldLabel>Hero Message (shown under price)</FieldLabel>
+            <Textarea
+              value={heroMsg}
+              onChange={setHeroMsg}
+              onBlur={() => save({ heroMsg })}
+              placeholder="Optional tagline shown below the price in the paywall hero…"
+              rows={2}
+            />
+          </div>
+
+          {/* Slides section */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <FieldLabel>Paywall Slides</FieldLabel>
+              <Btn small onClick={() => setShowAddSlide(v => !v)} accent={showAddSlide}>
+                {showAddSlide ? "Cancel" : "+ Add Slide"}
+              </Btn>
+            </div>
+            {showAddSlide && <AddSlidePanel onAdd={addSlide} onClose={() => setShowAddSlide(false)} />}
+            {slides.length === 0 ? (
+              <div style={{ padding: "12px", background: "#0a0a0a", border: "1px dashed #1e1e1e", borderRadius: 10, textAlign: "center", fontSize: 11, color: "#2a2a2a" }}>
+                No custom slides — paywall shows default public price view
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {slides.map((s, i) => (
+                  <SlideChip key={i} slide={s} onRemove={() => removeSlide(i)} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Invite link */}
+          <div>
+            <FieldLabel>Paywall Link</FieldLabel>
+            <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ flex: 1, background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: 9, padding: "9px 12px", fontSize: 11, color: "#333", ...mono, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {window.location.origin}
+              </div>
+              <CopyLinkButton code={null} label="Copy" />
+            </div>
+          </div>
         </div>
-        <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
-          <button className="xv-btn xv-ghost xv-sm" onClick={refetch} title="Refresh">⟳ Refresh</button>
-          <button className={`xv-btn ${showCreate?"xv-ghost":"xv-lime"}`} onClick={()=>setShowCreate(v=>!v)}>
-            {showCreate?"✕ Cancel":"＋ New Invite"}
+      )}
+    </div>
+  );
+}
+
+// ─── InviteCard ────────────────────────────────────────────────────────────────
+// A custom invite (whitelist / standard / VIP / community)
+function InviteCard({ invite, onOptimisticUpdate, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showAddSlide, setShowAddSlide] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
+  const [deleting, setDeleting] = useState(false);
+  const [vipDrawing, setVipDrawing] = useState(false);
+
+  const meta = invite?.metadata ?? {};
+  const category = meta.invite_category ?? invite.type ?? "standard";
+  const accent = ACC_COLORS[category] ?? "#94a3b8";
+  const currentPrice = resolvePrice(invite);
+  const isWhitelist = category === "whitelist" || meta.has_whitelist_access;
+  const hasWaitlist = meta.waitlist_slots > 0;
+  const hasVip = meta.vip_slots > 0;
+  const isFull = invite.is_full;
+
+  // Editable local state
+  const [name, setName] = useState(meta.invite_name ?? "");
+  const [price, setPrice] = useState(String(currentPrice));
+  const [wlPrice, setWlPrice] = useState(String(meta.whitelist_price_cents != null ? meta.whitelist_price_cents / 100 : currentPrice));
+  const [maxUses, setMaxUses] = useState(String(invite.max_uses ?? ""));
+  const [waitlistSlots, setWaitlistSlots] = useState(String(meta.waitlist_slots ?? ""));
+  const [vipSlots, setVipSlots] = useState(String(meta.vip_slots ?? ""));
+  const [epGrant, setEpGrant] = useState(String(meta.ep_grant ?? 500));
+  const [expiresAt, setExpiresAt] = useState(invite.expires_at ? invite.expires_at.slice(0, 10) : "");
+
+  useEffect(() => {
+    const m = invite?.metadata ?? {};
+    setName(m.invite_name ?? "");
+    setPrice(String(resolvePrice(invite)));
+    setWlPrice(String(m.whitelist_price_cents != null ? m.whitelist_price_cents / 100 : resolvePrice(invite)));
+    setMaxUses(String(invite.max_uses ?? ""));
+    setWaitlistSlots(String(m.waitlist_slots ?? ""));
+    setVipSlots(String(m.vip_slots ?? ""));
+    setEpGrant(String(m.ep_grant ?? 500));
+    setExpiresAt(invite.expires_at ? invite.expires_at.slice(0, 10) : "");
+  }, [invite?.id]); // eslint-disable-line
+
+  const save = async (patch = {}) => {
+    setSaveState("saving");
+    try {
+      const newPrice = parseFloat(patch.price ?? price);
+      const newWlPrice = parseFloat(patch.wlPrice ?? wlPrice);
+      const newMaxUses = parseInt(patch.maxUses ?? maxUses, 10) || null;
+      const newWlSlots = parseInt(patch.waitlistSlots ?? waitlistSlots, 10) || 0;
+      const newVipSlots = parseInt(patch.vipSlots ?? vipSlots, 10) || 0;
+      const newEp = parseInt(patch.epGrant ?? epGrant, 10) || 500;
+
+      const newMeta = {
+        ...meta,
+        invite_name: patch.name ?? name,
+        invite_category: category,
+        entry_price_cents: Math.round(newPrice * 100),
+        whitelist_price_cents: Math.round(newWlPrice * 100),
+        waitlist_slots: newWlSlots,
+        vip_slots: newVipSlots,
+        ep_grant: newEp,
+        has_whitelist_access: isWhitelist,
+      };
+
+      const updatePayload = {
+        metadata: newMeta,
+        price_override: newPrice,
+        max_uses: newMaxUses,
+        expires_at: patch.expiresAt ?? expiresAt ? (patch.expiresAt ?? expiresAt) || null : null,
+      };
+
+      const { error } = await supabase
+        .from("invite_codes")
+        .update(updatePayload)
+        .eq("id", invite.id);
+
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, ...updatePayload, metadata: newMeta });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  const toggleStatus = async () => {
+    const newStatus = invite.status === "active" ? "inactive" : "active";
+    setSaveState("saving");
+    try {
+      const { error } = await supabase.from("invite_codes").update({ status: newStatus }).eq("id", invite.id);
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, status: newStatus });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1500);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete invite "${meta.invite_name || invite.code}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("invite_codes").delete().eq("id", invite.id);
+      if (error) throw error;
+      onDelete?.(invite.id);
+    } catch {
+      setDeleting(false);
+    }
+  };
+
+  const drawVip = async () => {
+    const n = parseInt(vipSlots, 10);
+    if (!n || n < 1) return;
+    setVipDrawing(true);
+    try {
+      const waitlistEntries = meta.waitlist_entries ?? [];
+      const eligible = waitlistEntries.filter(e => e.user_id);
+      const shuffled = [...eligible];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const winners = shuffled.slice(0, n).map(w => ({
+        user_id: w.user_id, email: w.email ?? "", selected_at: new Date().toISOString(),
+      }));
+      const newMeta = { ...meta, vip_winners: winners };
+      const { error } = await supabase.from("invite_codes").update({ metadata: newMeta }).eq("id", invite.id);
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, metadata: newMeta });
+    } catch {}
+    finally { setVipDrawing(false); }
+  };
+
+  const usedPct = invite.max_uses > 0 ? Math.min(100, Math.round(((invite.uses_count ?? 0) / invite.max_uses) * 100)) : 0;
+
+  return (
+    <div style={{ background: "#0c0c0c", border: `1.5px solid ${expanded ? `${accent}33` : "#1e1e1e"}`, borderRadius: 16, overflow: "hidden", transition: "border-color .2s" }}>
+      {/* Card header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer" }} onClick={() => setExpanded(v => !v)}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: `${accent}18`, border: `1px solid ${accent}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+          {category === "whitelist" ? "⭐" : category === "vip" ? "💎" : category === "community" ? "🏠" : "🎟"}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>{meta.invite_name || "Untitled Invite"}</span>
+            <Pill label={category} color={accent} />
+            {invite.status !== "active" && <Pill label="inactive" color="#555" />}
+            {isFull && <Pill label="full" color="#f87171" />}
+            {hasWaitlist && <Pill label="waitlist" color="#38bdf8" />}
+            {hasVip && <Pill label="VIP lottery" color="#a78bfa" />}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+            <span style={{ fontSize: 10, color: "#3a3a3a", ...mono }}>{invite.code}</span>
+            <span style={{ fontSize: 10, color: accent, fontWeight: 700 }}>${fmt(currentPrice)}</span>
+            {invite.max_uses && <span style={{ fontSize: 10, color: "#444" }}>{invite.uses_count ?? 0}/{invite.max_uses} used</span>}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <SaveIndicator state={saveState} />
+          <Toggle checked={invite.status === "active"} onChange={toggleStatus} size="sm" />
+          <span style={{ color: "#3a3a3a", fontSize: 14 }}>{expanded ? "▲" : "▼"}</span>
+        </div>
+      </div>
+
+      {/* Usage bar */}
+      {invite.max_uses > 0 && (
+        <div style={{ height: 2, background: "#111", margin: "0 14px" }}>
+          <div style={{ width: `${usedPct}%`, height: "100%", background: `linear-gradient(90deg,${accent}88,${accent})`, borderRadius: 1, transition: "width .4s" }} />
+        </div>
+      )}
+
+      {expanded && (
+        <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 12, borderTop: "1px solid #141414" }}>
+
+          {/* Name */}
+          <div>
+            <FieldLabel>Invite Name</FieldLabel>
+            <Input value={name} onChange={setName} onBlur={() => save({ name })} placeholder="e.g. Launch Wave 1" />
+          </div>
+
+          {/* Price grid */}
+          <div style={{ display: "grid", gridTemplateColumns: isWhitelist ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
+            <div>
+              <FieldLabel>Entry Price</FieldLabel>
+              <Input value={price} onChange={setPrice} onBlur={() => save({ price })} prefix="$" placeholder="4.00" />
+            </div>
+            {isWhitelist && (
+              <div>
+                <FieldLabel>Whitelist Price</FieldLabel>
+                <Input value={wlPrice} onChange={setWlPrice} onBlur={() => save({ wlPrice })} prefix="$" placeholder="0 = free" />
+              </div>
+            )}
+            <div>
+              <FieldLabel>Max Uses</FieldLabel>
+              <Input value={maxUses} onChange={setMaxUses} onBlur={() => save({ maxUses })} placeholder="∞ unlimited" />
+            </div>
+            <div>
+              <FieldLabel>EP Grant</FieldLabel>
+              <Input value={epGrant} onChange={setEpGrant} onBlur={() => save({ epGrant })} placeholder="500" />
+            </div>
+          </div>
+
+          {/* Waitlist + VIP row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div>
+              <FieldLabel>Waitlist Slots</FieldLabel>
+              <Input value={waitlistSlots} onChange={setWaitlistSlots} onBlur={() => save({ waitlistSlots })} placeholder="0 = disabled" />
+              <div style={{ fontSize: 9, color: "#2a2a2a", marginTop: 4 }}>Auto-activates when max uses hit</div>
+            </div>
+            <div>
+              <FieldLabel>VIP Lottery Slots</FieldLabel>
+              <Input value={vipSlots} onChange={setVipSlots} onBlur={() => save({ vipSlots })} placeholder="0 = disabled" />
+              <div style={{ fontSize: 9, color: "#2a2a2a", marginTop: 4 }}>Free VIP from pool of users</div>
+            </div>
+            <div>
+              <FieldLabel>Expires</FieldLabel>
+              <Input value={expiresAt} onChange={setExpiresAt} onBlur={() => save({ expiresAt })} type="date" />
+            </div>
+          </div>
+
+          {/* VIP lottery draw */}
+          {hasVip && (
+            <div style={{ background: "rgba(167,139,250,.06)", border: "1px solid rgba(167,139,250,.18)", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#a78bfa" }}>🎲 VIP Lottery</div>
+                  <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>
+                    Select {vipSlots} lucky winner{parseInt(vipSlots, 10) !== 1 ? "s" : ""} from {invite.uses_count ?? 0} users for free VIP access
+                  </div>
+                </div>
+                <Btn small onClick={drawVip} disabled={vipDrawing || (invite.uses_count ?? 0) === 0}
+                  style={{ background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", color: "#a78bfa" }}>
+                  {vipDrawing ? "Drawing…" : "Draw Winners"}
+                </Btn>
+              </div>
+              {(meta.vip_winners ?? []).length > 0 && (
+                <div style={{ fontSize: 10, color: "#666" }}>
+                  {meta.vip_winners.length} winners selected · Last draw: {meta.vip_winners[0]?.selected_at?.slice(0, 10) ?? "—"}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Waitlist management */}
+          {hasWaitlist && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: "#555" }}>
+                  Waitlist: <span style={{ color: "#38bdf8", fontWeight: 700 }}>{meta.waitlist_count ?? 0}</span> / {meta.waitlist_slots} in queue
+                </div>
+                <Btn small onClick={() => setShowWaitlist(v => !v)}
+                  style={{ background: showWaitlist ? "rgba(56,189,248,.1)" : "transparent", border: "1px solid rgba(56,189,248,.25)", color: "#38bdf8" }}>
+                  {showWaitlist ? "Hide Waitlist" : "Manage Waitlist"}
+                </Btn>
+              </div>
+              {showWaitlist && (
+                <WaitlistManager invite={invite} onOptimisticUpdate={onOptimisticUpdate} onClose={() => setShowWaitlist(false)} />
+              )}
+            </div>
+          )}
+
+          {/* Actions row */}
+          <div style={{ display: "flex", gap: 6, paddingTop: 4, borderTop: "1px solid #111" }}>
+            <CopyLinkButton code={invite.code} />
+            <Btn small danger onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
+            </Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CreateInviteDrawer ────────────────────────────────────────────────────────
+function CreateInviteDrawer({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("whitelist");
+  const [price, setPrice] = useState("4");
+  const [wlPrice, setWlPrice] = useState("0");
+  const [maxUses, setMaxUses] = useState("100");
+  const [waitlistSlots, setWaitlistSlots] = useState("");
+  const [vipSlots, setVipSlots] = useState("");
+  const [epGrant, setEpGrant] = useState("500");
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState("");
+
+  const cat = CATEGORY_OPTIONS.find(c => c.id === category) ?? CATEGORY_OPTIONS[0];
+
+  const generate = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  };
+
+  const create = async () => {
+    if (!name.trim()) { setErr("Invite name is required."); return; }
+    setCreating(true); setErr("");
+    try {
+      const code = generate();
+      const priceNum = parseFloat(price) || 4;
+      const wlPriceNum = parseFloat(wlPrice) || 0;
+      const newInvite = {
+        code,
+        type: category === "whitelist" ? "whitelist" : "custom",
+        status: "active",
+        max_uses: parseInt(maxUses, 10) || null,
+        uses_count: 0,
+        enable_waitlist: parseInt(waitlistSlots, 10) > 0,
+        entry_price: priceNum,
+        price_override: priceNum,
+        metadata: {
+          admin_created: true,
+          invite_name: name.trim(),
+          invite_category: category,
+          entry_price_cents: Math.round(priceNum * 100),
+          whitelist_price_cents: Math.round(wlPriceNum * 100),
+          waitlist_slots: parseInt(waitlistSlots, 10) || 0,
+          waitlist_count: 0,
+          waitlist_entries: [],
+          whitelisted_user_ids: [],
+          vip_slots: parseInt(vipSlots, 10) || 0,
+          vip_winners: [],
+          ep_grant: parseInt(epGrant, 10) || 500,
+          has_whitelist_access: category === "whitelist",
+          slides: [],
+        },
+      };
+      const { data, error } = await supabase.from("invite_codes").insert(newInvite).select().single();
+      if (error) throw error;
+      onCreate?.(data);
+      onClose();
+    } catch (e) {
+      setErr(e?.message ?? "Failed to create invite.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 10001, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: "100%", maxWidth: 640, background: "#0d0d0d", border: "1px solid #252525", borderRadius: "20px 20px 0 0", padding: "28px 28px 40px", animation: "xvFadeUp .25s ease" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#e0e0e0" }}>Create Invite</div>
+          <button onClick={onClose} style={{ background: "transparent", border: "1px solid #252525", borderRadius: 8, color: "#555", cursor: "pointer", padding: "4px 10px", fontFamily: "inherit" }}>✕</button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ gridColumn: "1/-1" }}>
+            <FieldLabel>Invite Name *</FieldLabel>
+            <Input value={name} onChange={setName} placeholder="e.g. Launch Wave 1, Beta Users, VIP Cohort" />
+          </div>
+
+          <div style={{ gridColumn: "1/-1" }}>
+            <FieldLabel>Category</FieldLabel>
+            <div style={{ display: "flex", gap: 6 }}>
+              {CATEGORY_OPTIONS.map(c => (
+                <button key={c.id} onClick={() => setCategory(c.id)} style={{
+                  flex: 1, padding: "9px 6px", borderRadius: 9, border: "none", cursor: "pointer",
+                  background: category === c.id ? `${ACC_COLORS[c.id] ?? "#94a3b8"}18` : "#111",
+                  borderWidth: 1.5, borderStyle: "solid",
+                  borderColor: category === c.id ? `${ACC_COLORS[c.id] ?? "#94a3b8"}55` : "#1e1e1e",
+                  color: category === c.id ? (ACC_COLORS[c.id] ?? "#94a3b8") : "#555",
+                  fontSize: 11, fontWeight: 700, fontFamily: "inherit",
+                }}>{c.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Entry Price</FieldLabel>
+            <Input value={price} onChange={setPrice} prefix="$" placeholder="4.00" />
+          </div>
+          {category === "whitelist" && (
+            <div>
+              <FieldLabel>Whitelist Price (0 = free)</FieldLabel>
+              <Input value={wlPrice} onChange={setWlPrice} prefix="$" placeholder="0 = free" />
+            </div>
+          )}
+          <div>
+            <FieldLabel>Max Uses</FieldLabel>
+            <Input value={maxUses} onChange={setMaxUses} placeholder="∞ = unlimited" />
+          </div>
+          <div>
+            <FieldLabel>EP Grant</FieldLabel>
+            <Input value={epGrant} onChange={setEpGrant} placeholder="500" />
+          </div>
+          <div>
+            <FieldLabel>Waitlist Slots (0 = off)</FieldLabel>
+            <Input value={waitlistSlots} onChange={setWaitlistSlots} placeholder="e.g. 100" />
+            <div style={{ fontSize: 9, color: "#2a2a2a", marginTop: 4 }}>Auto-activates when max uses hit</div>
+          </div>
+          <div>
+            <FieldLabel>VIP Lottery Slots (0 = off)</FieldLabel>
+            <Input value={vipSlots} onChange={setVipSlots} placeholder="e.g. 5" />
+            <div style={{ fontSize: 9, color: "#2a2a2a", marginTop: 4 }}>Random free VIP from user pool</div>
+          </div>
+        </div>
+
+        {err && <div style={{ marginTop: 14, padding: "10px 13px", background: "rgba(239,68,68,.07)", border: "1px solid rgba(239,68,68,.22)", borderRadius: 10, fontSize: 12, color: "#f87171" }}>{err}</div>}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "13px", borderRadius: 12, border: "1px solid #252525", background: "transparent", color: "#555", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={create} disabled={creating} style={{ flex: 2, padding: "13px", borderRadius: 12, border: "none", background: creating ? "#1a1a1a" : "linear-gradient(135deg,#a3e635,#65a30d)", color: creating ? "#333" : "#061000", fontWeight: 800, fontSize: 14, cursor: creating ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            {creating ? "Creating…" : "Create Invite"}
           </button>
         </div>
       </div>
-
-      {showCreate && <CreateInviteForm onCreate={createInvite} onCancel={()=>setShowCreate(false)}/>}
-
-      <div className="xv-filterbar">
-        <input className="xv-inp xv-srch" placeholder="Search code, name or category…" value={search} onChange={e=>setSearch(e.target.value)}/>
-        <div style={{display:"flex",gap:".3rem"}}>
-          {["all","active","inactive","full"].map(f=>(
-            <button key={f} className={`xv-ftab ${filter===f?"active":""}`} onClick={()=>setFilter(f)}>
-              {f.charAt(0).toUpperCase()+f.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading && <div className="xv-state">Loading invites…</div>}
-      {error   && <div className="xv-state xv-state-err">{error}</div>}
-
-      {!loading && invites.length===0 && (
-        <div className="xv-empty-state">
-          <div className="xv-empty-icon">🎟</div>
-          <div className="xv-empty-title">No invite codes yet</div>
-          <div className="xv-empty-sub">Create your first invite code to give users special access, pricing, or whitelist spots.</div>
-          <button className="xv-btn xv-lime" onClick={()=>setShowCreate(true)}>＋ Create First Invite</button>
-        </div>
-      )}
-
-      {!loading && invites.length>0 && filtered.length===0 && (
-        <div className="xv-state xv-state-empty">No invites match your search or filter.</div>
-      )}
-
-      <div className="xv-list">
-        {filtered.map(inv=>(
-          <InviteCard
-            key={inv.id}
-            invite={inv}
-            displayName={getInviteDisplayName(inv)}
-            onWaitlistClick={setWaitlistTarget}
-            onToggle={toggleInvite}
-            onDelete={deleteInvite}
-            onPriceUpdate={handlePriceUpdate}
-          />
-        ))}
-      </div>
-
-      {waitlistTarget && (
-        <WaitlistModal
-          invite={waitlistTarget}
-          getDisplayName={getInviteDisplayName}
-          getWaitlistEntries={getWaitlistEntries}
-          promoteWaitlist={promoteWaitlist}
-          updateWaitlistOpenTime={updateWaitlistOpenTime}
-          onClose={()=>setWaitlistTarget(null)}
-        />
-      )}
-
-      <style>{SECTION_CSS}</style>
     </div>
   );
 }
 
-const SECTION_CSS = `
-  .xv-section   { padding:1.5rem; max-width:1100px; margin:0 auto; font-family:'DM Sans','Outfit',system-ui,sans-serif; color:#e2e8f0; }
-  .xv-public-panel { background:rgba(132,204,22,.03); border:1px solid rgba(132,204,22,.15); border-radius:14px; padding:1.25rem 1.5rem; }
-  .xv-public-panel.xv-loading { display:flex; align-items:center; gap:.75rem; color:#334155; font-size:.84rem; min-height:80px; }
-  .xv-pub-spinner { width:20px;height:20px;border:2px solid rgba(132,204,22,.1);border-top:2px solid #84cc16;border-radius:50%;animation:xvSpin .6s linear infinite;flex-shrink:0; }
-  @keyframes xvSpin{to{transform:rotate(360deg)}}
-  .xv-pub-hdr  { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem; }
-  .xv-pub-badge { display:inline-flex;align-items:center;gap:.3rem;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);border-radius:20px;padding:.15rem .6rem;font-size:.7rem;font-weight:800;color:#84cc16;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem; }
-  .xv-pub-title { font-size:1rem;font-weight:800;color:#f1f5f9;margin:0 0 .2rem; }
-  .xv-pub-sub   { font-size:.78rem;color:#64748b;margin:0; }
-  .xv-pub-stats { display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-top:.25rem; }
-  .xv-pub-stat  { display:flex;flex-direction:column;gap:.2rem; }
-  .xv-pub-stat-l { font-size:.65rem;color:#475569;text-transform:uppercase;letter-spacing:.06em;font-weight:700; }
-  .xv-pub-stat-v { font-size:.9rem;font-weight:700;color:#e2e8f0; }
-  .xv-pub-form  { display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem; }
-  .xv-section-hdr { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem; }
-  .xv-section-ttl { font-size:1.3rem;font-weight:800;color:#f1f5f9;margin:0;letter-spacing:-.3px; }
-  .xv-section-sub { font-size:.84rem;color:#475569;margin-top:.25rem;display:flex;align-items:center;gap:.5rem; }
-  .xv-waiting-badge { background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:#f59e0b;border-radius:20px;padding:.1rem .55rem;font-size:.75rem;font-weight:700; }
-  .xv-empty-state { display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:3.5rem 2rem;text-align:center; }
-  .xv-empty-icon { font-size:2.5rem; }
-  .xv-empty-title { font-size:1.1rem;font-weight:800;color:#94a3b8; }
-  .xv-empty-sub { font-size:.84rem;color:#475569;max-width:360px;line-height:1.65; }
-  .xv-btn { padding:.5rem 1.1rem;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;border:none;transition:all .15s;font-family:inherit;line-height:1; }
-  .xv-lime { background:linear-gradient(135deg,#a3e635,#5c9b0a);color:#071200;box-shadow:0 3px 14px rgba(132,204,22,.18); }
-  .xv-lime:hover:not(:disabled) { background:linear-gradient(135deg,#bef264,#72b811); }
-  .xv-outline { background:transparent;color:#84cc16;border:1px solid rgba(132,204,22,.35); }
-  .xv-outline:hover:not(:disabled) { background:rgba(132,204,22,.06); }
-  .xv-ghost { background:transparent;color:#64748b;border:1px solid rgba(255,255,255,.08); }
-  .xv-ghost:hover { background:rgba(255,255,255,.04);color:#94a3b8; }
-  .xv-sm { padding:.35rem .7rem;font-size:.8rem; }
-  .xv-btn:disabled { opacity:.45;cursor:not-allowed; }
-  .xv-inp { background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);color:#f1f5f9;border-radius:10px;padding:.52rem .8rem;font-size:.88rem;width:100%;box-sizing:border-box;font-family:inherit;transition:border-color .15s; }
-  .xv-inp:focus { outline:none;border-color:rgba(132,204,22,.5);box-shadow:0 0 0 2px rgba(132,204,22,.08); }
-  .xv-inp::placeholder { color:#3a3a3a; }
-  .xv-inp-sm { background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);color:#f1f5f9;border-radius:8px;padding:.4rem .6rem;font-size:.84rem;font-family:inherit; }
-  .xv-filterbar { display:flex;gap:.75rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap; }
-  .xv-srch { max-width:280px; }
-  .xv-ftab { padding:.28rem .8rem;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.03);color:#475569;border:1px solid rgba(255,255,255,.07);font-family:inherit;transition:all .15s; }
-  .xv-ftab.active { background:rgba(132,204,22,.1);color:#84cc16;border-color:rgba(132,204,22,.35); }
-  .xv-create-wrap { background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.5rem;margin-bottom:1.5rem; }
-  .xv-form-ttl { font-size:1rem;font-weight:800;color:#f1f5f9;margin:0 0 .6rem; }
-  .xv-info-box { background:rgba(132,204,22,.04);border:1px solid rgba(132,204,22,.14);border-radius:9px;padding:.65rem .9rem;font-size:.8rem;line-height:1.6;margin-bottom:1rem; }
-  .xv-form { display:flex;flex-direction:column;gap:0; }
-  .xv-form-section { border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:1.25rem;margin-bottom:1rem;background:rgba(255,255,255,.01); }
-  .xv-form-section-hdr { display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,.05); }
-  .xv-form-section-num { width:22px;height:22px;border-radius:50%;background:rgba(132,204,22,.15);border:1px solid rgba(132,204,22,.3);color:#84cc16;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-  .xv-form-section-title { font-size:.9rem;font-weight:800;color:#f1f5f9; }
-  .xv-form-section-sub { font-size:.75rem;color:#475569;margin-left:.2rem; }
-  .xv-subsection { background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:1rem;margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem; }
-  .xv-toggle-row { margin-bottom:.25rem; }
-  .xv-toggle-lbl { display:flex;justify-content:space-between;align-items:center;gap:1rem;cursor:pointer; }
-  .xv-toggle { width:40px;height:22px;border-radius:11px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);position:relative;cursor:pointer;transition:all .2s;flex-shrink:0; }
-  .xv-toggle.on { background:rgba(132,204,22,.35);border-color:rgba(132,204,22,.5); }
-  .xv-toggle-knob { width:16px;height:16px;border-radius:50%;background:#64748b;position:absolute;top:2px;left:2px;transition:all .2s; }
-  .xv-toggle.on .xv-toggle-knob { background:#84cc16;transform:translateX(18px); }
-  .xv-frow { display:flex;flex-direction:column;gap:.38rem;margin-bottom:.75rem; }
-  .xv-2col { display:grid;grid-template-columns:1fr 1fr;gap:1rem; }
-  .xv-fcol { display:flex;flex-direction:column;gap:.3rem; }
-  .xv-lbl { font-size:.73rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.07em; }
-  .xv-optional { color:#334155;font-weight:400;text-transform:none;letter-spacing:0;font-size:.78em; }
-  .xv-hint { font-size:.72rem;color:#475569;line-height:1.45; }
-  .xv-lime-text { color:#84cc16;font-weight:700; }
-  .xv-err { background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);color:#fca5a5;padding:.6rem .9rem;border-radius:9px;font-size:.84rem; }
-  .xv-form-actions { display:flex;gap:.7rem;justify-content:flex-end;padding-top:.5rem; }
-  .xv-cat-row { display:flex;gap:.4rem;flex-wrap:wrap; }
-  .xv-cat { padding:.32rem .85rem;border-radius:20px;font-size:.82rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.03);color:#475569;border:1px solid rgba(255,255,255,.08);font-family:inherit;transition:all .15s; }
-  .xv-cat.active { background:rgba(132,204,22,.1);color:#84cc16;border-color:rgba(132,204,22,.35); }
-  .xv-cat-dashed { border-style:dashed; }
-  .xv-list { display:flex;flex-direction:column;gap:.9rem; }
-  .xv-card { background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.15rem 1.35rem;transition:border-color .2s,background .2s; }
-  .xv-card:hover { border-color:rgba(132,204,22,.2);background:rgba(132,204,22,.02); }
-  .xv-card-off { opacity:.45; }
-  .xv-card-hdr { display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;gap:.5rem; }
-  .xv-card-left { display:flex;align-items:center;gap:.45rem;flex-wrap:wrap; }
-  .xv-code-chip { font-family:'DM Mono',monospace;font-size:1rem;font-weight:700;color:#e2ffa0;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.2);padding:.18rem .55rem;border-radius:7px;letter-spacing:1.5px; }
-  .xv-invite-name { font-size:.82rem;font-weight:600;color:#94a3b8;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);padding:.15rem .5rem;border-radius:6px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-  .xv-icon-btn { background:transparent;border:none;cursor:pointer;font-size:.95rem;padding:.28rem .4rem;border-radius:7px;color:#475569;transition:all .15s; }
-  .xv-icon-btn:hover { background:rgba(255,255,255,.06);color:#94a3b8; }
-  .xv-danger-icon:hover { background:rgba(239,68,68,.1)!important;color:#fca5a5!important; }
-  .xv-icon-btn:disabled { opacity:.35;cursor:not-allowed; }
-  .xv-catbadge { font-size:.68rem;font-weight:800;padding:.15rem .5rem;border-radius:20px;text-transform:uppercase;letter-spacing:.06em; }
-  .xv-cat-community { background:rgba(14,165,233,.12);color:#38bdf8;border:1px solid rgba(14,165,233,.2); }
-  .xv-cat-user { background:rgba(132,204,22,.1);color:#84cc16;border:1px solid rgba(132,204,22,.2); }
-  .xv-cat-vip { background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2); }
-  .xv-cat-custom { background:rgba(139,92,246,.1);color:#a78bfa;border:1px solid rgba(139,92,246,.2); }
-  .xv-cat-standard { background:rgba(99,102,241,.1);color:#818cf8;border:1px solid rgba(99,102,241,.2); }
-  .xv-pill { font-size:.66rem;font-weight:800;padding:.12rem .45rem;border-radius:20px;text-transform:uppercase;letter-spacing:.04em; }
-  .xv-pill-full { background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2); }
-  .xv-pill-wl { background:rgba(14,165,233,.1);color:#38bdf8;border:1px solid rgba(14,165,233,.2); }
-  .xv-pill-off { background:rgba(71,85,105,.2);color:#64748b;border:1px solid rgba(71,85,105,.2); }
-  .xv-pill-exp { background:rgba(239,68,68,.06);color:#f87171;border:1px solid rgba(239,68,68,.15); }
-  .xv-card-stats { display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.85rem; }
-  .xv-s { display:flex;flex-direction:column;gap:.12rem;min-width:82px; }
-  .xv-sl { font-size:.65rem;color:#475569;text-transform:uppercase;letter-spacing:.06em;font-weight:700; }
-  .xv-sv { font-size:.9rem;font-weight:700;color:#e2e8f0; }
-  .xv-prog-bar { height:3px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:4px;width:82px;overflow:hidden; }
-  .xv-prog-fill { height:100%;border-radius:3px;transition:width .4s; }
-  .xv-card-wl { display:flex;align-items:center;gap:1rem;border-top:1px solid rgba(255,255,255,.05);padding-top:.75rem;flex-wrap:wrap; }
-  .xv-wl-btn { display:flex;align-items:center;gap:.4rem;padding:.35rem .75rem;background:transparent;border:1px solid rgba(255,255,255,.07);border-radius:8px;color:#475569;cursor:pointer;font-size:.8rem;font-family:inherit;transition:all .15s; }
-  .xv-wl-active { border-color:rgba(132,204,22,.25)!important;color:#84cc16!important;background:rgba(132,204,22,.04)!important; }
-  .xv-wl-btn:hover { border-color:rgba(132,204,22,.3);color:#84cc16; }
-  .xv-wl-n { font-weight:800;font-size:.95rem; }
-  .xv-wl-arrow { margin-left:.1rem;opacity:.6; }
-  .xv-state { text-align:center;padding:3rem;color:#334155;font-size:.88rem; }
-  .xv-state-err { color:#fca5a5; }
-  .xv-state-empty { color:#1e293b; }
-  .xv-msg { padding:.65rem 1rem;border-radius:9px;font-size:.84rem;font-weight:600; }
-  .xv-msg.success { background:rgba(132,204,22,.06);border:1px solid rgba(132,204,22,.2);color:#84cc16; }
-  .xv-msg.error { background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.18);color:#fca5a5; }
-  @media (max-width:640px) {
-    .xv-2col { grid-template-columns:1fr; }
-    .xv-card-stats { gap:1rem; }
-    .xv-filterbar { flex-direction:column;align-items:stretch; }
-    .xv-srch { max-width:100%; }
-    .xv-pub-stats { grid-template-columns:1fr 1fr; }
-    .xv-form-section-sub { display:none; }
-  }
-`;
+// ─── Main InviteSection ────────────────────────────────────────────────────────
+export default function InviteSection() {
+  const { invites, loading, error, refresh } = useInvites();
+  const [showCreate, setShowCreate] = useState(false);
+  const [localInvites, setLocalInvites] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
-const MODAL_CSS = `
-  .xv-overlay { position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem;backdrop-filter:blur(6px); }
-  .xv-modal { background:#020403;border:1px solid rgba(132,204,22,.15);border-radius:16px;width:100%;max-width:820px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:1.2rem;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.6); }
-  .xv-modal-hdr { display:flex;justify-content:space-between;align-items:flex-start; }
-  .xv-modal-ttl { font-size:1.2rem;font-weight:800;color:#f1f5f9;margin:0;letter-spacing:-.2px; }
-  .xv-modal-meta { display:flex;align-items:center;gap:.5rem;margin-top:.3rem;flex-wrap:wrap; }
-  .xv-modal-name { font-size:.8rem;color:#94a3b8;font-weight:600; }
-  .xv-modal-cat { font-size:.73rem;color:#64748b; }
-  .xv-modal-price { font-size:.8rem;color:#64748b; }
-  .xv-close { background:transparent;border:none;font-size:1rem;color:#475569;cursor:pointer;padding:.25rem .45rem;border-radius:6px;line-height:1; }
-  .xv-close:hover { background:rgba(255,255,255,.06);color:#94a3b8; }
-  .xv-modal-footer { display:flex;justify-content:flex-end;padding-top:.75rem;border-top:1px solid rgba(255,255,255,.05); }
-  .xv-chip { font-family:'DM Mono',monospace;background:rgba(132,204,22,.08);border:1px solid rgba(132,204,22,.18);padding:.12rem .45rem;border-radius:5px;color:#e2ffa0;font-size:.82rem;letter-spacing:1px; }
-  .xv-stats-row { display:flex;gap:.75rem; }
-  .xv-stat-card { flex:1;background:rgba(255,255,255,.025);border-radius:10px;padding:1rem;text-align:center;border-top:2px solid transparent; }
-  .xv-stat-n { display:block;font-size:1.9rem;font-weight:900;line-height:1; }
-  .xv-stat-l { font-size:.68rem;color:#475569;text-transform:uppercase;letter-spacing:.06em;display:block;margin-top:.3rem;font-weight:700; }
-  .xv-box { background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:1rem 1.2rem; }
-  .xv-box-ttl { font-size:.85rem;font-weight:800;color:#cbd5e1;margin:0 0 .65rem;text-transform:uppercase;letter-spacing:.04em; }
-  .xv-muted { font-size:.78rem;color:#475569;margin:0 0 .7rem;line-height:1.6; }
-  .xv-promote-row { display:flex;gap:.75rem;align-items:center;flex-wrap:wrap; }
-  .xv-tbl-wrap { overflow-x:auto;border-radius:9px;border:1px solid rgba(255,255,255,.06);margin-top:.5rem; }
-  .xv-tbl { width:100%;border-collapse:collapse;font-size:.82rem; }
-  .xv-tbl th { background:rgba(255,255,255,.03);color:#475569;font-weight:800;text-transform:uppercase;font-size:.65rem;letter-spacing:.07em;padding:.55rem .75rem;text-align:left;white-space:nowrap; }
-  .xv-tbl td { padding:.6rem .75rem;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.04); }
-  .xv-tbl tr:last-child td { border-bottom:none; }
-  .xv-tbl tr:hover td { background:rgba(132,204,22,.02); }
-  .xv-wl-row td { color:#84cc16; }
-  .xv-td-pos { color:#84cc16;font-weight:800;width:2rem; }
-  .xv-td-mono { font-family:'DM Mono',monospace;font-size:.77rem;color:#64748b; }
-  .xv-yes { color:#84cc16!important;font-size:.78rem; }
-  .xv-no { color:#334155!important;font-size:.78rem; }
-`;
+  useEffect(() => {
+    if (invites) setLocalInvites(invites);
+  }, [invites]);
+
+  // Optimistic update handler
+  const handleOptimisticUpdate = useCallback((updated) => {
+    setLocalInvites(prev => prev.map(inv => inv.id === updated.id ? updated : inv));
+  }, []);
+
+  // Delete handler
+  const handleDelete = useCallback((id) => {
+    setLocalInvites(prev => prev.filter(inv => inv.id !== id));
+  }, []);
+
+  // Add new invite
+  const handleCreate = useCallback((newInvite) => {
+    setLocalInvites(prev => [newInvite, ...prev]);
+  }, []);
+
+  // Split into public entry vs custom invites
+  const publicInvite = localInvites.find(i => i.type === "admin" || i.metadata?.is_public_entry || i.code === "PUBLIC");
+  const customInvites = localInvites.filter(i => i !== publicInvite);
+
+  const filtered = searchQuery
+    ? customInvites.filter(i =>
+        (i.metadata?.invite_name ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        i.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (i.metadata?.invite_category ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : customInvites;
+
+  // Stats
+  const activeCount = customInvites.filter(i => i.status === "active").length;
+  const totalUses = customInvites.reduce((sum, i) => sum + (i.uses_count ?? 0), 0);
+  const waitlistTotal = customInvites.reduce((sum, i) => sum + (i.metadata?.waitlist_count ?? 0), 0);
+  const vipTotal = customInvites.reduce((sum, i) => sum + (i.metadata?.vip_winners?.length ?? 0), 0);
+
+  return (
+    <>
+      <style>{`
+        @keyframes xvFadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes xvFadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes xvGlow    { 0%,100%{box-shadow:0 0 4px rgba(163,230,53,.3)} 50%{box-shadow:0 0 10px rgba(163,230,53,.8)} }
+      `}</style>
+
+      {/* Two-column layout: left = controls, right = live preview */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 24, alignItems: "start", minHeight: 0 }}>
+
+        {/* LEFT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+
+          {/* Section header + stats */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#e0e0e0", letterSpacing: "-0.5px" }}>Invite Control</div>
+              <div style={{ fontSize: 11, color: "#3a3a3a", marginTop: 4 }}>Manage paywall access · All changes reflect instantly in PaywallGate</div>
+            </div>
+            <button onClick={() => setShowCreate(true)} style={{
+              display: "flex", alignItems: "center", gap: 7, padding: "10px 16px",
+              borderRadius: 11, border: "none", background: "linear-gradient(135deg,#a3e635,#65a30d)",
+              color: "#061000", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+              flexShrink: 0, boxShadow: "0 4px 18px rgba(163,230,53,.25)",
+            }}>
+              + New Invite
+            </button>
+          </div>
+
+          {/* Stats strip */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {[
+              { label: "Active Invites", value: activeCount, color: "#a3e635" },
+              { label: "Total Uses", value: totalUses, color: "#f59e0b" },
+              { label: "On Waitlist", value: waitlistTotal, color: "#38bdf8" },
+              { label: "VIP Winners", value: vipTotal, color: "#a78bfa" },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ background: "#0c0c0c", border: "1px solid #1a1a1a", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: "-1px" }}>{value}</div>
+                <div style={{ fontSize: 10, color: "#333", fontWeight: 600, marginTop: 3 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* PUBLIC ENTRY card */}
+          {publicInvite ? (
+            <PublicEntryCard invite={publicInvite} onOptimisticUpdate={handleOptimisticUpdate} />
+          ) : (
+            <div style={{ background: "#0c0c0c", border: "1px dashed #252525", borderRadius: 14, padding: 20, textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: "#2a2a2a" }}>No public entry invite found. Create one tagged as admin/public to control paywall pricing.</div>
+            </div>
+          )}
+
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ flex: 1, height: 1, background: "#151515" }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#2a2a2a", letterSpacing: "2px", textTransform: "uppercase" }}>Custom Invites</span>
+            <div style={{ flex: 1, height: 1, background: "#151515" }} />
+          </div>
+
+          {/* Search */}
+          {customInvites.length > 2 && (
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search invites by name, code, category…"
+              style={{ width: "100%", background: "#0e0e0e", border: "1.5px solid #1e1e1e", borderRadius: 10, padding: "10px 14px", color: "#c0c0c0", fontSize: 12, outline: "none", fontFamily: "inherit" }}
+              onFocus={e => e.target.style.borderColor = "rgba(163,230,53,.3)"}
+              onBlur={e => e.target.style.borderColor = "#1e1e1e"}
+            />
+          )}
+
+          {/* Loading/Error states */}
+          {loading && !localInvites.length && (
+            <div style={{ padding: 32, textAlign: "center", color: "#2a2a2a", fontSize: 12 }}>Loading invites…</div>
+          )}
+          {error && (
+            <div style={{ padding: "12px 16px", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.18)", borderRadius: 11, fontSize: 12, color: "#f87171" }}>
+              {error} <button onClick={refresh} style={{ marginLeft: 8, color: "#a3e635", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Retry</button>
+            </div>
+          )}
+
+          {/* Custom invite cards */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filtered.length === 0 && !loading && (
+              <div style={{ padding: 32, textAlign: "center", background: "#0a0a0a", border: "1px dashed #1e1e1e", borderRadius: 14 }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>🎟</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#3a3a3a", marginBottom: 6 }}>No custom invites yet</div>
+                <div style={{ fontSize: 11, color: "#252525", marginBottom: 14 }}>Create whitelist, VIP, or community invites with custom pricing and waitlists</div>
+                <button onClick={() => setShowCreate(true)} style={{ padding: "9px 18px", borderRadius: 10, border: "1px solid rgba(163,230,53,.3)", background: "rgba(163,230,53,.06)", color: "#a3e635", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                  + Create First Invite
+                </button>
+              </div>
+            )}
+            {filtered.map(invite => (
+              <InviteCard
+                key={invite.id}
+                invite={invite}
+                onOptimisticUpdate={handleOptimisticUpdate}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN — sticky live preview */}
+        <div>
+          <PaywallHeroPreview
+            publicInvite={publicInvite}
+            customInvites={customInvites}
+          />
+        </div>
+      </div>
+
+      {/* Create drawer */}
+      {showCreate && (
+        <CreateInviteDrawer
+          onClose={() => setShowCreate(false)}
+          onCreate={handleCreate}
+        />
+      )}
+    </>
+  );
+}

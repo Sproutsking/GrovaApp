@@ -376,15 +376,22 @@ export function useUsers(pageSize = 20) {
 //   NOT in schema (must live in metadata):
 //     invite_name, invite_category, invite_label_custom, entry_price_cents,
 //     whitelist_price_cents, waitlist_batch_size, whitelist_opens_at,
-//     is_active, enable_waitlist, waitlist_count
+//     enable_waitlist, waitlist_count
 //
 //   MAPPING:
-//     is_active   ← derived from status === 'active'
-//     entry_price ← real column (USD float, e.g. 4.00)
-//     price_override ← real column — used as whitelist price (USD float)
+//     is_active      ← derived from status === 'active'
+//     is_full        ← derived from uses_count >= max_uses
+//     entry_price    ← real column (USD float, e.g. 4.00)
+//     price_override ← real column — PRIORITY 1 price read by PaywallGate
+//     enable_waitlist← real column + mirrored in metadata for compatibility
 //     All other extended fields → metadata jsonb
 //
-// NOTE: The invite_codes table has NO is_active column. We use status field.
+// PRICE WRITE CONTRACT (must match PaywallGate resolvePrice() priority):
+//   Priority 1: price_override  (real column)   ← write this ALWAYS
+//   Priority 2: metadata.entry_price_cents       ← write this ALWAYS
+//   Priority 3: entry_price     (real column)    ← write this ALWAYS
+//   All three must be written atomically so PaywallGate sees the change
+//   on its realtime subscription regardless of which leg it reads.
 
 export function useInvites(pageSize = 50) {
   const [invites, setInvites] = useState([]);
@@ -406,11 +413,6 @@ export function useInvites(pageSize = 50) {
           "id, code, type, max_uses, uses_count, created_by, created_by_name, created_at, updated_at, expires_at, status, metadata, community_id, community_name, price_override, entry_price",
           { count: "exact" }
         )
-        // Only show invites created by admin — exclude community invites and
-        // auto-generated codes by filtering on community_id being null OR
-        // metadata having our admin-created marker.
-        // We also exclude invite_codes that are purely community-generated
-        // (community_id is set and metadata.admin_created is not true).
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
 
@@ -419,31 +421,35 @@ export function useInvites(pageSize = 50) {
       const { data, count, error } = await query;
       if (error) throw error;
 
-      // Filter to only show admin-created invites (those with our marker in metadata)
-      // This prevents community invite codes and any legacy/seeded codes from showing.
+      // Filter to only show admin-created invites
       const adminInvites = (data || []).filter(
         (inv) => inv.metadata?.admin_created === true
       );
 
-      // Normalise into a consistent shape that the UI can consume.
-      // All extended fields are read from metadata with safe fallbacks.
+      // Normalise into a consistent shape the UI can consume.
+      // Extended fields are read from metadata with safe fallbacks.
+      // is_full is DERIVED — never stored as a separate column.
       const enriched = adminInvites.map((inv) => {
-        const meta = inv.metadata ?? {};
+        const meta      = inv.metadata ?? {};
+        const usesCount = inv.uses_count ?? 0;
+        const maxUses   = inv.max_uses   ?? null;
+        const isFull    = maxUses !== null && usesCount >= maxUses;
         return {
           ...inv,
           // Derived active state from real 'status' column
           is_active: inv.status === "active",
+          // is_full derived live — not stored
+          is_full: isFull,
           // Extended fields from metadata
           invite_name:           meta.invite_name           ?? "",
           invite_category:       meta.invite_category       ?? inv.type ?? "community",
           invite_label_custom:   meta.invite_label_custom   ?? null,
-          entry_price_cents:     meta.entry_price_cents     ?? Math.round((Number(inv.entry_price) || 4) * 100),
+          entry_price_cents:     meta.entry_price_cents     ?? Math.round((Number(inv.entry_price)    || 4) * 100),
           whitelist_price_cents: meta.whitelist_price_cents ?? Math.round((Number(inv.price_override) || 0) * 100),
           waitlist_batch_size:   meta.waitlist_batch_size   ?? 50,
-          whitelist_opens_at:    meta.whitelist_opens_at    ?? inv.whitelist_opens_at ?? null,
-          enable_waitlist:       meta.enable_waitlist       ?? true,
-          uses_count:            inv.uses_count             ?? 0,
-          is_full:               (inv.uses_count ?? 0) >= (inv.max_uses ?? 1),
+          whitelist_opens_at:    meta.whitelist_opens_at    ?? null,
+          // enable_waitlist: real column takes precedence, fallback to metadata, default true
+          enable_waitlist:       inv.enable_waitlist ?? meta.enable_waitlist ?? true,
         };
       });
 
@@ -481,41 +487,51 @@ export function useInvites(pageSize = 50) {
   }, []);
 
   // ── Create invite ────────────────────────────────────────────────────────
-  // Only writes to columns that actually exist in the schema.
-  // All extended/UI fields go into metadata.
+  // Writes ALL THREE price fields so PaywallGate resolvePrice() works on any leg.
+  // Sets enable_waitlist default true for whitelist codes.
   const createInvite = useCallback(async (invite) => {
-    const now = new Date().toISOString();
+    const now      = new Date().toISOString();
     const category = invite.invite_category ?? "community";
     const isCustom = category === "custom";
 
-    // Map category to the allowed 'type' enum values
     const typeMap = { vip: "vip", whitelist: "whitelist", admin: "admin" };
-    const type = typeMap[category] ?? "standard";
+    const type    = typeMap[category] ?? "standard";
 
     const entryPriceCents     = Number(invite.entry_price_cents)     || 400;
     const whitelistPriceCents = Number(invite.whitelist_price_cents) || 0;
 
-    // Build metadata — this is the source of truth for all extended fields
+    // For whitelist codes the effective entry price IS the whitelist price.
+    // Use whitelistPriceCents if set, otherwise entryPriceCents.
+    const effectivePriceCents = type === "whitelist" && whitelistPriceCents > 0
+      ? whitelistPriceCents
+      : entryPriceCents;
+    const effectivePriceUSD = effectivePriceCents / 100;
+
+    const enableWaitlist = type === "whitelist"
+      ? (invite.enable_waitlist ?? true)   // default ON for whitelist
+      : false;
+
     const metadata = {
-      admin_created:         true,               // ← marker so we know this is admin-created
+      admin_created:         true,
       invite_name:           invite.invite_name          ?? "",
       invite_category:       category,
       invite_label_custom:   isCustom ? (invite.invite_label_custom ?? null) : null,
-      entry_price_cents:     entryPriceCents,
+      // PRICE FIELDS — all three mirrors so PaywallGate hits on any priority leg
+      entry_price_cents:     effectivePriceCents,
       whitelist_price_cents: whitelistPriceCents,
+      // Waitlist config
       waitlist_batch_size:   Number(invite.waitlist_batch_size) || 50,
       whitelist_opens_at:    invite.whitelist_opens_at ?? null,
-      enable_waitlist:       true,
+      enable_waitlist:       enableWaitlist,
       waitlist_count:        0,
       waitlist_entries:      [],
       whitelisted_user_ids:  [],
       target_tier:
-        isCustom     ? "standard" :
-        category === "vip"       ? "vip" :
+        isCustom             ? "standard" :
+        category === "vip"   ? "vip" :
         category === "community" ? "whitelist" : "standard",
     };
 
-    // Only insert real schema columns
     const record = {
       code:           invite.code.trim().toUpperCase(),
       type,
@@ -523,8 +539,11 @@ export function useInvites(pageSize = 50) {
       uses_count:     0,
       status:         "active",
       expires_at:     invite.expires_at ?? null,
-      entry_price:    entryPriceCents / 100,     // real column (USD float)
-      price_override: whitelistPriceCents / 100, // real column (USD float)
+      // ALL THREE price fields written at creation
+      entry_price:    effectivePriceUSD,     // priority 3
+      price_override: effectivePriceUSD,     // priority 1 ← PaywallGate reads first
+      // enable_waitlist as real column (if it exists) + in metadata
+      enable_waitlist: enableWaitlist,
       metadata,
       created_at:     now,
       updated_at:     now,
@@ -542,7 +561,6 @@ export function useInvites(pageSize = 50) {
   }, [load]);
 
   // ── Toggle invite active state ───────────────────────────────────────────
-  // Uses the real 'status' column — no is_active column exists.
   const toggleInvite = useCallback(async (id, makeActive) => {
     const { error } = await sb()
       .from("invite_codes")
@@ -556,10 +574,51 @@ export function useInvites(pageSize = 50) {
   }, [load]);
 
   // ── Update invite ────────────────────────────────────────────────────────
+  // When updating price, always pass entry_price + price_override + metadata
+  // together so PaywallGate's realtime subscription picks up the change on
+  // whichever priority leg it reads first.
   const updateInvite = useCallback(async (id, updates) => {
     const { error } = await sb()
       .from("invite_codes")
       .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  // ── Update price (atomic — all three fields) ─────────────────────────────
+  // Call this instead of updateInvite() whenever you're changing price.
+  const updatePrice = useCallback(async (id, priceUSD, existingMetadata = {}) => {
+    const cents = Math.round(priceUSD * 100);
+    const meta  = {
+      ...existingMetadata,
+      entry_price_cents:  cents,
+      last_price_update:  new Date().toISOString(),
+    };
+    const { error } = await sb()
+      .from("invite_codes")
+      .update({
+        entry_price:    priceUSD,   // priority 3
+        price_override: priceUSD,   // priority 1 ← CRITICAL
+        metadata:       meta,       // priority 2 via entry_price_cents
+        updated_at:     new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  // ── Toggle waitlist enabled ──────────────────────────────────────────────
+  // Writes to enable_waitlist real column AND metadata for compatibility.
+  const toggleWaitlist = useCallback(async (id, enabled, existingMetadata = {}) => {
+    const meta = { ...existingMetadata, enable_waitlist: enabled };
+    const { error } = await sb()
+      .from("invite_codes")
+      .update({
+        enable_waitlist: enabled,
+        metadata:        meta,
+        updated_at:      new Date().toISOString(),
+      })
       .eq("id", id);
     if (error) throw error;
     await load();
@@ -581,14 +640,14 @@ export function useInvites(pageSize = 50) {
         .eq("id", inviteId)
         .single();
 
-      const meta = inviteData?.metadata ?? {};
-      const waitlistEntries = meta.waitlist_entries ?? [];
-      const whitelistedIds  = new Set(meta.whitelisted_user_ids ?? []);
+      const meta             = inviteData?.metadata ?? {};
+      const waitlistEntries  = meta.waitlist_entries ?? [];
+      const whitelistedIds   = new Set(meta.whitelisted_user_ids ?? []);
 
       if (waitlistEntries.length === 0) return [];
 
       const userIds = waitlistEntries.map((e) => e.user_id).filter(Boolean);
-      let profiles = {};
+      let profiles  = {};
       if (userIds.length > 0) {
         const { data: profileData } = await sb()
           .from("profiles")
@@ -598,19 +657,19 @@ export function useInvites(pageSize = 50) {
       }
 
       return waitlistEntries.map((entry, idx) => {
-        const profile    = profiles[entry.user_id] ?? {};
+        const profile       = profiles[entry.user_id] ?? {};
         const isWhitelisted = whitelistedIds.has(entry.user_id);
         return {
-          id:               entry.user_id ?? `waitlist_${idx}`,
-          user_id:          entry.user_id,
-          full_name:        profile.full_name    ?? entry.full_name ?? "—",
-          email:            profile.email        ?? entry.email     ?? "—",
-          status:           isWhitelisted ? "whitelisted" : "waiting",
-          authenticated_at: entry.authenticated_at ?? null,
-          whitelisted_at:   entry.whitelisted_at   ?? null,
-          joined_at:        entry.joined_at         ?? null,
+          id:                entry.user_id ?? `waitlist_${idx}`,
+          user_id:           entry.user_id,
+          full_name:         profile.full_name    ?? entry.full_name ?? "—",
+          email:             profile.email        ?? entry.email     ?? "—",
+          status:            isWhitelisted ? "whitelisted" : "waiting",
+          authenticated_at:  entry.authenticated_at ?? null,
+          whitelisted_at:    entry.whitelisted_at   ?? null,
+          joined_at:         entry.joined_at         ?? null,
           account_activated: !!entry.account_activated,
-          position:         idx + 1,
+          position:          idx + 1,
         };
       });
     } catch (e) {
@@ -620,6 +679,9 @@ export function useInvites(pageSize = 50) {
   }, []);
 
   // ── Promote waitlist ─────────────────────────────────────────────────────
+  // Increments max_uses by the number promoted so the new slots open up.
+  // PaywallGate's realtime subscription will see the update and re-derive
+  // is_full = false, switching back to whitelist mode for promoted users.
   const promoteWaitlist = useCallback(async (inviteId, count, adminId) => {
     const { data: inviteData, error: inviteErr } = await sb()
       .from("invite_codes")
@@ -629,7 +691,7 @@ export function useInvites(pageSize = 50) {
 
     if (inviteErr) throw inviteErr;
 
-    const meta           = inviteData?.metadata ?? {};
+    const meta            = inviteData?.metadata ?? {};
     const waitlistEntries = meta.waitlist_entries ?? [];
     const whitelistedIds  = new Set(meta.whitelisted_user_ids ?? []);
     const waiting         = waitlistEntries.filter((e) => !whitelistedIds.has(e.user_id));
@@ -653,6 +715,8 @@ export function useInvites(pageSize = 50) {
       whitelisted_user_ids: [...whitelistedIds],
     };
 
+    // Increment max_uses by promoted count so is_full re-derives as false
+    // for the newly opened slots.
     const { error: updateErr } = await sb()
       .from("invite_codes")
       .update({
@@ -734,7 +798,9 @@ export function useInvites(pageSize = 50) {
     // Core CRUD
     createInvite,
     updateInvite,
+    updatePrice,       // ← new: atomic price update (all three fields)
     toggleInvite,
+    toggleWaitlist,    // ← new: writes enable_waitlist to column + metadata
     deleteInvite,
     // Waitlist management
     getWaitlistEntries,
@@ -768,9 +834,9 @@ export function useAnalytics() {
         .order("created_at", { ascending: true });
 
       const dayMap = {};
-      const today = new Date();
+      const today  = new Date();
       for (let i = 29; i >= 0; i--) {
-        const d = new Date(today.getTime() - i * 86400000);
+        const d   = new Date(today.getTime() - i * 86400000);
         const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         dayMap[key] = { date: key, users: 0, revenue: 0 };
       }
@@ -970,14 +1036,14 @@ export function useNotifications() {
 
   const send = async (notif) => {
     const { error } = await sb().from("push_notifications").insert({
-      title:       notif.title,
-      body:        notif.message || notif.body,
-      target_type: notif.targetType || notif.target_type || "all",
-      type:        notif.type || "info",
+      title:        notif.title,
+      body:         notif.message || notif.body,
+      target_type:  notif.targetType || notif.target_type || "all",
+      type:         notif.type || "info",
       sent_by_name: notif.sentByName,
-      sent_by:     notif.sentById,
-      reach:       0,
-      sent_at:     new Date().toISOString(),
+      sent_by:      notif.sentById,
+      reach:        0,
+      sent_at:      new Date().toISOString(),
     });
     if (error) throw error;
     await load();
@@ -1319,9 +1385,9 @@ export function useSupportCases(pageSize = 20) {
 
   const resolveCase = async (id, { adminName, adminId, note }) =>
     updateCase(id, {
-      status:      "resolved",
-      resolved_by: adminId,
-      resolved_at: new Date().toISOString(),
+      status:       "resolved",
+      resolved_by:  adminId,
+      resolved_at:  new Date().toISOString(),
       resolve_note: note || "",
     });
 

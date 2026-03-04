@@ -1,14 +1,17 @@
-// src/components/Auth/PaywallGate.jsx — v25 PRODUCTION FINAL
+// src/components/Auth/PaywallGate.jsx — v26 REAL USERS + SMART INVITE
 // ─────────────────────────────────────────────────────────────────────────────
-//  BASED ON v24 (paywall logic untouched) + v23 split-screen brand panel
-//  CHANGES vs v24:
-//  [1] LAYOUT — Desktop: split-screen (50% brand left / 50% paywall right)
-//               Mobile: stacked with header, same as v23 mobile layout
-//  [2] BRAND PANEL — Full redesign: richer SVG network graph, animated nodes,
-//      feature grid, testimonial quote, member counter, tech stack badges
-//  [3] MOBILE HEADER — Compact hero with gradient title, tagline
-//  [4] SUCCESS SCREEN — Updated to full-screen centered (same as v24)
-//  [5] All v24 paywall logic, invite system, slide architecture UNTOUCHED
+//  CHANGES vs v25:
+//  [1] BRAND PANEL — network SVG lines/nodes are brighter (opacity .5→.9),
+//      text colors lightened, feature cards more visible
+//  [2] REAL USER AVATARS — BrandPanel now fetches 4 most-recent activated
+//      users from DB, renders their actual profile images via mediaUrlService
+//      pattern (Supabase storage URL). Falls back to initials if no image.
+//  [3] PRICE SYNC — PaywallGate realtime now correctly resolves price using
+//      same priority as InviteCard: price_override → metadata.entry_price_cents
+//      → entry_price. Public plan price from payment_products also realtimed.
+//  [4] INVITE SYSTEM — isFreeWhitelist, isWaitlisted computed more robustly.
+//      Waitlist vs whitelist distinction handled cleanly.
+//  [5] All v25 paywall logic untouched.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -58,6 +61,16 @@ const SOL_TOKENS = [
   { symbol:"USDT", address:"Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", decimals:6 },
 ];
 
+// ── Supabase storage URL builder ──────────────────────────────────────────────
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL ?? "";
+function buildAvatarUrl(avatarId) {
+  if (!avatarId) return null;
+  // If it's already a full URL
+  if (avatarId.startsWith("http")) return avatarId;
+  // Supabase storage pattern
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${avatarId}?width=80&height=80&resize=cover&format=webp`;
+}
+
 // ── Price resolver ────────────────────────────────────────────────────────────
 function resolvePrice(invite, fallback = 4) {
   const fb = (typeof fallback === "number" && !isNaN(fallback)) ? fallback : 4;
@@ -86,11 +99,12 @@ const STYLES = `
   @keyframes xvSlide   { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
   @keyframes xvModalIn { from{opacity:0;transform:scale(.94)} to{opacity:1;transform:scale(1)} }
   @keyframes xvCodeIn  { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes xvNodeP   { 0%,100%{opacity:.35;r:3} 50%{opacity:.9;r:5.5} }
+  @keyframes xvNodeP   { 0%,100%{opacity:.5;r:3} 50%{opacity:1;r:6} }
   @keyframes xvDash    { from{stroke-dashoffset:200} to{stroke-dashoffset:0} }
   @keyframes xvFloat   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
   @keyframes xvShimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
   @keyframes xvPulseRing { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
+  @keyframes xvLinePulse { 0%,100%{stroke-opacity:.3} 50%{stroke-opacity:.9} }
 
   * { box-sizing:border-box; }
   .xv { font-family:'Inter',-apple-system,sans-serif; -webkit-font-smoothing:antialiased; }
@@ -101,8 +115,8 @@ const STYLES = `
   .xv-brand {
     width:50%;
     flex-shrink:0;
-    background:#050505;
-    border-right:1px solid #0f0f0f;
+    background:#020302;
+    border-right:1px solid #141814;
     display:flex;
     flex-direction:column;
     justify-content:space-between;
@@ -125,7 +139,7 @@ const STYLES = `
     width:500px;
     height:500px;
     border-radius:50%;
-    background:radial-gradient(circle,rgba(163,230,53,.06) 0%,transparent 65%);
+    background:radial-gradient(circle,rgba(163,230,53,.10) 0%,transparent 65%);
     pointer-events:none;
     z-index:0;
   }
@@ -136,7 +150,7 @@ const STYLES = `
     width:380px;
     height:380px;
     border-radius:50%;
-    background:radial-gradient(circle,rgba(163,230,53,.04) 0%,transparent 65%);
+    background:radial-gradient(circle,rgba(163,230,53,.07) 0%,transparent 65%);
     pointer-events:none;
     z-index:0;
   }
@@ -149,13 +163,13 @@ const STYLES = `
     margin-bottom:32px;
   }
   .xv-feat-card {
-    background:#0b0b0b;
-    border:1px solid #161616;
+    background:#0d0f0d;
+    border:1px solid #1e221e;
     border-radius:12px;
     padding:12px 13px;
     transition:border-color .2s;
   }
-  .xv-feat-card:hover { border-color:#242424; }
+  .xv-feat-card:hover { border-color:#2e382e; }
 
   /* ── Member avatars ── */
   .xv-avatar-stack {
@@ -166,7 +180,7 @@ const STYLES = `
     width:32px;
     height:32px;
     border-radius:50%;
-    border:2px solid #050505;
+    border:2px solid #020302;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -175,6 +189,8 @@ const STYLES = `
     color:#040a00;
     flex-shrink:0;
     transition:transform .2s;
+    overflow:hidden;
+    object-fit:cover;
   }
   .xv-avatar:hover { transform:translateY(-3px); z-index:10!important; }
 
@@ -197,9 +213,9 @@ const STYLES = `
     font-weight:700;
     letter-spacing:1px;
     text-transform:uppercase;
-    color:#222;
-    background:#0e0e0e;
-    border:1px solid #191919;
+    color:#4a5a4a;
+    background:#0e110e;
+    border:1px solid #1e221e;
     border-radius:20px;
     padding:4px 10px;
   }
@@ -467,18 +483,33 @@ function PaystackSoonModal({ onClose }) {
 }
 
 // ── Brand Panel (left side) ───────────────────────────────────────────────────
+// Fetches real recent members from DB, renders actual profile images
 function BrandPanel({ memberCount }) {
-  const AVATARS = [
-    { initials: "KA", color: "#a3e635" },
-    { initials: "ZM", color: "#84cc16" },
-    { initials: "TF", color: "#65a30d" },
-    { initials: "OB", color: "#d4fc72" },
-  ];
+  const [recentUsers, setRecentUsers] = useState([]);
+
+  useEffect(() => {
+    // Fetch 4 most recently activated users with avatar info
+    supabase
+      .from("profiles")
+      .select("id,full_name,avatar_id,avatar_metadata")
+      .eq("account_activated", true)
+      .not("full_name", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(4)
+      .then(({ data }) => {
+        if (data && data.length) setRecentUsers(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const FEATURES = [
     { n: "01", icon: "🔒", title: "Private & Yours", sub: "Your data, your rules" },
     { n: "02", icon: "⚡", title: "300 EP on join",  sub: "Instant reward" },
     { n: "03", icon: "♾️", title: "Lifetime access", sub: "No renewals ever" },
   ];
+
+  // Accent colors for fallback initials avatars
+  const ACCENT_COLORS = ["#a3e635", "#84cc16", "#65a30d", "#d4fc72"];
 
   return (
     <div className="xv-brand">
@@ -486,24 +517,24 @@ function BrandPanel({ memberCount }) {
       <div className="xv-brand-gradient" />
       <div className="xv-brand-gradient-top" />
 
-      {/* Animated network SVG */}
+      {/* Animated network SVG — much brighter */}
       <svg
         aria-hidden
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: .18, pointerEvents: "none", zIndex: 0 }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: .55, pointerEvents: "none", zIndex: 0 }}
         viewBox="0 0 600 700"
         preserveAspectRatio="xMidYMid slice"
       >
         <defs>
-          <radialGradient id="ng25" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#a3e635" stopOpacity=".95" />
+          <radialGradient id="ng26" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#a3e635" stopOpacity="1" />
             <stop offset="100%" stopColor="#a3e635" stopOpacity="0" />
           </radialGradient>
-          <filter id="glow25">
-            <feGaussianBlur stdDeviation="2" result="blur" />
+          <filter id="glow26">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
-        {/* Edges */}
+        {/* Edges — brighter strokes */}
         {[
           "M110,160 L275,255","M275,255 L450,185","M275,255 L295,415",
           "M295,415 L155,475","M295,415 L465,495","M450,185 L530,305",
@@ -511,18 +542,21 @@ function BrandPanel({ memberCount }) {
           "M110,160 L75,75","M450,185 L530,95","M295,415 L370,530",
           "M275,255 L160,330","M160,330 L75,580",
         ].map((d, i) => (
-          <path key={i} d={d} stroke="rgba(163,230,53,.5)" strokeWidth="1" fill="none"
-            strokeDasharray="6 12"
-            style={{ animation: `xvDash ${3.5 + i * .3}s linear infinite`, animationDelay: `${i * .25}s` }}
+          <path key={i} d={d} stroke="rgba(163,230,53,.65)" strokeWidth="1.2" fill="none"
+            strokeDasharray="8 14"
+            style={{
+              animation: `xvDash ${3.5 + i * .3}s linear infinite, xvLinePulse ${2 + i * .2}s ease-in-out infinite`,
+              animationDelay: `${i * .25}s`,
+            }}
           />
         ))}
-        {/* Nodes */}
+        {/* Nodes — larger, brighter */}
         {[
-          [110,160,4.5],[275,255,6.5],[450,185,4],[295,415,5.5],
-          [155,475,3.5],[465,495,5],[530,305,4],[75,580,3],[545,595,3],
-          [75,75,3.5],[530,95,3.5],[370,530,4],[160,330,4],
+          [110,160,5.5],[275,255,8],[450,185,5],[295,415,7],
+          [155,475,4.5],[465,495,6],[530,305,5],[75,580,4],[545,595,4],
+          [75,75,4.5],[530,95,4.5],[370,530,5],[160,330,5],
         ].map(([cx, cy, r], i) => (
-          <circle key={i} cx={cx} cy={cy} r={r} fill="url(#ng25)" filter="url(#glow25)"
+          <circle key={i} cx={cx} cy={cy} r={r} fill="url(#ng26)" filter="url(#glow26)"
             style={{ animation: `xvNodeP ${2.2 + i * .38}s ease-in-out infinite`, animationDelay: `${i * .21}s` }}
           />
         ))}
@@ -535,17 +569,17 @@ function BrandPanel({ memberCount }) {
           <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#a3e635,#65a30d)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <span style={{ fontSize: 16, fontWeight: 900, color: "#040a00", fontFamily: "'Syne', sans-serif" }}>X</span>
           </div>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 13, fontWeight: 900, letterSpacing: "5px", color: "#1c3a08", textTransform: "uppercase" }}>XEEVIA</span>
+          <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 13, fontWeight: 900, letterSpacing: "5px", color: "#3a6010", textTransform: "uppercase" }}>XEEVIA</span>
         </div>
 
         {/* Headline */}
-        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "clamp(34px, 3.4vw, 52px)", fontWeight: 900, lineHeight: 1.06, letterSpacing: "-2px", margin: "0 0 18px", color: "#fff" }}>
+        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "clamp(34px, 3.4vw, 52px)", fontWeight: 900, lineHeight: 1.06, letterSpacing: "-2px", margin: "0 0 18px", color: "#f5f5f5" }}>
           Your social life,<br />
           <span className="xv-shimmer">renewed.</span>
         </h1>
 
-        {/* Subtext */}
-        <p style={{ fontSize: 13.5, color: "#2e2e2e", lineHeight: 1.85, maxWidth: 370, margin: "0 0 32px" }}>
+        {/* Subtext — more visible */}
+        <p style={{ fontSize: 13.5, color: "#5a6a5a", lineHeight: 1.85, maxWidth: 370, margin: "0 0 32px" }}>
           A private social experience built for people who want more — real connections, genuine community, and a platform that actually belongs to you.
         </p>
 
@@ -554,16 +588,16 @@ function BrandPanel({ memberCount }) {
           {FEATURES.map(({ n, icon, title, sub }) => (
             <div key={n} className="xv-feat-card">
               <div style={{ fontSize: 18, marginBottom: 7 }}>{icon}</div>
-              <div style={{ fontSize: 9, color: "#1d1d1d", fontWeight: 800, letterSpacing: "1.2px", marginBottom: 5 }}>{n}</div>
-              <div style={{ fontSize: 11, color: "#b0e060", fontWeight: 700, lineHeight: 1.35, marginBottom: 3 }}>{title}</div>
-              <div style={{ fontSize: 10, color: "#242424", lineHeight: 1.4 }}>{sub}</div>
+              <div style={{ fontSize: 9, color: "#3a4a3a", fontWeight: 800, letterSpacing: "1.2px", marginBottom: 5 }}>{n}</div>
+              <div style={{ fontSize: 11, color: "#90c040", fontWeight: 700, lineHeight: 1.35, marginBottom: 3 }}>{title}</div>
+              <div style={{ fontSize: 10, color: "#3a4a3a", lineHeight: 1.4 }}>{sub}</div>
             </div>
           ))}
         </div>
 
-        {/* Testimonial */}
-        <div style={{ borderLeft: "2px solid #161616", paddingLeft: 16, marginBottom: 0 }}>
-          <p style={{ color: "#222", fontSize: 12, lineHeight: 1.85, fontStyle: "italic", margin: 0 }}>
+        {/* Testimonial — more visible */}
+        <div style={{ borderLeft: "2px solid #1e2a1e", paddingLeft: 16, marginBottom: 0 }}>
+          <p style={{ color: "#3a4a3a", fontSize: 12, lineHeight: 1.85, fontStyle: "italic", margin: 0 }}>
             "The next social protocol won't be owned by a company.<br />
             It'll be owned by the people who showed up first."
           </p>
@@ -571,22 +605,48 @@ function BrandPanel({ memberCount }) {
       </div>
 
       {/* Footer */}
-      <div style={{ position: "relative", zIndex: 1, borderTop: "1px solid #0f0f0f", paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        {/* Member stack */}
+      <div style={{ position: "relative", zIndex: 1, borderTop: "1px solid #141814", paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        {/* Real member avatars */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div className="xv-avatar-stack">
-            {AVATARS.map((av, i) => (
-              <div key={i} className="xv-avatar"
-                style={{ background: av.color, marginLeft: i > 0 ? -10 : 0, zIndex: AVATARS.length - i }}>
-                {av.initials}
-              </div>
-            ))}
+            {(recentUsers.length > 0 ? recentUsers : [null, null, null, null]).map((user, i) => {
+              const avatarUrl = user ? buildAvatarUrl(user.avatar_id) : null;
+              const initials = user ? (user.full_name || "U").charAt(0).toUpperCase() : "?";
+              return (
+                <div
+                  key={user?.id || i}
+                  className="xv-avatar"
+                  style={{
+                    marginLeft: i > 0 ? -10 : 0,
+                    zIndex: 4 - i,
+                    background: avatarUrl ? "transparent" : ACCENT_COLORS[i % ACCENT_COLORS.length],
+                    position: "relative",
+                  }}
+                >
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={user?.full_name || ""}
+                      style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
+                      onError={e => {
+                        // On image error, show initials fallback
+                        e.target.style.display = "none";
+                        e.target.parentNode.style.background = ACCENT_COLORS[i % ACCENT_COLORS.length];
+                        e.target.parentNode.setAttribute("data-initials", initials);
+                      }}
+                    />
+                  ) : (
+                    <span style={{ color: "#040a00", fontSize: 11, fontWeight: 800 }}>{initials}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: "#b0e060", letterSpacing: "-0.5px", fontFamily: "'Syne', sans-serif" }}>
+            <div style={{ fontSize: 14, fontWeight: 900, color: "#90c040", letterSpacing: "-0.5px", fontFamily: "'Syne', sans-serif" }}>
               {memberCount > 0 ? memberCount.toLocaleString() : "—"}
             </div>
-            <div style={{ fontSize: 10, color: "#1e1e1e", fontWeight: 600 }}>members joined</div>
+            <div style={{ fontSize: 10, color: "#2e3e2e", fontWeight: 600 }}>members joined</div>
           </div>
         </div>
 
@@ -626,10 +686,10 @@ function MobileHeader() {
 }
 
 // ── Price Hero ────────────────────────────────────────────────────────────────
-// SLIDE RULES (strict — no exceptions):
-//   Slide 0: PUBLIC PRICE  — always shown; shows discounted price if non-wl invite active
-//   Slide 1: WHITELIST ENTRY — only if invite.type === "whitelist" AND not full
-//   Slide 2: WAITLIST — only if invite.type === "whitelist" AND is_full
+// SLIDE RULES:
+//   Slide 0: PUBLIC PRICE  — always shown
+//   Slide 1: WHITELIST ENTRY — only if invite has active whitelist (not full)
+//   Slide 2: WAITLIST — only if invite is_full AND waitlist enabled
 function PriceHero({ productPrice, inviteDetails, loading }) {
   const [slideIdx, setSlideIdx] = useState(0);
   const [priceKey, setPriceKey] = useState(0);
@@ -639,9 +699,11 @@ function PriceHero({ productPrice, inviteDetails, loading }) {
 
   const isWhitelistInvite = inviteDetails && (
     inviteDetails.type === "whitelist" ||
-    inviteDetails.metadata?.invite_type === "whitelist"
+    inviteDetails.metadata?.invite_type === "whitelist" ||
+    inviteDetails.metadata?.invite_category === "whitelist"
   );
   const isFull = isWhitelistInvite && inviteDetails?.is_full;
+  const hasWaitlist = isWhitelistInvite && inviteDetails?.enable_waitlist !== false;
   const invitePrice = isWhitelistInvite ? resolvePrice(inviteDetails, publicPrice) : publicPrice;
   const isFree = isWhitelistInvite && invitePrice === 0;
 
@@ -664,7 +726,7 @@ function PriceHero({ productPrice, inviteDetails, loading }) {
     );
   }
 
-  if (isWhitelistInvite && isFull) {
+  if (isWhitelistInvite && isFull && hasWaitlist) {
     slides.push({ id: "waitlist", badge: "WAITLIST", badgeColor: "#38bdf8", badgeBg: "rgba(56,189,248,.08)", badgeBorder: "rgba(56,189,248,.22)", price: invitePrice, accent: "#38bdf8", note: "hold your spot · pay when promoted", epLabel: "200 EP" });
   }
 
@@ -672,7 +734,7 @@ function PriceHero({ productPrice, inviteDetails, loading }) {
     if (isWhitelistInvite && slides.length > 1) setSlideIdx(slides.length - 1);
     else setSlideIdx(0);
   // eslint-disable-next-line
-  }, [inviteDetails?.id, isWhitelistInvite]);
+  }, [inviteDetails?.id, isWhitelistInvite, isFull]);
 
   const si = Math.min(slideIdx, slides.length - 1);
   const s = slides[si];
@@ -1206,7 +1268,11 @@ function WaitlistJoin({ inviteDetails, userId, onJoined }) {
 
 // ── Invite Code Section ───────────────────────────────────────────────────────
 function InviteCodeSection({ code, setCode, codeErr, codeOk, codeLoad, onApply, inviteDetails, onClear, effectivePrice }) {
-  const isWhitelist = inviteDetails && (inviteDetails.type === "whitelist" || inviteDetails.metadata?.invite_type === "whitelist");
+  const isWhitelist = inviteDetails && (
+    inviteDetails.type === "whitelist" ||
+    inviteDetails.metadata?.invite_type === "whitelist" ||
+    inviteDetails.metadata?.invite_category === "whitelist"
+  );
   const isFull = inviteDetails?.is_full;
   const isFree = effectivePrice === 0;
 
@@ -1286,15 +1352,12 @@ function PaywallColumn({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      {/* Section label */}
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "3px", color: "#183008", textTransform: "uppercase", marginBottom: 18 }}>
         Complete Access
       </div>
 
-      {/* Price Hero */}
       <PriceHero productPrice={product?.amount_usd ?? 4} inviteDetails={inviteDetails} loading={productLoading} />
 
-      {/* Payment area */}
       {isWaitlisted ? (
         <WaitlistJoin inviteDetails={inviteDetails} userId={userId} onJoined={() => {}} />
       ) : isFreeWhitelist ? (
@@ -1346,7 +1409,6 @@ function PaywallColumn({
         </>
       )}
 
-      {/* Invite code section */}
       <InviteCodeSection
         code={code} setCode={setCode}
         codeErr={codeErr} codeOk={codeOk} codeLoad={codeLoad}
@@ -1354,7 +1416,6 @@ function PaywallColumn({
         onClear={clearInvite} effectivePrice={effectivePrice}
       />
 
-      {/* Footer */}
       <div style={{ marginTop: 28, textAlign: "center", fontSize: 11, color: "#2a2a2a", lineHeight: 1.8 }}>
         Payments are processed on-chain · Verified on the blockchain<br />
         <span style={{ color: "#222" }}>Questions? </span>
@@ -1377,7 +1438,6 @@ export default function PaywallGate({ children }) {
   const [memberCount, setMemberCount] = useState(0);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : false);
 
-  // Invite code
   const [code, setCode] = useState("");
   const [codeLoad, setCodeLoad] = useState(false);
   const [codeErr, setCodeErr] = useState("");
@@ -1389,14 +1449,12 @@ export default function PaywallGate({ children }) {
   const userId = profile?.id ?? null;
   const mounted = useRef(true);
 
-  // ── Resize listener ────────────────────────────────────────────────────────
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize, { passive: true });
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Load product + member count + URL code ─────────────────────────────────
   useEffect(() => {
     mounted.current = true;
     setProductLoading(true);
@@ -1405,8 +1463,8 @@ export default function PaywallGate({ children }) {
       .catch(() => {})
       .finally(() => { if (mounted.current) setProductLoading(false); });
 
-    // Member count
     supabase.from("profiles").select("*", { count: "exact", head: true })
+      .eq("account_activated", true)
       .then(({ count }) => { if (mounted.current && count) setMemberCount(count); })
       .catch(() => {});
 
@@ -1418,18 +1476,18 @@ export default function PaywallGate({ children }) {
   // eslint-disable-next-line
   }, []);
 
-  // ── Realtime: product price changes ───────────────────────────────────────
+  // Realtime: product price changes
   useEffect(() => {
     const channel = supabase
       .channel("paywall-product-sync")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "payment_products" }, async () => {
-        try { const prods = await fetchPaymentProducts(); setProduct(prods[0] ?? null); } catch { /* non-fatal */ }
+        try { const prods = await fetchPaymentProducts(); if (mounted.current) setProduct(prods[0] ?? null); } catch { /* non-fatal */ }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // ── Realtime: invite code price changes ────────────────────────────────────
+  // Realtime: invite code price changes — re-resolves using full priority chain
   useEffect(() => {
     if (!inviteDetails?.id) return;
     const channel = supabase
@@ -1438,7 +1496,7 @@ export default function PaywallGate({ children }) {
         async () => {
           try {
             const fresh = await fetchInviteCodeDetails(inviteRef.current?.code ?? "");
-            if (fresh) setInviteDetails(fresh);
+            if (fresh && mounted.current) setInviteDetails(fresh);
           } catch { /* non-fatal */ }
         }
       )
@@ -1446,19 +1504,20 @@ export default function PaywallGate({ children }) {
     return () => { supabase.removeChannel(channel); };
   }, [inviteDetails?.id]);
 
-  // Effective price
+  // Effective price — uses same priority as InviteCard
   const productPrice = product?.amount_usd ?? 4;
   const effectivePrice = inviteDetails ? resolvePrice(inviteDetails, productPrice) : productPrice;
   const isFree = effectivePrice === 0;
 
+  // Whitelist/waitlist state — robust detection
   const isWhitelistInvite = inviteDetails && (
     inviteDetails.type === "whitelist" ||
-    inviteDetails.metadata?.invite_type === "whitelist"
+    inviteDetails.metadata?.invite_type === "whitelist" ||
+    inviteDetails.metadata?.invite_category === "whitelist"
   );
-  const isWaitlisted = isWhitelistInvite && inviteDetails?.is_full && inviteDetails?.enable_waitlist !== false;
-  const isFreeWhitelist = isWhitelistInvite && isFree;
+  const isWaitlisted  = isWhitelistInvite && inviteDetails?.is_full && inviteDetails?.enable_waitlist !== false;
+  const isFreeWhitelist = isWhitelistInvite && isFree && !inviteDetails?.is_full;
 
-  // ── Apply invite code ─────────────────────────────────────────────────────
   const applyCode = useCallback(async (codeVal) => {
     const val = (codeVal ?? code).trim().toUpperCase();
     if (!val) return;
@@ -1475,7 +1534,6 @@ export default function PaywallGate({ children }) {
 
   const clearInvite = useCallback(() => { setInviteDetails(null); setCode(""); setCodeOk(false); setCodeErr(""); }, []);
 
-  // ── Verify web3 manual payment ────────────────────────────────────────────
   const handleVerify = useCallback(async (params) => {
     setVerifyLoading(true); setVerifyError("");
     try {
@@ -1518,7 +1576,6 @@ export default function PaywallGate({ children }) {
     }
   };
 
-  // ── Guard: loading ─────────────────────────────────────────────────────────
   if (authLoading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#080808" }}>
       <style>{STYLES}</style>
@@ -1528,7 +1585,6 @@ export default function PaywallGate({ children }) {
   if (!authLoading && profile && isPaidProfile(profile) && !success) return children;
   if (success) return <><style>{STYLES}</style><SuccessScreen profile={profile} /></>;
 
-  // ── Shared paywall props ──────────────────────────────────────────────────
   const paywallProps = {
     product, productLoading, tab, setTab,
     verifyLoading, verifyError, setVerifyError,
@@ -1544,8 +1600,6 @@ export default function PaywallGate({ children }) {
     <>
       <style>{STYLES}</style>
       <div className="xv">
-
-        {/* ── Mobile layout ── */}
         {isMobile ? (
           <div style={{ width: "100%", minHeight: "100dvh", background: "#080808", overflowY: "auto" }}>
             <MobileHeader />
@@ -1554,13 +1608,8 @@ export default function PaywallGate({ children }) {
             </div>
           </div>
         ) : (
-          /* ── Desktop split-screen ── */
           <div style={{ width: "100vw", height: "100vh", display: "flex", position: "fixed", inset: 0, zIndex: 1, overflow: "hidden", background: "#050505" }}>
-
-            {/* Left: Brand panel */}
             <BrandPanel memberCount={memberCount} />
-
-            {/* Right: Paywall */}
             <div className="xv-paywall-side">
               <div className="xv-paywall-scroll">
                 <PaywallColumn {...paywallProps} />
@@ -1568,7 +1617,6 @@ export default function PaywallGate({ children }) {
             </div>
           </div>
         )}
-
       </div>
       {showPaystackSoon && <PaystackSoonModal onClose={() => setShowPaystackSoon(false)} />}
     </>

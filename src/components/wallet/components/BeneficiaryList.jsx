@@ -1,15 +1,11 @@
 // src/components/wallet/components/BeneficiaryList.jsx
 // ─────────────────────────────────────────────────────────────
-// Beneficiary system:
-//   • Shows top 3 most-used as clickable avatar chips
-//   • "View all" opens full-page list
-//   • Full page: avatar, name, handle, last used, delete button
-//   • Data persisted in localStorage per userId via walletService
+//  All avatars use ProfilePreview — real images + click → UserProfileModal
 // ─────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect } from "react";
-import { X, Clock, ChevronRight, Users, ArrowLeft } from "lucide-react";
-import WalletAvatar from "./WalletAvatar";
+import { X, Clock, Users, ArrowLeft } from "lucide-react";
+import ProfilePreview from "../../Shared/ProfilePreview";
 import { walletService } from "../../../services/wallet/walletService";
 
 const CSS = `
@@ -30,7 +26,6 @@ const CSS = `
   flex-wrap:wrap;
 }
 
-/* Quick chip */
 .bene-chip{
   display:flex;flex-direction:column;align-items:center;gap:5px;
   cursor:pointer;transition:all .18s;padding:10px 12px;border-radius:14px;
@@ -43,7 +38,6 @@ const CSS = `
   max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;
 }
 
-/* View all chip */
 .bene-view-all{
   display:flex;flex-direction:column;align-items:center;gap:5px;
   cursor:pointer;transition:all .18s;padding:10px 12px;border-radius:14px;
@@ -61,7 +55,6 @@ const CSS = `
   font-size:11px;font-weight:600;color:rgba(255,255,255,0.3);text-align:center;
 }
 
-/* ── Full page ── */
 .bene-page{
   display:flex;flex-direction:column;
   animation:benePageIn .22s ease;
@@ -99,16 +92,17 @@ const CSS = `
 function timeAgo(ts) {
   if (!ts) return "";
   const d = Date.now() - ts;
-  if (d < 60_000)           return "just now";
-  if (d < 3_600_000)        return `${Math.floor(d/60_000)}m ago`;
-  if (d < 86_400_000)       return `${Math.floor(d/3_600_000)}h ago`;
-  if (d < 7 * 86_400_000)   return `${Math.floor(d/86_400_000)}d ago`;
-  return new Date(ts).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+  if (d < 60_000)         return "just now";
+  if (d < 3_600_000)      return `${Math.floor(d/60_000)}m ago`;
+  if (d < 86_400_000)     return `${Math.floor(d/3_600_000)}h ago`;
+  if (d < 7*86_400_000)   return `${Math.floor(d/86_400_000)}d ago`;
+  return new Date(ts).toLocaleDateString("en-NG", { month:"short", day:"numeric" });
 }
 
 // ── Full beneficiaries page ─────────────────────────────────
-function BeneficiaryFullPage({ userId, onSelect, onBack }) {
+function BeneficiaryFullPage({ userId, onSelect, onBack, currentUser }) {
   const [list, setList] = useState([]);
+
   useEffect(() => {
     setList(walletService.getBeneficiaries(userId));
   }, [userId]);
@@ -137,13 +131,34 @@ function BeneficiaryFullPage({ userId, onSelect, onBack }) {
         </div>
       ) : list.map(b => (
         <div key={b.username} className="bene-full-row">
-          <WalletAvatar avatarId={b.avatarId} avatarUrl={b.avatarUrl} name={b.fullName || b.username} size={44} />
+          {/* ProfilePreview: real image + click → UserProfileModal */}
+          <ProfilePreview
+            profile={{
+              id:              b.id        || b.userId,
+              user_id:         b.id        || b.userId,
+              userId:          b.id        || b.userId,
+              author:          b.fullName  || b.full_name || b.username,
+              full_name:       b.fullName  || b.full_name,
+              username:        b.username,
+              avatar:          (b.avatarMeta || b.avatar_metadata)?.publicUrl || (b.avatarMeta || b.avatar_metadata)?.url ||
+                               (b.avatarId || b.avatar_id ?  : null) ||
+                               null,
+              avatar_id:       b.avatarId  || b.avatar_id,
+              avatar_metadata: b.avatarMeta|| b.avatar_metadata,
+              verified:        b.verified  || false,
+            }}
+            currentUser={currentUser}
+            size="medium"
+            showUsername={false}
+          />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bene-full-name">
-              {b.fullName || b.username}
+              {b.fullName || b.full_name || b.username}
               {b.verified && (
                 <span style={{ marginLeft: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", background: "#a3e635", verticalAlign: "middle" }}>
-                  <svg width={8} height={7} viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#000" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width={8} height={7} viewBox="0 0 10 8" fill="none">
+                    <path d="M1 4l3 3 5-6" stroke="#000" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </span>
               )}
             </div>
@@ -151,12 +166,12 @@ function BeneficiaryFullPage({ userId, onSelect, onBack }) {
             <div className="bene-full-meta">
               <Clock size={10} />
               {timeAgo(b.lastUsed)}
-              {b.useCount > 1 && <span style={{ marginLeft: 4, color: "rgba(163,230,53,0.5)", fontWeight: 700 }}>· {b.useCount}×</span>}
+              {b.useCount > 1 && (
+                <span style={{ marginLeft: 4, color: "rgba(163,230,53,0.5)", fontWeight: 700 }}>· {b.useCount}×</span>
+              )}
             </div>
           </div>
-          <button className="bene-use-btn" onClick={() => onSelect(b)}>
-            Send
-          </button>
+          <button className="bene-use-btn" onClick={() => onSelect(b)}>Send</button>
           <button className="bene-del-btn" onClick={() => remove(b.username)} title="Remove">
             <X size={13} />
           </button>
@@ -167,12 +182,11 @@ function BeneficiaryFullPage({ userId, onSelect, onBack }) {
 }
 
 // ── Main export — chips row + view all ─────────────────────
-export default function BeneficiaryList({ userId, onSelect, onViewAll, compact = false }) {
+export default function BeneficiaryList({ userId, onSelect, onViewAll, currentUser }) {
   const [top, setTop] = useState([]);
 
   useEffect(() => {
     setTop(walletService.getTopBeneficiaries(userId, 3));
-    // Refresh when localStorage changes (e.g. after send)
     const handler = () => setTop(walletService.getTopBeneficiaries(userId, 3));
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
@@ -191,13 +205,29 @@ export default function BeneficiaryList({ userId, onSelect, onViewAll, compact =
       <div className="bene-chips-row">
         {top.map(b => (
           <div key={b.username} className="bene-chip" onClick={() => onSelect(b)} title={`@${b.username}`}>
-            <WalletAvatar
-              avatarId={b.avatarId}
-              avatarUrl={b.avatarUrl}
-              name={b.fullName || b.username}
-              size={40}
+            {/* ProfilePreview: real image + click → UserProfileModal */}
+            <ProfilePreview
+              profile={{
+                id:              b.id        || b.userId,
+                user_id:         b.id        || b.userId,
+                userId:          b.id        || b.userId,
+                author:          b.fullName  || b.full_name || b.username,
+                full_name:       b.fullName  || b.full_name,
+                username:        b.username,
+                avatar:          (b.avatarMeta || b.avatar_metadata)?.publicUrl || (b.avatarMeta || b.avatar_metadata)?.url ||
+                                 (b.avatarId || b.avatar_id ? `${(typeof window !== 'undefined' && window.__SUPABASE_URL__) || ''}/storage/v1/object/public/avatars/${b.avatarId || b.avatar_id}` : null) ||
+                                 null,
+                  avatar_id:       b.avatarId  || b.avatar_id,
+                avatar_metadata: b.avatarMeta|| b.avatar_metadata,
+                verified:        b.verified  || false,
+              }}
+              currentUser={currentUser}
+              size="small"
+              showUsername={false}
             />
-            <span className="bene-chip-name">{(b.fullName || b.username).split(" ")[0]}</span>
+            <span className="bene-chip-name">
+              {(b.fullName || b.full_name || b.username).split(" ")[0]}
+            </span>
           </div>
         ))}
         <div className="bene-view-all" onClick={onViewAll}>

@@ -1,418 +1,753 @@
 // src/components/Analytics/AnalyticsView.jsx
-// Pulls real data from Supabase: posts, reels, stories, comments,
-// likes, views, followers, engagement rate. Charts rendered in pure CSS/SVG.
+// ✅ Fetch mirrors ProfileSection.jsx exactly
+// ✅ saved_content — counts times user's content was saved by others (content_id IN allIds)
+// ✅ shares — counts times user's content was shared by others (content_id IN allIds)
+// ✅ ep_dashboard — used for daily/weekly/monthly EP breakdown in wallet tab
+// ✅ Realtime subscriptions with cleanup ref
+// ✅ Neural-network + blockchain visual language
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  BarChart2, TrendingUp, Eye, Heart, MessageSquare,
-  Users, UserPlus, Repeat2, Bookmark, Share2,
-  ChevronDown, ArrowUp, ArrowDown, Minus, Zap, Film, Image, Layers
-} from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../services/config/supabase";
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-const fmtNum = (n) => {
-  if (n >= 1000000) return `${(n/1000000).toFixed(1)}M`;
-  if (n >= 1000)    return `${(n/1000).toFixed(1)}K`;
-  return String(n ?? 0);
-};
-const pct = (a, b) => b ? ((a/b)*100).toFixed(1) : "0.0";
-
-// Fake sparkline data (7 points) for a given seed
-const spark = (seed, len=7) => {
-  let v = seed % 80 + 20;
-  return Array.from({ length: len }, (_, i) => {
-    v = Math.max(5, Math.min(100, v + (Math.random()-0.45)*20));
-    return Math.round(v);
-  });
+// ─── helpers ─────────────────────────────────────────────────────────────────
+const fmt = (n) => {
+  const v = Number(n) || 0;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
+  return String(v);
 };
 
-// SVG sparkline path
-const toPath = (pts, w=80, h=32) => {
-  if (!pts.length) return "";
-  const max = Math.max(...pts), min = Math.min(...pts);
-  const range = max - min || 1;
-  const xs = (i) => (i / (pts.length-1)) * w;
-  const ys = (v) => h - ((v-min)/range) * (h-4) - 2;
-  const d = pts.map((v,i) => `${i===0?"M":"L"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
-  const fill = pts.map((v,i) => `${i===0?"M":"L"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" ")
-    + ` L${w},${h} L0,${h} Z`;
-  return { line: d, fill };
+// ─── animated counter ────────────────────────────────────────────────────────
+const useAnimCount = (target, ms = 780) => {
+  const [val, setVal] = useState(0);
+  const fromRef       = useRef(0);
+  const rafRef        = useRef(null);
+  useEffect(() => {
+    const to = Number(target) || 0;
+    cancelAnimationFrame(rafRef.current);
+    const start = fromRef.current;
+    const t0    = performance.now();
+    const tick  = (now) => {
+      const p = Math.min((now - t0) / ms, 1);
+      const e = 1 - Math.pow(1 - p, 4);
+      setVal(Math.round(start + (to - start) * e));
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+      else fromRef.current = to;
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, ms]);
+  return val;
 };
 
-// ── Stat Card ────────────────────────────────────────────────────────────────
-const StatCard = ({ icon: Icon, label, value, sub, color, delta, pts, idx }) => {
-  const { line, fill } = toPath(pts || spark(idx*13+7));
-  const positive = delta > 0, neutral = delta === 0;
+// ─── Neural node SVG background ──────────────────────────────────────────────
+const NeuralBg = () => {
+  const pts = [[38,38],[118,76],[198,28],[276,88],[356,48],[78,148],[198,138],[318,158]];
   return (
-    <div className="av-stat" style={{ "--c": color, animationDelay: `${idx*0.06}s` }}>
-      <div className="av-stat-top">
-        <div className="av-stat-icon" style={{ background:`${color}18`, border:`1px solid ${color}28` }}>
-          <Icon size={14} color={color}/>
-        </div>
-        <div className={`av-delta ${positive?"pos":neutral?"neu":"neg"}`}>
-          {positive ? <ArrowUp size={9}/> : neutral ? <Minus size={9}/> : <ArrowDown size={9}/>}
-          {Math.abs(delta)}%
-        </div>
+    <svg style={{ position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.05,pointerEvents:"none" }}
+      viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
+      {pts.map(([x,y],i) => (
+        <g key={i}>
+          <circle cx={x} cy={y} r="3" fill="#84cc16"/>
+          {i < pts.length-1 && (
+            <line x1={x} y1={y} x2={pts[i+1][0]} y2={pts[i+1][1]}
+              stroke="#84cc16" strokeWidth="0.5"/>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+};
+
+// ─── Hex hash label ───────────────────────────────────────────────────────────
+const BlockHash = ({ value }) => {
+  const h = `0x${((Number(value)||0) * 7919 + 13).toString(16).padStart(8,"0").slice(0,8)}`;
+  return <span style={{ fontFamily:"monospace", fontSize:9, color:"#1a3a08", letterSpacing:"0.4px" }}>{h}</span>;
+};
+
+// ─── Metric node ─────────────────────────────────────────────────────────────
+const MetricNode = ({ label, raw, color, icon, size="md", delay=0 }) => {
+  const v  = useAnimCount(raw);
+  const fs = { sm:14, md:22, lg:30 }[size] ?? 22;
+  const pd = { sm:"9px 11px", md:"13px 15px", lg:"17px 19px" }[size] ?? "13px 15px";
+  return (
+    <div className="av-node" style={{ "--c":color, animationDelay:`${delay}s`, padding:pd }}>
+      <div className="av-node-glow" style={{ background:`radial-gradient(circle at 50% 0%,${color}18 0%,transparent 70%)` }}/>
+      <div className="av-node-top">
+        <span className="av-node-icon">{icon}</span>
+        <span className="av-node-dot" style={{ background:color }}/>
       </div>
-      <div className="av-stat-val">{value}</div>
-      <div className="av-stat-label">{label}</div>
-      {sub && <div className="av-stat-sub">{sub}</div>}
-      <svg className="av-spark" viewBox={`0 0 80 32`} preserveAspectRatio="none">
+      <div className="av-node-val" style={{ fontSize:fs, color }}>{fmt(v)}</div>
+      <div className="av-node-lbl">{label}</div>
+      <BlockHash value={v}/>
+    </div>
+  );
+};
+
+// ─── SVG area chart — animates from 0 ────────────────────────────────────────
+const AreaChart = ({ points, color, height=72 }) => {
+  const [drawn, setDrawn] = useState([]);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    if (!points?.length) return;
+    let frame = 0;
+    const FRAMES = 54;
+    const tick = () => {
+      frame++;
+      const p = Math.min(frame / FRAMES, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      setDrawn(points.map(v => v * e));
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    cancelAnimationFrame(rafRef.current);
+    setDrawn(points.map(() => 0));
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [points]);
+
+  if (!drawn.length) return null;
+  const W = 300, H = height;
+  const max = Math.max(...drawn, 1);
+  const xs  = (i) => ((i / (drawn.length - 1)) * W).toFixed(1);
+  const ys  = (v) => (H - 4 - ((v / max) * (H - 10))).toFixed(1);
+  const line = drawn.map((v, i) => `${xs(i)},${ys(v)}`).join(" ");
+  const fill = [`0,${H}`, ...drawn.map((v, i) => `${xs(i)},${ys(v)}`), `${W},${H}`].join(" ");
+  const lx   = xs(drawn.length - 1), ly = ys(drawn[drawn.length - 1]);
+  const gid  = `ag${color.replace(/[^a-z0-9]/gi, "")}`;
+
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none" style={{ overflow:"visible" }}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.3"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.02"/>
+        </linearGradient>
+      </defs>
+      <polygon points={fill} fill={`url(#${gid})`}/>
+      <polyline points={line} fill="none" stroke={color} strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={lx} cy={ly} r="3.5" fill={color}/>
+      <circle cx={lx} cy={ly} r="7" fill={color} opacity="0.14">
+        <animate attributeName="r"       values="3.5;9;3.5" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.14;0;0.14" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+  );
+};
+
+// ─── Engagement ring ──────────────────────────────────────────────────────────
+const EngagementRing = ({ rate }) => {
+  const v       = useAnimCount(parseFloat(rate) * 10, 1100);
+  const display = (v / 10).toFixed(1);
+  const r = 38, circ = 2 * Math.PI * r;
+  const dash = (Math.min(parseFloat(rate), 25) / 25) * circ;
+  return (
+    <div style={{ position:"relative", width:100, height:100, flexShrink:0 }}>
+      <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform:"rotate(-90deg)" }}>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(132,204,22,0.08)" strokeWidth="8"/>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="url(#rg)" strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circ}`}
+          style={{ transition:"stroke-dasharray 1.1s cubic-bezier(0.34,1.56,0.64,1)" }}/>
         <defs>
-          <linearGradient id={`sg${idx}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.25"/>
-            <stop offset="100%" stopColor={color} stopOpacity="0"/>
+          <linearGradient id="rg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"   stopColor="#84cc16"/>
+            <stop offset="100%" stopColor="#22d3ee"/>
           </linearGradient>
         </defs>
-        <path d={fill} fill={`url(#sg${idx})`}/>
-        <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
+      <div style={{ position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center" }}>
+        <span style={{ fontSize:18,fontWeight:900,color:"#84cc16",lineHeight:1 }}>{display}%</span>
+        <span style={{ fontSize:8,color:"#333",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",marginTop:2 }}>Eng Rate</span>
+      </div>
     </div>
   );
 };
 
-// ── Bar chart (horizontal) ───────────────────────────────────────────────────
-const BarChart = ({ data, color }) => {
-  const max = Math.max(...data.map(d => d.v), 1);
+// ─── Blockchain ledger row ────────────────────────────────────────────────────
+const ChainRow = ({ label, value, color, maxVal, idx }) => {
+  const v  = useAnimCount(value);
+  const pct = maxVal > 0 ? Math.min((value / maxVal) * 100, 100) : 0;
   return (
-    <div className="av-bar-chart">
-      {data.map((d, i) => (
-        <div key={i} className="av-bar-row">
-          <span className="av-bar-label">{d.label}</span>
-          <div className="av-bar-track">
-            <div className="av-bar-fill"
-              style={{ width:`${(d.v/max)*100}%`, background:`linear-gradient(90deg,${color},${color}88)`,
-                animationDelay:`${i*0.08}s` }}/>
-          </div>
-          <span className="av-bar-val">{fmtNum(d.v)}</span>
-        </div>
-      ))}
+    <div className="av-chain-row" style={{ animationDelay:`${idx * 0.045}s` }}>
+      <span className="av-chain-idx">#{String(idx + 1).padStart(2, "0")}</span>
+      <span className="av-chain-lbl">{label}</span>
+      <div className="av-chain-track">
+        <div className="av-chain-fill"
+          style={{ width:`${pct}%`, background:`linear-gradient(90deg,${color},${color}55)` }}/>
+      </div>
+      <span className="av-chain-val" style={{ color }}>{fmt(v)}</span>
     </div>
   );
 };
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ─── EP period chip ───────────────────────────────────────────────────────────
+const EPChip = ({ label, raw, color }) => {
+  const v = useAnimCount(raw);
+  return (
+    <div className="av-ep-chip" style={{ "--c":color }}>
+      <span className="av-ep-chip-val" style={{ color }}>{fmt(v)}</span>
+      <span className="av-ep-chip-lbl">{label}</span>
+    </div>
+  );
+};
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 const AnalyticsView = ({ currentUser, userId, onClose }) => {
   const uid = userId || currentUser?.id;
-  const [range,   setRange]   = useState("7d");   // 7d | 30d | 90d
-  const [loading, setLoading] = useState(true);
-  const [data,    setData]    = useState(null);
 
-  const fetchAll = useCallback(async () => {
+  const [range,   setRange]   = useState("7d");
+  const [tab,     setTab]     = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [d,       setD]       = useState(null);
+  const subsRef               = useRef([]);
+
+  // ── fetch — mirrors ProfileSection.loadProfileData ────────────────────────
+  const loadData = useCallback(async () => {
     if (!uid) return;
     setLoading(true);
     try {
-      const now   = new Date();
-      const since = new Date(now - (range==="7d"?7:range==="30d"?30:90) * 86400000).toISOString();
+      // Step 1 — content IDs
+      const getIds = async (table) => {
+        const { data: rows } = await supabase
+          .from(table).select("id").eq("user_id", uid).is("deleted_at", null);
+        return (rows || []).map(r => r.id);
+      };
+      const [storyIds, reelIds, postIds] = await Promise.all([
+        getIds("stories"), getIds("reels"), getIds("posts"),
+      ]);
+      const allIds = [...storyIds, ...reelIds, ...postIds];
 
-      // Run queries in parallel
+      // Step 2 — all parallel queries
       const [
-        postsRes, reelsRes, storiesRes,
-        followersRes, followingRes,
-        likesRes, commentsRes,
-        profileRes
+        walletRes,
+        epDashRes,
+        storiesCountRes, reelsCountRes, postsCountRes,
+        storiesViewsRes, reelsViewsRes,  postsViewsRes,
+        commentsRes,
+        followersRes,    followingRes,
+        commRes,
+        storyLikesRes,   reelLikesRes,   postLikesRes,
+        profileViewsRes,
+        sharesRes,
+        savedRes,
       ] = await Promise.allSettled([
-        supabase.from("posts").select("id,created_at,views_count,likes_count,comments_count,shares_count,bookmarks_count",{count:"exact"})
-          .eq("user_id",uid).gte("created_at",since),
-        supabase.from("reels").select("id,created_at,views_count,likes_count,comments_count",{count:"exact"})
-          .eq("user_id",uid).gte("created_at",since),
-        supabase.from("stories").select("id,created_at,views_count",{count:"exact"})
-          .eq("user_id",uid).gte("created_at",since),
-        supabase.from("follows").select("id",{count:"exact"}).eq("following_id",uid),
-        supabase.from("follows").select("id",{count:"exact"}).eq("follower_id",uid),
-        supabase.from("likes").select("id",{count:"exact"}).eq("post_user_id",uid).gte("created_at",since),
-        supabase.from("comments").select("id",{count:"exact"}).eq("post_user_id",uid).gte("created_at",since),
-        supabase.from("profiles").select("ep_balance,total_views,total_earnings,created_at").eq("id",uid).maybeSingle(),
+        // wallets: grova_tokens | engagement_points
+        supabase.from("wallets")
+          .select("grova_tokens, engagement_points")
+          .eq("user_id", uid).maybeSingle(),
+
+        // ep_dashboard: daily_ep | weekly_ep | monthly_ep | total_ep_earned
+        supabase.from("ep_dashboard")
+          .select("total_ep_earned, daily_ep, weekly_ep, monthly_ep, annual_ep")
+          .eq("user_id", uid).maybeSingle(),
+
+        // content counts
+        supabase.from("stories").select("*", { count:"exact", head:true }).eq("user_id",uid).is("deleted_at",null),
+        supabase.from("reels")  .select("*", { count:"exact", head:true }).eq("user_id",uid).is("deleted_at",null),
+        supabase.from("posts")  .select("*", { count:"exact", head:true }).eq("user_id",uid).is("deleted_at",null),
+
+        // views rows — reduce-sum (same as ProfileSection)
+        supabase.from("stories").select("views, created_at").eq("user_id",uid).is("deleted_at",null),
+        supabase.from("reels")  .select("views, created_at").eq("user_id",uid).is("deleted_at",null),
+        supabase.from("posts")  .select("views, created_at").eq("user_id",uid).is("deleted_at",null),
+
+        // comments WRITTEN BY this user (user_id = uid) — mirrors ProfileSection
+        supabase.from("comments").select("*", { count:"exact", head:true })
+          .eq("user_id", uid).is("deleted_at", null),
+
+        // follows.following_id = uid → followers
+        supabase.from("follows").select("*", { count:"exact", head:true }).eq("following_id", uid),
+        // follows.follower_id  = uid → following
+        supabase.from("follows").select("*", { count:"exact", head:true }).eq("follower_id",  uid),
+
+        // community_members
+        supabase.from("community_members").select("*", { count:"exact", head:true }).eq("user_id", uid),
+
+        // likes on user's content via junction tables
+        storyIds.length
+          ? supabase.from("story_likes").select("*", { count:"exact", head:true }).in("story_id", storyIds)
+          : Promise.resolve({ count: 0 }),
+        reelIds.length
+          ? supabase.from("reel_likes") .select("*", { count:"exact", head:true }).in("reel_id",  reelIds)
+          : Promise.resolve({ count: 0 }),
+        postIds.length
+          ? supabase.from("post_likes") .select("*", { count:"exact", head:true }).in("post_id",  postIds)
+          : Promise.resolve({ count: 0 }),
+
+        // profile_views received
+        supabase.from("profile_views").select("*", { count:"exact", head:true }).eq("profile_id", uid),
+
+        // shares OF user's content by others (content_id IN allIds)
+        allIds.length
+          ? supabase.from("shares").select("*", { count:"exact", head:true }).in("content_id", allIds)
+          : Promise.resolve({ count: 0 }),
+
+        // times user's content was saved by others (content_id IN allIds)
+        allIds.length
+          ? supabase.from("saved_content").select("*", { count:"exact", head:true }).in("content_id", allIds)
+          : Promise.resolve({ count: 0 }),
       ]);
 
-      const safe = (r) => (r.status==="fulfilled" ? r.value : { data:[], count:0, error:null });
-      const posts    = safe(postsRes);
-      const reels    = safe(reelsRes);
-      const stories  = safe(storiesRes);
-      const followers = safe(followersRes).count || 0;
-      const following = safe(followingRes).count || 0;
-      const likesGot  = safe(likesRes).count   || 0;
-      const commGot   = safe(commentsRes).count || 0;
-      const profile   = profileRes.status==="fulfilled" ? profileRes.value.data : null;
+      // Step 3 — safe extraction
+      const wallet        = walletRes.status==="fulfilled"        ? walletRes.value?.data              : null;
+      const epDash        = epDashRes.status==="fulfilled"        ? epDashRes.value?.data              : null;
+      const storiesCount  = storiesCountRes.status==="fulfilled"  ? (storiesCountRes.value?.count ?? 0) : 0;
+      const reelsCount    = reelsCountRes.status==="fulfilled"    ? (reelsCountRes.value?.count   ?? 0) : 0;
+      const postsCount    = postsCountRes.status==="fulfilled"    ? (postsCountRes.value?.count   ?? 0) : 0;
+      const commentsCount = commentsRes.status==="fulfilled"      ? (commentsRes.value?.count     ?? 0) : 0;
+      const followersCount= followersRes.status==="fulfilled"     ? (followersRes.value?.count    ?? 0) : 0;
+      const followingCount= followingRes.status==="fulfilled"     ? (followingRes.value?.count    ?? 0) : 0;
+      const commCount     = commRes.status==="fulfilled"          ? (commRes.value?.count         ?? 0) : 0;
+      const storyLikes    = storyLikesRes.status==="fulfilled"    ? (storyLikesRes.value?.count   ?? 0) : 0;
+      const reelLikes     = reelLikesRes.status==="fulfilled"     ? (reelLikesRes.value?.count    ?? 0) : 0;
+      const postLikes     = postLikesRes.status==="fulfilled"     ? (postLikesRes.value?.count    ?? 0) : 0;
+      const profileViews  = profileViewsRes.status==="fulfilled"  ? (profileViewsRes.value?.count ?? 0) : 0;
+      const sharesCount   = sharesRes.status==="fulfilled"        ? (sharesRes.value?.count       ?? 0) : 0;
+      const savedCount    = savedRes.status==="fulfilled"         ? (savedRes.value?.count        ?? 0) : 0;
 
-      // Aggregate post-level metrics
-      const agg = (arr, field) => (arr?.data||[]).reduce((sum,r) => sum+(r[field]||0), 0);
-      const postViews    = agg(posts,   "views_count");
-      const postLikes    = agg(posts,   "likes_count");
-      const postComments = agg(posts,   "comments_count");
-      const postShares   = agg(posts,   "shares_count");
-      const postBookmarks= agg(posts,   "bookmarks_count");
-      const reelViews    = agg(reels,   "views_count");
-      const reelLikes    = agg(reels,   "likes_count");
-      const storyViews   = agg(stories, "views_count");
+      // Step 4 — sum views from row data (same as ProfileSection)
+      const storyViewRows = storiesViewsRes.status==="fulfilled" ? storiesViewsRes.value?.data || [] : [];
+      const reelViewRows  = reelsViewsRes.status==="fulfilled"   ? reelsViewsRes.value?.data   || [] : [];
+      const postViewRows  = postsViewsRes.status==="fulfilled"   ? postsViewsRes.value?.data   || [] : [];
+      const allViewRows   = [...storyViewRows, ...reelViewRows, ...postViewRows];
 
-      const totalViews = postViews + reelViews + storyViews;
-      const totalLikes = postLikes + reelLikes + likesGot;
-      const engRate    = followers > 0 ? ((totalLikes + commGot) / (followers * ((posts.count||0)+(reels.count||0)||1)) * 100) : 0;
+      const storyViews   = storyViewRows.reduce((s, r) => s + (Number(r.views) || 0), 0);
+      const reelViews    = reelViewRows.reduce((s, r)  => s + (Number(r.views) || 0), 0);
+      const postViews    = postViewRows.reduce((s, r)  => s + (Number(r.views) || 0), 0);
+      const totalViews   = storyViews + reelViews + postViews;
+      const totalLikes   = storyLikes + reelLikes + postLikes;
+      const totalContent = storiesCount + reelsCount + postsCount;
 
-      setData({
-        followers, following, engRate: engRate.toFixed(1),
-        totalViews, totalLikes, totalComments: postComments + commGot,
-        postCount: posts.count || 0,
-        reelCount: reels.count || 0,
-        storyCount: stories.count || 0,
-        postShares, postBookmarks, reelViews, storyViews,
-        epBalance: profile?.ep_balance || 0,
-        totalEarnings: profile?.total_earnings || 0,
+      // Engagement rate
+      const engRate = followersCount > 0 && totalContent > 0
+        ? (((totalLikes + commentsCount) / (followersCount * totalContent)) * 100)
+        : 0;
+
+      // Build 7-point chart from created_at dates
+      const chartPoints = Array.from({ length: 7 }, (_, i) => {
+        const dayStart = new Date(Date.now() - (6 - i) * 86400000);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart); dayEnd.setHours(23, 59, 59, 999);
+        return allViewRows
+          .filter(r => { const d = new Date(r.created_at); return d >= dayStart && d <= dayEnd; })
+          .reduce((s, r) => s + (Number(r.views) || 0), 0);
       });
-    } catch {
-      // Fallback demo data
-      setData({
-        followers:2847, following:394, engRate:"4.7",
-        totalViews:18450, totalLikes:3210, totalComments:847,
-        postCount:24, reelCount:8, storyCount:42,
-        postShares:312, postBookmarks:560, reelViews:11200, storyViews:6800,
-        epBalance:4250, totalEarnings:128,
+      const hasRealPoints = chartPoints.some(v => v > 0);
+      const finalChart    = hasRealPoints
+        ? chartPoints
+        : [0, 0.07, 0.2, 0.4, 0.6, 0.82, 1.0].map(r => Math.round(r * totalViews));
+
+      setD({
+        followers: followersCount, following: followingCount,
+        engRate: engRate.toFixed(2),
+        totalViews, storyViews, reelViews, postViews,
+        totalLikes, storyLikes, reelLikes, postLikes,
+        totalComments: commentsCount,
+        sharesCount, savedCount, profileViews,
+        storiesCount, reelsCount, postsCount, totalContent,
+        communities: commCount,
+        grovaTokens:      wallet?.grova_tokens      ?? 0,
+        engagementPoints: wallet?.engagement_points ?? 0,
+        // ep_dashboard breakdown
+        totalEpEarned: epDash?.total_ep_earned ?? 0,
+        dailyEp:       epDash?.daily_ep        ?? 0,
+        weeklyEp:      epDash?.weekly_ep       ?? 0,
+        monthlyEp:     epDash?.monthly_ep      ?? 0,
+        annualEp:      epDash?.annual_ep       ?? 0,
+        chartPoints: finalChart,
       });
-    } finally { setLoading(false); }
+    } catch (err) {
+      console.error("AnalyticsView.loadData:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [uid, range]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // boot load
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const d = data;
+  // realtime subscriptions
+  useEffect(() => {
+    if (!uid) return;
+    subsRef.current.forEach(s => supabase.removeChannel(s));
+    subsRef.current = [];
+    const sub = (ch) => subsRef.current.push(ch);
 
-  // Top content breakdown for bar chart
-  const contentData = d ? [
-    { label:"Posts",   v: d.postCount  },
-    { label:"Reels",   v: d.reelCount  },
-    { label:"Stories", v: d.storyCount },
-  ] : [];
+    sub(supabase.channel(`av-follows-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"follows"},() => loadData()).subscribe());
+    sub(supabase.channel(`av-posts-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"posts",filter:`user_id=eq.${uid}`},() => loadData()).subscribe());
+    sub(supabase.channel(`av-reels-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"reels",filter:`user_id=eq.${uid}`},() => loadData()).subscribe());
+    sub(supabase.channel(`av-stories-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"stories",filter:`user_id=eq.${uid}`},() => loadData()).subscribe());
+    sub(supabase.channel(`av-pl-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"post_likes"}, () => loadData()).subscribe());
+    sub(supabase.channel(`av-rl-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"reel_likes"}, () => loadData()).subscribe());
+    sub(supabase.channel(`av-sl-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"story_likes"},() => loadData()).subscribe());
+    sub(supabase.channel(`av-comments-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"comments",filter:`user_id=eq.${uid}`},() => loadData()).subscribe());
+    sub(supabase.channel(`av-wallet-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"wallets",filter:`user_id=eq.${uid}`},() => loadData()).subscribe());
+    sub(supabase.channel(`av-ep-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"ep_dashboard",filter:`user_id=eq.${uid}`},() => loadData()).subscribe());
+    sub(supabase.channel(`av-shares-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"shares"},() => loadData()).subscribe());
+    sub(supabase.channel(`av-saved-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"saved_content"},() => loadData()).subscribe());
+    sub(supabase.channel(`av-pv-${uid}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"profile_views",filter:`profile_id=eq.${uid}`},() => loadData()).subscribe());
 
-  const viewData = d ? [
-    { label:"Posts",   v: d.totalViews - d.reelViews - d.storyViews },
-    { label:"Reels",   v: d.reelViews   },
-    { label:"Stories", v: d.storyViews  },
-  ] : [];
+    return () => subsRef.current.forEach(s => supabase.removeChannel(s));
+  }, [uid, loadData]);
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="av-root">
       <style>{`
-        @keyframes avFadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-        @keyframes avBarGrow{from{width:0%}to{width:var(--w,0%)}}
-        @keyframes avPulse{0%,100%{opacity:.5}50%{opacity:1}}
-        @keyframes avSpin{to{transform:rotate(360deg)}}
+        @keyframes avFadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes avScan    { from{top:-2px} to{top:100vh} }
+        @keyframes avSpin    { to{transform:rotate(360deg)} }
+        @keyframes avPulse   { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:0.4} }
+        @keyframes avBar     { from{background-position:200% 0} to{background-position:0 0} }
+        @keyframes avNodeIn  { from{opacity:0;transform:scale(0.88) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes avChain   { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+        * { box-sizing:border-box; }
 
-        .av-root{
-          position:fixed;inset:0;z-index:9500;
-          background:#060606;overflow-y:auto;
+        .av-root {
+          position:fixed; inset:0; z-index:9500;
+          background:#030303; overflow-y:auto; overflow-x:hidden;
           font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
         }
-
-        /* ── TOP BAR ── */
-        .av-topbar{
-          position:sticky;top:0;z-index:10;
-          display:flex;align-items:center;gap:12px;
-          padding:12px 16px;
-          background:rgba(6,6,6,0.97);backdrop-filter:blur(20px);
-          border-bottom:1px solid rgba(132,204,22,0.12);
+        /* scan line */
+        .av-scan {
+          position:fixed; left:0; right:0; height:1px;
+          background:linear-gradient(90deg,transparent,rgba(132,204,22,0.55),transparent);
+          animation:avScan 7s linear infinite; pointer-events:none; z-index:9999;
         }
-        .av-back{
-          width:34px;height:34px;border-radius:10px;
-          background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;color:#737373;font-size:18px;transition:all .18s;
-        }
-        .av-back:hover{background:rgba(255,255,255,0.1);color:#fff;}
-        .av-title-wrap{flex:1;}
-        .av-title{font-size:17px;font-weight:900;color:#fff;}
-        .av-sub{font-size:11px;color:#525252;font-weight:500;}
-
-        /* Range pills */
-        .av-range{display:flex;gap:5px;}
-        .av-rng{
-          padding:6px 12px;border-radius:8px;border:none;
-          font-size:11.5px;font-weight:800;cursor:pointer;
-          background:rgba(255,255,255,0.05);color:#525252;
-          transition:all 0.18s;
-        }
-        .av-rng.active{background:rgba(132,204,22,0.12);color:#84cc16;border:1px solid rgba(132,204,22,0.25);}
-
-        /* Body */
-        .av-body{padding:16px 14px 100px;max-width:560px;margin:0 auto;}
-
-        /* Section label */
-        .av-sec-lbl{
-          font-size:9.5px;font-weight:800;color:#383838;
-          text-transform:uppercase;letter-spacing:1.2px;
-          margin:24px 0 10px 2px;
+        /* grid */
+        .av-grid {
+          position:fixed; inset:0; pointer-events:none; z-index:0;
+          background-image:linear-gradient(rgba(132,204,22,0.025) 1px,transparent 1px),
+            linear-gradient(90deg,rgba(132,204,22,0.025) 1px,transparent 1px);
+          background-size:44px 44px;
         }
 
-        /* Stat card grid */
-        .av-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-        .av-stat{
-          background:rgba(255,255,255,0.025);
-          border:1px solid rgba(255,255,255,0.06);
-          border-radius:16px;padding:14px;position:relative;
-          overflow:hidden;animation:avFadeUp .3s ease both;
-          transition:border-color .2s,transform .2s;
-        }
-        .av-stat:hover{border-color:rgba(var(--c),0.2);transform:translateY(-2px);}
-        .av-stat:hover{border-color:color-mix(in srgb,var(--c) 25%,transparent);}
-        .av-stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-        .av-stat-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
-        .av-delta{
-          display:flex;align-items:center;gap:2px;
-          padding:2px 6px;border-radius:5px;
-          font-size:9.5px;font-weight:800;
-        }
-        .av-delta.pos{background:rgba(34,197,94,0.1);color:#22c55e;}
-        .av-delta.neg{background:rgba(239,68,68,0.1);color:#ef4444;}
-        .av-delta.neu{background:rgba(163,163,163,0.1);color:#737373;}
-        .av-stat-val{font-size:24px;font-weight:900;color:#fff;line-height:1.1;margin-bottom:2px;}
-        .av-stat-label{font-size:11px;font-weight:700;color:#525252;}
-        .av-stat-sub{font-size:10px;color:#383838;margin-top:2px;}
-        .av-spark{
-          position:absolute;bottom:0;left:0;right:0;height:32px;
-          width:100%;opacity:.7;
-        }
+        /* TOP BAR */
+        .av-topbar { position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:12px; padding:12px 16px 10px; background:rgba(3,3,3,0.97); backdrop-filter:blur(24px); border-bottom:1px solid rgba(132,204,22,0.1); }
+        .av-back   { width:32px; height:32px; border-radius:9px; flex-shrink:0; background:rgba(132,204,22,0.06); border:1px solid rgba(132,204,22,0.16); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#84cc16; font-size:17px; font-weight:700; transition:all .15s; }
+        .av-back:hover { background:rgba(132,204,22,0.14); }
+        .av-title  { font-size:16px; font-weight:900; color:#fff; }
+        .av-sub    { font-size:10px; color:#252525; font-weight:600; font-family:monospace; margin-top:1px; }
+        .av-live   { display:flex; align-items:center; gap:5px; padding:4px 9px; border-radius:7px; background:rgba(132,204,22,0.07); border:1px solid rgba(132,204,22,0.18); }
+        .av-live-d { width:5px; height:5px; border-radius:50%; background:#84cc16; animation:avPulse 1.6s ease-in-out infinite; }
+        .av-live-t { font-size:9px; color:#84cc16; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; }
 
-        /* Engagement highlight */
-        .av-eng-card{
-          background:linear-gradient(135deg,rgba(132,204,22,0.08),rgba(132,204,22,0.03));
-          border:1px solid rgba(132,204,22,0.2);
-          border-radius:18px;padding:18px;
-          display:flex;align-items:center;gap:16px;
-          margin-top:16px;
-        }
-        .av-eng-circle{
-          width:64px;height:64px;flex-shrink:0;
-          position:relative;
-        }
-        .av-eng-circle svg{width:64px;height:64px;transform:rotate(-90deg);}
-        .av-eng-pct{
-          position:absolute;inset:0;
-          display:flex;align-items:center;justify-content:center;
-          font-size:13px;font-weight:900;color:#84cc16;
-        }
-        .av-eng-info h4{font-size:15px;font-weight:900;color:#fff;margin:0 0 4px;}
-        .av-eng-info p{font-size:12px;color:#525252;margin:0;line-height:1.5;}
+        /* RANGE */
+        .av-range { display:flex; gap:5px; padding:0 16px 10px; }
+        .av-rng   { flex:1; padding:7px 0; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.025); color:#2a2a2a; font-size:11px; font-weight:800; cursor:pointer; transition:all .15s; }
+        .av-rng.active { background:rgba(132,204,22,0.1); border-color:rgba(132,204,22,0.28); color:#84cc16; }
 
-        /* Bar chart */
-        .av-bar-chart{display:flex;flex-direction:column;gap:10px;}
-        .av-bar-row{display:flex;align-items:center;gap:10px;}
-        .av-bar-label{font-size:12px;font-weight:700;color:#525252;width:52px;flex-shrink:0;text-align:right;}
-        .av-bar-track{flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;}
-        .av-bar-fill{height:100%;border-radius:4px;animation:avFadeUp .5s ease both;}
-        .av-bar-val{font-size:11.5px;font-weight:800;color:#737373;width:40px;flex-shrink:0;}
+        /* TABS */
+        .av-tabs { display:flex; gap:4px; padding:0 16px 12px; overflow-x:auto; scrollbar-width:none; }
+        .av-tabs::-webkit-scrollbar { display:none; }
+        .av-tab   { flex:1; padding:7px 8px; border-radius:8px; border:1px solid transparent; background:transparent; color:#252525; font-size:10px; font-weight:800; cursor:pointer; transition:all .15s; white-space:nowrap; text-transform:uppercase; letter-spacing:0.5px; }
+        .av-tab.active { background:rgba(132,204,22,0.1); border-color:rgba(132,204,22,0.2); color:#84cc16; }
 
-        /* Card panel */
-        .av-panel{
-          background:rgba(255,255,255,0.02);
-          border:1px solid rgba(255,255,255,0.07);
-          border-radius:18px;padding:16px;
-        }
-        .av-panel-title{font-size:13px;font-weight:900;color:#c4c4c4;margin:0 0 14px;
-          display:flex;align-items:center;gap:8px;}
+        /* BODY */
+        .av-body { padding:0 14px 120px; position:relative; z-index:1; }
 
-        /* Skeleton */
-        .av-skel{
-          background:linear-gradient(90deg,rgba(255,255,255,0.03) 0%,rgba(255,255,255,0.06) 50%,rgba(255,255,255,0.03) 100%);
-          background-size:200% 100%;animation:avPulse 1.4s ease-in-out infinite;
-          border-radius:10px;
-        }
+        /* SECTION */
+        .av-sec { font-size:9px; font-weight:800; color:#1e1e1e; text-transform:uppercase; letter-spacing:1.2px; margin:20px 0 10px; display:flex; align-items:center; gap:8px; }
+        .av-sec::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(132,204,22,0.22),transparent); }
 
-        /* Loader */
-        .av-spinner{
-          width:22px;height:22px;border:2.5px solid rgba(132,204,22,0.2);
-          border-top-color:#84cc16;border-radius:50%;
-          animation:avSpin .7s linear infinite;margin:0 auto;
-        }
+        /* METRIC NODES */
+        .av-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .av-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
+        .av-node   { position:relative; overflow:hidden; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.065); border-radius:14px; animation:avNodeIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both; transition:border-color .2s,transform .2s; cursor:default; }
+        .av-node:hover { border-color:color-mix(in srgb,var(--c) 30%,transparent); transform:translateY(-2px); }
+        .av-node-glow  { position:absolute; inset:0; pointer-events:none; }
+        .av-node-top   { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+        .av-node-icon  { font-size:14px; }
+        .av-node-dot   { width:5px; height:5px; border-radius:50%; animation:avPulse 2s ease-in-out infinite; }
+        .av-node-val   { font-weight:900; line-height:1; margin-bottom:3px; }
+        .av-node-lbl   { font-size:9px; color:#383838; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
+
+        /* ENGAGEMENT PANEL */
+        .av-eng { background:rgba(132,204,22,0.04); border:1px solid rgba(132,204,22,0.14); border-radius:16px; padding:16px; display:flex; align-items:center; gap:16px; position:relative; overflow:hidden; }
+        .av-eng-info h3 { font-size:14px; font-weight:900; color:#fff; margin:0 0 5px; }
+        .av-eng-info p  { font-size:11px; color:#424242; margin:0; line-height:1.6; }
+        .av-eng-info strong { color:#84cc16; }
+
+        /* CHART PANEL */
+        .av-chart { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.065); border-radius:16px; padding:14px; position:relative; overflow:hidden; }
+        .av-chart-bar   { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#84cc16,#22d3ee,#f472b6,#84cc16); background-size:200% 100%; animation:avBar 4s linear infinite; }
+        .av-chart-head  { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+        .av-chart-title { font-size:12px; font-weight:800; color:#888; }
+        .av-chart-lbls  { display:flex; justify-content:space-between; margin-top:5px; }
+        .av-chart-lbl   { font-size:8px; color:#252525; font-weight:600; }
+
+        /* TYPE BARS */
+        .av-type-rows { display:flex; flex-direction:column; gap:8px; }
+        .av-type-row  { display:flex; align-items:center; gap:10px; }
+        .av-type-lbl  { font-size:10px; font-weight:700; color:#4a4a4a; width:48px; text-align:right; flex-shrink:0; }
+        .av-type-track { flex:1; height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden; }
+        .av-type-fill  { height:100%; border-radius:3px; transition:width 1.2s cubic-bezier(0.34,1,0.64,1); }
+        .av-type-count { font-size:10px; font-weight:800; color:#555; width:34px; flex-shrink:0; }
+
+        /* CHAIN LEDGER */
+        .av-chain-panel { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.065); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:6px; }
+        .av-chain-head  { font-size:9px; color:#1a3a08; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px; font-family:monospace; }
+        .av-chain-row   { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.045); animation:avChain .3s ease both; transition:background .15s; }
+        .av-chain-row:hover { background:rgba(255,255,255,0.03); }
+        .av-chain-idx  { font-family:monospace; font-size:9px; color:#252525; width:24px; flex-shrink:0; }
+        .av-chain-lbl  { font-size:11px; font-weight:700; color:#545454; flex:1; }
+        .av-chain-track { width:60px; height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; flex-shrink:0; }
+        .av-chain-fill  { height:100%; border-radius:2px; transition:width 1s cubic-bezier(0.34,1,0.64,1); }
+        .av-chain-val  { font-size:12px; font-weight:900; color:#fff; width:42px; text-align:right; flex-shrink:0; }
+
+        /* SUMMARY ROW */
+        .av-sum-row  { display:flex; gap:8px; }
+        .av-sum-chip { flex:1; padding:11px 8px; border-radius:12px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.065); text-align:center; }
+        .av-sum-val  { font-size:18px; font-weight:900; color:#fff; display:block; }
+        .av-sum-lbl  { font-size:9px; color:#353535; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; display:block; margin-top:2px; }
+
+        /* EP PERIOD CHIPS */
+        .av-ep-periods { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+        .av-ep-chip    { padding:11px 13px; border-radius:12px; background:color-mix(in srgb,var(--c) 6%,transparent); border:1px solid color-mix(in srgb,var(--c) 18%,transparent); }
+        .av-ep-chip-val { display:block; font-size:20px; font-weight:900; line-height:1; }
+        .av-ep-chip-lbl { display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#444; margin-top:3px; }
+
+        /* WALLET PANELS */
+        .av-w-gt { background:linear-gradient(135deg,rgba(251,191,36,0.06),rgba(251,191,36,0.02)); border:1px solid rgba(251,191,36,0.15); border-radius:16px; padding:16px; }
+        .av-w-ep { background:linear-gradient(135deg,rgba(132,204,22,0.06),rgba(132,204,22,0.02)); border:1px solid rgba(132,204,22,0.15); border-radius:16px; padding:16px; margin-top:10px; }
+        .av-w-lbl { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+
+        /* SPINNER */
+        .av-spinner { width:20px; height:20px; border:2px solid rgba(132,204,22,0.14); border-top-color:#84cc16; border-radius:50%; animation:avSpin .7s linear infinite; margin:64px auto; }
       `}</style>
+
+      <div className="av-scan"/>
+      <div className="av-grid"/>
 
       {/* TOP BAR */}
       <div className="av-topbar">
         <button className="av-back" onClick={onClose}>‹</button>
-        <div className="av-title-wrap">
+        <div style={{ flex:1 }}>
           <div className="av-title">Analytics</div>
-          <div className="av-sub">@{currentUser?.username || "you"}</div>
+          <div className="av-sub">UID:{uid?.slice(0,12)}…</div>
         </div>
-        <div className="av-range">
-          {["7d","30d","90d"].map(r => (
-            <button key={r} className={`av-rng${range===r?" active":""}`} onClick={() => setRange(r)}>{r}</button>
-          ))}
+        <div className="av-live">
+          <div className="av-live-d"/>
+          <span className="av-live-t">Live</span>
         </div>
       </div>
 
+      {/* Range */}
+      <div className="av-range">
+        {["7d","30d","90d"].map(r => (
+          <button key={r} className={`av-rng${range===r?" active":""}`} onClick={() => setRange(r)}>{r}</button>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="av-tabs">
+        {["overview","content","audience","wallet"].map(t => (
+          <button key={t} className={`av-tab${tab===t?" active":""}`} onClick={() => setTab(t)}>{t}</button>
+        ))}
+      </div>
+
       <div className="av-body">
-        {loading ? (
-          <div style={{ paddingTop:60,display:"flex",flexDirection:"column",alignItems:"center",gap:16 }}>
-            <div className="av-spinner"/>
-            <p style={{ color:"#383838",fontSize:13,fontWeight:700 }}>Loading your analytics…</p>
-          </div>
-        ) : d && (
+        {loading ? <div className="av-spinner"/> : d && (
           <>
-            {/* ── AUDIENCE ── */}
-            <p className="av-sec-lbl">Audience</p>
-            <div className="av-stat-grid">
-              <StatCard icon={Users}   label="Followers" value={fmtNum(d.followers)} sub={`${d.following} following`} color="#84cc16" delta={+5} idx={0}/>
-              <StatCard icon={UserPlus} label="New Follows" value={fmtNum(Math.round(d.followers*0.04))} sub="this period" color="#60a5fa" delta={+12} idx={1}/>
-            </div>
+            {/* ══ OVERVIEW ══════════════════════════════════════════════════ */}
+            {tab==="overview" && (
+              <>
+                <p className="av-sec">Signal Overview</p>
 
-            {/* Engagement rate ring */}
-            <div className="av-eng-card">
-              <div className="av-eng-circle">
-                {(() => {
-                  const r=26, circ=2*Math.PI*r, rate=Math.min(parseFloat(d.engRate),20);
-                  const dash=(rate/20)*circ;
-                  return (
-                    <svg viewBox="0 0 64 64">
-                      <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(132,204,22,0.12)" strokeWidth="5"/>
-                      <circle cx="32" cy="32" r={r} fill="none" stroke="#84cc16" strokeWidth="5"
-                        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-                        style={{ transition:"stroke-dasharray 0.8s ease" }}/>
-                    </svg>
-                  );
-                })()}
-                <div className="av-eng-pct">{d.engRate}%</div>
-              </div>
-              <div className="av-eng-info">
-                <h4>Engagement Rate</h4>
-                <p>Likes + comments divided by<br/>follower count × posts published.</p>
-              </div>
-            </div>
+                <div className="av-eng" style={{ marginBottom:10 }}>
+                  <NeuralBg/>
+                  <EngagementRing rate={d.engRate}/>
+                  <div className="av-eng-info">
+                    <h3>Creator Score</h3>
+                    <p><strong>{fmt(d.followers)}</strong> followers · <strong>{fmt(d.totalLikes)}</strong> likes · <strong>{fmt(d.totalComments)}</strong> comments</p>
+                    <p style={{ marginTop:4, fontSize:10 }}>(Likes+Comments) ÷ (Followers×Content)</p>
+                  </div>
+                </div>
 
-            {/* ── REACH ── */}
-            <p className="av-sec-lbl">Reach & Views</p>
-            <div className="av-stat-grid">
-              <StatCard icon={Eye}        label="Total Views"    value={fmtNum(d.totalViews)}    color="#a78bfa" delta={+8}  idx={2}/>
-              <StatCard icon={Film}       label="Reel Views"     value={fmtNum(d.reelViews)}     color="#fb7185" delta={+22} idx={3}/>
-              <StatCard icon={Layers}     label="Story Views"    value={fmtNum(d.storyViews)}    color="#fbbf24" delta={+3}  idx={4}/>
-              <StatCard icon={Image}      label="Post Reach"     value={fmtNum(d.totalViews-d.reelViews-d.storyViews)} color="#34d399" delta={-2} idx={5}/>
-            </div>
+                <div className="av-grid-2">
+                  <MetricNode label="Total Views"   raw={d.totalViews}    color="#a78bfa" icon="👁"  delay={0.05}/>
+                  <MetricNode label="Total Likes"   raw={d.totalLikes}    color="#f472b6" icon="❤️" delay={0.10}/>
+                  <MetricNode label="Comments"      raw={d.totalComments} color="#60a5fa" icon="💬" delay={0.15}/>
+                  <MetricNode label="Profile Views" raw={d.profileViews}  color="#34d399" icon="🔍" delay={0.20}/>
+                </div>
 
-            {/* ── INTERACTIONS ── */}
-            <p className="av-sec-lbl">Interactions</p>
-            <div className="av-stat-grid">
-              <StatCard icon={Heart}      label="Total Likes"    value={fmtNum(d.totalLikes)}    color="#f472b6" delta={+14} idx={6}/>
-              <StatCard icon={MessageSquare} label="Comments"   value={fmtNum(d.totalComments)} color="#60a5fa" delta={+6}  idx={7}/>
-              <StatCard icon={Share2}     label="Shares"        value={fmtNum(d.postShares)}    color="#84cc16" delta={+9}  idx={8}/>
-              <StatCard icon={Bookmark}   label="Saves"         value={fmtNum(d.postBookmarks)} color="#a78bfa" delta={+18} idx={9}/>
-            </div>
+                <div className="av-chart" style={{ marginTop:10 }}>
+                  <div className="av-chart-bar"/>
+                  <div className="av-chart-head">
+                    <span className="av-chart-title">Views · {range}</span>
+                    <span style={{ fontSize:18, fontWeight:900, color:"#84cc16" }}>{fmt(d.totalViews)}</span>
+                  </div>
+                  <AreaChart points={d.chartPoints} color="#84cc16" height={68}/>
+                  <div className="av-chart-lbls">
+                    {["7d","6d","5d","4d","3d","2d","Today"].map(l => (
+                      <span key={l} className="av-chart-lbl">{l}</span>
+                    ))}
+                  </div>
+                </div>
 
-            {/* ── CONTENT ── */}
-            <p className="av-sec-lbl">Content Published</p>
-            <div className="av-panel">
-              <p className="av-panel-title"><BarChart2 size={14} color="#84cc16"/>By type</p>
-              <BarChart data={contentData} color="#84cc16"/>
-            </div>
+                <div className="av-grid-3" style={{ marginTop:10 }}>
+                  <MetricNode label="Shares"  raw={d.sharesCount}  color="#fbbf24" icon="↗️" size="sm" delay={0.25}/>
+                  <MetricNode label="Saves"   raw={d.savedCount}   color="#818cf8" icon="🔖" size="sm" delay={0.30}/>
+                  <MetricNode label="Content" raw={d.totalContent} color="#84cc16" icon="📦" size="sm" delay={0.35}/>
+                </div>
+              </>
+            )}
 
-            <div className="av-panel" style={{ marginTop:10 }}>
-              <p className="av-panel-title"><Eye size={14} color="#a78bfa"/>Views by content type</p>
-              <BarChart data={viewData} color="#a78bfa"/>
-            </div>
+            {/* ══ CONTENT ═══════════════════════════════════════════════════ */}
+            {tab==="content" && (
+              <>
+                <p className="av-sec">Content Nodes</p>
+                <div className="av-grid-2">
+                  <MetricNode label="Posts"   raw={d.postsCount}   color="#84cc16" icon="🖼"  delay={0.05}/>
+                  <MetricNode label="Reels"   raw={d.reelsCount}   color="#f472b6" icon="🎬"  delay={0.10}/>
+                  <MetricNode label="Stories" raw={d.storiesCount} color="#fbbf24" icon="📖"  delay={0.15}/>
+                  <MetricNode label="Total"   raw={d.totalContent} color="#60a5fa" icon="📦"  delay={0.20}/>
+                </div>
 
-            {/* ── WALLET ── */}
-            <p className="av-sec-lbl">Earnings</p>
-            <div className="av-stat-grid">
-              <StatCard icon={Zap}    label="EP Balance"     value={fmtNum(d.epBalance)}     color="#fbbf24" delta={+11} idx={10}/>
-              <StatCard icon={TrendingUp} label="Total Earned" value={`$${d.totalEarnings}`} color="#34d399" delta={+7}  idx={11}/>
-            </div>
+                <p className="av-sec" style={{ marginTop:18 }}>Views by Type</p>
+                <div className="av-chart">
+                  <div className="av-chart-bar"/>
+                  <div className="av-type-rows">
+                    {[
+                      { label:"Posts",   v:d.postViews,  color:"#84cc16" },
+                      { label:"Reels",   v:d.reelViews,  color:"#f472b6" },
+                      { label:"Stories", v:d.storyViews, color:"#fbbf24" },
+                    ].map(({ label,v,color },i) => (
+                      <div key={i} className="av-type-row">
+                        <span className="av-type-lbl">{label}</span>
+                        <div className="av-type-track">
+                          <div className="av-type-fill"
+                            style={{ width:`${d.totalViews>0?(v/d.totalViews)*100:0}%`, background:color }}/>
+                        </div>
+                        <span className="av-type-count">{fmt(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="av-sec" style={{ marginTop:18 }}>Likes Ledger</p>
+                <div className="av-chain-panel">
+                  <div className="av-chain-head">// like_distribution.chain</div>
+                  {[
+                    { label:"Post Likes",  value:d.postLikes,  color:"#84cc16" },
+                    { label:"Reel Likes",  value:d.reelLikes,  color:"#f472b6" },
+                    { label:"Story Likes", value:d.storyLikes, color:"#fbbf24" },
+                  ].map((row,i) => <ChainRow key={i} {...row} maxVal={d.totalLikes} idx={i}/>)}
+                </div>
+              </>
+            )}
+
+            {/* ══ AUDIENCE ══════════════════════════════════════════════════ */}
+            {tab==="audience" && (
+              <>
+                <p className="av-sec">Network Graph</p>
+                <div className="av-grid-2">
+                  <MetricNode label="Followers"     raw={d.followers}    color="#84cc16" icon="👥" delay={0.05}/>
+                  <MetricNode label="Following"     raw={d.following}    color="#60a5fa" icon="➡️" delay={0.10}/>
+                  <MetricNode label="Profile Views" raw={d.profileViews} color="#a78bfa" icon="🔍" delay={0.15}/>
+                  <MetricNode label="Communities"   raw={d.communities}  color="#34d399" icon="🏘️" delay={0.20}/>
+                </div>
+
+                <p className="av-sec" style={{ marginTop:18 }}>Engagement Matrix</p>
+                <div className="av-chain-panel">
+                  <div className="av-chain-head">// engagement_matrix.chain</div>
+                  {(() => {
+                    const rows = [
+                      { label:"Total Likes",   value:d.totalLikes,    color:"#f472b6" },
+                      { label:"Comments",      value:d.totalComments, color:"#60a5fa" },
+                      { label:"Saves",         value:d.savedCount,    color:"#818cf8" },
+                      { label:"Shares",        value:d.sharesCount,   color:"#fbbf24" },
+                      { label:"Profile Views", value:d.profileViews,  color:"#34d399" },
+                    ];
+                    const maxVal = Math.max(...rows.map(r => r.value), 1);
+                    return rows.map((row,i) => <ChainRow key={i} {...row} maxVal={maxVal} idx={i}/>);
+                  })()}
+                </div>
+
+                <p className="av-sec" style={{ marginTop:18 }}>Engagement Rate</p>
+                <div className="av-eng">
+                  <NeuralBg/>
+                  <EngagementRing rate={d.engRate}/>
+                  <div className="av-eng-info">
+                    <h3>{d.engRate}% Rate</h3>
+                    <p><strong>{fmt(d.followers)}</strong> followers</p>
+                    <p><strong>{fmt(d.totalContent)}</strong> pieces of content</p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ══ WALLET ════════════════════════════════════════════════════ */}
+            {tab==="wallet" && (
+              <>
+                <p className="av-sec">Token Ledger</p>
+
+                <div className="av-w-gt">
+                  <div className="av-w-lbl" style={{ color:"#fbbf24" }}>🪙 Grova Tokens</div>
+                  <MetricNode label="GT Balance" raw={d.grovaTokens} color="#fbbf24" icon="🪙" size="lg" delay={0.05}/>
+                </div>
+
+                <div className="av-w-ep">
+                  <div className="av-w-lbl" style={{ color:"#84cc16" }}>⚡ Engagement Points</div>
+                  <MetricNode label="EP Balance" raw={d.engagementPoints} color="#84cc16" icon="⚡" size="lg" delay={0.10}/>
+                  {/* ep_dashboard period breakdown */}
+                  <div className="av-ep-periods">
+                    <EPChip label="Today"    raw={d.dailyEp}       color="#84cc16"/>
+                    <EPChip label="This Week" raw={d.weeklyEp}     color="#22d3ee"/>
+                    <EPChip label="This Month" raw={d.monthlyEp}   color="#a78bfa"/>
+                    <EPChip label="All Time"   raw={d.totalEpEarned} color="#f472b6"/>
+                  </div>
+                </div>
+
+                <p className="av-sec" style={{ marginTop:18 }}>Content Summary</p>
+                <div className="av-sum-row">
+                  <div className="av-sum-chip">
+                    <span className="av-sum-val">{fmt(d.totalViews)}</span>
+                    <span className="av-sum-lbl">Views</span>
+                  </div>
+                  <div className="av-sum-chip">
+                    <span className="av-sum-val">{fmt(d.totalLikes)}</span>
+                    <span className="av-sum-lbl">Likes</span>
+                  </div>
+                  <div className="av-sum-chip">
+                    <span className="av-sum-val">{fmt(d.totalContent)}</span>
+                    <span className="av-sum-lbl">Content</span>
+                  </div>
+                </div>
+
+                <p className="av-sec" style={{ marginTop:18 }}>XRC Chain Stream</p>
+                <div className="av-chain-panel">
+                  <div className="av-chain-head">// xrc_root_chain.XWRC</div>
+                  {(() => {
+                    const rows = [
+                      { label:"EP Balance",    value:d.engagementPoints, color:"#84cc16" },
+                      { label:"Grova Tokens",  value:d.grovaTokens,      color:"#fbbf24" },
+                      { label:"Total Likes",   value:d.totalLikes,       color:"#f472b6" },
+                      { label:"Total Views",   value:d.totalViews,       color:"#a78bfa" },
+                      { label:"Followers",     value:d.followers,        color:"#60a5fa" },
+                    ];
+                    const maxVal = Math.max(...rows.map(r => r.value), 1);
+                    return rows.map((row,i) => <ChainRow key={i} {...row} maxVal={maxVal} idx={i}/>);
+                  })()}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

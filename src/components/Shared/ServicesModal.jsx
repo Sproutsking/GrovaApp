@@ -3,8 +3,14 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   X, Zap, Home, Search, Users, Wallet, TrendingUp, Hash,
   Gift, BarChart2, BookMarked, UserCog, HelpCircle, Settings,
-  Radio, CreditCard, Sparkles, ChevronRight
+  Radio, CreditCard, Sparkles, ChevronRight, Link2
 } from "lucide-react";
+import XRCOracleExplorer from "../Oracle/XRCOracleExplorer";
+
+// ── Oracle chain icon (inline so no extra deps) ───────────────────────────────
+const OracleIcon = () => (
+  <span style={{ fontSize: 16, lineHeight: 1 }}>⛓</span>
+);
 
 // All services with navigation targets
 const ALL_SERVICES = [
@@ -14,6 +20,7 @@ const ALL_SERVICES = [
   { id:"community", Icon:Users,      label:"Community",  color:"#a78bfa", bg:"rgba(167,139,250,0.1)", section:"Navigate", desc:"Your communities"  },
   { id:"wallet",    Icon:Wallet,     label:"Wallet",     color:"#fbbf24", bg:"rgba(251,191,36,0.1)",  section:"Navigate", desc:"GT & EP balance"   },
   // Discover
+  { id:"oracle",    Icon:OracleIcon, label:"XRC Oracle", color:"#a855f7", bg:"rgba(168,85,247,0.12)", section:"Discover", desc:"Chain explorer"    },
   { id:"trending",  Icon:TrendingUp, label:"Trending",   color:"#f97316", bg:"rgba(249,115,22,0.1)",  section:"Discover", desc:"What's hot now"    },
   { id:"tags",      Icon:Hash,       label:"Tags",       color:"#34d399", bg:"rgba(52,211,153,0.1)",  section:"Discover", desc:"Browse by tag"     },
   { id:"stream",    Icon:Radio,      label:"Stream",     color:"#fb7185", bg:"rgba(251,113,133,0.1)", section:"Discover", desc:"Go live"           },
@@ -31,32 +38,37 @@ const ALL_SERVICES = [
 const SECTIONS = ["Navigate","Discover","Account","More"];
 
 // Maps service id → where to navigate in the app
+// "oracle" is handled specially — it opens the Oracle overlay instead of navigating
 function resolveNav(id) {
   const map = {
     home:"home", search:"search", community:"community", wallet:"wallet",
-    trending:"trending",   // App.jsx handles: shows TrendingSidebar in mobile fullscreen
-    tags:"search",         // Opens explore with tag search
-    stream:"stream",       // New component
-    analytics:"analytics", // New component
-    saved:"account",       // Goes to account → saved content opens
+    trending:"trending",
+    tags:"search",
+    stream:"stream",
+    analytics:"analytics",
+    saved:"account",
     profile:"account",
-    rewards:"rewards",     // New component
-    upgrade:"upgrade",     // New component
-    giftcards:"giftcards", // New component
+    rewards:"rewards",
+    upgrade:"upgrade",
+    giftcards:"giftcards",
     support:"support",
     settings:"account",
   };
   return map[id] || id;
 }
 
-const ServicesModal = ({ onClose, setActiveTab, currentUser }) => {
-  const [visible,  setVisible]  = useState(false);
-  const [query,    setQuery]    = useState("");
-  const [hovered,  setHovered]  = useState(null);
+const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService }) => {
+  const [visible,     setVisible]     = useState(false);
+  const [query,       setQuery]       = useState("");
+  const [hovered,     setHovered]     = useState(null);
+  const [showOracle,  setShowOracle]  = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    const t = requestAnimationFrame(() => { setVisible(true); setTimeout(() => inputRef.current?.focus(), 150); });
+    const t = requestAnimationFrame(() => {
+      setVisible(true);
+      setTimeout(() => inputRef.current?.focus(), 150);
+    });
     return () => cancelAnimationFrame(t);
   }, []);
 
@@ -73,6 +85,12 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser }) => {
   const close = () => { setVisible(false); setTimeout(onClose, 290); };
 
   const navigate = (id) => {
+    // Oracle opens as its own fullscreen overlay — doesn't navigate tabs
+    if (id === "oracle") {
+      setVisible(false);
+      setTimeout(() => setShowOracle(true), 210);
+      return;
+    }
     setVisible(false);
     setTimeout(() => setActiveTab(resolveNav(id)), 210);
   };
@@ -208,6 +226,12 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser }) => {
         .sm-item:hover .sm-item-icon{transform:scale(1.1);}
         .sm-item-label{font-size:9.5px;font-weight:700;color:#4a4a4a;text-align:center;transition:color 0.2s;white-space:nowrap;}
         .sm-item:hover .sm-item-label{color:#a3a3a3;}
+
+        /* Oracle tile special highlight */
+        .sm-item[data-oracle="true"]:hover {
+          border-color:rgba(168,85,247,0.4);
+          box-shadow:0 8px 22px rgba(168,85,247,0.2);
+        }
       `}</style>
 
       <div className={`sm-bg${!visible?" out":""}`} onClick={close}/>
@@ -260,6 +284,15 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser }) => {
           </div>
         )}
       </div>
+
+      {/* XRC Oracle Explorer — fullscreen overlay, mounts after Services closes */}
+      {showOracle && (
+        <XRCOracleExplorer
+          onClose={() => setShowOracle(false)}
+          xrcService={xrcService}
+          currentUser={currentUser}
+        />
+      )}
     </>
   );
 };
