@@ -1,4 +1,4 @@
-const CACHE_NAME = "xeevia-v2026-pro";
+const CACHE_NAME = "xeevia-v2026-pro-2";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -6,45 +6,51 @@ const STATIC_ASSETS = [
   "/favicon.png",
   "/logo192.png",
   "/logo512.png",
-  // Add more essentials if needed (e.g., "/styles/global.css")
 ];
 
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing v2026-pro");
+  console.log("[SW] Installing v2026-pro-2");
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)),
   );
 });
 
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating v2026-pro");
+  console.log("[SW] Activating v2026-pro-2");
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+        ),
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return fetch(event.request)
         .then((res) => {
-          if (res.ok && STATIC_ASSETS.includes(new URL(event.request.url).pathname)) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, res.clone()));
+          if (
+            res.ok &&
+            STATIC_ASSETS.includes(new URL(event.request.url).pathname)
+          ) {
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(event.request, res.clone()));
           }
           return res;
         })
         .catch(() => cached || new Response("Offline", { status: 503 }));
-    })
+    }),
   );
 });
 
-// Push Notifications (Restored + Enhanced)
 self.addEventListener("push", (event) => {
   const data = event.data.json();
   const options = {
@@ -65,6 +71,6 @@ self.addEventListener("notificationclick", (event) => {
         if (client.url === event.notification.data.url) return client.focus();
       }
       return clients.openWindow(event.notification.data.url);
-    })
+    }),
   );
 });
