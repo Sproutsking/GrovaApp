@@ -1,4 +1,6 @@
 const CACHE_NAME = "xeevia-v2026-pro-2";
+const SW_VERSION = "xeevia-1.0.2";
+
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -73,4 +75,13 @@ self.addEventListener("notificationclick", (event) => {
       return clients.openWindow(event.notification.data.url);
     }),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "GET_VERSION") {
+    event.source.postMessage({ type: "SW_VERSION", version: SW_VERSION });
+  }
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
