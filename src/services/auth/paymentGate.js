@@ -69,7 +69,12 @@ export function isAdminBypass(isAdmin, adminData = null) {
  * @param {boolean}      params.paidCache — from AuthContext.getIsPaidCached()
  * @returns {boolean} true = let user in, false = show paywall
  */
-export function canAccessApp({ profile, isAdmin, adminData = null, paidCache = false }) {
+export function canAccessApp({
+  profile,
+  isAdmin,
+  adminData = null,
+  paidCache = false,
+}) {
   // Admins always bypass
   if (isAdminBypass(isAdmin, adminData)) return true;
 
@@ -78,7 +83,7 @@ export function canAccessApp({ profile, isAdmin, adminData = null, paidCache = f
 
   // Block suspended or hard-deleted accounts even if paid
   if (profile.account_status === "suspended") return false;
-  if (profile.deleted_at)                     return false;
+  if (profile.deleted_at) return false;
 
   // Session-level paid cache — once paid, always in (this session)
   if (paidCache) return true;

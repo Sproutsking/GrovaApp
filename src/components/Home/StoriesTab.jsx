@@ -1,48 +1,90 @@
-// src/components/Home/StoriesTab.jsx
-import React from 'react';
-import StoryCard from '../Shared/StoryCard';
+// src/components/Home/StoryTab.jsx
+import React, {
+  useState,
+  useCallback,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
+import StoryCard from "./StoryCard";
+import FullContentView from "./FullContentView";
 
-const StoriesTab = ({ 
-  stories,
-  handleUnlock,
-  handleLikeStory,
-  handleOpenComments,
-  handleOpenProfile,
-  handleOpenActionMenu,
-  handleOpenShare,
-  handleSaveContent,
-  currentUser 
-}) => {
-  const handleAuthorClick = (story) => {
-    const user = {
-      name: story.author,
-      username: `@${story.author.toLowerCase().replace(/\s+/g, '_')}`,
-      avatar: story.avatar,
-      verified: story.verified,
-      author: story.author,
-    };
-    handleOpenProfile(user);
-  };
+const StoryTab = forwardRef(
+  (
+    {
+      stories: initialStories,
+      currentUser,
+      onAuthorClick,
+      onActionMenu,
+      onUnlock,
+    },
+    ref,
+  ) => {
+    const [stories, setStories] = useState(initialStories);
+    const [showFull, setShowFull] = useState(false);
+    const [selectedStory, setSelected] = useState(null);
 
-  return (
-    <div className="stories-tab-container">
-      {stories.map((story) => (
-        <StoryCard
-          key={story.id}
-          story={story}
-          onAuthorClick={handleAuthorClick}
-          onUnlock={handleUnlock}
-          onLike={handleLikeStory}
-          onComment={handleOpenComments}
-          onShare={handleOpenShare}
-          onSave={handleSaveContent}
-          onActionMenu={handleOpenActionMenu}
-          currentUser={currentUser}
-          isMarket={false}
-        />
-      ))}
-    </div>
-  );
-};
+    React.useEffect(() => {
+      setStories(initialStories);
+    }, [initialStories]);
 
-export default StoriesTab;
+    useImperativeHandle(ref, () => ({
+      prepend(story) {
+        setStories((prev) =>
+          prev.some((s) => s.id === story.id) ? prev : [story, ...prev],
+        );
+      },
+      updateStory(updated) {
+        setStories((prev) =>
+          prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+        );
+      },
+      deleteStory(storyId) {
+        setStories((prev) => prev.filter((s) => s.id !== storyId));
+      },
+    }));
+
+    const handleContentUpdate = useCallback((updated) => {
+      setStories((prev) =>
+        prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+      );
+    }, []);
+
+    const openFull = useCallback((story) => {
+      setSelected(story);
+      setShowFull(true);
+    }, []);
+
+    if (!stories.length) return null;
+
+    return (
+      <>
+        {stories.map((story) => (
+          <StoryCard
+            key={story.id}
+            story={story}
+            currentUser={currentUser}
+            onAuthorClick={onAuthorClick}
+            onActionMenu={onActionMenu}
+            onUnlock={onUnlock}
+            onOpenFull={openFull}
+            onContentUpdate={handleContentUpdate}
+          />
+        ))}
+
+        {showFull && selectedStory && (
+          <FullContentView
+            story={selectedStory}
+            currentUser={currentUser}
+            onClose={() => {
+              setShowFull(false);
+              setSelected(null);
+            }}
+          />
+        )}
+      </>
+    );
+  },
+);
+
+StoryTab.displayName = "StoryTab";
+export default StoryTab;

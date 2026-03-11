@@ -4,12 +4,17 @@
   "description": "Own your content. Build your network. Earn engagement.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#000000",
-  "theme_color": "#84cc16",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "scope": "/",
   "categories": ["social", "entertainment"],
   "prefer_related_applications": false,
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "/logo192.png",

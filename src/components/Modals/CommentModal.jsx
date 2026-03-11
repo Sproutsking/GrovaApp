@@ -1,636 +1,732 @@
 // src/components/Modals/CommentModal.jsx
-// No toast — EP deducted on submit — threading — no import errors
-import React, { useState, useEffect, useRef } from "react";
-import {
-  X,
-  Heart,
-  MessageCircle,
-  Send,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
-import CommentModel from "../../models/CommentModel";
-import LikeModel from "../../models/LikeModel";
+// Full comment sheet — bottom drawer on mobile, centered on desktop.
+// Calls onCommentPosted() after every successful comment so ReactionPanel
+// can update the count without a re-fetch.
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
+import { X, Send, Heart, CornerDownRight, ChevronDown } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 
-const EP_COSTS = { comment: 4, comment_like: 0.5, reply: 2 };
+// ─── DB helpers ───────────────────────────────────────────────────────────────
+async function fetchComments(contentType, contentId) {
+  const table =
+    contentType === "reel"
+      ? "reel_comments"
+      : contentType === "story"
+        ? "story_comments"
+        : "comments";
 
-async function deductEP(userId, amount, reason) {
-  if (!userId) return false;
-  const { data } = await supabase.rpc("deduct_ep", {
-    p_user_id: userId,
-    p_amount: amount,
-    p_reason: reason,
-  });
-  return !!data;
-}
-async function awardEP(userId, amount, reason) {
-  if (!userId) return;
-  await supabase.rpc("award_ep", {
-    p_user_id: userId,
-    p_amount: amount,
-    p_reason: reason,
-  });
+  const { data, error } = await supabase
+    .from(table)
+    .select(
+      `
+      id, content, created_at, parent_id, user_id,
+      profiles:user_id ( id, username, full_name, avatar_url )
+    `,
+    )
+    .eq("content_id", contentId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data || [];
 }
 
-// ── Comment Item ──────────────────────────────────────────────────────────
-const CommentItem = ({
-  comment,
+async function postComment(
   contentType,
-  currentUser,
-  onReply,
-  level = 0,
-  maxLevel = 3,
-}) => {
-  const [showReplies, setShowReplies] = useState(true);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(comment.likes || 0);
-  const [epErr, setEpErr] = useState(null);
+  contentId,
+  userId,
+  text,
+  parentId = null,
+) {
+  const table =
+    contentType === "reel"
+      ? "reel_comments"
+      : contentType === "story"
+        ? "story_comments"
+        : "comments";
 
-  useEffect(() => {
-    if (currentUser?.id) {
-      LikeModel.checkIfLiked("comment", comment.id, currentUser.id).then(
-        setLiked,
-      );
-    }
-  }, [comment.id]);
-
-  const showErr = (m) => {
-    setEpErr(m);
-    setTimeout(() => setEpErr(null), 2500);
+  const payload = {
+    content_id: contentId,
+    content_type: contentType,
+    user_id: userId,
+    content: text.trim(),
+    parent_id: parentId || null,
   };
 
-  const handleLikeComment = async () => {
-    if (!currentUser?.id) return;
+  const { data, error } = await supabase
+    .from(table)
+    .insert(payload)
+    .select(
+      `
+      id, content, created_at, parent_id, user_id,
+      profiles:user_id ( id, username, full_name, avatar_url )
+    `,
+    )
+    .single();
 
-    if (liked) {
-      setLiked(false);
-      setLikeCount((c) => Math.max(0, c - 1));
-      LikeModel.toggleLike("comment", comment.id, currentUser.id).catch(() => {
-        setLiked(true);
-        setLikeCount((c) => c + 1);
-      });
-      return;
-    }
+  if (error) throw error;
 
-    const ok = await deductEP(
-      currentUser.id,
-      EP_COSTS.comment_like,
-      "comment_like",
-    );
-    if (!ok) {
-      showErr(`Need ${EP_COSTS.comment_like} EP`);
-      return;
-    }
-    setLiked(true);
-    setLikeCount((c) => c + 1);
-    if (comment.user_id && comment.user_id !== currentUser.id)
-      awardEP(
-        comment.user_id,
-        EP_COSTS.comment_like * 0.82,
-        "received_comment_like",
-      );
-    LikeModel.toggleLike("comment", comment.id, currentUser.id).catch(() => {
-      setLiked(false);
-      setLikeCount((c) => Math.max(0, c - 1));
+  // Increment comments_count on the parent content row (fire-and-forget)
+  const contentTable =
+    contentType === "reel"
+      ? "reels"
+      : contentType === "story"
+        ? "stories"
+        : "posts";
+  supabase
+    .rpc("increment_comments_count", {
+      p_table: contentTable,
+      p_id: contentId,
+    })
+    .then(({ error: rpcErr }) => {
+      if (rpcErr) {
+        // Fallback: manual increment if RPC doesn't exist
+        supabase
+          .from(contentTable)
+          .select("comments_count")
+          .eq("id", contentId)
+          .single()
+          .then(({ data: row }) => {
+            if (row) {
+              supabase
+                .from(contentTable)
+                .update({ comments_count: (row.comments_count || 0) + 1 })
+                .eq("id", contentId);
+            }
+          });
+      }
     });
-  };
 
-  const hasReplies = comment.replies?.length > 0;
-  const canNest = level < maxLevel;
+  return data;
+}
 
-  return (
-    <div className="comment-thread" style={{ marginLeft: `${level * 18}px` }}>
-      {epErr && (
-        <div style={{ color: "#f87171", fontSize: 11, marginBottom: 4 }}>
-          ⚡ {epErr}
-        </div>
-      )}
-      <div className="comment-item">
-        <div className="comment-avatar">
-          {comment.avatar ? (
-            <img src={comment.avatar} alt={comment.author} />
-          ) : (
-            <span>{comment.author?.charAt(0) || "U"}</span>
-          )}
-        </div>
-        <div className="comment-content">
-          <div className="comment-header">
-            <span className="comment-author">{comment.author}</span>
-            <span className="comment-time">{comment.timeAgo}</span>
-          </div>
-          <p className="comment-text">{comment.text}</p>
-          <div className="comment-actions">
-            <button
-              className={`comment-action ${liked ? "active" : ""}`}
-              onClick={handleLikeComment}
-            >
-              <Heart size={13} fill={liked ? "#ef4444" : "none"} />
-              {likeCount > 0 && <span>{likeCount}</span>}
-              <span style={{ color: "rgba(200,245,66,.5)", fontSize: 10 }}>
-                {EP_COSTS.comment_like}EP
-              </span>
-            </button>
-            <button className="comment-action" onClick={() => onReply(comment)}>
-              <MessageCircle size={13} />
-              <span>Reply</span>
-              <span style={{ color: "rgba(200,245,66,.5)", fontSize: 10 }}>
-                {EP_COSTS.reply}EP
-              </span>
-            </button>
-            {hasReplies && (
-              <button
-                className="comment-action"
-                onClick={() => setShowReplies(!showReplies)}
-              >
-                {showReplies ? (
-                  <ChevronUp size={13} />
-                ) : (
-                  <ChevronDown size={13} />
-                )}
-                <span>
-                  {comment.totalReplies}{" "}
-                  {comment.totalReplies === 1 ? "reply" : "replies"}
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-      {hasReplies && showReplies && canNest && (
-        <div className="comment-replies">
-          {comment.replies.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              contentType={contentType}
-              currentUser={currentUser}
-              onReply={onReply}
-              level={level + 1}
-              maxLevel={maxLevel}
-            />
-          ))}
-        </div>
-      )}
+async function toggleCommentLike(commentId, userId) {
+  const { data: existing } = await supabase
+    .from("comment_likes")
+    .select("id")
+    .eq("comment_id", commentId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from("comment_likes").delete().eq("id", existing.id);
+    return false;
+  } else {
+    await supabase
+      .from("comment_likes")
+      .insert({ comment_id: commentId, user_id: userId });
+    return true;
+  }
+}
+
+async function fetchCommentLikes(userId, commentIds) {
+  if (!commentIds.length) return new Set();
+  const { data } = await supabase
+    .from("comment_likes")
+    .select("comment_id")
+    .eq("user_id", userId)
+    .in("comment_id", commentIds);
+  return new Set((data || []).map((r) => r.comment_id));
+}
+
+// ─── Timestamp helper ─────────────────────────────────────────────────────────
+function timeAgo(dateStr) {
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+const Avatar = ({ user, size = 34 }) => {
+  const initials = (user?.full_name || user?.username || "?")[0].toUpperCase();
+  return user?.avatar_url ? (
+    <img
+      src={user.avatar_url}
+      alt={user.username}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        objectFit: "cover",
+        flexShrink: 0,
+        border: "2px solid rgba(255,255,255,0.07)",
+      }}
+    />
+  ) : (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #84cc16, #22d3ee)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: size * 0.4,
+        fontWeight: 700,
+        color: "#0a0a0a",
+        flexShrink: 0,
+      }}
+    >
+      {initials}
     </div>
   );
 };
 
-// ── Main Modal ────────────────────────────────────────────────────────────
-const CommentModal = ({ content, onClose, currentUser, isMobile = false }) => {
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
-  const [replyTo, setReplyTo] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [sortBy, setSortBy] = useState("recent");
-  const [epErr, setEpErr] = useState(null);
+// ─── Single comment row ───────────────────────────────────────────────────────
+const CommentRow = ({
+  comment,
+  currentUserId,
+  onReply,
+  liked,
+  onToggleLike,
+  isReply = false,
+}) => {
+  const [localLiked, setLocalLiked] = useState(liked);
+  const [likeCount, setLikeCount] = useState(comment.like_count || 0);
+  const [liking, setLiking] = useState(false);
 
   useEffect(() => {
-    loadComments();
-  }, [content.id]);
+    setLocalLiked(liked);
+  }, [liked]);
 
-  const loadComments = async () => {
+  const handleLike = async () => {
+    if (liking) return;
+    setLiking(true);
+    const nowLiked = !localLiked;
+    setLocalLiked(nowLiked);
+    setLikeCount((c) => c + (nowLiked ? 1 : -1));
     try {
-      setLoading(true);
-      const fetched = await CommentModel.getComments(content.type, content.id);
-      setComments(fetched);
-    } catch (e) {
-      console.error("Failed to load comments:", e);
+      await toggleCommentLike(comment.id, currentUserId);
+    } catch {
+      setLocalLiked(!nowLiked);
+      setLikeCount((c) => c + (nowLiked ? -1 : 1));
     } finally {
-      setLoading(false);
+      setLiking(false);
     }
+    if (onToggleLike) onToggleLike(comment.id, nowLiked);
   };
 
-  const showErr = (m) => {
-    setEpErr(m);
-    setTimeout(() => setEpErr(null), 3000);
-  };
+  const profile = comment.profiles;
 
-  const handleAddComment = async () => {
-    if (!currentUser?.id) return;
-    if (!newComment.trim()) return;
-    if (submitting) return;
+  return (
+    <div className={`cm-comment${isReply ? " cm-reply" : ""}`}>
+      <Avatar user={profile} size={isReply ? 28 : 34} />
+      <div className="cm-comment-body">
+        <div className="cm-comment-bubble">
+          <span className="cm-username">{profile?.username || "user"}</span>
+          <span className="cm-text">{comment.content}</span>
+        </div>
+        <div className="cm-comment-meta">
+          <span className="cm-time">{timeAgo(comment.created_at)}</span>
+          {!isReply && (
+            <button
+              className="cm-meta-btn"
+              onClick={() => onReply && onReply(comment)}
+            >
+              Reply
+            </button>
+          )}
+          <button
+            className={`cm-meta-btn cm-like-btn${localLiked ? " cm-like-btn-active" : ""}`}
+            onClick={handleLike}
+          >
+            <Heart
+              size={11}
+              fill={localLiked ? "#ef4444" : "none"}
+              color={localLiked ? "#ef4444" : "#525252"}
+            />
+            {likeCount > 0 && <span>{likeCount}</span>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-    const cost = replyTo ? EP_COSTS.reply : EP_COSTS.comment;
-    const ok = await deductEP(
-      currentUser.id,
-      cost,
-      replyTo ? "reply_comment" : "add_comment",
-    );
-    if (!ok) {
-      showErr(`Need ${cost} EP to ${replyTo ? "reply" : "comment"}`);
-      return;
-    }
+// ─── Main component ───────────────────────────────────────────────────────────
+const CommentModal = ({
+  content,
+  currentUser,
+  onClose,
+  onCommentPosted, // ← called after every successful comment post
+}) => {
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [replyTo, setReplyTo] = useState(null); // { id, username }
+  const [likedIds, setLikedIds] = useState(new Set());
+  const [error, setError] = useState(null);
 
+  const inputRef = useRef(null);
+  const listRef = useRef(null);
+
+  // ── Load comments ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError(null);
+
+    fetchComments(content.type, content.id)
+      .then(async (rows) => {
+        if (!mounted) return;
+        setComments(rows);
+        if (currentUser?.id && rows.length) {
+          const ids = rows.map((r) => r.id);
+          const liked = await fetchCommentLikes(currentUser.id, ids);
+          if (mounted) setLikedIds(liked);
+        }
+      })
+      .catch((err) => {
+        console.error("fetchComments error:", err);
+        if (mounted) setError("Couldn't load comments.");
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [content.id, content.type, currentUser?.id]);
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = useCallback(async () => {
+    const trimmed = text.trim();
+    if (!trimmed || submitting || !currentUser?.id) return;
     setSubmitting(true);
+
+    // Optimistic comment object
+    const optimistic = {
+      id: `opt-${Date.now()}`,
+      content: trimmed,
+      created_at: new Date().toISOString(),
+      parent_id: replyTo?.id || null,
+      user_id: currentUser.id,
+      like_count: 0,
+      profiles: {
+        id: currentUser.id,
+        username:
+          currentUser.user_metadata?.username ||
+          currentUser.email?.split("@")[0] ||
+          "you",
+        full_name: currentUser.user_metadata?.full_name || "",
+        avatar_url: currentUser.user_metadata?.avatar_url || null,
+      },
+    };
+
+    // Push optimistically
+    setComments((prev) => [...prev, optimistic]);
+    setText("");
+    setReplyTo(null);
+
+    // Scroll to bottom
+    setTimeout(() => {
+      if (listRef.current) {
+        listRef.current.scrollTop = listRef.current.scrollHeight;
+      }
+    }, 50);
+
     try {
-      await CommentModel.addComment(
+      const saved = await postComment(
         content.type,
         content.id,
         currentUser.id,
-        newComment,
+        trimmed,
         replyTo?.id || null,
       );
-      // Award EP to content owner
-      if (content.user_id && content.user_id !== currentUser.id) {
-        awardEP(content.user_id, cost * 0.82, "received_comment");
-      }
-      await loadComments();
-      setNewComment("");
-      setReplyTo(null);
-    } catch (e) {
-      console.error("Failed to add comment:", e);
-      showErr("Failed to post comment");
+      // Replace optimistic entry with real DB row
+      setComments((prev) =>
+        prev.map((c) => (c.id === optimistic.id ? saved : c)),
+      );
+      // ← Tell ReactionPanel the count went up
+      if (onCommentPosted) onCommentPosted();
+    } catch (err) {
+      console.error("postComment error:", err);
+      // Rollback
+      setComments((prev) => prev.filter((c) => c.id !== optimistic.id));
+      setText(trimmed);
     } finally {
       setSubmitting(false);
     }
+  }, [text, submitting, currentUser, content, replyTo, onCommentPosted]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
-  const sorted = [...comments].sort((a, b) =>
-    sortBy === "popular" ? (b.likes || 0) - (a.likes || 0) : 0,
-  );
+  // ── Build threaded view (top-level + replies inline) ───────────────────────
+  const topLevel = comments.filter((c) => !c.parent_id);
+  const repliesMap = {};
+  for (const c of comments) {
+    if (c.parent_id) {
+      if (!repliesMap[c.parent_id]) repliesMap[c.parent_id] = [];
+      repliesMap[c.parent_id].push(c);
+    }
+  }
 
-  return (
-    <>
-      <div className="comment-modal-overlay" onClick={onClose}>
-        <div
-          className={`comment-modal ${isMobile ? "comment-modal-mobile" : "comment-modal-desktop"}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="comment-modal-header">
-            <div className="comment-modal-title">
-              <h3>Comments</h3>
-              <span className="comment-count">{comments.length}</span>
+  const totalCount = comments.length;
+
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  return ReactDOM.createPortal(
+    <div className="cm-overlay" onClick={handleOverlayClick}>
+      <div className="cm-sheet">
+        {/* Drag handle */}
+        <div className="cm-handle" />
+
+        {/* Header */}
+        <div className="cm-header">
+          <span className="cm-title">
+            Comments
+            {totalCount > 0 && (
+              <span className="cm-count-badge">{totalCount}</span>
+            )}
+          </span>
+          <button className="cm-close" onClick={onClose} aria-label="Close">
+            <X size={17} />
+          </button>
+        </div>
+
+        {/* Comment list */}
+        <div className="cm-list" ref={listRef}>
+          {loading ? (
+            <div className="cm-skeletons">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="cm-skeleton-row">
+                  <div className="cm-skel-avatar" />
+                  <div className="cm-skel-lines">
+                    <div className="cm-skel-line cm-skel-short" />
+                    <div className="cm-skel-line cm-skel-long" />
+                  </div>
+                </div>
+              ))}
             </div>
-            <button className="comment-close-btn" onClick={onClose}>
-              <X size={22} />
-            </button>
-          </div>
+          ) : error ? (
+            <div className="cm-empty cm-error">{error}</div>
+          ) : topLevel.length === 0 ? (
+            <div className="cm-empty">
+              <span className="cm-empty-icon">💬</span>
+              <span>No comments yet. Be the first.</span>
+            </div>
+          ) : (
+            topLevel.map((comment) => {
+              const replies = repliesMap[comment.id] || [];
+              return (
+                <div key={comment.id} className="cm-thread">
+                  <CommentRow
+                    comment={comment}
+                    currentUserId={currentUser?.id}
+                    liked={likedIds.has(comment.id)}
+                    onToggleLike={(id, state) => {
+                      setLikedIds((prev) => {
+                        const next = new Set(prev);
+                        state ? next.add(id) : next.delete(id);
+                        return next;
+                      });
+                    }}
+                    onReply={(c) => {
+                      setReplyTo({
+                        id: c.id,
+                        username: c.profiles?.username || "user",
+                      });
+                      inputRef.current?.focus();
+                    }}
+                  />
+                  {replies.length > 0 && (
+                    <div className="cm-replies">
+                      {replies.map((reply) => (
+                        <CommentRow
+                          key={reply.id}
+                          comment={reply}
+                          currentUserId={currentUser?.id}
+                          liked={likedIds.has(reply.id)}
+                          onToggleLike={(id, state) => {
+                            setLikedIds((prev) => {
+                              const next = new Set(prev);
+                              state ? next.add(id) : next.delete(id);
+                              return next;
+                            });
+                          }}
+                          isReply
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
 
-          <div className="comment-sort-bar">
-            <button
-              className={`sort-btn ${sortBy === "recent" ? "active" : ""}`}
-              onClick={() => setSortBy("recent")}
-            >
-              Recent
-            </button>
-            <button
-              className={`sort-btn ${sortBy === "popular" ? "active" : ""}`}
-              onClick={() => setSortBy("popular")}
-            >
-              Popular
-            </button>
-          </div>
-
-          <div className="comments-list">
-            {loading ? (
-              <div className="comments-loading">Loading comments...</div>
-            ) : sorted.length === 0 ? (
-              <div className="no-comments">
-                <MessageCircle size={44} />
-                <p>No comments yet</p>
-                <span>
-                  Be first — costs {EP_COSTS.comment} EP, earns the creator more
-                </span>
-              </div>
-            ) : (
-              sorted.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  contentType={content.type}
-                  currentUser={currentUser}
-                  onReply={setReplyTo}
-                />
-              ))
-            )}
-          </div>
-
-          <div className="comment-input-area">
-            {epErr && (
-              <div
-                style={{
-                  background: "rgba(239,68,68,.08)",
-                  border: "1px solid rgba(239,68,68,.22)",
-                  borderRadius: 8,
-                  color: "#f87171",
-                  fontSize: 12,
-                  padding: "8px 12px",
-                  marginBottom: 8,
-                }}
-              >
-                ⚡ {epErr}
-              </div>
-            )}
-            {replyTo && (
-              <div className="reply-indicator">
-                <span>
-                  Replying to {replyTo.author} · {EP_COSTS.reply} EP
-                </span>
-                <button onClick={() => setReplyTo(null)}>
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-            <div className="comment-input-wrapper">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder={
-                  replyTo
-                    ? `Reply to ${replyTo.author}... (${EP_COSTS.reply} EP)`
-                    : `Add a comment... (${EP_COSTS.comment} EP)`
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAddComment();
-                  }
-                }}
-                rows={isMobile ? 2 : 1}
-                disabled={submitting}
-              />
+        {/* Input area */}
+        <div className="cm-input-area">
+          {replyTo && (
+            <div className="cm-reply-banner">
+              <CornerDownRight size={13} color="#84cc16" />
+              <span>
+                Replying to <strong>@{replyTo.username}</strong>
+              </span>
               <button
-                className="send-btn"
-                onClick={handleAddComment}
-                disabled={!newComment.trim() || submitting}
+                className="cm-reply-clear"
+                onClick={() => setReplyTo(null)}
               >
-                <Send size={18} />
+                <X size={12} />
               </button>
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#52525b",
-                marginTop: 5,
-                paddingLeft: 2,
-              }}
-            >
-              {replyTo ? `${EP_COSTS.reply} EP` : `${EP_COSTS.comment} EP`} ·
-              Creator earns 82%
+          )}
+          <div className="cm-input-row">
+            <Avatar
+              user={currentUser?.user_metadata || { username: "you" }}
+              size={32}
+            />
+            <div className="cm-input-box">
+              <textarea
+                ref={inputRef}
+                className="cm-textarea"
+                placeholder={
+                  replyTo ? `Reply to @${replyTo.username}…` : "Add a comment…"
+                }
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  // Auto-grow
+                  e.target.style.height = "auto";
+                  e.target.style.height =
+                    Math.min(e.target.scrollHeight, 96) + "px";
+                }}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                maxLength={500}
+              />
+              <button
+                className={`cm-send-btn${text.trim() && !submitting ? " cm-send-btn-active" : ""}`}
+                onClick={handleSubmit}
+                disabled={!text.trim() || submitting}
+                aria-label="Post comment"
+              >
+                {submitting ? <span className="cm-spin" /> : <Send size={16} />}
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <style jsx>{`
-        .comment-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.95);
-          backdrop-filter: blur(20px);
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+      <style>{`
+        .cm-overlay {
+          position: fixed; inset: 0; z-index: 99991;
+          background: rgba(0,0,0,0.72);
+          backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+          display: flex; align-items: flex-end; justify-content: center;
+          animation: cmFadeIn 0.18s ease;
         }
-        .comment-modal {
-          background: #000;
-          border: 1px solid rgba(132, 204, 22, 0.3);
-          border-radius: 20px;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
+        @keyframes cmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .cm-sheet {
+          width: 100%; max-width: 520px;
+          background: #111113;
+          border-radius: 24px 24px 0 0;
+          border: 1px solid rgba(255,255,255,0.08); border-bottom: none;
+          display: flex; flex-direction: column;
+          max-height: 85vh; overflow: hidden;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          animation: cmSlideUp 0.3s cubic-bezier(0.32,0.72,0,1);
         }
-        .comment-modal-desktop {
-          width: 580px;
-          max-height: 80vh;
+        @keyframes cmSlideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
         }
-        .comment-modal-mobile {
-          width: 100%;
-          height: 100vh;
-          border-radius: 0;
+        @media (min-width: 560px) {
+          .cm-sheet { border-radius: 24px; margin-bottom: 24px; max-height: 80vh; }
         }
-        .comment-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 18px 20px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-          background: rgba(132, 204, 22, 0.04);
+
+        .cm-handle {
+          width: 36px; height: 4px; border-radius: 2px;
+          background: rgba(255,255,255,0.12);
+          align-self: center; margin: 10px auto 0; flex-shrink: 0;
         }
-        .comment-modal-title {
-          display: flex;
-          align-items: center;
-          gap: 10px;
+
+        .cm-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 20px 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;
         }
-        .comment-modal-title h3 {
-          font-size: 17px;
-          font-weight: 700;
-          color: #fff;
-          margin: 0;
+        .cm-title {
+          font-size: 16px; font-weight: 700; color: #f5f5f5;
+          letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px;
         }
-        .comment-count {
-          padding: 2px 8px;
-          background: rgba(132, 204, 22, 0.18);
-          border-radius: 12px;
-          font-size: 12px;
-          color: #84cc16;
-          font-weight: 600;
+        .cm-count-badge {
+          font-size: 12px; font-weight: 700; color: #84cc16;
+          background: rgba(132,204,22,0.12);
+          padding: 2px 8px; border-radius: 20px;
         }
-        .comment-close-btn {
-          background: none;
-          border: none;
-          color: #fff;
-          cursor: pointer;
-          padding: 4px;
-          transition: color 0.2s;
+        .cm-close {
+          width: 30px; height: 30px; border-radius: 50%;
+          background: rgba(255,255,255,0.06); border: none;
+          color: #a3a3a3; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.15s;
         }
-        .comment-close-btn:hover {
-          color: #84cc16;
+        .cm-close:hover { background: rgba(255,255,255,0.12); color: #f5f5f5; }
+
+        /* List */
+        .cm-list {
+          flex: 1; overflow-y: auto; padding: 12px 16px 8px;
+          display: flex; flex-direction: column; gap: 2px;
+          scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
         }
-        .comment-sort-bar {
-          display: flex;
-          gap: 8px;
-          padding: 10px 20px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        .cm-list::-webkit-scrollbar { width: 4px; }
+        .cm-list::-webkit-scrollbar-track { background: transparent; }
+        .cm-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+        /* Skeleton */
+        .cm-skeletons { display: flex; flex-direction: column; gap: 14px; padding: 4px 0; }
+        .cm-skeleton-row { display: flex; gap: 10px; align-items: flex-start; }
+        .cm-skel-avatar {
+          width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+          background: rgba(255,255,255,0.06);
+          animation: cmSkel 1.4s infinite;
         }
-        .sort-btn {
-          padding: 5px 14px;
-          background: none;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          color: #737373;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
+        .cm-skel-lines { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .cm-skel-line {
+          height: 12px; border-radius: 6px;
+          background: linear-gradient(90deg,
+            rgba(255,255,255,0.04) 25%,
+            rgba(255,255,255,0.08) 50%,
+            rgba(255,255,255,0.04) 75%
+          );
+          background-size: 200% 100%;
+          animation: cmSkel 1.4s infinite;
         }
-        .sort-btn.active {
-          background: rgba(132, 204, 22, 0.18);
-          border-color: #84cc16;
-          color: #84cc16;
+        .cm-skel-short { width: 35%; }
+        .cm-skel-long  { width: 75%; }
+        @keyframes cmSkel {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
-        .comments-list {
-          flex: 1;
-          overflow-y: auto;
-          padding: 14px 20px;
-        }
-        .comments-list::-webkit-scrollbar {
-          width: 5px;
-        }
-        .comments-list::-webkit-scrollbar-thumb {
-          background: rgba(132, 204, 22, 0.25);
-          border-radius: 3px;
-        }
-        .comments-loading,
-        .no-comments {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 36px 20px;
-          color: #737373;
+
+        /* Empty */
+        .cm-empty {
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          padding: 40px 20px; color: #525252; font-size: 14px; font-weight: 500;
           text-align: center;
-          gap: 10px;
         }
-        .comment-thread {
-          margin-bottom: 14px;
+        .cm-empty-icon { font-size: 28px; }
+        .cm-error { color: #f87171; }
+
+        /* Thread */
+        .cm-thread { display: flex; flex-direction: column; gap: 0; margin-bottom: 6px; }
+        .cm-replies { display: flex; flex-direction: column; gap: 2px; margin-left: 44px; margin-top: 2px; }
+
+        /* Comment row */
+        .cm-comment {
+          display: flex; gap: 10px; padding: 8px 6px; border-radius: 14px;
+          transition: background 0.15s;
         }
-        .comment-item {
-          display: flex;
-          gap: 10px;
-          padding: 10px 0;
+        .cm-comment:hover { background: rgba(255,255,255,0.03); }
+        .cm-reply { padding: 6px 6px; }
+
+        .cm-comment-body { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+
+        .cm-comment-bubble {
+          display: flex; flex-direction: column; gap: 2px;
         }
-        .comment-avatar {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          font-weight: 700;
-          font-size: 13px;
-          flex-shrink: 0;
-          overflow: hidden;
+        .cm-username {
+          font-size: 12px; font-weight: 700; color: #a3a3a3;
         }
-        .comment-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
+        .cm-text {
+          font-size: 14px; color: #e5e5e5; line-height: 1.45;
+          word-break: break-word;
         }
-        .comment-content {
-          flex: 1;
-          min-width: 0;
+        .cm-reply .cm-text { font-size: 13px; }
+
+        .cm-comment-meta {
+          display: flex; align-items: center; gap: 12px;
         }
-        .comment-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 3px;
+        .cm-time { font-size: 11px; color: #525252; font-weight: 500; }
+        .cm-meta-btn {
+          font-size: 11px; font-weight: 700; color: #525252;
+          background: none; border: none; cursor: pointer; padding: 0;
+          transition: color 0.15s; display: flex; align-items: center; gap: 3px;
         }
-        .comment-author {
-          font-size: 13px;
-          font-weight: 600;
-          color: #fff;
+        .cm-meta-btn:hover { color: #a3a3a3; }
+        .cm-like-btn-active { color: #ef4444 !important; }
+
+        /* Input area */
+        .cm-input-area {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          padding: 10px 16px 14px; flex-shrink: 0;
+          display: flex; flex-direction: column; gap: 8px;
+          background: #111113;
         }
-        .comment-time {
-          font-size: 11px;
-          color: #737373;
+
+        .cm-reply-banner {
+          display: flex; align-items: center; gap: 6px;
+          padding: 6px 10px; border-radius: 8px;
+          background: rgba(132,204,22,0.07);
+          border: 1px solid rgba(132,204,22,0.15);
+          font-size: 12px; color: #a3a3a3;
         }
-        .comment-text {
-          font-size: 13px;
-          color: #e5e5e5;
-          margin: 0 0 7px;
-          line-height: 1.45;
-          word-wrap: break-word;
+        .cm-reply-banner strong { color: #84cc16; font-weight: 700; }
+        .cm-reply-clear {
+          margin-left: auto; background: none; border: none;
+          color: #525252; cursor: pointer;
+          display: flex; align-items: center;
+          transition: color 0.15s;
         }
-        .comment-actions {
-          display: flex;
-          align-items: center;
-          gap: 14px;
+        .cm-reply-clear:hover { color: #a3a3a3; }
+
+        .cm-input-row { display: flex; align-items: flex-end; gap: 10px; }
+
+        .cm-input-box {
+          flex: 1; display: flex; align-items: flex-end;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 16px; padding: 8px 8px 8px 14px;
+          gap: 6px; transition: border-color 0.15s;
         }
-        .comment-action {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          background: none;
-          border: none;
-          color: #737373;
-          font-size: 11px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: color 0.2s;
-          padding: 0;
-        }
-        .comment-action:hover,
-        .comment-action.active {
-          color: #84cc16;
-        }
-        .comment-replies {
-          margin-top: 6px;
-        }
-        .comment-input-area {
-          padding: 14px 20px;
-          border-top: 1px solid rgba(132, 204, 22, 0.2);
-        }
-        .reply-indicator {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 7px 11px;
-          background: rgba(132, 204, 22, 0.08);
-          border-radius: 8px;
-          margin-bottom: 7px;
-          font-size: 12px;
-          color: #84cc16;
-        }
-        .reply-indicator button {
-          background: none;
-          border: none;
-          color: #ef4444;
-          cursor: pointer;
-          padding: 3px;
-        }
-        .comment-input-wrapper {
-          display: flex;
-          gap: 10px;
-          align-items: flex-end;
-        }
-        .comment-input-wrapper textarea {
-          flex: 1;
-          padding: 11px 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(132, 204, 22, 0.2);
-          border-radius: 12px;
-          color: #fff;
-          font-size: 13px;
-          resize: none;
+        .cm-input-box:focus-within { border-color: rgba(132,204,22,0.35); }
+
+        .cm-textarea {
+          flex: 1; background: none; border: none; outline: none;
+          color: #e5e5e5; font-size: 14px; line-height: 1.45; resize: none;
+          min-height: 22px; max-height: 96px; padding: 0;
           font-family: inherit;
         }
-        .comment-input-wrapper textarea:focus {
-          outline: none;
-          border-color: #84cc16;
+        .cm-textarea::placeholder { color: #525252; }
+
+        .cm-send-btn {
+          width: 32px; height: 32px; border-radius: 50%; border: none;
+          background: rgba(255,255,255,0.06); color: #525252;
+          display: flex; align-items: center; justify-content: center;
+          cursor: default; flex-shrink: 0;
+          transition: background 0.15s, color 0.15s, transform 0.1s;
         }
-        .comment-input-wrapper textarea:disabled {
-          opacity: 0.5;
+        .cm-send-btn-active {
+          background: #84cc16 !important; color: #0a0a0a !important; cursor: pointer;
         }
-        .send-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
-          border: none;
-          color: #000;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
+        .cm-send-btn-active:hover { background: #a3e635 !important; }
+        .cm-send-btn-active:active { transform: scale(0.9); }
+
+        .cm-spin {
+          width: 14px; height: 14px; border-radius: 50%;
+          border: 2px solid rgba(0,0,0,0.25);
+          border-top-color: #0a0a0a;
+          display: inline-block;
+          animation: cmSpin 0.65s linear infinite;
         }
-        .send-btn:hover:not(:disabled) {
-          transform: scale(1.05);
-        }
-        .send-btn:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
+        @keyframes cmSpin { to { transform: rotate(360deg); } }
       `}</style>
-    </>
+    </div>,
+    document.body,
   );
 };
 

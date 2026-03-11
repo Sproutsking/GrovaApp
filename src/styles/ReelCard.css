@@ -1,33 +1,51 @@
+/* ==========================================================================
+   REEL CARD — INSTAGRAM-STYLE VIDEO (object-fit: cover fills screen fully)
+   ========================================================================== */
+
 .reel-card {
-  background: rgba(0, 0, 0, 0.6);
+  background: #000;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #4444;
+  border: 1px solid #2a2a2a;
   position: relative;
   transition: transform 0.15s ease;
-  max-height: 84vh;
+  max-height: 88vh;
 }
 
 .reel-card:hover {
   transform: scale(1.002);
 }
 
+/* ── Video container ── */
 .reel-video-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 9 / 14;
-  height: 70vh;
+  /* 9:16 portrait ratio — same as Instagram/TikTok/Facebook Reels */
+  aspect-ratio: 9 / 16;
+  max-height: 72vh;
   background: #000;
   cursor: pointer;
   overflow: hidden;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   THE KEY FIX: position absolute + inset:0 + object-fit:cover
+   This is how Instagram/Facebook make videos fill the frame with
+   no black bars. The video covers the entire container, cropping
+   rather than letterboxing. object-fit:contain leaves black bars.
+═══════════════════════════════════════════════════════════════ */
 .reel-video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;       /* COVER = fills container, crops if needed */
+  object-position: center; /* crop from center, most important part stays */
   background: #000;
+  display: block;
 }
 
+/* ── Loading ── */
 .reel-loading {
   position: absolute;
   top: 50%;
@@ -37,23 +55,22 @@
 }
 
 .spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(132, 204, 22, 0.2);
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(132, 204, 22, 0.2);
   border-top-color: #84cc16;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
+/* ── Placeholder when no video ── */
 .reel-placeholder {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   background: linear-gradient(135deg, #171717 0%, #0a0a0a 100%);
   display: flex;
   align-items: center;
@@ -63,14 +80,14 @@
 }
 
 .reel-placeholder-letter {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 800;
   color: #000;
 }
@@ -80,24 +97,22 @@
   font-size: 13px;
 }
 
+/* ── Overlay (controls) ── */
 .reel-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.3) 0%,
-    transparent 20%,
-    transparent 80%,
+    rgba(0, 0, 0, 0.25) 0%,
+    transparent 25%,
+    transparent 75%,
     rgba(0, 0, 0, 0.6) 100%
   );
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.25s ease;
   pointer-events: none;
 }
 
@@ -106,11 +121,11 @@
 }
 
 .reel-play-btn {
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.85);
   color: white;
-  width: 70px;
-  height: 70px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -122,28 +137,30 @@
 
 .reel-play-btn:hover {
   background: rgba(0, 0, 0, 0.8);
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
+/* Mute button top-right */
 .reel-top-controls {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  pointer-events: all;
 }
 
 .reel-mute-btn {
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  pointer-events: all;
 }
 
 .reel-mute-btn:hover {
@@ -151,25 +168,26 @@
   transform: scale(1.05);
 }
 
+/* ── Bottom bar ── */
 .reel-bottom-bar {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
-  padding: 8px 12px 8px 12px;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+  padding: 6px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  z-index: 4;
 }
 
+/* ── Progress bar ── */
 .video-progress-container {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.25s;
   pointer-events: none;
 }
 
@@ -180,8 +198,8 @@
 
 .video-progress-bar {
   flex: 1;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.25);
   border-radius: 2px;
   cursor: pointer;
   transition: height 0.2s ease;
@@ -190,23 +208,21 @@
 }
 
 .video-progress-bar:hover {
-  height: 6px;
+  height: 5px;
 }
 
 .progress-buffered {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   height: 100%;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.3);
   transition: width 0.3s ease;
   border-radius: 2px;
 }
 
 .progress-played {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   height: 100%;
   background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
   transition: width 0.1s linear;
@@ -217,13 +233,13 @@
 }
 
 .progress-handle {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   background: #fff;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s;
   transform: translateX(50%);
 }
 
@@ -232,11 +248,10 @@
 }
 
 .video-time-display {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.65);
   color: white;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2px 7px;
+  border-radius: 5px;
   font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -244,20 +259,21 @@
   flex-shrink: 0;
 }
 
+/* Bottom row */
 .reel-bottom-content {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
 .reel-menu-btn {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   color: white;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -272,47 +288,35 @@
   transform: scale(1.05);
 }
 
+/* ── Expanded caption ── */
 .reel-caption-expanded {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.95) 0%,
-    rgba(0, 0, 0, 0.85) 100%
-  );
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.85) 100%);
   backdrop-filter: blur(10px);
   padding: 16px;
-  max-height: 60%;
+  max-height: 55%;
   overflow-y: auto;
   z-index: 50;
   cursor: pointer;
-  animation: slideUp 0.3s ease;
+  animation: slideUp 0.25s ease;
 }
 
 @keyframes slideUp {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 .caption-expanded-content {
   color: #e5e5e5;
   font-size: 14px;
   line-height: 1.5;
-  margin: 0;
 }
 
+/* ── Caption below card ── */
 .reel-caption-section {
-  padding: 3px 12px;
-  background: black;
-  /* border-top: 1px solid #4444; */
+  padding: 4px 12px;
+  background: #000;
   cursor: default;
 }
 
@@ -321,11 +325,11 @@
 }
 
 .reel-caption-section.has-more:hover {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(255,255,255,0.03);
 }
 
 .reel-caption {
-  color: #e5e5e5;
+  color: #d4d4d4;
   font-size: 13px;
   line-height: 1.4;
   margin: 0;
@@ -335,7 +339,7 @@
 }
 
 .caption-more {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.45);
   font-weight: 600;
   flex-shrink: 0;
   transition: color 0.2s;
@@ -345,27 +349,34 @@
   color: #84cc16;
 }
 
+/* ── Footer ── */
 .reel-footer {
   padding: 0;
-  background: black;
+  background: #000;
 }
 
+/* ==========================================================================
+   MOBILE — full-bleed, no radius, max height uses svh
+   ========================================================================== */
 @media (max-width: 768px) {
   .reel-card {
     border-radius: 0;
     border-left: none;
     border-right: none;
-    max-height: 88vh;
-    background: rgba(0, 0, 0, 0.8);
+    border-top: none;
+    border-bottom: 1px solid #1a1a1a;
+    /* svh = viewport height EXCLUDING browser chrome — no gap */
+    max-height: 100svh;
+    background: #000;
   }
 
   .reel-video-container {
     aspect-ratio: 9 / 16;
-    max-height: 80vh;
+    max-height: 78svh;
   }
 
   .reel-bottom-bar {
-    padding: 6px 10px;
+    padding: 4px 10px 8px;
   }
 
   .video-time-display {
@@ -374,10 +385,6 @@
   }
 
   .reel-caption-section {
-    padding: 2px 10px;
-  }
-
-  .caption-expanded-content {
-    font-size: 13px;
+    padding: 3px 10px;
   }
 }

@@ -42,9 +42,9 @@ export function useAuth() {
   return ctx;
 }
 
-const PROFILE_TIMEOUT_MS   = 15_000;
+const PROFILE_TIMEOUT_MS = 15_000;
 const PROFILE_RETRY_DELAYS = [2000, 5000, 15000, 30000, 60000, 120000];
-const SESSION_GUARD_MS     = 90_000; // Silent session check every 90s
+const SESSION_GUARD_MS = 90_000; // Silent session check every 90s
 
 // ── Dual paid cache — sessionStorage + localStorage ──────────────────────────
 // Survives hard refresh, tab close, and all browser storage quirks.
@@ -52,12 +52,12 @@ const PAID_SS_KEY = "xv_paid";
 const PAID_LS_KEY = "xv_paid_ls";
 
 export const ADMIN_ROLE_MAP = {
-  ceo_owner:   { label: "CEO / Owner",   level: 100, color: "#a3e635" },
-  super_admin: { label: "Super Admin",   level: 90,  color: "#f59e0b" },
-  a_admin:     { label: "Admin A",       level: 80,  color: "#60a5fa" },
-  b_admin:     { label: "Admin B",       level: 70,  color: "#818cf8" },
-  admin:       { label: "Admin",         level: 60,  color: "#94a3b8" },
-  support:     { label: "Support",       level: 10,  color: "#6ee7b7" },
+  ceo_owner: { label: "CEO / Owner", level: 100, color: "#a3e635" },
+  super_admin: { label: "Super Admin", level: 90, color: "#f59e0b" },
+  a_admin: { label: "Admin A", level: 80, color: "#60a5fa" },
+  b_admin: { label: "Admin B", level: 70, color: "#818cf8" },
+  admin: { label: "Admin", level: 60, color: "#94a3b8" },
+  support: { label: "Support", level: 10, color: "#6ee7b7" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,13 +66,13 @@ function isNetworkError(err) {
   if (!err) return false;
   const msg = String(err?.message || err).toLowerCase();
   return (
-    msg.includes("timeout")         ||
-    msg.includes("timed out")       ||
-    msg.includes("aborted")         ||
+    msg.includes("timeout") ||
+    msg.includes("timed out") ||
+    msg.includes("aborted") ||
     msg.includes("failed to fetch") ||
-    msg.includes("networkerror")    ||
-    msg.includes("err_connection")  ||
-    msg.includes("load failed")     ||
+    msg.includes("networkerror") ||
+    msg.includes("err_connection") ||
+    msg.includes("load failed") ||
     msg.includes("network request failed")
   );
 }
@@ -80,9 +80,10 @@ function isNetworkError(err) {
 function cleanOAuthErrorParams() {
   try {
     const url = new URL(window.location.href);
-    const hasError = url.searchParams.has("error") || url.searchParams.has("error_code");
+    const hasError =
+      url.searchParams.has("error") || url.searchParams.has("error_code");
     if (!hasError) return;
-    ["error", "error_code", "error_description", "state"].forEach(k => {
+    ["error", "error_code", "error_description", "state"].forEach((k) => {
       url.searchParams.delete(k);
     });
     window.history.replaceState({}, "", url.toString());
@@ -104,16 +105,18 @@ function cleanPKCEParams() {
 function readPaidCache() {
   try {
     if (sessionStorage.getItem(PAID_SS_KEY) === "1") return true;
-    if (localStorage.getItem(PAID_LS_KEY)   === "1") return true;
+    if (localStorage.getItem(PAID_LS_KEY) === "1") return true;
     return false;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function writePaidCache(val) {
   try {
     if (val) {
       sessionStorage.setItem(PAID_SS_KEY, "1");
-      localStorage.setItem(PAID_LS_KEY,   "1");
+      localStorage.setItem(PAID_LS_KEY, "1");
     } else {
       sessionStorage.removeItem(PAID_SS_KEY);
       localStorage.removeItem(PAID_LS_KEY);
@@ -123,24 +126,24 @@ function writePaidCache(val) {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 export default function AuthProvider({ children }) {
-  const [user,           setUser]           = useState(null);
-  const [profile,        setProfile]        = useState(null);
-  const [isAdmin,        setIsAdmin]        = useState(false);
-  const [adminData,      setAdminData]      = useState(null);
-  const [loading,        setLoading]        = useState(true);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminData, setAdminData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const isMounted            = useRef(true);
+  const isMounted = useRef(true);
   // CRITICAL: Only true when user explicitly clicks Sign Out
-  const explicitSignOutRef   = useRef(false);
-  const lastGoodProfile      = useRef(null);
-  const lastGoodUser         = useRef(null); // Never wiped except on explicit sign-out
-  const lastFetchedUserId    = useRef(null);
-  const paidCacheRef         = useRef(readPaidCache());
-  const initDoneRef          = useRef(false);
-  const profileRetryTimer    = useRef(null);
-  const profileRetryCount    = useRef(0);
-  const fetchInFlight        = useRef(false);
+  const explicitSignOutRef = useRef(false);
+  const lastGoodProfile = useRef(null);
+  const lastGoodUser = useRef(null); // Never wiped except on explicit sign-out
+  const lastFetchedUserId = useRef(null);
+  const paidCacheRef = useRef(readPaidCache());
+  const initDoneRef = useRef(false);
+  const profileRetryTimer = useRef(null);
+  const profileRetryCount = useRef(0);
+  const fetchInFlight = useRef(false);
   const sessionGuardInterval = useRef(null);
 
   useEffect(() => {
@@ -152,7 +155,9 @@ export default function AuthProvider({ children }) {
     };
   }, []);
 
-  useEffect(() => { cleanOAuthErrorParams(); }, []);
+  useEffect(() => {
+    cleanOAuthErrorParams();
+  }, []);
 
   // ── Set paid (writes both storages) ──────────────────────────────────────
   const setPaid = useCallback((val) => {
@@ -171,97 +176,133 @@ export default function AuthProvider({ children }) {
         .eq("status", "active")
         .maybeSingle();
       if (!data) return null;
-      const roleInfo = ADMIN_ROLE_MAP[data.role] ?? { label: data.role, level: 50, color: "#94a3b8" };
+      const roleInfo = ADMIN_ROLE_MAP[data.role] ?? {
+        label: data.role,
+        level: 50,
+        color: "#94a3b8",
+      };
       return {
-        id: userId, role: data.role,
-        roleLabel: roleInfo.label, roleLevel: roleInfo.level, roleColor: roleInfo.color,
+        id: userId,
+        role: data.role,
+        roleLabel: roleInfo.label,
+        roleLevel: roleInfo.level,
+        roleColor: roleInfo.color,
         permissions: data.permissions || [],
         isCEO: data.role === "ceo_owner",
         isSuperAdmin: data.role === "super_admin" || data.role === "ceo_owner",
       };
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, []);
 
   // ── Profile loader ────────────────────────────────────────────────────────
-  const loadProfile = useCallback(async (userId, { force = false, retryIndex = 0 } = {}) => {
-    if (!userId || !isMounted.current) return;
-    if (!force && lastFetchedUserId.current === userId && lastGoodProfile.current) return;
-    if (fetchInFlight.current && !force) return;
+  const loadProfile = useCallback(
+    async (userId, { force = false, retryIndex = 0 } = {}) => {
+      if (!userId || !isMounted.current) return;
+      if (
+        !force &&
+        lastFetchedUserId.current === userId &&
+        lastGoodProfile.current
+      )
+        return;
+      if (fetchInFlight.current && !force) return;
 
-    fetchInFlight.current = true;
-    if (retryIndex === 0) setProfileLoading(true);
+      fetchInFlight.current = true;
+      if (retryIndex === 0) setProfileLoading(true);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
 
-    try {
-      let query = supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
-      if (typeof query.abortSignal === "function") {
-        query = query.abortSignal(controller.signal);
-      }
-
-      const { data, error } = await query;
-      clearTimeout(timer);
-      if (!isMounted.current) return;
-      if (error) throw error;
-
-      profileRetryCount.current = 0;
-      clearTimeout(profileRetryTimer.current);
-      lastFetchedUserId.current = userId;
-      fetchInFlight.current     = false;
-
-      if (data) {
-        lastGoodProfile.current = data;
-        setProfile(data);
-
-        if (isPaidProfileData(data)) setPaid(true);
-
-        const hasAdminFlag = data.is_admin || data.role === "admin" || data.is_super_admin;
-        if (hasAdminFlag) {
-          const adminInfo = await fetchAdminRole(userId);
-          if (isMounted.current) {
-            setIsAdmin(true);
-            setAdminData(adminInfo || {
-              id: userId, role: "admin", roleLabel: "Admin",
-              roleLevel: 60, roleColor: "#94a3b8",
-              permissions: data.permissions || [],
-              isCEO: false, isSuperAdmin: false,
-            });
-          }
-        } else {
-          if (isMounted.current) { setIsAdmin(false); setAdminData(null); }
+      try {
+        let query = supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle();
+        if (typeof query.abortSignal === "function") {
+          query = query.abortSignal(controller.signal);
         }
-      } else if (lastGoodProfile.current) {
-        // DB returned null but we have a good profile — keep it, never flash paywall
-        setProfile(lastGoodProfile.current);
-      }
-      // Truly new user with no profile row: leave as null so AppRouter can handle
 
-    } catch (err) {
-      clearTimeout(timer);
-      fetchInFlight.current = false;
-      if (!isMounted.current) return;
+        const { data, error } = await query;
+        clearTimeout(timer);
+        if (!isMounted.current) return;
+        if (error) throw error;
 
-      console.warn(`[AuthContext] Profile fetch error (retry ${retryIndex}):`, err?.message);
-
-      // NEVER wipe profile on error — always keep last good state
-      if (lastGoodProfile.current) {
-        setProfile(lastGoodProfile.current);
+        profileRetryCount.current = 0;
+        clearTimeout(profileRetryTimer.current);
         lastFetchedUserId.current = userId;
-      }
+        fetchInFlight.current = false;
 
-      const delay = PROFILE_RETRY_DELAYS[Math.min(retryIndex, PROFILE_RETRY_DELAYS.length - 1)];
-      profileRetryTimer.current = setTimeout(() => {
-        if (isMounted.current && userId) {
-          loadProfile(userId, { force: true, retryIndex: retryIndex + 1 });
+        if (data) {
+          lastGoodProfile.current = data;
+          setProfile(data);
+
+          if (isPaidProfileData(data)) setPaid(true);
+
+          const hasAdminFlag =
+            data.is_admin || data.role === "admin" || data.is_super_admin;
+          if (hasAdminFlag) {
+            const adminInfo = await fetchAdminRole(userId);
+            if (isMounted.current) {
+              setIsAdmin(true);
+              setAdminData(
+                adminInfo || {
+                  id: userId,
+                  role: "admin",
+                  roleLabel: "Admin",
+                  roleLevel: 60,
+                  roleColor: "#94a3b8",
+                  permissions: data.permissions || [],
+                  isCEO: false,
+                  isSuperAdmin: false,
+                },
+              );
+            }
+          } else {
+            if (isMounted.current) {
+              setIsAdmin(false);
+              setAdminData(null);
+            }
+          }
+        } else if (lastGoodProfile.current) {
+          // DB returned null but we have a good profile — keep it, never flash paywall
+          setProfile(lastGoodProfile.current);
         }
-      }, delay);
-    } finally {
-      clearTimeout(timer);
-      fetchInFlight.current = false;
-      if (isMounted.current) setProfileLoading(false);
-    }
-  }, [fetchAdminRole, setPaid]);
+        // Truly new user with no profile row: leave as null so AppRouter can handle
+      } catch (err) {
+        clearTimeout(timer);
+        fetchInFlight.current = false;
+        if (!isMounted.current) return;
+
+        console.warn(
+          `[AuthContext] Profile fetch error (retry ${retryIndex}):`,
+          err?.message,
+        );
+
+        // NEVER wipe profile on error — always keep last good state
+        if (lastGoodProfile.current) {
+          setProfile(lastGoodProfile.current);
+          lastFetchedUserId.current = userId;
+        }
+
+        const delay =
+          PROFILE_RETRY_DELAYS[
+            Math.min(retryIndex, PROFILE_RETRY_DELAYS.length - 1)
+          ];
+        profileRetryTimer.current = setTimeout(() => {
+          if (isMounted.current && userId) {
+            loadProfile(userId, { force: true, retryIndex: retryIndex + 1 });
+          }
+        }, delay);
+      } finally {
+        clearTimeout(timer);
+        fetchInFlight.current = false;
+        if (isMounted.current) setProfileLoading(false);
+      }
+    },
+    [fetchAdminRole, setPaid],
+  );
 
   // ── Session guard — silent background verification every 90s ─────────────
   const startSessionGuard = useCallback((userId) => {
@@ -269,7 +310,9 @@ export default function AuthProvider({ children }) {
     sessionGuardInterval.current = setInterval(async () => {
       if (!isMounted.current || !userId || explicitSignOutRef.current) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (session?.user) {
           // Session alive — update user silently
           if (isMounted.current) {
@@ -278,8 +321,10 @@ export default function AuthProvider({ children }) {
           }
         } else {
           // Session appears missing — recover, never sign out
-          console.warn("[AuthContext] Session guard: session missing, recovering...");
-          sessionRefreshManager.getValidSession().then(recovered => {
+          console.warn(
+            "[AuthContext] Session guard: session missing, recovering...",
+          );
+          sessionRefreshManager.getValidSession().then((recovered) => {
             if (!isMounted.current || explicitSignOutRef.current) return;
             if (recovered?.user) {
               lastGoodUser.current = recovered.user;
@@ -291,7 +336,9 @@ export default function AuthProvider({ children }) {
             if (lastGoodProfile.current) setProfile(lastGoodProfile.current);
           });
         }
-      } catch { /* Non-fatal */ }
+      } catch {
+        /* Non-fatal */
+      }
     }, SESSION_GUARD_MS);
   }, []);
 
@@ -299,7 +346,10 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     let resolved = false;
     const resolve = () => {
-      if (!resolved) { resolved = true; if (isMounted.current) setLoading(false); }
+      if (!resolved) {
+        resolved = true;
+        if (isMounted.current) setLoading(false);
+      }
     };
 
     const hasPKCECode = new URLSearchParams(window.location.search).has("code");
@@ -307,8 +357,10 @@ export default function AuthProvider({ children }) {
     const init = async () => {
       try {
         if (hasPKCECode) {
-          await new Promise(r => setTimeout(r, 800));
-          const { data: { session } } = await supabase.auth.getSession();
+          await new Promise((r) => setTimeout(r, 800));
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
           if (session?.user && isMounted.current) {
             cleanPKCEParams();
             lastGoodUser.current = session.user;
@@ -324,11 +376,20 @@ export default function AuthProvider({ children }) {
           }
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (!isMounted.current) { resolve(); return; }
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        if (!isMounted.current) {
+          resolve();
+          return;
+        }
 
         if (error) {
-          console.warn("[AuthContext] Startup getSession error:", error.message);
+          console.warn(
+            "[AuthContext] Startup getSession error:",
+            error.message,
+          );
           // Don't give up — try recovery via sessionRefreshManager
           const recovered = await sessionRefreshManager.getValidSession();
           if (recovered?.user && isMounted.current) {
@@ -369,7 +430,9 @@ export default function AuthProvider({ children }) {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted.current) return;
 
       // ── SIGNED_OUT ──────────────────────────────────────────────────────────
@@ -379,7 +442,9 @@ export default function AuthProvider({ children }) {
       // physically clicked our Sign Out button (explicitSignOutRef = true).
       if (event === "SIGNED_OUT") {
         if (!explicitSignOutRef.current) {
-          console.warn("[AuthContext] Ignoring spurious SIGNED_OUT — recovering silently");
+          console.warn(
+            "[AuthContext] Ignoring spurious SIGNED_OUT — recovering silently",
+          );
           // Silently recover the session in the background
           setTimeout(() => {
             if (!isMounted.current || explicitSignOutRef.current) return;
@@ -387,12 +452,15 @@ export default function AuthProvider({ children }) {
             if (lastGoodUser.current) setUser(lastGoodUser.current);
             if (lastGoodProfile.current) setProfile(lastGoodProfile.current);
             // Then attempt a real session recovery
-            sessionRefreshManager.getValidSession().then(recovered => {
+            sessionRefreshManager.getValidSession().then((recovered) => {
               if (!isMounted.current || explicitSignOutRef.current) return;
               if (recovered?.user) {
                 lastGoodUser.current = recovered.user;
                 setUser(recovered.user);
-                if (recovered.user.id !== lastFetchedUserId.current || !lastGoodProfile.current) {
+                if (
+                  recovered.user.id !== lastFetchedUserId.current ||
+                  !lastGoodProfile.current
+                ) {
                   loadProfile(recovered.user.id, { force: true });
                 } else if (lastGoodProfile.current) {
                   setProfile(lastGoodProfile.current);
@@ -414,10 +482,10 @@ export default function AuthProvider({ children }) {
         setAdminData(null);
         setPaid(false);
         lastFetchedUserId.current = null;
-        lastGoodProfile.current   = null;
-        lastGoodUser.current      = null;
+        lastGoodProfile.current = null;
+        lastGoodUser.current = null;
         profileRetryCount.current = 0;
-        initDoneRef.current       = false;
+        initDoneRef.current = false;
         resolve();
         return;
       }
@@ -437,7 +505,10 @@ export default function AuthProvider({ children }) {
       if (session?.user) {
         lastGoodUser.current = session.user;
         setUser(session.user);
-        if (session.user.id !== lastFetchedUserId.current || !lastGoodProfile.current) {
+        if (
+          session.user.id !== lastFetchedUserId.current ||
+          !lastGoodProfile.current
+        ) {
           profileRetryCount.current = 0;
           loadProfile(session.user.id);
         }
@@ -471,8 +542,8 @@ export default function AuthProvider({ children }) {
       setIsAdmin(false);
       setAdminData(null);
       setPaid(false);
-      lastGoodProfile.current   = null;
-      lastGoodUser.current      = null;
+      lastGoodProfile.current = null;
+      lastGoodUser.current = null;
       lastFetchedUserId.current = null;
     }
 
@@ -498,8 +569,8 @@ export default function AuthProvider({ children }) {
       setIsAdmin(false);
       setAdminData(null);
       setPaid(false);
-      lastGoodProfile.current   = null;
-      lastGoodUser.current      = null;
+      lastGoodProfile.current = null;
+      lastGoodUser.current = null;
       lastFetchedUserId.current = null;
     }
 
@@ -507,7 +578,9 @@ export default function AuthProvider({ children }) {
       await supabase.auth.signOut({ scope: "global" });
     } catch (err) {
       console.warn("[AuthContext] signOutAllDevices error:", err?.message);
-      try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {}
     }
   }, [setPaid]);
 
@@ -529,14 +602,20 @@ export default function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{
-      user, profile, isAdmin, adminData,
-      loading, profileLoading,
-      signOut,
-      signOutAllDevices,
-      refreshProfile,
-      getIsPaidCached,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        isAdmin,
+        adminData,
+        loading,
+        profileLoading,
+        signOut,
+        signOutAllDevices,
+        refreshProfile,
+        getIsPaidCached,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -545,13 +624,13 @@ export default function AuthProvider({ children }) {
 export function isPaidProfileData(profile) {
   if (!profile) return false;
   return (
-    profile.account_activated === true        ||
-    profile.payment_status    === "paid"      ||
-    profile.payment_status    === "vip"       ||
-    profile.payment_status    === "free"      ||
-    profile.subscription_tier === "standard"  ||
-    profile.subscription_tier === "pro"       ||
-    profile.subscription_tier === "vip"       ||
+    profile.account_activated === true ||
+    profile.payment_status === "paid" ||
+    profile.payment_status === "vip" ||
+    profile.payment_status === "free" ||
+    profile.subscription_tier === "standard" ||
+    profile.subscription_tier === "pro" ||
+    profile.subscription_tier === "vip" ||
     profile.subscription_tier === "whitelist"
   );
 }

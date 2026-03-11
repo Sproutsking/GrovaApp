@@ -3,214 +3,244 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-
-    <meta name="theme-color" content="#84cc16" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#050706" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- CRITICAL FIX: "black-translucent" (not "black") extends content under
+         the iOS status bar so env(safe-area-inset-bottom) returns real values
+         and the gap between content and the bottom nav disappears. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
-    <meta name="application-name" content="Xeevia" />
-    <meta name="msapplication-TileColor" content="#000000" />
-    <meta name="msapplication-TileImage" content="/logo192.png" />
-    <meta name="description" content="Own your content. Build your network. Earn engagement." />
-
-    <!-- Open Graph -->
+    <meta
+      name="description"
+      content="Own your content. Build your network. Earn engagement."
+    />
     <meta property="og:title" content="Xeevia — Own Your Social" />
-    <meta property="og:description" content="Own your content. Build your network. Earn engagement." />
+    <meta
+      property="og:description"
+      content="Own your content. Build your network. Earn engagement."
+    />
     <meta property="og:type" content="website" />
-
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
-    <link rel="apple-touch-icon" sizes="192x192" href="/logo192.png" />
-    <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
-
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-      body {
+      *,
+      *::before,
+      *::after {
         margin: 0;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        width: 100%;
+        /* Use 100% not 100vh — avoids iOS viewport bug where 100vh
+           includes browser chrome causing overflow */
+        height: 100%;
+        background: #050706;
+        color: #e6ebe6;
+        font-family:
+          "DM Sans",
+          -apple-system,
+          sans-serif;
         -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        background: #000;
-        color: #fff;
         overflow-x: hidden;
         overscroll-behavior: none;
       }
-      input, textarea, select { font-size: 16px !important; }
+      input,
+      textarea,
+      select {
+        /* Prevents iOS auto-zoom on focus */
+        font-size: 16px !important;
+      }
+      #root {
+        /* dvh = dynamic viewport height, shrinks/grows with browser chrome.
+           Correct unit: content fills exactly what is visible. */
+        min-height: 100dvh;
+      }
 
-      /* Enhanced Loading Screen (Sleek, Animated like X/Apple) */
-      #loading-screen {
-        position: fixed; inset: 0; background: linear-gradient(180deg, #000 0%, #111 100%);
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        z-index: 9999; gap: 16px; transition: opacity 0.6s ease-out;
+      @keyframes xv_slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
-      .loading-wordmark {
-        display: flex; flex-direction: column; align-items: center; gap: 4px;
-        animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      @keyframes xv_modalIn {
+        from { opacity: 0; transform: scale(0.93) translateY(14px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
       }
-      .loading-logo {
-        font-size: 68px; font-weight: 900; background: linear-gradient(135deg, #a3e635 0%, #84cc16 50%, #65a30d 100%);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: 'Space Grotesk', sans-serif;
-        letter-spacing: -2.5px; text-shadow: 0 4px 20px rgba(132,204,22,0.3);
-      }
-      .loading-tagline {
-        font-size: 13px; font-weight: 500; color: #4d7c0f; letter-spacing: 2.5px;
-        text-transform: uppercase; opacity: 0.8;
-      }
-      .spinner-wrap { animation: fadeInUp 0.8s 0.2s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-      .spinner {
-        width: 36px; height: 36px; border: 3px solid rgba(132,204,22,0.15);
-        border-top-color: #84cc16; border-radius: 50%; animation: spin 1s ease-in-out infinite;
-        box-shadow: 0 0 15px rgba(132,204,22,0.2);
-      }
-      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-      /* Update Banner (Elegant Slide-Up like X Notifications) */
-      #update-banner {
-        position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.95);
-        backdrop-filter: blur(20px); border-top: 1px solid rgba(132,204,22,0.2);
-        padding: 16px; z-index: 10000; display: none; animation: slideUp 0.4s ease-out;
-        box-shadow: 0 -8px 32px rgba(132,204,22,0.15);
+      #xv-update {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: rgba(5, 7, 6, 0.97);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-top: 1px solid rgba(168, 230, 61, 0.14);
+        padding: 16px 20px;
+        /* Sit above home indicator on notched devices */
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        z-index: 10000;
+        display: none;
       }
-      #update-banner.show { display: block; }
-      .update-content {
-        max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 12px;
+      #xv-update.show {
+        display: block;
+        animation: xv_slideUp 0.38s cubic-bezier(0.23, 1, 0.32, 1);
       }
-      .update-icon { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #84cc16, #4d7c0f);
-        display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #000;
-        font-family: 'Space Grotesk', sans-serif; box-shadow: 0 4px 16px rgba(132,204,22,0.3); }
-      .update-text { flex: 1; }
-      .update-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 2px; }
-      .update-subtitle { font-size: 13px; color: #84cc16; opacity: 0.9; }
-      .update-btn { padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
-        border: none; transition: all 0.2s; background: linear-gradient(135deg, #84cc16, #65a30d); color: #000;
-        box-shadow: 0 2px 12px rgba(132,204,22,0.3); }
-      .update-btn:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(132,204,22,0.4); }
+      .xvu-inner {
+        max-width: 500px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .xvu-icon {
+        width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+        background: linear-gradient(135deg, #a8e63d, #4d8800);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+      }
+      .xvu-text { flex: 1; }
+      .xvu-title { font-size: 14px; font-weight: 600; color: #e6ebe6; margin-bottom: 2px; }
+      .xvu-sub   { font-size: 12px; color: #4a6a2a; }
+      .xvu-btn {
+        padding: 10px 20px; border-radius: 100px; border: none;
+        font-size: 13px; font-weight: 700; cursor: pointer;
+        background: linear-gradient(135deg, #a8e63d, #5a9a10);
+        color: #040604; font-family: inherit;
+        transition: transform 0.15s; flex-shrink: 0;
+      }
+      .xvu-btn:hover { transform: scale(1.04); }
 
-      /* Install Prompt (Premium UX like Apple — Modal + Benefits) */
-      #install-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(16px);
-        z-index: 10001; display: none; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; }
-      #install-modal.show { display: flex; }
-      .install-modal-content { background: rgba(18,18,18,0.98); border: 1px solid rgba(132,204,22,0.25);
-        border-radius: 20px; max-width: 420px; width: calc(100% - 40px); padding: 28px 24px;
-        box-shadow: 0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(132,204,22,0.1); animation: modalPop 0.4s ease; }
-      .modal-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
-      .modal-icon { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%);
-        display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: #000;
-        font-family: 'Space Grotesk', sans-serif; box-shadow: 0 6px 20px rgba(132,204,22,0.35); }
-      .modal-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 6px; }
-      .modal-subtitle { font-size: 13px; color: #a1a1aa; line-height: 1.5; }
-      .modal-features { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
-        border-radius: 12px; padding: 14px; margin-bottom: 20px; }
-      .modal-feature { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: #d4d4d8; }
-      .modal-feature-icon { width: 18px; height: 18px; border-radius: 50%; background: rgba(132,204,22,0.15);
-        color: #84cc16; display: flex; align-items: center; justify-content: center; font-size: 10px; }
-      .modal-btn { flex: 1; padding: 14px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer;
-        border: none; transition: all 0.2s; font-family: 'Inter', sans-serif; }
-      .modal-btn.primary { background: linear-gradient(135deg, #84cc16, #65a30d); color: #000;
-        box-shadow: 0 4px 16px rgba(132,204,22,0.3); }
-      .modal-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(132,204,22,0.4); }
-      .modal-btn.secondary { background: rgba(255,255,255,0.05); color: #a1a1aa; border: 1px solid rgba(255,255,255,0.08); }
-      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes modalPop { from { opacity: 0; transform: scale(0.95) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+      #xv-install {
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.82);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        z-index: 10001;
+        display: none; align-items: center; justify-content: center;
+        padding: 20px;
+      }
+      #xv-install.show {
+        display: flex;
+        animation: xv_slideUp 0.25s ease;
+      }
+      .xvi-card {
+        background: rgba(8, 10, 8, 0.99);
+        border: 1px solid rgba(168, 230, 61, 0.14);
+        border-radius: 24px; max-width: 380px; width: 100%;
+        padding: 26px 22px;
+        animation: xv_modalIn 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .xvi-head { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 20px; }
+      .xvi-icon {
+        width: 52px; height: 52px; border-radius: 15px; flex-shrink: 0;
+        background: linear-gradient(135deg, #a8e63d, #3d7800);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px; font-weight: 900; color: #050706;
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 1px;
+      }
+      .xvi-title { font-size: 18px; font-weight: 700; color: #e6ebe6; margin-bottom: 4px; }
+      .xvi-sub   { font-size: 13px; color: #3a4a3a; line-height: 1.6; }
+      .xvi-feats {
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 13px; padding: 12px 14px; margin-bottom: 20px;
+      }
+      .xvi-feat { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; color: #4a5a4a; }
+      .xvi-dot {
+        width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(168, 230, 61, 0.1); color: #a8e63d;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 8px; font-weight: 800;
+      }
+      .xvi-btns { display: flex; gap: 9px; }
+      .xvi-btn {
+        flex: 1; padding: 13px; border-radius: 13px;
+        font-size: 14px; font-weight: 700; cursor: pointer;
+        border: none; transition: all 0.18s; font-family: inherit;
+      }
+      .xvi-btn.primary { background: linear-gradient(135deg, #a8e63d, #5a9a10); color: #040604; }
+      .xvi-btn.ghost   { background: rgba(255, 255, 255, 0.03); color: #3a4a3a; border: 1px solid rgba(255, 255, 255, 0.06); }
     </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-
-    <!-- Loading Screen -->
-    <div id="loading-screen">
-      <div class="loading-wordmark">
-        <div class="loading-logo">XEEVIA</div>
-        <div class="loading-tagline">Own Your Social</div>
-      </div>
-      <div class="spinner-wrap"><div class="spinner"></div></div>
-    </div>
-
-    <!-- Update Banner -->
-    <div id="update-banner">
-      <div class="update-content">
-        <div class="update-icon">✨</div>
-        <div class="update-text">
-          <div class="update-title">New Version Ready</div>
-          <div class="update-subtitle">Tap to update and get the latest features.</div>
-        </div>
-        <button id="update-reload" class="update-btn">Update Now</button>
-      </div>
-    </div>
-
-    <!-- Install Modal -->
-    <div id="install-modal">
-      <div class="install-modal-content">
-        <div class="modal-header">
-          <div class="modal-icon">X</div>
-          <div>
-            <div class="modal-title">Install Xeevia App</div>
-            <div class="modal-subtitle">Get instant access from your home screen</div>
-          </div>
-        </div>
-        <div class="modal-features">
-          <div class="modal-feature"><div class="modal-feature-icon">✓</div>Offline access</div>
-          <div class="modal-feature"><div class="modal-feature-icon">✓</div>Push notifications</div>
-          <div class="modal-feature"><div class="modal-feature-icon">✓</div>Faster loading</div>
-          <div class="modal-feature"><div class="modal-feature-icon">✓</div>Native feel</div>
-        </div>
-        <div style="display:flex;gap:10px">
-          <button id="modal-install" class="modal-btn primary">Install</button>
-          <button id="modal-later" class="modal-btn secondary">Later</button>
-        </div>
-      </div>
-    </div>
-
+    <noscript>You need to enable JavaScript to run Xeevia.</noscript>
     <div id="root"></div>
 
+    <div id="xv-update" role="alert" aria-live="polite">
+      <div class="xvu-inner">
+        <div class="xvu-icon" aria-hidden>✦</div>
+        <div class="xvu-text">
+          <div class="xvu-title">New version ready</div>
+          <div class="xvu-sub">Tap to get the latest features</div>
+        </div>
+        <button id="xv-update-btn" class="xvu-btn">Update</button>
+      </div>
+    </div>
+
+    <div id="xv-install" role="dialog" aria-modal="true" aria-label="Install Xeevia">
+      <div class="xvi-card">
+        <div class="xvi-head">
+          <div class="xvi-icon" aria-hidden>X</div>
+          <div>
+            <div class="xvi-title">Install Xeevia</div>
+            <div class="xvi-sub">Add to your home screen for instant access</div>
+          </div>
+        </div>
+        <div class="xvi-feats" aria-hidden>
+          <div class="xvi-feat"><div class="xvi-dot">✓</div>Works offline</div>
+          <div class="xvi-feat"><div class="xvi-dot">✓</div>Push notifications</div>
+          <div class="xvi-feat"><div class="xvi-dot">✓</div>Faster loading</div>
+          <div class="xvi-feat"><div class="xvi-dot">✓</div>Full-screen mode</div>
+        </div>
+        <div class="xvi-btns">
+          <button id="xv-install-ok" class="xvi-btn primary">Install</button>
+          <button id="xv-install-later" class="xvi-btn ghost">Later</button>
+        </div>
+      </div>
+    </div>
+
     <script>
-      // Enhanced Loading Dismiss (with fade + cleanup)
-      window.addEventListener("load", () => {
-        setTimeout(() => {
-          const loading = document.getElementById("loading-screen");
-          if (loading) {
-            loading.style.opacity = "0";
-            setTimeout(() => loading.remove(), 600);
-          }
-        }, 500);
-      });
-
-      // PWA Install Logic (World-Class UX — Deferred, Contextual)
-      let deferredPrompt;
-      window.addEventListener("beforeinstallprompt", (e) => {
+      var deferred = null;
+      window.addEventListener("beforeinstallprompt", function (e) {
         e.preventDefault();
-        deferredPrompt = e;
-        // Show after delay or user interaction (e.g., after 2 page views — store in localStorage)
-        if (localStorage.getItem("installShown") !== "true") {
-          setTimeout(() => document.getElementById("install-modal").style.display = "flex", 5000);
-          localStorage.setItem("installShown", "true");
+        deferred = e;
+        if (!localStorage.getItem("xv_iprompt")) {
+          localStorage.setItem("xv_iprompt", "1");
+          setTimeout(function () {
+            document.getElementById("xv-install").classList.add("show");
+          }, 7000);
         }
       });
-
-      document.getElementById("modal-install")?.addEventListener("click", async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          if (outcome === "accepted") console.log("[PWA] Installed!");
-          deferredPrompt = null;
+      document.getElementById("xv-install-ok").addEventListener("click", function () {
+        document.getElementById("xv-install").classList.remove("show");
+        if (deferred) {
+          deferred.prompt();
+          deferred.userChoice.then(function () { deferred = null; });
         }
-        document.getElementById("install-modal").style.display = "none";
       });
-
-      document.getElementById("modal-later")?.addEventListener("click", () => {
-        document.getElementById("install-modal").style.display = "none";
+      document.getElementById("xv-install-later").addEventListener("click", function () {
+        document.getElementById("xv-install").classList.remove("show");
       });
-
-      // Update Banner Logic
-      document.getElementById("update-reload")?.addEventListener("click", () => window.location.reload());
+      document.getElementById("xv-install").addEventListener("click", function (e) {
+        if (e.target === this) this.classList.remove("show");
+      });
+      document.getElementById("xv-update-btn").addEventListener("click", function () {
+        window.location.reload();
+      });
+      window.__xvShowUpdate = function () {
+        document.getElementById("xv-update").classList.add("show");
+      };
     </script>
   </body>
 </html>
