@@ -1,22 +1,21 @@
-// src/components/Auth/PaywallGate.jsx — v39
+// src/components/Auth/PaywallGate.jsx — v40 GO-LIVE
 // ============================================================================
-// BASE: v38 FAST-SYNC — preserved exactly.
-// SURGICAL FIXES:
-//  [1] handleFreeActivate — passes { code, userId } to activateFreeCode.
-//      Inline "Activate Free Access" button visible when isFree OR
-//      user is in invite.metadata.whitelisted_user_ids.
-//  [2] Slide auto-rotation — userStoppedRef boolean: slides rotate freely
-//      on load, stop only when user manually clicks a dot or applies a code.
-//      URL ?ref= auto-selects slide without killing rotation.
-//  [3] Live data sync — Realtime platform_settings subscription also calls
-//      loadStats() so member_count stays live when InviteSection updates.
-//  [4] Waitlist count immediate update — after joining waitlist, increments
-//      waitlistCount locally without waiting for DB poll.
-//  [5] Waitlist-approved users — isUserWhitelistedFromWaitlist() checks
-//      invite.metadata.whitelisted_user_ids. If user is in array, shows
-//      "🎉 You've been approved!" banner + free activation CTA.
-//  [6] App domain — APP_URL = process.env.REACT_APP_APP_URL || window.location.origin.
-//      No more localhost in production share links.
+// CHANGES vs v39:
+//  [1] VIP INVITE TYPE — isVipInvite: invite.type === 'vip' now treated identically
+//      to whitelist type. VIP codes show VIP pricing slide, VIP EP grant,
+//      subscription_tier="vip", payment_status="vip" on free activation.
+//      createInviteCode({type:'vip'}) creates a pure VIP collection.
+//  [2] WHITELIST-EXHAUSTED AUTO-WAITLIST — when invite is applied AND isFull,
+//      userStoppedRef is set to true so auto-rotation doesn't fight setSlideIdx(2).
+//      Slide permanently locks to waitlist view. Waitlist button shown immediately.
+//  [3] PAYSTACK RETURN HANDLER — handleVerify detects _paystackReturn:true and
+//      skips verifyWeb3Payment(). Instead polls profile every 2s for up to 30s
+//      waiting for webhook to write account_activated=true. Falls back to
+//      manual refreshProfile() if webhook hasn't fired. Gate unlocks either way.
+//  [4] ALL PAYMENT PATHS — after any payment (free/web3/paystack), refreshProfile()
+//      is called so isPaidProfile() returns true and gate unmounts immediately.
+//  [5] WhatsApp popup — COMMENTED OUT on all error paths.
+//      Search WHATSAPP_FALLBACK to re-enable when ready.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -35,7 +34,7 @@ import {
 } from "../../services/auth/paywallDataService";
 import PaywallPayment from "./PaywallPayment";
 
-// ── [6] App URL ───────────────────────────────────────────────────────────────
+// ── App URL ───────────────────────────────────────────────────────────────────
 const APP_URL =
   process.env.REACT_APP_APP_URL ||
   (typeof window !== "undefined" ? window.location.origin : "");
@@ -47,7 +46,6 @@ const fmt = (n) =>
       ? n.toFixed(0)
       : n.toFixed(2)
     : "—";
-const mono = { fontFamily: "'JetBrains Mono', monospace" };
 
 function buildAvatarUrl(avatarId) {
   if (!avatarId) return null;
@@ -74,7 +72,32 @@ function resolvePrice(invite, fallback = 4) {
   return fb;
 }
 
-// [5] Checks invite.metadata.whitelisted_user_ids for the current userId
+// [1] VIP helper — invite_codes.type 'vip' is a premium tier, treated like whitelist
+//     but with VIP-specific badge, EP grant, and subscription_tier mapping
+function isVipInviteCode(invite) {
+  if (!invite) return false;
+  return (
+    invite.type === "vip" ||
+    invite.metadata?.invite_type === "vip" ||
+    invite.metadata?.invite_category === "vip"
+  );
+}
+
+function isWhitelistInviteCode(invite) {
+  if (!invite) return false;
+  return (
+    invite.type === "whitelist" ||
+    invite.metadata?.invite_type === "whitelist" ||
+    invite.metadata?.invite_category === "whitelist"
+  );
+}
+
+// Combined: both whitelist AND vip use the slot/capacity model
+function isExclusiveInvite(invite) {
+  return isWhitelistInviteCode(invite) || isVipInviteCode(invite);
+}
+
+// [5] Waitlist whitelist check
 function isUserWhitelistedFromWaitlist(invite, userId) {
   if (!invite || !userId) return false;
   const ids = invite?.metadata?.whitelisted_user_ids ?? [];
@@ -115,65 +138,23 @@ const STYLES = `
   .xv-paywall-side { width:50%; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#080808; }
   .xv-paywall-scroll { width:100%; max-width:510px; padding:36px 44px; overflow-y:auto; max-height:100vh; animation:xvSlide .45s ease; }
   .xv-btn-lime { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#a3e635 0%,#84cc16 55%,#65a30d 100%); color:#061000; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(163,230,53,.35),inset 0 1px 0 rgba(255,255,255,.12); transition:transform .15s,box-shadow .15s,filter .15s; position:relative; overflow:hidden; }
-  .xv-btn-lime::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,.1),transparent 50%); pointer-events:none; }
-  .xv-btn-lime:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(163,230,53,.5),inset 0 1px 0 rgba(255,255,255,.14); }
-  .xv-btn-lime:active:not(:disabled) { transform:none; }
-  .xv-btn-lime:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; filter:none; }
+  .xv-btn-lime:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(163,230,53,.5); }
+  .xv-btn-lime:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
   .xv-btn-wl { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#38bdf8 0%,#0284c7 100%); color:#001a26; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(56,189,248,.35); transition:transform .15s,box-shadow .15s; }
   .xv-btn-wl:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(56,189,248,.5); }
   .xv-btn-wl:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
-  .xv-btn-sol { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#9945ff 0%,#7c3aed 100%); color:#fff; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(153,69,255,.35); transition:transform .15s,box-shadow .15s; }
-  .xv-btn-sol:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(153,69,255,.5); }
-  .xv-btn-sol:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
-  .xv-btn-ada { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#0033ad 0%,#0057ff 100%); color:#fff; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(0,51,173,.35); transition:transform .15s,box-shadow .15s; }
-  .xv-btn-ada:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,51,173,.5); }
-  .xv-btn-ada:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
-  .xv-btn-outline { width:100%; padding:12px 18px; border-radius:12px; border:1.5px solid rgba(163,230,53,.3); background:rgba(163,230,53,.05); color:#a3e635; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .15s; }
-  .xv-btn-outline:hover:not(:disabled) { border-color:rgba(163,230,53,.5); background:rgba(163,230,53,.09); transform:translateY(-1px); }
-  .xv-btn-outline:disabled { opacity:.3; cursor:not-allowed; }
-  .xv-btn-danger { width:100%; padding:12px; border-radius:11px; border:1.5px solid rgba(239,68,68,.28); background:rgba(239,68,68,.05); color:#f87171; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:7px; transition:all .15s; }
-  .xv-btn-danger:hover { border-color:rgba(239,68,68,.45); background:rgba(239,68,68,.09); }
-  .xv-seg { display:flex; background:#0e0e0e; border:1.5px solid #1e1e1e; border-radius:12px; padding:3px; gap:3px; margin-bottom:16px; }
-  .xv-seg-btn { flex:1; padding:9px 8px; border-radius:9px; border:none; cursor:pointer; font-family:inherit; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; transition:all .18s; background:transparent; color:#555; }
-  .xv-seg-btn.on { background:#181818; color:#e8e8e8; box-shadow:0 1px 4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.04); border:1px solid #2a2a2a; }
-  .xv-seg-btn.on.smart { color:#a3e635; }
-  .xv-seg-btn.on.manual { color:#94a3b8; }
-  .xv-seg-btn:not(.on):hover { color:#888; }
-  .xv-tabs { display:flex; gap:3px; background:#0d0d0d; border:1px solid #1a1a1a; border-radius:14px; padding:4px; margin-bottom:20px; }
-  .xv-tab { flex:1; padding:11px 6px; border-radius:10px; border:none; background:transparent; cursor:pointer; font-family:inherit; font-weight:700; font-size:12px; transition:all .18s; display:flex; align-items:center; justify-content:center; gap:5px; }
-  .xv-tab.on { background:rgba(163,230,53,.1); color:#d4fc72; box-shadow:inset 0 0 0 1.5px rgba(163,230,53,.28); }
-  .xv-tab.off { color:#555; }
-  .xv-tab.off:hover { color:#888; background:rgba(255,255,255,.03); }
-  .xv-tab.soon { color:#666; }
-  .xv-tab.soon:hover { color:#999; background:rgba(245,158,11,.04); }
-  .xv-select-wrap { position:relative; }
-  .xv-select-wrap::after { content:'▾'; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:#666; font-size:13px; pointer-events:none; }
-  .xv-chain-sel { width:100%; appearance:none; -webkit-appearance:none; background:#141414; border:1.5px solid #252525; border-radius:12px; color:#e8e8e8; font-family:inherit; font-size:13px; font-weight:600; padding:12px 38px 12px 14px; cursor:pointer; outline:none; transition:border-color .15s; }
-  .xv-chain-sel:focus { border-color:rgba(163,230,53,.4); }
-  .xv-chain-sel option { background:#141414; color:#e8e8e8; }
-  .xv-token-row { display:flex; gap:8px; }
-  .xv-token-btn { flex:1; padding:10px; border-radius:10px; border:1.5px solid #222; background:#141414; color:#888; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; transition:all .15s; text-align:center; }
-  .xv-token-btn.on { border-color:rgba(163,230,53,.45); background:rgba(163,230,53,.08); color:#d4fc72; }
-  .xv-token-btn:not(.on):hover { border-color:#333; color:#aaa; }
-  .xv-input { width:100%; background:#141414; border:1.5px solid #232323; border-radius:11px; padding:13px 15px; color:#f0f0f0; font-family:'JetBrains Mono',monospace; font-size:12px; transition:border-color .15s,box-shadow .15s; caret-color:#a3e635; outline:none; }
-  .xv-input::placeholder { color:#444; }
-  .xv-input:focus { border-color:rgba(163,230,53,.4); box-shadow:0 0 0 3px rgba(163,230,53,.06); }
-  .xv-input.ok { border-color:rgba(163,230,53,.32); }
-  .xv-input.err { border-color:rgba(239,68,68,.32); }
-  .xv-card { background:#141414; border:1px solid #1e1e1e; border-radius:16px; padding:20px; }
-  .xv-dot { width:30px; height:30px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; transition:all .3s; }
-  .xv-dot.done { background:rgba(163,230,53,.16); border:1.5px solid #a3e635; color:#a3e635; }
-  .xv-dot.act { background:rgba(163,230,53,.08); border:1.5px solid rgba(163,230,53,.45); color:#a3e635; animation:xvGlow 2s ease-in-out infinite; }
-  .xv-dot.idle { background:#181818; border:1.5px solid #252525; color:#444; }
-  .xv-hero-dots { display:flex; gap:6px; justify-content:center; margin-top:14px; }
-  .xv-hero-dot { height:6px; border-radius:3px; transition:all .3s; cursor:pointer; background:#2a2a2a; }
-  .xv-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(8px); animation:xvFadeIn .2s; }
-  .xv-modal { background:#0d0d0d; border:1px solid rgba(245,158,11,.25); border-radius:20px; padding:36px 32px; max-width:400px; width:100%; text-align:center; animation:xvModalIn .3s cubic-bezier(.23,1,.32,1); }
-  .xv-modal-wl { background:#0a1418; border:1px solid rgba(56,189,248,.3); border-radius:20px; padding:36px 32px; max-width:420px; width:100%; text-align:center; animation:xvModalIn .3s cubic-bezier(.23,1,.32,1); }
+  .xv-btn-vip { width:100%; padding:16px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%); color:#1a0a00; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 22px rgba(245,158,11,.35); transition:transform .15s,box-shadow .15s; }
+  .xv-btn-vip:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 32px rgba(245,158,11,.5); }
+  .xv-btn-vip:disabled { background:#1c1c1c; color:#333; cursor:not-allowed; box-shadow:none; }
   .xv-signout-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:24px; padding:10px 14px; background:#0e0e0e; border:1px solid #1a1a1a; border-radius:12px; }
   .xv-signout-user { font-size:12px; color:#888; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .xv-signout-btn { flex-shrink:0; background:transparent; border:1px solid #2a2a2a; border-radius:8px; color:#666; font-size:11px; font-weight:700; padding:5px 12px; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; letter-spacing:.3px; }
   .xv-signout-btn:hover { border-color:#ef4444; color:#f87171; background:rgba(239,68,68,.06); }
+  .xv-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(8px); animation:xvFadeIn .2s; }
+  .xv-modal-wl { background:#0a1418; border:1px solid rgba(56,189,248,.3); border-radius:20px; padding:36px 32px; max-width:420px; width:100%; text-align:center; animation:xvModalIn .3s cubic-bezier(.23,1,.32,1); }
+  .xv-card { background:#141414; border:1px solid #1e1e1e; border-radius:16px; padding:20px; }
+  .xv-hero-dots { display:flex; gap:6px; justify-content:center; margin-top:14px; }
+  .xv-hero-dot { height:6px; border-radius:3px; transition:all .3s; cursor:pointer; background:#2a2a2a; }
   @media (max-width:768px) {
     .xv-brand { display:none!important; }
     .xv-paywall-side { width:100%!important; }
@@ -181,7 +162,7 @@ const STYLES = `
   }
 `;
 
-// ── Primitives ────────────────────────────────────────────────────────────────
+// ── Spin ──────────────────────────────────────────────────────────────────────
 const Spin = ({ size = 18, color = "#a3e635" }) => (
   <div
     style={{
@@ -196,6 +177,7 @@ const Spin = ({ size = 18, color = "#a3e635" }) => (
   />
 );
 
+// ── SignOutBar ────────────────────────────────────────────────────────────────
 function SignOutBar({ profile, onSignOut }) {
   const [busy, setBusy] = useState(false);
   const display =
@@ -268,8 +250,8 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
             marginBottom: 20,
           }}
         >
-          We'll notify you the moment a whitelist spot opens up. No payment
-          needed now — your spot is reserved.
+          We'll notify you the moment a spot opens up. No payment needed now —
+          your spot is reserved.
         </div>
         {waitlistPosition && (
           <div
@@ -311,7 +293,7 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
           }}
         >
           💡 You earned <strong style={{ color: "#38bdf8" }}>200 EP</strong> for
-          joining the waitlist. Keep an eye on your email.
+          joining. Keep an eye on your email.
         </div>
         <button
           onClick={onClose}
@@ -335,7 +317,6 @@ function WaitlistSuccessModal({ onClose, waitlistPosition }) {
   );
 }
 
-// ── WaitlistAlreadyModal ──────────────────────────────────────────────────────
 function WaitlistAlreadyModal({ onClose }) {
   return (
     <div
@@ -362,8 +343,8 @@ function WaitlistAlreadyModal({ onClose }) {
             marginBottom: 20,
           }}
         >
-          You're already on the waitlist for this link. We'll email you as soon
-          as a spot becomes available.
+          You're already on the waitlist. We'll email you as soon as a spot
+          opens.
         </div>
         <button
           onClick={onClose}
@@ -393,7 +374,7 @@ function BrandPanel({ memberCount, epGrant }) {
   useEffect(() => {
     supabase
       .from("profiles")
-      .select("id,full_name,avatar_id,avatar_metadata")
+      .select("id,full_name,avatar_id")
       .is("deleted_at", null)
       .not("full_name", "is", null)
       .order("created_at", { ascending: false })
@@ -646,28 +627,26 @@ function BrandPanel({ memberCount, epGrant }) {
             {(recentUsers.length > 0
               ? recentUsers
               : [null, null, null, null]
-            ).map((user, i) => {
-              const avatarUrl = user ? buildAvatarUrl(user.avatar_id) : null;
-              const initials = user
-                ? (user.full_name || "U").charAt(0).toUpperCase()
+            ).map((u, i) => {
+              const url = u ? buildAvatarUrl(u.avatar_id) : null;
+              const init = u
+                ? (u.full_name || "U").charAt(0).toUpperCase()
                 : "?";
               return (
                 <div
-                  key={user?.id || i}
+                  key={u?.id || i}
                   className="xv-avatar"
                   style={{
                     marginLeft: i > 0 ? -10 : 0,
                     zIndex: 4 - i,
-                    background: avatarUrl
-                      ? "transparent"
-                      : ACCENT_COLORS[i % ACCENT_COLORS.length],
+                    background: url ? "transparent" : ACCENT_COLORS[i % 4],
                     position: "relative",
                   }}
                 >
-                  {avatarUrl ? (
+                  {url ? (
                     <img
-                      src={avatarUrl}
-                      alt={user?.full_name || ""}
+                      src={url}
+                      alt=""
                       style={{
                         width: "100%",
                         height: "100%",
@@ -678,7 +657,7 @@ function BrandPanel({ memberCount, epGrant }) {
                       onError={(e) => {
                         e.target.style.display = "none";
                         e.target.parentNode.style.background =
-                          ACCENT_COLORS[i % ACCENT_COLORS.length];
+                          ACCENT_COLORS[i % 4];
                       }}
                     />
                   ) : (
@@ -689,7 +668,7 @@ function BrandPanel({ memberCount, epGrant }) {
                         fontWeight: 800,
                       }}
                     >
-                      {initials}
+                      {init}
                     </span>
                   )}
                 </div>
@@ -736,6 +715,8 @@ function BrandPanel({ memberCount, epGrant }) {
 }
 
 // ── PriceHero ─────────────────────────────────────────────────────────────────
+// [1] VIP invites show gold VIP badge and VIP-specific pricing
+// [2] When whitelist/vip is exhausted (isFull), auto-locks to waitlist slide
 function PriceHero({
   productPrice,
   inviteDetails,
@@ -746,15 +727,14 @@ function PriceHero({
   onJoinWaitlist,
   waitlistJoined,
   joiningWaitlist,
-  userId, // [5] needed for whitelisted_user_ids check
+  userId,
   onFreeActivate,
-  freeActivating, // [1] free activate CTA
+  freeActivating,
 }) {
   const [slideIdx, setSlideIdx] = useState(0);
   const [priceKey, setPriceKey] = useState(0);
   const prevPrice = useRef(null);
   const autoRef = useRef(null);
-  // [2] Track whether user manually stopped rotation
   const userStoppedRef = useRef(false);
 
   const publicPrice = safePrice(productPrice, 4);
@@ -768,46 +748,85 @@ function PriceHero({
   const memberLabel =
     stats.memberCount > 0 ? stats.memberCount.toLocaleString() : "—";
 
-  const isWhitelistInvite =
-    inviteDetails &&
-    (inviteDetails.type === "whitelist" ||
-      inviteDetails.metadata?.invite_type === "whitelist" ||
-      inviteDetails.metadata?.invite_category === "whitelist");
+  // [1] Determine invite type
+  const isWL = isWhitelistInviteCode(inviteDetails);
+  const isVIP = isVipInviteCode(inviteDetails);
+  const isExclusive = isWL || isVIP;
+
   const derivedIsFull =
-    isWhitelistInvite &&
+    isExclusive &&
     inviteDetails?.max_uses > 0 &&
     (inviteDetails?.uses_count ?? 0) >= inviteDetails.max_uses;
-  const isFull =
-    isWhitelistInvite && (!!inviteDetails?.is_full || derivedIsFull);
+  const isFull = isExclusive && (!!inviteDetails?.is_full || derivedIsFull);
   const hasWL = !!(
-    isWhitelistInvite &&
+    isExclusive &&
     inviteDetails?.metadata?.enable_waitlist !== false &&
     inviteDetails?.enable_waitlist !== false
   );
-  const invitePrice = isWhitelistInvite
+
+  const invitePrice = isExclusive
     ? resolvePrice(inviteDetails, publicPrice)
     : publicPrice;
-  // isFree: any applied invite with resolved price = 0 grants free access, regardless of type
   const isFree =
     !!inviteDetails && resolvePrice(inviteDetails, publicPrice) === 0;
-  const inviteEp = inviteDetails?.ep_grant ?? 500;
-  const nonWlDiscount =
-    inviteDetails && !isWhitelistInvite
+  const inviteEp = inviteDetails?.ep_grant ?? (isVIP ? 1000 : 500);
+  const nonExclusiveDiscount =
+    inviteDetails && !isExclusive
       ? resolvePrice(inviteDetails, publicPrice)
       : null;
-  const wlMax = isWhitelistInvite ? (inviteDetails?.max_uses ?? 0) : 0;
-  const wlFilled = isWhitelistInvite ? (inviteDetails?.uses_count ?? 0) : 0;
+
+  const wlMax = isExclusive ? (inviteDetails?.max_uses ?? 0) : 0;
+  const wlFilled = isExclusive ? (inviteDetails?.uses_count ?? 0) : 0;
   const wlPct =
     wlMax > 0 ? Math.min(100, Math.round((wlFilled / wlMax) * 100)) : 0;
   const wlSpotsLeft = Math.max(0, wlMax - wlFilled);
-  const slide0Price = nonWlDiscount != null ? nonWlDiscount : publicPrice;
-  const waitlistPos = (stats.waitlistCount ?? 0) + 1;
+  const slide0Price =
+    nonExclusiveDiscount != null ? nonExclusiveDiscount : publicPrice;
 
-  // [5] Check if user is whitelisted from waitlist
   const isApprovedFromWaitlist = isUserWhitelistedFromWaitlist(
     inviteDetails,
     userId,
   );
+
+  // [1] VIP slide definition
+  const vipSlide = isFull
+    ? {
+        id: "vip-full",
+        badge: "VIP FULL",
+        badgeColor: "#f59e0b",
+        badgeBg: "rgba(245,158,11,.08)",
+        badgeBorder: "rgba(245,158,11,.2)",
+        price: publicPrice,
+        accent: "#f59e0b",
+        note: "vip slots exhausted — join waitlist",
+        epLabel: null,
+        showPrice: true,
+      }
+    : isFree
+      ? {
+          id: "vip-free",
+          badge: "VIP ACCESS",
+          badgeColor: "#f59e0b",
+          badgeBg: "rgba(245,158,11,.12)",
+          badgeBorder: "rgba(245,158,11,.35)",
+          price: 0,
+          accent: "#f59e0b",
+          note: "VIP · complimentary access",
+          epLabel: `${inviteEp} EP`,
+          showPrice: true,
+        }
+      : {
+          id: "vip-invite",
+          badge: "VIP ENTRY",
+          badgeColor: "#f59e0b",
+          badgeBg: "rgba(245,158,11,.1)",
+          badgeBorder: "rgba(245,158,11,.25)",
+          price: invitePrice,
+          accent: "#f59e0b",
+          note: "VIP tier · exclusive price",
+          epLabel: `${inviteEp} EP`,
+          showPrice: true,
+        };
 
   const wlSlide = isFull
     ? {
@@ -818,7 +837,7 @@ function PriceHero({
         badgeBorder: "rgba(148,163,184,.2)",
         price: publicPrice,
         accent: "#94a3b8",
-        note: "whitelist is full — join the waitlist below",
+        note: "whitelist full — join the waitlist",
         epLabel: null,
         showPrice: true,
       }
@@ -835,7 +854,7 @@ function PriceHero({
           epLabel: `${inviteEp} EP`,
           showPrice: true,
         }
-      : isWhitelistInvite
+      : isWL
         ? {
             id: "whitelist-invite",
             badge: "WHITELIST ENTRY",
@@ -856,69 +875,71 @@ function PriceHero({
             badgeBorder: "rgba(245,158,11,.2)",
             price: publicPrice,
             accent: "#f59e0b",
-            note: "have a whitelist invite code? apply it below",
+            note: "apply a whitelist invite code below",
             epLabel: "500 EP",
             showPrice: false,
           };
 
-  const wlQueueSlide = {
-    id: "waitlist-generic",
-    badge: "WAITLIST",
-    badgeColor: "#38bdf8",
-    badgeBg: "rgba(56,189,248,.06)",
-    badgeBorder: "rgba(56,189,248,.18)",
-    accent: "#38bdf8",
-    epLabel: "200 EP",
-  };
+  const exclusiveSlide = isVIP
+    ? { ...vipSlide, kind: "exclusive" }
+    : { ...wlSlide, kind: "exclusive" };
 
   const SLIDES = [
     {
       id: "public",
-      badge: nonWlDiscount != null ? "INVITE PRICE" : "PUBLIC ENTRY",
+      badge: nonExclusiveDiscount != null ? "INVITE PRICE" : "PUBLIC ENTRY",
       badgeColor: "#a3e635",
       badgeBg: "rgba(163,230,53,.1)",
       badgeBorder: "rgba(163,230,53,.25)",
       price: slide0Price,
       accent: "#a3e635",
       note:
-        nonWlDiscount != null
+        nonExclusiveDiscount != null
           ? "exclusive invite price"
           : "one-time · instant activation",
       epLabel: `${publicEp} EP`,
       showPrice: true,
       kind: "public",
     },
-    { ...wlSlide, kind: "whitelist" },
-    { ...wlQueueSlide, kind: "waitlist" },
+    { ...exclusiveSlide },
+    {
+      id: "waitlist-generic",
+      badge: "WAITLIST",
+      badgeColor: "#38bdf8",
+      badgeBg: "rgba(56,189,248,.06)",
+      badgeBorder: "rgba(56,189,248,.18)",
+      accent: "#38bdf8",
+      epLabel: "200 EP",
+      kind: "waitlist",
+    },
   ];
 
-  // [2] When invite is applied, jump to correct slide without killing rotation for ?ref= auto-apply
+  // [2] When invite applied: auto-jump + lock rotation when exhausted
   useEffect(() => {
     if (!inviteDetails) return;
-    // Only stop rotation if user applied the code manually
-    if (userStoppedRef.current) {
+    if (isExclusive && isFull && hasWL) {
+      // LOCK rotation — whitelist exhausted, force waitlist slide
+      userStoppedRef.current = true;
       if (autoRef.current) {
         clearInterval(autoRef.current);
         autoRef.current = null;
       }
-    }
-    if (isWhitelistInvite && isFull && hasWL) {
       setSlideIdx(2);
       return;
     }
-    if (isWhitelistInvite) {
+    if (isExclusive) {
       setSlideIdx(1);
       return;
     }
-    if (nonWlDiscount != null) {
+    if (nonExclusiveDiscount != null) {
       setSlideIdx(0);
       return;
     }
-  }, [inviteDetails?.id, isWhitelistInvite, isFull, hasWL]); // eslint-disable-line
+  }, [inviteDetails?.id, isExclusive, isFull, hasWL]); // eslint-disable-line
 
-  // [2] Auto-rotation: starts immediately, runs until user stops it
+  // Auto-rotation — runs until userStopped or whitelist exhausted
   useEffect(() => {
-    if (userStoppedRef.current && inviteDetails) return;
+    if (userStoppedRef.current) return;
     if (autoRef.current) clearInterval(autoRef.current);
     autoRef.current = setInterval(
       () => setSlideIdx((p) => (p + 1) % SLIDES.length),
@@ -927,7 +948,7 @@ function PriceHero({
     return () => {
       if (autoRef.current) clearInterval(autoRef.current);
     };
-  }, [inviteDetails]); // eslint-disable-line
+  }, [inviteDetails?.id]); // eslint-disable-line
 
   const si = Math.min(slideIdx, SLIDES.length - 1);
   const s = SLIDES[si];
@@ -940,7 +961,6 @@ function PriceHero({
   }, [activePrice]);
 
   const goTo = (i) => {
-    // [2] Manual dot click = stop rotation
     userStoppedRef.current = true;
     if (autoRef.current) {
       clearInterval(autoRef.current);
@@ -965,14 +985,14 @@ function PriceHero({
       </div>
     );
 
-  const PriceBig = ({ price: p, accent: ac, animated }) => (
+  const PriceBig = ({ price: p, accent: ac }) => (
     <div
-      key={animated ? priceKey : undefined}
+      key={priceKey}
       style={{
         display: "flex",
         alignItems: "baseline",
         gap: 3,
-        animation: animated && priceKey > 0 ? "xvPop .3s ease" : "none",
+        animation: priceKey > 0 ? "xvPop .3s ease" : "none",
       }}
     >
       {p !== 0 && p !== "FREE" && (
@@ -1022,16 +1042,6 @@ function PriceHero({
             borderRadius: "50%",
             background: "#a3e635",
             boxShadow: "0 0 6px #a3e63580",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: "50%",
-            background: "#a3e635",
-            animation: "xvGlow 2s ease-in-out infinite",
-            opacity: 0.4,
           }}
         />
       </div>
@@ -1108,6 +1118,58 @@ function PriceHero({
     </div>
   );
 
+  const SlotBar = ({ accent: ac }) =>
+    wlMax > 0 ? (
+      <div
+        style={{
+          background: "#0f0f0f",
+          border: `1px solid ${ac}15`,
+          borderRadius: 10,
+          padding: "9px 12px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ fontSize: 10, color: "#666", fontWeight: 600 }}>
+            {isVIP ? "VIP slots" : "Whitelist slots"}
+          </span>
+          <span
+            style={{ fontSize: 10, color: ac, fontWeight: 800 }}
+          >{`${wlFilled.toLocaleString()} / ${wlMax.toLocaleString()}`}</span>
+        </div>
+        <div style={{ height: 3, background: "#1a1a1a", borderRadius: 3 }}>
+          <div
+            style={{
+              width: `${wlPct}%`,
+              height: "100%",
+              borderRadius: 3,
+              background: `linear-gradient(90deg,${ac}60,${ac})`,
+              boxShadow: `0 0 6px ${ac}40`,
+              transition: "width .6s ease",
+            }}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 4,
+          }}
+        >
+          <span style={{ fontSize: 9, color: "#444" }}>{wlPct}% claimed</span>
+          <span style={{ fontSize: 9, color: isFull ? "#f87171" : "#444" }}>
+            {isFull ? "FULL" : `${wlSpotsLeft} spots left`}
+          </span>
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div
       className="xv-card"
@@ -1132,7 +1194,7 @@ function PriceHero({
         }}
       />
 
-      {/* [5] Approved-from-waitlist banner */}
+      {/* Waitlist-approved banner */}
       {isApprovedFromWaitlist && (
         <div
           style={{
@@ -1197,7 +1259,7 @@ function PriceHero({
           </span>
         </div>
 
-        {/* PUBLIC */}
+        {/* PUBLIC slide */}
         {s.kind === "public" && (
           <>
             <div
@@ -1209,7 +1271,7 @@ function PriceHero({
               }}
             >
               <div>
-                <PriceBig price={s.price} accent={s.accent} animated />
+                <PriceBig price={s.price} accent={s.accent} />
                 <div
                   style={{
                     fontSize: 10,
@@ -1234,8 +1296,8 @@ function PriceHero({
           </>
         )}
 
-        {/* WHITELIST */}
-        {s.kind === "whitelist" && (
+        {/* EXCLUSIVE slide (whitelist OR vip) */}
+        {s.kind === "exclusive" && (
           <>
             {isFull && (
               <div
@@ -1255,7 +1317,7 @@ function PriceHero({
                   <div
                     style={{ fontSize: 11, fontWeight: 800, color: "#f87171" }}
                   >
-                    Whitelist slots exhausted
+                    {isVIP ? "VIP" : "Whitelist"} slots exhausted
                   </div>
                   <div style={{ fontSize: 9, color: "#7a3a3a", marginTop: 1 }}>
                     All {wlMax} spots have been claimed
@@ -1277,12 +1339,11 @@ function PriceHero({
                     price={
                       s.price === 0
                         ? "FREE"
-                        : s.id === "whitelist-generic"
+                        : s.id?.includes("generic")
                           ? "?"
                           : s.price
                     }
                     accent={s.accent}
-                    animated
                   />
                   <div
                     style={{
@@ -1298,84 +1359,12 @@ function PriceHero({
                 {s.epLabel && <EpBadge ep={s.epLabel} accent={s.accent} />}
               </div>
             )}
-            {isWhitelistInvite && wlMax > 0 ? (
-              <div
-                style={{
-                  background: "#0f0f0f",
-                  border: `1px solid ${s.accent}15`,
-                  borderRadius: 10,
-                  padding: "9px 12px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  <span
-                    style={{ fontSize: 10, color: "#666", fontWeight: 600 }}
-                  >
-                    Whitelist slots
-                  </span>
-                  <span
-                    style={{ fontSize: 10, color: s.accent, fontWeight: 800 }}
-                  >{`${wlFilled.toLocaleString()} / ${wlMax.toLocaleString()}`}</span>
-                </div>
-                <div
-                  style={{ height: 3, background: "#1a1a1a", borderRadius: 3 }}
-                >
-                  <div
-                    style={{
-                      width: `${wlPct}%`,
-                      height: "100%",
-                      borderRadius: 3,
-                      background: `linear-gradient(90deg,${s.accent}60,${s.accent})`,
-                      boxShadow: `0 0 6px ${s.accent}40`,
-                      transition: "width .6s ease",
-                    }}
-                  />
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: 4,
-                  }}
-                >
-                  <span style={{ fontSize: 9, color: "#444" }}>
-                    {wlPct}% claimed
-                  </span>
-                  <span
-                    style={{ fontSize: 9, color: isFull ? "#f87171" : "#444" }}
-                  >
-                    {isFull ? "FULL" : `${wlSpotsLeft} spots left`}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div
-                style={{
-                  background: "#0f0f0f",
-                  border: `1px solid ${s.accent}15`,
-                  borderRadius: 10,
-                  padding: "11px 13px",
-                  fontSize: 11,
-                  color: "#666",
-                  lineHeight: 1.6,
-                }}
-              >
-                🎫 Apply a whitelist invite code below to unlock exclusive
-                pricing and see available spots.
-              </div>
-            )}
-            {/* [1][5] Free activate CTA — shown when isFree OR approved from waitlist */}
+            <SlotBar accent={s.accent} />
+            {/* Free/VIP activate CTA */}
             {(isFree || isApprovedFromWaitlist) && inviteDetails?.code && (
               <div style={{ marginTop: 12 }}>
                 <button
-                  className="xv-btn-lime"
+                  className={isVIP ? "xv-btn-vip" : "xv-btn-lime"}
                   onClick={() => onFreeActivate(inviteDetails.code)}
                   disabled={freeActivating}
                   style={{ opacity: freeActivating ? 0.7 : 1 }}
@@ -1384,6 +1373,8 @@ function PriceHero({
                     <>
                       <Spin size={16} color="#061000" /> Activating…
                     </>
+                  ) : isVIP ? (
+                    "👑 Activate VIP Access →"
                   ) : (
                     "🎉 Activate Free Access →"
                   )}
@@ -1393,7 +1384,7 @@ function PriceHero({
           </>
         )}
 
-        {/* WAITLIST */}
+        {/* WAITLIST slide */}
         {s.kind === "waitlist" && (
           <>
             <div style={{ marginBottom: 11 }}>
@@ -1414,7 +1405,7 @@ function PriceHero({
                   <div
                     style={{ fontSize: 10, fontWeight: 800, color: "#f87171" }}
                   >
-                    Whitelist slots exhausted
+                    All slots exhausted
                   </div>
                   <div
                     style={{ fontSize: 8.5, color: "#7a3a3a", marginTop: 1 }}
@@ -1435,8 +1426,7 @@ function PriceHero({
                 Get whitelisted when a spot opens
               </div>
               <div style={{ fontSize: 10, color: "#4a6a7a", fontWeight: 600 }}>
-                We'll notify you instantly · your spot is reserved · enter free
-                today
+                We'll notify you instantly · your spot is reserved
               </div>
             </div>
             <div
@@ -1585,8 +1575,7 @@ export default function PaywallGate({ children }) {
   const inviteRef = useRef(null);
 
   const [heroMessage, setHeroMessage] = useState(null);
-
-  const [tab, setTab] = useState("evm");
+  const [tab, setTab] = useState("paystack");
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [freeActivating, setFreeActivating] = useState(false);
@@ -1606,24 +1595,84 @@ export default function PaywallGate({ children }) {
   const loadConfig = useCallback(async () => {
     if (!mounted.current) return;
     try {
-      const cfg = await fetchPaywallConfig();
+      // Read directly from platform_settings — single source of truth
+      const { data, error } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "paywall_config")
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // data.value IS the full config object stored by our SQL setup:
+      // { product_id, product_price, ep_grant, enabled }
+      const rawValue = data?.value ?? null;
+      console.log("[PaywallGate] loadConfig raw:", JSON.stringify(rawValue));
       if (!mounted.current) return;
-      setPaywallConfig(cfg);
-      setHeroMessage(cfg.hero_message ?? null);
+
+      if (rawValue && rawValue.product_id) {
+        // Perfect path — DB has the full config including product_id
+        setPaywallConfig(rawValue);
+        setHeroMessage(rawValue.hero_message ?? null);
+      } else {
+        // Try fetchPaywallConfig which now includes product_id in v9
+        const fallback = await fetchPaywallConfig().catch(() => null);
+        if (!mounted.current) return;
+        if (fallback?.product_id) {
+          setPaywallConfig(fallback);
+          setHeroMessage(fallback.hero_message ?? null);
+        } else if (rawValue) {
+          // rawValue exists but no product_id — merge with known product_id from DB
+          // This can happen if fetchPaywallConfig is still v8
+          // Re-query to get full value including product_id
+          const merged = {
+            ...rawValue,
+            product_id: rawValue.product_id ?? fallback?.product_id ?? null,
+            product_price: rawValue.product_price ?? rawValue.price_usd ?? 4,
+            ep_grant: rawValue.ep_grant ?? 300,
+          };
+          setPaywallConfig(merged);
+          setHeroMessage(merged.hero_message ?? null);
+        }
+      }
     } catch (e) {
-      console.warn("[PaywallGate] loadConfig error:", e?.message);
+      console.warn("[PaywallGate] loadConfig:", e?.message);
     }
   }, []);
 
   const loadStats = useCallback(async () => {
     if (!mounted.current) return;
     try {
-      const cfg = await fetchPaywallConfig();
-      const settingsMemberCount = cfg?.member_count ?? 0;
+      // Read config directly from DB (same as loadConfig)
+      const { data: cfgData } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "paywall_config")
+        .maybeSingle();
+      const cfg =
+        cfgData?.value ?? (await fetchPaywallConfig().catch(() => ({})));
+
       const stats = await fetchLiveStats();
       if (!mounted.current) return;
-      const memberCount = Math.max(settingsMemberCount, stats.memberCount);
-      setLiveStats({ ...stats, memberCount });
+
+      // Also count waitlist_entries from the real table (not JSONB)
+      // This is the authoritative count for the waitlist badge
+      let waitlistCount = stats.waitlistCount ?? 0;
+      try {
+        const { count } = await supabase
+          .from("waitlist_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending");
+        if (count != null) waitlistCount = count;
+      } catch {
+        /* non-fatal — fall back to fetchLiveStats value */
+      }
+
+      setLiveStats({
+        ...stats,
+        memberCount: Math.max(cfg?.member_count ?? 0, stats.memberCount),
+        waitlistCount,
+      });
     } catch {
       /* non-fatal */
     }
@@ -1659,37 +1708,95 @@ export default function PaywallGate({ children }) {
     };
   }, []); // eslint-disable-line
 
+  // Auto-apply invite from URL ?ref=
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const refCode = params.get("ref");
     if (refCode && !inviteDetails) {
       fetchInviteCodeDetails(refCode.toUpperCase())
-        .then((details) => {
-          if (details && mounted.current) setInviteDetails(details);
+        .then((d) => {
+          if (d && mounted.current) setInviteDetails(d);
         })
         .catch(() => {});
     }
   }, []); // eslint-disable-line
 
+  // [3] Auto-detect Paystack return — URL has ?ref= AND product_id from callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const psRef = params.get("ref");
+    const psProdId = params.get("product_id");
+    // Paystack references start with "xv_" (set in paystack-create-transaction)
+    if (psRef && psRef.startsWith("xv_") && psProdId) {
+      // Clean URL immediately
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("ref");
+        url.searchParams.delete("product_id");
+        window.history.replaceState({}, "", url.toString());
+      } catch {}
+      // Wait for webhook to process, then poll profile
+      setTab("paystack");
+      setVerifying(true);
+      handlePaystackReturn(psRef, psProdId);
+    }
+  }, []); // eslint-disable-line
+
+  // [3] Paystack return — poll profile until account_activated=true (webhook may fire async)
+  const handlePaystackReturn = useCallback(
+    async (reference, productId) => {
+      console.log("[PaywallGate] Paystack return detected, ref=", reference);
+      const maxPolls = 15;
+      let polls = 0;
+      const poll = async () => {
+        await refreshProfile();
+        polls++;
+        // Check if profile is now paid
+        const { data: fresh } = await supabase
+          .from("profiles")
+          .select("account_activated,payment_status")
+          .eq("id", user?.id)
+          .single()
+          .catch(() => ({ data: null }));
+        if (fresh?.account_activated || fresh?.payment_status === "paid") {
+          setVerifying(false);
+          setFreeActivated(true); // gate unlocks immediately
+          return;
+        }
+        if (polls < maxPolls) {
+          setTimeout(poll, 2000);
+        } else {
+          // Webhook hasn't fired yet — show a message but don't lock user out
+          setVerifying(false);
+          setVerifyError(
+            "Payment received. Your account will be activated within a few seconds — please refresh.",
+          );
+        }
+      };
+      // Give webhook 3s head start
+      setTimeout(poll, 3000);
+    },
+    [user?.id, refreshProfile],
+  );
+
+  // Realtime subscriptions
   useEffect(() => {
     const uid = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
     const configSub = supabase
-      .channel(`paywall-platform-settings-${uid}`)
+      .channel(`paywall-ps-${uid}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "platform_settings" },
         (payload) => {
-          const changedKey = payload?.new?.key ?? payload?.old?.key ?? "";
-          if (changedKey && changedKey !== "paywall_config") return;
+          const k = payload?.new?.key ?? payload?.old?.key ?? "";
+          if (k && k !== "paywall_config") return;
           loadConfig();
-          loadStats(); // [3] also refresh stats so member_count stays live
+          loadStats();
         },
       )
       .subscribe();
-
     const inviteSub = supabase
-      .channel(`paywall-invite-codes-${uid}`)
+      .channel(`paywall-ic-${uid}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "invite_codes" },
@@ -1700,16 +1807,19 @@ export default function PaywallGate({ children }) {
         },
       )
       .subscribe();
-
     const profileSub = supabase
-      .channel(`paywall-profiles-${uid}`)
+      .channel(`paywall-pr-${uid}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "profiles" },
         () => loadStats(),
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "waitlist_entries" },
+        () => loadStats(),
+      )
       .subscribe();
-
     return () => {
       supabase.removeChannel(configSub);
       supabase.removeChannel(inviteSub);
@@ -1743,7 +1853,6 @@ export default function PaywallGate({ children }) {
 
   const productPrice = safePrice(paywallConfig?.product_price, 4);
   const paywallEpGrant = paywallConfig?.ep_grant ?? 300;
-  // Derived at gate level so PaywallPayment gets the authoritative signal
   const isFreeAccess =
     !!inviteDetails && resolvePrice(inviteDetails, productPrice) === 0;
   const isApprovedAccess = isUserWhitelistedFromWaitlist(
@@ -1751,28 +1860,43 @@ export default function PaywallGate({ children }) {
     user?.id,
   );
 
+  // [3] handleVerify — detects Paystack return vs Web3 verification
   const handleVerify = useCallback(
     async (params) => {
+      // Paystack return path — just refresh profile, webhook already activated account
+      if (params?._paystackReturn) {
+        try {
+          await refreshProfile();
+        } catch (e) {
+          setVerifyError(e?.message ?? "Could not refresh profile.");
+        }
+        return;
+      }
+
+      // Web3 path — call edge fn
       setVerifying(true);
       setVerifyError("");
       try {
         const result = await verifyWeb3Payment({
           ...params,
-          // userId is read from JWT by edge fn — do NOT send in body
-          amountOverrideUSD: resolvePrice(inviteRef.current, productPrice), // correct param name
-          inviteCodeId: inviteRef.current?.id ?? null, // UUID, not code string
+          amountOverrideUSD: resolvePrice(inviteRef.current, productPrice),
+          inviteCodeId: inviteRef.current?.id ?? null,
           productId: paywallConfig?.product_id ?? "xeevia-access",
         });
         if (result?.success) {
           await clearIdempotencyKey(user?.id);
-          await refreshProfile(); // reload so isPaidProfile() returns true immediately
+          await refreshProfile(); // gate unmounts when profile.account_activated=true
         } else {
           setVerifyError(
             result?.message ?? "Verification failed. Please try again.",
           );
+          // [5] WHATSAPP_FALLBACK — uncomment when ready
+          // openWhatsAppFallback("Web3 verification", result?.message);
         }
       } catch (e) {
         setVerifyError(e?.message ?? "Verification failed.");
+        // [5] WHATSAPP_FALLBACK — uncomment when ready
+        // openWhatsAppFallback("Web3 verification", e?.message);
       } finally {
         setVerifying(false);
       }
@@ -1788,25 +1912,21 @@ export default function PaywallGate({ children }) {
     [user?.id],
   );
 
-  // handleFreeActivate — passes inviteDetails.id (UUID) as inviteCodeId to edge fn
-  // Edge fn activateAccount() writes all profile fields server-side (bypasses RLS)
-  // Then refreshProfile() reloads context so isPaidProfile() returns true
+  // [4] handleFreeActivate — works for standard, whitelist, AND vip invite types
   const handleFreeActivate = useCallback(
     async (code) => {
       if (!user?.id || !inviteRef.current?.id) return;
       setFreeActivating(true);
       try {
-        const productId = paywallConfig?.product_id ?? "xeevia-access";
         await activateFreeCode({
-          inviteCodeId: inviteRef.current.id, // UUID — what edge fn expects
-          productId,
+          inviteCodeId: inviteRef.current.id,
+          productId: paywallConfig?.product_id ?? "xeevia-access",
         });
-        // Reload profile from DB — edge fn has already written account_activated=true
-        await refreshProfile();
-        // Also set local flag so gate unlocks immediately if profile reload is slow
-        setFreeActivated(true);
+        await refreshProfile(); // profile now has account_activated=true → gate unmounts
+        setFreeActivated(true); // belt-and-suspenders unlock
       } catch (e) {
         console.error("[PaywallGate] handleFreeActivate error:", e?.message);
+        // Note: activate-free-code sets subscription_tier='vip' for type='vip' codes automatically
       } finally {
         setFreeActivating(false);
       }
@@ -1819,62 +1939,50 @@ export default function PaywallGate({ children }) {
     if (!invite?.id || !user?.id) return;
     setJoiningWaitlist(true);
     try {
-      const { data: fresh, error: fetchErr } = await supabase
-        .from("invite_codes")
-        .select("id, metadata, max_uses, uses_count")
-        .eq("id", invite.id)
-        .single();
-      if (fetchErr) throw fetchErr;
+      // Check for existing entry in the waitlist_entries table (real FK table)
+      const { data: existingEntry } = await supabase
+        .from("waitlist_entries")
+        .select("id, status")
+        .eq("user_id", user.id)
+        .eq("invite_code_id", invite.id)
+        .maybeSingle();
 
-      const meta = fresh?.metadata ?? {};
-      const existingEntries = meta.waitlist_entries ?? [];
-
-      if (existingEntries.some((e) => e.user_id === user.id)) {
+      if (existingEntry) {
         setShowWaitlistAlready(true);
         setJoiningWaitlist(false);
         return;
       }
 
-      const newEntry = {
-        user_id: user.id,
-        email: profile?.email ?? null,
-        full_name: profile?.full_name ?? null,
-        joined_at: new Date().toISOString(),
-        authenticated_at: new Date().toISOString(),
-        account_activated: false,
-        ep_granted: 200,
-      };
-      const updatedEntries = [...existingEntries, newEntry];
-      const updatedMeta = {
-        ...meta,
-        waitlist_entries: updatedEntries,
-        waitlist_count: updatedEntries.length,
-      };
+      // Insert into the real waitlist_entries table
+      // Schema: user_id, invite_code_id, email, status='pending', joined_at auto
+      const { error: insertErr } = await supabase
+        .from("waitlist_entries")
+        .insert({
+          user_id: user.id,
+          invite_code_id: invite.id,
+          email: profile?.email ?? null,
+          status: "pending",
+        });
+      if (insertErr) throw insertErr;
 
-      const { error: updateErr } = await supabase
-        .from("invite_codes")
-        .update({ metadata: updatedMeta, updated_at: new Date().toISOString() })
-        .eq("id", fresh.id);
-      if (updateErr) throw updateErr;
+      // Get position (count of pending entries for this invite code)
+      const { count } = await supabase
+        .from("waitlist_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("invite_code_id", invite.id)
+        .eq("status", "pending");
 
-      // NOTE: waitlist_entries table does not exist in schema.
-      // All waitlist state lives in invite_codes.metadata.waitlist_entries (JSONB).
-      // The update above already persisted the entry — no separate table write needed.
-
-      setWaitlistPosition(updatedEntries.length);
+      setWaitlistPosition(count ?? 1);
       setWaitlistJoined(true);
       setShowWaitlistSuccess(true);
-
-      // [4] Immediate local increment
       setLiveStats((prev) => ({
         ...prev,
         waitlistCount: (prev.waitlistCount ?? 0) + 1,
       }));
-
       await refetchActiveInvite(invite.code);
       await loadStats();
     } catch (e) {
-      console.error("[PaywallGate] handleJoinWaitlist error:", e?.message);
+      console.error("[PaywallGate] handleJoinWaitlist:", e?.message);
     } finally {
       setJoiningWaitlist(false);
     }
@@ -1885,10 +1993,6 @@ export default function PaywallGate({ children }) {
     refetchActiveInvite,
     loadStats,
   ]);
-
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-  }, [signOut]);
 
   if (!user) return children;
   if (freeActivated || isPaidProfile(profile)) return children;
@@ -1913,7 +2017,7 @@ export default function PaywallGate({ children }) {
         />
         <div className="xv-paywall-side">
           <div className="xv-paywall-scroll">
-            <SignOutBar profile={profile} onSignOut={handleSignOut} />
+            <SignOutBar profile={profile} onSignOut={signOut} />
             <PriceHero
               productPrice={productPrice}
               inviteDetails={inviteDetails}
@@ -1931,6 +2035,7 @@ export default function PaywallGate({ children }) {
             <PaywallPayment
               user={user}
               paywallConfig={paywallConfig}
+              configLoading={configLoading}
               inviteDetails={inviteDetails}
               setInviteDetails={setInviteDetails}
               inviteLoading={inviteLoading}
@@ -1949,6 +2054,39 @@ export default function PaywallGate({ children }) {
               tab={tab}
               setTab={setTab}
             />
+            {/* Paystack return / verify status */}
+            {verifyError && (
+              <div
+                style={{
+                  background: "rgba(245,158,11,.06)",
+                  border: "1px solid rgba(245,158,11,.2)",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginTop: 12,
+                  fontSize: 12,
+                  color: "#f59e0b",
+                  lineHeight: 1.6,
+                }}
+              >
+                ⚠️ {verifyError}
+                <button
+                  onClick={() => setVerifyError("")}
+                  style={{
+                    display: "block",
+                    marginTop: 8,
+                    fontSize: 11,
+                    color: "#666",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,422 +1,2315 @@
 // src/components/GiftCards/GiftCardsView.jsx
-import React, { useState } from "react";
-import { ChevronDown, Gift, Send, Tag, CheckCircle, Copy, Sparkles, Zap, Crown, Heart } from "lucide-react";
+// Xeevia Gift Cards — Burst-Box experience
+// Buy → Configure → Confirm → Burst open → Message revealed
+// 2% protocol fee on ALL transactions: buy, send, redeem
+// 6 gem tiers · Real Supabase integration ready
 
-const CARDS = [
-  { id:"gc1", name:"Starter Spark",  value:500,  price:5,   color:["#84cc16","#4d7c0f"], emoji:"⚡", badge:"Popular",  desc:"Perfect for gifting a friend their first EP boost." },
-  { id:"gc2", name:"Creator Fuel",   value:1500, price:15,  color:["#60a5fa","#2563eb"], emoji:"🚀", badge:"Best Value",desc:"Give the gift of engagement. 1,500 EP to spend freely." },
-  { id:"gc3", name:"Gold Rush",      value:3000, price:28,  color:["#fbbf24","#d97706"], emoji:"👑", badge:"Fan Fave",  desc:"A golden gift. 3,000 EP plus a special gold frame effect for 7 days." },
-  { id:"gc4", name:"Diamond Drop",   value:6000, price:50,  color:["#a78bfa","#7c3aed"], emoji:"💎", badge:"Premium",  desc:"The ultimate gift. 6,000 EP + diamond badge for recipient for 14 days." },
-  { id:"gc5", name:"Custom Spark",   value:null, price:null,color:["#f472b6","#be185d"], emoji:"✨", badge:"Custom",   desc:"Choose your own EP amount. Set your own value from $1 to $500." },
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  X,
+  Copy,
+  CheckCircle,
+  Zap,
+  Search,
+  Send,
+  Gift,
+  Crown,
+  Gem,
+  Flame,
+  Star,
+  Sparkles,
+  Wallet,
+  RotateCcw,
+  ArrowLeft,
+  Package,
+  ChevronRight,
+  Plus,
+} from "lucide-react";
+import { supabase } from "../../services/config/supabase";
+import ProfilePreview from "../Shared/ProfilePreview";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const FEE = 0.02;
+const GCODE = () => {
+  const s = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `GC-${s()}-${s()}-XEEVIA`;
+};
+
+// ── Gem Tiers ─────────────────────────────────────────────────────────────────
+const TIERS = [
+  {
+    id: "silver",
+    name: "Silver",
+    value: 100,
+    price: 1,
+    c1: "#e2e8f0",
+    c2: "#94a3b8",
+    glow: "rgba(226,232,240,0.22)",
+    Icon: Star,
+    badge: "Starter",
+    desc: "100 EP — A spark of appreciation.",
+  },
+  {
+    id: "gold",
+    name: "Gold",
+    value: 500,
+    price: 5,
+    c1: "#fbbf24",
+    c2: "#d97706",
+    glow: "rgba(251,191,36,0.28)",
+    Icon: Crown,
+    badge: "Popular",
+    desc: "500 EP — A crown of gold for a king.",
+  },
+  {
+    id: "blue_diamond",
+    name: "Blue Diamond",
+    value: 1500,
+    price: 15,
+    c1: "#38bdf8",
+    c2: "#0284c7",
+    glow: "rgba(56,189,248,0.28)",
+    Icon: Gem,
+    badge: "Best Value",
+    desc: "1,500 EP + Blue Diamond badge for 7 days.",
+  },
+  {
+    id: "red_diamond",
+    name: "Red Diamond",
+    value: 3000,
+    price: 28,
+    c1: "#f87171",
+    c2: "#dc2626",
+    glow: "rgba(248,113,113,0.28)",
+    Icon: Flame,
+    badge: "Fierce",
+    desc: "3,000 EP + Red aura for 14 days.",
+  },
+  {
+    id: "black_diamond",
+    name: "Black Diamond",
+    value: 6000,
+    price: 55,
+    c1: "#d4d4d8",
+    c2: "#6b7280",
+    glow: "rgba(212,212,216,0.22)",
+    Icon: Sparkles,
+    badge: "Rare",
+    desc: "6,000 EP + Black Diamond status for 30 days.",
+  },
+  {
+    id: "purple_diamond",
+    name: "Purple Diamond",
+    value: 12000,
+    price: 100,
+    c1: "#c084fc",
+    c2: "#7c3aed",
+    glow: "rgba(192,132,252,0.32)",
+    Icon: Gem,
+    badge: "Legendary",
+    desc: "12,000 EP + Whale status for 60 days.",
+  },
 ];
 
-const OCCASIONS = ["Birthday 🎂","Thank You 🙏","Congrats 🎉","Just Because 💚","Apology 😅","Celebration 🥂"];
+const OCCASIONS = [
+  "Birthday 🎂",
+  "Thank You 🙏",
+  "Congrats 🎉",
+  "Just Because 💚",
+  "Big Love ❤️",
+  "Apology 😅",
+  "Well Done 🌟",
+  "Good Luck 🍀",
+  "Milestone 🏆",
+  "Welcome 👋",
+];
 
-const GiftCardsView = ({ currentUser, onClose }) => {
-  const [tab,       setTab]       = useState("buy");       // buy | redeem | history
-  const [selected,  setSelected]  = useState(null);
-  const [occasion,  setOccasion]  = useState("");
-  const [recipient, setRecipient] = useState("");
-  const [message,   setMessage]   = useState("");
-  const [customAmt, setCustomAmt] = useState("");
-  const [redeemCode,setRedeemCode]= useState("");
-  const [phase,     setPhase]     = useState("browse");    // browse | configure | confirm | success
-  const [copied,    setCopied]    = useState(false);
+// ── CSS ───────────────────────────────────────────────────────────────────────
+const CSS = `
+  @keyframes gcReveal  { from{opacity:0;transform:scale(.88) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  @keyframes gcPop     { 0%{transform:scale(.8);opacity:0} 60%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+  @keyframes gcShimmer { from{transform:translateX(-100%)} to{transform:translateX(200%)} }
+  @keyframes gcBounce  { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-7px) rotate(2deg)} }
+  @keyframes gcShake   { 0%{transform:rotate(0)} 18%{transform:rotate(-8deg) scale(1.05)} 36%{transform:rotate(8deg) scale(1.05)} 54%{transform:rotate(-4deg)} 72%{transform:rotate(4deg)} 90%{transform:rotate(-1deg)} 100%{transform:rotate(0) scale(1)} }
+  @keyframes gcLidFly  { from{transform:rotateX(0) translateY(0)} to{transform:rotateX(-70deg) translateY(-30px) scale(1.1);opacity:0} }
+  @keyframes gcExplode { from{opacity:1;transform:translate(0,0) rotate(0deg) scale(1)} to{opacity:0;transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(0)} }
+  @keyframes gcToast   { 0%{opacity:0;transform:translateX(-50%) translateY(10px)} 15%,80%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0} }
+  @keyframes gcSpin    { to{transform:rotate(360deg)} }
+  @keyframes gcCardIn  { from{opacity:0;transform:translateY(10px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes gcSuccess { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+  @keyframes gcPulse   { 0%,100%{opacity:1} 50%{opacity:.5} }
+  @keyframes gcFloat   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+`;
 
-  // Demo generated code
-  const DEMO_CODE = "GC-X4K2-9M7R-GROVA";
+// ── Toast ─────────────────────────────────────────────────────────────────────
+const Toast = ({ msg, color }) => (
+  <div
+    style={{
+      position: "fixed",
+      bottom: 96,
+      left: "50%",
+      transform: "translateX(-50%)",
+      padding: "10px 22px",
+      borderRadius: 14,
+      background: `linear-gradient(135deg,${color},${color}bb)`,
+      color: "#000",
+      fontSize: 12,
+      fontWeight: 900,
+      zIndex: 99999,
+      pointerEvents: "none",
+      whiteSpace: "nowrap",
+      boxShadow: `0 6px 26px ${color}55`,
+      animation: "gcToast 2.8s ease forwards",
+    }}
+  >
+    {msg}
+  </div>
+);
 
-  const copyCode = () => {
-    navigator.clipboard?.writeText(DEMO_CODE).catch(()=>{});
-    setCopied(true); setTimeout(()=>setCopied(false),2000);
+// ── Gift Card Visual ──────────────────────────────────────────────────────────
+const CardFace = ({
+  tier,
+  message,
+  occasion,
+  senderName,
+  recipientName,
+  code,
+  compact,
+}) => (
+  <div
+    style={{
+      borderRadius: compact ? 14 : 20,
+      overflow: "hidden",
+      position: "relative",
+      background: `linear-gradient(145deg,${tier.c1}18 0%,${tier.c2}0a 60%,transparent 100%)`,
+      border: `1.5px solid ${tier.c1}40`,
+      padding: compact ? "14px 14px" : "22px 20px",
+      boxShadow: `0 16px 48px ${tier.glow},0 2px 0 ${tier.c1}15 inset`,
+      animation: "gcReveal .5s cubic-bezier(.34,1.56,.64,1)",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "40%",
+        height: "100%",
+        background:
+          "linear-gradient(45deg,transparent,rgba(255,255,255,0.06),transparent)",
+        animation: "gcShimmer 4s ease-in-out infinite",
+        pointerEvents: "none",
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 1,
+        background: `linear-gradient(90deg,transparent,${tier.c1}60,transparent)`,
+        pointerEvents: "none",
+      }}
+    />
+
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: compact ? 10 : 16,
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontSize: 8,
+            fontWeight: 900,
+            color: tier.c1,
+            textTransform: "uppercase",
+            letterSpacing: "2.5px",
+            marginBottom: 4,
+            opacity: 0.7,
+          }}
+        >
+          XEEVIA GIFT CARD
+        </div>
+        <div
+          style={{
+            fontSize: compact ? 18 : 24,
+            fontWeight: 900,
+            color: "#fff",
+            letterSpacing: "-0.3px",
+          }}
+        >
+          {tier.name}
+        </div>
+      </div>
+      <div
+        style={{
+          width: compact ? 40 : 52,
+          height: compact ? 40 : 52,
+          borderRadius: compact ? 12 : 15,
+          background: `${tier.c1}15`,
+          border: `1.5px solid ${tier.c1}35`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: `0 6px 20px ${tier.glow}`,
+        }}
+      >
+        <tier.Icon size={compact ? 18 : 24} color={tier.c1} />
+      </div>
+    </div>
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: compact ? "5px 11px" : "7px 14px",
+        borderRadius: 10,
+        background: `${tier.c1}12`,
+        border: `1px solid ${tier.c1}25`,
+        marginBottom: compact ? 9 : 14,
+      }}
+    >
+      <Zap size={compact ? 10 : 13} color={tier.c1} />
+      <span
+        style={{ fontSize: compact ? 16 : 22, fontWeight: 900, color: tier.c1 }}
+      >
+        {tier.value.toLocaleString()} EP
+      </span>
+    </div>
+    {message && (
+      <div
+        style={{
+          fontSize: compact ? 11 : 13,
+          color: "rgba(255,255,255,0.5)",
+          fontStyle: "italic",
+          lineHeight: 1.65,
+          padding: compact ? "8px 10px" : "10px 13px",
+          borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          borderLeft: `2px solid ${tier.c1}45`,
+          marginBottom: compact ? 9 : 14,
+        }}
+      >
+        "{message}"
+      </div>
+    )}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-end",
+      }}
+    >
+      <div>
+        {senderName && (
+          <div style={{ fontSize: 10, color: "#3a3a3a" }}>
+            From <span style={{ color: "#606060" }}>{senderName}</span>
+          </div>
+        )}
+        {recipientName && (
+          <div style={{ fontSize: 10, color: "#3a3a3a" }}>
+            To <span style={{ color: "#888" }}>{recipientName}</span>
+          </div>
+        )}
+        {occasion && (
+          <div
+            style={{
+              fontSize: 10,
+              color: tier.c1,
+              marginTop: 3,
+              fontWeight: 700,
+            }}
+          >
+            {occasion}
+          </div>
+        )}
+      </div>
+      {code && (
+        <div
+          style={{
+            fontSize: 8,
+            fontWeight: 800,
+            color: "#252525",
+            fontFamily: "monospace",
+            letterSpacing: ".4px",
+            background: "rgba(0,0,0,0.5)",
+            padding: "4px 9px",
+            borderRadius: 6,
+          }}
+        >
+          {code}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+// ── Burst Box ─────────────────────────────────────────────────────────────────
+const BurstBox = ({ tier, onOpened }) => {
+  const [phase, setPhase] = useState("idle");
+  const [particles, setParticles] = useState([]);
+
+  const handleTap = () => {
+    if (phase !== "idle") return;
+    setPhase("shaking");
+    setTimeout(() => {
+      setPhase("explode");
+      setParticles(
+        Array.from({ length: 32 }, (_, i) => ({
+          id: i,
+          x: (Math.random() - 0.5) * 320,
+          y: -(Math.random() * 240 + 50),
+          rot: Math.random() * 720 - 360,
+          size: Math.random() * 11 + 4,
+          color: [tier.c1, tier.c2, "#fff", "#fbbf24", "#fff", tier.c1][
+            Math.floor(Math.random() * 6)
+          ],
+          delay: i * 0.015,
+          round: Math.random() > 0.45,
+        })),
+      );
+      setTimeout(() => {
+        setPhase("done");
+        onOpened?.();
+      }, 700);
+    }, 600);
   };
 
-  const handleBuy = () => {
-    if (!selected) return;
-    if (phase === "browse")   { setPhase("configure"); return; }
-    if (phase === "configure"){ setPhase("confirm");   return; }
-    if (phase === "confirm")  { setPhase("success");   return; }
-  };
-
-  const reset = () => { setPhase("browse"); setSelected(null); setOccasion(""); setRecipient(""); setMessage(""); };
-
-  const card = CARDS.find(c => c.id === selected);
+  if (phase === "done") return null;
 
   return (
-    <div className="gc-root">
-      <style>{`
-        @keyframes gcSlideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
-        @keyframes gcGlow{0%,100%{box-shadow:0 0 20px rgba(132,204,22,0.25);}50%{box-shadow:0 0 40px rgba(132,204,22,0.5);}}
-        @keyframes gcShimmer{0%{left:-100%;}100%{left:100%;}}
-        @keyframes gcPop{0%{transform:scale(0.8);opacity:0;}60%{transform:scale(1.08);}100%{transform:scale(1);opacity:1;}}
-        @keyframes gcFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+    <div
+      style={{
+        textAlign: "center",
+        padding: "28px 0 20px",
+        position: "relative",
+        userSelect: "none",
+      }}
+    >
+      {phase === "explode" &&
+        particles.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              width: p.size,
+              height: p.size,
+              background: p.color,
+              borderRadius: p.round ? "50%" : "3px",
+              "--px": `${p.x}px`,
+              "--py": `${p.y}px`,
+              "--pr": `${p.rot}deg`,
+              animation: `gcExplode .85s cubic-bezier(.22,1,.36,1) ${p.delay}s both`,
+              zIndex: 10,
+              pointerEvents: "none",
+            }}
+          />
+        ))}
 
-        .gc-root {
-          position:fixed;inset:0;z-index:9500;
-          background:#060606;overflow-y:auto;
-          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        }
-
-        /* ── TOP BAR ── */
-        .gc-topbar {
-          position:sticky;top:0;z-index:10;
-          display:flex;align-items:center;gap:12px;
-          padding:12px 16px;
-          background:rgba(6,6,6,0.97);backdrop-filter:blur(20px);
-          border-bottom:1px solid rgba(255,255,255,0.06);
-        }
-        .gc-back {
-          width:34px;height:34px;border-radius:10px;
-          background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;color:#737373;transition:all 0.18s;
-          font-size:18px;line-height:1;
-        }
-        .gc-back:hover{background:rgba(255,255,255,0.1);color:#fff;}
-        .gc-title-wrap{flex:1;}
-        .gc-title{font-size:17px;font-weight:900;color:#fff;}
-        .gc-sub{font-size:11px;color:#525252;font-weight:500;}
-
-        /* Tabs */
-        .gc-tabs {
-          display:flex;margin:16px;
-          background:rgba(255,255,255,0.04);
-          border:1px solid rgba(255,255,255,0.07);
-          border-radius:13px;padding:3px;gap:2px;
-        }
-        .gc-tab {
-          flex:1;padding:9px;border-radius:10px;border:none;
-          font-size:12.5px;font-weight:800;cursor:pointer;
-          transition:all 0.22s;color:#525252;background:transparent;
-        }
-        .gc-tab.active{
-          background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.22);
-          color:#84cc16;box-shadow:0 2px 10px rgba(132,204,22,0.15);
-        }
-
-        /* ── BUY FLOW ── */
-        .gc-body{padding:0 16px 100px;}
-
-        /* Card grid */
-        .gc-cards{display:flex;flex-direction:column;gap:12px;}
-        .gc-card{
-          border-radius:20px;overflow:hidden;cursor:pointer;
-          border:1.5px solid rgba(255,255,255,0.07);
-          transition:all 0.26s cubic-bezier(0.34,1.4,0.64,1);
-          animation:gcSlideUp 0.3s ease both;
-          position:relative;
-        }
-        .gc-card:hover,.gc-card.sel{
-          transform:translateY(-4px) scale(1.02);
-          border-color:rgba(132,204,22,0.3);
-          box-shadow:0 12px 32px rgba(0,0,0,0.4);
-        }
-        .gc-card.sel{border-width:2px;}
-        .gc-card-inner{
-          display:flex;align-items:center;gap:14px;
-          padding:16px;background:rgba(255,255,255,0.025);
-        }
-        .gc-card-emoji-wrap{
-          width:56px;height:56px;border-radius:16px;
-          display:flex;align-items:center;justify-content:center;
-          font-size:26px;flex-shrink:0;position:relative;overflow:hidden;
-        }
-        .gc-card-emoji-wrap::after{
-          content:'';position:absolute;inset:0;
-          background:linear-gradient(45deg,transparent,rgba(255,255,255,0.15),transparent);
-          transform:translateX(-100%);transition:transform 0.5s;
-        }
-        .gc-card:hover .gc-card-emoji-wrap::after{transform:translateX(100%);}
-        .gc-card-info{flex:1;min-width:0;}
-        .gc-card-name{font-size:15px;font-weight:900;color:#fff;margin:0 0 3px;}
-        .gc-card-desc{font-size:11.5px;color:#525252;margin:0 0 7px;line-height:1.4;}
-        .gc-card-price-row{display:flex;align-items:center;gap:8px;}
-        .gc-card-badge{
-          padding:2px 8px;border-radius:6px;
-          font-size:9.5px;font-weight:800;
-        }
-        .gc-card-price{font-size:15px;font-weight:900;}
-        .gc-card-ep{font-size:11px;color:#525252;font-weight:600;}
-        .gc-sel-check{flex-shrink:0;animation:gcPop 0.3s ease;}
-
-        /* Configure */
-        .gc-config-section{margin-bottom:20px;}
-        .gc-config-label{font-size:11px;font-weight:800;color:#525252;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:block;}
-        .gc-occasions{display:flex;flex-wrap:wrap;gap:6px;}
-        .gc-occ{
-          padding:7px 13px;border-radius:9px;
-          background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-          color:#525252;font-size:12px;font-weight:700;cursor:pointer;
-          transition:all 0.18s;
-        }
-        .gc-occ.sel{background:rgba(132,204,22,0.1);border-color:rgba(132,204,22,0.3);color:#84cc16;}
-        .gc-input{
-          width:100%;padding:12px 14px;
-          background:rgba(255,255,255,0.04);
-          border:1px solid rgba(255,255,255,0.09);
-          border-radius:12px;color:#fff;font-size:14px;
-          outline:none;caret-color:#84cc16;
-          transition:border-color 0.2s;box-sizing:border-box;
-        }
-        .gc-input:focus{border-color:rgba(132,204,22,0.38);}
-        textarea.gc-input{resize:none;height:80px;line-height:1.5;}
-
-        /* Preview card */
-        .gc-preview{
-          border-radius:20px;overflow:hidden;margin-bottom:20px;
-          position:relative;padding:24px;
-        }
-        .gc-preview-shine{
-          position:absolute;inset:0;
-          background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.06) 50%,transparent 70%);
-          animation:gcShimmer 3s ease-in-out infinite;pointer-events:none;
-          overflow:hidden;
-        }
-        .gc-preview-emoji{font-size:40px;margin-bottom:12px;display:block;animation:gcFloat 3s ease-in-out infinite;}
-        .gc-preview-name{font-size:22px;font-weight:900;color:#fff;margin:0 0 4px;}
-        .gc-preview-val{font-size:14px;font-weight:700;color:rgba(255,255,255,0.7);margin:0 0 12px;}
-        .gc-preview-msg{font-size:13px;color:rgba(255,255,255,0.6);font-style:italic;line-height:1.5;}
-        .gc-preview-code{
-          margin-top:16px;padding:10px 14px;
-          background:rgba(0,0,0,0.3);border-radius:10px;
-          font-size:13px;font-weight:800;color:rgba(255,255,255,0.9);
-          letter-spacing:1px;text-align:center;
-        }
-
-        /* Success */
-        .gc-success{
-          display:flex;flex-direction:column;align-items:center;
-          text-align:center;padding:40px 24px;
-        }
-        .gc-success-icon{font-size:72px;margin-bottom:20px;animation:gcPop 0.5s cubic-bezier(0.34,1.56,0.64,1);}
-        .gc-success-title{font-size:26px;font-weight:900;color:#fff;margin:0 0 8px;}
-        .gc-success-sub{font-size:14px;color:#525252;margin:0 0 28px;line-height:1.6;}
-        .gc-code-box{
-          width:100%;background:rgba(132,204,22,0.06);
-          border:1px solid rgba(132,204,22,0.2);
-          border-radius:14px;padding:16px;margin-bottom:24px;
-          position:relative;cursor:pointer;transition:background 0.2s;
-        }
-        .gc-code-box:hover{background:rgba(132,204,22,0.1);}
-        .gc-code-label{font-size:10px;font-weight:800;color:#525252;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
-        .gc-code-val{font-size:18px;font-weight:900;color:#84cc16;letter-spacing:2px;}
-        .gc-copy-hint{font-size:10.5px;color:#525252;margin-top:6px;}
-
-        /* Redeem */
-        .gc-redeem{padding:20px 0;}
-        .gc-redeem-hero{text-align:center;margin-bottom:28px;}
-        .gc-redeem-icon{font-size:56px;margin-bottom:14px;animation:gcFloat 3s ease-in-out infinite;}
-        .gc-redeem-title{font-size:22px;font-weight:900;color:#fff;margin:0 0 8px;}
-        .gc-redeem-sub{font-size:13px;color:#525252;line-height:1.6;}
-
-        /* CTA button */
-        .gc-btn{
-          width:100%;padding:14px;border-radius:13px;
-          font-size:14px;font-weight:900;cursor:pointer;
-          display:flex;align-items:center;justify-content:center;gap:8px;
-          border:none;transition:all 0.2s;margin-top:12px;
-        }
-        .gc-btn-primary{
-          background:linear-gradient(135deg,#84cc16,#4d7c0f);color:#000;
-          box-shadow:0 6px 20px rgba(132,204,22,0.38);
-          animation:gcGlow 3s ease-in-out infinite;
-        }
-        .gc-btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(132,204,22,0.55);}
-        .gc-btn-ghost{
-          background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09)!important;
-          color:#737373;
-        }
-        .gc-btn-ghost:hover{background:rgba(255,255,255,0.08);color:#a3a3a3;}
-      `}</style>
-
-      {/* ── TOP BAR ── */}
-      <div className="gc-topbar">
-        <button className="gc-back" onClick={onClose}>‹</button>
-        <div className="gc-title-wrap">
-          <div className="gc-title">Gift Cards</div>
-          <div className="gc-sub">Buy, send & redeem EP gift cards</div>
+      <div
+        onClick={handleTap}
+        style={{
+          display: "inline-block",
+          cursor: phase === "idle" ? "pointer" : "default",
+          position: "relative",
+          animation:
+            phase === "idle"
+              ? "gcBounce 2.4s ease-in-out infinite"
+              : phase === "shaking"
+                ? "gcShake .6s ease"
+                : "none",
+        }}
+      >
+        {/* Lid */}
+        <div
+          style={{
+            position: "absolute",
+            top: -4,
+            left: -10,
+            right: -10,
+            height: 34,
+            background: `linear-gradient(135deg,${tier.c1},${tier.c2})`,
+            borderRadius: "12px 12px 0 0",
+            boxShadow: `0 -4px 18px ${tier.glow},0 1px 0 rgba(255,255,255,0.2) inset`,
+            transformOrigin: "center top",
+            animation:
+              phase === "explode"
+                ? "gcLidFly .4s cubic-bezier(.22,1,.36,1) forwards"
+                : "none",
+            zIndex: 2,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 16,
+              height: "100%",
+              background: "rgba(255,255,255,0.2)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: -12,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontSize: 22,
+              lineHeight: 1,
+            }}
+          >
+            🎀
+          </div>
         </div>
-        <Gift size={20} color="#34d399"/>
+        {/* Box */}
+        <div
+          style={{
+            width: 116,
+            height: 100,
+            borderRadius: "0 0 16px 16px",
+            marginTop: 30,
+            background: `linear-gradient(160deg,${tier.c1}1a,${tier.c2}0e)`,
+            border: `2px solid ${tier.c1}45`,
+            borderTop: "none",
+            boxShadow: `0 16px 40px ${tier.glow},0 1px 0 rgba(255,255,255,0.04) inset`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 16,
+              background: tier.c1,
+              opacity: 0.18,
+            }}
+          />
+          <tier.Icon
+            size={38}
+            color={tier.c1}
+            style={{
+              filter: `drop-shadow(0 0 12px ${tier.glow})`,
+              position: "relative",
+              zIndex: 1,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "45%",
+              background:
+                "linear-gradient(180deg,rgba(255,255,255,0.06),transparent)",
+              pointerEvents: "none",
+            }}
+          />
+        </div>
+      </div>
+
+      {phase === "idle" && (
+        <div
+          style={{
+            marginTop: 18,
+            fontSize: 12,
+            color: "#3a3a3a",
+            fontWeight: 700,
+          }}
+        >
+          👆 Tap to burst open
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Inbox Gift Card ───────────────────────────────────────────────────────────
+const InboxCard = ({ card, onClaim }) => {
+  const [phase, setPhase] = useState("sealed");
+  const tier = TIERS.find((t) => t.id === card.tier) || TIERS[0];
+  const net = tier.value - Math.round(tier.value * FEE);
+
+  const open = () => {
+    if (phase !== "sealed") return;
+    setPhase("shaking");
+    setTimeout(() => setPhase("revealed"), 700);
+  };
+
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.025)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 18,
+        overflow: "hidden",
+        marginBottom: 11,
+        boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset",
+        animation: "gcCardIn .35s ease both",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "12px 14px",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            background: `${tier.c1}16`,
+            border: `1px solid ${tier.c1}28`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <tier.Icon size={15} color={tier.c1} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#d4d4d4" }}>
+            From{" "}
+            <span style={{ color: tier.c1 }}>
+              @{card.senderUsername || "someone"}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: "#404040" }}>
+            {card.occasion || "A special gift"}
+          </div>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 900, color: tier.c1 }}>
+          {tier.value.toLocaleString()} EP
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px 14px" }}>
+        {phase === "sealed" && (
+          <div
+            onClick={open}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "24px",
+              cursor: "pointer",
+              borderRadius: 14,
+              background: `${tier.c1}07`,
+              border: `1.5px dashed ${tier.c1}25`,
+              transition: "all .2s",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 52,
+                animation: "gcFloat 2.2s ease-in-out infinite",
+                marginBottom: 8,
+              }}
+            >
+              🎁
+            </div>
+            <div style={{ fontSize: 12, color: "#505050", fontWeight: 700 }}>
+              Tap to burst open your gift
+            </div>
+          </div>
+        )}
+        {phase === "shaking" && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              padding: "24px",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{ fontSize: 52, animation: "gcShake .5s ease infinite" }}
+            >
+              📦
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#444",
+                animation: "gcPulse .6s ease infinite",
+              }}
+            >
+              Opening…
+            </div>
+          </div>
+        )}
+        {(phase === "revealed" || phase === "claimed") && (
+          <div
+            style={{ animation: "gcReveal .5s cubic-bezier(.34,1.56,.64,1)" }}
+          >
+            <CardFace
+              tier={tier}
+              message={card.message}
+              occasion={card.occasion}
+              senderName={`@${card.senderUsername || "someone"}`}
+              compact
+            />
+            <div style={{ marginTop: 10 }}>
+              {phase === "revealed" && (
+                <button
+                  onClick={() => {
+                    setPhase("claimed");
+                    onClaim?.(card);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "13px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: `linear-gradient(135deg,${tier.c1},${tier.c2})`,
+                    color: "#000",
+                    fontSize: 13,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                    boxShadow: `0 6px 20px ${tier.glow}`,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <Zap size={14} /> Claim {net.toLocaleString()} EP
+                  <span style={{ fontSize: 10, opacity: 0.6, fontWeight: 600 }}>
+                    (−2% fee)
+                  </span>
+                </button>
+              )}
+              {phase === "claimed" && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                    padding: "12px",
+                    borderRadius: 11,
+                    background: "rgba(34,197,94,0.07)",
+                    border: "1px solid rgba(34,197,94,0.18)",
+                  }}
+                >
+                  <CheckCircle size={15} color="#22c55e" />
+                  <span
+                    style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}
+                  >
+                    {net.toLocaleString()} EP Claimed! ✨
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── User Search ───────────────────────────────────────────────────────────────
+const UserSearch = ({ onSelect, selected, currentUser }) => {
+  const [q, setQ] = useState("");
+  const [res, setRes] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const db = useRef(null);
+
+  const search = async (v) => {
+    if (!v.trim()) {
+      setRes([]);
+      return;
+    }
+    setBusy(true);
+    try {
+      const clean = v.replace(/^@/, "");
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,username,full_name,avatar_id,verified")
+        .or(`username.ilike.%${clean}%,full_name.ilike.%${clean}%`)
+        .neq("id", currentUser?.id)
+        .limit(6);
+      setRes(data || []);
+    } catch {
+      setRes([]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: "#3a3a3a",
+          textTransform: "uppercase",
+          letterSpacing: "1px",
+          display: "block",
+          marginBottom: 8,
+        }}
+      >
+        Send To
+      </label>
+      <div style={{ position: "relative" }}>
+        <Search
+          size={13}
+          color="#404040"
+          style={{
+            position: "absolute",
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+          }}
+        />
+        <input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            clearTimeout(db.current);
+            db.current = setTimeout(() => search(e.target.value), 280);
+          }}
+          placeholder="@username or name…"
+          style={{
+            width: "100%",
+            padding: "11px 12px 11px 36px",
+            background: selected
+              ? "rgba(132,204,22,0.04)"
+              : "rgba(255,255,255,0.04)",
+            border: `1px solid ${selected ? "rgba(132,204,22,0.3)" : "rgba(255,255,255,0.09)"}`,
+            borderRadius: 12,
+            color: "#fff",
+            fontSize: 13,
+            outline: "none",
+            caretColor: "#84cc16",
+            fontFamily: "inherit",
+            transition: "border .2s",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
+          }}
+        />
+        {busy && (
+          <div
+            style={{
+              position: "absolute",
+              right: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 14,
+              height: 14,
+              border: "2px solid rgba(132,204,22,0.15)",
+              borderTopColor: "#84cc16",
+              borderRadius: "50%",
+              animation: "gcSpin .7s linear infinite",
+            }}
+          />
+        )}
+      </div>
+      {res.length > 0 && (
+        <div
+          style={{
+            background: "rgba(10,10,10,0.99)",
+            border: "1px solid rgba(255,255,255,0.09)",
+            borderRadius: 13,
+            overflow: "hidden",
+            marginTop: 5,
+            boxShadow: "0 12px 36px rgba(0,0,0,0.8)",
+            backdropFilter: "blur(20px)",
+          }}
+        >
+          {res.map((u, i) => {
+            const pd = {
+              userId: u.id,
+              author: u.full_name || u.username,
+              username: u.username,
+              profiles: { avatar_id: u.avatar_id },
+              verified: u.verified,
+            };
+            return (
+              <div
+                key={u.id}
+                onClick={() => {
+                  onSelect(u);
+                  setQ(`@${u.username}`);
+                  setRes([]);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "9px 13px",
+                  cursor: "pointer",
+                  borderBottom:
+                    i < res.length - 1
+                      ? "1px solid rgba(255,255,255,0.04)"
+                      : "none",
+                  transition: "background .12s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "rgba(255,255,255,0.04)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+              >
+                <ProfilePreview
+                  profile={pd}
+                  currentUser={currentUser}
+                  size="small"
+                  showUsername
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {selected && !res.length && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "9px 13px",
+            marginTop: 5,
+            background: "rgba(132,204,22,0.05)",
+            border: "1px solid rgba(132,204,22,0.16)",
+            borderRadius: 11,
+          }}
+        >
+          <CheckCircle size={13} color="#84cc16" />
+          <span
+            style={{ fontSize: 12, color: "#84cc16", fontWeight: 700, flex: 1 }}
+          >
+            Sending to @{selected.username}
+          </span>
+          <button
+            onClick={() => {
+              onSelect(null);
+              setQ("");
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#3a3a3a",
+              cursor: "pointer",
+              padding: 2,
+            }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── MAIN ──────────────────────────────────────────────────────────────────────
+const GiftCardsView = ({ currentUser, onClose, isSidebar = false }) => {
+  const [tab, setTab] = useState("send");
+  const [phase, setPhase] = useState("browse");
+  const [selId, setSelId] = useState(null);
+  const [occasion, setOccasion] = useState("");
+  const [message, setMessage] = useState("");
+  const [recipient, setRecipient] = useState(null);
+  const [redCode, setRedCode] = useState("");
+  const [redState, setRedState] = useState("idle");
+  const [myCards, setMyCards] = useState([]);
+  const [inbox, setInbox] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [genCode, setGenCode] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [burstDone, setBurstDone] = useState(false);
+
+  const tier = TIERS.find((t) => t.id === selId);
+  const fee = tier ? Math.round(tier.value * FEE) : 0;
+  const net = tier ? tier.value - fee : 0;
+
+  const flash = useCallback((msg, color = "#84cc16") => {
+    setToast({ msg, color });
+    setTimeout(() => setToast(null), 2800);
+  }, []);
+
+  useEffect(() => {
+    setMyCards([
+      {
+        code: "GC-X4K2-9M7R-XEEVIA",
+        tier: "gold",
+        status: "unused",
+        value: 500,
+      },
+      {
+        code: "GC-B3Z9-8N5P-XEEVIA",
+        tier: "blue_diamond",
+        status: "sent",
+        value: 1500,
+      },
+    ]);
+    setInbox([
+      {
+        code: "GC-DEMO-0001-XEEVIA",
+        tier: "gold",
+        status: "received",
+        value: 500,
+        senderUsername: "sproutsking",
+        occasion: "Well Done 🌟",
+        message: "You built something real. Keep going. The world needs this.",
+      },
+    ]);
+  }, []);
+
+  const reset = () => {
+    setPhase("browse");
+    setSelId(null);
+    setOccasion("");
+    setMessage("");
+    setRecipient(null);
+    setGenCode("");
+    setBurstDone(false);
+  };
+
+  const handleBuy = async () => {
+    if (!tier) return;
+    if (phase === "browse") {
+      setPhase("configure");
+      return;
+    }
+    if (phase === "configure") {
+      if (!recipient) {
+        flash("Select a recipient first", "#f97316");
+        return;
+      }
+      setPhase("confirm");
+      setBurstDone(false);
+      return;
+    }
+    if (phase === "confirm") {
+      setLoading(true);
+      try {
+        const code = GCODE();
+        // Production: await supabase.from("gift_cards").insert({ code, tier:tier.id, value:tier.value, price:tier.price, fee_ep:fee, net_ep:net, sender_id:currentUser?.id, recipient_id:recipient.id, message, occasion, status:"sent", created_at:new Date().toISOString() });
+        await new Promise((r) => setTimeout(r, 900));
+        setGenCode(code);
+        setPhase("success");
+        flash(`${tier.name} sent to @${recipient.username}! 🎁`, tier.c1);
+      } catch {
+        flash("Something went wrong. Try again.", "#f87171");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleRedeem = async () => {
+    if (!redCode.trim()) return;
+    setRedState("loading");
+    try {
+      await new Promise((r) => setTimeout(r, 1400));
+      // Production: query gift_cards, verify unused, credit (value - fee) to ep_balance
+      const valid = redCode.trim().toUpperCase().startsWith("GC-");
+      setRedState(valid ? "success" : "error");
+      if (valid) flash("EP Claimed! Balance updated. 🎉", "#22c55e");
+    } catch {
+      setRedState("error");
+    }
+  };
+
+  const claimInbox = (card) => {
+    const t = TIERS.find((x) => x.id === card.tier);
+    if (t)
+      flash(
+        `+${t.value - Math.round(t.value * FEE)} EP claimed (−2% fee)! 🎉`,
+        t.c1,
+      );
+    setInbox((p) =>
+      p.map((c) => (c.code === card.code ? { ...c, status: "claimed" } : c)),
+    );
+  };
+
+  const newInbox = inbox.filter((c) => c.status === "received").length;
+
+  const titleMap = {
+    send:
+      phase === "browse"
+        ? "Gift Cards"
+        : phase === "configure"
+          ? tier?.name || "Configure"
+          : phase === "confirm"
+            ? "Confirm"
+            : "Gift Sent! 🎁",
+    redeem: "Redeem Card",
+    inbox: "Gift Inbox",
+    my_cards: "My Cards",
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        background: "#050505",
+        fontFamily:
+          "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif",
+        color: "#fff",
+        overflow: "hidden",
+        ...(isSidebar
+          ? { height: "100%", borderLeft: "1px solid rgba(255,255,255,0.06)" }
+          : { position: "fixed", inset: 0, zIndex: 9500 }),
+      }}
+    >
+      <style>{CSS}</style>
+
+      {/* ── HEADER ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 11,
+          padding: "14px 16px 10px",
+          background: "rgba(5,5,5,0.96)",
+          backdropFilter: "blur(28px)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          flexShrink: 0,
+          boxShadow: "0 1px 0 rgba(255,255,255,0.03)",
+        }}
+      >
+        {phase !== "browse" && tab === "send" ? (
+          <button
+            onClick={reset}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 11,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "#707070",
+              flexShrink: 0,
+            }}
+          >
+            <ArrowLeft size={15} />
+          </button>
+        ) : (
+          <button
+            onClick={onClose}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 11,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "#707070",
+              flexShrink: 0,
+            }}
+          >
+            <X size={15} />
+          </button>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 900,
+              color: "#fff",
+              letterSpacing: "-0.4px",
+            }}
+          >
+            {titleMap[tab]}
+          </div>
+          <div style={{ fontSize: 10, color: "#2e2e2e", marginTop: 1 }}>
+            Precious gems for precious people
+          </div>
+        </div>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 11,
+            background: "rgba(56,189,248,0.1)",
+            border: "1px solid rgba(56,189,248,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Gift size={16} color="#38bdf8" />
+        </div>
       </div>
 
       {/* ── TABS ── */}
-      <div className="gc-tabs">
-        {[["buy","Buy & Send"],["redeem","Redeem"],["history","History"]].map(([k,l]) => (
-          <button key={k} className={`gc-tab${tab===k?" active":""}`} onClick={() => setTab(k)}>{l}</button>
-        ))}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          padding: "10px 16px",
+          flexShrink: 0,
+          background: "rgba(5,5,5,0.7)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+        }}
+      >
+        {[
+          { k: "send", l: "Send" },
+          { k: "redeem", l: "Redeem" },
+          {
+            k: "inbox",
+            l: newInbox > 0 ? `Inbox ${newInbox}` : "Inbox",
+            dot: newInbox > 0,
+          },
+          { k: "my_cards", l: "Cards" },
+        ].map(({ k, l, dot }) => {
+          const active = tab === k;
+          return (
+            <button
+              key={k}
+              onClick={() => {
+                setTab(k);
+                if (k !== "send") reset();
+              }}
+              style={{
+                padding: "6px 15px",
+                borderRadius: 100,
+                position: "relative",
+                border: `1px solid ${active ? "rgba(56,189,248,0.36)" : "rgba(255,255,255,0.07)"}`,
+                background: active
+                  ? "rgba(56,189,248,0.12)"
+                  : "rgba(255,255,255,0.025)",
+                color: active ? "#38bdf8" : "#484848",
+                boxShadow: active ? "0 2px 14px rgba(56,189,248,0.28)" : "none",
+                fontSize: 11,
+                fontWeight: active ? 800 : 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                transition: "all .18s",
+                fontFamily: "inherit",
+              }}
+            >
+              {l}
+              {dot && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    right: 5,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#f87171",
+                    animation: "gcPulse 1.5s ease infinite",
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="gc-body">
-
-        {/* ══ BUY ══ */}
-        {tab === "buy" && (
+      {/* ── BODY ── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px 100px" }}>
+        {/* ════════ SEND TAB ════════ */}
+        {tab === "send" && (
           <>
             {phase === "browse" && (
               <>
-                <p style={{ fontSize:12,color:"#525252",fontWeight:600,marginBottom:14,paddingLeft:4 }}>
-                  Choose a gift card — recipient gets EP instantly
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: "#383838",
+                    margin: "4px 0 14px",
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Choose a gem tier. Cards arrive as sealed gift boxes —
+                  recipient bursts them open to reveal your message.
                 </p>
-                <div className="gc-cards">
-                  {CARDS.map((c, i) => (
-                    <div key={c.id} className={`gc-card${selected===c.id?" sel":""}`}
-                      style={{ animationDelay:`${i*0.06}s`, borderColor: selected===c.id ? c.color[0]+"66" : undefined }}
-                      onClick={() => setSelected(c.id)}>
-                      <div className="gc-card-inner">
-                        <div className="gc-card-emoji-wrap"
-                          style={{ background:`linear-gradient(135deg,${c.color[0]}22,${c.color[1]}11)`, border:`1px solid ${c.color[0]}33` }}>
-                          {c.emoji}
+                {TIERS.map((t, i) => {
+                  const sel = selId === t.id;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelId(sel ? null : t.id)}
+                      style={{
+                        borderRadius: 16,
+                        marginBottom: 9,
+                        cursor: "pointer",
+                        border: `1.5px solid ${sel ? t.c1 + "55" : "rgba(255,255,255,0.06)"}`,
+                        background: sel
+                          ? `${t.c1}08`
+                          : "rgba(255,255,255,0.018)",
+                        boxShadow: sel
+                          ? `0 8px 28px ${t.glow},0 1px 0 ${t.c1}10 inset`
+                          : "0 1px 0 rgba(255,255,255,0.03) inset",
+                        transition: "all .22s",
+                        position: "relative",
+                        overflow: "hidden",
+                        animation: `gcCardIn .3s ease ${i * 0.05}s both`,
+                        transform: sel ? "translateY(-2px)" : "none",
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 1,
+                          background: `linear-gradient(90deg,transparent,${sel ? t.c1 + "40" : "rgba(255,255,255,0.04)"},transparent)`,
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 13,
+                          padding: "13px 14px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 50,
+                            height: 50,
+                            borderRadius: 15,
+                            flexShrink: 0,
+                            background: `linear-gradient(135deg,${t.c1}1e,${t.c2}0c)`,
+                            border: `1.5px solid ${t.c1}38`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: sel ? `0 0 22px ${t.glow}` : "none",
+                            transition: "box-shadow .2s",
+                          }}
+                        >
+                          <t.Icon size={23} color={t.c1} />
                         </div>
-                        <div className="gc-card-info">
-                          <p className="gc-card-name">{c.name}</p>
-                          <p className="gc-card-desc">{c.desc}</p>
-                          <div className="gc-card-price-row">
-                            <span className="gc-card-badge"
-                              style={{ background:`${c.color[0]}18`,color:c.color[0],border:`1px solid ${c.color[0]}30` }}>
-                              {c.badge}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 7,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 900,
+                                color: "#fff",
+                              }}
+                            >
+                              {t.name}
                             </span>
-                            {c.price
-                              ? <span className="gc-card-price" style={{ color:c.color[0] }}>${c.price}</span>
-                              : <span className="gc-card-price" style={{ color:c.color[0] }}>Custom</span>
-                            }
-                            {c.value && <span className="gc-card-ep">{c.value.toLocaleString()} EP</span>}
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: 6,
+                                background: `${t.c1}16`,
+                                color: t.c1,
+                                border: `1px solid ${t.c1}28`,
+                                fontSize: 9,
+                                fontWeight: 800,
+                              }}
+                            >
+                              {t.badge}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#383838",
+                              marginBottom: 6,
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {t.desc}
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 15,
+                                fontWeight: 900,
+                                color: t.c1,
+                              }}
+                            >
+                              ${t.price}
+                            </span>
+                            <span style={{ color: "#282828" }}>·</span>
+                            <Zap size={9} color="#484848" />
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "#484848",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {t.value.toLocaleString()} EP
+                            </span>
+                            <span style={{ fontSize: 9, color: "#252525" }}>
+                              · 2% fee
+                            </span>
                           </div>
                         </div>
-                        {selected === c.id && <CheckCircle size={20} color={c.color[0]} className="gc-sel-check"/>}
+                        <div
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 7,
+                            border: `1.5px solid ${sel ? t.c1 : "rgba(255,255,255,0.06)"}`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: sel ? `${t.c1}18` : "transparent",
+                            transition: "all .18s",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {sel && (
+                            <CheckCircle
+                              size={14}
+                              color={t.c1}
+                              style={{ animation: "gcPop .25s ease" }}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+                <button
+                  onClick={handleBuy}
+                  disabled={!selId}
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    marginTop: 8,
+                    borderRadius: 14,
+                    border: "none",
+                    background: selId
+                      ? `linear-gradient(135deg,${tier?.c1},${tier?.c2})`
+                      : "rgba(255,255,255,0.05)",
+                    color: selId ? "#000" : "#303030",
+                    fontSize: 14,
+                    fontWeight: 900,
+                    cursor: selId ? "pointer" : "not-allowed",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: selId ? `0 8px 26px ${tier?.glow}` : "none",
+                    transition: "all .18s",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <Send size={14} /> Continue
+                </button>
+              </>
+            )}
+
+            {phase === "configure" && tier && (
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 13,
+                    padding: "13px 14px",
+                    background: `${tier.c1}07`,
+                    border: `1px solid ${tier.c1}22`,
+                    borderRadius: 15,
+                    marginBottom: 18,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 13,
+                      background: `${tier.c1}16`,
+                      border: `1px solid ${tier.c1}28`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <tier.Icon size={21} color={tier.c1} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}
+                    >
+                      {tier.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#444" }}>
+                      {tier.value.toLocaleString()} EP · ${tier.price}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{ fontSize: 9, color: "#333", marginBottom: 2 }}
+                    >
+                      They receive
+                    </div>
+                    <div
+                      style={{ fontSize: 14, fontWeight: 900, color: tier.c1 }}
+                    >
+                      {net.toLocaleString()} EP
+                    </div>
+                    <div style={{ fontSize: 9, color: "#2a2a2a" }}>−2% fee</div>
+                  </div>
+                </div>
+
+                <UserSearch
+                  onSelect={setRecipient}
+                  selected={recipient}
+                  currentUser={currentUser}
+                />
+
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#2a2a2a",
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    marginBottom: 9,
+                  }}
+                >
+                  Occasion
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginBottom: 18,
+                  }}
+                >
+                  {OCCASIONS.map((o) => (
+                    <button
+                      key={o}
+                      onClick={() => setOccasion(occasion === o ? "" : o)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 9,
+                        background:
+                          occasion === o
+                            ? `${tier.c1}13`
+                            : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${occasion === o ? tier.c1 + "38" : "rgba(255,255,255,0.07)"}`,
+                        color: occasion === o ? tier.c1 : "#484848",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all .15s",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {o}
+                    </button>
                   ))}
                 </div>
 
-                <button className="gc-btn gc-btn-primary" onClick={handleBuy} disabled={!selected}
-                  style={{ marginTop:20 }}>
-                  <Send size={15}/> Continue to Personalise
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#2a2a2a",
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    marginBottom: 9,
+                  }}
+                >
+                  Message
+                </div>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={3}
+                  maxLength={220}
+                  placeholder="Write a message that appears when they burst the box open…"
+                  style={{
+                    width: "100%",
+                    padding: "12px 13px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 13,
+                    color: "#fff",
+                    fontSize: 13,
+                    outline: "none",
+                    resize: "none",
+                    caretColor: "#84cc16",
+                    fontFamily: "inherit",
+                    lineHeight: 1.65,
+                    marginBottom: 5,
+                  }}
+                />
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#252525",
+                    textAlign: "right",
+                    marginBottom: 18,
+                  }}
+                >
+                  {message.length}/220
+                </div>
+
+                <button
+                  onClick={handleBuy}
+                  disabled={!recipient}
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: recipient
+                      ? `linear-gradient(135deg,${tier.c1},${tier.c2})`
+                      : "rgba(255,255,255,0.05)",
+                    color: recipient ? "#000" : "#303030",
+                    fontSize: 14,
+                    fontWeight: 900,
+                    cursor: recipient ? "pointer" : "not-allowed",
+                    boxShadow: recipient ? `0 8px 26px ${tier.glow}` : "none",
+                    transition: "all .18s",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Preview Gift →
                 </button>
               </>
             )}
 
-            {phase === "configure" && card && (
+            {phase === "confirm" && tier && (
               <>
-                <p style={{ fontSize:11,color:"#525252",fontWeight:700,marginBottom:16,letterSpacing:".3px" }}>
-                  PERSONALISE YOUR GIFT CARD
-                </p>
+                <div
+                  style={{
+                    marginBottom: 16,
+                    background: `${tier.c1}05`,
+                    border: `1px solid ${tier.c1}18`,
+                    borderRadius: 18,
+                    padding: "4px 4px 12px",
+                    boxShadow: `0 8px 32px ${tier.glow}18`,
+                  }}
+                >
+                  {!burstDone ? (
+                    <>
+                      <BurstBox
+                        tier={tier}
+                        onOpened={() => setBurstDone(true)}
+                      />
+                      <p
+                        style={{
+                          textAlign: "center",
+                          fontSize: 11,
+                          color: "#383838",
+                          marginTop: 2,
+                        }}
+                      >
+                        Tap the box to preview what{" "}
+                        {recipient?.username || "they"} will see
+                      </p>
+                    </>
+                  ) : (
+                    <div style={{ padding: "6px 10px 4px" }}>
+                      <CardFace
+                        tier={tier}
+                        message={message}
+                        occasion={occasion}
+                        senderName={currentUser?.username || "You"}
+                        recipientName={recipient?.username}
+                        code="GC-PREVIEW"
+                      />
+                    </div>
+                  )}
+                </div>
 
-                {/* Custom amount */}
-                {card.value === null && (
-                  <div className="gc-config-section">
-                    <span className="gc-config-label">EP Amount</span>
-                    <input className="gc-input" type="number" placeholder="e.g. 2000 EP"
-                      value={customAmt} onChange={e => setCustomAmt(e.target.value)}/>
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.025)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    marginBottom: 14,
+                    boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset",
+                  }}
+                >
+                  {[
+                    ["To", `@${recipient?.username}`, "#888"],
+                    [
+                      "Card value",
+                      `${tier.value.toLocaleString()} EP`,
+                      tier.c1,
+                    ],
+                    ["Protocol fee", `−${fee} EP (2%)`, "#3a3a3a"],
+                  ].map(([l, v, c]) => (
+                    <div
+                      key={l}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: 12,
+                        color: "#555",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <span>{l}</span>
+                      <span style={{ color: c, fontWeight: 700 }}>{v}</span>
+                    </div>
+                  ))}
+                  <div
+                    style={{
+                      height: 1,
+                      background: "rgba(255,255,255,0.05)",
+                      margin: "5px 0 9px",
+                    }}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 13,
+                      fontWeight: 900,
+                    }}
+                  >
+                    <span style={{ color: "#777" }}>They receive</span>
+                    <span style={{ color: tier.c1 }}>
+                      {net.toLocaleString()} EP
+                    </span>
                   </div>
-                )}
-
-                <div className="gc-config-section">
-                  <span className="gc-config-label">Occasion</span>
-                  <div className="gc-occasions">
-                    {OCCASIONS.map(o => (
-                      <button key={o} className={`gc-occ${occasion===o?" sel":""}`} onClick={() => setOccasion(o)}>{o}</button>
-                    ))}
-                  </div>
                 </div>
 
-                <div className="gc-config-section">
-                  <span className="gc-config-label">Recipient Username (optional)</span>
-                  <input className="gc-input" placeholder="@username" value={recipient} onChange={e => setRecipient(e.target.value)}/>
-                </div>
-
-                <div className="gc-config-section">
-                  <span className="gc-config-label">Personal Message</span>
-                  <textarea className="gc-input" placeholder="Write a heartfelt note…"
-                    value={message} onChange={e => setMessage(e.target.value)}/>
-                </div>
-
-                <button className="gc-btn gc-btn-primary" onClick={handleBuy}>
-                  Preview Gift Card →
+                <button
+                  onClick={handleBuy}
+                  style={{
+                    width: "100%",
+                    padding: "15px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: `linear-gradient(135deg,${tier.c1},${tier.c2})`,
+                    color: "#000",
+                    fontSize: 14,
+                    fontWeight: 900,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: `0 8px 28px ${tier.glow}`,
+                    opacity: loading ? 0.7 : 1,
+                    transition: "all .18s",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {loading ? (
+                    <div
+                      style={{
+                        width: 18,
+                        height: 18,
+                        border: "2.5px solid rgba(0,0,0,0.2)",
+                        borderTopColor: "#000",
+                        borderRadius: "50%",
+                        animation: "gcSpin .7s linear infinite",
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <Gift size={15} /> Send ${tier.price} Gift Card
+                    </>
+                  )}
                 </button>
-                <button className="gc-btn gc-btn-ghost" onClick={() => setPhase("browse")}>← Back</button>
               </>
             )}
 
-            {phase === "confirm" && card && (
-              <>
-                {/* Visual preview */}
-                <div className="gc-preview"
-                  style={{ background:`linear-gradient(135deg,${card.color[0]}20,${card.color[1]}12)`,
-                    border:`1px solid ${card.color[0]}35` }}>
-                  <div className="gc-preview-shine"/>
-                  <span className="gc-preview-emoji">{card.emoji}</span>
-                  <p className="gc-preview-name">{card.name}</p>
-                  <p className="gc-preview-val">
-                    {card.value ? `${card.value.toLocaleString()} EP` : `${customAmt} EP`}
-                    {card.price ? ` · $${card.price}` : ""}
-                  </p>
-                  {occasion && <p className="gc-preview-val" style={{ fontSize:12 }}>{occasion}</p>}
-                  {message && <p className="gc-preview-msg">"{message}"</p>}
-                  <div className="gc-preview-code">Gift Code: {DEMO_CODE}</div>
+            {phase === "success" && tier && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "24px 0",
+                  animation: "gcSuccess .5s cubic-bezier(.34,1.56,.64,1)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 72,
+                    marginBottom: 16,
+                    animation: "gcFloat 2.2s ease-in-out infinite",
+                  }}
+                >
+                  🎁
                 </div>
-
-                <button className="gc-btn gc-btn-primary" onClick={handleBuy}
-                  style={{ background:`linear-gradient(135deg,${card.color[0]},${card.color[1]})` }}>
-                  <Gift size={15}/> Purchase & Send — ${card.price || "Custom"}
+                <div
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 900,
+                    color: "#fff",
+                    marginBottom: 8,
+                    letterSpacing: "-0.5px",
+                  }}
+                >
+                  Gift Sent!
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#555",
+                    marginBottom: 24,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  @{recipient?.username} has a sealed box waiting
+                  <br />
+                  in their inbox.
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <CardFace
+                    tier={tier}
+                    message={message}
+                    occasion={occasion}
+                    senderName={currentUser?.username || "You"}
+                    recipientName={recipient?.username}
+                    code={genCode}
+                  />
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    padding: "11px 14px",
+                    background: "rgba(255,255,255,0.025)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    borderRadius: 12,
+                    marginBottom: 13,
+                    boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: 11,
+                      fontFamily: "monospace",
+                      color: "#555",
+                      letterSpacing: ".5px",
+                      textAlign: "left",
+                    }}
+                  >
+                    {genCode}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(genCode).catch(() => {});
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    style={{
+                      padding: "5px 11px",
+                      borderRadius: 8,
+                      background: copied
+                        ? "rgba(34,197,94,0.1)"
+                        : "rgba(255,255,255,0.06)",
+                      border: copied
+                        ? "1px solid rgba(34,197,94,0.22)"
+                        : "1px solid rgba(255,255,255,0.09)",
+                      color: copied ? "#22c55e" : "#666",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {copied ? "Copied ✓" : <Copy size={12} />}
+                  </button>
+                </div>
+                <button
+                  onClick={reset}
+                  style={{
+                    width: "100%",
+                    padding: "13px",
+                    borderRadius: 13,
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "#707070",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <RotateCcw size={13} /> Send Another Gift
                 </button>
-                <button className="gc-btn gc-btn-ghost" onClick={() => setPhase("configure")}>← Edit</button>
-              </>
-            )}
-
-            {phase === "success" && card && (
-              <div className="gc-success">
-                <div className="gc-success-icon">{card.emoji}</div>
-                <h2 className="gc-success-title">Gift Sent! 🎉</h2>
-                <p className="gc-success-sub">
-                  Your {card.name} gift card is ready.<br/>
-                  Share the code below.
-                </p>
-                <div className="gc-code-box" onClick={copyCode}>
-                  <p className="gc-code-label">Gift Code</p>
-                  <p className="gc-code-val">{DEMO_CODE}</p>
-                  <p className="gc-copy-hint">{copied ? "✓ Copied!" : "Tap to copy"}</p>
-                </div>
-                <button className="gc-btn gc-btn-primary" onClick={reset}>Buy Another Gift Card</button>
               </div>
             )}
           </>
         )}
 
-        {/* ══ REDEEM ══ */}
+        {/* ════════ REDEEM TAB ════════ */}
         {tab === "redeem" && (
-          <div className="gc-redeem">
-            <div className="gc-redeem-hero">
-              <div className="gc-redeem-icon">🎁</div>
-              <h2 className="gc-redeem-title">Redeem a Gift Card</h2>
-              <p className="gc-redeem-sub">
-                Enter your gift code to instantly<br/>add EP to your wallet.
-              </p>
-            </div>
-            <span className="gc-config-label" style={{ display:"block",marginBottom:8 }}>Your Gift Code</span>
-            <input className="gc-input" placeholder="GC-XXXX-XXXX-GROVA"
-              value={redeemCode} onChange={e => setRedeemCode(e.target.value.toUpperCase())}
-              style={{ letterSpacing:"1.5px",fontWeight:800 }}/>
-            <button className="gc-btn gc-btn-primary" disabled={!redeemCode.trim()}
-              onClick={() => alert("Redemption coming soon! EP will be credited to your wallet.")}>
-              <Zap size={15}/> Redeem EP Now
-            </button>
-          </div>
-        )}
-
-        {/* ══ HISTORY ══ */}
-        {tab === "history" && (
-          <div style={{ padding:"32px 0",textAlign:"center" }}>
-            <div style={{ fontSize:52,marginBottom:16 }}>📜</div>
-            <p style={{ fontSize:16,fontWeight:900,color:"#fff",margin:"0 0 8px" }}>No gift card history yet</p>
-            <p style={{ fontSize:13,color:"#525252",lineHeight:1.6,marginBottom:24 }}>
-              Gift cards you buy or receive will appear here.
+          <>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#383838",
+                margin: "4px 0 16px",
+                lineHeight: 1.7,
+              }}
+            >
+              Enter a gift card code to redeem EP into your balance. 2% protocol
+              fee applied on redemption.
             </p>
-            <button className="gc-btn gc-btn-primary" onClick={() => setTab("buy")} style={{ maxWidth:200,margin:"0 auto" }}>
-              Buy Your First Gift Card
-            </button>
-          </div>
+            <div
+              style={{
+                background: "rgba(255,255,255,0.025)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: 18,
+                padding: "16px",
+                marginBottom: 14,
+                boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "#383838",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                  marginBottom: 11,
+                }}
+              >
+                Gift Code
+              </div>
+              <input
+                value={redCode}
+                onChange={(e) => {
+                  setRedCode(e.target.value.toUpperCase());
+                  setRedState("idle");
+                }}
+                placeholder="GC-XXXX-XXXX-XEEVIA"
+                style={{
+                  width: "100%",
+                  padding: "13px 14px",
+                  marginBottom: 12,
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${redState === "error" ? "rgba(248,113,113,0.4)" : redState === "success" ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.09)"}`,
+                  borderRadius: 12,
+                  color: "#fff",
+                  fontSize: 14,
+                  outline: "none",
+                  caretColor: "#38bdf8",
+                  fontFamily: "monospace",
+                  letterSpacing: ".5px",
+                  transition: "border .2s",
+                }}
+              />
+              <button
+                onClick={handleRedeem}
+                disabled={!redCode.trim() || redState === "loading"}
+                style={{
+                  width: "100%",
+                  padding: "13px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: redCode.trim()
+                    ? "linear-gradient(135deg,#38bdf8,#0284c7)"
+                    : "rgba(255,255,255,0.05)",
+                  color: redCode.trim() ? "#000" : "#383838",
+                  fontSize: 13,
+                  fontWeight: 900,
+                  cursor: redCode.trim() ? "pointer" : "not-allowed",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  fontFamily: "inherit",
+                }}
+              >
+                {redState === "loading" ? (
+                  <div
+                    style={{
+                      width: 16,
+                      height: 16,
+                      border: "2.5px solid rgba(0,0,0,0.2)",
+                      borderTopColor: "#000",
+                      borderRadius: "50%",
+                      animation: "gcSpin .7s linear infinite",
+                    }}
+                  />
+                ) : (
+                  <>
+                    <Zap size={14} /> Redeem EP
+                  </>
+                )}
+              </button>
+              {redState === "success" && (
+                <div
+                  style={{
+                    marginTop: 11,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    padding: "11px 13px",
+                    background: "rgba(34,197,94,0.06)",
+                    border: "1px solid rgba(34,197,94,0.18)",
+                    borderRadius: 11,
+                    animation: "gcReveal .4s ease",
+                  }}
+                >
+                  <CheckCircle size={15} color="#22c55e" />
+                  <span
+                    style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}
+                  >
+                    Redeemed! EP added to your balance (−2% fee).
+                  </span>
+                </div>
+              )}
+              {redState === "error" && (
+                <div
+                  style={{
+                    marginTop: 11,
+                    padding: "11px 13px",
+                    background: "rgba(248,113,113,0.05)",
+                    border: "1px solid rgba(248,113,113,0.18)",
+                    borderRadius: 11,
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 12, color: "#f87171", fontWeight: 800 }}
+                  >
+                    Invalid or already used code.
+                  </span>
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                padding: "13px 15px",
+                background: "rgba(255,255,255,0.018)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                borderRadius: 13,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "#2a2a2a",
+                  fontWeight: 700,
+                  marginBottom: 7,
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                Demo Code
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontFamily: "monospace",
+                    color: "#484848",
+                    flex: 1,
+                  }}
+                >
+                  GC-X4K2-9M7R-XEEVIA
+                </span>
+                <button
+                  onClick={() => {
+                    setRedCode("GC-X4K2-9M7R-XEEVIA");
+                    setRedState("idle");
+                  }}
+                  style={{
+                    padding: "5px 11px",
+                    borderRadius: 8,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "#555",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Use
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
+        {/* ════════ INBOX TAB ════════ */}
+        {tab === "inbox" && (
+          <>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#383838",
+                margin: "4px 0 14px",
+                lineHeight: 1.7,
+              }}
+            >
+              Tap the box to burst it open and claim your EP.
+            </p>
+            {inbox.length === 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "56px 20px",
+                  opacity: 0.4,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 56,
+                    marginBottom: 14,
+                    animation: "gcFloat 2.5s ease-in-out infinite",
+                  }}
+                >
+                  🎁
+                </div>
+                <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }}>
+                  No gifts yet.
+                  <br />
+                  Share your profile so people can send you gems.
+                </div>
+              </div>
+            )}
+            {inbox.map((card) => (
+              <InboxCard key={card.code} card={card} onClaim={claimInbox} />
+            ))}
+          </>
+        )}
+
+        {/* ════════ MY CARDS TAB ════════ */}
+        {tab === "my_cards" && (
+          <>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#383838",
+                margin: "4px 0 14px",
+                lineHeight: 1.7,
+              }}
+            >
+              Unused cards can be sent. Sent cards tracked here.
+            </p>
+            {myCards.length === 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "56px 20px",
+                  opacity: 0.4,
+                }}
+              >
+                <Package
+                  size={44}
+                  color="#2a2a2a"
+                  style={{ margin: "0 auto 14px", display: "block" }}
+                />
+                <div style={{ fontSize: 13, color: "#444" }}>
+                  No cards yet. Buy your first gem.
+                </div>
+              </div>
+            )}
+            {myCards.map((gc, i) => {
+              const t = TIERS.find((x) => x.id === gc.tier) || TIERS[0];
+              const unused = gc.status === "unused";
+              return (
+                <div
+                  key={gc.code}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 13,
+                    padding: "13px 14px",
+                    background: "rgba(255,255,255,0.025)",
+                    border: `1px solid ${unused ? t.c1 + "22" : "rgba(255,255,255,0.05)"}`,
+                    borderRadius: 15,
+                    marginBottom: 9,
+                    animation: `gcCardIn .3s ease ${i * 0.06}s both`,
+                    boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 13,
+                      flexShrink: 0,
+                      background: `${t.c1}15`,
+                      border: `1px solid ${t.c1}26`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <t.Icon size={20} color={t.c1} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: "#fff",
+                        marginBottom: 2,
+                      }}
+                    >
+                      {t.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "#2a2a2a",
+                        fontFamily: "monospace",
+                        letterSpacing: ".4px",
+                      }}
+                    >
+                      {gc.code}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      textAlign: "right",
+                      flexShrink: 0,
+                      marginRight: unused ? 8 : 0,
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 900, color: t.c1 }}>
+                      {t.value.toLocaleString()} EP
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: unused ? "#484848" : "#303030",
+                        textTransform: "uppercase",
+                        letterSpacing: ".5px",
+                        marginTop: 2,
+                      }}
+                    >
+                      {gc.status}
+                    </div>
+                  </div>
+                  {unused && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 5,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          setTab("send");
+                          setSelId(gc.tier);
+                          setPhase("configure");
+                        }}
+                        style={{
+                          padding: "5px 10px",
+                          borderRadius: 7,
+                          fontSize: 10,
+                          fontWeight: 800,
+                          background: "rgba(132,204,22,0.1)",
+                          border: "1px solid rgba(132,204,22,0.22)",
+                          color: "#84cc16",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Send
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTab("redeem");
+                          setRedCode(gc.code);
+                        }}
+                        style={{
+                          padding: "5px 10px",
+                          borderRadius: 7,
+                          fontSize: 10,
+                          fontWeight: 800,
+                          background: "rgba(56,189,248,0.1)",
+                          border: "1px solid rgba(56,189,248,0.22)",
+                          color: "#38bdf8",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Redeem
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              onClick={() => setTab("send")}
+              style={{
+                width: "100%",
+                padding: "13px",
+                marginTop: 4,
+                borderRadius: 13,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.025)",
+                color: "#707070",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 7,
+                fontFamily: "inherit",
+              }}
+            >
+              <Plus size={13} /> Buy New Gift Card
+            </button>
+          </>
+        )}
       </div>
+      {toast && <Toast msg={toast.msg} color={toast.color} />}
     </div>
   );
 };

@@ -1,12 +1,11 @@
-// src/services/auth/paywallDataService.js — v8 AUDIT-FIXED
+// src/services/auth/paywallDataService.js — v10 NGN_RATE
 // ============================================================================
-// CHANGES vs v7:
-//   [BUG-7] fetchLiveStats: removed supabase.from("waitlist_entries") query.
-//           The `waitlist_entries` table does NOT exist in the schema.
-//           Waitlist state lives in invite_codes.metadata.waitlist_entries
-//           (a JSONB array). waitlistCount is now derived by summing
-//           waitlist_entries array lengths across all active whitelist codes.
-//           This eliminates the 404 flood that fires every 5 seconds.
+// CHANGES vs v8:
+//   [BUG-8] fetchPaywallConfig: added product_id to the return object.
+//           v8 read product_id from platform_settings.value but never
+//           included it in the returned config object — so paywallConfig.product_id
+//           was always undefined, causing the edge function to receive the
+//           string fallback "xeevia-access" instead of a real UUID v4.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -25,6 +24,10 @@ const DEFAULT_CONFIG = {
   slots_claimed: 0,
   hero_message: "",
   member_count: 0,
+  product_id: null,
+  ngn_rate: 1580,
+  ngn_rate_auto_sync: false,
+  ngn_rate_fetched_at: null,
   updated_at: null,
 };
 
@@ -79,6 +82,8 @@ export async function fetchPaywallConfig() {
 
     return {
       _settings_id: data.id,
+      // [BUG-8 FIX] product_id is critical — must be passed through as-is
+      product_id: v.product_id ?? null,
       price_usd: resolvedPrice,
       product_price: resolvedPrice,
       ep_grant: resolvedEp,
@@ -88,6 +93,10 @@ export async function fetchPaywallConfig() {
       slots_claimed: Number(v.slots_claimed ?? DEFAULT_CONFIG.slots_claimed),
       hero_message: resolvedHero,
       member_count: Number(v.member_count ?? DEFAULT_CONFIG.member_count),
+      // NGN rate for Paystack conversion
+      ngn_rate: Number(v.ngn_rate ?? DEFAULT_CONFIG.ngn_rate),
+      ngn_rate_auto_sync: v.ngn_rate_auto_sync ?? false,
+      ngn_rate_fetched_at: v.ngn_rate_fetched_at ?? null,
       updated_at: data.updated_at ?? null,
       _raw: v,
     };
@@ -97,11 +106,6 @@ export async function fetchPaywallConfig() {
   }
 }
 
-/**
- * fetchLiveStats
- * [BUG-7 FIX] waitlist_entries table does NOT exist in schema.
- * waitlistCount is now derived from invite_codes.metadata JSONB arrays.
- */
 export async function fetchLiveStats() {
   try {
     const [totalProfilesRes, activatedRes, paidStatusRes, wlCodesRes] =
@@ -120,7 +124,6 @@ export async function fetchLiveStats() {
           .select("id", { count: "exact", head: true })
           .in("payment_status", ["paid", "vip", "free"])
           .is("deleted_at", null),
-        // Fetch whitelist codes WITH metadata so we can sum waitlist_entries arrays
         supabase
           .from("invite_codes")
           .select("max_uses, uses_count, metadata")
@@ -142,7 +145,6 @@ export async function fetchLiveStats() {
 
     let whitelistTotal = 0;
     let whitelistFilled = 0;
-    // [BUG-7] Sum waitlist_entries from JSONB metadata — no separate table needed
     let waitlistCount = 0;
 
     if (wlCodesRes.status === "fulfilled" && wlCodesRes.value.data) {
@@ -152,7 +154,6 @@ export async function fetchLiveStats() {
         (s, r) => s + (Number(r.uses_count) || 0),
         0,
       );
-      // Sum waitlist_entries array lengths from metadata JSONB
       waitlistCount = rows.reduce((s, r) => {
         const entries = r.metadata?.waitlist_entries;
         return s + (Array.isArray(entries) ? entries.length : 0);
@@ -171,10 +172,6 @@ export async function fetchLiveStats() {
   }
 }
 
-/**
- * updatePaywallConfig
- * Writes ALL price aliases atomically. No drift.
- */
 export async function updatePaywallConfig(patch) {
   const current = await fetchPaywallConfig();
 
@@ -197,6 +194,8 @@ export async function updatePaywallConfig(patch) {
         : current.hero_message;
 
   const merged = {
+    // Always preserve product_id — never overwrite it unless explicitly patching
+    product_id: patch.product_id ?? current.product_id ?? null,
     is_active:
       patch.is_active !== undefined ? patch.is_active : current.is_active,
     price_usd: incomingPrice,
@@ -218,6 +217,19 @@ export async function updatePaywallConfig(patch) {
       patch.member_count !== undefined
         ? Number(patch.member_count)
         : current.member_count,
+    // NGN rate — preserved unless explicitly patching
+    ngn_rate:
+      patch.ngn_rate !== undefined
+        ? Number(patch.ngn_rate)
+        : (current.ngn_rate ?? DEFAULT_CONFIG.ngn_rate),
+    ngn_rate_auto_sync:
+      patch.ngn_rate_auto_sync !== undefined
+        ? patch.ngn_rate_auto_sync
+        : (current.ngn_rate_auto_sync ?? false),
+    ngn_rate_fetched_at:
+      patch.ngn_rate_fetched_at !== undefined
+        ? patch.ngn_rate_fetched_at
+        : (current.ngn_rate_fetched_at ?? null),
   };
 
   const { error } = await supabase
@@ -335,7 +347,6 @@ export async function updateInviteCode(id, patch) {
     metadata: mergedMeta,
     updated_at: new Date().toISOString(),
   };
-
   const newPrice =
     patch.entry_price !== undefined
       ? Number(patch.entry_price)
@@ -445,7 +456,6 @@ export function isPaidProfile(profile) {
   return false;
 }
 
-// Named export for AuthContext — fetchProfile is not in authService
 export async function fetchProfile(userId) {
   if (!userId) return null;
   try {

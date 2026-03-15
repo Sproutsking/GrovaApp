@@ -149,10 +149,18 @@ class PostService {
         throw new Error("Please set a username in your profile settings.");
       }
 
-      const imageIds = Array.isArray(postData.imageIds) ? postData.imageIds : [];
-      const imageMetadata = Array.isArray(postData.imageMetadata) ? postData.imageMetadata : [];
-      const videoIds = Array.isArray(postData.videoIds) ? postData.videoIds : [];
-      const videoMetadata = Array.isArray(postData.videoMetadata) ? postData.videoMetadata : [];
+      const imageIds = Array.isArray(postData.imageIds)
+        ? postData.imageIds
+        : [];
+      const imageMetadata = Array.isArray(postData.imageMetadata)
+        ? postData.imageMetadata
+        : [];
+      const videoIds = Array.isArray(postData.videoIds)
+        ? postData.videoIds
+        : [];
+      const videoMetadata = Array.isArray(postData.videoMetadata)
+        ? postData.videoMetadata
+        : [];
 
       const newPost = {
         user_id: user.id,
@@ -220,7 +228,8 @@ class PostService {
         .single();
 
       if (fetchError) throw new Error("Post not found");
-      if (post.user_id !== user.id) throw new Error("You can only update your own posts");
+      if (post.user_id !== user.id)
+        throw new Error("You can only update your own posts");
 
       const updateData = {
         ...updates,
@@ -228,19 +237,27 @@ class PostService {
       };
 
       if (updates.imageIds !== undefined) {
-        updateData.image_ids = Array.isArray(updates.imageIds) ? updates.imageIds : [];
+        updateData.image_ids = Array.isArray(updates.imageIds)
+          ? updates.imageIds
+          : [];
         delete updateData.imageIds;
       }
       if (updates.imageMetadata !== undefined) {
-        updateData.image_metadata = Array.isArray(updates.imageMetadata) ? updates.imageMetadata : [];
+        updateData.image_metadata = Array.isArray(updates.imageMetadata)
+          ? updates.imageMetadata
+          : [];
         delete updateData.imageMetadata;
       }
       if (updates.videoIds !== undefined) {
-        updateData.video_ids = Array.isArray(updates.videoIds) ? updates.videoIds : [];
+        updateData.video_ids = Array.isArray(updates.videoIds)
+          ? updates.videoIds
+          : [];
         delete updateData.videoIds;
       }
       if (updates.videoMetadata !== undefined) {
-        updateData.video_metadata = Array.isArray(updates.videoMetadata) ? updates.videoMetadata : [];
+        updateData.video_metadata = Array.isArray(updates.videoMetadata)
+          ? updates.videoMetadata
+          : [];
         delete updateData.videoMetadata;
       }
 
@@ -302,7 +319,10 @@ class PostService {
       }
 
       if (post.user_id !== user.id) {
-        console.error("❌ Ownership mismatch:", { post_owner: post.user_id, current_user: user.id });
+        console.error("❌ Ownership mismatch:", {
+          post_owner: post.user_id,
+          current_user: user.id,
+        });
         throw new Error("You can only delete your own posts");
       }
 
@@ -337,15 +357,19 @@ class PostService {
 
   async sharePost(postId, shareType = "external") {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
-      await supabase.from("shares").insert([{
-        content_type: "post",
-        content_id: postId,
-        user_id: user.id,
-        share_type: shareType,
-      }]);
+      await supabase.from("shares").insert([
+        {
+          content_type: "post",
+          content_id: postId,
+          user_id: user.id,
+          share_type: shareType,
+        },
+      ]);
 
       const { data: post } = await supabase
         .from("posts")
@@ -372,12 +396,14 @@ class PostService {
       // via conversations (DMs)
       const { data: conversations } = await supabase
         .from("conversations")
-        .select(`
+        .select(
+          `
           id,
           user1_id,
           user2_id,
           last_message_at
-        `)
+        `,
+        )
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .order("last_message_at", { ascending: false })
         .limit(limit);
@@ -386,7 +412,8 @@ class PostService {
         // Fallback: get most recent followers
         const { data: follows } = await supabase
           .from("follows")
-          .select(`
+          .select(
+            `
             following_id,
             profiles!follows_following_id_fkey(
               id,
@@ -395,17 +422,18 @@ class PostService {
               avatar_id,
               verified
             )
-          `)
+          `,
+          )
           .eq("follower_id", userId)
           .order("created_at", { ascending: false })
           .limit(limit);
 
-        return (follows || []).map(f => f.profiles).filter(Boolean);
+        return (follows || []).map((f) => f.profiles).filter(Boolean);
       }
 
       // Extract the OTHER user from each conversation
-      const otherUserIds = conversations.map(c =>
-        c.user1_id === userId ? c.user2_id : c.user1_id
+      const otherUserIds = conversations.map((c) =>
+        c.user1_id === userId ? c.user2_id : c.user1_id,
       );
 
       const { data: profiles } = await supabase
@@ -416,7 +444,7 @@ class PostService {
 
       // Keep conversation order
       return otherUserIds
-        .map(id => (profiles || []).find(p => p.id === id))
+        .map((id) => (profiles || []).find((p) => p.id === id))
         .filter(Boolean);
     } catch (error) {
       console.error("Failed to get top interactions:", error);
@@ -428,7 +456,9 @@ class PostService {
 
   async toggleLike(postId) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("You must be logged in");
 
       const { data: existingLike } = await supabase
@@ -440,13 +470,31 @@ class PostService {
 
       if (existingLike) {
         await supabase.from("post_likes").delete().eq("id", existingLike.id);
-        const { data: post } = await supabase.from("posts").select("likes").eq("id", postId).single();
-        if (post) await supabase.from("posts").update({ likes: Math.max(0, (post.likes || 1) - 1) }).eq("id", postId);
+        const { data: post } = await supabase
+          .from("posts")
+          .select("likes")
+          .eq("id", postId)
+          .single();
+        if (post)
+          await supabase
+            .from("posts")
+            .update({ likes: Math.max(0, (post.likes || 1) - 1) })
+            .eq("id", postId);
         return { liked: false };
       } else {
-        await supabase.from("post_likes").insert([{ post_id: postId, user_id: user.id }]);
-        const { data: post } = await supabase.from("posts").select("likes").eq("id", postId).single();
-        if (post) await supabase.from("posts").update({ likes: (post.likes || 0) + 1 }).eq("id", postId);
+        await supabase
+          .from("post_likes")
+          .insert([{ post_id: postId, user_id: user.id }]);
+        const { data: post } = await supabase
+          .from("posts")
+          .select("likes")
+          .eq("id", postId)
+          .single();
+        if (post)
+          await supabase
+            .from("posts")
+            .update({ likes: (post.likes || 0) + 1 })
+            .eq("id", postId);
         return { liked: true };
       }
     } catch (error) {
@@ -458,8 +506,16 @@ class PostService {
 
   async incrementViews(postId) {
     try {
-      const { data: post } = await supabase.from("posts").select("views").eq("id", postId).single();
-      if (post) await supabase.from("posts").update({ views: (post.views || 0) + 1 }).eq("id", postId);
+      const { data: post } = await supabase
+        .from("posts")
+        .select("views")
+        .eq("id", postId)
+        .single();
+      if (post)
+        await supabase
+          .from("posts")
+          .update({ views: (post.views || 0) + 1 })
+          .eq("id", postId);
     } catch (error) {
       console.error("Failed to increment views:", error);
     }

@@ -1,16 +1,14 @@
-// src/components/Admin/sections/InviteSection.jsx — v14
+// src/components/Admin/sections/InviteSection.jsx — v15 NGN RATE CONTROL
 // ─────────────────────────────────────────────────────────────────────────────
-// BASE: v13 (TYPE-SLIDES + DATA-SYNC) — preserved exactly.
-// SURGICAL ADDITIONS:
-//  [A] APP_URL — reads REACT_APP_APP_URL env, falls back to window.location.origin
-//  [B] Copy Code button — copies raw invite code string (e.g. "SDTW5HV2")
-//  [C] Share sheet — ↗ Share opens native share on mobile / dropdown on desktop
-//      Channels: WhatsApp, Twitter/X, Telegram, Copy Link, Copy Code
-//  [D] Waitlist manager modal — clicking "⏳ N waiting" badge opens modal with
-//      per-user Approve/Deny + bulk Approve All / Approve N.
-//      Approve: moves user_id → whitelisted_user_ids (PaywallGate v39 fix [5] picks it up)
-//  [E] Public entry link card — live APP_URL as copyable+shareable link row
-//      + optional "Override app URL" field that saves to paywall_config.app_url
+// CHANGES vs v14:
+//  [NGN] PublicEntryCard now has a full USD→NGN rate control:
+//        - Manual rate input (₦ per $1)
+//        - "Fetch Live Rate" button — calls exchangerate-api.com
+//        - "Auto-sync" toggle — polls live rate every 6 hours
+//        - Charge preview shows exact ₦ amount for any USD price
+//        - Rate saved to platform_settings.paywall_config.ngn_rate
+//        - Edge function reads this rate and converts all USD prices to NGN kobo
+//  All other features (v14) unchanged.
 // ─────────────────────────────────────────────────────────────────────────────
 /* eslint-disable no-unused-vars */
 import React, {
@@ -26,7 +24,7 @@ import {
   updatePaywallConfig,
 } from "../../../services/auth/paywallDataService";
 
-// ── [A] APP URL ───────────────────────────────────────────────────────────────
+// ── APP URL ───────────────────────────────────────────────────────────────────
 const APP_URL =
   process.env.REACT_APP_APP_URL ||
   (typeof window !== "undefined" ? window.location.origin : "");
@@ -90,7 +88,6 @@ function enrichInvite(row) {
   };
 }
 
-// ── [C] Share helpers ─────────────────────────────────────────────────────────
 function buildShareItems(link, code) {
   const enc = encodeURIComponent(link);
   const txt = encodeURIComponent("Join me on Xeevia 🌿");
@@ -334,7 +331,6 @@ function Btn({
   );
 }
 
-// ── [B] Copy buttons ──────────────────────────────────────────────────────────
 function CopyLinkButton({ code, label = "Copy invite link" }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -465,7 +461,6 @@ function LinkRow({ code, label }) {
   );
 }
 
-// [E] Plain link row (for APP_URL — no ?ref=)
 function PlainLinkRow({ url, label }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -531,7 +526,6 @@ function PlainLinkRow({ url, label }) {
   );
 }
 
-// ── [C] ShareSheet ────────────────────────────────────────────────────────────
 function ShareSheet({ link, code, onClose }) {
   const ref = useRef(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -640,7 +634,6 @@ function ShareSheet({ link, code, onClose }) {
 
 function ShareButton({ link, code, small }) {
   const [open, setOpen] = useState(false);
-
   const handleClick = async () => {
     if (navigator.share) {
       try {
@@ -656,7 +649,6 @@ function ShareButton({ link, code, small }) {
     }
     setOpen((p) => !p);
   };
-
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
       <button
@@ -694,7 +686,7 @@ function ShareButton({ link, code, small }) {
   );
 }
 
-// ── [D] WaitlistManagerModal ──────────────────────────────────────────────────
+// ── WaitlistManagerModal ──────────────────────────────────────────────────────
 function WaitlistManagerModal({ invite, onClose, onUpdate }) {
   const meta = invite?.metadata ?? {};
   const entries = meta.waitlist_entries ?? [];
@@ -816,12 +808,7 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
       }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <style>{`
-        @keyframes wlIn  { from{opacity:0;transform:translateY(14px) scale(.97)} to{opacity:1;transform:none} }
-        @keyframes wlSp  { to{transform:rotate(360deg)} }
-        .wl-spin { display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid rgba(163,230,53,.15);border-top-color:#a3e635;animation:wlSp .55s linear infinite; }
-        .wl-row:hover { background:rgba(255,255,255,.025)!important; }
-      `}</style>
+      <style>{`@keyframes wlIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}} @keyframes wlSp{to{transform:rotate(360deg)}} .wl-spin{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid rgba(163,230,53,.15);border-top-color:#a3e635;animation:wlSp .55s linear infinite} .wl-row:hover{background:rgba(255,255,255,.025)!important}`}</style>
       <div
         style={{
           background: "#0c0c0c",
@@ -836,7 +823,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
           animation: "wlIn .28s cubic-bezier(.23,1,.32,1)",
         }}
       >
-        {/* Header */}
         <div
           style={{
             padding: "20px 24px 16px",
@@ -889,7 +875,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                 padding: "3px 9px",
                 fontFamily: "inherit",
                 lineHeight: 1,
-                transition: "all .15s",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "#f87171";
@@ -922,8 +907,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
             </div>
           )}
         </div>
-
-        {/* Body */}
         <div style={{ overflowY: "auto", flex: 1, padding: "12px 24px" }}>
           {pending.length === 0 ? (
             <div
@@ -1033,7 +1016,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                         display: "flex",
                         alignItems: "center",
                         gap: 5,
-                        transition: "all .15s",
                       }}
                     >
                       {busy === "approving" ? (
@@ -1058,7 +1040,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                         display: "flex",
                         alignItems: "center",
                         gap: 5,
-                        transition: "all .15s",
                       }}
                     >
                       {busy === "denying" ? (
@@ -1073,8 +1054,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
             })
           )}
         </div>
-
-        {/* Bulk footer */}
         {pending.length > 0 && (
           <div
             style={{
@@ -1135,7 +1114,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   fontSize: 12,
                   outline: "none",
                   fontFamily: "inherit",
-                  transition: "border-color .15s",
                 }}
                 onFocus={(e) =>
                   (e.target.style.borderColor = "rgba(163,230,53,.35)")
@@ -1157,7 +1135,6 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
                   cursor: bulkBusy || !bulkN ? "not-allowed" : "pointer",
                   opacity: !bulkN || Number(bulkN) < 1 ? 0.35 : 1,
                   fontFamily: "inherit",
-                  transition: "all .15s",
                 }}
               >
                 Approve N
@@ -1170,7 +1147,1704 @@ function WaitlistManagerModal({ invite, onClose, onUpdate }) {
   );
 }
 
-// ── PaywallHeroPreview (v13 — unchanged) ──────────────────────────────────────
+// ── PublicEntryCard ──────────────────────────────────────────────────────────
+// [NGN] Full USD→NGN rate control with live fetch + auto-sync
+function PublicEntryCard({ config, onConfigUpdate }) {
+  const [expanded, setExpanded] = useState(true);
+  const [saveState, setSaveState] = useState("idle");
+  const [price, setPrice] = useState(String(config?.price_usd ?? 4));
+  const [ep, setEp] = useState(String(config?.ep_grant ?? 300));
+  const [slots, setSlots] = useState(String(config?.slots_total ?? 0));
+  const [claimed, setClaimed] = useState(String(config?.slots_claimed ?? 0));
+  const [heroMsg, setHeroMsg] = useState(config?.hero_message ?? "");
+  const [isActive, setIsActive] = useState(config?.is_active ?? true);
+  const [appUrl, setAppUrl] = useState(config?.app_url || APP_URL);
+  const [editingAppUrl, setEditingAppUrl] = useState(false);
+
+  // ── NGN Rate state ────────────────────────────────────────────────────────
+  const [ngnRate, setNgnRate] = useState(String(config?.ngn_rate ?? 1580));
+  const [rateFetching, setRateFetching] = useState(false);
+  const [rateFetchError, setRateFetchError] = useState("");
+  const [rateFetchedAt, setRateFetchedAt] = useState(
+    config?.ngn_rate_fetched_at ?? null,
+  );
+  const [autoSync, setAutoSync] = useState(config?.ngn_rate_auto_sync ?? false);
+  const autoSyncRef = useRef(null);
+
+  useEffect(() => {
+    if (!config) return;
+    setPrice(String(config.price_usd ?? 4));
+    setEp(String(config.ep_grant ?? 300));
+    setSlots(String(config.slots_total ?? 0));
+    setClaimed(String(config.slots_claimed ?? 0));
+    setHeroMsg(config.hero_message ?? "");
+    setIsActive(config.is_active ?? true);
+    setAppUrl(config.app_url || APP_URL);
+    setNgnRate(String(config.ngn_rate ?? 1580));
+    setRateFetchedAt(config.ngn_rate_fetched_at ?? null);
+    setAutoSync(config.ngn_rate_auto_sync ?? false);
+  }, [
+    config?.price_usd,
+    config?.ep_grant,
+    config?.slots_total,
+    config?.slots_claimed,
+    config?.hero_message,
+    config?.is_active,
+    config?.app_url,
+    config?.ngn_rate,
+    config?.ngn_rate_fetched_at,
+    config?.ngn_rate_auto_sync,
+  ]); // eslint-disable-line
+
+  // ── Auto-sync polling (every 6 hours) ────────────────────────────────────
+  useEffect(() => {
+    if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+    if (autoSync) {
+      // Fetch immediately when enabled
+      fetchLiveRate(true);
+      // Then every 6 hours
+      autoSyncRef.current = setInterval(
+        () => fetchLiveRate(true),
+        6 * 60 * 60 * 1000,
+      );
+    }
+    return () => {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+    };
+  }, [autoSync]); // eslint-disable-line
+
+  // ── Fetch live USD/NGN rate ───────────────────────────────────────────────
+  const fetchLiveRate = async (silent = false) => {
+    if (!silent) setRateFetching(true);
+    setRateFetchError("");
+    try {
+      // Use exchangerate-api (free, no key needed for basic endpoint)
+      const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+      if (!res.ok) throw new Error(`Rate API returned ${res.status}`);
+      const data = await res.json();
+      const rate = data?.rates?.NGN;
+      if (!rate || typeof rate !== "number" || rate < 100) {
+        throw new Error("Invalid rate received from API");
+      }
+      const rounded = Math.round(rate);
+      const nowISO = new Date().toISOString();
+      setNgnRate(String(rounded));
+      setRateFetchedAt(nowISO);
+      // Auto-save the fetched rate
+      await save({ ngnRate: String(rounded), ngnRateFetchedAt: nowISO });
+    } catch (e) {
+      const msg = e?.message ?? "Could not fetch live rate";
+      if (!silent) setRateFetchError(msg);
+      else console.warn("[PublicEntryCard] Auto-sync rate fetch failed:", msg);
+    } finally {
+      if (!silent) setRateFetching(false);
+    }
+  };
+
+  const save = async (patch = {}) => {
+    setSaveState("saving");
+    try {
+      const rate = parseInt(patch.ngnRate ?? ngnRate, 10) || 1580;
+      const updatePayload = {
+        price_usd: parseFloat(patch.price ?? price) || 4,
+        ep_grant: parseInt(patch.ep ?? ep, 10) || 300,
+        slots_total: parseInt(patch.slots ?? slots, 10) || 0,
+        slots_claimed: parseInt(patch.claimed ?? claimed, 10) || 0,
+        hero_message: patch.heroMsg !== undefined ? patch.heroMsg : heroMsg,
+        is_active: patch.is_active !== undefined ? patch.is_active : isActive,
+        app_url:
+          patch.app_url !== undefined
+            ? patch.app_url
+            : config?.app_url || APP_URL,
+        // NGN rate fields
+        ngn_rate: rate,
+        ngn_rate_auto_sync:
+          patch.autoSync !== undefined ? patch.autoSync : autoSync,
+        ngn_rate_fetched_at: patch.ngnRateFetchedAt ?? rateFetchedAt ?? null,
+      };
+      await updatePaywallConfig(updatePayload);
+      onConfigUpdate?.(updatePayload);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch (e) {
+      console.error("[PublicEntryCard] save error:", e?.message);
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  const toggleActive = async () => {
+    const next = !isActive;
+    setIsActive(next);
+    await save({ is_active: next });
+  };
+
+  const toggleAutoSync = async () => {
+    const next = !autoSync;
+    setAutoSync(next);
+    await save({ autoSync: next });
+  };
+
+  const saveAppUrl = async () => {
+    await save({ app_url: appUrl.trim() });
+    setEditingAppUrl(false);
+  };
+
+  const effectiveUrl = config?.app_url || APP_URL;
+  const currentRate = parseInt(ngnRate, 10) || 1580;
+  const currentPrice = parseFloat(price) || 4;
+  const ngnEquivalent = Math.round(currentPrice * currentRate);
+
+  const formatFetchedAt = (iso) => {
+    if (!iso) return null;
+    try {
+      const d = new Date(iso);
+      const now = new Date();
+      const diffMs = now - d;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      if (diffMins < 1) return "just now";
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return `${diffDays}d ago`;
+    } catch {
+      return null;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: "#0c0c0c",
+        border: "1.5px solid #1e1e1e",
+        borderRadius: 16,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "14px 16px",
+          cursor: "pointer",
+          userSelect: "none",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "rgba(163,230,53,.1)",
+            border: "1px solid rgba(163,230,53,.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            flexShrink: 0,
+          }}
+        >
+          🌐
+        </div>
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>
+              PUBLIC ENTRY
+            </span>
+            <Pill label="paywall_config" color="#a3e635" />
+            <Pill label="Non-deletable" color="#444" />
+            {!isActive && <Pill label="CLOSED" color="#f87171" />}
+          </div>
+          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+            Controls paywall hero ·{" "}
+            <span style={{ color: "#a3e635", ...mono }}>
+              ${fmt(currentPrice)}
+            </span>{" "}
+            ={" "}
+            <span style={{ color: "#f59e0b", ...mono }}>
+              ₦{ngnEquivalent.toLocaleString()}
+            </span>{" "}
+            at{" "}
+            <span style={{ color: "#94a3b8", ...mono }}>
+              ₦{currentRate.toLocaleString()}/$
+            </span>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Toggle checked={isActive} onChange={toggleActive} />
+          <SaveIndicator state={saveState} />
+          <span style={{ color: "#555", fontSize: 16 }}>
+            {expanded ? "▲" : "▼"}
+          </span>
+        </div>
+      </div>
+
+      {expanded && (
+        <div
+          style={{
+            padding: "0 16px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            borderTop: "1px solid #141414",
+          }}
+        >
+          <div style={{ paddingTop: 14 }}>
+            <div
+              style={{
+                background: "rgba(163,230,53,.03)",
+                border: "1px solid rgba(163,230,53,.08)",
+                borderRadius: 10,
+                padding: 12,
+                fontSize: 11,
+                color: "#4a6a30",
+                lineHeight: 1.7,
+              }}
+            >
+              <strong style={{ color: "#6a9a40" }}>
+                ↑ platform_settings.paywall_config
+              </strong>{" "}
+              — single source of truth. Changes sync instantly to PaywallGate.
+            </div>
+          </div>
+
+          {/* Price + EP + Slots */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr 1fr",
+              gap: 10,
+            }}
+          >
+            <div>
+              <FieldLabel>Public Price (USD)</FieldLabel>
+              <Input
+                value={price}
+                onChange={setPrice}
+                onBlur={() => save({ price })}
+                prefix="$"
+                placeholder="4.00"
+              />
+            </div>
+            <div>
+              <FieldLabel>EP Grant</FieldLabel>
+              <Input
+                value={ep}
+                onChange={setEp}
+                onBlur={() => save({ ep })}
+                placeholder="300"
+              />
+            </div>
+            <div>
+              <FieldLabel>Total Slots</FieldLabel>
+              <Input
+                value={slots}
+                onChange={setSlots}
+                onBlur={() => save({ slots })}
+                placeholder="0 = unlimited"
+              />
+            </div>
+            <div>
+              <FieldLabel>Claimed</FieldLabel>
+              <Input
+                value={claimed}
+                onChange={setClaimed}
+                onBlur={() => save({ claimed })}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* ── NGN Rate Control ─────────────────────────────────────────── */}
+          <div
+            style={{
+              background: "#0a0f0a",
+              border: "1.5px solid rgba(163,230,53,.15)",
+              borderRadius: 14,
+              padding: "14px 16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+                flexWrap: "wrap",
+                gap: 8,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#a3e635",
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  💱 USD → NGN Conversion Rate
+                </div>
+                <div style={{ fontSize: 10, color: "#4a6a30", marginTop: 2 }}>
+                  Used to convert your USD prices to Naira for Paystack charges
+                </div>
+              </div>
+              {/* Auto-sync toggle */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: "#0d140d",
+                  border: "1px solid rgba(163,230,53,.12)",
+                  borderRadius: 10,
+                  padding: "7px 12px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 800,
+                      color: autoSync ? "#a3e635" : "#555",
+                      letterSpacing: "1px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Auto-sync
+                  </div>
+                  <div style={{ fontSize: 8, color: "#3a5a3a", marginTop: 1 }}>
+                    Updates every 6h
+                  </div>
+                </div>
+                <Toggle checked={autoSync} onChange={toggleAutoSync} />
+              </div>
+            </div>
+
+            {/* Rate input row */}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-end",
+                marginBottom: 10,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <FieldLabel>Rate (₦ per $1)</FieldLabel>
+                <div style={{ position: "relative" }}>
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#f59e0b",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    ₦
+                  </span>
+                  <input
+                    type="number"
+                    value={ngnRate}
+                    onChange={(e) => setNgnRate(e.target.value)}
+                    onBlur={() => save({ ngnRate })}
+                    placeholder="1580"
+                    min="100"
+                    max="99999"
+                    style={{
+                      width: "100%",
+                      background: "#0e0e0e",
+                      border: "1.5px solid #222",
+                      borderRadius: 10,
+                      padding: "10px 12px 10px 30px",
+                      color: "#f0f0f0",
+                      fontSize: 13,
+                      outline: "none",
+                      fontFamily: "inherit",
+                      transition: "border-color .15s",
+                    }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor = "rgba(245,158,11,.4)")
+                    }
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "#222";
+                      save({ ngnRate: e.target.value });
+                    }}
+                  />
+                </div>
+              </div>
+              {/* Fetch live rate button */}
+              <button
+                onClick={() => fetchLiveRate(false)}
+                disabled={rateFetching}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1.5px solid rgba(163,230,53,.3)",
+                  background: rateFetching ? "#111" : "rgba(163,230,53,.06)",
+                  color: rateFetching ? "#444" : "#a3e635",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: rateFetching ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  whiteSpace: "nowrap",
+                  transition: "all .15s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  if (!rateFetching) {
+                    e.currentTarget.style.background = "rgba(163,230,53,.14)";
+                    e.currentTarget.style.borderColor = "rgba(163,230,53,.5)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!rateFetching) {
+                    e.currentTarget.style.background = "rgba(163,230,53,.06)";
+                    e.currentTarget.style.borderColor = "rgba(163,230,53,.3)";
+                  }
+                }}
+              >
+                {rateFetching ? (
+                  <>
+                    <div
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        border: "2px solid rgba(163,230,53,.15)",
+                        borderTopColor: "#a3e635",
+                        animation: "xvSpin .6s linear infinite",
+                      }}
+                    />{" "}
+                    Fetching…
+                  </>
+                ) : (
+                  <>🔄 Fetch Live Rate</>
+                )}
+              </button>
+            </div>
+
+            {/* Rate error */}
+            {rateFetchError && (
+              <div
+                style={{
+                  padding: "7px 10px",
+                  background: "rgba(239,68,68,.06)",
+                  border: "1px solid rgba(239,68,68,.2)",
+                  borderRadius: 8,
+                  fontSize: 10,
+                  color: "#f87171",
+                  marginBottom: 8,
+                }}
+              >
+                ⚠ {rateFetchError}
+              </div>
+            )}
+
+            {/* Live calculation preview */}
+            <div
+              style={{
+                background: "#080808",
+                border: "1px solid #1a1a1a",
+                borderRadius: 10,
+                padding: "10px 12px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  color: "#444",
+                  letterSpacing: "1.5px",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                }}
+              >
+                Charge Preview
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 8,
+                }}
+              >
+                {[
+                  { usd: currentPrice, label: "Public price" },
+                  { usd: currentPrice / 2, label: "50% discount" },
+                  { usd: 1, label: "$1 promo" },
+                ].map(({ usd, label }) => (
+                  <div
+                    key={label}
+                    style={{
+                      background: "#0c0c0c",
+                      border: "1px solid #1e1e1e",
+                      borderRadius: 8,
+                      padding: "8px 10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: "#555",
+                        marginBottom: 4,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 900,
+                        color: "#a3e635",
+                        letterSpacing: "-0.5px",
+                      }}
+                    >
+                      ₦{Math.round(usd * currentRate).toLocaleString()}
+                    </div>
+                    <div
+                      style={{ fontSize: 8, color: "#3a3a3a", marginTop: 2 }}
+                    >
+                      ${usd.toFixed(2)} USD
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {rateFetchedAt && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 9,
+                    color: "#2a4a2a",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <span style={{ color: "#3a7a3a" }}>✓ Live rate</span>· fetched{" "}
+                  {formatFetchedAt(rateFetchedAt)}
+                  {autoSync && (
+                    <span style={{ color: "#2a5a2a", marginLeft: 4 }}>
+                      · auto-sync ON
+                    </span>
+                  )}
+                </div>
+              )}
+              {!rateFetchedAt && (
+                <div style={{ marginTop: 8, fontSize: 9, color: "#3a3a3a" }}>
+                  Manual rate · click "Fetch Live Rate" to sync with market
+                </div>
+              )}
+            </div>
+          </div>
+          {/* ── End NGN Rate Control ─────────────────────────────────────── */}
+
+          <div>
+            <FieldLabel>Hero Message (shown under price)</FieldLabel>
+            <Textarea
+              value={heroMsg}
+              onChange={setHeroMsg}
+              onBlur={() => save({ heroMsg })}
+              placeholder="Optional tagline shown below the price…"
+              rows={2}
+            />
+          </div>
+
+          {/* Public entry link */}
+          <div>
+            <FieldLabel>Public Join Link</FieldLabel>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                alignItems: "stretch",
+                marginBottom: 8,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <PlainLinkRow url={effectiveUrl} label="🌐 Link" />
+              </div>
+              <ShareButton link={effectiveUrl} code={null} />
+            </div>
+            {editingAppUrl ? (
+              <div>
+                <FieldLabel>Override app domain</FieldLabel>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      value={appUrl}
+                      onChange={setAppUrl}
+                      placeholder="https://yourdomain.com"
+                    />
+                  </div>
+                  <Btn accent small onClick={saveAppUrl}>
+                    Save
+                  </Btn>
+                  <Btn
+                    small
+                    onClick={() => {
+                      setEditingAppUrl(false);
+                      setAppUrl(effectiveUrl);
+                    }}
+                  >
+                    Cancel
+                  </Btn>
+                </div>
+                <div style={{ fontSize: 9, color: "#444", marginTop: 5 }}>
+                  Saves to paywall_config.app_url · syncs to PaywallGate
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingAppUrl(true)}
+                style={{
+                  background: "transparent",
+                  border: "1px dashed #252525",
+                  borderRadius: 8,
+                  color: "#444",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: "5px 12px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  transition: "all .15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#3a3a3a";
+                  e.currentTarget.style.color = "#888";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#252525";
+                  e.currentTarget.style.color = "#444";
+                }}
+              >
+                ✏️ Override app URL
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── InviteCard ─────────────────────────────────────────────────────────────────
+function InviteCard({ invite, ngnRate = 1580, onOptimisticUpdate, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
+  const [deleting, setDeleting] = useState(false);
+  const [showWaitlistMgr, setShowWaitlistMgr] = useState(false);
+
+  const meta = invite?.metadata ?? {};
+  const category = meta.invite_category ?? invite.type ?? "standard";
+  const accent = ACC_COLORS[category] ?? "#94a3b8";
+  const currentPrice = resolveInvitePrice(invite);
+  const isWhitelist = category === "whitelist" || meta.has_whitelist_access;
+  const hasWaitlist = (meta.waitlist_slots ?? 0) > 0;
+  const hasVip = (meta.vip_slots ?? 0) > 0;
+  const waitlistCount =
+    meta.waitlist_count ?? meta.waitlist_entries?.length ?? 0;
+  const inviteLink = buildInviteLink(invite.code);
+
+  const [name, setName] = useState(meta.invite_name ?? "");
+  const [price, setPrice] = useState(String(currentPrice));
+  const [wlPrice, setWlPrice] = useState(
+    String(
+      meta.whitelist_price_cents != null
+        ? meta.whitelist_price_cents / 100
+        : currentPrice,
+    ),
+  );
+  const [maxUses, setMaxUses] = useState(String(invite.max_uses ?? ""));
+  const [waitlistSlots, setWaitlistSlots] = useState(
+    String(meta.waitlist_slots ?? ""),
+  );
+  const [vipSlots, setVipSlots] = useState(String(meta.vip_slots ?? ""));
+  const [epGrant, setEpGrant] = useState(String(meta.ep_grant ?? 500));
+  const [expiresAt, setExpiresAt] = useState(
+    invite.expires_at ? invite.expires_at.slice(0, 10) : "",
+  );
+
+  useEffect(() => {
+    const m = invite?.metadata ?? {};
+    setName(m.invite_name ?? "");
+    setPrice(String(resolveInvitePrice(invite)));
+    setWlPrice(
+      String(
+        m.whitelist_price_cents != null
+          ? m.whitelist_price_cents / 100
+          : resolveInvitePrice(invite),
+      ),
+    );
+    setMaxUses(String(invite.max_uses ?? ""));
+    setWaitlistSlots(String(m.waitlist_slots ?? ""));
+    setVipSlots(String(m.vip_slots ?? ""));
+    setEpGrant(String(m.ep_grant ?? 500));
+    setExpiresAt(invite.expires_at ? invite.expires_at.slice(0, 10) : "");
+  }, [invite?.id]); // eslint-disable-line
+
+  const save = async (patch = {}) => {
+    setSaveState("saving");
+    try {
+      const newPrice = parseFloat(patch.price ?? price);
+      const newWlPrice = parseFloat(patch.wlPrice ?? wlPrice);
+      const newMaxUses = parseInt(patch.maxUses ?? maxUses, 10) || null;
+      const newEp = parseInt(patch.epGrant ?? epGrant, 10) || 500;
+      const newWlSlots =
+        parseInt(patch.waitlistSlots ?? waitlistSlots, 10) || 0;
+      const newVipSlots = parseInt(patch.vipSlots ?? vipSlots, 10) || 0;
+      const newName = patch.name !== undefined ? patch.name : name;
+      const newMeta = {
+        ...meta,
+        invite_name: newName,
+        invite_category: category,
+        entry_price_cents: Math.round(newPrice * 100),
+        whitelist_price_cents: Math.round(newWlPrice * 100),
+        waitlist_slots: newWlSlots,
+        vip_slots: newVipSlots,
+        ep_grant: newEp,
+        has_whitelist_access: isWhitelist,
+        enable_waitlist: newWlSlots > 0,
+      };
+      const payload = {
+        metadata: newMeta,
+        price_override: newPrice,
+        entry_price: newPrice,
+        max_uses: newMaxUses,
+        expires_at:
+          (patch.expiresAt !== undefined ? patch.expiresAt : expiresAt) || null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from("invite_codes")
+        .update(payload)
+        .eq("id", invite.id);
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, ...payload, metadata: newMeta });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch (e) {
+      console.error("[InviteCard] save error:", e?.message);
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  const toggleStatus = async () => {
+    const newStatus = invite.status === "active" ? "inactive" : "active";
+    setSaveState("saving");
+    try {
+      const { error } = await supabase
+        .from("invite_codes")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", invite.id);
+      if (error) throw error;
+      onOptimisticUpdate?.({ ...invite, status: newStatus });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1500);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        `Delete invite "${meta.invite_name || invite.code}"? This cannot be undone.`,
+      )
+    )
+      return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("invite_codes")
+        .delete()
+        .eq("id", invite.id);
+      if (error) throw error;
+      onDelete?.(invite.id);
+    } catch {
+      setDeleting(false);
+    }
+  };
+
+  const usedPct =
+    invite.max_uses > 0
+      ? Math.min(
+          100,
+          Math.round(((invite.uses_count ?? 0) / invite.max_uses) * 100),
+        )
+      : 0;
+  const wlSlotsUsed = invite.uses_count ?? 0;
+  const wlSlotsTotal = invite.max_uses ?? 0;
+
+  return (
+    <>
+      {showWaitlistMgr && (
+        <WaitlistManagerModal
+          invite={invite}
+          onClose={() => setShowWaitlistMgr(false)}
+          onUpdate={(updated) => onOptimisticUpdate?.(updated)}
+        />
+      )}
+      <div
+        style={{
+          background: "#0c0c0c",
+          border: `1.5px solid ${expanded ? `${accent}33` : "#1e1e1e"}`,
+          borderRadius: 16,
+          overflow: "hidden",
+          transition: "border-color .2s",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "12px 14px",
+            cursor: "pointer",
+          }}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: `${accent}18`,
+              border: `1px solid ${accent}33`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            {category === "whitelist"
+              ? "⭐"
+              : category === "vip"
+                ? "💎"
+                : category === "community"
+                  ? "🏠"
+                  : "🎟"}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>
+                {meta.invite_name || "Untitled Invite"}
+              </span>
+              <Pill label={category} color={accent} />
+              {invite.status !== "active" && (
+                <Pill label="inactive" color="#555" />
+              )}
+              {invite.is_full && <Pill label="full" color="#f87171" />}
+              {hasWaitlist && <Pill label="waitlist" color="#38bdf8" />}
+              {hasVip && <Pill label="VIP lottery" color="#a78bfa" />}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 3,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 10, color: accent, fontWeight: 700 }}>
+                ${fmt(currentPrice)}
+              </span>
+              {currentPrice > 0 && (
+                <span
+                  style={{ fontSize: 9, color: "#4a5a30", fontWeight: 600 }}
+                >
+                  ≈ ₦{Math.round(currentPrice * ngnRate).toLocaleString()}
+                </span>
+              )}
+              {currentPrice === 0 && (
+                <span
+                  style={{ fontSize: 9, color: "#3a7a3a", fontWeight: 700 }}
+                >
+                  FREE
+                </span>
+              )}
+              {invite.max_uses && (
+                <span style={{ fontSize: 10, color: "#555" }}>
+                  {invite.uses_count ?? 0}/{invite.max_uses} used
+                </span>
+              )}
+              <span style={{ fontSize: 10, color: "#333", ...mono }}>
+                ?ref={invite.code}
+              </span>
+              {waitlistCount > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowWaitlistMgr(true);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 9,
+                    fontWeight: 800,
+                    color: "#38bdf8",
+                    background: "rgba(56,189,248,.08)",
+                    border: "1px solid rgba(56,189,248,.2)",
+                    borderRadius: 20,
+                    padding: "2px 8px",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "rgba(56,189,248,.16)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "rgba(56,189,248,.08)")
+                  }
+                  title="Open waitlist manager"
+                >
+                  ⏳ {waitlistCount} waiting
+                </button>
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexShrink: 0,
+            }}
+          >
+            <SaveIndicator state={saveState} />
+            <Toggle
+              checked={invite.status === "active"}
+              onChange={toggleStatus}
+            />
+            <span style={{ color: "#555", fontSize: 14 }}>
+              {expanded ? "▲" : "▼"}
+            </span>
+          </div>
+        </div>
+
+        {invite.max_uses > 0 && (
+          <div style={{ height: 2, background: "#111", margin: "0 14px" }}>
+            <div
+              style={{
+                width: `${usedPct}%`,
+                height: "100%",
+                background: `linear-gradient(90deg,${accent}88,${accent})`,
+                borderRadius: 1,
+                transition: "width .4s",
+              }}
+            />
+          </div>
+        )}
+
+        {expanded && (
+          <div
+            style={{
+              padding: "14px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              borderTop: "1px solid #141414",
+            }}
+          >
+            <div
+              style={{
+                background: `${accent}08`,
+                border: `1px solid ${accent}22`,
+                borderRadius: 12,
+                padding: "12px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: "2px",
+                  textTransform: "uppercase",
+                  color: accent,
+                  marginBottom: 8,
+                }}
+              >
+                🔗 Shareable Link
+              </div>
+              <LinkRow code={invite.code} label="WL Link" />
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <CopyLinkButton code={invite.code} label="Copy Link" />
+                <CopyCodeButton code={invite.code} />
+                <ShareButton link={inviteLink} code={invite.code} />
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 10,
+                  color: "#555",
+                  lineHeight: 1.7,
+                }}
+              >
+                Anyone who clicks this link gets auto-applied.{" "}
+                {hasWaitlist
+                  ? "When whitelist is full, link auto-converts to waitlist mode."
+                  : "Set waitlist slots below to enable auto-waitlist when full."}
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel>Invite Name</FieldLabel>
+              <Input
+                value={name}
+                onChange={setName}
+                onBlur={() => save({ name })}
+                placeholder="e.g. CryptoTwitter Community WL"
+              />
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isWhitelist
+                  ? "1fr 1fr 1fr 1fr"
+                  : "1fr 1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div>
+                <FieldLabel>Entry Price (USD)</FieldLabel>
+                <Input
+                  value={price}
+                  onChange={setPrice}
+                  onBlur={() => save({ price })}
+                  prefix="$"
+                  placeholder="4.00"
+                />
+                {parseFloat(price) > 0 && (
+                  <div
+                    style={{
+                      fontSize: 9,
+                      color: "#4a6a30",
+                      marginTop: 3,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ≈ ₦
+                    {Math.round(parseFloat(price) * ngnRate).toLocaleString()}{" "}
+                    charged by Paystack
+                  </div>
+                )}
+                {parseFloat(price) === 0 && (
+                  <div
+                    style={{
+                      fontSize: 9,
+                      color: "#3a7a3a",
+                      marginTop: 3,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Free — no charge
+                  </div>
+                )}
+              </div>
+              {isWhitelist && (
+                <div>
+                  <FieldLabel>Whitelist Price (USD)</FieldLabel>
+                  <Input
+                    value={wlPrice}
+                    onChange={setWlPrice}
+                    onBlur={() => save({ wlPrice })}
+                    prefix="$"
+                    placeholder="0 = free"
+                  />
+                  {parseFloat(wlPrice) > 0 && (
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: "#4a6a30",
+                        marginTop: 3,
+                        fontWeight: 600,
+                      }}
+                    >
+                      ≈ ₦
+                      {Math.round(
+                        parseFloat(wlPrice) * ngnRate,
+                      ).toLocaleString()}{" "}
+                      charged by Paystack
+                    </div>
+                  )}
+                  {parseFloat(wlPrice) === 0 && (
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: "#3a7a3a",
+                        marginTop: 3,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Free — no charge
+                    </div>
+                  )}
+                </div>
+              )}
+              <div>
+                <FieldLabel>WL Slots (max_uses)</FieldLabel>
+                <Input
+                  value={maxUses}
+                  onChange={setMaxUses}
+                  onBlur={() => save({ maxUses })}
+                  placeholder="100"
+                />
+              </div>
+              <div>
+                <FieldLabel>EP Grant</FieldLabel>
+                <Input
+                  value={epGrant}
+                  onChange={setEpGrant}
+                  onBlur={() => save({ epGrant })}
+                  placeholder="500"
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div>
+                <FieldLabel>Waitlist Slots</FieldLabel>
+                <Input
+                  value={waitlistSlots}
+                  onChange={setWaitlistSlots}
+                  onBlur={() => save({ waitlistSlots })}
+                  placeholder="0 = disabled"
+                />
+                <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>
+                  Link auto-converts when WL full
+                </div>
+              </div>
+              <div>
+                <FieldLabel>VIP Lottery Slots</FieldLabel>
+                <Input
+                  value={vipSlots}
+                  onChange={setVipSlots}
+                  onBlur={() => save({ vipSlots })}
+                  placeholder="0 = disabled"
+                />
+              </div>
+              <div>
+                <FieldLabel>Expires</FieldLabel>
+                <Input
+                  value={expiresAt}
+                  onChange={setExpiresAt}
+                  onBlur={() => save({ expiresAt })}
+                  type="date"
+                />
+              </div>
+            </div>
+
+            {(invite.max_uses > 0 || (meta.waitlist_slots ?? 0) > 0) && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3,1fr)",
+                  gap: 8,
+                  background: "#080808",
+                  border: "1px solid #141414",
+                  borderRadius: 10,
+                  padding: 10,
+                }}
+              >
+                {[
+                  {
+                    label: "WL Claimed",
+                    value: `${wlSlotsUsed}${wlSlotsTotal ? `/${wlSlotsTotal}` : ""}`,
+                    color: accent,
+                  },
+                  {
+                    label: "Waitlisted",
+                    value: meta.waitlist_count ?? 0,
+                    color: "#38bdf8",
+                  },
+                  {
+                    label: "VIP Winners",
+                    value: (meta.vip_winners ?? []).length,
+                    color: "#a78bfa",
+                  },
+                ].map((st) => (
+                  <div key={st.label} style={{ textAlign: "center" }}>
+                    <div
+                      style={{ fontSize: 18, fontWeight: 900, color: st.color }}
+                    >
+                      {st.value}
+                    </div>
+                    <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>
+                      {st.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {waitlistCount > 0 && (
+              <button
+                onClick={() => setShowWaitlistMgr(true)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(56,189,248,.25)",
+                  background: "rgba(56,189,248,.04)",
+                  color: "#38bdf8",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(56,189,248,.1)";
+                  e.currentTarget.style.borderColor = "rgba(56,189,248,.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(56,189,248,.04)";
+                  e.currentTarget.style.borderColor = "rgba(56,189,248,.25)";
+                }}
+              >
+                ⏳ Manage Waitlist — {waitlistCount} pending
+              </button>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                paddingTop: 4,
+                borderTop: "1px solid #111",
+              }}
+            >
+              <CopyLinkButton code={invite.code} label="Copy Link" />
+              <CopyCodeButton code={invite.code} />
+              <Btn small danger onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Deleting…" : "Delete"}
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── CreateInviteDrawer ────────────────────────────────────────────────────────
+function CreateInviteDrawer({ onClose, onCreate, ngnRate = 1580 }) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("whitelist");
+  const [price, setPrice] = useState("4");
+  const [wlPrice, setWlPrice] = useState("0");
+  const [maxUses, setMaxUses] = useState("100");
+  const [waitlistSlots, setWaitlistSlots] = useState("");
+  const [vipSlots, setVipSlots] = useState("");
+  const [epGrant, setEpGrant] = useState("500");
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState("");
+
+  const generate = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from(
+      { length: 8 },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("");
+  };
+
+  const create = async () => {
+    if (!name.trim()) {
+      setErr("Invite name is required.");
+      return;
+    }
+    setCreating(true);
+    setErr("");
+    try {
+      const code = generate();
+      const priceNum = parseFloat(price) || 4;
+      const wlPriceNum = parseFloat(wlPrice) || 0;
+      const typeMap = { vip: "vip", whitelist: "whitelist", admin: "admin" };
+      const type = typeMap[category] ?? "standard";
+      const isWl = category === "whitelist";
+      const effectiveNum = isWl && wlPriceNum >= 0 ? wlPriceNum : priceNum;
+      const wlSlots = parseInt(waitlistSlots, 10) || 0;
+      const metadata = {
+        admin_created: true,
+        invite_name: name.trim(),
+        invite_category: category,
+        entry_price_cents: Math.round(effectiveNum * 100),
+        whitelist_price_cents: Math.round(wlPriceNum * 100),
+        waitlist_slots: wlSlots,
+        waitlist_count: 0,
+        waitlist_entries: [],
+        whitelisted_user_ids: [],
+        vip_slots: parseInt(vipSlots, 10) || 0,
+        vip_winners: [],
+        ep_grant: parseInt(epGrant, 10) || 500,
+        has_whitelist_access: isWl,
+        enable_waitlist: wlSlots > 0,
+      };
+      const record = {
+        code,
+        type,
+        status: "active",
+        max_uses: parseInt(maxUses, 10) || null,
+        uses_count: 0,
+        entry_price: effectiveNum,
+        price_override: effectiveNum,
+        metadata,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const { data, error } = await supabase
+        .from("invite_codes")
+        .insert(record)
+        .select(INVITE_SELECT)
+        .single();
+      if (error) throw error;
+      onCreate?.(enrichInvite(data));
+      onClose();
+    } catch (e) {
+      setErr(e?.message ?? "Failed to create invite.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.85)",
+        zIndex: 10001,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        backdropFilter: "blur(8px)",
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 640,
+          background: "#0d0d0d",
+          border: "1px solid #252525",
+          borderRadius: "20px 20px 0 0",
+          padding: "28px 28px 40px",
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 20,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#e0e0e0" }}>
+              Create Community Link
+            </div>
+            <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+              Share the generated link — no codes needed
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "1px solid #252525",
+              borderRadius: 8,
+              color: "#555",
+              cursor: "pointer",
+              padding: "4px 10px",
+              fontFamily: "inherit",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div
+          style={{
+            background: "rgba(163,230,53,.04)",
+            border: "1px solid rgba(163,230,53,.12)",
+            borderRadius: 12,
+            padding: "12px 14px",
+            marginBottom: 18,
+            fontSize: 12,
+            color: "#5a8a30",
+            lineHeight: 1.8,
+          }}
+        >
+          <strong style={{ color: "#a3e635" }}>🔗 Link-first model:</strong> One
+          smart link per community. When whitelist slots fill, the link
+          auto-converts to waitlist mode — users see a "Join Waitlist Now" CTA
+          automatically.
+        </div>
+        {/* NGN rate info banner */}
+        <div
+          style={{
+            background: "rgba(245,158,11,.04)",
+            border: "1px solid rgba(245,158,11,.15)",
+            borderRadius: 10,
+            padding: "8px 12px",
+            marginBottom: 4,
+            fontSize: 10,
+            color: "#6a5a30",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>💱</span>
+          <span>
+            USD prices are converted to Naira at{" "}
+            <strong style={{ color: "#f59e0b" }}>
+              ₦{ngnRate.toLocaleString()}/$
+            </strong>{" "}
+            when charged by Paystack
+          </span>
+        </div>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+        >
+          <div style={{ gridColumn: "1/-1" }}>
+            <FieldLabel>Community / Campaign Name *</FieldLabel>
+            <Input
+              value={name}
+              onChange={setName}
+              placeholder="e.g. CryptoTwitter WL, DeFi Discord, NFT Community"
+            />
+          </div>
+          <div style={{ gridColumn: "1/-1" }}>
+            <FieldLabel>Category</FieldLabel>
+            <div style={{ display: "flex", gap: 6 }}>
+              {CATEGORY_OPTIONS.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCategory(c.id)}
+                  style={{
+                    flex: 1,
+                    padding: "9px 6px",
+                    borderRadius: 9,
+                    border: "none",
+                    cursor: "pointer",
+                    background:
+                      category === c.id
+                        ? `${ACC_COLORS[c.id] ?? "#94a3b8"}18`
+                        : "#111",
+                    borderWidth: 1.5,
+                    borderStyle: "solid",
+                    borderColor:
+                      category === c.id
+                        ? `${ACC_COLORS[c.id] ?? "#94a3b8"}55`
+                        : "#1e1e1e",
+                    color:
+                      category === c.id
+                        ? (ACC_COLORS[c.id] ?? "#94a3b8")
+                        : "#666",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Whitelist Slots</FieldLabel>
+            <Input
+              value={maxUses}
+              onChange={setMaxUses}
+              placeholder="e.g. 100"
+            />
+            <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>
+              How many get WL access
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Waitlist Slots (0=off)</FieldLabel>
+            <Input
+              value={waitlistSlots}
+              onChange={setWaitlistSlots}
+              placeholder="e.g. 500"
+            />
+            <div style={{ fontSize: 9, color: "#38bdf8", marginTop: 4 }}>
+              ↑ Auto-activates when WL full
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Entry Price (USD)</FieldLabel>
+            <Input
+              value={price}
+              onChange={setPrice}
+              prefix="$"
+              placeholder="4.00"
+            />
+            {parseFloat(price) > 0 && (
+              <div
+                style={{
+                  fontSize: 9,
+                  color: "#4a6a30",
+                  marginTop: 3,
+                  fontWeight: 600,
+                }}
+              >
+                ≈ ₦{Math.round(parseFloat(price) * ngnRate).toLocaleString()}{" "}
+                charged by Paystack
+              </div>
+            )}
+          </div>
+          {category === "whitelist" && (
+            <div>
+              <FieldLabel>Whitelist Price (0=free)</FieldLabel>
+              <Input
+                value={wlPrice}
+                onChange={setWlPrice}
+                prefix="$"
+                placeholder="0 = free"
+              />
+              {parseFloat(wlPrice) > 0 ? (
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "#4a6a30",
+                    marginTop: 3,
+                    fontWeight: 600,
+                  }}
+                >
+                  ≈ ₦
+                  {Math.round(parseFloat(wlPrice) * ngnRate).toLocaleString()}{" "}
+                  charged by Paystack
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "#3a7a3a",
+                    marginTop: 3,
+                    fontWeight: 700,
+                  }}
+                >
+                  Free — no charge
+                </div>
+              )}
+            </div>
+          )}
+          <div>
+            <FieldLabel>EP Grant</FieldLabel>
+            <Input value={epGrant} onChange={setEpGrant} placeholder="500" />
+          </div>
+          <div>
+            <FieldLabel>VIP Lottery Slots (0=off)</FieldLabel>
+            <Input
+              value={vipSlots}
+              onChange={setVipSlots}
+              placeholder="e.g. 5"
+            />
+          </div>
+        </div>
+        {err && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "10px 13px",
+              background: "rgba(239,68,68,.07)",
+              border: "1px solid rgba(239,68,68,.22)",
+              borderRadius: 10,
+              fontSize: 12,
+              color: "#f87171",
+            }}
+          >
+            {err}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: "13px",
+              borderRadius: 12,
+              border: "1px solid #252525",
+              background: "transparent",
+              color: "#666",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={create}
+            disabled={creating}
+            style={{
+              flex: 2,
+              padding: "13px",
+              borderRadius: 12,
+              border: "none",
+              background: creating
+                ? "#1a1a1a"
+                : "linear-gradient(135deg,#a3e635,#65a30d)",
+              color: creating ? "#333" : "#061000",
+              fontWeight: 800,
+              fontSize: 14,
+              cursor: creating ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {creating ? "Creating…" : "Create Link →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PaywallHeroPreview ────────────────────────────────────────────────────────
 function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
   const [displayIdx, setDisplayIdx] = useState(0);
   const [fading, setFading] = useState(false);
@@ -1180,6 +2854,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
   const publicEP = paywallConfig?.ep_grant ?? 300;
   const isActive = paywallConfig?.is_active ?? true;
   const heroMessage = paywallConfig?.hero_message ?? "";
+  const ngnRate = paywallConfig?.ngn_rate ?? 1580;
   const stats = liveStats ?? {
     memberCount: 0,
     waitlistCount: 0,
@@ -1213,14 +2888,12 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
     () => activeWLInvites.reduce((s, i) => s + (i.uses_count ?? 0), 0),
     [activeWLInvites],
   );
-
   const repWLInvite = useMemo(() => {
     if (openWLInvites.length === 0) return null;
     return [...openWLInvites].sort(
       (a, b) => resolveInvitePrice(a) - resolveInvitePrice(b),
     )[0];
   }, [openWLInvites]);
-
   const hasWaitlistSlots = useMemo(
     () =>
       (customInvites || []).some(
@@ -1236,7 +2909,6 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
     [customInvites],
   );
   const allWLFull = activeWLInvites.length > 0 && openWLInvites.length === 0;
-
   const totalWaitlistCapacity = useMemo(
     () =>
       (customInvites || []).reduce(
@@ -1305,11 +2977,9 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
       setFading(false);
     }, 200);
   };
-
   const current =
     previewSlides[Math.min(displayIdx, previewSlides.length - 1)] ??
     previewSlides[0];
-
   const accentFor = (s) => {
     if (!s || s.type === "public_entry") return "#a3e635";
     if (s.type === "whitelist_entry") {
@@ -1324,6 +2994,8 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
 
   const renderSlide = (s) => {
     if (!s) return null;
+    const memberLabel =
+      stats.memberCount > 0 ? stats.memberCount.toLocaleString() : "—";
 
     if (s.type === "public_entry")
       return (
@@ -1393,9 +3065,20 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               <div
                 style={{
                   fontSize: 9,
+                  color: "#4a6a30",
+                  fontWeight: 600,
+                  marginTop: 3,
+                }}
+              >
+                ≈ ₦{Math.round(publicPrice * ngnRate).toLocaleString()} at ₦
+                {ngnRate.toLocaleString()}/$
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
                   color: "#666",
                   fontWeight: 600,
-                  marginTop: 4,
+                  marginTop: 1,
                 }}
               >
                 one-time · instant activation
@@ -1457,7 +3140,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
               }}
             />
             <span style={{ fontSize: 11, fontWeight: 800, color: "#e0e0e0" }}>
-              {stats.memberCount > 0 ? stats.memberCount.toLocaleString() : "—"}
+              {memberLabel}
             </span>
             <span style={{ fontSize: 9.5, color: "#444", fontWeight: 600 }}>
               members joined
@@ -1591,7 +3274,12 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
                   {isFree ? "FREE" : fmt(wlPrice)}
                 </span>
               </div>
-              <div style={{ fontSize: 9, color: "#555", marginTop: 4 }}>
+              {!isFree && (
+                <div style={{ fontSize: 9, color: "#4a5a30", marginTop: 2 }}>
+                  ≈ ₦{Math.round(wlPrice * ngnRate).toLocaleString()}
+                </div>
+              )}
+              <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>
                 {isFree
                   ? "whitelisted · free activation"
                   : "exclusive whitelist pricing"}
@@ -1897,7 +3585,6 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           </div>
         </div>
       );
-
     return null;
   };
 
@@ -2243,8 +3930,7 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
             }}
           >
             ⏳ <strong style={{ color: "#38bdf8" }}>Waitlist</strong>{" "}
-            auto-activates when whitelist slots fill up — users on full-link see
-            "Join Waitlist" instead of payment.
+            auto-activates when whitelist slots fill up.
           </div>
         )}
       </div>
@@ -2267,1187 +3953,8 @@ function PaywallHeroPreview({ paywallConfig, customInvites, liveStats }) {
           ✓ Writing to{" "}
           <span style={{ color: "#3a6a3a" }}>
             platform_settings.paywall_config
-          </span>{" "}
-          — same source PaywallGate reads
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── PublicEntryCard ────────────────────────────────────────────────────────────
-// [E] Enhanced: live APP_URL as copyable+shareable link + override field
-function PublicEntryCard({ config, onConfigUpdate }) {
-  const [expanded, setExpanded] = useState(true);
-  const [saveState, setSaveState] = useState("idle");
-  const [price, setPrice] = useState(String(config?.price_usd ?? 4));
-  const [ep, setEp] = useState(String(config?.ep_grant ?? 300));
-  const [slots, setSlots] = useState(String(config?.slots_total ?? 0));
-  const [claimed, setClaimed] = useState(String(config?.slots_claimed ?? 0));
-  const [heroMsg, setHeroMsg] = useState(config?.hero_message ?? "");
-  const [isActive, setIsActive] = useState(config?.is_active ?? true);
-  const [appUrl, setAppUrl] = useState(config?.app_url || APP_URL);
-  const [editingAppUrl, setEditingAppUrl] = useState(false);
-
-  useEffect(() => {
-    if (!config) return;
-    setPrice(String(config.price_usd ?? 4));
-    setEp(String(config.ep_grant ?? 300));
-    setSlots(String(config.slots_total ?? 0));
-    setClaimed(String(config.slots_claimed ?? 0));
-    setHeroMsg(config.hero_message ?? "");
-    setIsActive(config.is_active ?? true);
-    setAppUrl(config.app_url || APP_URL);
-  }, [
-    config?.price_usd,
-    config?.ep_grant,
-    config?.slots_total,
-    config?.slots_claimed,
-    config?.hero_message,
-    config?.is_active,
-    config?.app_url,
-  ]); // eslint-disable-line
-
-  const save = async (patch = {}) => {
-    setSaveState("saving");
-    try {
-      const updatePayload = {
-        price_usd: parseFloat(patch.price ?? price) || 4,
-        ep_grant: parseInt(patch.ep ?? ep, 10) || 300,
-        slots_total: parseInt(patch.slots ?? slots, 10) || 0,
-        slots_claimed: parseInt(patch.claimed ?? claimed, 10) || 0,
-        hero_message: patch.heroMsg !== undefined ? patch.heroMsg : heroMsg,
-        is_active: patch.is_active !== undefined ? patch.is_active : isActive,
-        app_url:
-          patch.app_url !== undefined
-            ? patch.app_url
-            : config?.app_url || APP_URL,
-      };
-      await updatePaywallConfig(updatePayload);
-      onConfigUpdate?.(updatePayload);
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
-    } catch (e) {
-      console.error("[PublicEntryCard] save error:", e?.message);
-      setSaveState("error");
-      setTimeout(() => setSaveState("idle"), 3000);
-    }
-  };
-
-  const toggleActive = async () => {
-    const next = !isActive;
-    setIsActive(next);
-    await save({ is_active: next });
-  };
-  const saveAppUrl = async () => {
-    await save({ app_url: appUrl.trim() });
-    setEditingAppUrl(false);
-  };
-  const effectiveUrl = config?.app_url || APP_URL;
-
-  return (
-    <div
-      style={{
-        background: "#0c0c0c",
-        border: "1.5px solid #1e1e1e",
-        borderRadius: 16,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        onClick={() => setExpanded((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "14px 16px",
-          cursor: "pointer",
-          userSelect: "none",
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "rgba(163,230,53,.1)",
-            border: "1px solid rgba(163,230,53,.2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 16,
-            flexShrink: 0,
-          }}
-        >
-          🌐
-        </div>
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>
-              PUBLIC ENTRY
-            </span>
-            <Pill label="paywall_config" color="#a3e635" />
-            <Pill label="Non-deletable" color="#444" />
-            {!isActive && <Pill label="CLOSED" color="#f87171" />}
-          </div>
-          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-            Controls paywall hero ·{" "}
-            <span style={{ color: "#a3e635", ...mono }}>
-              ${fmt(parseFloat(price) || 4)}
-            </span>{" "}
-            public price
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Toggle checked={isActive} onChange={toggleActive} />
-          <SaveIndicator state={saveState} />
-          <span style={{ color: "#555", fontSize: 16 }}>
-            {expanded ? "▲" : "▼"}
           </span>
-        </div>
-      </div>
-
-      {expanded && (
-        <div
-          style={{
-            padding: "0 16px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            borderTop: "1px solid #141414",
-          }}
-        >
-          <div style={{ paddingTop: 14 }}>
-            <div
-              style={{
-                background: "rgba(163,230,53,.03)",
-                border: "1px solid rgba(163,230,53,.08)",
-                borderRadius: 10,
-                padding: 12,
-                fontSize: 11,
-                color: "#4a6a30",
-                lineHeight: 1.7,
-              }}
-            >
-              <strong style={{ color: "#6a9a40" }}>
-                ↑ platform_settings.paywall_config
-              </strong>{" "}
-              — single source of truth for the public entry price, EP grant, and
-              slot progress bar. Changes here sync instantly to PaywallGate via
-              Realtime.
-            </div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1fr",
-              gap: 10,
-            }}
-          >
-            <div>
-              <FieldLabel>Public Price</FieldLabel>
-              <Input
-                value={price}
-                onChange={setPrice}
-                onBlur={() => save({ price })}
-                prefix="$"
-                placeholder="4.00"
-              />
-            </div>
-            <div>
-              <FieldLabel>EP Grant</FieldLabel>
-              <Input
-                value={ep}
-                onChange={setEp}
-                onBlur={() => save({ ep })}
-                placeholder="300"
-              />
-            </div>
-            <div>
-              <FieldLabel>Total Slots</FieldLabel>
-              <Input
-                value={slots}
-                onChange={setSlots}
-                onBlur={() => save({ slots })}
-                placeholder="0 = unlimited"
-              />
-            </div>
-            <div>
-              <FieldLabel>Claimed</FieldLabel>
-              <Input
-                value={claimed}
-                onChange={setClaimed}
-                onBlur={() => save({ claimed })}
-                placeholder="0"
-              />
-            </div>
-          </div>
-          <div>
-            <FieldLabel>Hero Message (shown under price)</FieldLabel>
-            <Textarea
-              value={heroMsg}
-              onChange={setHeroMsg}
-              onBlur={() => save({ heroMsg })}
-              placeholder="Optional tagline shown below the price…"
-              rows={2}
-            />
-          </div>
-
-          {/* [E] Public entry link */}
-          <div>
-            <FieldLabel>Public Join Link</FieldLabel>
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                alignItems: "stretch",
-                marginBottom: 8,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <PlainLinkRow url={effectiveUrl} label="🌐 Link" />
-              </div>
-              <ShareButton link={effectiveUrl} code={null} />
-            </div>
-            {editingAppUrl ? (
-              <div>
-                <FieldLabel>Override app domain</FieldLabel>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <div style={{ flex: 1 }}>
-                    <Input
-                      value={appUrl}
-                      onChange={setAppUrl}
-                      placeholder="https://yourdomain.com"
-                    />
-                  </div>
-                  <Btn accent small onClick={saveAppUrl}>
-                    Save
-                  </Btn>
-                  <Btn
-                    small
-                    onClick={() => {
-                      setEditingAppUrl(false);
-                      setAppUrl(effectiveUrl);
-                    }}
-                  >
-                    Cancel
-                  </Btn>
-                </div>
-                <div style={{ fontSize: 9, color: "#444", marginTop: 5 }}>
-                  Saves to paywall_config.app_url · syncs to PaywallGate
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setEditingAppUrl(true)}
-                style={{
-                  background: "transparent",
-                  border: "1px dashed #252525",
-                  borderRadius: 8,
-                  color: "#444",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  padding: "5px 12px",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all .15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "#3a3a3a";
-                  e.currentTarget.style.color = "#888";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#252525";
-                  e.currentTarget.style.color = "#444";
-                }}
-              >
-                ✏️ Override app URL
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── InviteCard ─────────────────────────────────────────────────────────────────
-// [B] Copy Code button · [C] Share button · [D] Clickable waitlist badge
-function InviteCard({ invite, onOptimisticUpdate, onDelete }) {
-  const [expanded, setExpanded] = useState(false);
-  const [saveState, setSaveState] = useState("idle");
-  const [deleting, setDeleting] = useState(false);
-  const [showWaitlistMgr, setShowWaitlistMgr] = useState(false);
-
-  const meta = invite?.metadata ?? {};
-  const category = meta.invite_category ?? invite.type ?? "standard";
-  const accent = ACC_COLORS[category] ?? "#94a3b8";
-  const currentPrice = resolveInvitePrice(invite);
-  const isWhitelist = category === "whitelist" || meta.has_whitelist_access;
-  const hasWaitlist = (meta.waitlist_slots ?? 0) > 0;
-  const hasVip = (meta.vip_slots ?? 0) > 0;
-  const waitlistCount =
-    meta.waitlist_count ?? meta.waitlist_entries?.length ?? 0;
-  const inviteLink = buildInviteLink(invite.code);
-
-  const [name, setName] = useState(meta.invite_name ?? "");
-  const [price, setPrice] = useState(String(currentPrice));
-  const [wlPrice, setWlPrice] = useState(
-    String(
-      meta.whitelist_price_cents != null
-        ? meta.whitelist_price_cents / 100
-        : currentPrice,
-    ),
-  );
-  const [maxUses, setMaxUses] = useState(String(invite.max_uses ?? ""));
-  const [waitlistSlots, setWaitlistSlots] = useState(
-    String(meta.waitlist_slots ?? ""),
-  );
-  const [vipSlots, setVipSlots] = useState(String(meta.vip_slots ?? ""));
-  const [epGrant, setEpGrant] = useState(String(meta.ep_grant ?? 500));
-  const [expiresAt, setExpiresAt] = useState(
-    invite.expires_at ? invite.expires_at.slice(0, 10) : "",
-  );
-
-  useEffect(() => {
-    const m = invite?.metadata ?? {};
-    setName(m.invite_name ?? "");
-    setPrice(String(resolveInvitePrice(invite)));
-    setWlPrice(
-      String(
-        m.whitelist_price_cents != null
-          ? m.whitelist_price_cents / 100
-          : resolveInvitePrice(invite),
-      ),
-    );
-    setMaxUses(String(invite.max_uses ?? ""));
-    setWaitlistSlots(String(m.waitlist_slots ?? ""));
-    setVipSlots(String(m.vip_slots ?? ""));
-    setEpGrant(String(m.ep_grant ?? 500));
-    setExpiresAt(invite.expires_at ? invite.expires_at.slice(0, 10) : "");
-  }, [invite?.id]); // eslint-disable-line
-
-  const save = async (patch = {}) => {
-    setSaveState("saving");
-    try {
-      const newPrice = parseFloat(patch.price ?? price);
-      const newWlPrice = parseFloat(patch.wlPrice ?? wlPrice);
-      const newMaxUses = parseInt(patch.maxUses ?? maxUses, 10) || null;
-      const newEp = parseInt(patch.epGrant ?? epGrant, 10) || 500;
-      const newWlSlots =
-        parseInt(patch.waitlistSlots ?? waitlistSlots, 10) || 0;
-      const newVipSlots = parseInt(patch.vipSlots ?? vipSlots, 10) || 0;
-      const newName = patch.name !== undefined ? patch.name : name;
-      const newMeta = {
-        ...meta,
-        invite_name: newName,
-        invite_category: category,
-        entry_price_cents: Math.round(newPrice * 100),
-        whitelist_price_cents: Math.round(newWlPrice * 100),
-        waitlist_slots: newWlSlots,
-        vip_slots: newVipSlots,
-        ep_grant: newEp,
-        has_whitelist_access: isWhitelist,
-        enable_waitlist: newWlSlots > 0,
-      };
-      const payload = {
-        metadata: newMeta,
-        price_override: newPrice,
-        entry_price: newPrice,
-        max_uses: newMaxUses,
-        expires_at:
-          (patch.expiresAt !== undefined ? patch.expiresAt : expiresAt) || null,
-        updated_at: new Date().toISOString(),
-      };
-      const { error } = await supabase
-        .from("invite_codes")
-        .update(payload)
-        .eq("id", invite.id);
-      if (error) throw error;
-      onOptimisticUpdate?.({ ...invite, ...payload, metadata: newMeta });
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
-    } catch (e) {
-      console.error("[InviteCard] save error:", e?.message);
-      setSaveState("error");
-      setTimeout(() => setSaveState("idle"), 3000);
-    }
-  };
-
-  const toggleStatus = async () => {
-    const newStatus = invite.status === "active" ? "inactive" : "active";
-    setSaveState("saving");
-    try {
-      const { error } = await supabase
-        .from("invite_codes")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", invite.id);
-      if (error) throw error;
-      onOptimisticUpdate?.({ ...invite, status: newStatus });
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 1500);
-    } catch {
-      setSaveState("error");
-      setTimeout(() => setSaveState("idle"), 3000);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (
-      !window.confirm(
-        `Delete invite "${meta.invite_name || invite.code}"? This cannot be undone.`,
-      )
-    )
-      return;
-    setDeleting(true);
-    try {
-      const { error } = await supabase
-        .from("invite_codes")
-        .delete()
-        .eq("id", invite.id);
-      if (error) throw error;
-      onDelete?.(invite.id);
-    } catch {
-      setDeleting(false);
-    }
-  };
-
-  const usedPct =
-    invite.max_uses > 0
-      ? Math.min(
-          100,
-          Math.round(((invite.uses_count ?? 0) / invite.max_uses) * 100),
-        )
-      : 0;
-  const wlSlotsUsed = invite.uses_count ?? 0;
-  const wlSlotsTotal = invite.max_uses ?? 0;
-
-  return (
-    <>
-      {showWaitlistMgr && (
-        <WaitlistManagerModal
-          invite={invite}
-          onClose={() => setShowWaitlistMgr(false)}
-          onUpdate={(updated) => onOptimisticUpdate?.(updated)}
-        />
-      )}
-
-      <div
-        style={{
-          background: "#0c0c0c",
-          border: `1.5px solid ${expanded ? `${accent}33` : "#1e1e1e"}`,
-          borderRadius: 16,
-          overflow: "hidden",
-          transition: "border-color .2s",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 14px",
-            cursor: "pointer",
-          }}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: `${accent}18`,
-              border: `1px solid ${accent}33`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              flexShrink: 0,
-            }}
-          >
-            {category === "whitelist"
-              ? "⭐"
-              : category === "vip"
-                ? "💎"
-                : category === "community"
-                  ? "🏠"
-                  : "🎟"}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#e0e0e0" }}>
-                {meta.invite_name || "Untitled Invite"}
-              </span>
-              <Pill label={category} color={accent} />
-              {invite.status !== "active" && (
-                <Pill label="inactive" color="#555" />
-              )}
-              {invite.is_full && <Pill label="full" color="#f87171" />}
-              {hasWaitlist && <Pill label="waitlist" color="#38bdf8" />}
-              {hasVip && <Pill label="VIP lottery" color="#a78bfa" />}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginTop: 3,
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={{ fontSize: 10, color: accent, fontWeight: 700 }}>
-                ${fmt(currentPrice)}
-              </span>
-              {invite.max_uses && (
-                <span style={{ fontSize: 10, color: "#555" }}>
-                  {invite.uses_count ?? 0}/{invite.max_uses} used
-                </span>
-              )}
-              <span style={{ fontSize: 10, color: "#333", ...mono }}>
-                ?ref={invite.code}
-              </span>
-              {/* [D] Clickable waitlist count badge */}
-              {waitlistCount > 0 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowWaitlistMgr(true);
-                  }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontSize: 9,
-                    fontWeight: 800,
-                    color: "#38bdf8",
-                    background: "rgba(56,189,248,.08)",
-                    border: "1px solid rgba(56,189,248,.2)",
-                    borderRadius: 20,
-                    padding: "2px 8px",
-                    cursor: "pointer",
-                    transition: "background .15s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "rgba(56,189,248,.16)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "rgba(56,189,248,.08)")
-                  }
-                  title="Open waitlist manager"
-                >
-                  ⏳ {waitlistCount} waiting
-                </button>
-              )}
-            </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexShrink: 0,
-            }}
-          >
-            <SaveIndicator state={saveState} />
-            <Toggle
-              checked={invite.status === "active"}
-              onChange={toggleStatus}
-            />
-            <span style={{ color: "#555", fontSize: 14 }}>
-              {expanded ? "▲" : "▼"}
-            </span>
-          </div>
-        </div>
-
-        {invite.max_uses > 0 && (
-          <div style={{ height: 2, background: "#111", margin: "0 14px" }}>
-            <div
-              style={{
-                width: `${usedPct}%`,
-                height: "100%",
-                background: `linear-gradient(90deg,${accent}88,${accent})`,
-                borderRadius: 1,
-                transition: "width .4s",
-              }}
-            />
-          </div>
-        )}
-
-        {expanded && (
-          <div
-            style={{
-              padding: "14px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              borderTop: "1px solid #141414",
-            }}
-          >
-            {/* Share link block */}
-            <div
-              style={{
-                background: `${accent}08`,
-                border: `1px solid ${accent}22`,
-                borderRadius: 12,
-                padding: "12px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: "2px",
-                  textTransform: "uppercase",
-                  color: accent,
-                  marginBottom: 8,
-                }}
-              >
-                🔗 Shareable Link
-              </div>
-              <LinkRow code={invite.code} label="WL Link" />
-              {/* [B][C] Copy Code + Share buttons */}
-              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                <CopyLinkButton code={invite.code} label="Copy Link" />
-                <CopyCodeButton code={invite.code} />
-                <ShareButton link={inviteLink} code={invite.code} />
-              </div>
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 10,
-                  color: "#555",
-                  lineHeight: 1.7,
-                }}
-              >
-                Anyone who clicks this link gets auto-applied.{" "}
-                {hasWaitlist
-                  ? "When whitelist is full, link auto-converts to waitlist mode."
-                  : "Set waitlist slots below to enable auto-waitlist when full."}
-              </div>
-            </div>
-
-            <div>
-              <FieldLabel>Invite Name</FieldLabel>
-              <Input
-                value={name}
-                onChange={setName}
-                onBlur={() => save({ name })}
-                placeholder="e.g. CryptoTwitter Community WL"
-              />
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isWhitelist
-                  ? "1fr 1fr 1fr 1fr"
-                  : "1fr 1fr 1fr",
-                gap: 10,
-              }}
-            >
-              <div>
-                <FieldLabel>Entry Price</FieldLabel>
-                <Input
-                  value={price}
-                  onChange={setPrice}
-                  onBlur={() => save({ price })}
-                  prefix="$"
-                  placeholder="4.00"
-                />
-              </div>
-              {isWhitelist && (
-                <div>
-                  <FieldLabel>Whitelist Price</FieldLabel>
-                  <Input
-                    value={wlPrice}
-                    onChange={setWlPrice}
-                    onBlur={() => save({ wlPrice })}
-                    prefix="$"
-                    placeholder="0 = free"
-                  />
-                </div>
-              )}
-              <div>
-                <FieldLabel>WL Slots (max_uses)</FieldLabel>
-                <Input
-                  value={maxUses}
-                  onChange={setMaxUses}
-                  onBlur={() => save({ maxUses })}
-                  placeholder="100"
-                />
-              </div>
-              <div>
-                <FieldLabel>EP Grant</FieldLabel>
-                <Input
-                  value={epGrant}
-                  onChange={setEpGrant}
-                  onBlur={() => save({ epGrant })}
-                  placeholder="500"
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 10,
-              }}
-            >
-              <div>
-                <FieldLabel>Waitlist Slots</FieldLabel>
-                <Input
-                  value={waitlistSlots}
-                  onChange={setWaitlistSlots}
-                  onBlur={() => save({ waitlistSlots })}
-                  placeholder="0 = disabled"
-                />
-                <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>
-                  Link auto-converts when WL full
-                </div>
-              </div>
-              <div>
-                <FieldLabel>VIP Lottery Slots</FieldLabel>
-                <Input
-                  value={vipSlots}
-                  onChange={setVipSlots}
-                  onBlur={() => save({ vipSlots })}
-                  placeholder="0 = disabled"
-                />
-              </div>
-              <div>
-                <FieldLabel>Expires</FieldLabel>
-                <Input
-                  value={expiresAt}
-                  onChange={setExpiresAt}
-                  onBlur={() => save({ expiresAt })}
-                  type="date"
-                />
-              </div>
-            </div>
-
-            {(invite.max_uses > 0 || (meta.waitlist_slots ?? 0) > 0) && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3,1fr)",
-                  gap: 8,
-                  background: "#080808",
-                  border: "1px solid #141414",
-                  borderRadius: 10,
-                  padding: 10,
-                }}
-              >
-                {[
-                  {
-                    label: "WL Claimed",
-                    value: `${wlSlotsUsed}${wlSlotsTotal ? `/${wlSlotsTotal}` : ""}`,
-                    color: accent,
-                  },
-                  {
-                    label: "Waitlisted",
-                    value: meta.waitlist_count ?? 0,
-                    color: "#38bdf8",
-                  },
-                  {
-                    label: "VIP Winners",
-                    value: (meta.vip_winners ?? []).length,
-                    color: "#a78bfa",
-                  },
-                ].map((st) => (
-                  <div key={st.label} style={{ textAlign: "center" }}>
-                    <div
-                      style={{ fontSize: 18, fontWeight: 900, color: st.color }}
-                    >
-                      {st.value}
-                    </div>
-                    <div style={{ fontSize: 9, color: "#444", marginTop: 2 }}>
-                      {st.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* [D] Waitlist manager button */}
-            {waitlistCount > 0 && (
-              <button
-                onClick={() => setShowWaitlistMgr(true)}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(56,189,248,.25)",
-                  background: "rgba(56,189,248,.04)",
-                  color: "#38bdf8",
-                  fontWeight: 700,
-                  fontSize: 11,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  transition: "all .15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(56,189,248,.1)";
-                  e.currentTarget.style.borderColor = "rgba(56,189,248,.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(56,189,248,.04)";
-                  e.currentTarget.style.borderColor = "rgba(56,189,248,.25)";
-                }}
-              >
-                ⏳ Manage Waitlist — {waitlistCount} pending
-              </button>
-            )}
-
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                paddingTop: 4,
-                borderTop: "1px solid #111",
-              }}
-            >
-              <CopyLinkButton code={invite.code} label="Copy Link" />
-              <CopyCodeButton code={invite.code} />
-              <Btn small danger onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting…" : "Delete"}
-              </Btn>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
-// ── CreateInviteDrawer (v13 — unchanged) ──────────────────────────────────────
-function CreateInviteDrawer({ onClose, onCreate }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("whitelist");
-  const [price, setPrice] = useState("4");
-  const [wlPrice, setWlPrice] = useState("0");
-  const [maxUses, setMaxUses] = useState("100");
-  const [waitlistSlots, setWaitlistSlots] = useState("");
-  const [vipSlots, setVipSlots] = useState("");
-  const [epGrant, setEpGrant] = useState("500");
-  const [creating, setCreating] = useState(false);
-  const [err, setErr] = useState("");
-
-  const generate = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    return Array.from(
-      { length: 8 },
-      () => chars[Math.floor(Math.random() * chars.length)],
-    ).join("");
-  };
-
-  const create = async () => {
-    if (!name.trim()) {
-      setErr("Invite name is required.");
-      return;
-    }
-    setCreating(true);
-    setErr("");
-    try {
-      const code = generate();
-      const priceNum = parseFloat(price) || 4;
-      const wlPriceNum = parseFloat(wlPrice) || 0;
-      const typeMap = { vip: "vip", whitelist: "whitelist", admin: "admin" };
-      const type = typeMap[category] ?? "standard";
-      const isWl = category === "whitelist";
-      const effectivePriceNum = isWl && wlPriceNum >= 0 ? wlPriceNum : priceNum;
-      const wlSlots = parseInt(waitlistSlots, 10) || 0;
-      const metadata = {
-        admin_created: true,
-        invite_name: name.trim(),
-        invite_category: category,
-        entry_price_cents: Math.round(effectivePriceNum * 100),
-        whitelist_price_cents: Math.round(wlPriceNum * 100),
-        waitlist_slots: wlSlots,
-        waitlist_count: 0,
-        waitlist_entries: [],
-        whitelisted_user_ids: [],
-        vip_slots: parseInt(vipSlots, 10) || 0,
-        vip_winners: [],
-        ep_grant: parseInt(epGrant, 10) || 500,
-        has_whitelist_access: isWl,
-        enable_waitlist: wlSlots > 0,
-      };
-      const record = {
-        code,
-        type,
-        status: "active",
-        max_uses: parseInt(maxUses, 10) || null,
-        uses_count: 0,
-        entry_price: effectivePriceNum,
-        price_override: effectivePriceNum,
-        metadata,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      const { data, error } = await supabase
-        .from("invite_codes")
-        .insert(record)
-        .select(INVITE_SELECT)
-        .single();
-      if (error) throw error;
-      onCreate?.(enrichInvite(data));
-      onClose();
-    } catch (e) {
-      setErr(e?.message ?? "Failed to create invite.");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.85)",
-        zIndex: 10001,
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        backdropFilter: "blur(8px)",
-      }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 640,
-          background: "#0d0d0d",
-          border: "1px solid #252525",
-          borderRadius: "20px 20px 0 0",
-          padding: "28px 28px 40px",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 20,
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 900, color: "#e0e0e0" }}>
-              Create Community Link
-            </div>
-            <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
-              Share the generated link — no codes needed
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "1px solid #252525",
-              borderRadius: 8,
-              color: "#555",
-              cursor: "pointer",
-              padding: "4px 10px",
-              fontFamily: "inherit",
-            }}
-          >
-            ✕
-          </button>
-        </div>
-        <div
-          style={{
-            background: "rgba(163,230,53,.04)",
-            border: "1px solid rgba(163,230,53,.12)",
-            borderRadius: 12,
-            padding: "12px 14px",
-            marginBottom: 18,
-            fontSize: 12,
-            color: "#5a8a30",
-            lineHeight: 1.8,
-          }}
-        >
-          <strong style={{ color: "#a3e635" }}>🔗 Link-first model:</strong> One
-          smart link per community. When whitelist slots fill, the link
-          auto-converts to waitlist mode — users see a "Join Waitlist Now" CTA
-          automatically.
-        </div>
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
-        >
-          <div style={{ gridColumn: "1/-1" }}>
-            <FieldLabel>Community / Campaign Name *</FieldLabel>
-            <Input
-              value={name}
-              onChange={setName}
-              placeholder="e.g. CryptoTwitter WL, DeFi Discord, NFT Community"
-            />
-          </div>
-          <div style={{ gridColumn: "1/-1" }}>
-            <FieldLabel>Category</FieldLabel>
-            <div style={{ display: "flex", gap: 6 }}>
-              {CATEGORY_OPTIONS.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setCategory(c.id)}
-                  style={{
-                    flex: 1,
-                    padding: "9px 6px",
-                    borderRadius: 9,
-                    border: "none",
-                    cursor: "pointer",
-                    background:
-                      category === c.id
-                        ? `${ACC_COLORS[c.id] ?? "#94a3b8"}18`
-                        : "#111",
-                    borderWidth: 1.5,
-                    borderStyle: "solid",
-                    borderColor:
-                      category === c.id
-                        ? `${ACC_COLORS[c.id] ?? "#94a3b8"}55`
-                        : "#1e1e1e",
-                    color:
-                      category === c.id
-                        ? (ACC_COLORS[c.id] ?? "#94a3b8")
-                        : "#666",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <FieldLabel>Whitelist Slots</FieldLabel>
-            <Input
-              value={maxUses}
-              onChange={setMaxUses}
-              placeholder="e.g. 100"
-            />
-            <div style={{ fontSize: 9, color: "#444", marginTop: 4 }}>
-              How many get WL access
-            </div>
-          </div>
-          <div>
-            <FieldLabel>Waitlist Slots (0=off)</FieldLabel>
-            <Input
-              value={waitlistSlots}
-              onChange={setWaitlistSlots}
-              placeholder="e.g. 500"
-            />
-            <div style={{ fontSize: 9, color: "#38bdf8", marginTop: 4 }}>
-              ↑ Auto-activates when WL full
-            </div>
-          </div>
-          <div>
-            <FieldLabel>Entry Price</FieldLabel>
-            <Input
-              value={price}
-              onChange={setPrice}
-              prefix="$"
-              placeholder="4.00"
-            />
-          </div>
-          {category === "whitelist" && (
-            <div>
-              <FieldLabel>Whitelist Price (0=free)</FieldLabel>
-              <Input
-                value={wlPrice}
-                onChange={setWlPrice}
-                prefix="$"
-                placeholder="0 = free"
-              />
-            </div>
-          )}
-          <div>
-            <FieldLabel>EP Grant</FieldLabel>
-            <Input value={epGrant} onChange={setEpGrant} placeholder="500" />
-          </div>
-          <div>
-            <FieldLabel>VIP Lottery Slots (0=off)</FieldLabel>
-            <Input
-              value={vipSlots}
-              onChange={setVipSlots}
-              placeholder="e.g. 5"
-            />
-          </div>
-        </div>
-        {err && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: "10px 13px",
-              background: "rgba(239,68,68,.07)",
-              border: "1px solid rgba(239,68,68,.22)",
-              borderRadius: 10,
-              fontSize: 12,
-              color: "#f87171",
-            }}
-          >
-            {err}
-          </div>
-        )}
-        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: "13px",
-              borderRadius: 12,
-              border: "1px solid #252525",
-              background: "transparent",
-              color: "#666",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={create}
-            disabled={creating}
-            style={{
-              flex: 2,
-              padding: "13px",
-              borderRadius: 12,
-              border: "none",
-              background: creating
-                ? "#1a1a1a"
-                : "linear-gradient(135deg,#a3e635,#65a30d)",
-              color: creating ? "#333" : "#061000",
-              fontWeight: 800,
-              fontSize: 14,
-              cursor: creating ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            {creating ? "Creating…" : "Create Link →"}
-          </button>
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -3643,6 +4150,7 @@ export default function InviteSection() {
       <style>{`
         @keyframes xvFadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes xvFadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes xvSpin   { to{transform:rotate(360deg)} }
         @keyframes ssIn     { from{opacity:0;transform:translateY(6px) scale(.97)} to{opacity:1;transform:none} }
       `}</style>
       <div
@@ -3902,6 +4410,7 @@ export default function InviteSection() {
               <InviteCard
                 key={invite.id}
                 invite={invite}
+                ngnRate={paywallConfig?.ngn_rate ?? 1580}
                 onOptimisticUpdate={handleOptimisticUpdate}
                 onDelete={handleDelete}
               />
@@ -3921,6 +4430,7 @@ export default function InviteSection() {
         <CreateInviteDrawer
           onClose={() => setShowCreate(false)}
           onCreate={handleCreate}
+          ngnRate={paywallConfig?.ngn_rate ?? 1580}
         />
       )}
     </>

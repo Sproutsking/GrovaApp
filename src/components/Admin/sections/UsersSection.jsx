@@ -1,24 +1,29 @@
 // ============================================================================
-// src/components/Admin/sections/UsersSection.jsx
-// Full user management — search, view, ban, verify, adjust, etc.
-// FIXED: userMgmt prop interface aligned with AdminDashboard, useTable connected
+// src/components/Admin/sections/UsersSection.jsx — FULL POWER v3
+// ============================================================================
+//
+// PROP: receives { adminData, usersHook } from AdminDashboard
+//       usersHook = useUsers() — has banUser, deleteUser, restoreUser etc.
+//
+// DELETE: Hard delete — calls deleteUser() which:
+//   1. Sets account_status = 'deactivated', deleted_at = now() in profiles
+//   2. Calls admin-revoke-user Edge Function → auth.admin.deleteUser()
+//      so the user is GONE from auth.users and cannot log in ever again
+//
+// BAN: Sets account_status = 'suspended' + calls Edge Function to kill session
+// UNBAN: Sets account_status = 'active'
+// RESTORE: Clears deleted_at, sets account_status = 'active'
+// VERIFY/TIER/WALLET: All direct DB writes, instant effect
 // ============================================================================
 
 import React, { useState } from "react";
 import {
-  Users,
-  Shield,
   CheckCircle2,
-  XCircle,
   Trash2,
   Edit2,
-  Search,
   RefreshCw,
-  AlertTriangle,
-  DollarSign,
   Star,
   Eye,
-  Lock,
   Unlock,
   UserX,
   UserCheck,
@@ -40,14 +45,20 @@ import {
   C,
   Avatar,
   ConfirmDialog,
-  Tabs,
-  EmptyState,
 } from "../AdminUI.jsx";
 import { can, PERMISSIONS } from "../permissions.js";
-import { useTable } from "../useAdminData.js";
 
-export default function UsersSection({ adminData, userMgmt }) {
+export default function UsersSection({ adminData, usersHook }) {
   const {
+    users = [],
+    total = 0,
+    page = 0,
+    setPage,
+    search = "",
+    setSearch,
+    reload,
+    loading = false,
+    pageSize = 20,
     banUser,
     unbanUser,
     deleteUser,
@@ -55,12 +66,11 @@ export default function UsersSection({ adminData, userMgmt }) {
     verifyUser,
     setUserTier,
     adjustWallet,
-  } = userMgmt || {};
+  } = usersHook || {};
 
-  const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
-  const [actionModal, setActionModal] = useState(null); // { type, user }
+  const [actionModal, setActionModal] = useState(null);
   const [adjustForm, setAdjustForm] = useState({
     tokens: 0,
     points: 0,
@@ -71,52 +81,45 @@ export default function UsersSection({ adminData, userMgmt }) {
   const [actionAlert, setActionAlert] = useState(null);
   const [banReason, setBanReason] = useState("");
 
-  const filterMap = {
-    all: {},
-    active: { account_status: "active" },
-    suspended: { account_status: "suspended" },
-    deleted: { account_status: "deactivated" },
-    pro: { is_pro: true },
-    vip: { subscription_tier: "vip" },
-    unverified: { verified: false },
-  };
-
-  const {
-    data: users,
-    count,
-    page,
-    setPage,
-    loading,
-    refresh,
-    pageSize,
-  } = useTable("profiles", {
-    select:
-      "id,full_name,email,username,verified,is_pro,account_status,subscription_tier,payment_status,created_at,deleted_at,last_seen,engagement_points",
-    filters: { ...filterMap[filter] },
-    search,
-    searchColumns: ["full_name", "email", "username"],
-    order: { column: "created_at", ascending: false },
-  });
-
   const canEdit = can(adminData, PERMISSIONS.EDIT_USERS);
   const canBan = can(adminData, PERMISSIONS.BAN_USERS);
   const canDelete = can(adminData, PERMISSIONS.DELETE_USERS);
   const canRestore = can(adminData, PERMISSIONS.RESTORE_USERS);
   const canAdjustWallet = can(adminData, PERMISSIONS.ADJUST_BALANCE);
 
-  const doAction = async (fn) => {
+  // Client-side filter on top of server search
+  const filterFn = (u) => {
+    switch (filter) {
+      case "active":
+        return u.account_status === "active" && !u.deleted_at;
+      case "suspended":
+        return u.account_status === "suspended";
+      case "deleted":
+        return !!u.deleted_at || u.account_status === "deactivated";
+      case "pro":
+        return u.is_pro;
+      case "vip":
+        return u.subscription_tier === "vip";
+      case "unverified":
+        return !u.verified;
+      default:
+        return true;
+    }
+  };
+  const displayUsers = (users || []).filter(filterFn);
+
+  const doAction = async (fn, successMsg = "Done.") => {
     setActionLoading(true);
     setActionAlert(null);
     try {
       await fn();
       setActionModal(null);
-      refresh();
-      setActionAlert({
-        type: "success",
-        msg: "Action completed successfully.",
-      });
+      setSelectedUser(null);
+      if (reload) await reload();
+      setActionAlert({ type: "success", msg: successMsg });
     } catch (e) {
-      setActionAlert({ type: "error", msg: e.message });
+      setActionAlert({ type: "error", msg: e?.message || "Action failed." });
+      console.error("[UsersSection]", e);
     } finally {
       setActionLoading(false);
     }
@@ -125,8 +128,8 @@ export default function UsersSection({ adminData, userMgmt }) {
   const filterOptions = [
     { value: "all", label: "All Users" },
     { value: "active", label: "Active" },
-    { value: "suspended", label: "Suspended" },
-    { value: "deleted", label: "Deleted/Deactivated" },
+    { value: "suspended", label: "Suspended / Banned" },
+    { value: "deleted", label: "Deleted" },
     { value: "pro", label: "Pro" },
     { value: "vip", label: "VIP" },
     { value: "unverified", label: "Unverified" },
@@ -147,7 +150,7 @@ export default function UsersSection({ adminData, userMgmt }) {
               style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: C.text,
+                color: u.deleted_at ? C.muted : C.text,
                 display: "flex",
                 alignItems: "center",
                 gap: 5,
@@ -195,67 +198,87 @@ export default function UsersSection({ adminData, userMgmt }) {
     {
       label: "Actions",
       render: (u) => (
-        <div style={{ display: "flex", gap: 4 }}>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {/* View */}
           <Btn
             icon={Eye}
             size="sm"
-            onClick={() => setSelectedUser(u)}
             title="View profile"
+            onClick={() => {
+              setSelectedUser(u);
+              setTierValue(u.subscription_tier || "free");
+            }}
           />
-          {canBan && u.account_status === "active" && (
+
+          {/* Ban — only for active non-deleted users */}
+          {canBan && u.account_status === "active" && !u.deleted_at && (
             <Btn
               icon={UserX}
               size="sm"
               danger
-              onClick={() => setActionModal({ type: "ban", user: u })}
-              title="Suspend user"
+              title="Suspend / Ban"
+              onClick={() => {
+                setActionModal({ type: "ban", user: u });
+                setBanReason("");
+              }}
             />
           )}
+
+          {/* Unban */}
           {canBan && u.account_status === "suspended" && (
             <Btn
               icon={UserCheck}
               size="sm"
-              onClick={() => setActionModal({ type: "unban", user: u })}
               title="Unsuspend"
+              onClick={() => setActionModal({ type: "unban", user: u })}
             />
           )}
-          {canEdit && (
+
+          {/* Edit tier / verify */}
+          {canEdit && !u.deleted_at && (
             <Btn
               icon={Edit2}
               size="sm"
+              title="Edit tier / verify"
               onClick={() => {
                 setSelectedUser(u);
                 setTierValue(u.subscription_tier || "free");
               }}
-              title="Edit tier / verify"
             />
           )}
+
+          {/* Hard Delete — only for non-deleted users */}
           {canDelete && !u.deleted_at && (
             <Btn
               icon={Trash2}
               size="sm"
               danger
+              title="Delete account (permanent)"
               onClick={() => setActionModal({ type: "delete", user: u })}
-              title="Delete account"
             />
           )}
-          {canRestore && u.deleted_at && (
-            <Btn
-              icon={Unlock}
-              size="sm"
-              onClick={() => setActionModal({ type: "restore", user: u })}
-              title="Restore account"
-            />
-          )}
+
+          {/* Restore */}
+          {canRestore &&
+            (!!u.deleted_at || u.account_status === "deactivated") && (
+              <Btn
+                icon={Unlock}
+                size="sm"
+                title="Restore account"
+                onClick={() => setActionModal({ type: "restore", user: u })}
+              />
+            )}
+
+          {/* Wallet */}
           {canAdjustWallet && (
             <Btn
               icon={Wallet}
               size="sm"
+              title="Adjust wallet"
               onClick={() => {
                 setActionModal({ type: "wallet", user: u });
                 setAdjustForm({ tokens: 0, points: 0, reason: "" });
               }}
-              title="Adjust wallet"
             />
           )}
         </div>
@@ -265,6 +288,7 @@ export default function UsersSection({ adminData, userMgmt }) {
 
   return (
     <div>
+      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -280,10 +304,10 @@ export default function UsersSection({ adminData, userMgmt }) {
             User Management
           </h1>
           <p style={{ color: C.muted, marginTop: 4, fontSize: 14 }}>
-            {count.toLocaleString()} total users
+            {total.toLocaleString()} total users
           </p>
         </div>
-        <Btn icon={RefreshCw} label="Refresh" onClick={refresh} />
+        <Btn icon={RefreshCw} label="Refresh" onClick={reload} />
       </div>
 
       {actionAlert && (
@@ -307,7 +331,9 @@ export default function UsersSection({ adminData, userMgmt }) {
         >
           <SearchBar
             value={search}
-            onChange={setSearch}
+            onChange={(val) => {
+              if (setSearch) setSearch(val);
+            }}
             placeholder="Search name, email, username…"
           />
           <Select
@@ -318,26 +344,26 @@ export default function UsersSection({ adminData, userMgmt }) {
         </div>
         <DataTable
           columns={columns}
-          rows={users}
+          rows={displayUsers}
           loading={loading}
-          emptyMsg="No users found matching your filters."
+          emptyMsg="No users match the current filter."
           footer={
             <Pagination
               page={page}
               pageSize={pageSize}
-              total={count}
+              total={total}
               onPageChange={setPage}
             />
           }
         />
       </Section>
 
-      {/* User Detail / Edit Modal */}
+      {/* ── View / Edit Modal ── */}
       <Modal
         open={!!selectedUser}
         onClose={() => setSelectedUser(null)}
         title="User Profile"
-        width={560}
+        width={580}
       >
         {selectedUser && (
           <div>
@@ -372,6 +398,7 @@ export default function UsersSection({ adminData, userMgmt }) {
                 </div>
               </div>
             </div>
+
             <div
               style={{
                 display: "grid",
@@ -428,7 +455,8 @@ export default function UsersSection({ adminData, userMgmt }) {
                 </div>
               ))}
             </div>
-            {canEdit && (
+
+            {canEdit && !selectedUser.deleted_at && (
               <div>
                 <Field label="Change Subscription Tier">
                   <div style={{ display: "flex", gap: 8 }}>
@@ -448,31 +476,39 @@ export default function UsersSection({ adminData, userMgmt }) {
                       variant="primary"
                       loading={actionLoading}
                       onClick={() =>
-                        doAction(() => setUserTier(selectedUser.id, tierValue))
+                        doAction(
+                          () => setUserTier(selectedUser.id, tierValue),
+                          `Tier updated to ${tierValue}.`,
+                        )
                       }
                     />
                   </div>
                 </Field>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn
-                    label={selectedUser.verified ? "Unverify" : "Verify"}
-                    icon={CheckCircle2}
-                    variant={selectedUser.verified ? "secondary" : "primary"}
-                    loading={actionLoading}
-                    onClick={() =>
-                      doAction(() =>
-                        verifyUser(selectedUser.id, !selectedUser.verified),
-                      )
-                    }
-                  />
-                </div>
+                <Btn
+                  label={
+                    selectedUser.verified
+                      ? "Remove Verification"
+                      : "Verify User"
+                  }
+                  icon={CheckCircle2}
+                  variant={selectedUser.verified ? "secondary" : "primary"}
+                  loading={actionLoading}
+                  onClick={() =>
+                    doAction(
+                      () => verifyUser(selectedUser.id, !selectedUser.verified),
+                      selectedUser.verified
+                        ? "Verification removed."
+                        : "User verified.",
+                    )
+                  }
+                />
               </div>
             )}
           </div>
         )}
       </Modal>
 
-      {/* Ban / Suspend Modal */}
+      {/* ── Ban Modal ── */}
       <Modal
         open={actionModal?.type === "ban"}
         onClose={() => setActionModal(null)}
@@ -487,7 +523,10 @@ export default function UsersSection({ adminData, userMgmt }) {
               danger
               loading={actionLoading}
               onClick={() =>
-                doAction(() => banUser(actionModal.user.id, banReason))
+                doAction(
+                  () => banUser(actionModal.user.id, banReason),
+                  "User suspended. Their session has been revoked.",
+                )
               }
             />
           </>
@@ -495,50 +534,59 @@ export default function UsersSection({ adminData, userMgmt }) {
       >
         <Alert
           type="warn"
-          message="Suspending immediately blocks the user from accessing Xeevia."
+          message="This immediately blocks the user and kills their active session."
         />
-        <Field label="Reason for suspension">
+        <Field label="Reason (optional)">
           <Input
             value={banReason}
             onChange={(e) => setBanReason(e.target.value)}
-            placeholder="e.g. Repeated violations, spam, harassment…"
+            placeholder="e.g. Spam, violations, fraud…"
             rows={3}
           />
         </Field>
       </Modal>
 
-      {/* Unban Confirm */}
+      {/* ── Unban Confirm ── */}
       <ConfirmDialog
         open={actionModal?.type === "unban"}
         onClose={() => setActionModal(null)}
         title="Unsuspend User"
-        message={`Restore access for ${actionModal?.user?.full_name}? They will be able to sign in immediately.`}
+        message={`Restore full access for ${actionModal?.user?.full_name}? They can log in immediately.`}
         confirmLabel="Unsuspend"
-        onConfirm={() => doAction(() => unbanUser(actionModal.user.id))}
+        onConfirm={() =>
+          doAction(() => unbanUser(actionModal.user.id), "User unsuspended.")
+        }
       />
 
-      {/* Delete Confirm */}
+      {/* ── Hard Delete Confirm ── */}
       <ConfirmDialog
         open={actionModal?.type === "delete"}
         onClose={() => setActionModal(null)}
-        title="Delete User Account"
+        title="Permanently Delete Account"
         danger
-        message={`Soft-delete ${actionModal?.user?.full_name}? Their data is retained but they cannot access the platform.`}
-        confirmLabel="Delete Account"
-        onConfirm={() => doAction(() => deleteUser(actionModal.user.id))}
+        message={`This will permanently delete ${actionModal?.user?.full_name}'s auth account. They will NEVER be able to log in again. Their data is retained for records. This cannot be undone.`}
+        confirmLabel="Delete Permanently"
+        onConfirm={() =>
+          doAction(
+            () => deleteUser(actionModal.user.id),
+            "Account permanently deleted. Auth session destroyed.",
+          )
+        }
       />
 
-      {/* Restore Confirm */}
+      {/* ── Restore Confirm ── */}
       <ConfirmDialog
         open={actionModal?.type === "restore"}
         onClose={() => setActionModal(null)}
         title="Restore Account"
         message={`Restore ${actionModal?.user?.full_name}'s account? They will regain full platform access.`}
-        confirmLabel="Restore Account"
-        onConfirm={() => doAction(() => restoreUser(actionModal.user.id))}
+        confirmLabel="Restore"
+        onConfirm={() =>
+          doAction(() => restoreUser(actionModal.user.id), "Account restored.")
+        }
       />
 
-      {/* Wallet Adjust Modal */}
+      {/* ── Wallet Adjust Modal ── */}
       <Modal
         open={actionModal?.type === "wallet"}
         onClose={() => setActionModal(null)}
@@ -548,18 +596,20 @@ export default function UsersSection({ adminData, userMgmt }) {
           <>
             <Btn label="Cancel" onClick={() => setActionModal(null)} />
             <Btn
-              label="Apply Adjustment"
+              label="Apply"
               variant="primary"
               loading={actionLoading}
               onClick={() =>
-                doAction(() =>
-                  adjustWallet(
-                    actionModal.user.id,
-                    parseInt(adjustForm.tokens) || 0,
-                    parseInt(adjustForm.points) || 0,
-                    adjustForm.reason,
-                    adminData.user_id,
-                  ),
+                doAction(
+                  () =>
+                    adjustWallet(
+                      actionModal.user.id,
+                      parseInt(adjustForm.tokens) || 0,
+                      parseInt(adjustForm.points) || 0,
+                      adjustForm.reason,
+                      adminData?.user_id,
+                    ),
+                  "Wallet adjusted.",
                 )
               }
             />
@@ -568,9 +618,9 @@ export default function UsersSection({ adminData, userMgmt }) {
       >
         <Alert
           type="warn"
-          message="Use positive values to credit, negative to debit."
+          message="Positive = credit. Negative = debit. Reason is required."
         />
-        <Field label="Token Delta (Grova Tokens)">
+        <Field label="Grova Token Delta">
           <Input
             value={adjustForm.tokens}
             onChange={(e) =>
@@ -579,7 +629,7 @@ export default function UsersSection({ adminData, userMgmt }) {
             type="number"
           />
         </Field>
-        <Field label="Points Delta (Engagement Points)">
+        <Field label="Engagement Points Delta">
           <Input
             value={adjustForm.points}
             onChange={(e) =>
@@ -594,7 +644,7 @@ export default function UsersSection({ adminData, userMgmt }) {
             onChange={(e) =>
               setAdjustForm({ ...adjustForm, reason: e.target.value })
             }
-            placeholder="e.g. Compensation for technical issue, beta bonus…"
+            placeholder="e.g. Compensation, beta bonus…"
           />
         </Field>
       </Modal>

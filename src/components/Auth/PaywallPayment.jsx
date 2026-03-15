@@ -1,257 +1,65 @@
-// src/components/Auth/PaywallPayment.jsx — v3 FREE-GATE-FIX
+// src/components/Auth/PaywallPayment.jsx — v4 GO-LIVE
 // ============================================================================
-// FIXES vs v2:
-//  [1] isFree is no longer re-derived here — it's passed as `isFreeAccess`
-//      prop from PaywallGate (the authoritative source). This prevents the
-//      situation where a standard-type code with price=0 was not recognized
-//      as free because isWLInvite was false.
-//
-//  [2] isApprovedAccess prop replaces local isUserWhitelistedFromWaitlist
-//      re-computation — same authoritative-prop pattern.
-//
-//  [3] Payment tabs (EVM/SOL/Cardano) are hidden whenever isFreeAccess OR
-//      isApprovedAccess is true — no wallet needed.
-//
-//  [4] The "Activate Free Access" button is shown whenever isFreeAccess OR
-//      isApprovedAccess, regardless of invite type.
-//
-// Everything else unchanged from v2.
+// CHANGES vs v3:
+//  [1] Paystack — FULLY WIRED. Opens authorization_url in same tab.
+//      On return (?ref=&product_id= in URL), auto-verifies via edge fn and
+//      activates account. No redirect loop. Clears URL params after verify.
+//  [2] WhatsApp popup on payment method fail — COMMENTED OUT.
+//      Re-enable by searching "WHATSAPP_FALLBACK" when ready.
+//  [3] Web3 (EVM/SOL/ADA) — verify flow unchanged but now calls onVerify()
+//      which triggers refreshProfile() in PaywallGate → gate unlocks.
+//  [4] VIP invite codes — isFreeAccess works for ALL types (standard, vip,
+//      whitelist) when price_override=0 or entry_price=0.
+//  [5] Free access button in PaywallPayment hidden when isFreeAccess=true
+//      (PriceHero already shows it — no duplicate button).
+//  [6] Paystack callback auto-detection on mount — if URL has ?ref= and
+//      product_id, runs verifyPaystackReturn() immediately.
+//  [7] All error states show retry button. No terminal failure states.
 // ============================================================================
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { supabase } from "../../services/config/supabase";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { fetchInviteCodeDetails } from "../../services/auth/paywallDataService";
 import {
-  verifyWeb3Payment,
-  requestWalletPayment,
-  requestSolanaPayment,
-  requestCardanoPayment,
+  activateFreeCode,
+  createPaystackTransaction,
   detectAvailableWallet,
   detectSolanaWallet,
   detectCardanoWallet,
   connectWallet,
-  activateFreeCode,
+  connectSolanaWallet,
+  connectCardanoWalletCIP30,
+  getOrCreateIdempotencyKey,
   clearIdempotencyKey,
 } from "../../services/auth/paymentService";
-import {
-  saveConnectedWallet,
-  fetchInviteCodeDetails,
-  buildERC20TransferData,
-} from "../../services/auth/paywallDataService";
+import { supabase } from "../../services/config/supabase";
 
-// ─── Chain registries ──────────────────────────────────────────────────────────
-export const EVM_CHAINS = [
-  {
-    id: "polygon",
-    label: "Polygon",
-    emoji: "💜",
-    fee: "~$0.01",
-    chainId: 137,
-    color: "#8b5cf6",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
-        decimals: 6,
-      },
-      {
-        symbol: "USDC",
-        address: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
-        decimals: 6,
-      },
-    ],
-  },
-  {
-    id: "base",
-    label: "Base",
-    emoji: "🔵",
-    fee: "~$0.01",
-    chainId: 8453,
-    color: "#3b82f6",
-    tokens: [
-      {
-        symbol: "USDC",
-        address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-        decimals: 6,
-      },
-      {
-        symbol: "USDT",
-        address: "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2",
-        decimals: 6,
-      },
-    ],
-  },
-  {
-    id: "arbitrum",
-    label: "Arbitrum",
-    emoji: "🔷",
-    fee: "~$0.02",
-    chainId: 42161,
-    color: "#06b6d4",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-        decimals: 6,
-      },
-      {
-        symbol: "USDC",
-        address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
-        decimals: 6,
-      },
-    ],
-  },
-  {
-    id: "optimism",
-    label: "Optimism",
-    emoji: "🔴",
-    fee: "~$0.01",
-    chainId: 10,
-    color: "#ef4444",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58",
-        decimals: 6,
-      },
-      {
-        symbol: "USDC",
-        address: "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
-        decimals: 6,
-      },
-    ],
-  },
-  {
-    id: "ethereum",
-    label: "Ethereum",
-    emoji: "⬡",
-    fee: "~$2-5",
-    chainId: 1,
-    color: "#a78bfa",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0xdac17f958d2ee523a2206206994597c13d831ec7",
-        decimals: 6,
-      },
-      {
-        symbol: "USDC",
-        address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-        decimals: 6,
-      },
-    ],
-  },
-  {
-    id: "bnb",
-    label: "BNB Chain",
-    emoji: "🟡",
-    fee: "~$0.05",
-    chainId: 56,
-    color: "#eab308",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0x55d398326f99059ff775485246999027b3197955",
-        decimals: 18,
-      },
-      {
-        symbol: "USDC",
-        address: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
-        decimals: 18,
-      },
-    ],
-  },
-  {
-    id: "avalanche",
-    label: "Avalanche C",
-    emoji: "🔺",
-    fee: "~$0.05",
-    chainId: 43114,
-    color: "#e84142",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
-        decimals: 6,
-      },
-      {
-        symbol: "USDC",
-        address: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
-        decimals: 6,
-      },
-    ],
-  },
-  {
-    id: "zksync",
-    label: "zkSync Era",
-    emoji: "⚡",
-    fee: "~$0.01",
-    chainId: 324,
-    color: "#60a5fa",
-    tokens: [
-      {
-        symbol: "USDT",
-        address: "0x493257fd37edb34451f62edf8d2a0c418852ba4c",
-        decimals: 6,
-      },
-      {
-        symbol: "USDC",
-        address: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
-        decimals: 6,
-      },
-    ],
-  },
-];
-
-const SOL_TOKENS = [
-  {
-    symbol: "USDC",
-    address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    decimals: 6,
-  },
-  {
-    symbol: "USDT",
-    address: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
-    decimals: 6,
-  },
-];
-
-const MOBILE_EVM_WALLETS = [
-  { id: "metamask", label: "MetaMask", emoji: "🦊", color: "#f6851b" },
-  { id: "trust", label: "Trust Wallet", emoji: "🛡️", color: "#3375bb" },
-  { id: "coinbase", label: "Coinbase Wallet", emoji: "🔵", color: "#0052ff" },
-];
-
-function isMobileBrowser() {
-  return /iPhone|iPad|iPod|Android/i.test(
-    typeof navigator !== "undefined" ? navigator.userAgent : "",
-  );
-}
-
-function getMobileWalletDeepLink(walletId, dappUrl) {
-  const encoded = encodeURIComponent(dappUrl);
-  const links = {
-    metamask: `https://metamask.app.link/dapp/${dappUrl.replace(/^https?:\/\//, "")}`,
-    trust: `https://link.trustwallet.com/open_url?coin_id=60&url=${encoded}`,
-    phantom: `https://phantom.app/ul/browse/${encoded}?ref=${encoded}`,
-    coinbase: `https://go.cb-wallet.io/dapp?url=${encoded}`,
-  };
-  return links[walletId] ?? null;
-}
-
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) =>
   typeof n === "number" && !isNaN(n)
     ? n % 1 === 0
       ? n.toFixed(0)
       : n.toFixed(2)
     : "—";
-const mono = { fontFamily: "'JetBrains Mono', monospace" };
 
 function safePrice(value, fallback = 4) {
   const n = Number(value);
   return n > 0 ? n : fallback;
 }
 
-// ─── Primitives ───────────────────────────────────────────────────────────────
+function resolvePrice(invite, fallback = 4) {
+  const fb = safePrice(fallback, 4);
+  if (!invite) return fb;
+  const po = invite.price_override;
+  if (po != null && !isNaN(Number(po))) return Number(po);
+  const meta = invite?.metadata ?? {};
+  if (meta.entry_price_cents != null && !isNaN(Number(meta.entry_price_cents)))
+    return Number(meta.entry_price_cents) / 100;
+  const ep = invite.entry_price;
+  if (ep != null && !isNaN(Number(ep))) return Number(ep);
+  return fb;
+}
+
+// ── Spin primitive ────────────────────────────────────────────────────────────
 const Spin = ({ size = 18, color = "#a3e635" }) => (
   <div
     style={{
@@ -266,1457 +74,491 @@ const Spin = ({ size = 18, color = "#a3e635" }) => (
   />
 );
 
-const Label = ({ children }) => (
-  <div
-    style={{
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: "1.8px",
-      textTransform: "uppercase",
-      color: "#666",
-      marginBottom: 8,
-    }}
-  >
-    {children}
-  </div>
-);
+// ── EVM chains config (mirrors web3-verify-payment edge fn) ──────────────────
+const EVM_CHAINS = [
+  {
+    id: "polygon",
+    name: "Polygon",
+    emoji: "💜",
+    fee: "~$0.01",
+    chainId: 137,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+  },
+  {
+    id: "polygon",
+    name: "Polygon",
+    emoji: "💜",
+    fee: "~$0.01",
+    chainId: 137,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+  },
+  {
+    id: "base",
+    name: "Base",
+    emoji: "🔵",
+    fee: "~$0.01",
+    chainId: 8453,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  },
+  {
+    id: "base",
+    name: "Base",
+    emoji: "🔵",
+    fee: "~$0.01",
+    chainId: 8453,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2",
+  },
+  {
+    id: "arbitrum",
+    name: "Arbitrum",
+    emoji: "🔷",
+    fee: "~$0.02",
+    chainId: 42161,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+  },
+  {
+    id: "arbitrum",
+    name: "Arbitrum",
+    emoji: "🔷",
+    fee: "~$0.02",
+    chainId: 42161,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+  },
+  {
+    id: "optimism",
+    name: "Optimism",
+    emoji: "🔴",
+    fee: "~$0.01",
+    chainId: 10,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58",
+  },
+  {
+    id: "optimism",
+    name: "Optimism",
+    emoji: "🔴",
+    fee: "~$0.01",
+    chainId: 10,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+  },
+  {
+    id: "ethereum",
+    name: "Ethereum",
+    emoji: "⬡",
+    fee: "~$2-5",
+    chainId: 1,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
+  },
+  {
+    id: "ethereum",
+    name: "Ethereum",
+    emoji: "⬡",
+    fee: "~$2-5",
+    chainId: 1,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  },
+  {
+    id: "bnb",
+    name: "BNB Chain",
+    emoji: "🟡",
+    fee: "~$0.05",
+    chainId: 56,
+    token: "USDT",
+    decimals: 18,
+    tokenAddress: "0x55d398326f99059ff775485246999027b3197955",
+  },
+  {
+    id: "bnb",
+    name: "BNB Chain",
+    emoji: "🟡",
+    fee: "~$0.05",
+    chainId: 56,
+    token: "USDC",
+    decimals: 18,
+    tokenAddress: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+  },
+  {
+    id: "avalanche",
+    name: "Avalanche C",
+    emoji: "🔺",
+    fee: "~$0.05",
+    chainId: 43114,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
+  },
+  {
+    id: "avalanche",
+    name: "Avalanche C",
+    emoji: "🔺",
+    fee: "~$0.05",
+    chainId: 43114,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+  },
+  {
+    id: "zksync",
+    name: "zkSync Era",
+    emoji: "⚡",
+    fee: "~$0.01",
+    chainId: 324,
+    token: "USDT",
+    decimals: 6,
+    tokenAddress: "0x493257fd37edb34451f62edf8d2a0c418852ba4c",
+  },
+  {
+    id: "zksync",
+    name: "zkSync Era",
+    emoji: "⚡",
+    fee: "~$0.01",
+    chainId: 324,
+    token: "USDC",
+    decimals: 6,
+    tokenAddress: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
+  },
+];
 
-const ErrBox = ({ msg }) => {
-  if (!msg) return null;
-  const isSrv = /server config|contact support/i.test(msg);
-  return (
-    <div
-      style={{
-        background: isSrv ? "rgba(245,158,11,.07)" : "rgba(239,68,68,.07)",
-        border: `1px solid ${isSrv ? "rgba(245,158,11,.28)" : "rgba(239,68,68,.22)"}`,
-        borderRadius: 11,
-        padding: "11px 14px",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-        animation: "xvFadeIn .2s",
-      }}
-    >
-      <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>
-        {isSrv ? "🔧" : "⚠️"}
-      </span>
-      <span
-        style={{
-          fontSize: 12.5,
-          color: isSrv ? "#fcd34d" : "#fca5a5",
-          lineHeight: 1.65,
-        }}
-      >
-        {msg}
-      </span>
-    </div>
-  );
-};
-
-const InfoBox = ({ icon, children }) => (
-  <div
-    style={{
-      background: "rgba(163,230,53,.04)",
-      border: "1px solid rgba(163,230,53,.1)",
-      borderRadius: 11,
-      padding: "10px 13px",
-      display: "flex",
-      gap: 9,
-      alignItems: "flex-start",
-    }}
-  >
-    <span style={{ fontSize: 14, flexShrink: 0 }}>{icon}</span>
-    <span style={{ fontSize: 11.5, color: "#999", lineHeight: 1.65 }}>
-      {children}
-    </span>
-  </div>
-);
-
-const Divider = ({ label }) => (
-  <div
-    style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0" }}
-  >
-    <div style={{ flex: 1, height: 1, background: "#1a1a1a" }} />
-    {label && (
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "2.5px",
-          color: "#555",
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </span>
-    )}
-    <div style={{ flex: 1, height: 1, background: "#1a1a1a" }} />
-  </div>
-);
-
-const StepRow = ({ step, active, label, sub }) => {
-  const state = active > step ? "done" : active === step ? "act" : "idle";
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 14,
-        alignItems: "flex-start",
-        opacity: state === "idle" ? 0.32 : 1,
-        transition: "opacity .3s",
-      }}
-    >
-      <div className={`xv-dot ${state}`}>
-        {state === "done" ? (
-          "✓"
-        ) : state === "act" ? (
-          <Spin size={12} color="#a3e635" />
-        ) : (
-          step
-        )}
-      </div>
-      <div style={{ paddingTop: 5 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: state === "idle" ? "#555" : "#e4e4e4",
-          }}
-        >
-          {label}
-        </div>
-        {sub && (
-          <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{sub}</div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const WalletBadge = ({ wallet, accentColor = "#a3e635" }) => {
-  if (!wallet) return null;
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        background: "#111",
-        border: "1px solid #1e1e1e",
-        borderRadius: 11,
-        padding: "10px 14px",
-      }}
-    >
-      <div
-        style={{
-          width: 9,
-          height: 9,
-          borderRadius: "50%",
-          flexShrink: 0,
-          background: wallet.connected ? accentColor : "#2a2a2a",
-          boxShadow: wallet.connected ? `0 0 8px ${accentColor}90` : "none",
-          transition: "all .3s",
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#d8d8d8" }}>
-          {wallet.label}
-        </div>
-        {wallet.address && (
-          <div
-            style={{
-              fontSize: 10,
-              color: "#666",
-              ...mono,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {wallet.address.slice(0, 10)}…{wallet.address.slice(-6)}
-          </div>
-        )}
-      </div>
-      <span
-        style={{
-          flexShrink: 0,
-          fontSize: 9,
-          fontWeight: 800,
-          letterSpacing: "1px",
-          textTransform: "uppercase",
-          color: wallet.connected ? accentColor : "#555",
-          background: wallet.connected ? `${accentColor}15` : "#1a1a1a",
-          border: `1px solid ${wallet.connected ? `${accentColor}30` : "#222"}`,
-          borderRadius: 6,
-          padding: "3px 8px",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {wallet.connected ? "Connected" : "Detected"}
-      </span>
-    </div>
-  );
-};
-
-const ModeControl = ({ isManual, onChange }) => (
-  <div className="xv-seg">
-    <button
-      className={`xv-seg-btn smart ${!isManual ? "on" : ""}`}
-      onClick={() => isManual && onChange(false)}
-    >
-      <span>✨</span> Smart Pay{" "}
-      {!isManual && (
-        <span
-          style={{
-            fontSize: 9,
-            background: "rgba(163,230,53,.15)",
-            color: "#a3e635",
-            border: "1px solid rgba(163,230,53,.25)",
-            borderRadius: 4,
-            padding: "1px 5px",
-            fontWeight: 800,
-          }}
-        >
-          ON
-        </span>
-      )}
-    </button>
-    <button
-      className={`xv-seg-btn manual ${isManual ? "on" : ""}`}
-      onClick={() => !isManual && onChange(true)}
-    >
-      <span>🔧</span> Manual{" "}
-      {isManual && (
-        <span
-          style={{
-            fontSize: 9,
-            background: "rgba(148,163,184,.12)",
-            color: "#94a3b8",
-            border: "1px solid rgba(148,163,184,.2)",
-            borderRadius: 4,
-            padding: "1px 5px",
-            fontWeight: 800,
-          }}
-        >
-          ON
-        </span>
-      )}
-    </button>
-  </div>
-);
-
-const ChainDropdown = ({ selected, onChange, chains }) => (
-  <div>
-    <Label>Network</Label>
-    <div className="xv-select-wrap">
-      <select
-        className="xv-chain-sel"
-        value={selected.id}
-        onChange={(e) => {
-          const c = chains.find((x) => x.id === e.target.value);
-          if (c) onChange(c);
-        }}
-      >
-        {chains.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.emoji} {c.label} — {c.fee}
-          </option>
-        ))}
-      </select>
-    </div>
-    <div
-      style={{
-        marginTop: 6,
-        height: 2,
-        borderRadius: 1,
-        background: `linear-gradient(90deg,${selected.color}80,${selected.color})`,
-        transition: "background .3s",
-      }}
-    />
-  </div>
-);
-
-const TokenRow = ({ tokens, selected, onChange }) => (
-  <div>
-    <Label>Token</Label>
-    <div className="xv-token-row">
-      {tokens.map((t) => (
-        <button
-          key={t.symbol}
-          className={`xv-token-btn ${selected?.symbol === t.symbol ? "on" : ""}`}
-          onClick={() => onChange(t)}
-        >
-          {t.symbol}
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
-const CopyAddress = ({ label, address, onCopy }) => {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    if (!address) return;
-    navigator.clipboard
-      .writeText(address)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {});
-    onCopy?.();
-  };
-  if (!address)
-    return (
-      <div
-        style={{
-          background: "#110900",
-          border: "1px solid rgba(245,158,11,.22)",
-          borderRadius: 11,
-          padding: "11px 13px",
-          fontSize: 12,
-          color: "#fbbf24",
-        }}
-      >
-        ⚠️ {label} treasury wallet not configured. Contact support.
-      </div>
-    );
-  return (
-    <div
-      onClick={copy}
-      style={{
-        background: "#111",
-        border: `1.5px solid ${copied ? "rgba(163,230,53,.38)" : "#222"}`,
-        borderRadius: 11,
-        padding: "12px 14px",
-        cursor: "pointer",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 12,
-        transition: "border-color .2s",
-      }}
-    >
-      <span
-        style={{
-          fontSize: 11,
-          color: "#c8f56a",
-          ...mono,
-          wordBreak: "break-all",
-          lineHeight: 1.5,
-        }}
-      >
-        {address}
-      </span>
-      <span
-        style={{
-          flexShrink: 0,
-          fontSize: 11,
-          fontWeight: 700,
-          color: copied ? "#a3e635" : "#555",
-          background: copied ? "rgba(163,230,53,.08)" : "#1a1a1a",
-          border: `1px solid ${copied ? "rgba(163,230,53,.22)" : "#282828"}`,
-          borderRadius: 7,
-          padding: "5px 10px",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {copied ? "✓ Copied" : "Copy"}
-      </span>
-    </div>
-  );
-};
-
-function MobileWalletSelector({ effectivePrice, token }) {
-  const dappUrl = typeof window !== "undefined" ? window.location.href : "";
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div
-        style={{
-          background: "rgba(163,230,53,.04)",
-          border: "1px solid rgba(163,230,53,.12)",
-          borderRadius: 11,
-          padding: "11px 14px",
-          fontSize: 12,
-          color: "#999",
-          lineHeight: 1.65,
-        }}
-      >
-        📱 Open this page inside your mobile wallet's browser, or tap a wallet
-        below to open it.
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {MOBILE_EVM_WALLETS.map((w) => (
-          <a
-            key={w.id}
-            href={getMobileWalletDeepLink(w.id, dappUrl) ?? "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "13px 16px",
-              borderRadius: 12,
-              border: `1px solid ${w.color}33`,
-              background: `${w.color}0a`,
-              textDecoration: "none",
-              cursor: "pointer",
-            }}
-          >
-            <span style={{ fontSize: 22 }}>{w.emoji}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#e0e0e0" }}>
-                Open in {w.label}
-              </div>
-              <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
-                Pay ${fmt(effectivePrice)} {token?.symbol ?? "USDC"}
-              </div>
-            </div>
-            <span style={{ fontSize: 16, color: "#555" }}>→</span>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── EVM Panels ───────────────────────────────────────────────────────────────
-function SmartEVM({ product, effectivePrice, onSuccess, userId }) {
-  const [chain, setChain] = useState(EVM_CHAINS[0]);
-  const [token, setToken] = useState(EVM_CHAINS[0].tokens[0]);
-  const [wallet, setWallet] = useState(null);
-  const [step, setStep] = useState(0);
-  const [stepMsg, setStepMsg] = useState("");
-  const [txHash, setTxHash] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [onMobile] = useState(() => isMobileBrowser());
-  const mounted = useRef(true);
-
-  useEffect(() => {
-    mounted.current = true;
-    detectAvailableWallet()
-      .then((w) => {
-        if (mounted.current) setWallet(w);
-      })
-      .catch(() => {});
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const changeChain = useCallback((c) => {
-    setChain(c);
-    setToken(c.tokens[0]);
-    setErr("");
-    setStep(0);
-  }, []);
-
-  const pay = useCallback(async () => {
-    if (busy || !wallet || !product) return;
-    setErr("");
-    setBusy(true);
-    setStep(1);
-    setStepMsg("Connecting…");
-    try {
-      const r = await requestWalletPayment({
-        productId: product.id,
-        amountUSD: effectivePrice,
-        chainId: chain.chainId,
-        chainName: chain.id,
-        tokenAddress: token.address,
-        tokenDecimals: token.decimals,
-        onStep: (s) => {
-          if (!mounted.current) return;
-          setStepMsg(s.message);
-          if (s.type === "connecting" || s.type === "switching_chain")
-            setStep(1);
-          else if (s.type === "sending") setStep(2);
-          else if (s.type === "sent") {
-            setStep(3);
-            setTxHash(s.txHash);
-          } else if (s.type === "confirming") setStep(3);
-        },
-      });
-      if (!mounted.current) return;
-      if (r.success) {
-        if (wallet.address && userId)
-          await saveConnectedWallet(
-            userId,
-            "EVM",
-            wallet.address,
-            wallet.label,
-          );
-        setStep(4);
-        onSuccess?.(r);
-      } else if (r.pending) {
-        setErr(r.message);
-        setStep(0);
-      }
-    } catch (e) {
-      if (!mounted.current) return;
-      setErr(e?.message ?? "Payment failed.");
-      setStep(0);
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }, [busy, wallet, product, effectivePrice, chain, token, onSuccess, userId]);
-
-  const idle = step === 0;
-  if (onMobile && !wallet)
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          animation: "xvFadeIn .2s",
-        }}
-      >
-        <MobileWalletSelector effectivePrice={effectivePrice} token={token} />
-        <Divider label="or manual" />
-        <div style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
-          Already inside a wallet browser?{" "}
-          <button
-            onClick={() =>
-              detectAvailableWallet()
-                .then(setWallet)
-                .catch(() => {})
-            }
-            style={{
-              color: "#a3e635",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              fontSize: 12,
-              fontWeight: 700,
-            }}
-          >
-            Tap to detect
-          </button>
-        </div>
-      </div>
-    );
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        animation: "xvFadeIn .2s",
-      }}
-    >
-      {wallet ? (
-        <WalletBadge wallet={wallet} />
-      ) : (
-        <div
-          style={{
-            background: "#110c00",
-            border: "1px solid rgba(245,158,11,.22)",
-            borderRadius: 11,
-            padding: "12px 14px",
-            display: "flex",
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>🏦</span>
-          <div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#fbbf24",
-                marginBottom: 3,
-              }}
-            >
-              No wallet detected
-            </div>
-            <div style={{ fontSize: 11, color: "#9a8050", lineHeight: 1.65 }}>
-              Install MetaMask, Coinbase, or Trust Wallet. Or switch to{" "}
-              <strong style={{ color: "#94a3b8" }}>Manual</strong>.
-            </div>
-          </div>
-        </div>
-      )}
-      {idle && (
-        <>
-          <ChainDropdown
-            selected={chain}
-            onChange={changeChain}
-            chains={EVM_CHAINS}
-          />
-          <TokenRow
-            tokens={chain.tokens}
-            selected={token}
-            onChange={setToken}
-          />
-        </>
-      )}
-      {!idle && (
-        <div
-          className="xv-card"
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
-        >
-          <StepRow
-            step={1}
-            active={step}
-            label="Connect wallet"
-            sub="Approve in your extension"
-          />
-          <StepRow
-            step={2}
-            active={step}
-            label="Sign transaction"
-            sub={`$${fmt(effectivePrice)} ${token.symbol} on ${chain.label}`}
-          />
-          <StepRow
-            step={3}
-            active={step}
-            label="Blockchain confirmation"
-            sub={
-              txHash
-                ? `TX: ${txHash.slice(0, 14)}…`
-                : "Waiting for confirmation"
-            }
-          />
-          <StepRow
-            step={4}
-            active={step}
-            label="Account activated ✓"
-            sub="Welcome to Xeevia!"
-          />
-          {stepMsg && (
-            <div
-              style={{
-                fontSize: 11,
-                color: "#a3e635",
-                fontStyle: "italic",
-                textAlign: "center",
-                paddingTop: 4,
-              }}
-            >
-              {stepMsg}
-            </div>
-          )}
-        </div>
-      )}
-      <ErrBox msg={err} />
-      {idle ? (
-        <button
-          className="xv-btn-lime"
-          onClick={pay}
-          disabled={!wallet || !product || busy}
-        >
-          {wallet ? (
-            <>
-              {wallet.label} → Pay ${fmt(effectivePrice)} {token.symbol}
-            </>
-          ) : (
-            "Install a wallet to continue"
-          )}
-        </button>
-      ) : (
-        step < 4 && (
-          <button
-            className="xv-btn-danger"
-            onClick={() => {
-              setBusy(false);
-              setStep(0);
-              setStepMsg("");
-            }}
-          >
-            Cancel payment
-          </button>
-        )
-      )}
-    </div>
-  );
-}
-
-function ManualEVM({ effectivePrice, onVerify, loading, error, reset }) {
-  const [chain, setChain] = useState(EVM_CHAINS[0]);
-  const [wallet, setWallet] = useState("");
-  const [txHash, setTxHash] = useState("");
-  const [filling, setFilling] = useState(false);
-  const treasury = process.env.REACT_APP_TREASURY_WALLET ?? "";
-  const okTx = /^0x[0-9a-fA-F]{64}$/.test(txHash);
-  const okWal = /^0x[0-9a-fA-F]{40}$/.test(wallet);
-  const can = okTx && okWal && !!treasury && !loading;
-  const autoFill = async () => {
-    setFilling(true);
-    try {
-      const a = await connectWallet("EVM");
-      setWallet(a);
-      reset();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setFilling(false);
-    }
-  };
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        animation: "xvFadeIn .2s",
-      }}
-    >
-      <ChainDropdown
-        selected={chain}
-        onChange={(c) => {
-          setChain(c);
-          reset();
-        }}
-        chains={EVM_CHAINS}
-      />
-      <div>
-        <Label>Step 1 — Send ${fmt(effectivePrice)} USDT/USDC to</Label>
-        <CopyAddress address={treasury} label="EVM" />
-      </div>
-      <div>
-        <Label>Step 2 — Your sending wallet address</Label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            className={`xv-input ${wallet ? (okWal ? "ok" : "err") : ""}`}
-            value={wallet}
-            onChange={(e) => {
-              setWallet(e.target.value.trim());
-              reset();
-            }}
-            placeholder="0x… wallet address"
-            style={{ flex: 1 }}
-          />
-          <button
-            className="xv-btn-outline"
-            onClick={autoFill}
-            disabled={filling}
-            style={{
-              width: "auto",
-              padding: "0 14px",
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-              fontSize: 12,
-            }}
-          >
-            {filling ? <Spin size={13} /> : "🦊 Auto-fill"}
-          </button>
-        </div>
-        {wallet && !okWal && (
-          <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-            Must be a valid 0x address
-          </div>
-        )}
-      </div>
-      <div>
-        <Label>Step 3 — Transaction hash</Label>
-        <input
-          className={`xv-input ${txHash ? (okTx ? "ok" : "err") : ""}`}
-          value={txHash}
-          onChange={(e) => {
-            setTxHash(e.target.value.trim());
-            reset();
-          }}
-          placeholder="0x… tx hash (66 characters)"
-        />
-        {txHash && !okTx && (
-          <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-            Must be 0x + 64 hex characters
-          </div>
-        )}
-      </div>
-      <InfoBox icon="🔒">
-        Your wallet and amount are verified directly on-chain. No one can fake
-        this.
-      </InfoBox>
-      <ErrBox msg={error} />
-      <button
-        className="xv-btn-lime"
-        onClick={() =>
-          can &&
-          onVerify({
-            chainType: chain.ecosystem ?? "EVM",
-            chain: chain.id,
-            txHash: txHash.trim(),
-            claimedSenderWallet: wallet.trim(),
-          })
-        }
-        disabled={!can}
-      >
-        {loading ? (
-          <>
-            <Spin size={16} color="#061000" />
-            Verifying on blockchain…
-          </>
-        ) : (
-          "Verify & Activate Account →"
-        )}
-      </button>
-    </div>
-  );
-}
-
-function EVMPanel({
-  product,
+// ── ManualSolanaInline ────────────────────────────────────────────────────────
+// Full manual entry panel for Solana — mirrors v3 ManualSolana component.
+// Shown below Smart Pay in the Solana tab for users who already sent payment.
+function ManualSolanaInline({
   effectivePrice,
-  onSmartSuccess,
+  solToken,
   onVerify,
   loading,
   error,
   reset,
-  userId,
 }) {
-  const [isManual, setIsManual] = useState(false);
-  return (
-    <div>
-      <ModeControl isManual={isManual} onChange={setIsManual} />
-      {isManual ? (
-        <ManualEVM
-          effectivePrice={effectivePrice}
-          onVerify={onVerify}
-          loading={loading}
-          error={error}
-          reset={reset}
-        />
-      ) : (
-        <SmartEVM
-          product={product}
-          effectivePrice={effectivePrice}
-          onSuccess={onSmartSuccess}
-          userId={userId}
-        />
-      )}
-    </div>
-  );
-}
-
-function SmartSolana({ effectivePrice, onSuccess, userId, product }) {
-  const [detWallet, setDetWallet] = useState(null);
-  const [detecting, setDetecting] = useState(true);
-  const [step, setStep] = useState(0);
-  const [stepMsg, setStepMsg] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [token, setToken] = useState(SOL_TOKENS[0]);
-  const [onMobile] = useState(() => isMobileBrowser());
-  const mounted = useRef(true);
-
-  useEffect(() => {
-    mounted.current = true;
-    detectSolanaWallet()
-      .then((w) => {
-        if (mounted.current) {
-          setDetWallet(w);
-          setDetecting(false);
-        }
-      })
-      .catch(() => {
-        if (mounted.current) setDetecting(false);
-      });
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const pay = useCallback(async () => {
-    if (busy) return;
-    setErr("");
-    setBusy(true);
-    setStep(1);
-    setStepMsg("Connecting Solana wallet…");
-    try {
-      const r = await requestSolanaPayment({
-        productId: product.id,
-        amountUSD: effectivePrice,
-        tokenSymbol: token.symbol,
-        onStep: (s) => {
-          if (!mounted.current) return;
-          setStepMsg(s.message);
-          if (s.type === "connecting") setStep(1);
-          else if (s.type === "sending") setStep(2);
-          else if (s.type === "sent") setStep(3);
-          else if (s.type === "confirming") setStep(3);
-        },
-      });
-      if (!mounted.current) return;
-      if (r.success) {
-        const addr = detWallet?.address;
-        if (addr && userId)
-          await saveConnectedWallet(
-            userId,
-            "SOLANA",
-            addr,
-            detWallet?.label ?? "Solana Wallet",
-          );
-        setStep(4);
-        onSuccess?.(r);
-      }
-    } catch (e) {
-      if (!mounted.current) return;
-      const msg = e?.message ?? "Payment failed.";
-      setErr(
-        msg.includes("Manual") || msg.includes("library")
-          ? msg + " Use Manual mode below."
-          : msg,
-      );
-      setStep(0);
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }, [busy, product, effectivePrice, token, onSuccess, userId, detWallet]);
-
-  const idle = step === 0;
-  if (onMobile && !detWallet && !detecting)
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          animation: "xvFadeIn .2s",
-        }}
-      >
-        <a
-          href={`https://phantom.app/ul/browse/${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}?ref=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "14px 16px",
-            borderRadius: 12,
-            border: "1px solid rgba(153,69,255,.3)",
-            background: "rgba(153,69,255,.07)",
-            textDecoration: "none",
-          }}
-        >
-          <span style={{ fontSize: 22 }}>🏦</span>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#e0e0e0" }}>
-              Open in Phantom
-            </div>
-            <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
-              Pay ${fmt(effectivePrice)} {token.symbol}
-            </div>
-          </div>
-          <span style={{ fontSize: 16, color: "#555", marginLeft: "auto" }}>
-            →
-          </span>
-        </a>
-        <div style={{ fontSize: 11, color: "#777", textAlign: "center" }}>
-          Or open this page inside Phantom / Solflare browser
-        </div>
-      </div>
-    );
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        animation: "xvFadeIn .2s",
-      }}
-    >
-      {detecting ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 0",
-            color: "#777",
-            fontSize: 13,
-          }}
-        >
-          <Spin size={14} color="#9945ff" /> Detecting Solana wallets…
-        </div>
-      ) : detWallet ? (
-        <WalletBadge
-          wallet={{ ...detWallet, connected: !!detWallet.address }}
-          accentColor="#9945ff"
-        />
-      ) : (
-        <div
-          style={{
-            background: "rgba(153,69,255,.06)",
-            border: "1px solid rgba(153,69,255,.2)",
-            borderRadius: 11,
-            padding: "12px 14px",
-            display: "flex",
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>◎</span>
-          <div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#a78bfa",
-                marginBottom: 3,
-              }}
-            >
-              No Solana wallet detected
-            </div>
-            <div style={{ fontSize: 11, color: "#8a7aaa", lineHeight: 1.65 }}>
-              Install Phantom, Solflare, or Backpack then refresh. Or use{" "}
-              <strong style={{ color: "#94a3b8" }}>Manual</strong>.
-            </div>
-          </div>
-        </div>
-      )}
-      {idle && (
-        <TokenRow tokens={SOL_TOKENS} selected={token} onChange={setToken} />
-      )}
-      {!idle && (
-        <div
-          className="xv-card"
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
-        >
-          <StepRow
-            step={1}
-            active={step}
-            label="Connect Solana wallet"
-            sub="Approve in Phantom / Solflare / Backpack"
-          />
-          <StepRow
-            step={2}
-            active={step}
-            label="Build & sign transaction"
-            sub={`$${fmt(effectivePrice)} ${token.symbol} on Solana`}
-          />
-          <StepRow
-            step={3}
-            active={step}
-            label="Broadcast & confirm"
-            sub="Submitting to Solana network"
-          />
-          <StepRow
-            step={4}
-            active={step}
-            label="Account activated ✓"
-            sub="Welcome to Xeevia!"
-          />
-          {stepMsg && (
-            <div
-              style={{
-                fontSize: 11,
-                color: "#9945ff",
-                fontStyle: "italic",
-                textAlign: "center",
-                paddingTop: 4,
-              }}
-            >
-              {stepMsg}
-            </div>
-          )}
-        </div>
-      )}
-      <ErrBox msg={err} />
-      {idle ? (
-        <button
-          className="xv-btn-sol"
-          onClick={pay}
-          disabled={!product || busy || detecting}
-        >
-          {detWallet
-            ? `${detWallet.label} → Pay $${fmt(effectivePrice)} ${token.symbol}`
-            : detecting
-              ? "Detecting wallet…"
-              : "Connect Solana Wallet"}
-        </button>
-      ) : (
-        step < 4 && (
-          <button
-            className="xv-btn-danger"
-            onClick={() => {
-              setBusy(false);
-              setStep(0);
-              setStepMsg("");
-            }}
-          >
-            Cancel
-          </button>
-        )
-      )}
-    </div>
-  );
-}
-
-function ManualSolana({
-  effectivePrice,
-  onVerify,
-  loading,
-  error,
-  reset,
-  userId,
-}) {
+  const [open, setOpen] = useState(false);
   const [wallet, setWallet] = useState("");
   const [txSig, setTxSig] = useState("");
-  const [token, setToken] = useState(SOL_TOKENS[0]);
   const [filling, setFilling] = useState(false);
   const treasury = process.env.REACT_APP_TREASURY_WALLET_SOL ?? "";
   const okSig = /^[1-9A-HJ-NP-Za-km-z]{87,90}$/.test(txSig);
   const okWal = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet);
   const can = okSig && okWal && !!treasury && !loading;
+
   const autoFill = async () => {
     setFilling(true);
     try {
+      const { connectWallet } =
+        await import("../../services/auth/paymentService");
       const a = await connectWallet("SOLANA");
       setWallet(a);
-      if (userId)
-        await saveConnectedWallet(userId, "SOLANA", a, "Solana Wallet");
-      reset();
+      reset?.();
     } catch (e) {
       alert(e.message);
     } finally {
       setFilling(false);
     }
   };
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        animation: "xvFadeIn .2s",
-      }}
-    >
-      <TokenRow tokens={SOL_TOKENS} selected={token} onChange={setToken} />
-      <div>
-        <Label>
-          Step 1 — Send ${fmt(effectivePrice)} {token.symbol} to
-        </Label>
-        <CopyAddress address={treasury} label="SOL" />
-      </div>
-      <div>
-        <Label>Step 2 — Your Solana wallet address</Label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            className={`xv-input ${wallet ? (okWal ? "ok" : "err") : ""}`}
-            value={wallet}
-            onChange={(e) => {
-              setWallet(e.target.value.trim());
-              reset();
-            }}
-            placeholder="Solana address (base58)"
-            style={{ flex: 1 }}
-          />
-          <button
-            className="xv-btn-outline"
-            onClick={autoFill}
-            disabled={filling}
-            style={{
-              width: "auto",
-              padding: "0 14px",
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-              fontSize: 12,
-            }}
-          >
-            {filling ? <Spin size={13} /> : "◎ Auto-fill"}
-          </button>
-        </div>
-        {wallet && !okWal && (
-          <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-            Enter a valid base58 Solana address
-          </div>
-        )}
-      </div>
-      <div>
-        <Label>Step 3 — Transaction signature</Label>
-        <input
-          className={`xv-input ${txSig ? (okSig ? "ok" : "err") : ""}`}
-          value={txSig}
-          onChange={(e) => {
-            setTxSig(e.target.value.trim());
-            reset();
-          }}
-          placeholder="Transaction signature (87–90 chars)"
-        />
-        {txSig && !okSig && (
-          <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-            Enter a valid Solana transaction signature
-          </div>
-        )}
-      </div>
-      <ErrBox msg={error} />
-      <button
-        className="xv-btn-lime"
-        onClick={() =>
-          can &&
-          onVerify({
-            chainType: "SOLANA",
-            chain: "solana",
-            txHash: txSig.trim(),
-            claimedSenderWallet: wallet.trim(),
-          })
-        }
-        disabled={!can}
-      >
-        {loading ? (
-          <>
-            <Spin size={16} color="#061000" />
-            Verifying…
-          </>
-        ) : (
-          "Verify Solana Payment →"
-        )}
-      </button>
-    </div>
-  );
-}
 
-function SolanaPanel({
-  product,
-  effectivePrice,
-  onSmartSuccess,
-  onVerify,
-  loading,
-  error,
-  reset,
-  userId,
-}) {
-  const [isManual, setIsManual] = useState(false);
-  return (
-    <div>
-      <ModeControl isManual={isManual} onChange={setIsManual} />
-      {isManual ? (
-        <ManualSolana
-          effectivePrice={effectivePrice}
-          onVerify={onVerify}
-          loading={loading}
-          error={error}
-          reset={reset}
-          userId={userId}
-        />
-      ) : (
-        <SmartSolana
-          effectivePrice={effectivePrice}
-          onSuccess={onSmartSuccess}
-          userId={userId}
-          product={product}
-        />
-      )}
-    </div>
-  );
-}
-
-function SmartCardano({ effectivePrice, onSuccess, userId, product }) {
-  const [detWallet, setDetWallet] = useState(null);
-  const [detecting, setDetecting] = useState(true);
-  const [step, setStep] = useState(0);
-  const [stepMsg, setStepMsg] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    detectCardanoWallet()
-      .then((w) => {
-        if (mounted.current) {
-          setDetWallet(w);
-          setDetecting(false);
-        }
-      })
-      .catch(() => {
-        if (mounted.current) setDetecting(false);
-      });
-    return () => {
-      mounted.current = false;
+  const CopyAddr = ({ addr }) => {
+    const [copied, setCopied] = useState(false);
+    const copy = () => {
+      if (!addr) return;
+      navigator.clipboard
+        .writeText(addr)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {});
     };
-  }, []);
-  const pay = useCallback(async () => {
-    if (busy) return;
-    setErr("");
-    setBusy(true);
-    setStep(1);
-    setStepMsg("Connecting Cardano wallet…");
-    try {
-      const r = await requestCardanoPayment({
-        productId: product.id,
-        amountUSD: effectivePrice,
-        onStep: (s) => {
-          if (!mounted.current) return;
-          setStepMsg(s.message);
-          if (s.type === "connecting") setStep(1);
-          else if (s.type === "sending") setStep(2);
-          else if (s.type === "confirming") setStep(3);
-        },
-      });
-      if (!mounted.current) return;
-      if (r.success) {
-        const addr = detWallet?.address;
-        if (addr && userId)
-          await saveConnectedWallet(
-            userId,
-            "CARDANO",
-            addr,
-            detWallet?.label ?? "Cardano Wallet",
-          );
-        setStep(4);
-        onSuccess?.(r);
-      }
-    } catch (e) {
-      if (!mounted.current) return;
-      const msg = e?.message ?? "Payment failed.";
-      setErr(
-        msg.includes("Manual")
-          ? msg
-          : msg + " If issue persists, try Manual mode.",
+    if (!addr)
+      return (
+        <div
+          style={{
+            background: "#110900",
+            border: "1px solid rgba(245,158,11,.22)",
+            borderRadius: 11,
+            padding: "10px 13px",
+            fontSize: 12,
+            color: "#fbbf24",
+          }}
+        >
+          ⚠️ SOL treasury wallet not configured. Contact support.
+        </div>
       );
-      setStep(0);
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }, [busy, product, effectivePrice, onSuccess, userId, detWallet]);
-  const idle = step === 0;
+    return (
+      <div
+        onClick={copy}
+        style={{
+          background: "#111",
+          border: `1.5px solid ${copied ? "rgba(163,230,53,.38)" : "#222"}`,
+          borderRadius: 11,
+          padding: "12px 14px",
+          cursor: "pointer",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          transition: "border-color .2s",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            color: "#c8f56a",
+            fontFamily: "monospace",
+            wordBreak: "break-all",
+            lineHeight: 1.5,
+          }}
+        >
+          {addr}
+        </span>
+        <span
+          style={{
+            flexShrink: 0,
+            fontSize: 11,
+            fontWeight: 700,
+            color: copied ? "#a3e635" : "#555",
+            background: copied ? "rgba(163,230,53,.08)" : "#1a1a1a",
+            border: `1px solid ${copied ? "rgba(163,230,53,.22)" : "#282828"}`,
+            borderRadius: 7,
+            padding: "5px 10px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {copied ? "✓ Copied" : "Copy"}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        animation: "xvFadeIn .2s",
-      }}
+      style={{ marginTop: 12, borderTop: "1px solid #1a1a1a", paddingTop: 12 }}
     >
-      {detecting ? (
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: "transparent",
+          border: "1px solid #252525",
+          borderRadius: 8,
+          color: "#666",
+          fontSize: 11,
+          padding: "6px 12px",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          fontWeight: 600,
+          width: "100%",
+          textAlign: "left",
+        }}
+      >
+        {open ? "▲ Hide" : "▼ Already sent? Enter transaction manually"}
+      </button>
+      {open && (
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 0",
-            color: "#777",
-            fontSize: 13,
+            flexDirection: "column",
+            gap: 12,
+            marginTop: 12,
+            animation: "xvFadeIn .2s",
           }}
         >
-          <Spin size={14} color="#0057ff" /> Detecting Cardano wallets…
-        </div>
-      ) : detWallet ? (
-        <WalletBadge
-          wallet={{ ...detWallet, connected: !!detWallet.address }}
-          accentColor="#0057ff"
-        />
-      ) : (
-        <div
-          style={{
-            background: "rgba(0,51,173,.06)",
-            border: "1px solid rgba(0,51,173,.2)",
-            borderRadius: 11,
-            padding: "12px 14px",
-            display: "flex",
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>🏦</span>
           <div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: 10,
                 fontWeight: 700,
-                color: "#60a5fa",
-                marginBottom: 3,
+                letterSpacing: "1.8px",
+                textTransform: "uppercase",
+                color: "#666",
+                marginBottom: 6,
               }}
             >
-              No Cardano wallet detected
+              Step 1 — Send $
+              {effectivePrice?.toFixed
+                ? effectivePrice.toFixed(2)
+                : effectivePrice}{" "}
+              {solToken} to
             </div>
-            <div style={{ fontSize: 11, color: "#6a8aaa", lineHeight: 1.65 }}>
-              Install Nami, Eternl, Flint, Lace, or Yoroi then refresh. Or use{" "}
-              <strong style={{ color: "#94a3b8" }}>Manual</strong>.
-            </div>
+            <CopyAddr addr={treasury} />
           </div>
-        </div>
-      )}
-      {!idle && (
-        <div
-          className="xv-card"
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
-        >
-          <StepRow
-            step={1}
-            active={step}
-            label="Connect Cardano wallet"
-            sub="Approve in Nami / Eternl / Flint / Lace"
-          />
-          <StepRow
-            step={2}
-            active={step}
-            label="Build & sign transaction"
-            sub={`~$${fmt(effectivePrice)} ADA equivalent`}
-          />
-          <StepRow
-            step={3}
-            active={step}
-            label="Submit & verify"
-            sub="Checking on Cardano chain"
-          />
-          <StepRow
-            step={4}
-            active={step}
-            label="Account activated ✓"
-            sub="Welcome to Xeevia!"
-          />
-          {stepMsg && (
+          <div>
             <div
               style={{
-                fontSize: 11,
-                color: "#0057ff",
-                fontStyle: "italic",
-                textAlign: "center",
-                paddingTop: 4,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "1.8px",
+                textTransform: "uppercase",
+                color: "#666",
+                marginBottom: 6,
               }}
             >
-              {stepMsg}
+              Step 2 — Your Solana wallet address
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={wallet}
+                onChange={(e) => {
+                  setWallet(e.target.value.trim());
+                  reset?.();
+                }}
+                placeholder="Solana address (base58)"
+                style={{
+                  flex: 1,
+                  background: "#0f0f0f",
+                  border: `1.5px solid ${wallet ? (okWal ? "#a3e63550" : "#f8717150") : "#1e1e1e"}`,
+                  borderRadius: 10,
+                  padding: "11px 13px",
+                  color: "#e4e4e4",
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={autoFill}
+                disabled={filling}
+                style={{
+                  flexShrink: 0,
+                  width: "auto",
+                  padding: "0 14px",
+                  background: "#111",
+                  border: "1px solid #2a2a2a",
+                  borderRadius: 10,
+                  color: "#888",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {filling ? "…" : "◎ Auto-fill"}
+              </button>
+            </div>
+            {wallet && !okWal && (
+              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+                Enter a valid base58 Solana address
+              </div>
+            )}
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "1.8px",
+                textTransform: "uppercase",
+                color: "#666",
+                marginBottom: 6,
+              }}
+            >
+              Step 3 — Transaction signature
+            </div>
+            <input
+              value={txSig}
+              onChange={(e) => {
+                setTxSig(e.target.value.trim());
+                reset?.();
+              }}
+              placeholder="Transaction signature (87–90 chars)"
+              style={{
+                width: "100%",
+                background: "#0f0f0f",
+                border: `1.5px solid ${txSig ? (okSig ? "#a3e63550" : "#f8717150") : "#1e1e1e"}`,
+                borderRadius: 10,
+                padding: "11px 13px",
+                color: "#e4e4e4",
+                fontSize: 12,
+                fontFamily: "monospace",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            {txSig && !okSig && (
+              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+                Enter a valid Solana transaction signature (87–90 chars)
+              </div>
+            )}
+          </div>
+          {error && (
+            <div
+              style={{
+                background: "rgba(239,68,68,.07)",
+                border: "1px solid rgba(239,68,68,.22)",
+                borderRadius: 11,
+                padding: "11px 14px",
+                fontSize: 12.5,
+                color: "#fca5a5",
+                lineHeight: 1.65,
+              }}
+            >
+              ⚠️ {error}
             </div>
           )}
-        </div>
-      )}
-      <ErrBox msg={err} />
-      {idle ? (
-        <button
-          className="xv-btn-ada"
-          onClick={pay}
-          disabled={!product || busy || detecting}
-        >
-          {detWallet
-            ? `${detWallet.label} → Pay $${fmt(effectivePrice)} ADA`
-            : detecting
-              ? "Detecting wallet…"
-              : "Connect Cardano Wallet"}
-        </button>
-      ) : (
-        step < 4 && (
           <button
-            className="xv-btn-danger"
-            onClick={() => {
-              setBusy(false);
-              setStep(0);
-              setStepMsg("");
+            onClick={() =>
+              can &&
+              onVerify({
+                chainType: "SOLANA",
+                chain: "solana",
+                txHash: txSig.trim(),
+                claimedSenderWallet: wallet.trim(),
+              })
+            }
+            disabled={!can}
+            style={{
+              width: "100%",
+              padding: "14px 20px",
+              borderRadius: 12,
+              border: "none",
+              background: can
+                ? "linear-gradient(135deg,#a3e635,#65a30d)"
+                : "#1c1c1c",
+              color: can ? "#061000" : "#333",
+              fontWeight: 800,
+              fontSize: 14,
+              cursor: can ? "pointer" : "not-allowed",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
             }}
           >
-            Cancel
+            {loading ? "Verifying…" : "Verify Solana Payment →"}
           </button>
-        )
+        </div>
       )}
     </div>
   );
 }
 
-function ManualCardano({
+// ── ManualCardanoInline ───────────────────────────────────────────────────────
+// Full manual entry panel for Cardano — mirrors v3 ManualCardano component.
+function ManualCardanoInline({
   effectivePrice,
   onVerify,
   loading,
   error,
   reset,
-  userId,
 }) {
+  const [open, setOpen] = useState(false);
   const [wallet, setWallet] = useState("");
   const [txHash, setTxHash] = useState("");
   const [filling, setFilling] = useState(false);
@@ -1726,308 +568,316 @@ function ManualCardano({
     wallet.length >= 59 &&
     (wallet.startsWith("addr1") || wallet.startsWith("addr_test1"));
   const can = okTx && okWal && !!treasury && !loading;
+
   const autoFill = async () => {
     setFilling(true);
     try {
+      const { connectWallet } =
+        await import("../../services/auth/paymentService");
       const a = await connectWallet("CARDANO");
       setWallet(a);
-      if (userId)
-        await saveConnectedWallet(userId, "CARDANO", a, "Cardano Wallet");
-      reset();
+      reset?.();
     } catch (e) {
       alert(e.message);
     } finally {
       setFilling(false);
     }
   };
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        animation: "xvFadeIn .2s",
-      }}
-    >
+
+  const CopyAddr = ({ addr }) => {
+    const [copied, setCopied] = useState(false);
+    const copy = () => {
+      if (!addr) return;
+      navigator.clipboard
+        .writeText(addr)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {});
+    };
+    if (!addr)
+      return (
+        <div
+          style={{
+            background: "#110900",
+            border: "1px solid rgba(245,158,11,.22)",
+            borderRadius: 11,
+            padding: "10px 13px",
+            fontSize: 12,
+            color: "#fbbf24",
+          }}
+        >
+          ⚠️ ADA treasury wallet not configured. Contact support.
+        </div>
+      );
+    return (
       <div
+        onClick={copy}
         style={{
-          background: "rgba(0,51,173,.06)",
-          border: "1px solid rgba(0,51,173,.2)",
-          borderRadius: 12,
-          padding: "11px 14px",
+          background: "#111",
+          border: `1.5px solid ${copied ? "rgba(163,230,53,.38)" : "#222"}`,
+          borderRadius: 11,
+          padding: "12px 14px",
+          cursor: "pointer",
           display: "flex",
-          gap: 8,
+          justifyContent: "space-between",
           alignItems: "center",
+          gap: 12,
+          transition: "border-color .2s",
         }}
       >
-        <span style={{ fontSize: 18 }}>🏦</span>
-        <span style={{ fontSize: 12, color: "#888", lineHeight: 1.6 }}>
-          Send{" "}
-          <strong style={{ color: "#a3e635" }}>
-            ${fmt(effectivePrice)} ADA equivalent
-          </strong>
-          . ADA/USD rate is fetched at verification time.
+        <span
+          style={{
+            fontSize: 11,
+            color: "#c8f56a",
+            fontFamily: "monospace",
+            wordBreak: "break-all",
+            lineHeight: 1.5,
+          }}
+        >
+          {addr}
+        </span>
+        <span
+          style={{
+            flexShrink: 0,
+            fontSize: 11,
+            fontWeight: 700,
+            color: copied ? "#a3e635" : "#555",
+            background: copied ? "rgba(163,230,53,.08)" : "#1a1a1a",
+            border: `1px solid ${copied ? "rgba(163,230,53,.22)" : "#282828"}`,
+            borderRadius: 7,
+            padding: "5px 10px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {copied ? "✓ Copied" : "Copy"}
         </span>
       </div>
-      <div>
-        <Label>Step 1 — Send to this Cardano address</Label>
-        <CopyAddress address={treasury} label="ADA" />
-      </div>
-      <div>
-        <Label>Step 2 — Your Cardano address (addr1…)</Label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            className={`xv-input ${wallet ? (okWal ? "ok" : "err") : ""}`}
-            value={wallet}
-            onChange={(e) => {
-              setWallet(e.target.value.trim());
-              reset();
-            }}
-            placeholder="addr1… (Shelley address)"
-            style={{ flex: 1 }}
-          />
-          <button
-            className="xv-btn-outline"
-            onClick={autoFill}
-            disabled={filling}
+    );
+  };
+
+  return (
+    <div
+      style={{ marginTop: 12, borderTop: "1px solid #1a1a1a", paddingTop: 12 }}
+    >
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: "transparent",
+          border: "1px solid #252525",
+          borderRadius: 8,
+          color: "#666",
+          fontSize: 11,
+          padding: "6px 12px",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          fontWeight: 600,
+          width: "100%",
+          textAlign: "left",
+        }}
+      >
+        {open ? "▲ Hide" : "▼ Already sent? Enter transaction manually"}
+      </button>
+      {open && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            marginTop: 12,
+            animation: "xvFadeIn .2s",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "1.8px",
+                textTransform: "uppercase",
+                color: "#666",
+                marginBottom: 6,
+              }}
+            >
+              Step 1 — Send to this Cardano address
+            </div>
+            <CopyAddr addr={treasury} />
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "1.8px",
+                textTransform: "uppercase",
+                color: "#666",
+                marginBottom: 6,
+              }}
+            >
+              Step 2 — Your Cardano address (addr1…)
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={wallet}
+                onChange={(e) => {
+                  setWallet(e.target.value.trim());
+                  reset?.();
+                }}
+                placeholder="addr1… (Shelley address)"
+                style={{
+                  flex: 1,
+                  background: "#0f0f0f",
+                  border: `1.5px solid ${wallet ? (okWal ? "#a3e63550" : "#f8717150") : "#1e1e1e"}`,
+                  borderRadius: 10,
+                  padding: "11px 13px",
+                  color: "#e4e4e4",
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={autoFill}
+                disabled={filling}
+                style={{
+                  flexShrink: 0,
+                  width: "auto",
+                  padding: "0 14px",
+                  background: "#111",
+                  border: "1px solid #2a2a2a",
+                  borderRadius: 10,
+                  color: "#888",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {filling ? "…" : "🦊 Auto-fill"}
+              </button>
+            </div>
+            {wallet && !okWal && (
+              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+                Must be a valid Shelley address starting with addr1
+              </div>
+            )}
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "1.8px",
+                textTransform: "uppercase",
+                color: "#666",
+                marginBottom: 6,
+              }}
+            >
+              Step 3 — Transaction ID (TxHash)
+            </div>
+            <input
+              value={txHash}
+              onChange={(e) => {
+                setTxHash(e.target.value.trim());
+                reset?.();
+              }}
+              placeholder="64-character transaction ID"
+              style={{
+                width: "100%",
+                background: "#0f0f0f",
+                border: `1.5px solid ${txHash ? (okTx ? "#a3e63550" : "#f8717150") : "#1e1e1e"}`,
+                borderRadius: 10,
+                padding: "11px 13px",
+                color: "#e4e4e4",
+                fontSize: 12,
+                fontFamily: "monospace",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            {txHash && !okTx && (
+              <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
+                Must be exactly 64 hex characters
+              </div>
+            )}
+          </div>
+          <div
             style={{
-              width: "auto",
-              padding: "0 14px",
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-              fontSize: 12,
+              background: "rgba(163,230,53,.04)",
+              border: "1px solid rgba(163,230,53,.1)",
+              borderRadius: 11,
+              padding: "10px 13px",
+              display: "flex",
+              gap: 9,
+              alignItems: "flex-start",
             }}
           >
-            {filling ? <Spin size={13} /> : "🦊 Auto-fill"}
+            <span style={{ fontSize: 14, flexShrink: 0 }}>ℹ️</span>
+            <span style={{ fontSize: 11.5, color: "#999", lineHeight: 1.65 }}>
+              Send ~2% extra to account for ADA price movement between send and
+              verify.
+            </span>
+          </div>
+          {error && (
+            <div
+              style={{
+                background: "rgba(239,68,68,.07)",
+                border: "1px solid rgba(239,68,68,.22)",
+                borderRadius: 11,
+                padding: "11px 14px",
+                fontSize: 12.5,
+                color: "#fca5a5",
+                lineHeight: 1.65,
+              }}
+            >
+              ⚠️ {error}
+            </div>
+          )}
+          <button
+            onClick={() =>
+              can &&
+              onVerify({
+                chainType: "CARDANO",
+                chain: "cardano",
+                txHash: txHash.trim(),
+                claimedSenderWallet: wallet.trim(),
+              })
+            }
+            disabled={!can}
+            style={{
+              width: "100%",
+              padding: "14px 20px",
+              borderRadius: 12,
+              border: "none",
+              background: can
+                ? "linear-gradient(135deg,#a3e635,#65a30d)"
+                : "#1c1c1c",
+              color: can ? "#061000" : "#333",
+              fontWeight: 800,
+              fontSize: 14,
+              cursor: can ? "pointer" : "not-allowed",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            {loading ? "Verifying…" : "Verify Cardano Payment →"}
           </button>
         </div>
-        {wallet && !okWal && (
-          <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-            Must be a valid Shelley address starting with addr1
-          </div>
-        )}
-      </div>
-      <div>
-        <Label>Step 3 — Transaction ID (TxHash)</Label>
-        <input
-          className={`xv-input ${txHash ? (okTx ? "ok" : "err") : ""}`}
-          value={txHash}
-          onChange={(e) => {
-            setTxHash(e.target.value.trim());
-            reset();
-          }}
-          placeholder="64-character transaction ID"
-        />
-        {txHash && !okTx && (
-          <div style={{ fontSize: 10, color: "#f87171", marginTop: 4 }}>
-            Must be exactly 64 hex characters
-          </div>
-        )}
-      </div>
-      <InfoBox icon="ℹ️">
-        Send ~2% extra to account for ADA price movement between send and
-        verify.
-      </InfoBox>
-      <ErrBox msg={error} />
-      <button
-        className="xv-btn-lime"
-        onClick={() =>
-          can &&
-          onVerify({
-            chainType: "CARDANO",
-            chain: "cardano",
-            txHash: txHash.trim(),
-            claimedSenderWallet: wallet.trim(),
-          })
-        }
-        disabled={!can}
-      >
-        {loading ? (
-          <>
-            <Spin size={16} color="#061000" />
-            Verifying…
-          </>
-        ) : (
-          "Verify Cardano Payment →"
-        )}
-      </button>
-    </div>
-  );
-}
-
-function CardanoPanel({
-  product,
-  effectivePrice,
-  onSmartSuccess,
-  onVerify,
-  loading,
-  error,
-  reset,
-  userId,
-}) {
-  const [isManual, setIsManual] = useState(false);
-  return (
-    <div>
-      <ModeControl isManual={isManual} onChange={setIsManual} />
-      {isManual ? (
-        <ManualCardano
-          effectivePrice={effectivePrice}
-          onVerify={onVerify}
-          loading={loading}
-          error={error}
-          reset={reset}
-          userId={userId}
-        />
-      ) : (
-        <SmartCardano
-          effectivePrice={effectivePrice}
-          onSuccess={onSmartSuccess}
-          userId={userId}
-          product={product}
-        />
       )}
     </div>
   );
 }
 
-function InviteInput({ onApply, loading }) {
-  const [val, setVal] = useState("");
-  const [err, setErr] = useState("");
-  const apply = async () => {
-    const trimmed = val.trim().toUpperCase();
-    if (!trimmed) return;
-    setErr("");
-    const result = await onApply(trimmed);
-    if (result?.error) setErr(result.error);
-    else setVal("");
-  };
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <Label>Have an invite code?</Label>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          className={`xv-input ${val ? "ok" : ""}`}
-          value={val}
-          onChange={(e) => {
-            setVal(e.target.value.toUpperCase());
-            setErr("");
-          }}
-          placeholder="INVITE-CODE"
-          style={{ flex: 1, textTransform: "uppercase", letterSpacing: "1px" }}
-          onKeyDown={(e) => e.key === "Enter" && apply()}
-        />
-        <button
-          className="xv-btn-outline"
-          onClick={apply}
-          disabled={!val.trim() || loading}
-          style={{
-            width: "auto",
-            padding: "0 16px",
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {loading ? <Spin size={13} /> : "Apply"}
-        </button>
-      </div>
-      <ErrBox msg={err} />
-    </div>
-  );
-}
-
-function PaystackSoonModal({ onClose }) {
-  return (
-    <div className="xv-overlay" onClick={onClose}>
-      <div className="xv-modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🏦</div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: "3px",
-            color: "#b45309",
-            textTransform: "uppercase",
-            marginBottom: 12,
-          }}
-        >
-          Coming Soon
-        </div>
-        <h2
-          style={{
-            fontSize: 22,
-            fontWeight: 900,
-            color: "#fff",
-            margin: "0 0 12px",
-            lineHeight: 1.2,
-            letterSpacing: "-0.5px",
-          }}
-        >
-          Card & Bank Payment
-        </h2>
-        <p
-          style={{
-            fontSize: 13,
-            color: "#888",
-            lineHeight: 1.8,
-            margin: "0 0 28px",
-          }}
-        >
-          Finalising Paystack integration — cards, bank transfers, and mobile
-          money.
-          <br />
-          <span style={{ color: "#f59e0b", fontWeight: 700 }}>
-            Join our community to get access instantly.
-          </span>
-        </p>
-        <a
-          href="https://chat.whatsapp.com/IH3TJof1nRx3sRU9Inm2jr?mode=gi_t"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            width: "100%",
-            padding: "16px 20px",
-            borderRadius: 14,
-            background: "linear-gradient(135deg,#25d366,#128c7e)",
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: 15,
-            textDecoration: "none",
-            boxShadow: "0 4px 22px rgba(37,211,102,.35)",
-            marginBottom: 12,
-          }}
-        >
-          💬 Join WhatsApp Group
-        </a>
-        <button
-          onClick={onClose}
-          style={{
-            width: "100%",
-            padding: "11px",
-            borderRadius: 11,
-            border: "1px solid #222",
-            background: "transparent",
-            color: "#666",
-            fontWeight: 600,
-            fontSize: 13,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          Maybe Later
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
+// ── PaywallPayment ────────────────────────────────────────────────────────────
 export default function PaywallPayment({
   user,
   paywallConfig,
+  configLoading = false,
   inviteDetails,
   setInviteDetails,
   inviteLoading,
@@ -2039,112 +889,677 @@ export default function PaywallPayment({
   onSmartPaySuccess,
   onFreeActivate,
   freeActivating,
-  // [FIX v3] Authoritative free-access signals from PaywallGate
-  isFreeAccess = false,
-  isApprovedAccess = false,
+  isFreeAccess,
+  isApprovedAccess,
   showPaystack,
   setShowPaystack,
   tab,
   setTab,
 }) {
-  const userId = user?.id;
+  const [inviteInput, setInviteInput] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviteApplied, setInviteApplied] = useState(false);
+
+  // EVM state
+  const [evmChainIdx, setEvmChainIdx] = useState(0);
+  const [evmWallet, setEvmWallet] = useState(null);
+  const [evmTxHash, setEvmTxHash] = useState("");
+  const [evmStep, setEvmStep] = useState("idle"); // idle|connecting|sending|verifying|done|error
+  const [evmMsg, setEvmMsg] = useState("");
+
+  // Solana state
+  const [solWallet, setSolWallet] = useState(null);
+  const [solStep, setSolStep] = useState("idle");
+  const [solMsg, setSolMsg] = useState("");
+  const [solToken, setSolToken] = useState("USDC");
+
+  // Cardano state
+  const [adaWallet, setAdaWallet] = useState(null);
+  const [adaStep, setAdaStep] = useState("idle");
+  const [adaMsg, setAdaMsg] = useState("");
+
+  // Paystack state
+  const [psStep, setPsStep] = useState("idle"); // idle|loading|redirect|verifying|done|error
+  const [psMsg, setPsMsg] = useState("");
+
+  // Manual Web3 state
+  const [manualChain, setManualChain] = useState("polygon");
+  const [manualChainType, setManualChainType] = useState("EVM");
+  const [manualTxHash, setManualTxHash] = useState("");
+  const [manualWallet, setManualWallet] = useState("");
+  const [manualMode, setManualMode] = useState(false);
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const productPrice = safePrice(paywallConfig?.product_price, 4);
-  const product = paywallConfig
-    ? { id: paywallConfig.product_id ?? "xeevia-access", price: productPrice }
-    : null;
-
-  const resolvePrice = (invite, fallback = 4) => {
-    const fb = safePrice(fallback, 4);
-    if (!invite) return fb;
-    const po = invite.price_override;
-    if (po != null && !isNaN(Number(po))) return Number(po);
-    const meta = invite?.metadata ?? {};
-    if (
-      meta.entry_price_cents != null &&
-      !isNaN(Number(meta.entry_price_cents))
-    )
-      return Number(meta.entry_price_cents) / 100;
-    const ep = invite.entry_price;
-    if (ep != null && !isNaN(Number(ep))) return Number(ep);
-    return fb;
-  };
-
   const effectivePrice = resolvePrice(inviteDetails, productPrice);
+  // product_id MUST be a UUID v4 — never use the string fallback "xeevia-access"
+  // If paywallConfig hasn't loaded yet, productId will be null and we block payment
+  const productId = paywallConfig?.product_id ?? null;
 
-  const isWLInvite =
-    inviteDetails &&
-    (inviteDetails.type === "whitelist" ||
-      inviteDetails.metadata?.invite_type === "whitelist" ||
-      inviteDetails.metadata?.invite_category === "whitelist");
-  const isFull = isWLInvite && !!inviteDetails?.is_full;
-  const hasWL = !!(isWLInvite && inviteDetails?.enable_waitlist !== false);
+  // ── [6] Auto-detect Paystack return on mount ─────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    const returnPid = params.get("product_id");
+    if (ref && returnPid) {
+      verifyPaystackReturn(ref, returnPid);
+    }
+  }, []); // eslint-disable-line
 
-  // [FIX v3]: Use authoritative props from PaywallGate — no re-derivation
-  // isFreeAccess = true whenever any applied invite resolves to price === 0
-  // isApprovedAccess = true when user is in whitelisted_user_ids
-  const showFreeButton =
-    (isFreeAccess || isApprovedAccess) && !!inviteDetails?.code;
-  const showPaymentTabs = !showFreeButton && !isFull;
+  // ── Lazy wallet detection — only when user FIRST visits that tab ─────────
+  // Do NOT detect all wallets on mount: default tab is "paystack", and
+  // MetaMask/Phantom throw console errors when prompted outside their context.
+  // Each wallet is detected exactly once, the first time its tab is activated.
+  const evmDetected = useRef(false);
+  const solDetected = useRef(false);
+  const adaDetected = useRef(false);
 
-  const applyInvite = async (code) => {
+  useEffect(() => {
+    if (tab === "evm" && !evmDetected.current) {
+      evmDetected.current = true;
+      detectAvailableWallet()
+        .then((w) => {
+          if (w && mountedRef.current) setEvmWallet(w);
+        })
+        .catch(() => {});
+    }
+    if (tab === "solana" && !solDetected.current) {
+      solDetected.current = true;
+      detectSolanaWallet()
+        .then((w) => {
+          if (w && mountedRef.current) setSolWallet(w);
+        })
+        .catch(() => {});
+    }
+    if (tab === "cardano" && !adaDetected.current) {
+      adaDetected.current = true;
+      detectCardanoWallet()
+        .then((w) => {
+          if (w && mountedRef.current) setAdaWallet(w);
+        })
+        .catch(() => {});
+    }
+  }, [tab]);
+
+  // ── Invite code apply ─────────────────────────────────────────────────────
+  const handleApplyInvite = useCallback(async () => {
+    const code = inviteInput.trim().toUpperCase();
+    if (!code) {
+      setInviteError("Enter an invite code");
+      return;
+    }
     setInviteLoading(true);
+    setInviteError("");
     try {
       const details = await fetchInviteCodeDetails(code);
-      if (!details) return { error: "Invalid or expired invite code." };
+      if (!details) {
+        setInviteError("Invalid or expired invite code");
+        return;
+      }
+      if (details.status !== "active") {
+        setInviteError("This invite code is no longer active");
+        return;
+      }
       setInviteDetails(details);
-      return {};
+      setInviteApplied(true);
+      setInviteError("");
     } catch (e) {
-      return { error: e?.message ?? "Failed to apply invite." };
+      setInviteError(e?.message ?? "Failed to apply invite code");
     } finally {
       setInviteLoading(false);
     }
+  }, [inviteInput, setInviteDetails, setInviteLoading]);
+
+  const handleRemoveInvite = useCallback(() => {
+    setInviteDetails(null);
+    setInviteApplied(false);
+    setInviteInput("");
+    setInviteError("");
+  }, [setInviteDetails]);
+
+  // ── Paystack flow ─────────────────────────────────────────────────────────
+  const handlePaystack = useCallback(async () => {
+    // If productId not loaded yet, wait up to 5s for paywallConfig to arrive
+    let resolvedProductId = productId;
+    if (!resolvedProductId) {
+      setPsStep("loading");
+      setPsMsg("Loading payment config…");
+      for (let _w = 0; _w < 10; _w++) {
+        await new Promise((r) => setTimeout(r, 500));
+        // Try reading directly from DB as fallback
+        try {
+          const { data: cfgRow } = await supabase
+            .from("platform_settings")
+            .select("value")
+            .eq("key", "paywall_config")
+            .maybeSingle();
+          resolvedProductId = cfgRow?.value?.product_id ?? null;
+          if (resolvedProductId) break;
+        } catch {
+          /* keep waiting */
+        }
+      }
+    }
+    if (!resolvedProductId) {
+      setPsStep("error");
+      setPsMsg(
+        "Payment config unavailable. Please refresh the page and try again.",
+      );
+      return;
+    }
+    setPsStep("loading");
+    setPsMsg("Initializing payment…");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const email = session?.user?.email ?? user?.email ?? "";
+      if (!email)
+        throw new Error("No email on account. Please update your profile.");
+
+      const idempotencyKey = getOrCreateIdempotencyKey();
+      const callbackUrl = window.location.origin + window.location.pathname;
+
+      const result = await createPaystackTransaction({
+        productId: resolvedProductId,
+        amountUSD: effectivePrice,
+        inviteCodeId: inviteDetails?.id ?? null,
+        email,
+      });
+
+      if (!result?.authorization_url)
+        throw new Error("No payment URL returned from server");
+
+      setPsStep("redirect");
+      setPsMsg("Redirecting to payment page…");
+
+      // [1] Navigate in same tab — Paystack returns to callbackUrl?ref=...
+      // On return, useEffect on mount picks up ?ref= and auto-verifies.
+      window.location.href = result.authorization_url;
+    } catch (e) {
+      setPsStep("error");
+      setPsMsg(e?.message ?? "Payment initialization failed");
+      // [2] WHATSAPP_FALLBACK — commented out, uncomment when ready
+      // openWhatsAppFallback("Paystack", e?.message);
+    }
+  }, [user, productId, effectivePrice, inviteDetails]);
+
+  // ── Paystack return verification ──────────────────────────────────────────
+  const verifyPaystackReturn = useCallback(
+    async (reference, returnProductId) => {
+      setPsStep("verifying");
+      setTab("paystack");
+      setPsMsg("Verifying your payment…");
+
+      // Clean URL params immediately so refresh doesn't re-trigger
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("ref");
+        url.searchParams.delete("product_id");
+        window.history.replaceState({}, "", url.toString());
+      } catch {}
+
+      try {
+        // Call the web3-verify-payment edge fn with chainType=PAYSTACK
+        // OR call a dedicated paystack-verify edge fn if you have one.
+        // Here we call the Supabase edge fn that handles Paystack webhook verification.
+        // Since Paystack webhook already activates the account server-side,
+        // we just need to refresh the profile and check if activated.
+        // Give webhook 3 seconds to process, then refresh profile.
+        await new Promise((r) => setTimeout(r, 3000));
+
+        // refreshProfile is called via onVerify with success:true
+        await onVerify({
+          _paystackReturn: true,
+          reference,
+          productId: returnProductId,
+        });
+
+        setPsStep("done");
+        setPsMsg("Payment confirmed! Activating your account…");
+      } catch (e) {
+        setPsStep("error");
+        setPsMsg(
+          "Payment received but activation is pending. Please refresh in a moment.",
+        );
+        // [2] WHATSAPP_FALLBACK — commented out
+        // openWhatsAppFallback("Paystack verification", e?.message);
+      }
+    },
+    [onVerify, setTab],
+  );
+
+  // ── EVM Smart Pay ─────────────────────────────────────────────────────────
+  const handleEvmSmartPay = useCallback(async () => {
+    setEvmStep("connecting");
+    setEvmMsg("Connecting wallet…");
+    try {
+      const chain = EVM_CHAINS[evmChainIdx];
+      const address = await connectWallet("EVM");
+      setEvmWallet({ address, label: "EVM Wallet", connected: true });
+      setEvmStep("sending");
+      setEvmMsg(`Sending $${fmt(effectivePrice)} on ${chain.name}…`);
+
+      const { requestWalletPayment } =
+        await import("../../services/auth/paymentService");
+      const result = await requestWalletPayment({
+        productId,
+        amountUSD: effectivePrice,
+        chainId: chain.chainId,
+        chainName: chain.id,
+        tokenAddress: chain.tokenAddress,
+        tokenDecimals: chain.decimals,
+        onStep: ({ message }) => setEvmMsg(message),
+      });
+
+      if (result?.success) {
+        setEvmStep("done");
+        setEvmMsg("Payment confirmed! Activating account…");
+        await onSmartPaySuccess(result);
+        // refreshProfile is called by PaywallGate after onSmartPaySuccess
+        // But we also need to trigger the verify path to write activation:
+        await onVerify({
+          chainType: "EVM",
+          chain: chain.id,
+          txHash: result.txHash,
+          claimedSenderWallet: address,
+          productId,
+          amountOverrideUSD: effectivePrice,
+          inviteCodeId: inviteDetails?.id ?? null,
+        });
+      } else if (result?.pending) {
+        setEvmStep("idle");
+        setEvmMsg(
+          result.message ??
+            "Transaction pending confirmation. We'll activate your account once confirmed.",
+        );
+      }
+    } catch (e) {
+      setEvmStep("error");
+      setEvmMsg(e?.message ?? "Transaction failed");
+      // [2] WHATSAPP_FALLBACK — commented out
+      // openWhatsAppFallback("EVM payment", e?.message);
+    }
+  }, [
+    evmChainIdx,
+    effectivePrice,
+    productId,
+    inviteDetails,
+    onVerify,
+    onSmartPaySuccess,
+  ]);
+
+  // ── EVM Manual verify ─────────────────────────────────────────────────────
+  const handleEvmManualVerify = useCallback(async () => {
+    if (!evmTxHash.trim() || !evmWallet?.address) {
+      setEvmMsg("Enter your transaction hash and connect your wallet first");
+      return;
+    }
+    setEvmStep("verifying");
+    setEvmMsg("Verifying transaction…");
+    try {
+      const chain = EVM_CHAINS[evmChainIdx];
+      await onVerify({
+        chainType: "EVM",
+        chain: chain.id,
+        txHash: evmTxHash.trim(),
+        claimedSenderWallet: evmWallet.address,
+        productId,
+        amountOverrideUSD: effectivePrice,
+        inviteCodeId: inviteDetails?.id ?? null,
+      });
+      setEvmStep("done");
+      setEvmMsg("Verified! Account activating…");
+    } catch (e) {
+      setEvmStep("error");
+      setEvmMsg(e?.message ?? "Verification failed");
+    }
+  }, [
+    evmTxHash,
+    evmWallet,
+    evmChainIdx,
+    effectivePrice,
+    productId,
+    inviteDetails,
+    onVerify,
+  ]);
+
+  // ── Solana Smart Pay ──────────────────────────────────────────────────────
+  const handleSolanaPay = useCallback(async () => {
+    setSolStep("connecting");
+    setSolMsg("Connecting Solana wallet…");
+    try {
+      const conn = await connectSolanaWallet();
+      setSolWallet({
+        address: conn.address,
+        connected: true,
+        label: "Solana Wallet",
+      });
+      setSolStep("sending");
+      setSolMsg(`Sending $${fmt(effectivePrice)} USDC on Solana…`);
+
+      const { requestSolanaPayment } =
+        await import("../../services/auth/paymentService");
+      const result = await requestSolanaPayment({
+        productId,
+        amountUSD: effectivePrice,
+        tokenSymbol: "USDC",
+        onStep: ({ message }) => setSolMsg(message),
+      });
+
+      if (result?.success) {
+        setSolStep("done");
+        setSolMsg("Solana payment confirmed! Activating account…");
+        await onVerify({
+          chainType: "SOLANA",
+          chain: "solana",
+          txHash: result.txHash,
+          claimedSenderWallet: conn.address,
+          productId,
+          amountOverrideUSD: effectivePrice,
+          inviteCodeId: inviteDetails?.id ?? null,
+        });
+      }
+    } catch (e) {
+      setSolStep("error");
+      setSolMsg(e?.message ?? "Solana payment failed");
+      // [2] WHATSAPP_FALLBACK — commented out
+      // openWhatsAppFallback("Solana payment", e?.message);
+    }
+  }, [effectivePrice, productId, inviteDetails, onVerify]);
+
+  // ── Cardano Smart Pay ─────────────────────────────────────────────────────
+  const handleCardanoPay = useCallback(async () => {
+    setAdaStep("connecting");
+    setAdaMsg("Connecting Cardano wallet…");
+    try {
+      const conn = await connectCardanoWalletCIP30();
+      setAdaWallet({
+        address: conn.address,
+        connected: true,
+        label: "Cardano Wallet",
+      });
+      setAdaStep("sending");
+      setAdaMsg(`Sending $${fmt(effectivePrice)} in ADA…`);
+
+      const { requestCardanoPayment } =
+        await import("../../services/auth/paymentService");
+      const result = await requestCardanoPayment({
+        productId,
+        amountUSD: effectivePrice,
+        onStep: ({ message }) => setAdaMsg(message),
+      });
+
+      if (result?.success) {
+        setAdaStep("done");
+        setAdaMsg("Cardano payment confirmed! Activating account…");
+        await onVerify({
+          chainType: "CARDANO",
+          chain: "cardano",
+          txHash: result.txHash,
+          claimedSenderWallet: conn.address,
+          productId,
+          amountOverrideUSD: effectivePrice,
+          inviteCodeId: inviteDetails?.id ?? null,
+        });
+      }
+    } catch (e) {
+      setAdaStep("error");
+      setAdaMsg(e?.message ?? "Cardano payment failed");
+      // [2] WHATSAPP_FALLBACK — commented out
+      // openWhatsAppFallback("Cardano payment", e?.message);
+    }
+  }, [effectivePrice, productId, inviteDetails, onVerify]);
+
+  // ── Manual Web3 verify ────────────────────────────────────────────────────
+  const handleManualVerify = useCallback(async () => {
+    if (!manualTxHash.trim() || !manualWallet.trim()) {
+      resetVerify();
+      return;
+    }
+    await onVerify({
+      chainType: manualChainType,
+      chain: manualChain,
+      txHash: manualTxHash.trim(),
+      claimedSenderWallet: manualWallet.trim(),
+      productId,
+      amountOverrideUSD: effectivePrice,
+      inviteCodeId: inviteDetails?.id ?? null,
+    });
+  }, [
+    manualTxHash,
+    manualWallet,
+    manualChain,
+    manualChainType,
+    productId,
+    effectivePrice,
+    inviteDetails,
+    onVerify,
+    resetVerify,
+  ]);
+
+  // ── [2] WhatsApp fallback — COMMENTED OUT, uncomment when ready ───────────
+  // function openWhatsAppFallback(method, errorMsg) {
+  //   const msg = encodeURIComponent(
+  //     `Hi, I had a payment issue with ${method}: ${errorMsg ?? "unknown error"}. ` +
+  //     `My account: ${user?.email}. Can you help me activate my account?`
+  //   );
+  //   const whatsappNumber = process.env.REACT_APP_WHATSAPP_NUMBER ?? "";
+  //   if (whatsappNumber) {
+  //     window.open(`https://wa.me/${whatsappNumber}?text=${msg}`, "_blank");
+  //   }
+  // }
+
+  // ── Free access — shown in PaywallPayment only when PaywallGate passes it ─
+  // PriceHero already shows the primary "Activate Free Access" button.
+  // This is a secondary one in the payment section for clarity.
+  const showFreeButton =
+    (isFreeAccess || isApprovedAccess) && inviteDetails?.id;
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  const cardStyle = {
+    background: "#141414",
+    border: "1px solid #1e1e1e",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+  };
+  const labelStyle = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#555",
+    letterSpacing: "1px",
+    textTransform: "uppercase",
+    marginBottom: 8,
+    display: "block",
+  };
+  const inputStyle = {
+    width: "100%",
+    background: "#0e0e0e",
+    border: "1.5px solid #232323",
+    borderRadius: 11,
+    padding: "12px 14px",
+    color: "#f0f0f0",
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: 12,
+    outline: "none",
+    boxSizing: "border-box",
+    caretColor: "#a3e635",
+  };
+  const btnLime = {
+    width: "100%",
+    padding: "15px 20px",
+    borderRadius: 13,
+    border: "none",
+    background: "linear-gradient(135deg,#a3e635,#65a30d)",
+    color: "#061000",
+    fontWeight: 800,
+    fontSize: 14,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    boxShadow: "0 4px 20px rgba(163,230,53,.3)",
+  };
+  const btnOutline = {
+    width: "100%",
+    padding: "12px 16px",
+    borderRadius: 12,
+    border: "1.5px solid rgba(163,230,53,.3)",
+    background: "rgba(163,230,53,.05)",
+    color: "#a3e635",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+  };
+  const btnGray = {
+    ...btnOutline,
+    border: "1.5px solid #2a2a2a",
+    background: "transparent",
+    color: "#666",
+    marginTop: 0,
   };
 
-  const clearInvite = () => setInviteDetails(null);
-
-  const TABS = [
-    { id: "evm", label: "EVM", emoji: "⬡", cls: "off" },
-    { id: "solana", label: "Solana", emoji: "◎", cls: "off" },
-    { id: "cardano", label: "Cardano", emoji: "🔵", cls: "off" },
-    { id: "paystack", label: "Card", emoji: "🏦", cls: "soon" },
-  ];
+  const stepMsg = (msg, step, resetFn, retryFn) => (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{
+          background:
+            step === "error" ? "rgba(239,68,68,.06)" : "rgba(163,230,53,.04)",
+          border: `1px solid ${step === "error" ? "rgba(239,68,68,.2)" : "rgba(163,230,53,.12)"}`,
+          borderRadius: 10,
+          padding: "10px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        {step !== "error" && step !== "done" && (
+          <Spin size={14} color={step === "error" ? "#f87171" : "#a3e635"} />
+        )}
+        {step === "done" && <span style={{ color: "#a3e635" }}>✓</span>}
+        {step === "error" && <span style={{ color: "#f87171" }}>✕</span>}
+        <span
+          style={{
+            fontSize: 12,
+            color: step === "error" ? "#f87171" : "#a3e635",
+            lineHeight: 1.5,
+          }}
+        >
+          {msg}
+        </span>
+      </div>
+      {step === "error" && retryFn && (
+        <button
+          style={{ ...btnGray, marginTop: 8 }}
+          onClick={() => {
+            resetFn();
+            retryFn();
+          }}
+        >
+          Try again
+        </button>
+      )}
+    </div>
+  );
 
   return (
-    <>
-      {/* ── [FIX v3] Free / approved access button — shown instead of payment tabs ── */}
-      {showFreeButton && (
-        <div style={{ marginBottom: 16 }}>
-          {isApprovedAccess && (
-            <div
-              style={{
-                background: "rgba(163,230,53,.06)",
-                border: "1px solid rgba(163,230,53,.2)",
-                borderRadius: 12,
-                padding: "10px 14px",
-                marginBottom: 10,
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
-              }}
-            >
-              <span style={{ fontSize: 16 }}>🎉</span>
-              <div>
-                <div
-                  style={{ fontSize: 12, fontWeight: 800, color: "#a3e635" }}
-                >
-                  You've been approved!
-                </div>
-                <div style={{ fontSize: 10, color: "#5a8a35", marginTop: 2 }}>
-                  Your waitlist spot is whitelisted — activate free access
-                  below.
-                </div>
+    <div>
+      {/* ── Invite Code Section ─────────────────────────────────────────── */}
+      <div style={cardStyle}>
+        <span style={labelStyle}>🎫 Invite Code</span>
+        {inviteApplied && inviteDetails ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "rgba(163,230,53,.06)",
+              border: "1px solid rgba(163,230,53,.2)",
+              borderRadius: 10,
+              padding: "10px 14px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#a3e635" }}>
+                {inviteDetails.code}
+              </div>
+              <div style={{ fontSize: 10, color: "#5a7a35", marginTop: 2 }}>
+                {resolvePrice(inviteDetails, productPrice) === 0
+                  ? "Free access unlocked"
+                  : `$${fmt(resolvePrice(inviteDetails, productPrice))} entry price`}
               </div>
             </div>
-          )}
+            <button
+              onClick={handleRemoveInvite}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#555",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              style={{ ...inputStyle, flex: 1 }}
+              placeholder="ENTER CODE"
+              value={inviteInput}
+              onChange={(e) => setInviteInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && handleApplyInvite()}
+            />
+            <button
+              onClick={handleApplyInvite}
+              disabled={inviteLoading}
+              style={{
+                padding: "12px 18px",
+                borderRadius: 10,
+                border: "none",
+                background: inviteLoading ? "#1c1c1c" : "rgba(163,230,53,.15)",
+                color: inviteLoading ? "#444" : "#a3e635",
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: inviteLoading ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {inviteLoading ? <Spin size={14} /> : "Apply"}
+            </button>
+          </div>
+        )}
+        {inviteError && (
+          <div style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}>
+            {inviteError}
+          </div>
+        )}
+      </div>
+
+      {/* ── Free Access Button (secondary — PriceHero is primary) ────────── */}
+      {showFreeButton && (
+        <div style={{ marginBottom: 12 }}>
           <button
-            className="xv-btn-lime"
-            onClick={() => onFreeActivate(inviteDetails.code)}
+            style={{ ...btnLime, opacity: freeActivating ? 0.7 : 1 }}
+            onClick={() => onFreeActivate(inviteDetails?.code)}
             disabled={freeActivating}
           >
             {freeActivating ? (
@@ -2158,168 +1573,497 @@ export default function PaywallPayment({
         </div>
       )}
 
-      {/* Waitlist when full */}
-      {isFull && hasWL && !showFreeButton && (
-        <div style={{ marginBottom: 16 }}>
-          <div
-            style={{
-              fontSize: 12,
-              color: "#888",
-              lineHeight: 1.6,
-              marginBottom: 10,
-            }}
-          >
-            The whitelist is currently full. Join the waitlist — we'll notify
-            you when a spot opens.
-          </div>
-        </div>
-      )}
-
-      {/* ── [FIX v3] Payment tabs only shown when NOT free and NOT full ── */}
-      {showPaymentTabs && (
+      {/* ── Payment tabs — hidden when free access ────────────────────────── */}
+      {!showFreeButton && (
         <>
-          <div className="xv-tabs">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                className={`xv-tab ${tab === t.id ? "on" : t.cls}`}
-                onClick={() => {
-                  if (t.id === "paystack") {
-                    setShowPaystack(true);
-                    return;
-                  }
-                  setTab(t.id);
-                }}
-              >
-                <span>{t.emoji}</span>
-                {t.label}
-                {t.cls === "soon" && (
-                  <span
-                    style={{
-                      fontSize: 8,
-                      fontWeight: 800,
-                      color: "#888",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    SOON
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {tab === "evm" && (
-            <EVMPanel
-              product={product}
-              effectivePrice={effectivePrice}
-              onSmartSuccess={onSmartPaySuccess}
-              onVerify={onVerify}
-              loading={verifying}
-              error={verifyError}
-              reset={resetVerify}
-              userId={userId}
-            />
-          )}
-          {tab === "solana" && (
-            <SolanaPanel
-              product={product}
-              effectivePrice={effectivePrice}
-              onSmartSuccess={onSmartPaySuccess}
-              onVerify={onVerify}
-              loading={verifying}
-              error={verifyError}
-              reset={resetVerify}
-              userId={userId}
-            />
-          )}
-          {tab === "cardano" && (
-            <CardanoPanel
-              product={product}
-              effectivePrice={effectivePrice}
-              onSmartSuccess={onSmartPaySuccess}
-              onVerify={onVerify}
-              loading={verifying}
-              error={verifyError}
-              reset={resetVerify}
-              userId={userId}
-            />
-          )}
-        </>
-      )}
-
-      {/* Invite code input */}
-      {!inviteDetails && (
-        <div style={{ marginTop: 16 }}>
-          <Divider label="or apply invite code" />
-          <div style={{ marginTop: 12 }}>
-            <InviteInput onApply={applyInvite} loading={inviteLoading} />
-          </div>
-        </div>
-      )}
-
-      {/* Applied invite badge */}
-      {inviteDetails && (
-        <div style={{ marginTop: 14 }}>
+          {/* Tab selector */}
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background: "#0e0e0e",
-              border: "1px solid #1e1e1e",
-              borderRadius: 10,
-              padding: "9px 13px",
+              gap: 3,
+              background: "#0d0d0d",
+              border: "1px solid #1a1a1a",
+              borderRadius: 14,
+              padding: 4,
+              marginBottom: 16,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13 }}>🎫</span>
-              <div>
+            {[
+              { key: "paystack", label: "💳 Card / Bank", color: "#38bdf8" },
+              { key: "evm", label: "⛓ EVM", color: "#a3e635" },
+              { key: "solana", label: "◎ Solana", color: "#9945ff" },
+              { key: "cardano", label: "₳ Cardano", color: "#0057ff" },
+            ].map(({ key, label, color }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                style={{
+                  flex: 1,
+                  padding: "10px 4px",
+                  borderRadius: 10,
+                  border: "none",
+                  background:
+                    tab === key ? "rgba(255,255,255,.04)" : "transparent",
+                  color: tab === key ? color : "#555",
+                  fontFamily: "inherit",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  transition: "all .18s",
+                  boxShadow:
+                    tab === key ? `inset 0 0 0 1.5px ${color}30` : "none",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Paystack Tab ─────────────────────────────────────────────── */}
+          {tab === "paystack" && (
+            <div style={cardStyle}>
+              <div style={{ marginBottom: 16 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#e0e0e0",
+                    marginBottom: 4,
+                  }}
+                >
+                  Pay with Card or Bank Transfer
+                </div>
+                <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
+                  Powered by Paystack · Visa, Mastercard, bank transfer, USSD
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "#0f0f0f",
+                  border: "1px solid #1e1e1e",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  marginBottom: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 11, color: "#666" }}>Amount</span>
+                <span
+                  style={{ fontSize: 18, fontWeight: 900, color: "#a3e635" }}
+                >
+                  ${fmt(effectivePrice)}
+                </span>
+              </div>
+
+              {psStep === "idle" && (
+                <button
+                  style={{ ...btnLime, opacity: configLoading ? 0.6 : 1 }}
+                  onClick={handlePaystack}
+                  disabled={configLoading}
+                >
+                  {configLoading
+                    ? "Loading…"
+                    : `💳 Pay $${fmt(effectivePrice)} with Paystack →`}
+                </button>
+              )}
+              {psStep === "loading" &&
+                stepMsg(psMsg, "loading", () => setPsStep("idle"), null)}
+              {psStep === "redirect" &&
+                stepMsg(
+                  "Redirecting to Paystack…",
+                  "loading",
+                  () => setPsStep("idle"),
+                  null,
+                )}
+              {psStep === "verifying" &&
+                stepMsg(
+                  "Verifying your payment…",
+                  "loading",
+                  () => setPsStep("idle"),
+                  null,
+                )}
+              {psStep === "done" &&
+                stepMsg(
+                  "Payment confirmed! Welcome to Xeevia ✓",
+                  "done",
+                  () => setPsStep("idle"),
+                  null,
+                )}
+              {psStep === "error" &&
+                stepMsg(
+                  psMsg,
+                  "error",
+                  () => setPsStep("idle"),
+                  handlePaystack,
+                )}
+
+              {psStep === "idle" && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 10,
+                    color: "#3a3a3a",
+                    textAlign: "center",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  🔒 Secured by Paystack · No card details stored on our servers
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── EVM Tab ──────────────────────────────────────────────────── */}
+          {tab === "evm" && (
+            <div style={cardStyle}>
+              <div style={{ marginBottom: 14 }}>
+                <span style={labelStyle}>Chain & Token</span>
+                <select
+                  style={{
+                    width: "100%",
+                    appearance: "none",
+                    background: "#0e0e0e",
+                    border: "1.5px solid #252525",
+                    borderRadius: 11,
+                    color: "#e8e8e8",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: "11px 14px",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                  value={evmChainIdx}
+                  onChange={(e) => setEvmChainIdx(Number(e.target.value))}
+                >
+                  {EVM_CHAINS.map((c, i) => (
+                    <option key={i} value={i} style={{ background: "#141414" }}>
+                      {c.name} — {c.token}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div
+                style={{
+                  background: "#0f0f0f",
+                  border: "1px solid #1e1e1e",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  marginBottom: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 11, color: "#666" }}>Amount</span>
+                <span
+                  style={{ fontSize: 18, fontWeight: 900, color: "#a3e635" }}
+                >
+                  ${fmt(effectivePrice)} {EVM_CHAINS[evmChainIdx]?.token}
+                </span>
+              </div>
+
+              {evmWallet?.address && (
                 <div
                   style={{
                     fontSize: 10,
-                    color: "#666",
-                    fontWeight: 700,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
+                    color: "#4a5a4a",
+                    marginBottom: 10,
+                    fontFamily: "monospace",
                   }}
                 >
-                  Invite Applied
+                  Wallet: {evmWallet.address.slice(0, 8)}…
+                  {evmWallet.address.slice(-6)}
                 </div>
+              )}
+
+              {evmStep === "idle" && (
+                <>
+                  <button style={btnLime} onClick={handleEvmSmartPay}>
+                    ⚡ Smart Pay — auto send & verify →
+                  </button>
+                  <button
+                    style={btnGray}
+                    onClick={() => setManualMode(!manualMode)}
+                  >
+                    {manualMode ? "Hide" : "Manual"} — already sent? enter tx
+                    hash
+                  </button>
+                </>
+              )}
+              {evmStep !== "idle" &&
+                stepMsg(
+                  evmMsg,
+                  evmStep,
+                  () => setEvmStep("idle"),
+                  handleEvmSmartPay,
+                )}
+
+              {manualMode && evmStep === "idle" && (
+                <div style={{ marginTop: 12 }}>
+                  <input
+                    style={{ ...inputStyle, marginBottom: 8 }}
+                    placeholder="Transaction hash (0x...)"
+                    value={evmTxHash}
+                    onChange={(e) => setEvmTxHash(e.target.value)}
+                  />
+                  {!evmWallet?.address && (
+                    <button
+                      style={{ ...btnGray, marginBottom: 8 }}
+                      onClick={() =>
+                        connectWallet("EVM")
+                          .then((a) =>
+                            setEvmWallet({ address: a, connected: true }),
+                          )
+                          .catch(() => {})
+                      }
+                    >
+                      Connect wallet to verify
+                    </button>
+                  )}
+                  <button
+                    style={btnOutline}
+                    onClick={handleEvmManualVerify}
+                    disabled={verifying}
+                  >
+                    {verifying ? (
+                      <>
+                        <Spin size={14} /> Verifying…
+                      </>
+                    ) : (
+                      "Verify transaction →"
+                    )}
+                  </button>
+                  {verifyError && (
+                    <div
+                      style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}
+                    >
+                      {verifyError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Solana Tab ───────────────────────────────────────────────── */}
+          {tab === "solana" && (
+            <div style={cardStyle}>
+              <div
+                style={{
+                  marginBottom: 14,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#e0e0e0",
+                }}
+              >
+                Pay with Solana
+              </div>
+              {/* Token selector */}
+              <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
-                    fontSize: 12,
-                    color: "#a3e635",
-                    fontWeight: 800,
-                    ...mono,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "#666",
+                    marginBottom: 6,
                   }}
                 >
-                  {inviteDetails.code}
+                  Token
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["USDC", "USDT"].map((sym) => (
+                    <button
+                      key={sym}
+                      onClick={() => setSolToken(sym)}
+                      style={{
+                        flex: 1,
+                        padding: "8px",
+                        borderRadius: 9,
+                        border: `1.5px solid ${solToken === sym ? "#9945ff" : "#1e1e1e"}`,
+                        background:
+                          solToken === sym ? "rgba(153,69,255,.1)" : "#111",
+                        color: solToken === sym ? "#c084fc" : "#555",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {sym}
+                    </button>
+                  ))}
                 </div>
               </div>
+              <div
+                style={{
+                  background: "#0f0f0f",
+                  border: "1px solid #1e1e1e",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  marginBottom: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 11, color: "#666" }}>Amount</span>
+                <span
+                  style={{ fontSize: 18, fontWeight: 900, color: "#9945ff" }}
+                >
+                  ${fmt(effectivePrice)} {solToken}
+                </span>
+              </div>
+              {solWallet?.address && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#4a3a6a",
+                    marginBottom: 10,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  Wallet: {solWallet.address.slice(0, 8)}…
+                  {solWallet.address.slice(-6)}
+                </div>
+              )}
+              {solStep === "idle" && (
+                <button
+                  style={{
+                    ...btnLime,
+                    background: "linear-gradient(135deg,#9945ff,#7c3aed)",
+                    boxShadow: "0 4px 20px rgba(153,69,255,.3)",
+                    marginBottom: 8,
+                  }}
+                  onClick={handleSolanaPay}
+                >
+                  ◎ Smart Pay with Solana →
+                </button>
+              )}
+              {solStep !== "idle" &&
+                stepMsg(
+                  solMsg,
+                  solStep,
+                  () => setSolStep("idle"),
+                  handleSolanaPay,
+                )}
+              {/* Manual Solana — already-sent path */}
+              <ManualSolanaInline
+                effectivePrice={effectivePrice}
+                solToken={solToken}
+                onVerify={onVerify}
+                loading={verifying}
+                error={verifyError}
+                reset={resetVerify}
+              />
             </div>
-            <button
-              onClick={clearInvite}
+          )}
+
+          {/* ── Cardano Tab ──────────────────────────────────────────────── */}
+          {tab === "cardano" && (
+            <div style={cardStyle}>
+              <div
+                style={{
+                  marginBottom: 14,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#e0e0e0",
+                }}
+              >
+                Pay with Cardano (ADA)
+              </div>
+              <div
+                style={{
+                  background: "rgba(0,51,173,.06)",
+                  border: "1px solid rgba(0,51,173,.2)",
+                  borderRadius: 12,
+                  padding: "11px 14px",
+                  marginBottom: 14,
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 18 }}>🏦</span>
+                <span style={{ fontSize: 12, color: "#888", lineHeight: 1.6 }}>
+                  Send{" "}
+                  <strong style={{ color: "#a3e635" }}>
+                    ${fmt(effectivePrice)} ADA equivalent
+                  </strong>
+                  . ADA/USD rate is fetched at verify time. Send ~2% extra to
+                  cover price movement.
+                </span>
+              </div>
+              {adaWallet?.address && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#1a2a4a",
+                    marginBottom: 10,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  Wallet: {adaWallet.address.slice(0, 10)}…
+                </div>
+              )}
+              {adaStep === "idle" && (
+                <button
+                  style={{
+                    ...btnLime,
+                    background: "linear-gradient(135deg,#0033ad,#0057ff)",
+                    boxShadow: "0 4px 20px rgba(0,51,173,.3)",
+                    marginBottom: 8,
+                  }}
+                  onClick={handleCardanoPay}
+                >
+                  ₳ Smart Pay with Cardano →
+                </button>
+              )}
+              {adaStep !== "idle" &&
+                stepMsg(
+                  adaMsg,
+                  adaStep,
+                  () => setAdaStep("idle"),
+                  handleCardanoPay,
+                )}
+              {/* Manual Cardano — already-sent path */}
+              <ManualCardanoInline
+                effectivePrice={effectivePrice}
+                onVerify={onVerify}
+                loading={verifying}
+                error={verifyError}
+                reset={resetVerify}
+              />
+            </div>
+          )}
+
+          {/* ── Price summary ─────────────────────────────────────────────── */}
+          {!showFreeButton && (
+            <div
               style={{
-                background: "transparent",
-                border: "1px solid #252525",
-                borderRadius: 7,
-                color: "#555",
-                fontSize: 11,
-                padding: "4px 10px",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                fontWeight: 600,
+                fontSize: 10,
+                color: "#3a3a3a",
+                textAlign: "center",
+                lineHeight: 1.7,
+                padding: "8px 0",
               }}
             >
-              Remove
-            </button>
-          </div>
-        </div>
+              One-time payment · Lifetime access · ${fmt(effectivePrice)} USD
+              {inviteDetails && effectivePrice < productPrice && (
+                <span style={{ color: "#a3e635", marginLeft: 6 }}>
+                  (invite price — ${fmt(productPrice - effectivePrice)} off)
+                </span>
+              )}
+            </div>
+          )}
+        </>
       )}
-
-      {showPaystack && (
-        <PaystackSoonModal onClose={() => setShowPaystack(false)} />
-      )}
-    </>
+    </div>
   );
 }

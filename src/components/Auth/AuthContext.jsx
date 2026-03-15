@@ -1,26 +1,36 @@
 // ============================================================================
-// src/components/Auth/AuthContext.jsx — v14 IRON-CLAD
+// src/components/Auth/AuthContext.jsx — v15 IRON-CLAD + ACCOUNT ENFORCEMENT
 // ============================================================================
 //
-// WHAT CHANGED FROM v13:
-//   [1] SIGNED_OUT completely ignored unless explicitSignOutRef = true.
-//       Supabase fires spurious SIGNED_OUT on token refresh failures,
-//       network hiccups, tab focus events, and SDK bugs. We ignore ALL
-//       of them and silently recover the session instead.
-//   [2] onAuthStateChange never clears user/profile on any event except
-//       a user-initiated sign-out. It only updates state positively.
-//   [3] TOKEN_REFRESHED does not touch profile state at all.
-//   [4] Added sessionGuardInterval — every 90s, silently verify the
-//       session exists. If not, recover. Never sign out.
-//   [5] Dual paid cache (sessionStorage + localStorage) so paywall
-//       never flashes across any browser storage scenario.
-//   [6] lastGoodUser ref — never wiped except on explicit sign-out.
-//       Keeps user state alive through any transient Supabase event.
-//   [7] Profile errors NEVER touch user state. Profile retries
-//       independently with indefinite backoff.
-//   [8] signOut() uses scope:"local" — only ends this device's session.
-//       signOutAllDevices() uses scope:"global" for the explicit case.
-//   [9] Spurious SIGNED_OUT → silent recovery via sessionRefreshManager.
+// WHAT CHANGED FROM v14:
+//   [NEW] Account enforcement layer added — banned/deleted users are
+//         force-signed-out even if their Supabase JWT is still valid.
+//         This is the fix for "deleted user can still use the app."
+//
+//         Implementation:
+//           - enforceAccountStatus() calls get_session_profile() RPC
+//             (SECURITY DEFINER function in admin-enforcement-SAFE.sql)
+//           - Called once after every successful profile load
+//           - Called every 60s while app is open (setInterval)
+//           - Called on window focus (catches bans while tab was backgrounded)
+//           - On ACCOUNT_SUSPENDED → signs out, sets kickReason state
+//           - On ACCOUNT_DELETED   → signs out, sets kickReason state
+//           - kickReason is exposed in context so UI can show a message
+//           - All enforcement calls are try/catch — network errors NEVER
+//             cause a sign-out (fail open, not fail closed)
+//           - Enforcement is SKIPPED if explicitSignOutRef is already true
+//             (avoid double sign-out race)
+//
+//   Everything from v14 is UNCHANGED:
+//   [1] SIGNED_OUT ignored unless explicitSignOutRef = true
+//   [2] onAuthStateChange never clears user/profile spuriously
+//   [3] TOKEN_REFRESHED does not touch profile state
+//   [4] sessionGuardInterval every 90s
+//   [5] Dual paid cache (sessionStorage + localStorage)
+//   [6] lastGoodUser ref never wiped except on explicit sign-out
+//   [7] Profile errors NEVER touch user state
+//   [8] signOut() uses scope:"local"
+//   [9] Spurious SIGNED_OUT → silent recovery
 // ============================================================================
 
 import React, {
@@ -44,10 +54,10 @@ export function useAuth() {
 
 const PROFILE_TIMEOUT_MS = 15_000;
 const PROFILE_RETRY_DELAYS = [2000, 5000, 15000, 30000, 60000, 120000];
-const SESSION_GUARD_MS = 90_000; // Silent session check every 90s
+const SESSION_GUARD_MS = 90_000;
+const ENFORCEMENT_INTERVAL_MS = 60_000; // Check account status every 60s
 
-// ── Dual paid cache — sessionStorage + localStorage ──────────────────────────
-// Survives hard refresh, tab close, and all browser storage quirks.
+// ── Dual paid cache ───────────────────────────────────────────────────────────
 const PAID_SS_KEY = "xv_paid";
 const PAID_LS_KEY = "xv_paid_ls";
 
@@ -101,7 +111,6 @@ function cleanPKCEParams() {
   } catch {}
 }
 
-// ── Dual paid cache helpers ───────────────────────────────────────────────────
 function readPaidCache() {
   try {
     if (sessionStorage.getItem(PAID_SS_KEY) === "1") return true;
@@ -132,12 +141,13 @@ export default function AuthProvider({ children }) {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  // [NEW] Populated when admin bans/deletes this user while they're logged in
+  const [kickReason, setKickReason] = useState(null); // { reason, message } | null
 
   const isMounted = useRef(true);
-  // CRITICAL: Only true when user explicitly clicks Sign Out
   const explicitSignOutRef = useRef(false);
   const lastGoodProfile = useRef(null);
-  const lastGoodUser = useRef(null); // Never wiped except on explicit sign-out
+  const lastGoodUser = useRef(null);
   const lastFetchedUserId = useRef(null);
   const paidCacheRef = useRef(readPaidCache());
   const initDoneRef = useRef(false);
@@ -145,6 +155,9 @@ export default function AuthProvider({ children }) {
   const profileRetryCount = useRef(0);
   const fetchInFlight = useRef(false);
   const sessionGuardInterval = useRef(null);
+  // [NEW] Refs for enforcement
+  const enforcementInterval = useRef(null);
+  const enforcementBusy = useRef(false); // Prevent concurrent checks
 
   useEffect(() => {
     isMounted.current = true;
@@ -152,6 +165,9 @@ export default function AuthProvider({ children }) {
       isMounted.current = false;
       clearTimeout(profileRetryTimer.current);
       clearInterval(sessionGuardInterval.current);
+      // [NEW] Clean up enforcement interval on unmount
+      clearInterval(enforcementInterval.current);
+      window.removeEventListener("focus", handleWindowFocus.current);
     };
   }, []);
 
@@ -159,11 +175,163 @@ export default function AuthProvider({ children }) {
     cleanOAuthErrorParams();
   }, []);
 
-  // ── Set paid (writes both storages) ──────────────────────────────────────
+  // ── Set paid ──────────────────────────────────────────────────────────────
   const setPaid = useCallback((val) => {
     paidCacheRef.current = val;
     writePaidCache(val);
   }, []);
+
+  // ── [NEW] Account enforcement ─────────────────────────────────────────────
+  // Calls get_session_profile() RPC. If the account is suspended or deleted,
+  // forces sign-out immediately. Fails open on any network/RPC error.
+  //
+  // IMPORTANT: This NEVER fires for admin users. Admins are exempt from
+  // enforcement checks to prevent accidental self-lockout.
+  const enforceAccountStatus = useCallback(
+    async (userId) => {
+      if (!userId) return;
+      if (!isMounted.current) return;
+      if (explicitSignOutRef.current) return; // Already signing out
+      if (enforcementBusy.current) return; // Previous check still running
+      if (isAdmin) return; // Admins are exempt
+
+      enforcementBusy.current = true;
+      try {
+        const { data, error } = await supabase.rpc("get_session_profile", {
+          p_user_id: userId,
+        });
+
+        // RPC error (function not deployed yet, or network issue) → fail open
+        if (error) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              "[AuthContext] enforcement RPC error (non-fatal):",
+              error.message,
+            );
+          }
+          return;
+        }
+
+        if (!data) return; // No data → fail open
+
+        // Account is fine — data is the full profile object, no action needed
+        if (!data.error) return;
+
+        // ── Account suspended ─────────────────────────────────────────────────
+        if (data.error === "ACCOUNT_SUSPENDED") {
+          if (!isMounted.current || explicitSignOutRef.current) return;
+          console.warn("[AuthContext] Account suspended — forcing sign-out");
+
+          const reason = {
+            reason: "suspended",
+            message:
+              data.reason ||
+              "Your account has been suspended. Please contact support.",
+          };
+
+          // Set flag before signOut so SIGNED_OUT handler knows this is intentional
+          explicitSignOutRef.current = true;
+          clearTimeout(profileRetryTimer.current);
+          clearInterval(sessionGuardInterval.current);
+          clearInterval(enforcementInterval.current);
+          sessionRefreshManager.cleanup();
+
+          // Clear all state
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
+          setAdminData(null);
+          setPaid(false);
+          setKickReason(reason); // ← UI can read this to show a message
+          lastGoodProfile.current = null;
+          lastGoodUser.current = null;
+          lastFetchedUserId.current = null;
+
+          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          return;
+        }
+
+        // ── Account deleted/deactivated ───────────────────────────────────────
+        if (
+          data.error === "ACCOUNT_DELETED" ||
+          data.error === "PROFILE_NOT_FOUND"
+        ) {
+          if (!isMounted.current || explicitSignOutRef.current) return;
+          console.warn("[AuthContext] Account deleted — forcing sign-out");
+
+          const reason = {
+            reason: "deleted",
+            message: "This account has been removed.",
+          };
+
+          explicitSignOutRef.current = true;
+          clearTimeout(profileRetryTimer.current);
+          clearInterval(sessionGuardInterval.current);
+          clearInterval(enforcementInterval.current);
+          sessionRefreshManager.cleanup();
+
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
+          setAdminData(null);
+          setPaid(false);
+          setKickReason(reason); // ← UI can read this to show a message
+          lastGoodProfile.current = null;
+          lastGoodUser.current = null;
+          lastFetchedUserId.current = null;
+
+          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          return;
+        }
+      } catch (err) {
+        // Any unexpected error → fail open, never sign out
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            "[AuthContext] enforcement unexpected error (non-fatal):",
+            err?.message,
+          );
+        }
+      } finally {
+        enforcementBusy.current = false;
+      }
+    },
+    [isAdmin, setPaid],
+  );
+
+  // [NEW] Stable ref for the window focus handler so we can remove it on cleanup
+  const handleWindowFocus = useRef(() => {});
+
+  // ── [NEW] Start enforcement loop ──────────────────────────────────────────
+  // Called once after a successful profile load. Sets up:
+  //   - setInterval every 60s
+  //   - window focus listener
+  const startEnforcement = useCallback(
+    (userId) => {
+      // Don't enforce for admin users
+      if (isAdmin) return;
+
+      clearInterval(enforcementInterval.current);
+      window.removeEventListener("focus", handleWindowFocus.current);
+
+      // Create stable focus handler for this userId
+      handleWindowFocus.current = () => {
+        if (isMounted.current && !explicitSignOutRef.current) {
+          enforceAccountStatus(userId);
+        }
+      };
+
+      // Interval check every 60s
+      enforcementInterval.current = setInterval(() => {
+        if (isMounted.current && !explicitSignOutRef.current) {
+          enforceAccountStatus(userId);
+        }
+      }, ENFORCEMENT_INTERVAL_MS);
+
+      // Focus check — catches bans while tab was backgrounded
+      window.addEventListener("focus", handleWindowFocus.current);
+    },
+    [isAdmin, enforceAccountStatus],
+  );
 
   // ── Admin role loader ─────────────────────────────────────────────────────
   const fetchAdminRole = useCallback(async (userId) => {
@@ -265,11 +433,18 @@ export default function AuthProvider({ children }) {
               setAdminData(null);
             }
           }
+
+          // [NEW] Start enforcement after successful profile load
+          // Non-admin users get their account status monitored from this point.
+          // This is the earliest safe point — we now know if they're admin or not.
+          if (!hasAdminFlag && !explicitSignOutRef.current) {
+            // Run one immediate check, then start the interval
+            enforceAccountStatus(userId);
+            startEnforcement(userId);
+          }
         } else if (lastGoodProfile.current) {
-          // DB returned null but we have a good profile — keep it, never flash paywall
           setProfile(lastGoodProfile.current);
         }
-        // Truly new user with no profile row: leave as null so AppRouter can handle
       } catch (err) {
         clearTimeout(timer);
         fetchInFlight.current = false;
@@ -280,7 +455,6 @@ export default function AuthProvider({ children }) {
           err?.message,
         );
 
-        // NEVER wipe profile on error — always keep last good state
         if (lastGoodProfile.current) {
           setProfile(lastGoodProfile.current);
           lastFetchedUserId.current = userId;
@@ -301,10 +475,10 @@ export default function AuthProvider({ children }) {
         if (isMounted.current) setProfileLoading(false);
       }
     },
-    [fetchAdminRole, setPaid],
+    [fetchAdminRole, setPaid, enforceAccountStatus, startEnforcement],
   );
 
-  // ── Session guard — silent background verification every 90s ─────────────
+  // ── Session guard ─────────────────────────────────────────────────────────
   const startSessionGuard = useCallback((userId) => {
     clearInterval(sessionGuardInterval.current);
     sessionGuardInterval.current = setInterval(async () => {
@@ -314,13 +488,11 @@ export default function AuthProvider({ children }) {
           data: { session },
         } = await supabase.auth.getSession();
         if (session?.user) {
-          // Session alive — update user silently
           if (isMounted.current) {
             lastGoodUser.current = session.user;
             setUser(session.user);
           }
         } else {
-          // Session appears missing — recover, never sign out
           console.warn(
             "[AuthContext] Session guard: session missing, recovering...",
           );
@@ -330,7 +502,6 @@ export default function AuthProvider({ children }) {
               lastGoodUser.current = recovered.user;
               setUser(recovered.user);
             } else if (lastGoodUser.current) {
-              // Keep last known user in state — never wipe
               setUser(lastGoodUser.current);
             }
             if (lastGoodProfile.current) setProfile(lastGoodProfile.current);
@@ -390,7 +561,6 @@ export default function AuthProvider({ children }) {
             "[AuthContext] Startup getSession error:",
             error.message,
           );
-          // Don't give up — try recovery via sessionRefreshManager
           const recovered = await sessionRefreshManager.getValidSession();
           if (recovered?.user && isMounted.current) {
             lastGoodUser.current = recovered.user;
@@ -419,7 +589,6 @@ export default function AuthProvider({ children }) {
         resolve();
       } catch (err) {
         console.warn("[AuthContext] Init exception:", err?.message);
-        // Even on exception, restore last known user
         if (lastGoodUser.current && isMounted.current) {
           setUser(lastGoodUser.current);
           if (lastGoodProfile.current) setProfile(lastGoodProfile.current);
@@ -436,22 +605,15 @@ export default function AuthProvider({ children }) {
       if (!isMounted.current) return;
 
       // ── SIGNED_OUT ──────────────────────────────────────────────────────────
-      // This is the most critical fix. Supabase fires spurious SIGNED_OUT
-      // events constantly: token refresh failures, network drops, tab focus,
-      // SDK internal state resets. We IGNORE all of them unless the user
-      // physically clicked our Sign Out button (explicitSignOutRef = true).
       if (event === "SIGNED_OUT") {
         if (!explicitSignOutRef.current) {
           console.warn(
             "[AuthContext] Ignoring spurious SIGNED_OUT — recovering silently",
           );
-          // Silently recover the session in the background
           setTimeout(() => {
             if (!isMounted.current || explicitSignOutRef.current) return;
-            // Restore from refs immediately so UI never flashes
             if (lastGoodUser.current) setUser(lastGoodUser.current);
             if (lastGoodProfile.current) setProfile(lastGoodProfile.current);
-            // Then attempt a real session recovery
             sessionRefreshManager.getValidSession().then((recovered) => {
               if (!isMounted.current || explicitSignOutRef.current) return;
               if (recovered?.user) {
@@ -476,6 +638,9 @@ export default function AuthProvider({ children }) {
         explicitSignOutRef.current = false;
         clearTimeout(profileRetryTimer.current);
         clearInterval(sessionGuardInterval.current);
+        // [NEW] Also clear enforcement on explicit sign-out
+        clearInterval(enforcementInterval.current);
+        window.removeEventListener("focus", handleWindowFocus.current);
         setUser(null);
         setProfile(null);
         setIsAdmin(false);
@@ -490,18 +655,17 @@ export default function AuthProvider({ children }) {
         return;
       }
 
-      // ── TOKEN_REFRESHED — update user only, never touch profile ────────────
+      // ── TOKEN_REFRESHED ─────────────────────────────────────────────────────
       if (event === "TOKEN_REFRESHED") {
         if (session?.user) {
           lastGoodUser.current = session.user;
           setUser(session.user);
-          // Profile is still valid — do not touch it under any circumstance
         }
         resolve();
         return;
       }
 
-      // ── SIGNED_IN / USER_UPDATED — update state positively ─────────────────
+      // ── SIGNED_IN / USER_UPDATED ────────────────────────────────────────────
       if (session?.user) {
         lastGoodUser.current = session.user;
         setUser(session.user);
@@ -526,13 +690,14 @@ export default function AuthProvider({ children }) {
     };
   }, [loadProfile, setPaid, startSessionGuard]);
 
-  // ── Explicit sign-out — the ONLY path that ends a session ─────────────────
-  // Uses local scope: only ends THIS device's session.
+  // ── Explicit sign-out ─────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
-    // Set flag FIRST so the SIGNED_OUT handler knows this is intentional
     explicitSignOutRef.current = true;
     clearTimeout(profileRetryTimer.current);
     clearInterval(sessionGuardInterval.current);
+    // [NEW] Clean up enforcement on sign-out
+    clearInterval(enforcementInterval.current);
+    window.removeEventListener("focus", handleWindowFocus.current);
     sessionRefreshManager.cleanup();
     initDoneRef.current = false;
 
@@ -542,6 +707,7 @@ export default function AuthProvider({ children }) {
       setIsAdmin(false);
       setAdminData(null);
       setPaid(false);
+      setKickReason(null); // [NEW] Clear any kick reason on manual sign-out
       lastGoodProfile.current = null;
       lastGoodUser.current = null;
       lastFetchedUserId.current = null;
@@ -554,12 +720,14 @@ export default function AuthProvider({ children }) {
     }
   }, [setPaid]);
 
-  // ── signOutAllDevices — explicit multi-device logout ──────────────────────
-  // Only call this from a deliberate "Sign out everywhere" settings action.
+  // ── signOutAllDevices ─────────────────────────────────────────────────────
   const signOutAllDevices = useCallback(async () => {
     explicitSignOutRef.current = true;
     clearTimeout(profileRetryTimer.current);
     clearInterval(sessionGuardInterval.current);
+    // [NEW] Clean up enforcement
+    clearInterval(enforcementInterval.current);
+    window.removeEventListener("focus", handleWindowFocus.current);
     sessionRefreshManager.cleanup();
     initDoneRef.current = false;
 
@@ -569,6 +737,7 @@ export default function AuthProvider({ children }) {
       setIsAdmin(false);
       setAdminData(null);
       setPaid(false);
+      setKickReason(null); // [NEW]
       lastGoodProfile.current = null;
       lastGoodUser.current = null;
       lastFetchedUserId.current = null;
@@ -584,7 +753,7 @@ export default function AuthProvider({ children }) {
     }
   }, [setPaid]);
 
-  // ── Force refresh profile (post-payment, post-edit) ───────────────────────
+  // ── Force refresh profile ─────────────────────────────────────────────────
   const refreshProfile = useCallback(async () => {
     const userId = lastGoodUser.current?.id || profile?.id;
     if (!userId) return;
@@ -595,7 +764,6 @@ export default function AuthProvider({ children }) {
   }, [profile?.id, loadProfile]);
 
   const getIsPaidCached = useCallback(() => {
-    // Check all sources — most permissive wins
     const stored = readPaidCache();
     if (stored && !paidCacheRef.current) paidCacheRef.current = true;
     return paidCacheRef.current;
@@ -614,6 +782,8 @@ export default function AuthProvider({ children }) {
         signOutAllDevices,
         refreshProfile,
         getIsPaidCached,
+        kickReason, // [NEW] { reason: "suspended"|"deleted", message: string } | null
+        clearKickReason: () => setKickReason(null), // [NEW] Call this after showing the message
       }}
     >
       {children}

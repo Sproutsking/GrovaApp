@@ -1,107 +1,292 @@
 // src/components/Stream/StreamView.jsx
-// Xeevia Stream — EP-powered live streaming with adaptive quality control
-// Video + Audio modes | Bandwidth selector | EP tipping | Multi-guest rooms
+// Xeevia Stream — EP-powered live streaming · Video + Audio modes
+// Adaptive quality · EP tipping (84% creator) · Multi-guest slots · Signal monitor
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Radio, Video, Mic, Eye, Heart, X, Send, Maximize2,
-  Volume2, VolumeX, VideoOff, MicOff, Share2,
-  Zap, Flame, Wifi, WifiOff, Users, Crown, Settings,
-  ChevronDown, ChevronUp, Plus, PhoneOff, Cast,
-  BarChart2, Gift, TrendingUp, Lock, Unlock, AlertCircle
+  Radio,
+  Video,
+  Mic,
+  Eye,
+  Heart,
+  X,
+  Send,
+  Volume2,
+  VolumeX,
+  VideoOff,
+  MicOff,
+  Share2,
+  Zap,
+  Wifi,
+  Users,
+  Crown,
+  Settings,
+  Plus,
+  PhoneOff,
+  Lock,
+  Unlock,
+  BarChart2,
+  Gift,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  ChevronDown,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 
-// ── Demo chat messages ─────────────────────────────────────────────────────
-const DEMO_MSGS = [
-  { id: 1,  user: "@krypto_k",  text: "🔥 first!!",              color: "#84cc16", type: "chat", ep: 0 },
-  { id: 2,  user: "@nova_x",    text: "been waiting for this 🙌", color: "#60a5fa", type: "chat", ep: 0 },
-  { id: 3,  user: "@sprout_s",  text: "sent 5 EP ⚡",            color: "#fbbf24", type: "tip",  ep: 5 },
-  { id: 4,  user: "@zara_w",    text: "legendary stream 💎",      color: "#a78bfa", type: "chat", ep: 0 },
-  { id: 5,  user: "@dev_88",    text: "sent 10 EP ⚡",           color: "#f472b6", type: "tip",  ep: 10 },
+// ── Static data ───────────────────────────────────────────────────────────────
+const PRESETS = [
+  {
+    id: "ultra",
+    label: "Ultra HD",
+    sub: "~4 Mbps",
+    badge: "Best",
+    color: "#84cc16",
+    res: "1080p",
+  },
+  {
+    id: "high",
+    label: "High",
+    sub: "~2 Mbps",
+    badge: "Clear",
+    color: "#60a5fa",
+    res: "720p",
+  },
+  {
+    id: "medium",
+    label: "Medium",
+    sub: "~800 Kbps",
+    badge: "Smooth",
+    color: "#fbbf24",
+    res: "480p",
+  },
+  {
+    id: "low",
+    label: "Data Saver",
+    sub: "~300 Kbps",
+    badge: "Lite",
+    color: "#f97316",
+    res: "360p",
+  },
+  {
+    id: "minimal",
+    label: "Minimal",
+    sub: "~100 Kbps",
+    badge: "Ultra-lite",
+    color: "#f472b6",
+    res: "240p",
+  },
 ];
-
-// ── Network quality presets ────────────────────────────────────────────────
-const NETWORK_PRESETS = [
-  { id: "ultra",   label: "Ultra HD",   sub: "~4 Mbps",   badge: "Best",    color: "#84cc16", res: "1080p" },
-  { id: "high",    label: "High",       sub: "~2 Mbps",   badge: "Clear",   color: "#60a5fa", res: "720p"  },
-  { id: "medium",  label: "Medium",     sub: "~800 Kbps", badge: "Smooth",  color: "#fbbf24", res: "480p"  },
-  { id: "low",     label: "Data Saver", sub: "~300 Kbps", badge: "Lite",    color: "#f97316", res: "360p"  },
-  { id: "minimal", label: "Minimal",    sub: "~100 Kbps", badge: "Ultra-lite",color:"#f472b6",res: "240p"  },
+const CATEGORIES = [
+  "Music 🎵",
+  "Talk 🎙️",
+  "Gaming 🎮",
+  "Education 📚",
+  "Fitness 💪",
+  "Art 🎨",
+  "Business 💼",
+  "Tech ⚡",
 ];
-
-const CATEGORIES = ["Music 🎵", "Talk 🎙️", "Gaming 🎮", "Education 📚", "Fitness 💪", "Art 🎨", "Business 💼", "Tech ⚡"];
-
 const EP_TIPS = [2, 5, 10, 25, 50, 100];
-
-const FAKE_CHAT = [
-  "🔥🔥🔥","let's gooo!","❤️❤️","quality is insane","first time here","vibing hard",
-  "🚀 this is it","subscribed!","sent EP ⚡","need this energy","top tier creator",
+const MSGS_DEMO = [
+  {
+    id: 1,
+    user: "@krypto_k",
+    text: "🔥 first!!",
+    color: "#84cc16",
+    type: "chat",
+    ep: 0,
+  },
+  {
+    id: 2,
+    user: "@nova_x",
+    text: "been waiting for this 🙌",
+    color: "#60a5fa",
+    type: "chat",
+    ep: 0,
+  },
+  {
+    id: 3,
+    user: "@sprout_s",
+    text: "sent 5 EP ⚡",
+    color: "#fbbf24",
+    type: "tip",
+    ep: 5,
+  },
+  {
+    id: 4,
+    user: "@zara_w",
+    text: "legendary stream 💎",
+    color: "#a78bfa",
+    type: "chat",
+    ep: 0,
+  },
+  {
+    id: 5,
+    user: "@dev_88",
+    text: "sent 10 EP ⚡",
+    color: "#f472b6",
+    type: "tip",
+    ep: 10,
+  },
 ];
-const FAKE_USERS = ["@alpha","@blade","@cyan_v","@delta9","@echo88","@flux_k","@ghost","@hex","@iris","@jade_w"];
-const FAKE_COLS  = ["#84cc16","#60a5fa","#a78bfa","#fbbf24","#f472b6","#34d399","#fb923c","#e879f9"];
+const FAKE_MSGS = [
+  "🔥🔥🔥",
+  "let's gooo!",
+  "❤️❤️",
+  "quality is insane",
+  "first time here",
+  "vibing hard",
+  "🚀 this is it",
+  "subscribed!",
+  "sent EP ⚡",
+  "need this energy",
+  "top tier creator",
+  "W stream",
+  "real ones here",
+  "this is unreal",
+  "absolute banger",
+];
+const FAKE_USERS = [
+  "@alpha",
+  "@blade",
+  "@cyan_v",
+  "@delta9",
+  "@echo88",
+  "@flux_k",
+  "@ghost",
+  "@hex",
+  "@iris",
+  "@jade_w",
+  "@kilo_m",
+  "@luna_p",
+];
+const FAKE_COLS = [
+  "#84cc16",
+  "#60a5fa",
+  "#a78bfa",
+  "#fbbf24",
+  "#f472b6",
+  "#34d399",
+  "#fb923c",
+  "#e879f9",
+];
 
-// ── Animated bar for audio ─────────────────────────────────────────────────
+// ── Audio Bars ────────────────────────────────────────────────────────────────
 const AudioBars = ({ active, color = "#a78bfa" }) => (
-  <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 36 }}>
+  <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 38 }}>
     {Array.from({ length: 14 }).map((_, i) => (
-      <div key={i} style={{
-        width: 4, borderRadius: 2,
-        background: active ? color : "rgba(255,255,255,0.1)",
-        height: active ? `${8 + Math.random() * 24}px` : "4px",
-        animation: active ? `svBar 0.7s ease-in-out ${i * 0.06}s infinite` : "none",
-        transition: "background 0.3s",
-      }}/>
+      <div
+        key={i}
+        style={{
+          width: 4,
+          borderRadius: 2,
+          background: active ? color : "rgba(255,255,255,0.08)",
+          height: active ? `${8 + Math.random() * 24}px` : "4px",
+          animation: active
+            ? `svBar .7s ease-in-out ${i * 0.06}s infinite`
+            : "none",
+          transition: "background .3s",
+        }}
+      />
     ))}
   </div>
 );
 
-// ── Live stats pill ────────────────────────────────────────────────────────
-const StatPill = ({ icon: Icon, value, color }) => (
-  <div style={{
-    display: "flex", alignItems: "center", gap: 4,
-    padding: "4px 10px", borderRadius: 8,
-    background: "rgba(0,0,0,0.6)", backdropFilter: "blur(10px)",
-    fontSize: 11, fontWeight: 800, color: "#fff",
-  }}>
-    <Icon size={11} color={color}/>{value}
+// ── Stat Pill ─────────────────────────────────────────────────────────────────
+const StatPill = ({ Icon, value, color }) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 4,
+      padding: "4px 9px",
+      borderRadius: 8,
+      background: "rgba(0,0,0,0.62)",
+      backdropFilter: "blur(10px)",
+      fontSize: 11,
+      fontWeight: 800,
+      color: "#fff",
+    }}
+  >
+    <Icon size={10} color={color} />
+    {value}
   </div>
 );
 
+// ── Signal Bars ───────────────────────────────────────────────────────────────
+const SignalBars = ({ strength }) => {
+  const color =
+    strength >= 4 ? "#84cc16" : strength >= 3 ? "#fbbf24" : "#ef4444";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 2,
+        padding: "4px 9px",
+        borderRadius: 8,
+        background: "rgba(0,0,0,0.62)",
+        backdropFilter: "blur(10px)",
+      }}
+    >
+      {Array.from({ length: 5 }, (_, i) => (
+        <div
+          key={i}
+          style={{
+            width: 3,
+            borderRadius: 1,
+            height: 4 + i * 3,
+            background: i < strength ? color : "rgba(255,255,255,0.12)",
+            transition: "background .3s",
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ── MAIN ──────────────────────────────────────────────────────────────────────
 const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
-  const [mode,          setMode]          = useState("video");    // video | audio
-  const [phase,         setPhase]         = useState("setup");    // setup | live | ended
-  const [title,         setTitle]         = useState("");
-  const [category,      setCategory]      = useState("Tech ⚡");
-  const [networkPreset, setNetworkPreset] = useState("high");
-  const [chatInput,     setChatInput]     = useState("");
-  const [messages,      setMessages]      = useState(DEMO_MSGS);
-  const [viewers,       setViewers]       = useState(0);
-  const [likes,         setLikes]         = useState(0);
-  const [epEarned,      setEpEarned]      = useState(0);
-  const [duration,      setDuration]      = useState(0);
-  const [micOn,         setMicOn]         = useState(true);
-  const [camOn,         setCamOn]         = useState(true);
-  const [muted,         setMuted]         = useState(false);
-  const [peakViewers,   setPeakViewers]   = useState(0);
-  const [showNetwork,   setShowNetwork]   = useState(false);
-  const [showTipPanel,  setShowTipPanel]  = useState(false);
-  const [isPrivate,     setIsPrivate]     = useState(false);
-  const [guestSlots,    setGuestSlots]    = useState([null, null]); // up to 2 guests
-  const [signalStrength,setSignalStrength]= useState(4); // 1-5
-  const [totalTips,     setTotalTips]     = useState(0);
-  const [tab,           setTab]           = useState("chat"); // chat | tips | viewers
+  const [mode, setMode] = useState("video"); // video | audio
+  const [phase, setPhase] = useState("setup"); // setup | live | ended
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Tech ⚡");
+  const [preset, setPreset] = useState("high");
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState(MSGS_DEMO);
+  const [viewers, setViewers] = useState(0);
+  const [likes, setLikes] = useState(0);
+  const [epEarned, setEpEarned] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
+  const [muted, setMuted] = useState(false);
+  const [peakVw, setPeakVw] = useState(0);
+  const [showNet, setShowNet] = useState(false);
+  const [showTip, setShowTip] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [guests, setGuests] = useState([null, null]);
+  const [signal, setSignal] = useState(4);
+  const [totalTips, setTotalTips] = useState(0);
+  const [tab, setTab] = useState("chat"); // chat | tips | viewers
 
-  const durationRef  = useRef(null);
-  const chatRef      = useRef(null);
-  const msgId        = useRef(10);
+  const durRef = useRef(null);
+  const chatRef = useRef(null);
+  const msgId = useRef(10);
 
-  const preset = NETWORK_PRESETS.find(p => p.id === networkPreset) || NETWORK_PRESETS[1];
+  const pDef = PRESETS.find((p) => p.id === preset) || PRESETS[1];
+  const initials = (currentUser?.fullName || currentUser?.name || "U")
+    .charAt(0)
+    .toUpperCase();
+  const fmtN = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
+  const fmtDur = (s) =>
+    `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  // Fetch viewers from Supabase
+  // Viewer count from Supabase
   useEffect(() => {
     if (phase !== "live") return;
-    const fetchViewers = async () => {
+    const fetchV = async () => {
       try {
         const { count } = await supabase
           .from("profiles")
@@ -109,612 +294,480 @@ const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
           .gt("last_seen", new Date(Date.now() - 5 * 60 * 1000).toISOString());
         const v = (count || 0) + Math.floor(Math.random() * 18) + 5;
         setViewers(v);
-        setPeakViewers(prev => Math.max(prev, v));
+        setPeakVw((p) => Math.max(p, v));
       } catch {
         setViewers(Math.floor(Math.random() * 80) + 20);
       }
     };
-    fetchViewers();
-    const iv = setInterval(fetchViewers, 15000);
+    fetchV();
+    const iv = setInterval(fetchV, 15000);
     return () => clearInterval(iv);
   }, [phase]);
 
   // Duration timer
   useEffect(() => {
     if (phase === "live") {
-      durationRef.current = setInterval(() => setDuration(d => d + 1), 1000);
-    } else {
-      clearInterval(durationRef.current);
-    }
-    return () => clearInterval(durationRef.current);
+      durRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
+    } else clearInterval(durRef.current);
+    return () => clearInterval(durRef.current);
   }, [phase]);
 
-  // Simulate chat + tips + signal fluctuation
+  // Simulated chat + tips
   useEffect(() => {
     if (phase !== "live") return;
     const iv = setInterval(() => {
       if (Math.random() > 0.35) {
         const isTip = Math.random() > 0.78;
         const tipAmt = EP_TIPS[Math.floor(Math.random() * 3)];
-        const msg = {
-          id:    ++msgId.current,
-          user:  FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)],
-          text:  isTip ? `sent ${tipAmt} EP ⚡` : FAKE_CHAT[Math.floor(Math.random() * FAKE_CHAT.length)],
-          color: FAKE_COLS[Math.floor(Math.random() * FAKE_COLS.length)],
-          type:  isTip ? "tip" : "chat",
-          ep:    isTip ? tipAmt : 0,
-        };
-        setMessages(prev => [...prev.slice(-80), msg]);
+        setMessages((p) => [
+          ...p.slice(-80),
+          {
+            id: ++msgId.current,
+            user: FAKE_USERS[Math.floor(Math.random() * FAKE_USERS.length)],
+            text: isTip
+              ? `sent ${tipAmt} EP ⚡`
+              : FAKE_MSGS[Math.floor(Math.random() * FAKE_MSGS.length)],
+            color: FAKE_COLS[Math.floor(Math.random() * FAKE_COLS.length)],
+            type: isTip ? "tip" : "chat",
+            ep: isTip ? tipAmt : 0,
+          },
+        ]);
         if (isTip) {
-          setEpEarned(e => e + Math.floor(tipAmt * 0.84)); // 84% creator share
-          setTotalTips(t => t + tipAmt);
+          setEpEarned((e) => e + Math.floor(tipAmt * 0.84));
+          setTotalTips((t) => t + tipAmt);
         }
-        setLikes(l => l + (Math.random() > 0.65 ? Math.floor(Math.random() * 3) + 1 : 0));
+        setLikes(
+          (l) =>
+            l + (Math.random() > 0.65 ? Math.floor(Math.random() * 3) + 1 : 0),
+        );
       }
-      // Fluctuate signal
-      setSignalStrength(s => Math.max(1, Math.min(5, s + (Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0))));
+      setSignal((s) =>
+        Math.max(
+          1,
+          Math.min(
+            5,
+            s + (Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0),
+          ),
+        ),
+      );
     }, 2000);
     return () => clearInterval(iv);
   }, [phase]);
 
   useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    if (chatRef.current)
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
-
-  const fmtDur = (s) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  const fmtNum = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 
   const sendMsg = () => {
     if (!chatInput.trim()) return;
-    setMessages(prev => [...prev, {
-      id: ++msgId.current,
-      user: `@${currentUser?.username || "you"}`,
-      text: chatInput,
-      color: "#84cc16",
-      type: "chat", ep: 0,
-    }]);
+    setMessages((p) => [
+      ...p,
+      {
+        id: ++msgId.current,
+        user: `@${currentUser?.username || "you"}`,
+        text: chatInput,
+        color: "#84cc16",
+        type: "chat",
+        ep: 0,
+      },
+    ]);
     setChatInput("");
   };
 
-  const sendTip = (amount) => {
-    setMessages(prev => [...prev, {
-      id: ++msgId.current,
-      user: `@${currentUser?.username || "you"}`,
-      text: `sent ${amount} EP ⚡`,
-      color: "#fbbf24",
-      type: "tip", ep: amount,
-    }]);
-    setShowTipPanel(false);
+  const sendTip = (amt) => {
+    setMessages((p) => [
+      ...p,
+      {
+        id: ++msgId.current,
+        user: `@${currentUser?.username || "you"}`,
+        text: `sent ${amt} EP ⚡`,
+        color: "#fbbf24",
+        type: "tip",
+        ep: amt,
+      },
+    ]);
+    setShowTip(false);
   };
 
-  const signalColor = signalStrength >= 4 ? "#84cc16" : signalStrength >= 3 ? "#fbbf24" : "#ef4444";
-  const signalBars  = Array.from({ length: 5 }, (_, i) => i < signalStrength);
-
-  const initials = (currentUser?.fullName || currentUser?.name || "U").charAt(0).toUpperCase();
+  const signalColor =
+    signal >= 4 ? "#84cc16" : signal >= 3 ? "#fbbf24" : "#ef4444";
 
   return (
-    <div className={`sv-root ${isSidebar ? "sv-sidebar" : "sv-fullscreen"}`}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        background: "#050505",
+        fontFamily:
+          "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif",
+        color: "#fff",
+        overflow: "hidden",
+        ...(isSidebar
+          ? { height: "100%", borderLeft: "1px solid rgba(132,204,22,0.1)" }
+          : { position: "fixed", inset: 0, zIndex: 10001 }),
+      }}
+    >
       <style>{`
-        @keyframes svLivePulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.55;transform:scale(0.88);}}
-        @keyframes svBar{0%,100%{height:4px}25%{height:20px}50%{height:10px}75%{height:26px}}
-        @keyframes svFadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-        @keyframes svGlow{0%,100%{box-shadow:0 0 18px rgba(132,204,22,0.25);}50%{box-shadow:0 0 34px rgba(132,204,22,0.5);}}
-        @keyframes svRing{0%{transform:scale(1);opacity:.5;}100%{transform:scale(1.9);opacity:0;}}
-        @keyframes svFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
-        @keyframes svSlide{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
-        @keyframes svTipPop{0%{transform:scale(0.7);opacity:0;}70%{transform:scale(1.1);}100%{transform:scale(1);opacity:1;}}
-
-        .sv-root{
-          display:flex;flex-direction:column;
-          background:#050505;
-          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-          color:#fff;overflow:hidden;
-        }
-        .sv-fullscreen{position:fixed;inset:0;z-index:10001;}
-        .sv-sidebar{
-          position:relative;height:100%;
-          border-left:1px solid rgba(132,204,22,0.1);
-        }
-
-        /* TOP BAR */
-        .sv-topbar{
-          display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;
-          background:rgba(5,5,5,0.96);
-          backdrop-filter:blur(20px);
-          border-bottom:1px solid rgba(132,204,22,0.08);
-          flex-shrink:0;
-        }
-        .sv-topbar-l{display:flex;align-items:center;gap:8px;}
-        .sv-icon-btn{
-          width:32px;height:32px;border-radius:9px;
-          background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;color:#737373;transition:all 0.15s;flex-shrink:0;
-        }
-        .sv-icon-btn:hover{background:rgba(255,255,255,0.09);color:#fff;}
-        .sv-brand{display:flex;align-items:center;gap:7px;}
-        .sv-brand-dot{
-          width:28px;height:28px;border-radius:8px;
-          background:linear-gradient(135deg,#fb7185,#e11d48);
-          display:flex;align-items:center;justify-content:center;
-        }
-        .sv-brand-name{font-size:15px;font-weight:900;color:#fff;letter-spacing:-0.3px;}
-
-        /* Mode toggle */
-        .sv-mode-toggle{
-          display:flex;background:rgba(255,255,255,0.04);
-          border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:2px;gap:2px;
-        }
-        .sv-mode-btn{
-          display:flex;align-items:center;gap:5px;
-          padding:6px 12px;border-radius:8px;border:none;
-          font-size:11px;font-weight:800;cursor:pointer;
-          transition:all 0.2s;color:#525252;background:transparent;
-        }
-        .sv-mode-btn.active{
-          background:rgba(132,204,22,0.12);border:1px solid rgba(132,204,22,0.22);
-          color:#84cc16;box-shadow:0 2px 10px rgba(132,204,22,0.18);
-        }
-
-        /* SETUP */
-        .sv-setup{overflow-y:auto;padding:20px 16px 80px;flex:1;}
-        .sv-setup-hero{text-align:center;margin-bottom:24px;}
-        .sv-setup-icon{
-          width:72px;height:72px;border-radius:22px;margin:0 auto 16px;
-          display:flex;align-items:center;justify-content:center;
-          animation:svFloat 3s ease-in-out infinite;
-        }
-        .sv-setup-title{font-size:22px;font-weight:900;color:#fff;margin:0 0 6px;}
-        .sv-setup-sub{font-size:13px;color:#525252;margin:0;line-height:1.5;}
-
-        .sv-form-group{margin-bottom:14px;}
-        .sv-label{font-size:10px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;display:block;}
-        .sv-input{
-          width:100%;padding:11px 12px;
-          background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-          border-radius:11px;color:#fff;font-size:13px;outline:none;
-          transition:border-color 0.2s;box-sizing:border-box;caret-color:#84cc16;
-        }
-        .sv-input:focus{border-color:rgba(132,204,22,0.35);}
-        .sv-cats{display:flex;flex-wrap:wrap;gap:6px;}
-        .sv-cat{
-          padding:5px 11px;border-radius:7px;
-          background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
-          color:#444;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;
-        }
-        .sv-cat.sel{background:rgba(132,204,22,0.1);border-color:rgba(132,204,22,0.28);color:#84cc16;}
-
-        /* Network preset selector */
-        .sv-network-grid{display:flex;flex-direction:column;gap:6px;}
-        .sv-net-btn{
-          display:flex;align-items:center;gap:10px;
-          padding:10px 12px;border-radius:10px;
-          background:rgba(255,255,255,0.03);border:1.5px solid rgba(255,255,255,0.07);
-          cursor:pointer;transition:all 0.15s;text-align:left;
-        }
-        .sv-net-btn.active{border-color:var(--nc,#84cc16);background:rgba(132,204,22,0.06);}
-        .sv-net-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-        .sv-net-info{flex:1;}
-        .sv-net-label{font-size:12px;font-weight:800;color:#c4c4c4;}
-        .sv-net-sub{font-size:10px;color:#444;margin-top:1px;}
-        .sv-net-badge{
-          padding:2px 8px;border-radius:5px;font-size:9px;font-weight:800;
-        }
-
-        /* Privacy toggle */
-        .sv-privacy-row{
-          display:flex;align-items:center;justify-content:space-between;
-          padding:11px 12px;border-radius:11px;
-          background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
-        }
-        .sv-toggle{
-          width:42px;height:24px;border-radius:12px;cursor:pointer;
-          background:rgba(255,255,255,0.1);border:none;
-          position:relative;transition:background 0.22s;flex-shrink:0;
-        }
-        .sv-toggle.on{background:linear-gradient(135deg,#84cc16,#4d7c0f);}
-        .sv-toggle::after{
-          content:'';position:absolute;top:3px;left:3px;
-          width:18px;height:18px;border-radius:50%;
-          background:#fff;transition:transform 0.22s;
-          box-shadow:0 1px 4px rgba(0,0,0,0.3);
-        }
-        .sv-toggle.on::after{transform:translateX(18px);}
-
-        /* Go live button */
-        .sv-go-btn{
-          width:100%;padding:13px;margin-top:10px;
-          background:linear-gradient(135deg,#84cc16,#4d7c0f);
-          border:none;border-radius:13px;
-          color:#000;font-size:14px;font-weight:900;cursor:pointer;
-          transition:all 0.18s;
-          box-shadow:0 5px 20px rgba(132,204,22,0.38);
-          animation:svGlow 3s ease-in-out infinite;
-        }
-        .sv-go-btn:hover{transform:translateY(-2px);box-shadow:0 9px 28px rgba(132,204,22,0.52);}
-        .sv-go-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
-
-        /* LIVE LAYOUT */
-        .sv-live{display:flex;flex-direction:column;height:100%;overflow:hidden;}
-
-        /* Stage */
-        .sv-stage{
-          position:relative;flex:1;min-height:0;
-          background:#000;
-          display:flex;align-items:center;justify-content:center;
-          overflow:hidden;
-        }
-        .sv-stage-bg{
-          position:absolute;inset:0;
-          background:radial-gradient(ellipse at center,rgba(132,204,22,0.04) 0%,transparent 70%);
-        }
-        .sv-cam-ph{
-          width:100%;height:100%;
-          display:flex;flex-direction:column;
-          align-items:center;justify-content:center;gap:10px;
-        }
-        .sv-cam-av{
-          width:72px;height:72px;border-radius:22px;
-          background:linear-gradient(135deg,#84cc16,#4d7c0f);
-          display:flex;align-items:center;justify-content:center;
-          font-size:28px;font-weight:900;color:#000;
-          box-shadow:0 6px 28px rgba(132,204,22,0.38);
-        }
-        .sv-cam-name{font-size:14px;font-weight:800;color:#fff;}
-        .sv-audio-stage{
-          display:flex;flex-direction:column;align-items:center;
-          justify-content:center;gap:20px;width:100%;padding:32px 20px;
-        }
-        .sv-audio-av{
-          width:90px;height:90px;border-radius:50%;
-          background:linear-gradient(135deg,#a78bfa,#7c3aed);
-          display:flex;align-items:center;justify-content:center;
-          font-size:34px;font-weight:900;color:#fff;position:relative;
-          box-shadow:0 0 0 10px rgba(167,139,250,0.1),0 0 0 20px rgba(167,139,250,0.05);
-        }
-        .sv-audio-ring{
-          position:absolute;inset:-14px;border-radius:50%;
-          border:2px solid rgba(167,139,250,0.3);
-          animation:svRing 1.8s ease-out infinite;
-        }
-
-        /* Overlay badges */
-        .sv-live-bl{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:5px;}
-        .sv-live-badge{
-          display:flex;align-items:center;gap:4px;
-          padding:4px 9px;border-radius:7px;
-          background:rgba(0,0,0,0.65);backdrop-filter:blur(10px);
-          font-size:10px;font-weight:800;
-        }
-        .sv-live-dot{width:6px;height:6px;border-radius:50%;background:#ef4444;animation:svLivePulse 1.4s ease-in-out infinite;}
-        .sv-stat-br{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;}
-
-        /* Signal indicator */
-        .sv-signal{
-          display:flex;align-items:flex-end;gap:2px;padding:4px 9px;
-          border-radius:7px;background:rgba(0,0,0,0.65);backdrop-filter:blur(10px);
-        }
-        .sv-signal-bar{width:3px;border-radius:1px;transition:all 0.3s;}
-
-        /* Guest slots */
-        .sv-guests{
-          position:absolute;bottom:48px;right:12px;
-          display:flex;flex-direction:column;gap:6px;
-        }
-        .sv-guest-slot{
-          width:56px;height:80px;border-radius:12px;
-          background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;backdrop-filter:blur(8px);
-          transition:border-color 0.15s;
-        }
-        .sv-guest-slot:hover{border-color:rgba(132,204,22,0.3);}
-
-        /* Title bar on stage */
-        .sv-stage-title{
-          position:absolute;bottom:10px;left:12px;right:80px;
-        }
-        .sv-stage-title-chip{
-          display:inline-flex;align-items:center;gap:6px;
-          padding:4px 10px;background:rgba(0,0,0,0.65);
-          backdropFilter:blur(8px);border-radius:7px;
-          font-size:11px;font-weight:700;color:#fff;
-          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-        }
-
-        /* EP earned badge */
-        .sv-ep-earned{
-          position:absolute;bottom:10px;right:12px;
-          display:flex;align-items:center;gap:4px;
-          padding:4px 10px;border-radius:7px;
-          background:rgba(132,204,22,0.18);border:1px solid rgba(132,204,22,0.3);
-          backdrop-filter:blur(8px);font-size:11px;font-weight:900;color:#84cc16;
-        }
-
-        /* Controls */
-        .sv-controls{
-          display:flex;align-items:center;gap:8px;
-          padding:10px 12px;
-          background:rgba(0,0,0,0.92);
-          border-top:1px solid rgba(255,255,255,0.04);
-          flex-shrink:0;
-          flex-wrap:wrap;justify-content:center;
-        }
-        .sv-ctrl{
-          width:42px;height:42px;border-radius:12px;
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;border:none;transition:all 0.15s;
-        }
-        .sv-ctrl.on{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);color:#fff;}
-        .sv-ctrl.off{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.22);color:#ef4444;}
-        .sv-ctrl.active-hl{background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.22);color:#84cc16;}
-        .sv-ctrl:hover{transform:scale(1.08);}
-        .sv-end-btn{
-          padding:10px 18px;border-radius:12px;
-          background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);
-          color:#ef4444;font-size:12px;font-weight:800;cursor:pointer;transition:all 0.15s;
-        }
-        .sv-end-btn:hover{background:rgba(239,68,68,0.18);}
-
-        /* Network pill in controls */
-        .sv-net-pill{
-          display:flex;align-items:center;gap:5px;
-          padding:6px 11px;border-radius:10px;
-          background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
-          cursor:pointer;font-size:10px;font-weight:800;transition:all 0.15s;
-          color:#737373;
-        }
-        .sv-net-pill:hover{border-color:rgba(132,204,22,0.3);color:#84cc16;}
-
-        /* Network dropdown */
-        .sv-net-dropdown{
-          position:absolute;bottom:56px;left:50%;transform:translateX(-50%);
-          background:#0d0d0d;border:1px solid rgba(255,255,255,0.1);
-          border-radius:14px;padding:10px;width:260px;z-index:200;
-          box-shadow:0 12px 36px rgba(0,0,0,0.6);
-          animation:svSlide 0.18s ease;
-        }
-        .sv-dropdown-title{font-size:10px;font-weight:800;color:#383838;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding:0 4px;}
-
-        /* Tabs */
-        .sv-tabs{
-          display:flex;padding:6px 12px 0;gap:4px;
-          background:rgba(0,0,0,0.88);flex-shrink:0;
-          border-top:1px solid rgba(255,255,255,0.04);
-        }
-        .sv-tab{
-          flex:1;padding:7px;border-radius:8px;border:none;
-          font-size:10px;font-weight:800;cursor:pointer;
-          transition:all 0.15s;color:#383838;background:transparent;
-          text-transform:uppercase;letter-spacing:.4px;
-        }
-        .sv-tab.active{background:rgba(132,204,22,0.1);color:#84cc16;}
-
-        /* Chat panel */
-        .sv-chat-panel{
-          flex:1;min-height:0;display:flex;flex-direction:column;
-          background:#060606;overflow:hidden;
-        }
-        .sv-chat-msgs{
-          flex:1;overflow-y:auto;padding:8px 12px;
-          display:flex;flex-direction:column;gap:5px;
-        }
-        .sv-chat-msgs::-webkit-scrollbar{width:0;}
-        .sv-chat-msg{font-size:12px;line-height:1.45;animation:svFadeUp 0.18s ease;}
-        .sv-chat-user{font-weight:800;margin-right:4px;}
-        .sv-chat-text{color:#c4c4c4;}
-        .sv-tip-msg{
-          display:flex;align-items:center;gap:6px;
-          padding:5px 9px;border-radius:8px;
-          background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.18);
-          animation:svFadeUp 0.18s ease;
-        }
-        .sv-tip-msg-user{font-size:11px;font-weight:800;color:#fbbf24;}
-        .sv-tip-msg-text{font-size:11px;color:#c4c4c4;}
-        .sv-chat-input-row{
-          display:flex;align-items:center;gap:7px;
-          padding:7px 12px 10px;
-          border-top:1px solid rgba(255,255,255,0.04);
-          flex-shrink:0;
-        }
-        .sv-chat-inp{
-          flex:1;background:rgba(255,255,255,0.04);
-          border:1px solid rgba(255,255,255,0.08);
-          border-radius:9px;padding:8px 11px;
-          color:#fff;font-size:12px;outline:none;
-          caret-color:#84cc16;transition:border-color 0.15s;
-        }
-        .sv-chat-inp:focus{border-color:rgba(132,204,22,0.32);}
-        .sv-tip-btn{
-          width:32px;height:32px;border-radius:9px;flex-shrink:0;
-          background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.25);
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;transition:all 0.15s;
-        }
-        .sv-tip-btn:hover{background:rgba(251,191,36,0.2);}
-        .sv-send{
-          width:32px;height:32px;border-radius:9px;flex-shrink:0;
-          background:linear-gradient(135deg,#84cc16,#4d7c0f);
-          border:none;display:flex;align-items:center;justify-content:center;
-          cursor:pointer;transition:all 0.15s;
-        }
-        .sv-send:hover{transform:scale(1.08);}
-
-        /* Tip panel */
-        .sv-tip-panel{
-          padding:10px 12px;
-          background:rgba(251,191,36,0.04);
-          border-top:1px solid rgba(251,191,36,0.1);
-          flex-shrink:0;
-        }
-        .sv-tip-label{font-size:10px;font-weight:800;color:#444;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;}
-        .sv-tip-grid{display:flex;gap:6px;flex-wrap:wrap;}
-        .sv-tip-chip{
-          padding:6px 12px;border-radius:8px;
-          background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.22);
-          color:#fbbf24;font-size:11px;font-weight:800;cursor:pointer;
-          transition:all 0.15s;
-          animation:svTipPop 0.3s ease;
-        }
-        .sv-tip-chip:hover{background:rgba(251,191,36,0.2);transform:scale(1.05);}
-
-        /* Viewers tab */
-        .sv-viewers-list{flex:1;overflow-y:auto;padding:8px 12px;}
-        .sv-viewers-list::-webkit-scrollbar{width:0;}
-        .sv-viewer-row{
-          display:flex;align-items:center;gap:9px;
-          padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);
-        }
-        .sv-viewer-av{
-          width:28px;height:28px;border-radius:9px;
-          background:linear-gradient(135deg,#525252,#383838);
-          display:flex;align-items:center;justify-content:center;
-          font-size:11px;font-weight:800;color:#fff;flex-shrink:0;
-        }
-        .sv-viewer-name{font-size:12px;font-weight:700;color:#c4c4c4;flex:1;}
-        .sv-viewer-ep{font-size:10px;font-weight:800;color:#fbbf24;}
-
-        /* Stats tab */
-        .sv-stats-list{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
-        .sv-stat-row2{
-          display:flex;align-items:center;justify-content:space-between;
-          padding:10px 12px;border-radius:11px;
-          background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
-        }
-        .sv-stat-lbl{font-size:11px;color:#525252;font-weight:700;}
-        .sv-stat-val{font-size:16px;font-weight:900;}
-
-        /* Ended */
-        .sv-ended{
-          display:flex;flex-direction:column;align-items:center;
-          justify-content:center;flex:1;
-          padding:32px 20px;text-align:center;overflow-y:auto;
-        }
-        .sv-ended-emoji{font-size:52px;margin-bottom:16px;}
-        .sv-ended-title{font-size:22px;font-weight:900;color:#fff;margin:0 0 6px;}
-        .sv-ended-sub{font-size:13px;color:#525252;margin:0 0 24px;line-height:1.5;}
-        .sv-ended-stats{display:flex;gap:16px;margin-bottom:24px;}
-        .sv-ended-stat{text-align:center;}
-        .sv-ended-val{font-size:24px;font-weight:900;color:#84cc16;display:block;}
-        .sv-ended-lbl{font-size:9px;color:#444;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
-        .sv-new-btn{
-          padding:12px 28px;border-radius:12px;
-          background:linear-gradient(135deg,#84cc16,#4d7c0f);
-          border:none;color:#000;font-size:13px;font-weight:900;
-          cursor:pointer;transition:all 0.15s;
-          box-shadow:0 5px 18px rgba(132,204,22,0.38);
-        }
-        .sv-new-btn:hover{transform:translateY(-2px);}
+        @keyframes svLivePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.86)} }
+        @keyframes svBar       { 0%,100%{height:4px} 25%{height:22px} 50%{height:10px} 75%{height:28px} }
+        @keyframes svUp        { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes svGlow      { 0%,100%{box-shadow:0 0 18px rgba(132,204,22,0.22)} 50%{box-shadow:0 0 36px rgba(132,204,22,0.52)} }
+        @keyframes svRing      { 0%{transform:scale(1);opacity:.5} 100%{transform:scale(2);opacity:0} }
+        @keyframes svFloat     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        @keyframes svSlide     { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes svTipPop    { 0%{transform:scale(0.7);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+        @keyframes svSpin      { to{transform:rotate(360deg)} }
       `}</style>
 
       {/* ── TOP BAR ── */}
-      <div className="sv-topbar">
-        <div className="sv-topbar-l">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "11px 14px",
+          background: "rgba(5,5,5,0.98)",
+          backdropFilter: "blur(22px)",
+          borderBottom: "1px solid rgba(132,204,22,0.08)",
+          flexShrink: 0,
+          boxShadow: "0 1px 0 rgba(132,204,22,0.04)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           {phase !== "live" && (
-            <button className="sv-icon-btn" onClick={onClose}><X size={14}/></button>
+            <button
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "#737373",
+              }}
+            >
+              <X size={14} />
+            </button>
           )}
-          <div className="sv-brand">
-            <div className="sv-brand-dot"><Radio size={13} color="#fff"/></div>
-            <span className="sv-brand-name">Stream</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: "linear-gradient(135deg,#fb7185,#e11d48)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Radio size={13} color="#fff" />
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
+              Stream
+            </span>
           </div>
         </div>
 
         {phase === "setup" && (
-          <div className="sv-mode-toggle">
-            <button className={`sv-mode-btn${mode === "video" ? " active" : ""}`}
-              onClick={() => setMode("video")}>
-              <Video size={12}/> Video
-            </button>
-            <button className={`sv-mode-btn${mode === "audio" ? " active" : ""}`}
-              onClick={() => setMode("audio")}>
-              <Mic size={12}/> Audio
-            </button>
+          <div
+            style={{
+              display: "flex",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10,
+              padding: 2,
+              gap: 2,
+            }}
+          >
+            {[
+              ["video", "Video", Video],
+              ["audio", "Audio", Mic],
+            ].map(([k, l, Ic]) => (
+              <button
+                key={k}
+                onClick={() => setMode(k)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border:
+                    mode === k ? "1px solid rgba(132,204,22,0.22)" : "none",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  background:
+                    mode === k ? "rgba(132,204,22,0.12)" : "transparent",
+                  color: mode === k ? "#84cc16" : "#525252",
+                  fontFamily: "inherit",
+                }}
+              >
+                <Ic size={12} />
+                {l}
+              </button>
+            ))}
           </div>
         )}
 
         {phase === "live" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <span style={{
-              display: "flex", alignItems: "center", gap: 4,
-              fontSize: 11, fontWeight: 800, color: "#fff",
-              background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.28)",
-              padding: "3px 9px", borderRadius: 7,
-            }}>
-              <span className="sv-live-dot"/>LIVE
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 800,
+                color: "#fff",
+                background: "rgba(239,68,68,0.14)",
+                border: "1px solid rgba(239,68,68,0.28)",
+                padding: "3px 9px",
+                borderRadius: 7,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#ef4444",
+                  animation: "svLivePulse 1.4s ease-in-out infinite",
+                }}
+              />
+              LIVE
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#444" }}>{fmtDur(duration)}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#444" }}>
+              {fmtDur(duration)}
+            </span>
           </div>
         )}
       </div>
 
       {/* ── SETUP ── */}
       {phase === "setup" && (
-        <div className="sv-setup">
-          <div className="sv-setup-hero">
-            <div className={`sv-setup-icon`} style={{
-              background: mode === "video"
-                ? "linear-gradient(135deg,rgba(251,113,133,0.18),rgba(225,29,72,0.08))"
-                : "linear-gradient(135deg,rgba(167,139,250,0.18),rgba(109,40,217,0.08))",
-              border: `1px solid ${mode === "video" ? "rgba(251,113,133,0.28)" : "rgba(167,139,250,0.28)"}`,
-              boxShadow: `0 8px 28px ${mode === "video" ? "rgba(251,113,133,0.18)" : "rgba(167,139,250,0.18)"}`,
-            }}>
-              {mode === "video"
-                ? <Video size={30} color="#fb7185"/>
-                : <Mic size={30} color="#a78bfa"/>
-              }
+        <div style={{ overflowY: "auto", padding: "20px 16px 90px", flex: 1 }}>
+          {/* Hero */}
+          <div style={{ textAlign: "center", marginBottom: 26 }}>
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 22,
+                margin: "0 auto 16px",
+                background:
+                  mode === "video"
+                    ? "linear-gradient(135deg,rgba(251,113,133,0.18),rgba(225,29,72,0.08))"
+                    : "linear-gradient(135deg,rgba(167,139,250,0.18),rgba(109,40,217,0.08))",
+                border: `1px solid ${mode === "video" ? "rgba(251,113,133,0.28)" : "rgba(167,139,250,0.28)"}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "svFloat 3s ease-in-out infinite",
+                boxShadow: `0 8px 28px ${mode === "video" ? "rgba(251,113,133,0.18)" : "rgba(167,139,250,0.18)"}`,
+              }}
+            >
+              {mode === "video" ? (
+                <Video size={30} color="#fb7185" />
+              ) : (
+                <Mic size={30} color="#a78bfa" />
+              )}
             </div>
-            <h2 className="sv-setup-title">
+            <h2
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: "#fff",
+                margin: "0 0 6px",
+              }}
+            >
               {mode === "video" ? "Video Stream" : "Audio Broadcast"}
             </h2>
-            <p className="sv-setup-sub">
+            <p
+              style={{
+                fontSize: 13,
+                color: "#525252",
+                margin: 0,
+                lineHeight: 1.5,
+              }}
+            >
               {mode === "video"
                 ? "Broadcast live. Earn EP from every tip and interaction."
-                : "Go audio-only — podcasts, talks, music. Low data, high impact."
-              }
+                : "Go audio-only — podcasts, talks, music. Low data, high impact."}
             </p>
           </div>
 
-          <div className="sv-form-group">
-            <label className="sv-label">Stream Title</label>
-            <input className="sv-input"
-              placeholder={`What's the stream about?`}
+          {/* Title */}
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: "#3a3a3a",
+                textTransform: "uppercase",
+                letterSpacing: ".8px",
+                marginBottom: 6,
+                display: "block",
+              }}
+            >
+              Stream Title
+            </label>
+            <input
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              maxLength={80}/>
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={80}
+              placeholder="What's the stream about?"
+              style={{
+                width: "100%",
+                padding: "11px 12px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 11,
+                color: "#fff",
+                fontSize: 13,
+                outline: "none",
+                transition: "border-color .2s",
+                caretColor: "#84cc16",
+                fontFamily: "inherit",
+              }}
+              onFocus={(e) =>
+                (e.target.style.borderColor = "rgba(132,204,22,0.35)")
+              }
+              onBlur={(e) =>
+                (e.target.style.borderColor = "rgba(255,255,255,0.08)")
+              }
+            />
           </div>
 
-          <div className="sv-form-group">
-            <label className="sv-label">Category</label>
-            <div className="sv-cats">
-              {CATEGORIES.map(c => (
-                <button key={c} className={`sv-cat${category === c ? " sel" : ""}`}
-                  onClick={() => setCategory(c)}>{c}</button>
+          {/* Category */}
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: "#3a3a3a",
+                textTransform: "uppercase",
+                letterSpacing: ".8px",
+                marginBottom: 6,
+                display: "block",
+              }}
+            >
+              Category
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  style={{
+                    padding: "5px 11px",
+                    borderRadius: 7,
+                    background:
+                      category === c
+                        ? "rgba(132,204,22,0.1)"
+                        : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${category === c ? "rgba(132,204,22,0.28)" : "rgba(255,255,255,0.07)"}`,
+                    color: category === c ? "#84cc16" : "#444",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all .15s",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {c}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Network quality selector */}
-          <div className="sv-form-group">
-            <label className="sv-label">Transmission Quality</label>
-            <p style={{ fontSize: 11, color: "#383838", marginBottom: 8, lineHeight: 1.4 }}>
-              Choose based on your data plan. You can change this mid-stream.
+          {/* Quality */}
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: "#3a3a3a",
+                textTransform: "uppercase",
+                letterSpacing: ".8px",
+                marginBottom: 6,
+                display: "block",
+              }}
+            >
+              Transmission Quality
+            </label>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#383838",
+                marginBottom: 10,
+                lineHeight: 1.45,
+              }}
+            >
+              Based on your data plan. Adjustable mid-stream.
             </p>
-            <div className="sv-network-grid">
-              {NETWORK_PRESETS.map(p => (
-                <button key={p.id}
-                  className={`sv-net-btn${networkPreset === p.id ? " active" : ""}`}
-                  style={{ "--nc": p.color }}
-                  onClick={() => setNetworkPreset(p.id)}>
-                  <div className="sv-net-dot" style={{ background: networkPreset === p.id ? p.color : "#383838" }}/>
-                  <div className="sv-net-info">
-                    <div className="sv-net-label" style={{ color: networkPreset === p.id ? p.color : "#c4c4c4" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPreset(p.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderRadius: 11,
+                    background:
+                      preset === p.id
+                        ? `${p.color}08`
+                        : "rgba(255,255,255,0.03)",
+                    border: `1.5px solid ${preset === p.id ? p.color + "44" : "rgba(255,255,255,0.07)"}`,
+                    cursor: "pointer",
+                    transition: "all .15s",
+                    textAlign: "left",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      background: preset === p.id ? p.color : "#383838",
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 800,
+                        color: preset === p.id ? p.color : "#c4c4c4",
+                      }}
+                    >
                       {p.label} · {p.res}
                     </div>
-                    <div className="sv-net-sub">{p.sub} bandwidth</div>
+                    <div style={{ fontSize: 10, color: "#444", marginTop: 1 }}>
+                      {p.sub} bandwidth
+                    </div>
                   </div>
-                  <div className="sv-net-badge"
-                    style={{ background: `${p.color}18`, color: p.color, border: `1px solid ${p.color}28` }}>
+                  <div
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: 5,
+                      background: `${p.color}18`,
+                      color: p.color,
+                      border: `1px solid ${p.color}28`,
+                      fontSize: 9,
+                      fontWeight: 800,
+                    }}
+                  >
                     {p.badge}
                   </div>
                 </button>
@@ -723,27 +776,118 @@ const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
           </div>
 
           {/* Privacy */}
-          <div className="sv-form-group">
-            <label className="sv-label">Visibility</label>
-            <div className="sv-privacy-row">
+          <div style={{ marginBottom: 20 }}>
+            <label
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: "#3a3a3a",
+                textTransform: "uppercase",
+                letterSpacing: ".8px",
+                marginBottom: 6,
+                display: "block",
+              }}
+            >
+              Visibility
+            </label>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "11px 12px",
+                borderRadius: 11,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#c4c4c4", display: "flex", alignItems: "center", gap: 6 }}>
-                  {isPrivate ? <Lock size={13} color="#f472b6"/> : <Unlock size={13} color="#84cc16"/>}
-                  {isPrivate ? "Private — Invite only" : "Public — Anyone can watch"}
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: "#c4c4c4",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {isPrivate ? (
+                    <Lock size={13} color="#f472b6" />
+                  ) : (
+                    <Unlock size={13} color="#84cc16" />
+                  )}
+                  {isPrivate
+                    ? "Private — Invite only"
+                    : "Public — Anyone can watch"}
                 </div>
                 <div style={{ fontSize: 11, color: "#383838", marginTop: 2 }}>
-                  {isPrivate ? "Share link to invite viewers" : "Discoverable on Xeevia"}
+                  {isPrivate
+                    ? "Share link to invite viewers"
+                    : "Discoverable on Xeevia"}
                 </div>
               </div>
-              <button className={`sv-toggle${isPrivate ? " on" : ""}`}
-                style={isPrivate ? { background: "linear-gradient(135deg,#f472b6,#be185d)" } : {}}
-                onClick={() => setIsPrivate(p => !p)}/>
+              <div
+                onClick={() => setIsPrivate((p) => !p)}
+                style={{
+                  width: 42,
+                  height: 24,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  background: isPrivate
+                    ? "linear-gradient(135deg,#f472b6,#be185d)"
+                    : "rgba(255,255,255,0.1)",
+                  position: "relative",
+                  transition: "background .22s",
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: 3,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    transition: "transform .22s",
+                    transform: isPrivate ? "translateX(18px)" : "none",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                  }}
+                />
+              </div>
             </div>
           </div>
 
-          <button className="sv-go-btn"
-            onClick={() => { if (title.trim()) setPhase("live"); }}
-            disabled={!title.trim()}>
+          {/* Go Live */}
+          <button
+            onClick={() => {
+              if (title.trim()) setPhase("live");
+            }}
+            disabled={!title.trim()}
+            style={{
+              width: "100%",
+              padding: "14px",
+              borderRadius: 13,
+              border: "none",
+              background: title.trim()
+                ? "linear-gradient(135deg,#84cc16,#4d7c0f)"
+                : "rgba(255,255,255,0.05)",
+              color: title.trim() ? "#000" : "#383838",
+              fontSize: 15,
+              fontWeight: 900,
+              cursor: title.trim() ? "pointer" : "not-allowed",
+              boxShadow: title.trim()
+                ? "0 6px 22px rgba(132,204,22,0.38)"
+                : "none",
+              animation: title.trim()
+                ? "svGlow 3s ease-in-out infinite"
+                : "none",
+              transition: "all .18s",
+              fontFamily: "inherit",
+            }}
+          >
             🔴 &nbsp;Go Live Now
           </button>
         </div>
@@ -751,112 +895,408 @@ const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
 
       {/* ── LIVE ── */}
       {phase === "live" && (
-        <div className="sv-live" style={{ position: "relative" }}>
-
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
           {/* Stage */}
-          <div className="sv-stage">
-            <div className="sv-stage-bg"/>
+          <div
+            style={{
+              position: "relative",
+              flex: "0 0 auto",
+              minHeight: isSidebar ? 160 : 220,
+              background: "#000",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "radial-gradient(ellipse at center,rgba(132,204,22,0.04) 0%,transparent 70%)",
+              }}
+            />
 
             {mode === "video" ? (
-              <div className="sv-cam-ph">
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  width: "100%",
+                  height: "100%",
+                }}
+              >
                 {camOn ? (
                   <>
-                    <div className="sv-cam-av">{initials}</div>
-                    <span className="sv-cam-name">{currentUser?.fullName || "You"}</span>
-                    <span style={{ fontSize: 11, color: "#525252" }}>{preset.label} · {preset.res}</span>
+                    <div
+                      style={{
+                        width: 70,
+                        height: 70,
+                        borderRadius: 22,
+                        background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 26,
+                        fontWeight: 900,
+                        color: "#000",
+                        boxShadow: "0 6px 26px rgba(132,204,22,0.36)",
+                      }}
+                    >
+                      {initials}
+                    </div>
+                    <span
+                      style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}
+                    >
+                      {currentUser?.fullName || "You"}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#525252" }}>
+                      {pDef.label} · {pDef.res}
+                    </span>
                   </>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                    <VideoOff size={36} color="#383838"/>
-                    <span style={{ color: "#383838", fontSize: 13, fontWeight: 700 }}>Camera Off</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <VideoOff size={36} color="#383838" />
+                    <span
+                      style={{
+                        color: "#383838",
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Camera Off
+                    </span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="sv-audio-stage">
-                <div className="sv-audio-av">
-                  <span className="sv-audio-ring"/>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 18,
+                  width: "100%",
+                  padding: "24px 20px",
+                }}
+              >
+                <div
+                  style={{
+                    width: 82,
+                    height: 82,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg,#a78bfa,#7c3aed)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 30,
+                    fontWeight: 900,
+                    color: "#fff",
+                    position: "relative",
+                    boxShadow:
+                      "0 0 0 10px rgba(167,139,250,0.1),0 0 0 20px rgba(167,139,250,0.05)",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: -14,
+                      borderRadius: "50%",
+                      border: "2px solid rgba(167,139,250,0.28)",
+                      animation: "svRing 1.8s ease-out infinite",
+                    }}
+                  />
                   {initials}
                 </div>
-                <AudioBars active={micOn} color="#a78bfa"/>
-                <span style={{ color: "#a78bfa", fontSize: 13, fontWeight: 800 }}>
+                <AudioBars active={micOn} color="#a78bfa" />
+                <span
+                  style={{ color: "#a78bfa", fontSize: 13, fontWeight: 800 }}
+                >
                   {micOn ? "● Broadcasting Audio" : "Mic Muted"}
                 </span>
-                <span style={{ fontSize: 11, color: "#444" }}>{preset.label} · {preset.sub}</span>
+                <span style={{ fontSize: 11, color: "#444" }}>
+                  {pDef.label} · {pDef.sub}
+                </span>
               </div>
             )}
 
             {/* Left badges */}
-            <div className="sv-live-bl">
-              <div className="sv-live-badge" style={{ color: "#ef4444" }}>
-                <span className="sv-live-dot"/>LIVE
+            <div
+              style={{
+                position: "absolute",
+                top: 10,
+                left: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 9px",
+                  borderRadius: 7,
+                  background: "rgba(0,0,0,0.65)",
+                  backdropFilter: "blur(10px)",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "#ef4444",
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#ef4444",
+                    animation: "svLivePulse 1.4s ease-in-out infinite",
+                  }}
+                />
+                LIVE
               </div>
-              <div className="sv-live-badge" style={{ color: "#fbbf24" }}>
-                <Zap size={9} color="#fbbf24"/>{category}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 9px",
+                  borderRadius: 7,
+                  background: "rgba(0,0,0,0.65)",
+                  backdropFilter: "blur(10px)",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "#fbbf24",
+                }}
+              >
+                <Zap size={9} color="#fbbf24" />
+                {category}
               </div>
               {isPrivate && (
-                <div className="sv-live-badge" style={{ color: "#f472b6" }}>
-                  <Lock size={9}/> Private
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 9px",
+                    borderRadius: 7,
+                    background: "rgba(0,0,0,0.65)",
+                    backdropFilter: "blur(10px)",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#f472b6",
+                  }}
+                >
+                  <Lock size={9} />
+                  Private
                 </div>
               )}
             </div>
 
             {/* Right stats */}
-            <div className="sv-stat-br">
-              <StatPill icon={Eye}    value={fmtNum(viewers)} color="#60a5fa"/>
-              <StatPill icon={Heart}  value={fmtNum(likes)}   color="#f472b6"/>
-              {/* Signal strength */}
-              <div className="sv-signal">
-                {signalBars.map((active, i) => (
-                  <div key={i} className="sv-signal-bar" style={{
-                    height: 4 + i * 3,
-                    background: active ? signalColor : "rgba(255,255,255,0.12)",
-                  }}/>
-                ))}
-              </div>
+            <div
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+                alignItems: "flex-end",
+              }}
+            >
+              <StatPill Icon={Eye} value={fmtN(viewers)} color="#60a5fa" />
+              <StatPill Icon={Heart} value={fmtN(likes)} color="#f472b6" />
+              <SignalBars strength={signal} />
             </div>
 
             {/* Guest slots */}
-            <div className="sv-guests">
-              {guestSlots.map((g, i) => (
-                <div key={i} className="sv-guest-slot">
+            <div
+              style={{
+                position: "absolute",
+                bottom: 44,
+                right: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              {guests.map((g, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 52,
+                    height: 76,
+                    borderRadius: 11,
+                    background: "rgba(0,0,0,0.6)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    backdropFilter: "blur(8px)",
+                    transition: "border-color .15s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.borderColor = "rgba(132,204,22,0.3)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.1)")
+                  }
+                >
                   {g ? (
-                    <span style={{ fontSize: 20 }}>👤</span>
+                    <span style={{ fontSize: 18 }}>👤</span>
                   ) : (
-                    <Plus size={16} color="#383838"/>
+                    <Plus size={15} color="#383838" />
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Title */}
-            <div className="sv-stage-title">
-              <div className="sv-stage-title-chip">
-                {isPrivate && <Lock size={9} color="#f472b6"/>}
+            {/* Title chip */}
+            <div
+              style={{ position: "absolute", bottom: 10, left: 10, right: 70 }}
+            >
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 10px",
+                  background: "rgba(0,0,0,0.65)",
+                  backdropFilter: "blur(8px)",
+                  borderRadius: 7,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#fff",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: "100%",
+                }}
+              >
+                {isPrivate && <Lock size={9} color="#f472b6" />}
                 {title}
               </div>
             </div>
 
             {/* EP earned */}
-            <div className="sv-ep-earned">
-              <Zap size={10}/> +{fmtNum(Math.floor(epEarned))} EP
+            <div
+              style={{
+                position: "absolute",
+                bottom: 10,
+                right: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "4px 10px",
+                borderRadius: 7,
+                background: "rgba(132,204,22,0.18)",
+                border: "1px solid rgba(132,204,22,0.3)",
+                backdropFilter: "blur(8px)",
+                fontSize: 11,
+                fontWeight: 900,
+                color: "#84cc16",
+              }}
+            >
+              <Zap size={10} />+{fmtN(Math.floor(epEarned))} EP
             </div>
 
             {/* Network dropdown */}
-            {showNetwork && (
-              <div className="sv-net-dropdown">
-                <div className="sv-dropdown-title">Adjust Quality</div>
-                {NETWORK_PRESETS.map(p => (
-                  <button key={p.id}
-                    className={`sv-net-btn${networkPreset === p.id ? " active" : ""}`}
-                    style={{ "--nc": p.color, marginBottom: 5 }}
-                    onClick={() => { setNetworkPreset(p.id); setShowNetwork(false); }}>
-                    <div className="sv-net-dot" style={{ background: networkPreset === p.id ? p.color : "#383838" }}/>
-                    <div className="sv-net-info">
-                      <div className="sv-net-label" style={{ color: networkPreset === p.id ? p.color : "#c4c4c4" }}>
+            {showNet && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 52,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "#0d0d0d",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 14,
+                  padding: 10,
+                  width: 260,
+                  zIndex: 200,
+                  boxShadow: "0 12px 36px rgba(0,0,0,0.6)",
+                  animation: "svSlide .18s ease",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#383838",
+                    textTransform: "uppercase",
+                    letterSpacing: ".8px",
+                    marginBottom: 8,
+                    padding: "0 4px",
+                  }}
+                >
+                  Adjust Quality
+                </div>
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setPreset(p.id);
+                      setShowNet(false);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "9px 10px",
+                      borderRadius: 9,
+                      width: "100%",
+                      background:
+                        preset === p.id ? `${p.color}08` : "transparent",
+                      border: `1.5px solid ${preset === p.id ? p.color + "40" : "rgba(255,255,255,0.06)"}`,
+                      cursor: "pointer",
+                      marginBottom: 5,
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: preset === p.id ? p.color : "#383838",
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: preset === p.id ? p.color : "#c4c4c4",
+                        }}
+                      >
                         {p.label} · {p.res}
                       </div>
-                      <div className="sv-net-sub">{p.sub}</div>
+                      <div style={{ fontSize: 10, color: "#444" }}>{p.sub}</div>
                     </div>
                   </button>
                 ))}
@@ -865,64 +1305,290 @@ const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
           </div>
 
           {/* Controls */}
-          <div className="sv-controls">
-            {mode === "video" && (
-              <button className={`sv-ctrl ${camOn ? "on" : "off"}`} onClick={() => setCamOn(p => !p)}>
-                {camOn ? <Video size={16}/> : <VideoOff size={16}/>}
-              </button>
-            )}
-            <button className={`sv-ctrl ${micOn ? "on" : "off"}`} onClick={() => setMicOn(p => !p)}>
-              {micOn ? <Mic size={16}/> : <MicOff size={16}/>}
-            </button>
-            <button className="sv-ctrl on" onClick={() => setMuted(p => !p)}>
-              {muted ? <VolumeX size={16}/> : <Volume2 size={16}/>}
-            </button>
-            <button className={`sv-ctrl ${showNetwork ? "active-hl" : "on"}`}
-              onClick={() => setShowNetwork(p => !p)}>
-              <Wifi size={16}/>
-            </button>
-            <button className="sv-ctrl on"><Share2 size={16}/></button>
-            <div className="sv-net-pill" onClick={() => setShowNetwork(p => !p)}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: preset.color }}/>
-              {preset.label}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "9px 12px",
+              background: "rgba(0,0,0,0.94)",
+              borderTop: "1px solid rgba(255,255,255,0.04)",
+              flexShrink: 0,
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            {[
+              mode === "video" && {
+                icon: camOn ? Video : VideoOff,
+                on: camOn,
+                fn: () => setCamOn((p) => !p),
+              },
+              {
+                icon: micOn ? Mic : MicOff,
+                on: micOn,
+                fn: () => setMicOn((p) => !p),
+              },
+              {
+                icon: muted ? VolumeX : Volume2,
+                on: !muted,
+                fn: () => setMuted((p) => !p),
+              },
+              {
+                icon: Wifi,
+                on: !showNet,
+                hl: showNet,
+                fn: () => setShowNet((p) => !p),
+              },
+              { icon: Share2, on: true, fn: () => {} },
+            ]
+              .filter(Boolean)
+              .map((b, i) => (
+                <button
+                  key={i}
+                  onClick={b.fn}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all .15s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: b.hl
+                      ? "rgba(132,204,22,0.1)"
+                      : b.on
+                        ? "rgba(255,255,255,0.07)"
+                        : "rgba(239,68,68,0.1)",
+                    borderWidth: 1,
+                    borderStyle: "solid",
+                    borderColor: b.hl
+                      ? "rgba(132,204,22,0.22)"
+                      : b.on
+                        ? "rgba(255,255,255,0.1)"
+                        : "rgba(239,68,68,0.22)",
+                    color: b.hl ? "#84cc16" : b.on ? "#fff" : "#ef4444",
+                  }}
+                >
+                  <b.icon size={16} />
+                </button>
+              ))}
+            {/* Quality pill */}
+            <div
+              onClick={() => setShowNet((p) => !p)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "6px 11px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                cursor: "pointer",
+                fontSize: 10,
+                fontWeight: 800,
+                color: "#737373",
+                transition: "all .15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(132,204,22,0.3)";
+                e.currentTarget.style.color = "#84cc16";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.color = "#737373";
+              }}
+            >
+              <div
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: pDef.color,
+                }}
+              />
+              {pDef.label}
             </div>
-            <button className="sv-end-btn" onClick={() => setPhase("ended")}>End</button>
+            {/* End */}
+            <button
+              onClick={() => setPhase("ended")}
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                background: "rgba(239,68,68,0.1)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                color: "#ef4444",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                transition: "all .15s",
+                fontFamily: "inherit",
+              }}
+            >
+              End
+            </button>
           </div>
 
           {/* Tabs */}
-          <div className="sv-tabs">
-            {[["chat", "💬 Chat"], ["tips", "⚡ Tips"], ["viewers", "👁 Viewers"]].map(([k, l]) => (
-              <button key={k} className={`sv-tab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>{l}</button>
+          <div
+            style={{
+              display: "flex",
+              padding: "5px 12px 0",
+              background: "rgba(0,0,0,0.9)",
+              flexShrink: 0,
+              borderTop: "1px solid rgba(255,255,255,0.04)",
+              gap: 4,
+            }}
+          >
+            {[
+              ["chat", "💬 Chat"],
+              ["tips", "⚡ Tips"],
+              ["viewers", "👁 Viewers"],
+            ].map(([k, l]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                style={{
+                  flex: 1,
+                  padding: "7px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  background:
+                    tab === k ? "rgba(132,204,22,0.1)" : "transparent",
+                  color: tab === k ? "#84cc16" : "#383838",
+                  textTransform: "uppercase",
+                  letterSpacing: ".4px",
+                  transition: "all .15s",
+                }}
+              >
+                {l}
+              </button>
             ))}
           </div>
 
-          {/* Chat/Tips/Viewers panel */}
-          <div className="sv-chat-panel">
+          {/* Chat Panel */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              background: "#060606",
+              overflow: "hidden",
+            }}
+          >
             {tab === "chat" && (
               <>
-                <div ref={chatRef} className="sv-chat-msgs">
-                  {messages.map(m => (
+                <div
+                  ref={chatRef}
+                  style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    padding: "8px 12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 5,
+                  }}
+                >
+                  {messages.map((m) =>
                     m.type === "tip" ? (
-                      <div key={m.id} className="sv-tip-msg">
-                        <Zap size={11} color="#fbbf24"/>
-                        <span className="sv-tip-msg-user">{m.user}</span>
-                        <span className="sv-tip-msg-text">{m.text}</span>
+                      <div
+                        key={m.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 9px",
+                          borderRadius: 8,
+                          background: "rgba(251,191,36,0.07)",
+                          border: "1px solid rgba(251,191,36,0.16)",
+                          animation: "svUp .18s ease",
+                        }}
+                      >
+                        <Zap size={11} color="#fbbf24" />
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: "#fbbf24",
+                          }}
+                        >
+                          {m.user}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#c4c4c4" }}>
+                          {m.text}
+                        </span>
                       </div>
                     ) : (
-                      <div key={m.id} className="sv-chat-msg">
-                        <span className="sv-chat-user" style={{ color: m.color }}>{m.user}</span>
-                        <span className="sv-chat-text">{m.text}</span>
+                      <div
+                        key={m.id}
+                        style={{
+                          fontSize: 12,
+                          lineHeight: 1.45,
+                          animation: "svUp .18s ease",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            marginRight: 4,
+                            color: m.color,
+                          }}
+                        >
+                          {m.user}
+                        </span>
+                        <span style={{ color: "#c4c4c4" }}>{m.text}</span>
                       </div>
-                    )
-                  ))}
+                    ),
+                  )}
                 </div>
 
-                {showTipPanel && (
-                  <div className="sv-tip-panel">
-                    <div className="sv-tip-label">Send EP Tip to Creator</div>
-                    <div className="sv-tip-grid">
-                      {EP_TIPS.map(amt => (
-                        <button key={amt} className="sv-tip-chip" onClick={() => sendTip(amt)}>
+                {showTip && (
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      background: "rgba(251,191,36,0.04)",
+                      borderTop: "1px solid rgba(251,191,36,0.1)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: "#444",
+                        textTransform: "uppercase",
+                        letterSpacing: ".8px",
+                        marginBottom: 7,
+                      }}
+                    >
+                      Send EP Tip · Creator keeps 84%
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {EP_TIPS.map((amt) => (
+                        <button
+                          key={amt}
+                          onClick={() => sendTip(amt)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            background: "rgba(251,191,36,0.1)",
+                            border: "1px solid rgba(251,191,36,0.22)",
+                            color: "#fbbf24",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            transition: "all .15s",
+                            fontFamily: "inherit",
+                            animation: "svTipPop .3s ease",
+                          }}
+                        >
                           ⚡ {amt} EP
                         </button>
                       ))}
@@ -930,65 +1596,198 @@ const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
                   </div>
                 )}
 
-                <div className="sv-chat-input-row">
-                  <input className="sv-chat-inp"
-                    placeholder="Say something…"
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "7px 12px 10px",
+                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <input
                     value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && sendMsg()}/>
-                  <button className="sv-tip-btn" onClick={() => setShowTipPanel(p => !p)}>
-                    <Zap size={13} color="#fbbf24"/>
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMsg()}
+                    placeholder="Say something…"
+                    style={{
+                      flex: 1,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 9,
+                      padding: "8px 11px",
+                      color: "#fff",
+                      fontSize: 12,
+                      outline: "none",
+                      caretColor: "#84cc16",
+                      transition: "border-color .15s",
+                      fontFamily: "inherit",
+                    }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor = "rgba(132,204,22,0.32)")
+                    }
+                    onBlur={(e) =>
+                      (e.target.style.borderColor = "rgba(255,255,255,0.08)")
+                    }
+                  />
+                  <button
+                    onClick={() => setShowTip((p) => !p)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9,
+                      flexShrink: 0,
+                      background: showTip
+                        ? "rgba(251,191,36,0.2)"
+                        : "rgba(251,191,36,0.12)",
+                      border: `1px solid ${showTip ? "rgba(251,191,36,0.38)" : "rgba(251,191,36,0.22)"}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Zap size={13} color="#fbbf24" />
                   </button>
-                  <button className="sv-send" onClick={sendMsg}>
-                    <Send size={13} color="#000"/>
+                  <button
+                    onClick={sendMsg}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9,
+                      flexShrink: 0,
+                      background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
+                      border: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Send size={13} color="#000" />
                   </button>
                 </div>
               </>
             )}
 
             {tab === "tips" && (
-              <div className="sv-stats-list">
-                <div className="sv-stat-row2">
-                  <span className="sv-stat-lbl">Total Tips Received</span>
-                  <span className="sv-stat-val" style={{ color: "#fbbf24" }}>⚡ {fmtNum(totalTips)} EP</span>
-                </div>
-                <div className="sv-stat-row2">
-                  <span className="sv-stat-lbl">Your Earnings (84%)</span>
-                  <span className="sv-stat-val" style={{ color: "#84cc16" }}>{fmtNum(Math.floor(epEarned))} EP</span>
-                </div>
-                <div className="sv-stat-row2">
-                  <span className="sv-stat-lbl">Viewers</span>
-                  <span className="sv-stat-val" style={{ color: "#60a5fa" }}>{fmtNum(viewers)}</span>
-                </div>
-                <div className="sv-stat-row2">
-                  <span className="sv-stat-lbl">Peak Viewers</span>
-                  <span className="sv-stat-val" style={{ color: "#a78bfa" }}>{fmtNum(peakViewers)}</span>
-                </div>
-                <div className="sv-stat-row2">
-                  <span className="sv-stat-lbl">Likes</span>
-                  <span className="sv-stat-val" style={{ color: "#f472b6" }}>{fmtNum(likes)}</span>
-                </div>
-                <div className="sv-stat-row2">
-                  <span className="sv-stat-lbl">Stream Quality</span>
-                  <span className="sv-stat-val" style={{ color: preset.color }}>{preset.label} {preset.res}</span>
-                </div>
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "10px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {[
+                  [
+                    "Total Tips Received",
+                    `⚡ ${fmtN(totalTips)} EP`,
+                    "#fbbf24",
+                  ],
+                  [
+                    "Your Earnings (84%)",
+                    `${fmtN(Math.floor(epEarned))} EP`,
+                    "#84cc16",
+                  ],
+                  ["Viewers", fmtN(viewers), "#60a5fa"],
+                  ["Peak Viewers", fmtN(peakVw), "#a78bfa"],
+                  ["Likes", fmtN(likes), "#f472b6"],
+                  ["Quality", `${pDef.label} ${pDef.res}`, pDef.color],
+                ].map(([l, v, c]) => (
+                  <div
+                    key={l}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 12px",
+                      borderRadius: 11,
+                      background: "rgba(255,255,255,0.025)",
+                      border: "1px solid rgba(255,255,255,0.055)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "#525252",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {l}
+                    </span>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: c }}>
+                      {v}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
 
             {tab === "viewers" && (
-              <div className="sv-viewers-list">
+              <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
                 {Array.from({ length: Math.min(viewers, 20) }, (_, i) => ({
-                  name: FAKE_USERS[i % FAKE_USERS.length] + (i >= FAKE_USERS.length ? i : ""),
-                  ep: Math.random() > 0.7 ? EP_TIPS[Math.floor(Math.random() * 3)] : 0,
-                  initial: FAKE_USERS[i % FAKE_USERS.length][1].toUpperCase(),
+                  name:
+                    FAKE_USERS[i % FAKE_USERS.length] +
+                    (i >= FAKE_USERS.length ? i : ""),
+                  ep:
+                    Math.random() > 0.7
+                      ? EP_TIPS[Math.floor(Math.random() * 3)]
+                      : 0,
+                  init: FAKE_USERS[i % FAKE_USERS.length][1].toUpperCase(),
                   color: FAKE_COLS[i % FAKE_COLS.length],
                 })).map((v, i) => (
-                  <div key={i} className="sv-viewer-row">
-                    <div className="sv-viewer-av" style={{ background: `linear-gradient(135deg,${v.color}44,${v.color}22)`, color: v.color }}>
-                      {v.initial}
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 9,
+                      padding: "7px 0",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 9,
+                        background: `linear-gradient(135deg,${v.color}44,${v.color}22)`,
+                        color: v.color,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {v.init}
                     </div>
-                    <span className="sv-viewer-name">{v.name}</span>
-                    {v.ep > 0 && <span className="sv-viewer-ep">⚡ {v.ep} EP</span>}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#c4c4c4",
+                        flex: 1,
+                      }}
+                    >
+                      {v.name}
+                    </span>
+                    {v.ep > 0 && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: "#fbbf24",
+                        }}
+                      >
+                        ⚡ {v.ep} EP
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -999,31 +1798,94 @@ const StreamView = ({ currentUser, userId, onClose, isSidebar = false }) => {
 
       {/* ── ENDED ── */}
       {phase === "ended" && (
-        <div className="sv-ended">
-          <div className="sv-ended-emoji">🎙️</div>
-          <h2 className="sv-ended-title">Stream Ended</h2>
-          <p className="sv-ended-sub">
-            Great work, {currentUser?.fullName || "Creator"}! Here's your summary.
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            flex: 1,
+            padding: "32px 22px",
+            textAlign: "center",
+            overflowY: "auto",
+          }}
+        >
+          <div style={{ fontSize: 54, marginBottom: 16 }}>🎙️</div>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+              color: "#fff",
+              margin: "0 0 6px",
+            }}
+          >
+            Stream Ended
+          </h2>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#525252",
+              margin: "0 0 28px",
+              lineHeight: 1.5,
+            }}
+          >
+            Great work, {currentUser?.fullName || "Creator"}. Here's your
+            session.
           </p>
-          <div className="sv-ended-stats">
-            <div className="sv-ended-stat">
-              <span className="sv-ended-val">{fmtNum(peakViewers)}</span>
-              <span className="sv-ended-lbl">Peak Viewers</span>
-            </div>
-            <div className="sv-ended-stat">
-              <span className="sv-ended-val">{fmtNum(Math.floor(epEarned))}</span>
-              <span className="sv-ended-lbl">EP Earned</span>
-            </div>
-            <div className="sv-ended-stat">
-              <span className="sv-ended-val">{fmtDur(duration)}</span>
-              <span className="sv-ended-lbl">Duration</span>
-            </div>
+          <div style={{ display: "flex", gap: 18, marginBottom: 28 }}>
+            {[
+              [fmtN(peakVw), "Peak Viewers"],
+              [fmtN(Math.floor(epEarned)), "EP Earned"],
+              [fmtDur(duration), "Duration"],
+            ].map(([v, l]) => (
+              <div key={l} style={{ textAlign: "center" }}>
+                <span
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 900,
+                    color: "#84cc16",
+                    display: "block",
+                  }}
+                >
+                  {v}
+                </span>
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: "#444",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: ".5px",
+                  }}
+                >
+                  {l}
+                </span>
+              </div>
+            ))}
           </div>
-          <button className="sv-new-btn" onClick={() => {
-            setPhase("setup"); setTitle(""); setDuration(0);
-            setLikes(0); setEpEarned(0); setTotalTips(0);
-            setMessages(DEMO_MSGS);
-          }}>
+          <button
+            onClick={() => {
+              setPhase("setup");
+              setTitle("");
+              setDuration(0);
+              setLikes(0);
+              setEpEarned(0);
+              setTotalTips(0);
+              setMessages(MSGS_DEMO);
+            }}
+            style={{
+              padding: "12px 28px",
+              borderRadius: 12,
+              background: "linear-gradient(135deg,#84cc16,#4d7c0f)",
+              border: "none",
+              color: "#000",
+              fontSize: 13,
+              fontWeight: 900,
+              cursor: "pointer",
+              boxShadow: "0 5px 18px rgba(132,204,22,0.36)",
+              fontFamily: "inherit",
+            }}
+          >
             Start New Stream
           </button>
         </div>

@@ -280,7 +280,10 @@ const ReactionPanel = ({
     [onComment, content],
   );
 
-  // Called by CommentModal: delta=+1 on post, delta=-1 on rollback
+  // ── THE FIX: Called by CommentModal the moment a comment is confirmed ─────
+  // delta=+1 on successful post, delta=-1 on rollback
+  // Updates local count instantly AND bubbles up to parent (PostCard/ReelCard/StoryCard)
+  // so the count in the feed card itself also updates — no refresh needed.
   const handleCommentPosted = useCallback(
     (delta = 1) => {
       setCommentCount((c) => {

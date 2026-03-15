@@ -30,6 +30,13 @@
 //    PAYSTACK_SECRET_KEY       = sk_live_... or sk_test_...
 //    PAYSTACK_WEBHOOK_SECRET   = <from Paystack Webhooks settings>
 //
+//  PATCH vs v4:
+//  [1] CRITICAL FIX — import applyInviteCode renamed to activateFreeCode.
+//      paymentService exports activateFreeCode (not applyInviteCode).
+//      applyInviteCode was undefined at runtime → TypeError on every
+//      free code activation attempt even after the session fix.
+//      applyCode() updated to call activateFreeCode() directly.
+//
 // ============================================================================
 
 import { useCallback, useReducer } from "react";
@@ -37,7 +44,7 @@ import {
   createPaystackTransaction,
   verifyWeb3Payment,
   clearIdempotencyKey,
-  applyInviteCode,
+  activateFreeCode,          // [1] was: applyInviteCode (does not exist)
 } from "../services/auth/paymentService";
 
 // ── State machine ─────────────────────────────────────────────────────────────
@@ -170,8 +177,23 @@ export function usePayment() {
 
   // ── applyCode ───────────────────────────────────────────────────────────────
   // For FREE invite codes only (price=0). Paid codes go through initiatePayment.
-  const applyCode = useCallback(async ({ code, userId, products, onSuccess }) => {
-    return applyInviteCode({ code, userId, products, onSuccess });
+  // [1] Now calls activateFreeCode() directly — applyInviteCode does not exist.
+  const applyCode = useCallback(async ({ code, inviteCodeId, productId, onSuccess }) => {
+    dispatch({ type: "START" });
+    try {
+      const result = await activateFreeCode({ inviteCodeId, code, productId });
+      dispatch({ type: "SUCCESS" });
+      if (typeof onSuccess === "function") {
+        try { await onSuccess(result); }
+        catch (e) { console.warn("[usePayment] applyCode onSuccess threw (non-fatal):", e?.message); }
+      }
+      return result;
+    } catch (err) {
+      const msg = err?.message ?? "Activation failed. Please try again.";
+      console.error("[usePayment] applyCode error:", msg);
+      dispatch({ type: "ERROR", payload: msg });
+      throw err;
+    }
   }, []);
 
   // ── reset ───────────────────────────────────────────────────────────────────

@@ -1,7 +1,22 @@
 // ============================================================================
-// src/services/notifications/notificationService.js
+// src/services/notifications/notificationService.js — v5 DEDUP-SAFE
 // ============================================================================
-// SINGLE SOURCE OF TRUTH for all notification state.
+//
+// ROOT CAUSE OF DUPLICATION (fixed here):
+//   v4 realtime INSERT handler did TWO things that caused doubles:
+//     1. Prepended the enriched notification to _cache immediately
+//     2. Scheduled _fetchAndCache() 800ms later → second prepend of same item
+//   The refetch was added to get the actor JOIN, but it re-prepended an item
+//   that was already in _cache, so users saw duplicates.
+//
+// FIX:
+//   • On INSERT: prepend optimistically (no actor data yet) AND mark it with
+//     a _pendingFetch flag.
+//   • _fetchAndCache() now MERGES results instead of replacing _cache blindly:
+//     it deduplicates by id so the refetch never creates a second copy.
+//   • _badgeCount is incremented ONCE on INSERT; the refetch does not touch it.
+//   • A seen-ids Set (_seenRealtimeIds) guards against the Supabase channel
+//     occasionally firing duplicate INSERT events for the same row.
 //
 // ── Two independent badge concepts ───────────────────────────────────────────
 //   HEADER BADGE  = notifications created AFTER badge_cleared_at
@@ -12,32 +27,21 @@
 //                   → cleared via markAsRead / markAllAsRead
 //                   → NOT affected by opening the sidebar
 //
-// ── API surface (matches production service exactly) ─────────────────────────
-//   init(userId)                          → lifecycle start
-//   destroy()                             → lifecycle stop
+// ── API surface (unchanged) ──────────────────────────────────────────────────
+//   init(userId)
+//   destroy()
 //   subscribe(fn)                         → returns unsubscribe fn
-//   getNotifications(userId?, limit?, forceRefresh?) → async Array
-//   getHeaderBadgeCount(userId?)          → async number  (DB-authoritative)
-//   getHeaderBadgeCountSync()             → number        (in-memory fast path)
-//   clearHeaderBadge(userId?)             → async
-//   markAsRead(notifId)                   → async
-//   markAllAsRead(userId?)                → async
-//   getUnreadSidebarCount()               → number (count of is_read=false)
-//   getUnreadCount()                      → alias for getUnreadSidebarCount
-//   isLoading()                           → boolean
-//   invalidateCache()                     → void
-//   on(event, fn)                         → typed event bus (returns unsub)
-//
-// ── Design principles ────────────────────────────────────────────────────────
-//   • Singleton — one instance, imported everywhere
-//   • subscribe() for generic "something changed" UI re-renders
-//   • on("new_notification", fn) for specific event routing (toast)
-//   • Optimistic updates — UI instant, DB follows, rollback on error
-//   • Single Supabase channel — notifications + badge_state
-//   • 30s rolling cache — fast returns, no redundant DB hits
-//   • Deduplicates concurrent init() calls via _initPromise
-//   • _badgeCount computed in-memory for synchronous reads by headers
-//   • _enrich() uses mediaUrlService for avatar URLs (consistent with app)
+//   getNotifications(userId?, limit?, forceRefresh?)
+//   getHeaderBadgeCount(userId?)
+//   getHeaderBadgeCountSync()
+//   clearHeaderBadge(userId?)
+//   markAsRead(notifId)
+//   markAllAsRead(userId?)
+//   getUnreadSidebarCount()
+//   getUnreadCount()                      → alias
+//   isLoading()
+//   invalidateCache()
+//   on(event, fn)                         → typed event bus
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -46,52 +50,51 @@ import mediaUrlService from "../shared/mediaUrlService";
 class NotificationService {
   constructor() {
     // ── Cache ──────────────────────────────────────────────────
-    this._cache = null; // Array<Notification> | null
-    this._cacheFetchedAt = null; // timestamp ms
-    this._cacheTimeout = 30_000; // 30s rolling cache
+    this._cache          = null;
+    this._cacheFetchedAt = null;
+    this._cacheTimeout   = 30_000;
 
     // ── Badge ──────────────────────────────────────────────────
-    this._badgeClearedAt = null; // ISO string (mirrors DB)
-    this._badgeCount = 0; // computed in-memory for sync reads
+    this._badgeClearedAt = null;
+    this._badgeCount     = 0;
 
     // ── Lifecycle ──────────────────────────────────────────────
-    this._userId = null;
+    this._userId      = null;
     this._initialized = false;
-    this._loading = false;
-    this._initPromise = null; // dedup concurrent init() calls
+    this._loading     = false;
+    this._initPromise = null;
 
     // ── Realtime ───────────────────────────────────────────────
-    this._channel = null; // single combined Supabase channel
+    this._channel = null;
+
+    // ── Deduplication ─────────────────────────────────────────
+    // Tracks realtime INSERT ids we've already processed so duplicate
+    // Supabase channel events don't create duplicate rows in _cache.
+    this._seenRealtimeIds = new Set();
 
     // ── Pub/sub ────────────────────────────────────────────────
-    this._subscribers = new Set(); // generic "change" listeners
-    this._typedListeners = new Map(); // typed event bus
+    this._subscribers     = new Set();
+    this._typedListeners  = new Map();
   }
 
   // =========================================================================
   // TYPED EVENT BUS
-  // on("new_notification", fn)  — consumed by InAppNotificationToast
-  // on("push_received", fn)     — consumed by InAppNotificationToast
   // =========================================================================
 
   on(event, fn) {
-    if (!this._typedListeners.has(event))
-      this._typedListeners.set(event, new Set());
+    if (!this._typedListeners.has(event)) this._typedListeners.set(event, new Set());
     this._typedListeners.get(event).add(fn);
     return () => this._typedListeners.get(event)?.delete(fn);
   }
 
   _emit(event, data) {
     this._typedListeners.get(event)?.forEach((fn) => {
-      try {
-        fn(data);
-      } catch {}
+      try { fn(data); } catch {}
     });
   }
 
   // =========================================================================
-  // GENERIC SUBSCRIBE — all UI components use this
-  // Returns an unsubscribe function.
+  // GENERIC SUBSCRIBE
   // =========================================================================
 
   subscribe(callback) {
@@ -101,11 +104,7 @@ class NotificationService {
 
   _notifySubscribers() {
     this._subscribers.forEach((fn) => {
-      try {
-        fn();
-      } catch (err) {
-        console.error("Subscriber error:", err);
-      }
+      try { fn(); } catch (err) { console.error("Subscriber error:", err); }
     });
   }
 
@@ -113,108 +112,61 @@ class NotificationService {
   // LIFECYCLE
   // =========================================================================
 
-  /**
-   * Initialize for a user. Idempotent — safe to call multiple times.
-   * Deduplicates concurrent calls (e.g. both headers mounting simultaneously).
-   */
   async init(userId) {
     if (!userId) return;
     if (this._initialized && this._userId === userId) return;
     if (this._initPromise) return this._initPromise;
-
-    this._initPromise = this._doInit(userId).finally(() => {
-      this._initPromise = null;
-    });
+    this._initPromise = this._doInit(userId).finally(() => { this._initPromise = null; });
     return this._initPromise;
   }
 
   async _doInit(userId) {
-    this._userId = userId;
+    this._userId      = userId;
     this._initialized = true;
-
-    // Parallel: badge state + notifications
     await Promise.all([this._loadBadgeClearedAt(), this._fetchAndCache()]);
-
     this._startRealtime(userId);
   }
 
-  /**
-   * Tear down — call on sign-out.
-   */
   destroy() {
-    if (this._channel) {
-      supabase.removeChannel(this._channel);
-      this._channel = null;
-    }
+    if (this._channel) { supabase.removeChannel(this._channel); this._channel = null; }
     this._subscribers.clear();
     this._typedListeners.clear();
-    this._cache = null;
+    this._cache          = null;
     this._cacheFetchedAt = null;
-    this._badgeCount = 0;
+    this._badgeCount     = 0;
     this._badgeClearedAt = null;
-    this._userId = null;
-    this._initialized = false;
-    this._loading = false;
-    this._initPromise = null;
+    this._userId         = null;
+    this._initialized    = false;
+    this._loading        = false;
+    this._initPromise    = null;
+    this._seenRealtimeIds.clear();
   }
 
   // =========================================================================
-  // PUBLIC GETTERS (synchronous — for headers / render paths)
+  // SYNCHRONOUS GETTERS
   // =========================================================================
 
-  /**
-   * Synchronous badge count — computed in-memory.
-   * Used by DesktopHeader / MobileHeader subscribe callbacks.
-   */
-  getHeaderBadgeCountSync() {
-    return this._badgeCount;
-  }
+  getHeaderBadgeCountSync() { return this._badgeCount; }
+  isLoading()               { return this._loading; }
 
-  /**
-   * Whether initial fetch is in progress.
-   */
-  isLoading() {
-    return this._loading;
-  }
-
-  /**
-   * Count of sidebar unread dots (is_read === false).
-   */
   getUnreadSidebarCount() {
     return this._cache?.filter((n) => !n.is_read).length ?? 0;
   }
 
-  /** Alias kept for backward compatibility. */
-  getUnreadCount() {
-    return this.getUnreadSidebarCount();
-  }
+  getUnreadCount() { return this.getUnreadSidebarCount(); }
 
-  /**
-   * Invalidate cache — forces next getNotifications() to hit DB.
-   */
   invalidateCache() {
-    this._cache = null;
+    this._cache          = null;
     this._cacheFetchedAt = null;
   }
 
   // =========================================================================
-  // ASYNC PUBLIC API (match real service signatures exactly)
+  // ASYNC PUBLIC API
   // =========================================================================
 
-  /**
-   * Fetch notifications for a user.
-   * Returns cached data if within cacheTimeout unless forceRefresh=true.
-   *
-   * @param {string}  [userId]       defaults to this._userId
-   * @param {number}  [limit=50]
-   * @param {boolean} [forceRefresh=false]
-   * @returns {Promise<Array>}
-   */
   async getNotifications(userId, limit = 50, forceRefresh = false) {
     const uid = userId || this._userId;
     if (!uid) return [];
-
-    // Serve from cache if still fresh
     if (
       !forceRefresh &&
       this._cache &&
@@ -223,19 +175,10 @@ class NotificationService {
     ) {
       return this._cache;
     }
-
     await this._fetchAndCache(limit, uid);
     return this._cache || [];
   }
 
-  /**
-   * DB-authoritative header badge count.
-   * Queries the DB for notifications after badge_cleared_at.
-   * Use getHeaderBadgeCountSync() for synchronous reads in UI.
-   *
-   * @param {string} [userId]
-   * @returns {Promise<number>}
-   */
   async getHeaderBadgeCount(userId) {
     const uid = userId || this._userId;
     if (!uid) return 0;
@@ -248,54 +191,32 @@ class NotificationService {
         .gt("created_at", clearedAt);
       if (error) throw error;
       return count || 0;
-    } catch (err) {
-      console.error("❌ getHeaderBadgeCount:", err);
-      return this._badgeCount; // fall back to in-memory
+    } catch {
+      return this._badgeCount;
     }
   }
 
-  /**
-   * Called when NotificationSidebar OPENS.
-   * Optimistically resets header badge in-memory (UI instant),
-   * then persists to DB non-blocking.
-   * Does NOT touch is_read — sidebar dots are independent.
-   *
-   * @param {string} [userId]
-   */
   async clearHeaderBadge(userId) {
     const uid = userId || this._userId;
     if (!uid) return;
-
-    // Optimistic — headers see 0 instantly via subscribe()
     const now = new Date().toISOString();
     this._badgeClearedAt = now;
-    this._badgeCount = 0;
+    this._badgeCount     = 0;
     this._notifySubscribers();
-
-    // Persist non-blocking
     supabase
       .from("notification_badge_state")
       .upsert(
         { user_id: uid, badge_cleared_at: now, updated_at: now },
         { onConflict: "user_id" },
       )
-      .then(({ error }) => {
-        if (error) console.error("❌ clearHeaderBadge:", error);
-      });
+      .then(({ error }) => { if (error) console.error("❌ clearHeaderBadge:", error); });
   }
 
-  /**
-   * Mark a single notification as read (removes sidebar unread dot).
-   * Optimistic with rollback on DB error.
-   *
-   * @param {string} notificationId
-   */
   async markAsRead(notificationId) {
     if (!this._cache) return;
     const target = this._cache.find((n) => n.id === notificationId);
-    if (!target || target.is_read) return; // already read — skip DB call
+    if (!target || target.is_read) return;
 
-    // Optimistic
     this._cache = this._cache.map((n) =>
       n.id === notificationId ? { ...n, is_read: true } : n,
     );
@@ -307,7 +228,6 @@ class NotificationService {
       .eq("id", notificationId);
 
     if (error) {
-      // Rollback
       this._cache = this._cache.map((n) =>
         n.id === notificationId ? { ...n, is_read: false } : n,
       );
@@ -316,21 +236,12 @@ class NotificationService {
     }
   }
 
-  /**
-   * Mark ALL as read + clear header badge simultaneously.
-   * Optimistic with single DB call per operation.
-   *
-   * @param {string} [userId]
-   */
   async markAllAsRead(userId) {
     const uid = userId || this._userId;
     if (!this._cache || !uid) return;
-
-    // Optimistic
-    this._cache = this._cache.map((n) => ({ ...n, is_read: true }));
+    this._cache      = this._cache.map((n) => ({ ...n, is_read: true }));
     this._badgeCount = 0;
     this._notifySubscribers();
-
     await Promise.all([
       supabase
         .from("notifications")
@@ -342,7 +253,7 @@ class NotificationService {
   }
 
   // =========================================================================
-  // INTERNAL — FETCH
+  // INTERNAL — FETCH (dedup-safe merge)
   // =========================================================================
 
   async _fetchAndCache(limit = 60, uid) {
@@ -353,21 +264,35 @@ class NotificationService {
     try {
       const { data, error } = await supabase
         .from("notifications")
-        .select(
-          `
+        .select(`
           id, type, message, entity_id, is_read, metadata, created_at,
           actor:actor_user_id (
             id, full_name, username, avatar_id, verified
           )
-        `,
-        )
+        `)
         .eq("recipient_user_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) throw error;
 
-      this._cache = (data || []).map((n) => this._enrich(n));
+      const fresh = (data || []).map((n) => this._enrich(n));
+
+      // ── DEDUP MERGE ────────────────────────────────────────────────────────
+      // If we already have optimistic items in _cache (from realtime INSERT),
+      // prefer the freshly-fetched rows (they have actor JOIN data) but don't
+      // re-add items that already exist. This prevents the double-entry bug.
+      if (this._cache && this._cache.length > 0) {
+        const freshIds = new Set(fresh.map((n) => n.id));
+        // Keep any optimistic items that aren't in the fresh fetch yet
+        const optimisticOnly = this._cache.filter(
+          (n) => n._optimistic && !freshIds.has(n.id),
+        );
+        this._cache = [...optimisticOnly, ...fresh];
+      } else {
+        this._cache = fresh;
+      }
+
       this._cacheFetchedAt = Date.now();
       this._recomputeBadge();
       this._notifySubscribers();
@@ -378,43 +303,29 @@ class NotificationService {
     }
   }
 
-  /**
-   * Enrich a raw DB row into a consistent notification object.
-   * Method name matches real service for zero confusion.
-   */
   _enrich(n) {
     let avatarUrl = null;
     if (n.actor?.avatar_id) {
-      const raw = mediaUrlService.getImageUrl(n.actor.avatar_id, {
-        width: 100,
-        height: 100,
-      });
+      const raw = mediaUrlService.getImageUrl(n.actor.avatar_id, { width: 100, height: 100 });
       avatarUrl = typeof raw === "string" ? raw : null;
     }
-
     return {
-      id: n.id,
-      type: n.type,
-      message: n.message,
-      entity_id: n.entity_id,
-      is_read: n.is_read,
-      metadata: n.metadata || {},
+      id:         n.id,
+      type:       n.type,
+      message:    n.message,
+      entity_id:  n.entity_id,
+      is_read:    n.is_read,
+      metadata:   n.metadata || {},
       created_at: n.created_at,
       actor: n.actor
         ? {
-            id: n.actor.id,
-            name: n.actor.full_name,
+            id:       n.actor.id,
+            name:     n.actor.full_name,
             username: n.actor.username,
-            avatar: avatarUrl,
+            avatar:   avatarUrl,
             verified: n.actor.verified || false,
           }
-        : {
-            id: null,
-            name: "Someone",
-            username: "user",
-            avatar: null,
-            verified: false,
-          },
+        : { id: null, name: "Someone", username: "user", avatar: null, verified: false },
     };
   }
 
@@ -430,9 +341,7 @@ class NotificationService {
         .select("badge_cleared_at")
         .eq("user_id", this._userId)
         .maybeSingle();
-      // Default to epoch so ALL existing notifications count if never cleared
-      this._badgeClearedAt =
-        data?.badge_cleared_at || new Date(0).toISOString();
+      this._badgeClearedAt = data?.badge_cleared_at || new Date(0).toISOString();
     } catch {
       this._badgeClearedAt = new Date(0).toISOString();
     }
@@ -445,24 +354,16 @@ class NotificationService {
     return this._badgeClearedAt || new Date(0).toISOString();
   }
 
-  /**
-   * Recompute _badgeCount from cache + _badgeClearedAt.
-   * Called after every fetch and after badge cleared.
-   */
   _recomputeBadge() {
-    if (!this._cache) {
-      this._badgeCount = 0;
-      return;
-    }
-    const clearedMs = new Date(this._badgeClearedAt || 0).getTime();
-    this._badgeCount = this._cache.filter(
+    if (!this._cache) { this._badgeCount = 0; return; }
+    const clearedMs   = new Date(this._badgeClearedAt || 0).getTime();
+    this._badgeCount  = this._cache.filter(
       (n) => new Date(n.created_at).getTime() > clearedMs,
     ).length;
   }
 
   // =========================================================================
   // INTERNAL — REALTIME
-  // Single channel, three event listeners (notifications + badge_state)
   // =========================================================================
 
   _startRealtime(userId) {
@@ -471,61 +372,76 @@ class NotificationService {
     this._channel = supabase
       .channel(`notifications-realtime:${userId}`)
 
-      // 1. New notification arrives
+      // ── 1. New notification ─────────────────────────────────────────────
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event:  "INSERT",
           schema: "public",
-          table: "notifications",
+          table:  "notifications",
           filter: `recipient_user_id=eq.${userId}`,
         },
         (payload) => {
-          // Prepend to cache immediately (no actor join — show optimistically)
-          const enriched = this._enrich(payload.new);
-          if (this._cache) {
-            this._cache = [enriched, ...this._cache];
-          } else {
-            this._cache = [enriched];
+          const row = payload.new;
+
+          // ── DEDUP GUARD ──────────────────────────────────────────────────
+          // Supabase can fire the same INSERT event twice (reconnect race).
+          // Also guard against _fetchAndCache running concurrently.
+          if (this._seenRealtimeIds.has(row.id)) return;
+          this._seenRealtimeIds.add(row.id);
+          // Clean up the seen-set after 60s to avoid unbounded growth
+          setTimeout(() => this._seenRealtimeIds.delete(row.id), 60_000);
+
+          // Also skip if already in cache (e.g. from a concurrent fetch)
+          if (this._cache?.some((n) => n.id === row.id)) {
+            // Notification already present — just increment badge if needed
+            this._badgeCount = (this._badgeCount || 0) + 1;
+            this._notifySubscribers();
+            this._emit("new_notification", row);
+            return;
           }
+
+          // Optimistic prepend (no actor join yet — shows "Someone")
+          const enriched = { ...this._enrich(row), _optimistic: true };
+          this._cache = this._cache ? [enriched, ...this._cache] : [enriched];
           this._cacheFetchedAt = Date.now();
-          // Increment badge
           this._badgeCount = (this._badgeCount || 0) + 1;
           this._notifySubscribers();
-          // Fire typed event → InAppNotificationToast can also react
-          this._emit("new_notification", payload.new);
-          // Re-fetch in background to get actor JOIN
-          setTimeout(() => this._fetchAndCache(), 800);
+
+          // Typed event → InAppNotificationToast
+          this._emit("new_notification", row);
+
+          // Background refetch to get actor JOIN — the merge in _fetchAndCache
+          // will replace the optimistic row without creating a duplicate.
+          setTimeout(() => this._fetchAndCache(), 1000);
         },
       )
 
-      // 2. is_read updated (from another tab / markAllAsRead)
+      // ── 2. is_read update ───────────────────────────────────────────────
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event:  "UPDATE",
           schema: "public",
-          table: "notifications",
+          table:  "notifications",
           filter: `recipient_user_id=eq.${userId}`,
         },
         (payload) => {
           if (!this._cache) return;
           this._cache = this._cache.map((n) =>
-            n.id === payload.new.id
-              ? { ...n, is_read: payload.new.is_read }
-              : n,
+            n.id === payload.new.id ? { ...n, is_read: payload.new.is_read } : n,
           );
           this._notifySubscribers();
         },
       )
 
-      // 3. Badge cleared from another tab / device
+      // ── 3. Badge cleared from another tab ───────────────────────────────
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event:  "UPDATE",
           schema: "public",
-          table: "notification_badge_state",
+          table:  "notification_badge_state",
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
@@ -544,6 +460,5 @@ class NotificationService {
   }
 }
 
-// Singleton
 const notificationService = new NotificationService();
 export default notificationService;

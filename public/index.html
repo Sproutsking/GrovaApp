@@ -7,14 +7,30 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
     />
-    <meta name="theme-color" content="#050706" />
+
+    <!--
+      CRITICAL: theme-color MUST be #000000 (pure black).
+      Any other value — including near-black like #050706 — can cause Android
+      Chrome to render a coloured address bar / tab strip. Pure black blends
+      invisibly into the OS chrome when the app is opened in a browser tab,
+      and disappears entirely when installed as a PWA in standalone mode.
+    -->
+    <meta name="theme-color" content="#000000" />
+
+    <!-- PWA / home-screen meta -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- CRITICAL FIX: "black-translucent" (not "black") extends content under
-         the iOS status bar so env(safe-area-inset-bottom) returns real values
-         and the gap between content and the bottom nav disappears. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      "black-translucent" extends the viewport under the iOS status bar so
+      env(safe-area-inset-*) returns real, non-zero values. Without this the
+      bottom nav sits above a phantom white gap on notched iPhones.
+    -->
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
+
     <meta
       name="description"
       content="Own your content. Build your network. Earn engagement."
@@ -25,15 +41,22 @@
       content="Own your content. Build your network. Earn engagement."
     />
     <meta property="og:type" content="website" />
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
     <style>
+      /*
+        Inline critical styles — loaded before any JS bundle so there is
+        zero flash of wrong background on any device/browser.
+      */
       *,
       *::before,
       *::after {
@@ -42,13 +65,33 @@
         box-sizing: border-box;
         -webkit-tap-highlight-color: transparent;
       }
-      html,
+
+      /*
+        Force pure black on <html> and <body>.
+        This is the colour Android uses for:
+          • The pull-to-refresh gutter above the page
+          • The overscroll bounce area below the page (the "bottom gap")
+          • The navigation-bar background when display=standalone and
+            navigationBarColor isn't explicitly set in the manifest
+        Using anything other than #000 here is the most common cause of the
+        white/grey strip at the very bottom of a PWA on Android.
+      */
+      html {
+        width: 100%;
+        height: 100%;
+        background: #000000;
+        -webkit-text-size-adjust: 100%;
+      }
+
       body {
         width: 100%;
-        /* Use 100% not 100vh — avoids iOS viewport bug where 100vh
-           includes browser chrome causing overflow */
+        /*
+          Do NOT use 100vh here — on iOS Safari 100vh includes the browser
+          chrome and causes content to be hidden behind it.
+          Use height: 100% (inherits from html) instead.
+        */
         height: 100%;
-        background: #050706;
+        background: #000000;
         color: #e6ebe6;
         font-family:
           "DM Sans",
@@ -56,38 +99,71 @@
           sans-serif;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
+        /*
+          overscroll-behavior: none prevents the elastic-bounce rubber-band
+          scroll that exposes the background colour below/above the page on
+          both iOS and Android — eliminating the bottom gap entirely.
+        */
         overscroll-behavior: none;
       }
+
+      /* Prevents iOS auto-zoom on input focus */
       input,
       textarea,
       select {
-        /* Prevents iOS auto-zoom on focus */
         font-size: 16px !important;
       }
+
       #root {
-        /* dvh = dynamic viewport height, shrinks/grows with browser chrome.
-           Correct unit: content fills exactly what is visible. */
+        /*
+          dvh = dynamic viewport height.
+          On mobile browsers dvh shrinks when the address bar is visible and
+          grows when it hides — so the app always fills exactly what is
+          currently visible, with no overflow and no gap.
+          min-height (not height) so tall content can still scroll naturally.
+        */
         min-height: 100dvh;
+        background: #000000;
       }
 
+      /* ── Animations used by the update / install banners ── */
       @keyframes xv_slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
       @keyframes xv_modalIn {
-        from { opacity: 0; transform: scale(0.93) translateY(14px); }
-        to   { opacity: 1; transform: scale(1) translateY(0); }
+        from {
+          opacity: 0;
+          transform: scale(0.93) translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
       }
 
+      /* ── SW update banner ── */
       #xv-update {
         position: fixed;
-        bottom: 0; left: 0; right: 0;
-        background: rgba(5, 7, 6, 0.97);
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.97);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
         border-top: 1px solid rgba(168, 230, 61, 0.14);
         padding: 16px 20px;
-        /* Sit above home indicator on notched devices */
+        /*
+          Absorb the home-indicator / gesture bar on notched devices.
+          Without this the banner content sits flush against the very bottom
+          edge and is obscured by the system gesture handle.
+        */
         padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         z-index: 10000;
         display: none;
@@ -104,30 +180,57 @@
         gap: 14px;
       }
       .xvu-icon {
-        width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        flex-shrink: 0;
         background: linear-gradient(135deg, #a8e63d, #4d8800);
-        display: flex; align-items: center; justify-content: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-size: 18px;
       }
-      .xvu-text { flex: 1; }
-      .xvu-title { font-size: 14px; font-weight: 600; color: #e6ebe6; margin-bottom: 2px; }
-      .xvu-sub   { font-size: 12px; color: #4a6a2a; }
-      .xvu-btn {
-        padding: 10px 20px; border-radius: 100px; border: none;
-        font-size: 13px; font-weight: 700; cursor: pointer;
-        background: linear-gradient(135deg, #a8e63d, #5a9a10);
-        color: #040604; font-family: inherit;
-        transition: transform 0.15s; flex-shrink: 0;
+      .xvu-text {
+        flex: 1;
       }
-      .xvu-btn:hover { transform: scale(1.04); }
+      .xvu-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #e6ebe6;
+        margin-bottom: 2px;
+      }
+      .xvu-sub {
+        font-size: 12px;
+        color: #4a6a2a;
+      }
+      .xvu-btn {
+        padding: 10px 20px;
+        border-radius: 100px;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        background: linear-gradient(135deg, #a8e63d, #5a9a10);
+        color: #040604;
+        font-family: inherit;
+        transition: transform 0.15s;
+        flex-shrink: 0;
+      }
+      .xvu-btn:hover {
+        transform: scale(1.04);
+      }
 
+      /* ── PWA install prompt ── */
       #xv-install {
-        position: fixed; inset: 0;
+        position: fixed;
+        inset: 0;
         background: rgba(0, 0, 0, 0.82);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
         z-index: 10001;
-        display: none; align-items: center; justify-content: center;
+        display: none;
+        align-items: center;
+        justify-content: center;
         padding: 20px;
       }
       #xv-install.show {
@@ -135,48 +238,105 @@
         animation: xv_slideUp 0.25s ease;
       }
       .xvi-card {
-        background: rgba(8, 10, 8, 0.99);
+        background: rgba(0, 0, 0, 0.99);
         border: 1px solid rgba(168, 230, 61, 0.14);
-        border-radius: 24px; max-width: 380px; width: 100%;
+        border-radius: 24px;
+        max-width: 380px;
+        width: 100%;
         padding: 26px 22px;
         animation: xv_modalIn 0.4s cubic-bezier(0.23, 1, 0.32, 1);
       }
-      .xvi-head { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 20px; }
-      .xvi-icon {
-        width: 52px; height: 52px; border-radius: 15px; flex-shrink: 0;
-        background: linear-gradient(135deg, #a8e63d, #3d7800);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 22px; font-weight: 900; color: #050706;
-        font-family: "Bebas Neue", sans-serif; letter-spacing: 1px;
+      .xvi-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 13px;
+        margin-bottom: 20px;
       }
-      .xvi-title { font-size: 18px; font-weight: 700; color: #e6ebe6; margin-bottom: 4px; }
-      .xvi-sub   { font-size: 13px; color: #3a4a3a; line-height: 1.6; }
+      .xvi-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 15px;
+        flex-shrink: 0;
+        background: linear-gradient(135deg, #a8e63d, #3d7800);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        font-weight: 900;
+        color: #050706;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 1px;
+      }
+      .xvi-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e6ebe6;
+        margin-bottom: 4px;
+      }
+      .xvi-sub {
+        font-size: 13px;
+        color: #3a4a3a;
+        line-height: 1.6;
+      }
       .xvi-feats {
         background: rgba(255, 255, 255, 0.015);
         border: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 13px; padding: 12px 14px; margin-bottom: 20px;
+        border-radius: 13px;
+        padding: 12px 14px;
+        margin-bottom: 20px;
       }
-      .xvi-feat { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; color: #4a5a4a; }
+      .xvi-feat {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 0;
+        font-size: 13px;
+        color: #4a5a4a;
+      }
       .xvi-dot {
-        width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
-        background: rgba(168, 230, 61, 0.1); color: #a8e63d;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 8px; font-weight: 800;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: rgba(168, 230, 61, 0.1);
+        color: #a8e63d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        font-weight: 800;
       }
-      .xvi-btns { display: flex; gap: 9px; }
+      .xvi-btns {
+        display: flex;
+        gap: 9px;
+      }
       .xvi-btn {
-        flex: 1; padding: 13px; border-radius: 13px;
-        font-size: 14px; font-weight: 700; cursor: pointer;
-        border: none; transition: all 0.18s; font-family: inherit;
+        flex: 1;
+        padding: 13px;
+        border-radius: 13px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        transition: all 0.18s;
+        font-family: inherit;
       }
-      .xvi-btn.primary { background: linear-gradient(135deg, #a8e63d, #5a9a10); color: #040604; }
-      .xvi-btn.ghost   { background: rgba(255, 255, 255, 0.03); color: #3a4a3a; border: 1px solid rgba(255, 255, 255, 0.06); }
+      .xvi-btn.primary {
+        background: linear-gradient(135deg, #a8e63d, #5a9a10);
+        color: #040604;
+      }
+      .xvi-btn.ghost {
+        background: rgba(255, 255, 255, 0.03);
+        color: #3a4a3a;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
     </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
     <div id="root"></div>
 
+    <!-- SW update banner -->
     <div id="xv-update" role="alert" aria-live="polite">
       <div class="xvu-inner">
         <div class="xvu-icon" aria-hidden>✦</div>
@@ -188,20 +348,40 @@
       </div>
     </div>
 
-    <div id="xv-install" role="dialog" aria-modal="true" aria-label="Install Xeevia">
+    <!-- PWA install prompt -->
+    <div
+      id="xv-install"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Install Xeevia"
+    >
       <div class="xvi-card">
         <div class="xvi-head">
           <div class="xvi-icon" aria-hidden>X</div>
           <div>
             <div class="xvi-title">Install Xeevia</div>
-            <div class="xvi-sub">Add to your home screen for instant access</div>
+            <div class="xvi-sub">
+              Add to your home screen for instant access
+            </div>
           </div>
         </div>
         <div class="xvi-feats" aria-hidden>
-          <div class="xvi-feat"><div class="xvi-dot">✓</div>Works offline</div>
-          <div class="xvi-feat"><div class="xvi-dot">✓</div>Push notifications</div>
-          <div class="xvi-feat"><div class="xvi-dot">✓</div>Faster loading</div>
-          <div class="xvi-feat"><div class="xvi-dot">✓</div>Full-screen mode</div>
+          <div class="xvi-feat">
+            <div class="xvi-dot">✓</div>
+            Works offline
+          </div>
+          <div class="xvi-feat">
+            <div class="xvi-dot">✓</div>
+            Push notifications
+          </div>
+          <div class="xvi-feat">
+            <div class="xvi-dot">✓</div>
+            Faster loading
+          </div>
+          <div class="xvi-feat">
+            <div class="xvi-dot">✓</div>
+            Full-screen mode
+          </div>
         </div>
         <div class="xvi-btns">
           <button id="xv-install-ok" class="xvi-btn primary">Install</button>
@@ -212,6 +392,7 @@
 
     <script>
       var deferred = null;
+
       window.addEventListener("beforeinstallprompt", function (e) {
         e.preventDefault();
         deferred = e;
@@ -222,22 +403,37 @@
           }, 7000);
         }
       });
-      document.getElementById("xv-install-ok").addEventListener("click", function () {
-        document.getElementById("xv-install").classList.remove("show");
-        if (deferred) {
-          deferred.prompt();
-          deferred.userChoice.then(function () { deferred = null; });
-        }
-      });
-      document.getElementById("xv-install-later").addEventListener("click", function () {
-        document.getElementById("xv-install").classList.remove("show");
-      });
-      document.getElementById("xv-install").addEventListener("click", function (e) {
-        if (e.target === this) this.classList.remove("show");
-      });
-      document.getElementById("xv-update-btn").addEventListener("click", function () {
-        window.location.reload();
-      });
+
+      document
+        .getElementById("xv-install-ok")
+        .addEventListener("click", function () {
+          document.getElementById("xv-install").classList.remove("show");
+          if (deferred) {
+            deferred.prompt();
+            deferred.userChoice.then(function () {
+              deferred = null;
+            });
+          }
+        });
+
+      document
+        .getElementById("xv-install-later")
+        .addEventListener("click", function () {
+          document.getElementById("xv-install").classList.remove("show");
+        });
+
+      document
+        .getElementById("xv-install")
+        .addEventListener("click", function (e) {
+          if (e.target === this) this.classList.remove("show");
+        });
+
+      document
+        .getElementById("xv-update-btn")
+        .addEventListener("click", function () {
+          window.location.reload();
+        });
+
       window.__xvShowUpdate = function () {
         document.getElementById("xv-update").classList.add("show");
       };

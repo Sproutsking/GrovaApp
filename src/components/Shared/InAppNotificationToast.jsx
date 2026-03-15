@@ -1,354 +1,394 @@
 // ============================================================================
-// src/components/Shared/InAppNotificationToast.jsx
+// src/components/Shared/InAppNotificationToast.jsx — v3 DEDUP-SAFE
 // ============================================================================
-// Listens to:
-//   1. notificationService "new_notification" → realtime DB insert
-//   2. pushService "push_received" → SW message when app is focused
 //
-// Shows a native-feeling toast for 5 seconds, stacks up to 3.
-// Clicking navigates to the right screen.
+// ARCHITECTURE:
+//   TWO event sources feed this toast:
+//     1. notificationService.on("new_notification", ...) — Supabase realtime
+//        INSERT for social/system/paywave/wallet notifications.
+//     2. pushService.on("push_received", ...)            — SW bridge fires this
+//        when app is focused and a push arrives (could be a DM or a notif).
+//
+// DEDUPLICATION STRATEGY:
+//   • Every shown toast is tracked by a `shownId` (notification id or a hash
+//     of the push payload title+body+timestamp).
+//   • Before showing, we check the shown-ids set (TTL 10s). If already shown,
+//     we skip silently. This handles the race where both events fire for the
+//     same notification.
+//   • "push_received" payloads that carry a `data.notification_id` are matched
+//     against notificationService's cache — if the realtime event already fired
+//     for that id, the push is a duplicate and skipped.
+//
+// TOAST MODEL:
+//   • Max 3 toasts visible at once (oldest auto-dismissed first).
+//   • Each toast auto-dismisses after `duration` ms (default 5s).
+//   • Tap navigates via `navigate` prop.
+//   • Slide-in from top-right on desktop, top on mobile.
+//
+// Props:
+//   navigate  (path: string) => void   — called on toast tap
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { X, Bell, MessageCircle, Heart, UserPlus, Wallet, Zap } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
-import pushService from "../../services/notifications/pushService";
+import { pushService } from "../../services/notifications/pushService";
 
-// ── Icon map ─────────────────────────────────────────────────────────────────
-const TYPE_ICON = {
-  like:                   "❤️",
-  comment:                "💬",
-  comment_reply:          "↩️",
-  follow:                 "👤",
-  profile_view:           "👁️",
-  unlock:                 "🔓",
-  share:                  "🔁",
-  new_post:               "📝",
-  new_story:              "📖",
-  new_reel:               "🎬",
-  story_unlocked_by_you:  "✅",
-  milestone_followers:    "🎉",
-  payment_confirmed:      "💳",
-  mention:                "📣",
-};
+// ── Constants ─────────────────────────────────────────────────────────────────
+const MAX_TOASTS   = 3;
+const DEFAULT_TTL  = 5000;
+const DEDUP_TTL_MS = 10_000;
 
-const TYPE_URL = {
-  like:                   (n) => n.entity_id ? `/post/${n.entity_id}`    : "/",
-  comment:                (n) => n.entity_id ? `/post/${n.entity_id}`    : "/",
-  comment_reply:          (n) => n.entity_id ? `/post/${n.entity_id}`    : "/",
-  share:                  (n) => n.entity_id ? `/post/${n.entity_id}`    : "/",
-  new_post:               (n) => n.entity_id ? `/post/${n.entity_id}`    : "/",
-  new_reel:               (n) => n.entity_id ? `/reel/${n.entity_id}`    : "/",
-  new_story:              (n) => n.entity_id ? `/story/${n.entity_id}`   : "/",
-  story_unlocked_by_you:  (n) => n.entity_id ? `/story/${n.entity_id}`   : "/",
-  unlock:                 (n) => n.entity_id ? `/story/${n.entity_id}`   : "/",
-  follow:                 (n) => n.actor_user_id ? `/profile/${n.actor_user_id}` : "/",
-  profile_view:           (n) => n.actor_user_id ? `/profile/${n.actor_user_id}` : "/",
-  milestone_followers:    ()  => "/account",
-  payment_confirmed:      ()  => "/account",
-  mention:                (n) => n.entity_id ? `/post/${n.entity_id}`    : "/",
-};
-
-function getUrl(notification) {
-  const fn = TYPE_URL[notification.type];
-  return fn ? fn(notification) : "/";
+// ── Icon resolver ─────────────────────────────────────────────────────────────
+function resolveIcon(type) {
+  switch (type) {
+    case "like":              return <Heart size={14} color="#ef4444" />;
+    case "comment":
+    case "comment_reply":     return <MessageCircle size={14} color="#3b82f6" />;
+    case "follow":            return <UserPlus size={14} color="#84cc16" />;
+    case "message":
+    case "dm":                return <MessageCircle size={14} color="#84cc16" />;
+    case "payment_confirmed":
+    case "transfer_received":
+    case "transfer_sent":     return <Wallet size={14} color="#a3e635" />;
+    case "stake_update":      return <Zap size={14} color="#a855f7" />;
+    default:                  return <Bell size={14} color="#84cc16" />;
+  }
 }
 
-// ── Single toast ─────────────────────────────────────────────────────────────
-function Toast({ toast, onDismiss, onNavigate }) {
-  const [exiting, setExiting] = useState(false);
-
-  const dismiss = useCallback(() => {
-    setExiting(true);
-    setTimeout(() => onDismiss(toast.id), 300);
-  }, [toast.id, onDismiss]);
-
-  useEffect(() => {
-    const t = setTimeout(dismiss, 5000);
-    return () => clearTimeout(t);
-  }, [dismiss]);
-
-  const icon    = TYPE_ICON[toast.type] || "🔔";
-  const isMilestone = toast.type === "milestone_followers" || toast.type === "payment_confirmed";
-
-  return (
-    <div
-      className={`xv-toast ${exiting ? "xv-toast--exit" : "xv-toast--enter"} ${isMilestone ? "xv-toast--special" : ""}`}
-      onClick={() => { onNavigate(getUrl(toast)); dismiss(); }}
-    >
-      {/* Avatar or icon */}
-      <div className="xv-toast__avatar">
-        {toast.actor_avatar ? (
-          <img src={toast.actor_avatar} alt="" className="xv-toast__avatar-img" />
-        ) : (
-          <span className="xv-toast__avatar-icon">{icon}</span>
-        )}
-        <span className="xv-toast__type-badge">{icon}</span>
-      </div>
-
-      {/* Content */}
-      <div className="xv-toast__body">
-        <p className="xv-toast__message">{toast.message}</p>
-        {toast.preview && (
-          <p className="xv-toast__preview">"{toast.preview}"</p>
-        )}
-        <p className="xv-toast__time">Just now</p>
-      </div>
-
-      {/* Dismiss */}
-      <button
-        className="xv-toast__close"
-        onClick={(e) => { e.stopPropagation(); dismiss(); }}
-        aria-label="Dismiss"
-      >
-        ×
-      </button>
-
-      {/* Progress bar */}
-      <div className="xv-toast__progress" />
-
-      <style jsx>{`
-        .xv-toast {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 16px;
-          background: rgba(10, 10, 10, 0.96);
-          border: 1px solid rgba(132, 204, 22, 0.25);
-          border-left: 3px solid #84cc16;
-          border-radius: 14px;
-          width: 340px;
-          max-width: calc(100vw - 32px);
-          cursor: pointer;
-          position: relative;
-          overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(132, 204, 22, 0.1);
-          backdrop-filter: blur(20px);
-          transition: transform 0.15s ease, opacity 0.15s ease;
-        }
-        .xv-toast:hover {
-          border-color: rgba(132, 204, 22, 0.5);
-          transform: translateX(-4px);
-        }
-        .xv-toast--special {
-          border-left-color: #f59e0b;
-          border-color: rgba(245, 158, 11, 0.3);
-        }
-        .xv-toast--enter {
-          animation: toastSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        .xv-toast--exit {
-          animation: toastSlideOut 0.3s ease forwards;
-        }
-        @keyframes toastSlideIn {
-          from { transform: translateX(120%); opacity: 0; }
-          to   { transform: translateX(0);   opacity: 1; }
-        }
-        @keyframes toastSlideOut {
-          from { transform: translateX(0);   opacity: 1; max-height: 100px; }
-          to   { transform: translateX(120%); opacity: 0; max-height: 0; padding: 0; margin: 0; }
-        }
-        .xv-toast__avatar {
-          position: relative;
-          flex-shrink: 0;
-          width: 42px;
-          height: 42px;
-        }
-        .xv-toast__avatar-img {
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 2px solid rgba(132, 204, 22, 0.4);
-        }
-        .xv-toast__avatar-icon {
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          background: rgba(132, 204, 22, 0.15);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 20px;
-          border: 2px solid rgba(132, 204, 22, 0.3);
-        }
-        .xv-toast__type-badge {
-          position: absolute;
-          bottom: -2px;
-          right: -4px;
-          font-size: 13px;
-          line-height: 1;
-          background: #000;
-          border-radius: 50%;
-          padding: 1px;
-        }
-        .xv-toast__body {
-          flex: 1;
-          min-width: 0;
-        }
-        .xv-toast__message {
-          font-size: 13.5px;
-          font-weight: 600;
-          color: #e5e5e5;
-          margin: 0 0 2px 0;
-          line-height: 1.3;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .xv-toast__preview {
-          font-size: 12px;
-          color: #737373;
-          margin: 0 0 2px 0;
-          font-style: italic;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .xv-toast__time {
-          font-size: 11px;
-          color: #525252;
-          margin: 0;
-        }
-        .xv-toast__close {
-          background: none;
-          border: none;
-          color: #525252;
-          font-size: 20px;
-          line-height: 1;
-          cursor: pointer;
-          padding: 0 4px;
-          flex-shrink: 0;
-          transition: color 0.15s;
-        }
-        .xv-toast__close:hover { color: #e5e5e5; }
-        .xv-toast__progress {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #84cc16, #65a30d);
-          animation: toastProgress 5s linear forwards;
-          border-radius: 0 0 0 14px;
-        }
-        @keyframes toastProgress {
-          from { width: 100%; }
-          to   { width: 0%; }
-        }
-        .xv-toast--special .xv-toast__progress {
-          background: linear-gradient(90deg, #f59e0b, #d97706);
-        }
-      `}</style>
-    </div>
-  );
+// ── Color map ─────────────────────────────────────────────────────────────────
+function resolveAccent(type) {
+  switch (type) {
+    case "like":              return "#ef4444";
+    case "comment":
+    case "comment_reply":     return "#3b82f6";
+    case "follow":            return "#84cc16";
+    case "message":
+    case "dm":                return "#84cc16";
+    case "payment_confirmed":
+    case "transfer_received": return "#a3e635";
+    case "transfer_sent":     return "#f87171";
+    case "stake_update":      return "#a855f7";
+    default:                  return "#84cc16";
+  }
 }
+
+// ── Unique toast id generator ─────────────────────────────────────────────────
+let _seq = 0;
+function nextId() { return `toast_${++_seq}_${Date.now()}`; }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function InAppNotificationToast({ navigate }) {
+const InAppNotificationToast = ({ navigate }) => {
   const [toasts, setToasts] = useState([]);
-  const seenIds = useRef(new Set());
 
-  const addToast = useCallback((notification) => {
-    // Deduplicate by notification id or a hash of type+message
-    const dedupeKey = notification.id || `${notification.type}:${notification.message}`;
-    if (seenIds.current.has(dedupeKey)) return;
-    seenIds.current.add(dedupeKey);
+  // Set of deduplication keys (notification db id OR content hash), TTL-cleared
+  const shownIds = useRef(new Set());
 
-    const toast = {
-      id:            notification.id || `${Date.now()}-${Math.random()}`,
-      type:          notification.type,
-      message:       notification.message,
-      entity_id:     notification.entity_id,
-      actor_user_id: notification.actor_user_id,
-      actor_avatar:  notification.actor?.avatar || notification.actor_avatar || null,
-      preview:       notification.metadata?.comment_preview || notification.metadata?.preview || null,
-    };
+  const markShown = useCallback((key) => {
+    shownIds.current.add(key);
+    setTimeout(() => shownIds.current.delete(key), DEDUP_TTL_MS);
+  }, []);
 
+  const isDuplicate = useCallback((key) => shownIds.current.has(key), []);
+
+  // ── Add toast ──────────────────────────────────────────────────────────────
+  const addToast = useCallback((toast) => {
     setToasts((prev) => {
-      // Max 3 visible at once — drop oldest
-      const next = [toast, ...prev].slice(0, 3);
-      return next;
+      // If already at max, drop the oldest
+      const next = prev.length >= MAX_TOASTS ? prev.slice(1) : prev;
+      return [...next, { id: nextId(), duration: DEFAULT_TTL, ...toast }];
     });
   }, []);
 
+  // ── Dismiss toast ──────────────────────────────────────────────────────────
   const dismiss = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const handleNavigate = useCallback((url) => {
-    if (navigate) {
-      navigate(url);
-    } else {
-      window.location.href = url;
-    }
-  }, [navigate]);
-
+  // ── Auto-dismiss ───────────────────────────────────────────────────────────
   useEffect(() => {
-    // Listen to realtime DB notifications
-    const unsubNotif = notificationService.on("new_notification", (raw) => {
-      // raw is the pg payload (.new row), enrich minimally for display
+    if (toasts.length === 0) return;
+    const timers = toasts.map((t) =>
+      setTimeout(() => dismiss(t.id), t.duration),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [toasts, dismiss]);
+
+  // ── Listen to notificationService realtime events ─────────────────────────
+  useEffect(() => {
+    const unsub = notificationService.on("new_notification", (raw) => {
+      // raw is the DB row (not yet enriched with actor join)
+      const dedupKey = raw.id;
+      if (isDuplicate(dedupKey)) return;
+      markShown(dedupKey);
+
       addToast({
-        id:            raw.id,
-        type:          raw.type,
-        message:       raw.message,
-        entity_id:     raw.entity_id,
-        actor_user_id: raw.actor_user_id,
-        metadata:      raw.metadata || {},
+        dedupKey,
+        type:        raw.type    || "general",
+        title:       "Xeevia",
+        message:     raw.message || "You have a new notification",
+        url:         null, // resolved later if user taps
+        accent:      resolveAccent(raw.type),
+        icon:        resolveIcon(raw.type),
+        rawNotifId:  raw.id,
       });
     });
+    return unsub;
+  }, [addToast, isDuplicate, markShown]);
 
-    // Listen to push messages when app is focused (SW → pushService → here)
-    const unsubPush = pushService.on("push_received", (payload) => {
+  // ── Listen to pushService "push_received" (SW → app bridge) ──────────────
+  // This fires when the SW received a push while the app was focused.
+  // It might duplicate a "new_notification" event (same row, just via push).
+  // We deduplicate by notification_id in payload.data if present,
+  // otherwise by a content hash.
+  useEffect(() => {
+    const unsub = pushService.on("push_received", (payload) => {
+      // Try to get a stable dedup key
+      const notifId   = payload?.data?.notification_id || payload?.data?.entity_id;
+      const dedupKey  = notifId
+        ? `push_${notifId}`
+        : `push_${payload?.title}_${payload?.body}`.slice(0, 80);
+
+      // Also check if this notification id was already shown via realtime event
+      if (notifId && isDuplicate(notifId))   return; // realtime beat the push
+      if (isDuplicate(dedupKey))              return;
+      markShown(dedupKey);
+      if (notifId) markShown(notifId); // cross-dedup future realtime event
+
+      const type = payload?.data?.type || "general";
       addToast({
-        id:            `push-${Date.now()}`,
-        type:          payload.type,
-        message:       payload.body || payload.message || "New notification",
-        entity_id:     payload.entity_id,
-        actor_user_id: payload.actor_user_id,
-        actor_avatar:  payload.actor_avatar || null,
-        metadata:      {},
+        dedupKey,
+        type,
+        title:   payload?.title || "Xeevia",
+        message: payload?.body  || "You have a new notification",
+        url:     payload?.data?.url || null,
+        accent:  resolveAccent(type),
+        icon:    resolveIcon(type),
       });
     });
+    return unsub;
+  }, [addToast, isDuplicate, markShown]);
 
-    return () => {
-      unsubNotif();
-      unsubPush();
-    };
-  }, [addToast]);
+  // ── Tap handler ────────────────────────────────────────────────────────────
+  const handleTap = useCallback((toast) => {
+    dismiss(toast.id);
+    if (!navigate) return;
+
+    // If we have a direct URL use it
+    if (toast.url) { navigate(toast.url); return; }
+
+    // Otherwise try to resolve from notificationService cache
+    if (toast.rawNotifId && notificationService._cache) {
+      const cached = notificationService._cache.find((n) => n.id === toast.rawNotifId);
+      if (cached) {
+        // Simple resolver (mirrors NotificationSidebar)
+        const url = resolveNotifUrl(cached);
+        if (url) navigate(url);
+      }
+    }
+  }, [navigate, dismiss]);
 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="xv-toast-stack">
-      {toasts.map((toast) => (
-        <Toast
-          key={toast.id}
-          toast={toast}
-          onDismiss={dismiss}
-          onNavigate={handleNavigate}
-        />
-      ))}
-      <style jsx>{`
-        .xv-toast-stack {
-          position: fixed;
-          top: 16px;
-          right: 16px;
-          z-index: 99999;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          pointer-events: none;
-        }
-        .xv-toast-stack > * {
-          pointer-events: auto;
-        }
-        @media (max-width: 480px) {
-          .xv-toast-stack {
-            top: 8px;
-            right: 8px;
-            left: 8px;
-          }
-        }
-      `}</style>
-    </div>
+    <>
+      <div className="iant__stack" aria-live="polite" aria-label="Notifications">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className="iant__toast"
+            style={{ "--accent": t.accent }}
+            role="alert"
+            onClick={() => handleTap(t)}
+          >
+            <div className="iant__icon-wrap">{t.icon}</div>
+            <div className="iant__body">
+              <div className="iant__title">{t.title}</div>
+              <div className="iant__msg">{t.message}</div>
+            </div>
+            <button
+              className="iant__close"
+              onClick={(e) => { e.stopPropagation(); dismiss(t.id); }}
+              aria-label="Dismiss"
+            >
+              <X size={12} />
+            </button>
+            <div
+              className="iant__progress"
+              style={{ animationDuration: `${t.duration}ms` }}
+            />
+          </div>
+        ))}
+      </div>
+      <style>{CSS}</style>
+    </>
   );
+};
+
+// ── URL resolver (mirrors NotificationSidebar resolveUrl) ────────────────────
+function resolveNotifUrl(notif) {
+  const { type, entity_id, actor } = notif;
+  const actorId = actor?.id;
+  switch (type) {
+    case "like":
+    case "comment":
+    case "comment_reply":
+    case "mention":
+    case "new_post":
+    case "share":          return entity_id ? `/post/${entity_id}`    : null;
+    case "new_reel":       return entity_id ? `/reel/${entity_id}`    : null;
+    case "new_story":
+    case "unlock":
+    case "story_unlocked_by_you": return entity_id ? `/story/${entity_id}` : null;
+    case "follow":
+    case "profile_view":   return actorId   ? `/profile/${actorId}`  : null;
+    case "milestone_followers":
+    case "payment_confirmed": return "/account";
+    default: return null;
+  }
 }
+
+// ── CSS ───────────────────────────────────────────────────────────────────────
+const CSS = `
+  .iant__stack {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 340px;
+    width: calc(100vw - 32px);
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    .iant__stack {
+      top: 12px;
+      right: 8px;
+      left: 8px;
+      max-width: none;
+      width: auto;
+    }
+  }
+
+  .iant__toast {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 36px 12px 12px;
+    background: rgba(10, 10, 10, 0.97);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 14px;
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.7),
+      0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+    backdrop-filter: blur(16px);
+    cursor: pointer;
+    pointer-events: all;
+    overflow: hidden;
+    animation: iant_in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .iant__toast:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.8),
+      0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
+  @keyframes iant_in {
+    from { opacity: 0; transform: translateX(24px) scale(0.95); }
+    to   { opacity: 1; transform: translateX(0)    scale(1);    }
+  }
+
+  @media (max-width: 768px) {
+    @keyframes iant_in {
+      from { opacity: 0; transform: translateY(-16px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0)     scale(1);    }
+    }
+  }
+
+  .iant__icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .iant__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .iant__title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+
+  .iant__msg {
+    font-size: 12.5px;
+    color: #d4d4d4;
+    line-height: 1.45;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .iant__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    pointer-events: all;
+  }
+
+  .iant__close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  /* Progress bar — drains over toast duration */
+  .iant__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background: color-mix(in srgb, var(--accent) 50%, transparent);
+    transform-origin: left;
+    animation: iant_drain linear forwards;
+    animation-duration: inherit;
+  }
+
+  @keyframes iant_drain {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+  }
+`;
+
+export default InAppNotificationToast;
