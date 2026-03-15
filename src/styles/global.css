@@ -1,25 +1,17 @@
 ﻿﻿/* ==========================================================================
    GLOBAL.CSS — CLEAN ARCHITECTURE v6
    ==========================================================================
-   FIXES vs v5:
-   1. html + body + #root background forced to pure #000000.
-      Android paints the gesture-nav bar and overscroll gutter using the
-      body background — anything other than pure black shows as a gap.
-   2. overscroll-behavior: none on html AND body kills the elastic bounce
-      that exposes the background colour below/above the page.
-   3. #root gets explicit background: #000000 so no sub-pixel gap leaks.
-   4. .app-container uses 100dvh (dynamic) — fills exactly the visible
-      viewport as browser chrome shows/hides.
-   5. All other rules from v5 are UNCHANGED.
-
-   Z-Index Scale:
-     1–99    : Base content
-     100–199 : Cards / overlays
-     200–299 : Sidebars
-     300–399 : Dropdowns / tooltips
-     400–499 : Modals
-     500–999 : Full-screen views
-     1000+   : Toasts / notifications / critical UI
+   FIXES IN THIS VERSION vs v5:
+   1. html + body background = pure #000000. Android paints the overscroll
+      gutter, pull-to-refresh area, and standalone nav-bar strip using the
+      body background. Any non-black value (even #050706) produces a
+      coloured gap. Pure black makes it invisible.
+   2. overscroll-behavior: none on html + body kills the elastic rubber-band
+      that exposes that background colour above and below the page.
+   3. #root and .app-container backgrounds forced #000000.
+   4. .app-container uses 100dvh (dynamic) — fills exactly what is visible
+      as browser chrome shows and hides on scroll.
+   5. All other layout rules unchanged from v5.
    ========================================================================== */
 
 /* ==========================================================================
@@ -35,33 +27,29 @@
 }
 
 html {
-  /* height: 100% not 100vh — avoids iOS bug where 100vh includes browser chrome */
   height: 100%;
-  /*
-    CRITICAL: Pure #000000 — not #050706 or any near-black.
-    Android uses this to paint:
-      • The pull-to-refresh gutter above the page
-      • The overscroll bounce area below the page (the bottom gap)
-      • The gesture navigation bar background in standalone PWA mode
-    Any non-black value produces a visible coloured strip at the bottom.
-  */
   background: #000000;
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
-  /*
-    Kills the elastic rubber-band overscroll that exposes background
-    colour above and below the page — eliminates the gap entirely.
-  */
+  /* Kills overscroll bounce above the page — no coloured gutter exposed */
   overscroll-behavior: none;
 }
 
 body {
   height: 100%;
+  /*
+    CRITICAL — must be pure #000000 not #050706 or any near-black.
+    Android Chrome uses body background-color to fill:
+      • The pull-to-refresh indicator area above the page
+      • The overscroll bounce zone below the page (the "bottom gap")
+      • The navigation bar background strip in standalone PWA mode
+    Any value other than pure black renders as a visible coloured strip.
+  */
   background: #000000;
   color: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Must be on body too — Android checks body independently */
+  /* Stop rubber-band scroll from exposing background colour */
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
@@ -69,9 +57,7 @@ body {
 
 #root {
   height: 100%;
-  /* dvh = dynamic viewport height, shrinks/grows with browser chrome */
   min-height: 100dvh;
-  /* Explicit black so no sub-pixel gap leaks through */
   background: #000000;
 }
 
@@ -101,7 +87,11 @@ video {
 
 .app-container {
   width: 100%;
-  /* dvh fills exactly what is visible as browser chrome shows/hides */
+  /*
+    dvh = dynamic viewport height. Shrinks when browser chrome is visible,
+    grows when it hides. Keeps the shell filling exactly what is on screen
+    with zero overflow and zero gap at any scroll position.
+  */
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -224,19 +214,20 @@ video {
 
    THE FORMULA — must be identical in both places:
 
-   Nav total rendered height  =  56px (content) + env(safe-area-inset-bottom, 0px)
-   Content .bottom            =  calc(56px + env(safe-area-inset-bottom, 0px))
-
-   REQUIREMENT in public/index.html <head>:
-     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-   Without viewport-fit=cover, env() safe area values are always 0.
+     Nav height rendered  = 56px content + env(safe-area-inset-bottom, 0px)
+     Content .bottom      = calc(56px + env(safe-area-inset-bottom, 0px))
 
    WHY THE BOTTOM GAP IS GONE:
-     • body { background: #000000; overscroll-behavior: none } — no bounce,
-       no exposed colour below the page.
-     • .mobile-bottom-nav padding-bottom absorbs the gesture bar and paints
-       it black, making the nav appear to extend to the physical screen edge.
-     • .main-content-mobile bottom matches nav total height — zero gap.
+     • body { background: #000000; overscroll-behavior: none } — no rubber-
+       band bounce, no exposed background below the page.
+     • .mobile-bottom-nav absorbs env(safe-area-inset-bottom) via padding-
+       bottom, painting pure black all the way to the physical screen edge.
+     • .main-content-mobile bottom exactly matches nav total height — no gap.
+
+   REQUIREMENT in public/index.html:
+     <meta name="viewport" content="..., viewport-fit=cover">
+   Without viewport-fit=cover, env() values are always 0 and safe-area
+   padding is ignored.
    ========================================================================== */
 
 .mobile-bottom-nav {
@@ -248,9 +239,10 @@ video {
   border-top: 1px solid #1a1a1a;
   z-index: 100;
   /*
-    padding-bottom absorbs the home indicator / gesture bar.
-    This paints the strip between nav icons and screen edge pure black,
-    making the nav appear seamlessly edge-to-edge on all devices.
+    Absorbs the home indicator / gesture bar on notched devices.
+    Resolves to 0px on flat devices, ~34px on iPhone notch, ~24px on Android
+    gesture nav. Paints the strip between icons and screen edge pure black
+    so the nav appears to extend seamlessly to the physical edge.
   */
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -268,6 +260,10 @@ video {
   top: 47px;
   left: 0;
   right: 0;
+  /*
+    bottom mirrors .mobile-bottom-nav total height exactly:
+    56px nav content + safe area inset = zero gap between content and nav.
+  */
   bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overflow-x: hidden;
@@ -519,7 +515,7 @@ video {
   top: 0;
   display: flex;
   gap: 0;
-  background: #000;
+  background: #000000;
   border-bottom: 1px solid #65a30d;
   z-index: 50;
   align-self: stretch;
@@ -579,7 +575,7 @@ video {
 .explore-header {
   position: sticky;
   top: 0;
-  background: #000;
+  background: #000000;
   z-index: 60;
   border-bottom: 1px solid #354411;
   align-self: stretch;
@@ -594,7 +590,7 @@ video {
   overflow-x: auto;
   padding-bottom: 4px;
   z-index: 59;
-  background: #000;
+  background: #000000;
 }
 .explore-grid {
   margin-top: 6px;
@@ -637,7 +633,7 @@ video {
 
 .form-group {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid #1a1a1a;
   border-radius: 16px;
   padding: 20px;
@@ -793,7 +789,7 @@ video {
 }
 .profile-header-card {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 24px;
   padding: 32px;
@@ -836,7 +832,7 @@ video {
   padding: 10px 12px;
   color: #77a804;
   margin-top: 20px;
-  background: #000;
+  background: #000000;
   border: 1px solid #444;
   box-shadow: 0 0 4px #444;
 }
@@ -900,7 +896,7 @@ video {
 }
 .metric-card {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid #1a1a1a;
   border-radius: 16px;
   padding: 20px;
@@ -961,7 +957,7 @@ video {
 }
 .settings-card {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid #1a1a1a;
   border-radius: 16px;
   padding: 20px;
@@ -1041,7 +1037,7 @@ video {
 }
 .dashboard-header-card {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 24px;
   padding: 32px;
@@ -1099,7 +1095,7 @@ video {
 }
 .elite-card {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid rgba(26, 26, 26, 0.5);
   border-radius: 16px;
   padding: 20px;
@@ -1205,7 +1201,7 @@ video {
 }
 .elite-cta-card {
   position: relative;
-  background: #000;
+  background: #000000;
   border: 1px solid rgba(132, 204, 22, 0.2);
   border-radius: 16px;
   padding: 24px;
@@ -1375,7 +1371,7 @@ video {
   height: 80vh;
   border-radius: 12px;
   overflow: hidden;
-  background: #000;
+  background: #000000;
 }
 .post-media-viewer {
   position: relative;
@@ -1397,7 +1393,7 @@ video {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: #000000;
 }
 .media-content.image {
   cursor: pointer;
@@ -1406,7 +1402,7 @@ video {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #000;
+  background: #000000;
 }
 .video-play-overlay {
   position: absolute;
@@ -1580,7 +1576,7 @@ video {
   z-index: 60;
 }
 .modal-content {
-  background: #000;
+  background: #000000;
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 16px;
   padding: 24px;
@@ -1671,7 +1667,7 @@ video {
 }
 
 .save-modal {
-  background: #000;
+  background: #000000;
   border: 1px solid #84cc16;
   border-radius: 24px;
   padding: 32px;
@@ -1683,7 +1679,7 @@ video {
   margin-bottom: 8px;
 }
 .edit-modal {
-  background: #000;
+  background: #000000;
   border: 1px solid #84cc16;
   border-radius: 24px;
   padding: 32px;
@@ -1728,7 +1724,7 @@ video {
   position: fixed;
   right: 5px;
   top: 70px;
-  background: #000;
+  background: #000000;
   border: 1px solid #84cc16;
   border-radius: 24px;
   width: fit-content;
@@ -1743,7 +1739,7 @@ video {
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: #000;
+  background: #000000;
   z-index: 100;
   align-items: center;
   justify-content: center;
@@ -1763,7 +1759,7 @@ video {
   color: #84cc16;
   padding: 6px 12px;
   border-radius: 12px;
-  background: #000;
+  background: #000000;
   box-shadow: 0 0 3px #354411;
   border: 1px solid #354411;
 }

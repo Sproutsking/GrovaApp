@@ -8,23 +8,14 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
     />
 
-    <!--
-      CRITICAL: theme-color MUST be #000000 (pure black).
-      Any other value — including near-black like #050706 — can cause Android
-      Chrome to render a coloured address bar / tab strip. Pure black blends
-      invisibly into the OS chrome when the app is opened in a browser tab,
-      and disappears entirely when installed as a PWA in standalone mode.
-    -->
+    <!-- Pure black. This is what Android Chrome paints the address bar with.
+         Any other value — even #050706 — renders as a coloured bar. -->
     <meta name="theme-color" content="#000000" />
 
-    <!-- PWA / home-screen meta -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!--
-      "black-translucent" extends the viewport under the iOS status bar so
-      env(safe-area-inset-*) returns real, non-zero values. Without this the
-      bottom nav sits above a phantom white gap on notched iPhones.
-    -->
+    <!-- black-translucent: extends the viewport under the iOS status bar,
+         env(safe-area-inset-*) returns real values, bottom gap disappears. -->
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
@@ -53,10 +44,6 @@
     />
 
     <style>
-      /*
-        Inline critical styles — loaded before any JS bundle so there is
-        zero flash of wrong background on any device/browser.
-      */
       *,
       *::before,
       *::after {
@@ -66,31 +53,15 @@
         -webkit-tap-highlight-color: transparent;
       }
 
-      /*
-        Force pure black on <html> and <body>.
-        This is the colour Android uses for:
-          • The pull-to-refresh gutter above the page
-          • The overscroll bounce area below the page (the "bottom gap")
-          • The navigation-bar background when display=standalone and
-            navigationBarColor isn't explicitly set in the manifest
-        Using anything other than #000 here is the most common cause of the
-        white/grey strip at the very bottom of a PWA on Android.
-      */
-      html {
-        width: 100%;
-        height: 100%;
-        background: #000000;
-        -webkit-text-size-adjust: 100%;
-      }
-
+      html,
       body {
         width: 100%;
-        /*
-          Do NOT use 100vh here — on iOS Safari 100vh includes the browser
-          chrome and causes content to be hidden behind it.
-          Use height: 100% (inherits from html) instead.
-        */
         height: 100%;
+        /* Pure #000000 — Android uses body background to paint:
+           • The pull-to-refresh gutter
+           • The overscroll bounce area (the "bottom gap")
+           • The navigation bar strip in standalone PWA mode
+           Anything other than pure black shows as a coloured strip. */
         background: #000000;
         color: #e6ebe6;
         font-family:
@@ -99,34 +70,138 @@
           sans-serif;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
-        /*
-          overscroll-behavior: none prevents the elastic-bounce rubber-band
-          scroll that exposes the background colour below/above the page on
-          both iOS and Android — eliminating the bottom gap entirely.
-        */
+        /* Kills the elastic rubber-band scroll that exposes background colour
+           above and below the page — eliminates top and bottom gaps. */
         overscroll-behavior: none;
       }
 
-      /* Prevents iOS auto-zoom on input focus */
       input,
       textarea,
       select {
-        font-size: 16px !important;
+        font-size: 16px !important; /* Prevents iOS auto-zoom on focus */
       }
 
       #root {
-        /*
-          dvh = dynamic viewport height.
-          On mobile browsers dvh shrinks when the address bar is visible and
-          grows when it hides — so the app always fills exactly what is
-          currently visible, with no overflow and no gap.
-          min-height (not height) so tall content can still scroll naturally.
-        */
-        min-height: 100dvh;
+        min-height: 100dvh; /* dvh fills exactly what is visible */
         background: #000000;
       }
 
-      /* ── Animations used by the update / install banners ── */
+      /* ── Standalone gate overlay ────────────────────────────────────────────
+         Shown ONLY when the user opens the app in a browser tab (not installed).
+         Covers the entire screen with a full-screen install prompt so they
+         cannot use the app without installing it — just like native apps.
+         Hidden immediately when already running in standalone mode.
+      ─────────────────────────────────────────────────────────────────────── */
+      #xv-gate {
+        display: none; /* JS shows it only when NOT standalone */
+        position: fixed;
+        inset: 0;
+        background: #000000;
+        z-index: 99999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 24px;
+        text-align: center;
+        gap: 0;
+      }
+      #xv-gate.show {
+        display: flex;
+      }
+
+      .xvg-logo {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #a8e63d, #3d7800);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        font-weight: 900;
+        color: #050706;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 2px;
+        margin-bottom: 28px;
+        box-shadow: 0 0 60px rgba(168, 230, 61, 0.25);
+      }
+      .xvg-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.5px;
+        margin-bottom: 10px;
+      }
+      .xvg-sub {
+        font-size: 15px;
+        color: #4a5a4a;
+        line-height: 1.7;
+        max-width: 280px;
+        margin-bottom: 40px;
+      }
+      .xvg-steps {
+        width: 100%;
+        max-width: 320px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 32px;
+        text-align: left;
+      }
+      .xvg-step {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 0;
+        font-size: 14px;
+        color: #6a7a6a;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .xvg-step:last-child {
+        border-bottom: none;
+      }
+      .xvg-num {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: rgba(168, 230, 61, 0.08);
+        border: 1px solid rgba(168, 230, 61, 0.2);
+        color: #a8e63d;
+        font-size: 12px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* Android-specific install button (shown by beforeinstallprompt) */
+      #xvg-android-btn {
+        display: none; /* shown by JS when beforeinstallprompt fires */
+        width: 100%;
+        max-width: 320px;
+        padding: 16px;
+        border-radius: 14px;
+        border: none;
+        background: linear-gradient(135deg, #a8e63d, #5a9a10);
+        color: #040604;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 0 8px 32px rgba(168, 230, 61, 0.3);
+        margin-bottom: 16px;
+      }
+      #xvg-android-btn.show {
+        display: block;
+      }
+      .xvg-hint {
+        font-size: 12px;
+        color: #2a3a2a;
+        margin-top: 8px;
+      }
+
+      /* ── SW update banner ─────────────────────────────────────────────── */
       @keyframes xv_slideUp {
         from {
           opacity: 0;
@@ -148,7 +223,6 @@
         }
       }
 
-      /* ── SW update banner ── */
       #xv-update {
         position: fixed;
         bottom: 0;
@@ -159,11 +233,6 @@
         -webkit-backdrop-filter: blur(24px);
         border-top: 1px solid rgba(168, 230, 61, 0.14);
         padding: 16px 20px;
-        /*
-          Absorb the home-indicator / gesture bar on notched devices.
-          Without this the banner content sits flush against the very bottom
-          edge and is obscured by the system gesture handle.
-        */
         padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         z-index: 10000;
         display: none;
@@ -219,122 +288,66 @@
       .xvu-btn:hover {
         transform: scale(1.04);
       }
-
-      /* ── PWA install prompt ── */
-      #xv-install {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.82);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-        z-index: 10001;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-      }
-      #xv-install.show {
-        display: flex;
-        animation: xv_slideUp 0.25s ease;
-      }
-      .xvi-card {
-        background: rgba(0, 0, 0, 0.99);
-        border: 1px solid rgba(168, 230, 61, 0.14);
-        border-radius: 24px;
-        max-width: 380px;
-        width: 100%;
-        padding: 26px 22px;
-        animation: xv_modalIn 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-      }
-      .xvi-head {
-        display: flex;
-        align-items: flex-start;
-        gap: 13px;
-        margin-bottom: 20px;
-      }
-      .xvi-icon {
-        width: 52px;
-        height: 52px;
-        border-radius: 15px;
-        flex-shrink: 0;
-        background: linear-gradient(135deg, #a8e63d, #3d7800);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        font-weight: 900;
-        color: #050706;
-        font-family: "Bebas Neue", sans-serif;
-        letter-spacing: 1px;
-      }
-      .xvi-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: #e6ebe6;
-        margin-bottom: 4px;
-      }
-      .xvi-sub {
-        font-size: 13px;
-        color: #3a4a3a;
-        line-height: 1.6;
-      }
-      .xvi-feats {
-        background: rgba(255, 255, 255, 0.015);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 13px;
-        padding: 12px 14px;
-        margin-bottom: 20px;
-      }
-      .xvi-feat {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 0;
-        font-size: 13px;
-        color: #4a5a4a;
-      }
-      .xvi-dot {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        background: rgba(168, 230, 61, 0.1);
-        color: #a8e63d;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 8px;
-        font-weight: 800;
-      }
-      .xvi-btns {
-        display: flex;
-        gap: 9px;
-      }
-      .xvi-btn {
-        flex: 1;
-        padding: 13px;
-        border-radius: 13px;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        border: none;
-        transition: all 0.18s;
-        font-family: inherit;
-      }
-      .xvi-btn.primary {
-        background: linear-gradient(135deg, #a8e63d, #5a9a10);
-        color: #040604;
-      }
-      .xvi-btn.ghost {
-        background: rgba(255, 255, 255, 0.03);
-        color: #3a4a3a;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-      }
     </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
+
+    <!-- React app mounts here -->
     <div id="root"></div>
+
+    <!-- ── Standalone gate ───────────────────────────────────────────────────
+         Shown when the app is opened in a browser tab, not installed as PWA.
+         Forces the user to install before they can access the app — exactly
+         like Instagram, Twitter/X, and every other major PWA does it.
+    ─────────────────────────────────────────────────────────────────────── -->
+    <div
+      id="xv-gate"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Install Xeevia"
+    >
+      <div class="xvg-logo" aria-hidden="true">X</div>
+      <div class="xvg-title">Install Xeevia</div>
+      <div class="xvg-sub">
+        For the full experience — no browser bars, full screen, instant launch —
+        install Xeevia to your home screen.
+      </div>
+
+      <!-- Android: one-tap install button, shown when beforeinstallprompt fires -->
+      <button id="xvg-android-btn" aria-label="Install app">
+        ⚡ Install Xeevia
+      </button>
+
+      <!-- iOS / manual fallback steps -->
+      <div class="xvg-steps" id="xvg-ios-steps">
+        <div class="xvg-step">
+          <div class="xvg-num">1</div>
+          <span
+            >Tap the <strong style="color: #a8e63d">Share</strong> button in
+            your browser</span
+          >
+        </div>
+        <div class="xvg-step">
+          <div class="xvg-num">2</div>
+          <span
+            >Select
+            <strong style="color: #a8e63d">"Add to Home Screen"</strong></span
+          >
+        </div>
+        <div class="xvg-step">
+          <div class="xvg-num">3</div>
+          <span
+            >Tap <strong style="color: #a8e63d">Add</strong> — then open from
+            your home screen</span
+          >
+        </div>
+      </div>
+
+      <div class="xvg-hint">
+        Opens full screen · No browser bar · Works offline
+      </div>
+    </div>
 
     <!-- SW update banner -->
     <div id="xv-update" role="alert" aria-live="polite">
@@ -348,95 +361,69 @@
       </div>
     </div>
 
-    <!-- PWA install prompt -->
-    <div
-      id="xv-install"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Install Xeevia"
-    >
-      <div class="xvi-card">
-        <div class="xvi-head">
-          <div class="xvi-icon" aria-hidden>X</div>
-          <div>
-            <div class="xvi-title">Install Xeevia</div>
-            <div class="xvi-sub">
-              Add to your home screen for instant access
-            </div>
-          </div>
-        </div>
-        <div class="xvi-feats" aria-hidden>
-          <div class="xvi-feat">
-            <div class="xvi-dot">✓</div>
-            Works offline
-          </div>
-          <div class="xvi-feat">
-            <div class="xvi-dot">✓</div>
-            Push notifications
-          </div>
-          <div class="xvi-feat">
-            <div class="xvi-dot">✓</div>
-            Faster loading
-          </div>
-          <div class="xvi-feat">
-            <div class="xvi-dot">✓</div>
-            Full-screen mode
-          </div>
-        </div>
-        <div class="xvi-btns">
-          <button id="xv-install-ok" class="xvi-btn primary">Install</button>
-          <button id="xv-install-later" class="xvi-btn ghost">Later</button>
-        </div>
-      </div>
-    </div>
-
     <script>
-      var deferred = null;
-
-      window.addEventListener("beforeinstallprompt", function (e) {
-        e.preventDefault();
-        deferred = e;
-        if (!localStorage.getItem("xv_iprompt")) {
-          localStorage.setItem("xv_iprompt", "1");
-          setTimeout(function () {
-            document.getElementById("xv-install").classList.add("show");
-          }, 7000);
+      (function () {
+        // ── 1. Detect standalone mode ────────────────────────────────────────
+        // Returns true if the app is already running as an installed PWA.
+        function isStandalone() {
+          return (
+            window.matchMedia("(display-mode: standalone)").matches ||
+            window.navigator.standalone === true || // iOS Safari
+            document.referrer.includes("android-app://")
+          );
         }
-      });
 
-      document
-        .getElementById("xv-install-ok")
-        .addEventListener("click", function () {
-          document.getElementById("xv-install").classList.remove("show");
-          if (deferred) {
+        // ── 2. Show the gate only when NOT standalone ────────────────────────
+        if (!isStandalone()) {
+          document.getElementById("xv-gate").classList.add("show");
+        }
+
+        // ── 3. Android one-tap install via beforeinstallprompt ───────────────
+        var deferred = null;
+        window.addEventListener("beforeinstallprompt", function (e) {
+          e.preventDefault();
+          deferred = e;
+          // Show the one-tap button, hide the manual iOS steps
+          var btn = document.getElementById("xvg-android-btn");
+          var steps = document.getElementById("xvg-ios-steps");
+          btn.classList.add("show");
+          if (steps) steps.style.display = "none";
+        });
+
+        document
+          .getElementById("xvg-android-btn")
+          .addEventListener("click", function () {
+            if (!deferred) return;
             deferred.prompt();
-            deferred.userChoice.then(function () {
+            deferred.userChoice.then(function (result) {
               deferred = null;
+              if (result.outcome === "accepted") {
+                // Hide gate — app will relaunch in standalone automatically
+                document.getElementById("xv-gate").classList.remove("show");
+              }
             });
-          }
-        });
+          });
 
-      document
-        .getElementById("xv-install-later")
-        .addEventListener("click", function () {
-          document.getElementById("xv-install").classList.remove("show");
-        });
+        // ── 4. If the app transitions to standalone mid-session ──────────────
+        window
+          .matchMedia("(display-mode: standalone)")
+          .addEventListener("change", function (e) {
+            if (e.matches) {
+              document.getElementById("xv-gate").classList.remove("show");
+            }
+          });
 
-      document
-        .getElementById("xv-install")
-        .addEventListener("click", function (e) {
-          if (e.target === this) this.classList.remove("show");
-        });
+        // ── 5. SW update banner ──────────────────────────────────────────────
+        document
+          .getElementById("xv-update-btn")
+          .addEventListener("click", function () {
+            window.location.reload();
+          });
 
-      document
-        .getElementById("xv-update-btn")
-        .addEventListener("click", function () {
-          window.location.reload();
-        });
-
-      window.__xvShowUpdate = function () {
-        document.getElementById("xv-update").classList.add("show");
-      };
+        window.__xvShowUpdate = function () {
+          document.getElementById("xv-update").classList.add("show");
+        };
+      })();
     </script>
   </body>
 </html>
