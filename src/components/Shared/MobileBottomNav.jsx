@@ -8,16 +8,16 @@ import { Home, Search, LayoutGrid, Users, Wallet } from "lucide-react";
 import ServicesModal from "./ServicesModal";
 
 const NAV_ITEMS = [
-  { id: "home",      Icon: Home,       label: "Home"      },
-  { id: "search",    Icon: Search,     label: "Explore"   },
-  { id: "menu",      Icon: LayoutGrid, label: "Menu",     isMenu: true },
-  { id: "community", Icon: Users,      label: "Community" },
-  { id: "wallet",    Icon: Wallet,     label: "Wallet"    },
+  { id: "home", Icon: Home, label: "Home" },
+  { id: "search", Icon: Search, label: "Explore" },
+  { id: "menu", Icon: LayoutGrid, label: "Menu", isMenu: true },
+  { id: "community", Icon: Users, label: "Community" },
+  { id: "wallet", Icon: Wallet, label: "Wallet" },
 ];
 
 const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
   const [showServices, setShowServices] = useState(false);
-  const [fabVisible,   setFabVisible]   = useState(false);
+  const [fabVisible, setFabVisible] = useState(false);
   const timerRef = useRef(null);
 
   const triggerFab = useCallback(() => {
@@ -27,10 +27,20 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
   }, []);
 
   useEffect(() => {
-    const evts = ["scroll","touchstart","touchmove","mousemove","wheel","keydown","pointerdown"];
-    evts.forEach(e => window.addEventListener(e, triggerFab, { passive: true }));
+    const evts = [
+      "scroll",
+      "touchstart",
+      "touchmove",
+      "mousemove",
+      "wheel",
+      "keydown",
+      "pointerdown",
+    ];
+    evts.forEach((e) =>
+      window.addEventListener(e, triggerFab, { passive: true }),
+    );
     return () => {
-      evts.forEach(e => window.removeEventListener(e, triggerFab));
+      evts.forEach((e) => window.removeEventListener(e, triggerFab));
       clearTimeout(timerRef.current);
     };
   }, [triggerFab]);
@@ -48,22 +58,6 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           -webkit-backdrop-filter: blur(28px);
           padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
           border-top: 1px solid rgba(255,255,255,0.06);
-        }
-
-        /* ── Subtle top accent line ── */
-        .mbn::before {
-          content: '';
-          position: absolute;
-          top: 0; left: 0; right: 0;
-          height: 1px;
-          background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(132,204,22,0.06) 20%,
-            rgba(132,204,22,0.18) 50%,
-            rgba(132,204,22,0.06) 80%,
-            transparent 100%
-          );
         }
 
         /* ── Row ── */
@@ -299,21 +293,27 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
       <nav className="mbn">
         <div className="mbn-row">
           {NAV_ITEMS.map(({ id, Icon, label, isMenu }) => {
-            if (isMenu) return (
-              <button
-                key={id}
-                className="mbn-btn mbn-menu-btn"
-                onClick={() => setShowServices(true)}
-                aria-label="Services"
-              >
-                <div className={`mbn-menu-pill${showServices ? " open" : ""}`}>
-                  <div className="mbn-grid">
-                    <span/><span/><span/><span/>
+            if (isMenu)
+              return (
+                <button
+                  key={id}
+                  className="mbn-btn mbn-menu-btn"
+                  onClick={() => setShowServices(true)}
+                  aria-label="Services"
+                >
+                  <div
+                    className={`mbn-menu-pill${showServices ? " open" : ""}`}
+                  >
+                    <div className="mbn-grid">
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    <span className="mbn-menu-lbl">Menu</span>
                   </div>
-                  <span className="mbn-menu-lbl">Menu</span>
-                </div>
-              </button>
-            );
+                </button>
+              );
 
             const active = activeTab === id;
             return (
@@ -326,7 +326,10 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
               >
                 <div className="mbn-pill">
                   <span className="mbn-ico">
-                    <Icon size={active ? 20 : 19} strokeWidth={active ? 2.4 : 1.8} />
+                    <Icon
+                      size={active ? 20 : 19}
+                      strokeWidth={active ? 2.4 : 1.8}
+                    />
                   </span>
                   <span className="mbn-lbl">{label}</span>
                   {active && <span className="mbn-dot" />}
@@ -343,10 +346,18 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         onClick={() => setActiveTab("create")}
         aria-label="Create"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         <span className="mbn-fab-ring" />
       </button>
@@ -354,7 +365,10 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
       {showServices && (
         <ServicesModal
           onClose={() => setShowServices(false)}
-          setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setShowServices(false);
+          }}
           currentUser={currentUser}
         />
       )}
