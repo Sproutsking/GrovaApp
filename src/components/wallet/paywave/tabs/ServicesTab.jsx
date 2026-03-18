@@ -27,7 +27,7 @@ export default function ServicesTab({ setPage }) {
   ];
 
   return (
-    <div className="pw-scroll-px">
+    <div className="pw-scroll-px" style={{ paddingLeft: 16, paddingRight: 16 }}>
       <div style={{ paddingTop: 18, paddingBottom: 16 }}>
         <div style={{ fontFamily: "var(--font-d)", fontSize: 20, fontWeight: 800, letterSpacing: "-0.025em" }}>Services</div>
       </div>

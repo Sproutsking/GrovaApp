@@ -1,14 +1,15 @@
-// src/components/Account/ProfileSection.jsx — v2 RESPONSIVE STATS
+// src/components/Account/ProfileSection.jsx — v3 FOUR_STAT_ADAPTIVE
 // ============================================================================
-// CHANGES vs v1:
-//  [FIX-1] Removed GT Balance (grovaTokens) from the stats row.
-//          4-stat row → 3-stat row: Content | Followers | EP
-//  [FIX-2] Adaptive stat layout:
-//          Tier 1 (value ≤4 chars)  → 3 columns, 19px — normal
-//          Tier 2 (value 5-6 chars) → 3 columns, 15px — medium numbers
-//          Tier 3 (value 7+ chars)  → 2 columns, 13px — large numbers
-//          In Tier 3 the 3rd stat (EP) spans both columns so it stays centred.
-//  All modals, hooks, action buttons, tristat row, MyContentSection — UNCHANGED.
+// CHANGES vs v2:
+//  [FIX-1] Restored GT Balance (grova_tokens) to the stats row.
+//          Stats row is now: Content | Followers | EP | GT — all 4.
+//  [FIX-2] Fully adaptive 4-stat layout:
+//          Tier 1 (max val ≤4 chars):  4 cols, 19px — normal numbers
+//          Tier 2 (max val 5-6 chars): 4 cols, 15px — medium (10K range)
+//          Tier 3 (max val 7-8 chars): 2×2 grid, 13px — large (1M range)
+//          Tier 4 (max val 9+ chars):  2×2 grid, 11px — very large numbers
+//          In Tier 3/4 the grid is 2 columns, 2 rows — all 4 stats visible.
+//  All modals, hooks, action buttons, tristat row — UNCHANGED from v1.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -52,8 +53,9 @@ const useAnimatedCount = (target, duration = 600) => {
 const fmt = (num) => {
   if (num == null) return "0";
   const v = Number(num);
-  if (v >= 1_000_000) return `${(v/1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)     return `${(v/1_000).toFixed(1)}K`;
+  if (v >= 1_000_000_000) return `${(v/1_000_000_000).toFixed(1)}B`;
+  if (v >= 1_000_000)     return `${(v/1_000_000).toFixed(1)}M`;
+  if (v >= 1_000)         return `${(v/1_000).toFixed(1)}K`;
   return Math.floor(v).toString();
 };
 
@@ -91,7 +93,6 @@ const ConfirmLogout = ({ onConfirm, onCancel }) => (
   </>
 );
 
-// ── Tier badge pill ────────────────────────────────────────────────────────
 const TierBadgePill = ({ tier, paymentStatus }) => {
   const badge = getTierBadge(tier, paymentStatus);
   if (!badge) return null;
@@ -102,7 +103,6 @@ const TierBadgePill = ({ tier, paymentStatus }) => {
   );
 };
 
-// ── Access status badge ────────────────────────────────────────────────────
 const AccessBadge = ({ accessStatus }) => {
   if (!accessStatus || accessStatus === "NOT_ACTIVATED") return null;
   const map = {
@@ -115,6 +115,51 @@ const AccessBadge = ({ accessStatus }) => {
     <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"1px 7px", borderRadius:12, fontSize:9, fontWeight:800, color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30` }}>
       ✓ {cfg.label}
     </span>
+  );
+};
+
+// ── [FIX-1,2] Four-stat adaptive renderer ─────────────────────────────────
+// Always shows all 4 stats. Font and grid adapt to the largest value.
+const FourStatRow = ({ stats }) => {
+  const maxLen  = Math.max(...stats.map(s => String(s.value).length));
+  // Tier determines font size and grid columns
+  const tier    = maxLen >= 9 ? 4 : maxLen >= 7 ? 3 : maxLen >= 5 ? 2 : 1;
+  const cols    = tier >= 3 ? 2 : 4;  // 2-col grid for large numbers, 4-col for normal
+  const fontSz  = { 1:"19px", 2:"15px", 3:"13px", 4:"11px" }[tier];
+  const labelSz = tier >= 3 ? "9px" : "10px";
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.07)",
+      borderRadius: 16,
+      padding: "14px 8px",
+      gap: 4,
+      overflow: "hidden",
+      transition: "grid-template-columns .3s",
+    }}>
+      {stats.map((s) => (
+        <div key={s.label} style={{ textAlign:"center", padding:"10px 4px" }}>
+          <p style={{
+            fontSize: fontSz,
+            fontWeight: 900,
+            background: "linear-gradient(135deg,#84cc16 0%,#65a30d 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            margin: "0 0 3px 0",
+            transition: "font-size .3s",
+            lineHeight: 1.1,
+          }}>
+            {s.value}
+          </p>
+          <p style={{ fontSize: labelSz, color:"#737373", margin:0, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:700 }}>
+            {s.label}
+          </p>
+        </div>
+      ))}
+    </div>
   );
 };
 
@@ -140,7 +185,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
 
   const subsRef  = useRef([]);
   const isMobile = window.innerWidth <= 768;
-  const patchLive = useCallback(patch => setLiveStats(prev => ({ ...prev, ...patch })), []);
 
   useEffect(() => {
     if (userId) loadProfileData();
@@ -158,8 +202,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
         .maybeSingle();
 
       if (profileError) { setError("Could not load profile."); return; }
-
-      if (profileData) setTierInfo(buildTierInfo(profileData));
+      if (profileData)  setTierInfo(buildTierInfo(profileData));
 
       const getContentIds = async (table) => {
         const { data } = await supabase.from(table).select("id").eq("user_id", userId).is("deleted_at", null);
@@ -223,7 +266,10 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
         }
       }
 
+      // profiles.engagement_points is authoritative for EP
       const epBalance = Number(profileData?.engagement_points ?? 0);
+      // wallets.grova_tokens for GT balance
+      const gtBalance = Number(wallet?.grova_tokens ?? 0);
 
       const profileState = {
         id: profileData?.id, fullName: profileData?.full_name || "User",
@@ -253,7 +299,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
         totalContent: storiesCount + reelsCount + postsCount,
         totalViews, totalComments: commentsCount, totalLikes,
         followers: followersCount, following: followingCount, communities: communitiesCount,
-        grovaTokens: wallet?.grova_tokens || 0,
+        grovaTokens:      gtBalance,
         engagementPoints: epBalance,
       });
 
@@ -297,20 +343,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
   const isValidAvatar = profile.avatar && typeof profile.avatar === "string" && !imageError &&
     (profile.avatar.startsWith("http") || profile.avatar.startsWith("blob:"));
 
-  // ── [FIX-1,2] Adaptive 3-stat row ─────────────────────────────────────────
-  // Only 3 stats: Content, Followers, EP (GT Balance removed)
+  // [FIX-1] All 4 stats restored
   const statItems = [
     { label: "Content",   value: fmt(liveStats.totalContent)     },
     { label: "Followers", value: fmt(liveStats.followers)        },
     { label: "EP",        value: fmt(liveStats.engagementPoints) },
+    { label: "GT",        value: fmt(liveStats.grovaTokens)      },
   ];
-  const maxStatLen = Math.max(...statItems.map(s => String(s.value).length));
-  // Tier 1 (≤4 chars)  → 3 cols, 19px font
-  // Tier 2 (5-6 chars) → 3 cols, 15px font
-  // Tier 3 (7+ chars)  → 2 cols, 13px font (EP spans full width)
-  const statTier   = maxStatLen >= 7 ? 3 : maxStatLen >= 5 ? 2 : 1;
-  const statFontSz = { 1: "19px", 2: "15px", 3: "13px" }[statTier];
-  const statCols   = statTier === 3 ? 2 : 3;
 
   const actionButtons = [
     { id:"edit",        icon:<Edit size={20}/>,    label:"Edit Profile",  sub:"Update your info",          accent:"#84cc16", bg:"linear-gradient(135deg, rgba(132,204,22,0.15) 0%, rgba(101,163,13,0.08) 100%)", border:"rgba(132,204,22,0.4)",  onClick:()=>setShowEditModal(true) },
@@ -324,10 +363,10 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
   return (
     <>
       <style>{`
-        @keyframes spin       { to{transform:rotate(360deg)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
         @keyframes profileFadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes livePulse  { 0%{box-shadow:0 0 0 0 rgba(132,204,22,0.7)} 70%{box-shadow:0 0 0 5px rgba(132,204,22,0)} 100%{box-shadow:0 0 0 0 rgba(132,204,22,0)} }
-        @keyframes shimmerIn  { from{opacity:0;transform:scale(0.92) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(132,204,22,0.7)} 70%{box-shadow:0 0 0 5px rgba(132,204,22,0)} 100%{box-shadow:0 0 0 0 rgba(132,204,22,0)} }
+        @keyframes shimmerIn { from{opacity:0;transform:scale(0.92) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes liveBarScroll { from{background-position:0% 0%} to{background-position:200% 0%} }
 
         .profile-section { padding: 20px; }
@@ -343,23 +382,19 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
         .profile-badge-verified { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.3); border-radius:20px; font-size:11px; font-weight:800; color:#84cc16; }
         .profile-username { font-size:15px; color:#84cc16; margin:0 0 8px 0; font-weight:600; }
         .profile-bio { color:#a3a3a3; font-size:13px; margin:0 0 18px; line-height:1.5; max-width:320px; margin-left:auto; margin-right:auto; }
-        .profile-stat { text-align:center; padding:10px 4px; }
-        .profile-stat-value { font-size:19px; font-weight:900; background:linear-gradient(135deg,#84cc16 0%,#65a30d 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:0 0 3px 0; transition:font-size .3s; }
-        .profile-stat-label { font-size:10px; color:#737373; margin:0; text-transform:uppercase; letter-spacing:0.4px; font-weight:700; }
-        .stat-divider { width:1px; height:32px; background:linear-gradient(180deg,transparent 0%,rgba(132,204,22,0.3) 50%,transparent 100%); flex-shrink:0; align-self:center; }
         .tristat-card { position:relative; background:rgba(10,10,10,0.85); border:1px solid rgba(255,255,255,0.07); border-radius:20px; padding:4px; margin-bottom:16px; overflow:hidden; animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
         .tristat-live-bar { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16); background-size:200% 100%; animation:liveBarScroll 3s linear infinite; border-radius:2px 2px 0 0; }
         .tristat-row { display:flex; flex-direction:row; align-items:stretch; gap:0; min-width:0; }
         .tri-stat-pill { flex:1 1 0; min-width:0; position:relative; cursor:default; border-radius:14px; transition:background 0.2s,transform 0.2s; }
         .tri-stat-pill:hover { background:rgba(255,255,255,0.04); transform:translateY(-1px); }
         .tri-stat-inner { display:flex; flex-direction:row; align-items:center; justify-content:center; gap:clamp(4px,1.2vw,10px); padding:clamp(10px,2vw,18px) clamp(6px,1.5vw,14px); min-width:0; }
-        .tri-stat-icon-wrap { display:flex; align-items:center; justify-content:center; width:clamp(26px,5vw,34px); height:clamp(26px,5vw,34px); border-radius:9px; background:color-mix(in srgb,var(--accent) 12%,transparent); border:1px solid color-mix(in srgb,var(--accent) 25%,transparent); flex-shrink:0; transition:box-shadow 0.25s; }
+        .tri-stat-icon-wrap { display:flex; align-items:center; justify-content:center; width:clamp(26px,5vw,34px); height:clamp(26px,5vw,34px); border-radius:9px; background:color-mix(in srgb,var(--accent) 12%,transparent); border:1px solid color-mix(in srgb,var(--accent) 25%,transparent); flex-shrink:0; }
         .tri-stat-icon-wrap svg { width:clamp(11px,2.5vw,15px) !important; height:clamp(11px,2.5vw,15px) !important; }
         .tri-stat-text { display:flex; flex-direction:column; align-items:flex-start; min-width:0; flex:1 1 auto; }
         .tri-stat-value { font-size:clamp(14px,3.5vw,20px); font-weight:900; color:var(--accent); line-height:1.15; letter-spacing:-0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
         .tri-stat-label { font-size:clamp(8px,1.8vw,11px); color:#525252; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
         .tristat-divider { width:1px; margin:10px 0; background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,0.08) 50%,transparent 100%); flex-shrink:0; align-self:stretch; }
-        .actions-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:22px; padding:10px; margin-bottom:0px; }
+        .actions-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:22px; padding:10px; }
         .actions-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .action-btn { position:relative; display:flex; flex-direction:row; align-items:flex-start; gap:10px; padding:16px; border-radius:16px; border:1px solid; cursor:pointer; transition:all 0.25s; overflow:hidden; text-align:left; }
         .action-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.4); }
@@ -389,8 +424,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
             <h2 className="profile-name">{profile.fullName}</h2>
 
             <div className="profile-badges-row">
-              {profile.isPro     && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
-              {profile.verified  && <span className="profile-badge-verified"><Shield size={10}/> Verified</span>}
+              {profile.isPro    && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
+              {profile.verified && <span className="profile-badge-verified"><Shield size={10}/> Verified</span>}
               <TierBadgePill tier={profile.subscriptionTier} paymentStatus={profile.paymentStatus} />
               {tierInfo && <AccessBadge accessStatus={tierInfo.accessStatus} />}
             </div>
@@ -410,38 +445,12 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
               </div>
             )}
 
-            {/* ── [FIX-1,2] Adaptive 3-stat row — NO GT Balance ── */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${statCols}, 1fr)`,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 16,
-              padding: "14px 8px",
-              gap: 4,
-              overflow: "hidden",
-              transition: "grid-template-columns .3s",
-            }}>
-              {statItems.map((s, i) => (
-                <div
-                  key={s.label}
-                  className="profile-stat"
-                  style={{
-                    // In 2-col tier, 3rd item (EP) spans full width
-                    ...(statCols === 2 && i === 2 ? { gridColumn: "1 / -1" } : {}),
-                  }}
-                >
-                  <p className="profile-stat-value" style={{ fontSize: statFontSz }}>
-                    {s.value}
-                  </p>
-                  <p className="profile-stat-label">{s.label}</p>
-                </div>
-              ))}
-            </div>
+            {/* [FIX-1,2] 4-stat adaptive row */}
+            <FourStatRow stats={statItems} />
           </div>
         </div>
 
-        {/* TRISTAT ROW — unchanged */}
+        {/* TRISTAT ROW */}
         <div className="tristat-card">
           <div className="tristat-live-bar" />
           <div className="tristat-row">
@@ -457,7 +466,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
           </div>
         </div>
 
-        {/* ACTION BUTTONS — unchanged */}
+        {/* ACTION BUTTONS */}
         <div className="actions-card">
           <div className="actions-grid">
             {actionButtons.map(btn => (
@@ -487,7 +496,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
         />
       </div>
 
-      {showEditModal   && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, avatar:profile.avatar, avatarId:profile.avatarId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
+      {showEditModal        && <ProfileEditModal userId={userId} currentProfile={{ fullName:profile.fullName, username:profile.username, bio:profile.bio, avatar:profile.avatar, avatarId:profile.avatarId }} onClose={()=>setShowEditModal(false)} onSuccess={handleEditSuccess} />}
       {showSavedModal       && <SavedContentModal currentUser={{id:userId}} onClose={()=>setShowSavedModal(false)} isMobile={isMobile} />}
       {showCommunitiesModal && <CommunitiesModal  currentUser={{id:userId}} onClose={()=>setShowCommunitiesModal(false)} isMobile={isMobile} />}
       {showFollowersModal   && <FollowersModal    currentUser={{id:userId}} onClose={()=>setShowFollowersModal(false)} isMobile={isMobile} defaultTab={followersTab} />}

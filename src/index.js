@@ -102,6 +102,11 @@ window.addEventListener("unhandledrejection", (event) => {
     event.preventDefault();
     return;
   }
+  // Dev-only noise: React hot-reload aborts + SW not available on localhost
+  if (/AbortError/i.test(msg) || /signal is aborted/i.test(msg) || /ServiceWorkerRegistration/i.test(msg) || /invalid state/i.test(msg)) {
+    event.preventDefault();
+    return;
+  }
 }, true); // capture phase — before React
 
 // ── 2. DEV CONSOLE NOISE FILTER ──────────────────────────────────────────────
@@ -129,6 +134,12 @@ if (process.env.NODE_ENV === "development") {
     /Eternl/i,
     /lockdown/i,
     /SES Removing/i,
+    // Dev-only noise — harmless, never appear in production
+    /AbortError/i,
+    /signal is aborted/i,
+    /ServiceWorkerRegistration/i,
+    /document is in an invalid state/i,
+    /Failed to connect to MetaMask/i,
   ];
 
   console.warn = (...args) => {
@@ -162,6 +173,10 @@ class AppErrorBoundary extends React.Component {
       // Don't actually show an error — just silently recover
       return { hasError: false, error: null };
     }
+    // AbortErrors are never real app crashes — swallow silently
+    if (/AbortError/i.test(msg) || /signal is aborted/i.test(msg)) {
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 
@@ -170,6 +185,7 @@ class AppErrorBoundary extends React.Component {
     const stack = String(error?.stack ?? "");
     // Suppress extension errors at the React boundary level
     if (isExtensionError(msg) || isExtensionError(stack)) return;
+    if (/AbortError/i.test(msg) || /signal is aborted/i.test(msg)) return;
     // Log real errors only
     if (process.env.NODE_ENV === "development") {
       console.error("[AppErrorBoundary] Caught:", error, info);
@@ -307,6 +323,13 @@ if (isLocalhost) {
       if (lastShown && Date.now() - Number(lastShown) < 60_000) return;
       sessionStorage.setItem("xv_update_shown", String(Date.now()));
 
+      // Trigger the smart update card defined in index.html
+      if (typeof window.__xvShowUpdate === "function") {
+        window.__xvShowUpdate();
+        return;
+      }
+
+      // Fallback if index.html card not available
       const el = document.createElement("div");
       el.style.cssText = `
         position: fixed;
@@ -352,11 +375,9 @@ if (isLocalhost) {
         if (registration.waiting) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
         }
-        // Brief delay so SW can activate before reload
         setTimeout(() => window.location.reload(), 300);
       });
 
-      // Auto-dismiss after 12s if user ignores it
       setTimeout(() => {
         if (el.parentNode) {
           el.style.opacity = "0";

@@ -105,8 +105,7 @@ const GLOBAL_STYLES = `
     padding-bottom: 24px;
     padding-top: 0;
     scrollbar-width: none;
-    padding-left: var(--pw-pad-left);
-    padding-right: var(--pw-pad-right);
+    /* NO horizontal padding here — every tab/section owns its own */
   }
   .pw-scroll::-webkit-scrollbar,
   .pw-scroll-px::-webkit-scrollbar { display: none; }
@@ -168,7 +167,7 @@ const GLOBAL_STYLES = `
     font-weight: 800;
     font-size: 13.5px;
     letter-spacing: 0.01em;
-    padding: 12px 22px;
+    padding: 13px 22px;
     border-radius: var(--r-sm);
     border: none;
     cursor: pointer;
@@ -180,6 +179,10 @@ const GLOBAL_STYLES = `
     box-shadow: 0 6px 22px rgba(163,230,53,0.28), inset 0 1px 0 rgba(255,255,255,0.22);
     position: relative;
     overflow: hidden;
+    box-sizing: border-box;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
   }
   /* Shimmer sweep */
   .btn-lime::after {
@@ -219,7 +222,7 @@ const GLOBAL_STYLES = `
     font-family: var(--font-b);
     font-weight: 500;
     font-size: 13.5px;
-    padding: 12px 22px;
+    padding: 13px 22px;
     border-radius: var(--r-sm);
     cursor: pointer;
     display: inline-flex;
@@ -227,6 +230,10 @@ const GLOBAL_STYLES = `
     justify-content: center;
     gap: 7px;
     transition: all .18s;
+    box-sizing: border-box;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
   }
   .btn-ghost:hover {
     background: var(--surface-h);
@@ -355,7 +362,7 @@ const GLOBAL_STYLES = `
   }
 
   /* ── Form sections — more breathing room ── */
-  .f-section { padding: 18px 0 8px; }
+  .f-section { padding: 18px var(--pw-pad-left) 8px; }
   .f-stack    { display: flex; flex-direction: column; gap: 16px; }
   .f-label {
     font-family: var(--font-b);
@@ -884,22 +891,20 @@ export default function PayWaveApp({ onBack, userId }) {
 
         <div className="pw-content">
           {renderPage()}
-          {isMainTab && (
-            <nav className="pw-nav">
-              <div className="pw-nav-inner">
-                {NAV_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    className={`pw-nav-btn ${page === tab.id ? "active" : ""}`}
-                    onClick={() => setPage(tab.id)}
-                  >
-                    <tab.icon size={19} />
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-            </nav>
-          )}
+          <nav className="pw-nav">
+            <div className="pw-nav-inner">
+              {NAV_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`pw-nav-btn ${activeNavId === tab.id ? "active" : ""}`}
+                  onClick={() => setPage(tab.id)}
+                >
+                  <tab.icon size={19} />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
         </div>
         {successMsg && (
           <SuccessModal message={successMsg} onClose={clearSuccess} />

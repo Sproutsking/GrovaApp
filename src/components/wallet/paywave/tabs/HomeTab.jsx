@@ -190,7 +190,7 @@ export default function HomeTab({
     .toUpperCase();
 
   return (
-    <div className="pw-scroll-px">
+    <div className="pw-scroll-px" style={{ paddingLeft: 16, paddingRight: 16 }}>
       <style>{HOMETAB_CSS}</style>
 
       {/* ───────────────────────────────────────────────────────

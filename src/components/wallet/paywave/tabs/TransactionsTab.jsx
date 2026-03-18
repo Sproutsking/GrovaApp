@@ -94,7 +94,7 @@ export default function TransactionsTab({ setPage }) {
         }
       />
 
-      <div style={{ padding: "16px 0 0" }}>
+      <div style={{ padding: "16px 16px 0" }}>
 
         {/* ── Summary bar ── */}
         <div className="glass" style={{ padding: "14px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

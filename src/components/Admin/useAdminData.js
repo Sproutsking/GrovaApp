@@ -5,7 +5,12 @@
 //
 // PATCHED v2: banUser, unbanUser, deleteUser, restoreUser now also call
 // the admin-revoke-user Edge Function to invalidate Supabase auth sessions.
-// Everything else is identical to your original file.
+//
+// PATCHED v3 (Economy Metrics): useStats() extended with four new fields:
+//   totalXEVCirculating  — SUM(wallets.grova_tokens) for all non-null user wallets
+//   totalXEVMinted       — all-time SUM(wallet_history.amount) where change_type='credit'
+//   totalEPCirculation   — SUM(profiles.engagement_points) for activated, non-deleted users
+//   epMintedOnDeposit    — SUM(ep_transactions.amount) where type='purchase_grant'
 // ============================================================================
 
 import { useState, useEffect, useCallback } from "react";
@@ -147,6 +152,8 @@ export function useTable(tableName, options = {}) {
 }
 
 // ─── Dashboard Stats ───────────────────────────────────────────────────────
+// v3: Economy metrics added — totalXEVCirculating, totalXEVMinted,
+//     totalEPCirculation, epMintedOnDeposit.
 export function useStats() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -176,6 +183,11 @@ export function useStats() {
         { data: revenueData },
         { data: revenueToday },
         { data: revenueWeek },
+        // ── Economy metrics ────────────────────────────────────────────────
+        { data: xevCirculatingData },
+        { data: xevMintedData },
+        { data: epCirculationData },
+        { data: epDepositData },
       ] = await Promise.all([
         sb().from("profiles").select("*", { count: "exact", head: true }),
         sb()
@@ -229,35 +241,64 @@ export function useStats() {
           .select("amount_cents")
           .eq("status", "completed")
           .gte("created_at", weekAgo),
+        // XEV circulating — sum of all active wallets' grova_tokens
+        sb()
+          .from("wallets")
+          .select("grova_tokens")
+          .not("user_id", "is", null),
+        // XEV minted all-time — sum wallet_history credits as proxy
+        // (wallet_history.change_type = 'credit', amount is the credited amount)
+        sb()
+          .from("wallet_history")
+          .select("amount")
+          .eq("change_type", "credit"),
+        // EP in circulation — sum profiles.engagement_points for activated users
+        sb()
+          .from("profiles")
+          .select("engagement_points")
+          .eq("account_activated", true)
+          .is("deleted_at", null),
+        // EP minted on deposit — purchase_grant transactions only
+        sb()
+          .from("ep_transactions")
+          .select("amount")
+          .eq("type", "purchase_grant"),
       ]);
 
-      const totalRevenue =
-        (revenueData || []).reduce((s, r) => s + (r.amount_cents || 0), 0) /
-        100;
-      const revToday =
-        (revenueToday || []).reduce((s, r) => s + (r.amount_cents || 0), 0) /
-        100;
-      const revWeek =
-        (revenueWeek || []).reduce((s, r) => s + (r.amount_cents || 0), 0) /
-        100;
+      const sum = (arr, field = "amount_cents") =>
+        (arr || []).reduce((s, r) => s + (Number(r[field]) || 0), 0);
+
+      const totalRevenue = sum(revenueData)  / 100;
+      const revToday     = sum(revenueToday) / 100;
+      const revWeek      = sum(revenueWeek)  / 100;
+
+      // Economy metrics — rounded for display
+      const totalXEVCirculating = Math.round(sum(xevCirculatingData || [], "grova_tokens"));
+      const totalXEVMinted      = Math.round(sum(xevMintedData      || [], "amount"));
+      const totalEPCirculation  = Math.round(sum(epCirculationData  || [], "engagement_points"));
+      const epMintedOnDeposit   = Math.round(sum(epDepositData      || [], "amount"));
 
       setStats({
-        totalUsers: totalUsers || 0,
-        activeUsers: activeUsers || 0,
-        newUsersToday: newUsersToday || 0,
-        newUsersWeek: newUsersWeek || 0,
-        openCases: openCases || 0,
-        pendingInvites: pendingInvites || 0,
-        bannedUsers: bannedUsers || 0,
-        totalPosts: totalPosts || 0,
-        totalReels: totalReels || 0,
-        totalStories: totalStories || 0,
-        totalContent:
-          (totalPosts || 0) + (totalReels || 0) + (totalStories || 0),
-        totalCommunities: totalCommunities || 0,
+        totalUsers:          totalUsers        || 0,
+        activeUsers:         activeUsers       || 0,
+        newUsersToday:       newUsersToday     || 0,
+        newUsersWeek:        newUsersWeek      || 0,
+        openCases:           openCases         || 0,
+        pendingInvites:      pendingInvites    || 0,
+        bannedUsers:         bannedUsers       || 0,
+        totalPosts:          totalPosts        || 0,
+        totalReels:          totalReels        || 0,
+        totalStories:        totalStories      || 0,
+        totalContent:        (totalPosts || 0) + (totalReels || 0) + (totalStories || 0),
+        totalCommunities:    totalCommunities  || 0,
         totalRevenue,
-        revenueToday: revToday,
-        revenueWeek: revWeek,
+        revenueToday:        revToday,
+        revenueWeek:         revWeek,
+        // ── Economy stats ─────────────────────────────────────────────────
+        totalXEVCirculating,   // current sum of wallets.grova_tokens
+        totalXEVMinted,        // all-time credits from wallet_history
+        totalEPCirculation,    // sum of profiles.engagement_points (activated users)
+        epMintedOnDeposit,     // EP created from real-money deposits (purchase_grant type)
       });
     } catch (e) {
       console.error("Stats error:", e);

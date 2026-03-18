@@ -28,6 +28,12 @@
 //     with drop-shadow, hover lift + colored box-shadow, gradient accent bar.
 //   - LivePulse removed from DashboardOverview header (kept in top bar only).
 //
+// PATCH (Economy Metrics):
+//   - DashboardOverview now renders an Economy Metrics panel below Quick Actions.
+//   - Displays: Circulating XEV, Total XEV Minted, EP in Circulation,
+//     EP from Deposits, and a Creator Revenue Sharing summary row.
+//   - All values sourced from useStats() extended fields in useAdminData.js.
+//
 // ONLINE MEMBERS: Correctly uses m.user_id (profile UUID) for comparison.
 // DATA: 100% real DB data, zero mock data. If data is missing, it's RLS.
 //       See: database-rls-policies.sql for the correct policy setup.
@@ -398,6 +404,7 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
 }
 
 // ─── Dashboard Overview ────────────────────────────────────────────────────
+// PATCHED: Economy Metrics panel added below Quick Actions + Online Team grid.
 function DashboardOverview({ stats, onNavigate, team, adminData }) {
   const s         = stats || {};
   const openCases = s.openCases || 0;
@@ -417,7 +424,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
           color:         C.text,
           margin:        "0 0 6px 0",
           letterSpacing: -0.5,
-          minHeight:     32, // prevent layout shift while text changes
+          minHeight:     32,
           display:       "flex",
           alignItems:    "center",
           gap:           2,
@@ -425,15 +432,15 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
           {displayed}
           {/* blinking cursor */}
           <span style={{
-            display:         "inline-block",
-            width:           2,
-            height:          22,
-            background:      C.accent,
-            borderRadius:    1,
-            marginLeft:      3,
-            boxShadow:       `0 0 8px ${C.accent}`,
-            animation:       "adminCursorBlink .75s step-end infinite",
-            verticalAlign:   "middle",
+            display:       "inline-block",
+            width:         2,
+            height:        22,
+            background:    C.accent,
+            borderRadius:  1,
+            marginLeft:    3,
+            boxShadow:     `0 0 8px ${C.accent}`,
+            animation:     "adminCursorBlink .75s step-end infinite",
+            verticalAlign: "middle",
           }} />
         </h1>
         <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
@@ -488,7 +495,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
       </div>
 
       {/* ── Quick Actions + Online Team ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, marginBottom: 24 }}>
         <div style={{
           background:   C.bg2,
           border:       `1px solid ${C.border}`,
@@ -535,16 +542,16 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
           </div>
 
           <div style={{
-            display:     "flex",
-            gap:         16,
-            marginTop:   20,
-            paddingTop:  16,
-            borderTop:   `1px solid ${C.border}`,
+            display:    "flex",
+            gap:        16,
+            marginTop:  20,
+            paddingTop: 16,
+            borderTop:  `1px solid ${C.border}`,
           }}>
             {[
-              { label: "Suspended",      value: s.bannedUsers   || 0, color: C.danger },
-              { label: "Active Invites", value: s.pendingInvites || 0, color: C.warn  },
-              { label: "Content Pieces", value: (s.totalContent  || 0).toLocaleString(), color: C.info },
+              { label: "Suspended",      value: s.bannedUsers   || 0,                          color: C.danger },
+              { label: "Active Invites", value: s.pendingInvites || 0,                         color: C.warn   },
+              { label: "Content Pieces", value: (s.totalContent  || 0).toLocaleString(),       color: C.info   },
             ].map((st) => (
               <div key={st.label} style={{ flex: 1, textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: st.color }}>{st.value}</div>
@@ -557,6 +564,160 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
         {/* AdminOnlinePanel: currentAdminUserId MUST be the profile UUID (user_id) */}
         <AdminOnlinePanel team={team} currentAdminUserId={adminData?.user_id} />
       </div>
+
+      {/* ── PATCHED: Economy Metrics Panel ────────────────────────────────── */}
+      <div style={{
+        background:   C.bg2,
+        border:       `1px solid ${C.border}`,
+        borderRadius: 16,
+        padding:      20,
+        marginBottom: 24,
+      }}>
+        {/* Panel header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Economy Metrics</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Live EP & XEV ecosystem health</div>
+          </div>
+          <div style={{
+            display:    "flex",
+            alignItems: "center",
+            gap:        5,
+            padding:    "3px 9px",
+            borderRadius: 8,
+            background: `${C.accent}08`,
+            border:     `1px solid ${C.accent}18`,
+          }}>
+            <div style={{
+              width:        5,
+              height:       5,
+              borderRadius: "50%",
+              background:   C.accent,
+              animation:    "adminMetricPulse 2s ease infinite",
+            }} />
+            <span style={{ fontSize: 9, color: C.accent, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Live
+            </span>
+          </div>
+        </div>
+
+        {/* Four economy stat cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+
+          {/* Circulating XEV */}
+          <div style={{
+            padding:      "16px 14px",
+            background:   "rgba(251,191,36,0.04)",
+            border:       "1px solid rgba(251,191,36,0.15)",
+            borderRadius: 14,
+            borderTop:    "3px solid #fbbf24",
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#7c5c0a", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
+              Circulating XEV
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#fbbf24", letterSpacing: -1, marginBottom: 4 }}>
+              {(s.totalXEVCirculating || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 10, color: C.muted }}>Active wallet balances</div>
+            <div style={{ marginTop: 10, height: 2, background: "rgba(255,255,255,0.04)", borderRadius: 1, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: "100%", background: "linear-gradient(90deg,#fbbf24,#fbbf2455)", borderRadius: 1 }} />
+            </div>
+          </div>
+
+          {/* Total XEV Minted */}
+          <div style={{
+            padding:      "16px 14px",
+            background:   "rgba(251,191,36,0.02)",
+            border:       "1px solid rgba(251,191,36,0.1)",
+            borderRadius: 14,
+            borderTop:    "3px solid rgba(251,191,36,0.5)",
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#7c5c0a", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
+              Total XEV Minted
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#d4a017", letterSpacing: -1, marginBottom: 4 }}>
+              {(s.totalXEVMinted || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 10, color: C.muted }}>All-time credits (wallet history)</div>
+            <div style={{ marginTop: 10, fontSize: 9, color: "rgba(251,191,36,0.4)", fontWeight: 700 }}>
+              {s.totalXEVCirculating > 0
+                ? `${((s.totalXEVCirculating / Math.max(s.totalXEVMinted, 1)) * 100).toFixed(1)}% still in circulation`
+                : "—"
+              }
+            </div>
+          </div>
+
+          {/* EP in Circulation */}
+          <div style={{
+            padding:      "16px 14px",
+            background:   `${C.accent}04`,
+            border:       `1px solid ${C.accent}18`,
+            borderRadius: 14,
+            borderTop:    `3px solid ${C.accent}`,
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#3a5c10", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
+              EP in Circulation
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.accent, letterSpacing: -1, marginBottom: 4 }}>
+              {(s.totalEPCirculation || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 10, color: C.muted }}>Sum of all active user EP</div>
+            <div style={{ marginTop: 10, fontSize: 9, color: `${C.accent}55`, fontWeight: 700 }}>
+              {s.activeUsers > 0
+                ? `~${Math.round((s.totalEPCirculation || 0) / s.activeUsers).toLocaleString()} avg per user`
+                : "—"
+              }
+            </div>
+          </div>
+
+          {/* EP from Deposits */}
+          <div style={{
+            padding:      "16px 14px",
+            background:   "rgba(52,211,153,0.04)",
+            border:       "1px solid rgba(52,211,153,0.15)",
+            borderRadius: 14,
+            borderTop:    "3px solid #34d399",
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#0c4a30", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
+              EP from Deposits
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#34d399", letterSpacing: -1, marginBottom: 4 }}>
+              {(s.epMintedOnDeposit || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 10, color: C.muted }}>Real-money backed EP only</div>
+            <div style={{ marginTop: 10, fontSize: 9, color: "rgba(52,211,153,0.5)", fontWeight: 700 }}>
+              {s.epMintedOnDeposit > 0
+                ? `≈$${((s.epMintedOnDeposit || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} deposited`
+                : "No deposits yet"
+              }
+            </div>
+          </div>
+        </div>
+
+        {/* Creator Revenue Sharing summary row */}
+        <div style={{
+          marginTop:  14,
+          padding:    "11px 14px",
+          background: "rgba(132,204,22,0.04)",
+          border:     "1px solid rgba(132,204,22,0.1)",
+          borderRadius: 11,
+          display:    "flex",
+          alignItems: "center",
+          gap:        12,
+        }}>
+          <div style={{ fontSize: 10, color: C.muted, flex: 1 }}>
+            <span style={{ color: C.text, fontWeight: 700 }}>Creator Revenue Sharing:</span>{" "}
+            Silver gets 2% · Gold gets 5% · Diamond gets 10% of weekly ecosystem revenue ={" "}
+            <span style={{ color: C.accent, fontWeight: 800 }}>17% returned to creators</span>
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: C.accent, flexShrink: 0, textAlign: "right" }}>
+            ${((s.totalRevenue || 0) * 0.17).toFixed(2)}
+            <div style={{ fontSize: 9, color: C.muted, fontWeight: 600 }}>Est. creator pool</div>
+          </div>
+        </div>
+      </div>
+      {/* ── END Economy Metrics Panel ─────────────────────────────────────── */}
+
     </div>
   );
 }
@@ -647,12 +808,12 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
             </div>
             <div style={{ overflow: "hidden" }}>
               <div style={{
-                fontSize:      12,
-                fontWeight:    700,
-                color:         C.text,
-                whiteSpace:    "nowrap",
-                overflow:      "hidden",
-                textOverflow:  "ellipsis",
+                fontSize:     12,
+                fontWeight:   700,
+                color:        C.text,
+                whiteSpace:   "nowrap",
+                overflow:     "hidden",
+                textOverflow: "ellipsis",
               }}>
                 {adminData?.full_name || "Admin"}
               </div>
@@ -682,22 +843,22 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
               onClick={() => onNavigate(item.id)}
               title={collapsed ? item.label : undefined}
               style={{
-                width:      "100%",
-                padding:    collapsed ? "10px 0" : "9px 14px",
-                display:    "flex",
-                alignItems: "center",
-                gap:        10,
+                width:          "100%",
+                padding:        collapsed ? "10px 0" : "9px 14px",
+                display:        "flex",
+                alignItems:     "center",
+                gap:            10,
                 justifyContent: collapsed ? "center" : "flex-start",
-                background: isActive ? `${C.accent}12` : "transparent",
-                border:     "none",
-                borderLeft: isActive ? `2px solid ${C.accent}` : "2px solid transparent",
-                cursor:     "pointer",
-                color:      isActive ? C.accent : C.muted,
-                fontFamily: "inherit",
-                fontSize:   13,
-                fontWeight: isActive ? 700 : 500,
-                transition: "all .12s",
-                position:   "relative",
+                background:     isActive ? `${C.accent}12` : "transparent",
+                border:         "none",
+                borderLeft:     isActive ? `2px solid ${C.accent}` : "2px solid transparent",
+                cursor:         "pointer",
+                color:          isActive ? C.accent : C.muted,
+                fontFamily:     "inherit",
+                fontSize:       13,
+                fontWeight:     isActive ? 700 : 500,
+                transition:     "all .12s",
+                position:       "relative",
               }}
               onMouseOver={(e) => { if (!isActive) e.currentTarget.style.color = C.text2; }}
               onMouseOut={(e)  => { if (!isActive) e.currentTarget.style.color = C.muted;  }}
@@ -825,12 +986,12 @@ export default function AdminDashboard({ adminData, onClose }) {
 
   // ── User management ────────────────────────────────────────────────────
   const userMgmt = {
-    banUser:     usersHook.banUser,
-    unbanUser:   usersHook.unbanUser,
-    deleteUser:  usersHook.deleteUser,
-    restoreUser: usersHook.restoreUser,
-    verifyUser:  usersHook.verifyUser,
-    setUserTier: usersHook.setUserTier,
+    banUser:      usersHook.banUser,
+    unbanUser:    usersHook.unbanUser,
+    deleteUser:   usersHook.deleteUser,
+    restoreUser:  usersHook.restoreUser,
+    verifyUser:   usersHook.verifyUser,
+    setUserTier:  usersHook.setUserTier,
     adjustWallet: usersHook.adjustWallet,
   };
 
@@ -973,14 +1134,14 @@ export default function AdminDashboard({ adminData, onClose }) {
       }}>
         {/* Top bar — the ONE live pulse lives here */}
         <div style={{
-          height:     52,
+          height:       52,
           borderBottom: `1px solid ${C.border}`,
-          display:    "flex",
-          alignItems: "center",
-          padding:    "0 20px",
-          gap:        12,
-          background: C.bg1,
-          flexShrink: 0,
+          display:      "flex",
+          alignItems:   "center",
+          padding:      "0 20px",
+          gap:          12,
+          background:   C.bg1,
+          flexShrink:   0,
         }}>
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 12, color: C.muted }}>Admin</span>

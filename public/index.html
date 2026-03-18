@@ -5,11 +5,9 @@
     <link rel="icon" href="/favicon.png" />
 
     <!--
-      viewport-fit=cover is the master key:
-      It tells the browser to extend the app's viewport into the
-      status bar area (top) AND the navigation bar area (bottom).
-      Without this, env(safe-area-inset-*) always returns 0 and
-      the system UI areas remain unpainted by the app.
+      viewport-fit=cover: extends the viewport into the status bar (top)
+      and gesture navigation bar (bottom). Without this, env() safe area
+      values are always 0 and the system bars remain unpainted.
     -->
     <meta
       name="viewport"
@@ -17,32 +15,30 @@
     />
 
     <!--
-      theme-color: controls the TOP status bar color in standalone PWA mode.
-      Two variants — one for light mode, one for dark — both pure black.
-      Android Chrome reads these and paints the status bar accordingly.
-      Pure #000000 makes the status bar invisible against our black app header.
+      color-scheme: dark — tells Chrome 135+ edge-to-edge engine that this
+      app is dark. Chrome uses this to paint the new "chin" (gesture nav bar
+      overlay) in a dark color. Combined with #000000 background on html,
+      the chin becomes invisible against the app.
+    -->
+    <meta name="color-scheme" content="dark" />
+
+    <!--
+      Three theme-color declarations — Chrome reads all three:
+      • media light  → black
+      • media dark   → black
+      • no media     → black fallback
+      All pure #000000 so the Android status bar area is invisible
+      against the app header in standalone mode.
     -->
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#000000" />
 
-    <!--
-      mobile-web-app-capable: tells Android Chrome this is a PWA.
-      Enables standalone mode behavior when installed.
-    -->
     <meta name="mobile-web-app-capable" content="yes" />
-
-    <!--
-      apple-mobile-web-app-capable: same for iOS Safari.
-    -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-
     <!--
-      black-translucent: THE critical iOS fix.
-      "black" = status bar is black but takes up space (app is pushed down).
-      "black-translucent" = status bar overlays the app, viewport extends
-      under it, env(safe-area-inset-top) gives the real inset value.
-      This is what makes iOS go truly edge-to-edge with no gap at top.
+      black-translucent: extends iOS viewport under the status bar.
+      env(safe-area-inset-top/bottom) return real values only with this.
     -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
@@ -54,7 +50,6 @@
 
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -70,26 +65,17 @@
       }
 
       /*
-        THE BOTTOM GAP ROOT CAUSE AND FIX:
-        ─────────────────────────────────────────────────────────────────
-        Android's standalone PWA shell paints the area OUTSIDE the
-        viewport (the system navigation bar at the bottom) using the
-        background color of the <html> element — NOT the body, NOT #root.
-        If <html> background is anything other than #000000, that strip
-        shows as a different color, creating the visible "gap".
-
-        Setting background: #000000 on html, body, AND #root ensures
-        every layer the browser can see is pure black, making the
-        system navigation bar area blend invisibly into the app.
-
-        overscroll-behavior: none prevents the elastic rubber-band
-        bounce that temporarily exposes background color above/below
-        the page during fast scrolling.
+        Pure #000000 on html — Android Chrome 135+ edge-to-edge paints
+        the gesture navigation bar ("chin") using the html background color.
+        Any value other than pure black shows as a visible strip.
+        overscroll-behavior: none stops rubber-band bounce from exposing
+        background color above or below the page.
       */
       html {
         width: 100%;
         height: 100%;
         background: #000000;
+        color-scheme: dark;
         -webkit-text-size-adjust: 100%;
         overscroll-behavior: none;
       }
@@ -114,7 +100,6 @@
         background: #000000;
       }
 
-      /* ── Animations ── */
       @keyframes xv_slideUp {
         from { opacity: 0; transform: translateY(20px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -168,6 +153,30 @@
         font-family: inherit;
       }
 
+      /* ── Update card — same design as install nudge ── */
+      #xv-update-card {
+        position: fixed;
+        bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+        left: 16px; right: 16px;
+        background: rgba(8,8,8,0.98);
+        border: 1px solid rgba(168,230,61,0.18);
+        border-radius: 18px;
+        padding: 16px 18px;
+        z-index: 10002;
+        display: none;
+        align-items: center;
+        gap: 14px;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      #xv-update-card.show {
+        display: flex;
+        animation: xv_slideUp 0.4s cubic-bezier(0.23,1,0.32,1);
+      }
+
       /* ── SW update banner ── */
       #xv-update {
         position: fixed;
@@ -206,18 +215,53 @@
         transition: transform 0.15s; flex-shrink: 0;
       }
       .xvu-btn:hover { transform: scale(1.04); }
+
+      /* ── Snooze picker buttons ── */
+      .xvc-snooze-btn {
+        flex: 1; padding: 9px 0; border-radius: 10px;
+        font-size: 12px; font-weight: 700; cursor: pointer;
+        background: rgba(132,204,22,0.08);
+        border: 1px solid rgba(132,204,22,0.2);
+        color: #84cc16; font-family: inherit;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .xvc-snooze-btn:active {
+        background: rgba(132,204,22,0.18);
+        border-color: rgba(132,204,22,0.4);
+      }
     </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
     <div id="root"></div>
 
+    <!-- Update card — smart snooze flow -->
+    <div id="xv-update-card" role="complementary" aria-label="Update Xeevia">
+      <!-- Default view: Update + Later -->
+      <div id="xvc-main" style="display:flex;align-items:center;gap:14px;width:100%;">
+        <div class="xvi-icon" aria-hidden="true">✦</div>
+        <div class="xvi-text">
+          <div class="xvi-title">Update available for Xeevia</div>
+        </div>
+        <button id="xvc-update-btn" class="xvi-btn">Update</button>
+        <button id="xvc-later-btn" class="xvi-dismiss" aria-label="Later" style="font-size:10px;font-weight:700;width:auto;padding:0 10px;border-radius:8px;color:#84cc16;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);">Later</button>
+      </div>
+      <!-- Snooze picker — shown after tapping Later -->
+      <div id="xvc-snooze" style="display:none;width:100%;">
+        <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:10px;letter-spacing:0.3px;">REMIND ME IN</div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <button class="xvc-snooze-btn" data-hours="6">6 hrs</button>
+          <button class="xvc-snooze-btn" data-hours="12">12 hrs</button>
+          <button class="xvc-snooze-btn" data-hours="24">Tomorrow</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Subtle install nudge — never blocks the app -->
     <div id="xv-install" role="complementary" aria-label="Install Xeevia">
       <div class="xvi-icon" aria-hidden="true">X</div>
       <div class="xvi-text">
         <div class="xvi-title">Add Xeevia to your home screen</div>
-        <div class="xvi-sub">Full screen · Works offline · Instant launch</div>
       </div>
       <button id="xvi-btn" class="xvi-btn">Install</button>
       <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss">✕</button>
@@ -281,9 +325,80 @@
           window.location.reload();
         });
 
-        window.__xvShowUpdate = function () {
-          document.getElementById("xv-update").classList.add("show");
-        };
+        // ── Update card with smart snooze ────────────────────────────────
+        var UPDATE_SNOOZE_KEY = "xv_update_snooze_until";
+
+        var isLocalhost = Boolean(
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "[::1]" ||
+          window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+        );
+
+        function doUpdate() {
+          if (navigator.serviceWorker && !isLocalhost) {
+            navigator.serviceWorker.getRegistration().then(function (reg) {
+              if (reg && reg.waiting) {
+                reg.waiting.postMessage({ type: "SKIP_WAITING" });
+              }
+            });
+          }
+          if ("caches" in window) {
+            caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            }).then(function () { window.location.reload(true); });
+          } else {
+            window.location.reload(true);
+          }
+        }
+
+        function hideUpdateCard() {
+          var card = document.getElementById("xv-update-card");
+          card.classList.remove("show");
+          // Reset back to main view for next time
+          setTimeout(function () {
+            document.getElementById("xvc-main").style.display = "flex";
+            document.getElementById("xvc-snooze").style.display = "none";
+          }, 400);
+        }
+
+        function showUpdateCard() {
+          // Check if snoozed
+          try {
+            var snoozeUntil = localStorage.getItem(UPDATE_SNOOZE_KEY);
+            if (snoozeUntil && Date.now() < Number(snoozeUntil)) return;
+            localStorage.removeItem(UPDATE_SNOOZE_KEY);
+          } catch (e) {}
+          document.getElementById("xv-update-card").classList.add("show");
+        }
+
+        // Update button — full cache clear + reload
+        document.getElementById("xvc-update-btn").addEventListener("click", doUpdate);
+
+        // Later button — show snooze picker
+        document.getElementById("xvc-later-btn").addEventListener("click", function () {
+          document.getElementById("xvc-main").style.display = "none";
+          document.getElementById("xvc-snooze").style.display = "block";
+        });
+
+        // Snooze buttons — store wakeup time, hide card, reschedule check
+        document.querySelectorAll(".xvc-snooze-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var hours = Number(btn.getAttribute("data-hours"));
+            var wakeAt = Date.now() + hours * 60 * 60 * 1000;
+            try { localStorage.setItem(UPDATE_SNOOZE_KEY, String(wakeAt)); } catch (e) {}
+            hideUpdateCard();
+            // Re-check after the chosen period and show card again if SW still waiting
+            setTimeout(function () {
+              if (navigator.serviceWorker && !isLocalhost) {
+                navigator.serviceWorker.getRegistration().then(function (reg) {
+                  if (reg && reg.waiting) showUpdateCard();
+                });
+              }
+            }, hours * 60 * 60 * 1000);
+          });
+        });
+
+        window.__xvShowUpdate = function () { showUpdateCard(); };
       })();
     </script>
   </body>
