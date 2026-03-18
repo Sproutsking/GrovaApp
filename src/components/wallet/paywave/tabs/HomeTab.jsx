@@ -21,6 +21,7 @@ import {
   Wifi,
   Tv,
   Zap,
+  FileText,
   ChevronRight,
   ArrowLeft,
   RefreshCw,
@@ -42,7 +43,7 @@ const iconFor = (reason = "") => {
   if (r.includes("airtime")) return Smartphone;
   if (r.includes("data")) return Wifi;
   if (r.includes("tv") || r.includes("cable")) return Tv;
-  if (r.includes("electric")) return Zap;
+  if (r.includes("electric") || r.includes("bill")) return FileText;
   if (r.includes("received") || r.includes("credit")) return ArrowDownLeft;
   return ArrowUpRight;
 };
@@ -281,7 +282,6 @@ export default function HomeTab({
           marginBottom: 16,
           position: "relative",
           overflow: "hidden",
-          /* Deep layered gradient — dark luxury */
           background:
             "linear-gradient(155deg, #0e1a0a 0%, #0b1309 40%, #070d05 100%)",
           border: "1px solid rgba(163,230,53,0.18)",
@@ -532,32 +532,32 @@ export default function HomeTab({
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons — FIX: both flex:1 + identical padding + identical fontSize */}
           <div style={{ display: "flex", gap: 10 }}>
             <button
               className="btn-lime"
               style={{
                 flex: 1,
-                padding: "11px 14px",
-                fontSize: 13,
+                padding: "13px 0",
+                fontSize: 13.5,
                 fontWeight: 800,
               }}
               onClick={() => setPage("send")}
             >
-              <Send size={13} /> Send ₦
+              <Send size={14} /> Send ₦
             </button>
             <button
               onClick={() => setPage("receive")}
               style={{
                 flex: 1,
-                padding: "11px 14px",
+                padding: "13px 0",
                 borderRadius: "var(--r-sm)",
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.12)",
                 color: "var(--text)",
                 fontFamily: "var(--font-d)",
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: 13.5,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -574,7 +574,7 @@ export default function HomeTab({
                 e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
               }}
             >
-              <Download size={13} /> Receive
+              <Download size={14} /> Receive
             </button>
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function HomeTab({
       </div>
 
       {/* ───────────────────────────────────────────────────────
-          QUICK ACTIONS — premium glowing icon grid
+          QUICK ACTIONS — FIX: Bills → "bills" page, FileText icon
       ─────────────────────────────────────────────────────── */}
       <div className="quick-grid">
         {[
@@ -653,9 +653,9 @@ export default function HomeTab({
             glow: "rgba(234,88,12,0.45)",
           },
           {
-            icon: Zap,
+            icon: FileText,
             label: "Bills",
-            page: "electricity",
+            page: "bills",
             grad: "linear-gradient(145deg,#d4a847,#b45309)",
             glow: "rgba(212,168,71,0.45)",
           },
@@ -744,8 +744,8 @@ export default function HomeTab({
           </button>
         </div>
 
-        {/* Content area */}
-        <div style={{ padding: "10px 14px 14px" }}>
+        {/* Content area — FIX: 12px top padding so list breathes below header */}
+        <div style={{ padding: "12px 14px 14px" }}>
           {/* Loading skeletons */}
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

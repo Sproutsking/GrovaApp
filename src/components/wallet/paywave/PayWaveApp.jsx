@@ -208,7 +208,7 @@ const GLOBAL_STYLES = `
   .btn-lime:active { transform: scale(0.97) translateY(0); }
   .btn-lime:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-lime:disabled::after { display: none; }
-  .btn-lime.full { width: 100%; }
+  .btn-lime.full { width: 100%; display: flex; }
   .btn-lime.sm   { padding: 9px 15px; font-size: 12.5px; }
 
   /* ── Ghost button ── */
@@ -234,6 +234,7 @@ const GLOBAL_STYLES = `
     box-shadow: 0 4px 14px rgba(0,0,0,0.22);
   }
   .btn-ghost:active { transform: scale(0.97); }
+  .btn-ghost.full { width: 100%; display: flex; }
 
   /* ── Header bar ── */
   .pw-header {
@@ -354,7 +355,7 @@ const GLOBAL_STYLES = `
   }
 
   /* ── Form sections — more breathing room ── */
-  .f-section { padding: 18px var(--pw-pad-left) 8px; }
+  .f-section { padding: 18px 0 8px; }
   .f-stack    { display: flex; flex-direction: column; gap: 16px; }
   .f-label {
     font-family: var(--font-b);

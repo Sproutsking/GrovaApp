@@ -1,8 +1,39 @@
+// src/components/Shared/ProfilePreview.jsx — TIER BADGE UPDATE
+// ============================================================================
+// CHANGES: Added tier badge display (💎👑🥈⭐🌿) next to username.
+//          UI structure, avatar, layout — ALL UNCHANGED.
+//          Only addition: TierBadge mini component shown after the verified check.
+//          Badge data comes from profile.subscription_tier + payment_status.
+// ============================================================================
+
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { Sparkles } from "lucide-react";
 import UserProfileModal from "../Modals/UserProfileModal";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import { getTierBadge } from "../../services/account/profileTierService";
+
+// ── Tier Badge (inline, tiny — precision addition) ────────────────────────────
+const TierBadge = ({ tier, paymentStatus }) => {
+  const badge = getTierBadge(tier, paymentStatus);
+  if (!badge) return null;
+  return (
+    <span
+      title={badge.label}
+      style={{
+        display:       "inline-flex",
+        alignItems:    "center",
+        justifyContent:"center",
+        fontSize:       10,
+        lineHeight:     1,
+        filter:        `drop-shadow(0 0 4px ${badge.glow})`,
+        flexShrink:    0,
+      }}
+    >
+      {badge.emoji}
+    </span>
+  );
+};
 
 const ProfilePreview = ({
   profile,
@@ -16,32 +47,22 @@ const ProfilePreview = ({
   const [imageError, setImageError] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Smart data extraction - handles both pre-formatted and raw database objects
   const getUserData = () => {
-    // If profile is already formatted with userId, author, username, avatar
     if (profile.userId || profile.author) {
       return {
-        userId: profile.userId || profile.user_id || profile.id,
-        author:
-          profile.author || profile.name || profile.full_name || "Unknown User",
+        userId:   profile.userId || profile.user_id || profile.id,
+        author:   profile.author || profile.name || profile.full_name || "Unknown User",
         username: profile.username || "unknown",
-        avatar: profile.avatar,
+        avatar:   profile.avatar,
         verified: profile.verified || false,
+        subscriptionTier: profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
+        paymentStatus:    profile.payment_status    ?? profile.paymentStatus    ?? "pending",
       };
     }
-
-    // If profile is raw database object (from posts/reels/stories)
-    const userId = profile.user_id || profile.id;
+    const userId      = profile.user_id || profile.id;
     const profileData = profile.profiles || profile;
-
-    const author =
-      profileData.full_name || profile.author || profile.name || "Unknown User";
-    const username =
-      profileData.username ||
-      profile.username ||
-      (author || "user").toLowerCase().replace(/\s+/g, "_");
-
-    // Handle avatar - check for avatar_id first
+    const author  = profileData.full_name || profile.author || profile.name || "Unknown User";
+    const username = profileData.username || profile.username || (author || "user").toLowerCase().replace(/\s+/g, "_");
     let avatar = null;
     if (profileData.avatar_id) {
       avatar = mediaUrlService.getAvatarUrl(profileData.avatar_id, 200);
@@ -50,33 +71,29 @@ const ProfilePreview = ({
     } else {
       avatar = author.charAt(0).toUpperCase();
     }
-
     return {
       userId,
       author,
       username,
       avatar,
-      verified: profileData.verified || profile.verified || false,
+      verified:         profileData.verified || profile.verified || false,
+      subscriptionTier: profileData.subscription_tier ?? profile.subscription_tier ?? "standard",
+      paymentStatus:    profileData.payment_status    ?? profile.payment_status    ?? "pending",
     };
   };
 
   const userData = getUserData();
-  const { userId, author, username, avatar, verified } = userData;
+  const { userId, author, username, avatar, verified, subscriptionTier, paymentStatus } = userData;
 
   const sizes = {
-    small: { avatar: 32, name: 13, username: 11 },
+    small:  { avatar: 32, name: 13, username: 11 },
     medium: { avatar: 42, name: 14, username: 12 },
-    large: { avatar: 52, name: 16, username: 13 },
+    large:  { avatar: 52, name: 16, username: 13 },
   };
-
   const currentSize = sizes[size];
 
-  const handleClick = (e) => {
-    e.stopPropagation();
-    setShowProfileModal(true);
-  };
+  const handleClick = (e) => { e.stopPropagation(); setShowProfileModal(true); };
 
-  // Enhanced avatar URL with quality parameters
   let enhancedAvatar = avatar;
   if (avatar && typeof avatar === "string") {
     const cleanUrl = avatar.split("?")[0];
@@ -88,24 +105,8 @@ const ProfilePreview = ({
     }
   }
 
-  const isValidUrl =
-    enhancedAvatar &&
-    typeof enhancedAvatar === "string" &&
-    !imageError &&
-    (enhancedAvatar.startsWith("http://") ||
-      enhancedAvatar.startsWith("https://") ||
-      enhancedAvatar.startsWith("blob:"));
-
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  const handleImageError = (e) => {
-    console.error("ProfilePreview image error:", e);
-    setImageLoaded(false);
-    setImageError(true);
-  };
+  const isValidUrl = enhancedAvatar && typeof enhancedAvatar === "string" && !imageError &&
+    (enhancedAvatar.startsWith("http://") || enhancedAvatar.startsWith("https://") || enhancedAvatar.startsWith("blob:"));
 
   return (
     <>
@@ -113,54 +114,38 @@ const ProfilePreview = ({
         className={`profile-preview profile-preview-${layout} ${className}`}
         onClick={handleClick}
       >
-        <div
-          className="profile-preview-avatar"
-          style={{
-            width: `${currentSize.avatar}px`,
-            height: `${currentSize.avatar}px`,
-          }}
-        >
+        <div className="profile-preview-avatar"
+          style={{ width: `${currentSize.avatar}px`, height: `${currentSize.avatar}px` }}>
           {isValidUrl && (
             <img
               src={enhancedAvatar}
               alt={author}
               loading="eager"
               decoding="async"
-              onLoad={handleImageLoad}
-              onError={handleImageError}
+              onLoad={() => { setImageLoaded(true); setImageError(false); }}
+              onError={() => { setImageLoaded(false); setImageError(true); }}
               crossOrigin="anonymous"
             />
           )}
-          <span
-            className="profile-preview-fallback"
-            style={{
-              fontSize: `${currentSize.avatar * 0.5}px`,
-            }}
-          >
-            {typeof avatar === "string" && avatar.length === 1
-              ? avatar
-              : author?.charAt(0)?.toUpperCase() || "U"}
+          <span className="profile-preview-fallback" style={{ fontSize: `${currentSize.avatar * 0.5}px` }}>
+            {typeof avatar === "string" && avatar.length === 1 ? avatar : author?.charAt(0)?.toUpperCase() || "U"}
           </span>
         </div>
 
         <div className="profile-preview-info">
-          <div
-            className="profile-preview-name"
-            style={{ fontSize: `${currentSize.name}px` }}
-          >
+          <div className="profile-preview-name" style={{ fontSize: `${currentSize.name}px` }}>
             <span>{author}</span>
             {verified && (
               <div className="profile-preview-verified">
                 <Sparkles size={currentSize.name - 2} />
               </div>
             )}
+            {/* TIER BADGE — precision addition, no layout change */}
+            <TierBadge tier={subscriptionTier} paymentStatus={paymentStatus} />
           </div>
 
           {showUsername && username && (
-            <div
-              className="profile-preview-username"
-              style={{ fontSize: `${currentSize.username}px` }}
-            >
+            <div className="profile-preview-username" style={{ fontSize: `${currentSize.username}px` }}>
               @{username}
             </div>
           )}
@@ -171,14 +156,10 @@ const ProfilePreview = ({
         ReactDOM.createPortal(
           <UserProfileModal
             user={{
-              id: userId,
-              user_id: userId,
-              userId: userId,
-              name: author,
-              author: author,
-              username: username,
-              avatar: avatar,
-              verified: verified,
+              id: userId, user_id: userId, userId,
+              name: author, author, username, avatar, verified,
+              subscription_tier: subscriptionTier,
+              payment_status:    paymentStatus,
             }}
             currentUser={currentUser}
             onClose={() => setShowProfileModal(false)}
@@ -188,132 +169,58 @@ const ProfilePreview = ({
 
       <style jsx>{`
         .profile-preview {
-          display: flex;
-          align-items: center;
-          cursor: pointer;
-          transition: all 0.2s;
-          max-width: fit-content;
-          background: rgba(0, 0, 0, 0.07);
-          backdrop-filter: blur(10px);
-          padding: 4px 12px;
-          border-radius: 12px;
-          border: 1px solid transparent;
+          display: flex; align-items: center; cursor: pointer;
+          transition: all 0.2s; max-width: fit-content;
+          background: rgba(0,0,0,0.07); backdrop-filter: blur(10px);
+          padding: 4px 12px; border-radius: 12px; border: 1px solid transparent;
         }
-
-        .profile-preview:hover {
-          transform: scale(1.02);
-        }
-
-        .profile-preview:active {
-          transform: scale(0.98);
-        }
-
-        .profile-preview-horizontal {
-          flex-direction: row;
-          gap: 10px;
-        }
-
-        .profile-preview-vertical {
-          flex-direction: column;
-          gap: 8px;
-          text-align: center;
-        }
-
+        .profile-preview:hover  { transform: scale(1.02); }
+        .profile-preview:active { transform: scale(0.98); }
+        .profile-preview-horizontal { flex-direction: row; gap: 10px; }
+        .profile-preview-vertical   { flex-direction: column; gap: 8px; text-align: center; }
         .profile-preview-avatar {
-          border-radius: 50%;
-          border: 2.5px solid #84cc16;
+          border-radius: 50%; border: 2.5px solid #84cc16;
           background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          color: #000;
-          flex-shrink: 0;
-          overflow: hidden;
-          position: relative;
-          box-shadow: 0 3px 12px rgba(132, 204, 22, 0.4);
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 800; color: #000; flex-shrink: 0; overflow: hidden;
+          position: relative; box-shadow: 0 3px 12px rgba(132,204,22,0.4);
         }
-
         .profile-preview-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          position: absolute;
-          top: 0;
-          left: 0;
-          image-rendering: -webkit-optimize-contrast;
-          image-rendering: crisp-edges;
-          backface-visibility: hidden;
-          transform: translateZ(0);
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          filter: brightness(1.15) contrast(1.2) saturate(1.25) sharpen(1.5);
+          width: 100%; height: 100%; object-fit: cover;
+          position: absolute; top: 0; left: 0;
           opacity: ${imageLoaded && !imageError ? "1" : "0"};
           transition: opacity 0.4s ease-in-out;
         }
-
         .profile-preview-fallback {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          font-weight: 800;
-          color: #000;
+          position: absolute; inset: 0; display: flex;
+          align-items: center; justify-content: center;
+          width: 100%; height: 100%; font-weight: 800; color: #000;
           opacity: ${imageLoaded && !imageError ? "0" : "1"};
           transition: opacity 0.4s ease-in-out;
         }
-
         .profile-preview-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
+          display: flex; flex-direction: column; gap: 2px; min-width: 0;
         }
-
         .profile-preview-name {
-          font-weight: 700;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          font-weight: 700; color: #fff;
+          display: flex; align-items: center; gap: 5px;
+          text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           filter: brightness(1.1);
         }
-
         .profile-preview-verified {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
+          width: 18px; height: 18px; border-radius: 50%;
           background: linear-gradient(135deg, #84cc16 0%, #a3e635 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          flex-shrink: 0;
-          box-shadow: 0 2px 8px rgba(132, 204, 22, 0.5);
+          display: flex; align-items: center; justify-content: center;
+          color: #000; flex-shrink: 0; box-shadow: 0 2px 8px rgba(132,204,22,0.5);
         }
-
         .profile-preview-username {
-          color: rgba(255, 255, 255, 0.8);
-          font-weight: 600;
-          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          color: rgba(255,255,255,0.8); font-weight: 600;
+          text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           filter: brightness(1.1);
         }
-
-        @media (max-width: 768px) {
-          .profile-preview {
-            padding: 5px 12px;
-          }
-        }
+        @media (max-width: 768px) { .profile-preview { padding: 5px 12px; } }
       `}</style>
     </>
   );

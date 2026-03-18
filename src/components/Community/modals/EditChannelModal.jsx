@@ -254,7 +254,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
         }
 
         .modal-body::-webkit-scrollbar {
-          width: 6px;
+          display: none;
         }
 
         .modal-body::-webkit-scrollbar-track {
@@ -262,8 +262,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
         }
 
         .modal-body::-webkit-scrollbar-thumb {
-          background: rgba(156, 255, 0, 0.3);
-          border-radius: 3px;
+          display: none;
         }
 
         .error-message {

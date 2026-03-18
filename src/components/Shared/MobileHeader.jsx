@@ -242,7 +242,6 @@ const mobileHeaderStyles = (isTyping, displayedText) => `
   .mh-header {
     position: sticky; top: 0; z-index: 100;
     background: #000;
-    border-bottom: 1px solid rgba(132,204,22,0.12);
   }
   .mh-content {
     display: flex; align-items: center; justify-content: space-between;

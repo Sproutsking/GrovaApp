@@ -700,7 +700,7 @@ const CommunityMenu = ({
       <style jsx>{`
         .menu-overlay {
           position: fixed;
-          top: 0;
+          top: 58px;
           left: 0;
           right: 0;
           bottom: 0;

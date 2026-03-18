@@ -3,30 +3,58 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.png" />
+
+    <!--
+      viewport-fit=cover is the master key:
+      It tells the browser to extend the app's viewport into the
+      status bar area (top) AND the navigation bar area (bottom).
+      Without this, env(safe-area-inset-*) always returns 0 and
+      the system UI areas remain unpainted by the app.
+    -->
     <meta
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
     />
+
+    <!--
+      theme-color: controls the TOP status bar color in standalone PWA mode.
+      Two variants — one for light mode, one for dark — both pure black.
+      Android Chrome reads these and paints the status bar accordingly.
+      Pure #000000 makes the status bar invisible against our black app header.
+    -->
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#000000" />
+
+    <!--
+      mobile-web-app-capable: tells Android Chrome this is a PWA.
+      Enables standalone mode behavior when installed.
+    -->
     <meta name="mobile-web-app-capable" content="yes" />
+
+    <!--
+      apple-mobile-web-app-capable: same for iOS Safari.
+    -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
+
+    <!--
+      black-translucent: THE critical iOS fix.
+      "black" = status bar is black but takes up space (app is pushed down).
+      "black-translucent" = status bar overlays the app, viewport extends
+      under it, env(safe-area-inset-top) gives the real inset value.
+      This is what makes iOS go truly edge-to-edge with no gap at top.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
-    <meta
-      name="description"
-      content="Own your content. Build your network. Earn engagement."
-    />
+
+    <meta name="description" content="Own your content. Build your network. Earn engagement." />
     <meta property="og:title" content="Xeevia — Own Your Social" />
-    <meta
-      property="og:description"
-      content="Own your content. Build your network. Earn engagement."
-    />
+    <meta property="og:description" content="Own your content. Build your network. Earn engagement." />
     <meta property="og:type" content="website" />
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -35,33 +63,49 @@
     />
 
     <style>
-      *,
-      *::before,
-      *::after {
-        margin: 0;
-        padding: 0;
+      *, *::before, *::after {
+        margin: 0; padding: 0;
         box-sizing: border-box;
         -webkit-tap-highlight-color: transparent;
       }
 
-      html,
+      /*
+        THE BOTTOM GAP ROOT CAUSE AND FIX:
+        ─────────────────────────────────────────────────────────────────
+        Android's standalone PWA shell paints the area OUTSIDE the
+        viewport (the system navigation bar at the bottom) using the
+        background color of the <html> element — NOT the body, NOT #root.
+        If <html> background is anything other than #000000, that strip
+        shows as a different color, creating the visible "gap".
+
+        Setting background: #000000 on html, body, AND #root ensures
+        every layer the browser can see is pure black, making the
+        system navigation bar area blend invisibly into the app.
+
+        overscroll-behavior: none prevents the elastic rubber-band
+        bounce that temporarily exposes background color above/below
+        the page during fast scrolling.
+      */
+      html {
+        width: 100%;
+        height: 100%;
+        background: #000000;
+        -webkit-text-size-adjust: 100%;
+        overscroll-behavior: none;
+      }
+
       body {
         width: 100%;
         height: 100%;
         background: #000000;
         color: #e6ebe6;
-        font-family:
-          "DM Sans",
-          -apple-system,
-          sans-serif;
+        font-family: "DM Sans", -apple-system, sans-serif;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
         overscroll-behavior: none;
       }
 
-      input,
-      textarea,
-      select {
+      input, textarea, select {
         font-size: 16px !important;
       }
 
@@ -70,37 +114,19 @@
         background: #000000;
       }
 
-      /* ── Animations ─────────────────────────────────────────────────────── */
+      /* ── Animations ── */
       @keyframes xv_slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes xv_modalIn {
-        from {
-          opacity: 0;
-          transform: scale(0.93) translateY(14px);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-        }
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
 
-      /* ── Install nudge — subtle floating card, shown once after 10s ─────
-         Does NOT block the app. User can dismiss it. Never shown again.   */
+      /* ── Subtle install nudge ── */
       #xv-install {
         position: fixed;
         bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-        left: 16px;
-        right: 16px;
-        background: rgba(8, 8, 8, 0.98);
-        border: 1px solid rgba(168, 230, 61, 0.18);
+        left: 16px; right: 16px;
+        background: rgba(8,8,8,0.98);
+        border: 1px solid rgba(168,230,61,0.18);
         border-radius: 18px;
         padding: 16px 18px;
         z-index: 10001;
@@ -109,82 +135,47 @@
         gap: 14px;
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 8px 40px rgba(0,0,0,0.6);
         max-width: 480px;
         margin: 0 auto;
       }
       #xv-install.show {
         display: flex;
-        animation: xv_slideUp 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        animation: xv_slideUp 0.4s cubic-bezier(0.23,1,0.32,1);
       }
       .xvi-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        flex-shrink: 0;
-        background: linear-gradient(135deg, #a8e63d, #3d7800);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        font-weight: 900;
-        color: #050706;
-        font-family: "Bebas Neue", sans-serif;
-        letter-spacing: 1px;
+        width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+        background: linear-gradient(135deg,#a8e63d,#3d7800);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; font-weight: 900; color: #050706;
+        font-family: "Bebas Neue", sans-serif; letter-spacing: 1px;
       }
-      .xvi-text {
-        flex: 1;
-        min-width: 0;
-      }
-      .xvi-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: #e6ebe6;
-        margin-bottom: 2px;
-      }
-      .xvi-sub {
-        font-size: 11px;
-        color: #3a4a3a;
-      }
+      .xvi-text { flex: 1; min-width: 0; }
+      .xvi-title { font-size: 13px; font-weight: 700; color: #e6ebe6; margin-bottom: 2px; }
+      .xvi-sub   { font-size: 11px; color: #3a4a3a; }
       .xvi-btn {
-        padding: 9px 18px;
-        border-radius: 100px;
-        border: none;
-        font-size: 12px;
-        font-weight: 800;
-        cursor: pointer;
-        background: linear-gradient(135deg, #a8e63d, #5a9a10);
-        color: #040604;
-        font-family: inherit;
-        flex-shrink: 0;
+        padding: 9px 18px; border-radius: 100px; border: none;
+        font-size: 12px; font-weight: 800; cursor: pointer;
+        background: linear-gradient(135deg,#a8e63d,#5a9a10);
+        color: #040604; font-family: inherit; flex-shrink: 0;
         white-space: nowrap;
       }
       .xvi-dismiss {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(255, 255, 255, 0.05);
-        color: #3a4a3a;
-        font-size: 16px;
-        cursor: pointer;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        width: 28px; height: 28px; border-radius: 50%; border: none;
+        background: rgba(255,255,255,0.05); color: #3a4a3a;
+        font-size: 16px; cursor: pointer; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
         font-family: inherit;
       }
 
-      /* ── SW update banner ───────────────────────────────────────────────── */
+      /* ── SW update banner ── */
       #xv-update {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(0, 0, 0, 0.97);
+        bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.97);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
-        border-top: 1px solid rgba(168, 230, 61, 0.14);
+        border-top: 1px solid rgba(168,230,61,0.14);
         padding: 16px 20px;
         padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         z-index: 10000;
@@ -192,62 +183,36 @@
       }
       #xv-update.show {
         display: block;
-        animation: xv_slideUp 0.38s cubic-bezier(0.23, 1, 0.32, 1);
+        animation: xv_slideUp 0.38s cubic-bezier(0.23,1,0.32,1);
       }
       .xvu-inner {
-        max-width: 500px;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        gap: 14px;
+        max-width: 500px; margin: 0 auto;
+        display: flex; align-items: center; gap: 14px;
       }
       .xvu-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        flex-shrink: 0;
-        background: linear-gradient(135deg, #a8e63d, #4d8800);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+        background: linear-gradient(135deg,#a8e63d,#4d8800);
+        display: flex; align-items: center; justify-content: center;
         font-size: 18px;
       }
-      .xvu-text {
-        flex: 1;
-      }
-      .xvu-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #e6ebe6;
-        margin-bottom: 2px;
-      }
-      .xvu-sub {
-        font-size: 12px;
-        color: #4a6a2a;
-      }
+      .xvu-text { flex: 1; }
+      .xvu-title { font-size: 14px; font-weight: 600; color: #e6ebe6; margin-bottom: 2px; }
+      .xvu-sub   { font-size: 12px; color: #4a6a2a; }
       .xvu-btn {
-        padding: 10px 20px;
-        border-radius: 100px;
-        border: none;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        background: linear-gradient(135deg, #a8e63d, #5a9a10);
-        color: #040604;
-        font-family: inherit;
-        transition: transform 0.15s;
-        flex-shrink: 0;
+        padding: 10px 20px; border-radius: 100px; border: none;
+        font-size: 13px; font-weight: 700; cursor: pointer;
+        background: linear-gradient(135deg,#a8e63d,#5a9a10);
+        color: #040604; font-family: inherit;
+        transition: transform 0.15s; flex-shrink: 0;
       }
-      .xvu-btn:hover {
-        transform: scale(1.04);
-      }
+      .xvu-btn:hover { transform: scale(1.04); }
     </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
     <div id="root"></div>
 
-    <!-- Subtle install nudge — does NOT block the app -->
+    <!-- Subtle install nudge — never blocks the app -->
     <div id="xv-install" role="complementary" aria-label="Install Xeevia">
       <div class="xvi-icon" aria-hidden="true">X</div>
       <div class="xvi-text">
@@ -255,9 +220,7 @@
         <div class="xvi-sub">Full screen · Works offline · Instant launch</div>
       </div>
       <button id="xvi-btn" class="xvi-btn">Install</button>
-      <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss">
-        ✕
-      </button>
+      <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss">✕</button>
     </div>
 
     <!-- SW update banner -->
@@ -277,56 +240,46 @@
         var deferred = null;
         var STORAGE_KEY = "xv_install_dismissed";
 
-        // Already dismissed or already standalone — never show
+        function isStandalone() {
+          return (
+            window.matchMedia("(display-mode: standalone)").matches ||
+            window.navigator.standalone === true ||
+            document.referrer.includes("android-app://")
+          );
+        }
+
         function shouldShow() {
           if (localStorage.getItem(STORAGE_KEY)) return false;
-          if (window.matchMedia("(display-mode: standalone)").matches)
-            return false;
-          if (window.navigator.standalone === true) return false;
+          if (isStandalone()) return false;
           return true;
         }
 
-        // Android: capture the prompt
         window.addEventListener("beforeinstallprompt", function (e) {
           e.preventDefault();
           deferred = e;
           if (shouldShow()) {
-            // Show after 10s — user has had time to see the app
             setTimeout(function () {
               document.getElementById("xv-install").classList.add("show");
             }, 10000);
           }
         });
 
-        // Install button
-        document
-          .getElementById("xvi-btn")
-          .addEventListener("click", function () {
-            document.getElementById("xv-install").classList.remove("show");
-            if (deferred) {
-              deferred.prompt();
-              deferred.userChoice.then(function () {
-                deferred = null;
-              });
-            }
-          });
+        document.getElementById("xvi-btn").addEventListener("click", function () {
+          document.getElementById("xv-install").classList.remove("show");
+          if (deferred) {
+            deferred.prompt();
+            deferred.userChoice.then(function () { deferred = null; });
+          }
+        });
 
-        // Dismiss — remember forever
-        document
-          .getElementById("xvi-dismiss")
-          .addEventListener("click", function () {
-            document.getElementById("xv-install").classList.remove("show");
-            try {
-              localStorage.setItem(STORAGE_KEY, "1");
-            } catch (e) {}
-          });
+        document.getElementById("xvi-dismiss").addEventListener("click", function () {
+          document.getElementById("xv-install").classList.remove("show");
+          try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
+        });
 
-        // SW update banner
-        document
-          .getElementById("xv-update-btn")
-          .addEventListener("click", function () {
-            window.location.reload();
-          });
+        document.getElementById("xv-update-btn").addEventListener("click", function () {
+          window.location.reload();
+        });
 
         window.__xvShowUpdate = function () {
           document.getElementById("xv-update").classList.add("show");

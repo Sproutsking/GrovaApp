@@ -144,7 +144,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #333;
+          color: #888;
           transition: color 0.2s ease, filter 0.2s ease;
         }
         .mbn-btn.is-active .mbn-ico {
@@ -159,7 +159,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           letter-spacing: 0.3px;
           white-space: nowrap;
           line-height: 1;
-          color: #2e2e2e;
+          color: #888;
           transition: color 0.2s ease;
         }
         .mbn-btn.is-active .mbn-lbl {
@@ -214,10 +214,10 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         }
         .mbn-grid span {
           border-radius: 2.5px;
-          background: #333;
+          background: #888;
           transition: background 0.2s ease, transform 0.2s ease;
         }
-        .mbn-menu-pill.open .mbn-grid span { background: #555; }
+        .mbn-menu-pill.open .mbn-grid span { background: #aaa; }
         .mbn-menu-btn:hover .mbn-grid span:nth-child(1) { transform: scale(0.75); }
         .mbn-menu-btn:hover .mbn-grid span:nth-child(4) { transform: scale(0.75); }
         .mbn-menu-btn:hover .mbn-grid span:nth-child(2) { transform: scale(1.2);  }
@@ -226,11 +226,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         .mbn-menu-lbl {
           font-size: 9px;
           font-weight: 700;
-          color: #2e2e2e;
+          color: #888;
           letter-spacing: 0.3px;
           transition: color 0.2s ease;
         }
-        .mbn-menu-pill.open .mbn-menu-lbl { color: #555; }
+        .mbn-menu-pill.open .mbn-menu-lbl { color: #aaa; }
 
         /* ── FAB ── */
         .mbn-fab {

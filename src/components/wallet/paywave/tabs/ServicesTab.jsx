@@ -28,9 +28,8 @@ export default function ServicesTab({ setPage }) {
 
   return (
     <div className="pw-scroll-px">
-      <div style={{ paddingTop: 16, paddingBottom: 12 }}>
+      <div style={{ paddingTop: 18, paddingBottom: 16 }}>
         <div style={{ fontFamily: "var(--font-d)", fontSize: 20, fontWeight: 800, letterSpacing: "-0.025em" }}>Services</div>
-        <div style={{ color: "var(--text-soft)", fontSize: 12, marginTop: 2 }}>All your financial services</div>
       </div>
 
       {/* Bills & Payments */}
@@ -143,13 +142,11 @@ export function ScholarshipsView({ pwBalance, onBack }) {
       disbursement: "Direct to institution — quarterly disbursement after result confirmation",
     },
   ];
-
   const LEVELS = ["100 Level", "200 Level", "300 Level", "400 Level", "500 Level", "Postgraduate"];
   const tier    = selTier ? TIERS.find(t => t.id === selTier) : null;
 
   const handleApply = async () => {
     setLoading(true);
-    // Simulate application submission
     await new Promise(r => setTimeout(r, 1500));
     setLoading(false);
     setSubmitted(true);
@@ -164,7 +161,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
     { label: "School Email / Sponsor Email", key: "sponsorEmail", placeholder: "email@university.edu.ng" },
   ];
 
-  // ── Submitted view ──
   if (submitted) {
     return (
       <div className="pw-scroll">
@@ -190,13 +186,11 @@ export function ScholarshipsView({ pwBalance, onBack }) {
     );
   }
 
-  // ── Application form ──
   if (view === "apply" && tier) {
     return (
       <div className="pw-scroll">
         <Header title={`Apply — ${tier.name}`} onBack={()=>{setView("home");setStep(1);}} />
         <div className="f-section f-stack">
-          {/* Tier badge */}
           <div style={{ borderRadius:12, padding:"12px 14px", background:`${tier.color}18`, border:`1px solid ${tier.color}33`, display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ fontSize:24 }}>{tier.icon}</div>
             <div>
@@ -204,8 +198,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
               <div style={{ fontSize:11.5, color:"rgba(255,255,255,0.4)" }}>{tier.desc}</div>
             </div>
           </div>
-
-          {/* Steps */}
           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
             {[1,2].map(s=>(
               <React.Fragment key={s}>
@@ -215,7 +207,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             ))}
             <div style={{ marginLeft:6, fontSize:11, color:"var(--text-soft)" }}>Step {step} of 2</div>
           </div>
-
           {step === 1 && (
             <>
               {fields.map(f=>(
@@ -240,10 +231,8 @@ export function ScholarshipsView({ pwBalance, onBack }) {
               </button>
             </>
           )}
-
           {step === 2 && (
             <>
-              {/* Eligibility recap */}
               <div style={{ borderRadius:11, padding:"13px 14px", background:"rgba(255,255,255,0.02)", border:"1px solid var(--border)" }}>
                 <div style={{ fontFamily:"var(--font-d)", fontSize:13, fontWeight:700, marginBottom:8, color:tier.color }}>Eligibility Requirements</div>
                 {tier.conditions.map((c,i)=>(
@@ -253,7 +242,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                   </div>
                 ))}
               </div>
-
               <div>
                 <label className="f-label">Why do you deserve this scholarship?</label>
                 <div className="f-card">
@@ -261,20 +249,16 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                 </div>
                 <div style={{ fontSize:11, color:"var(--text-soft)", marginTop:4 }}>Minimum 100 characters. Be honest. Be specific.</div>
               </div>
-
               <div>
                 <label className="f-label">School Fee Invoice Reference</label>
                 <div className="f-card">
                   <input type="text" value={formData.evidence} onChange={e=>setFormData({...formData,evidence:e.target.value})} placeholder="Invoice number or payment reference from school" className="f-input" />
                 </div>
               </div>
-
-              {/* Disbursement info */}
               <div style={{ borderRadius:10, padding:"11px 13px", background:"rgba(168,85,247,0.06)", border:"1px solid rgba(168,85,247,0.15)", fontSize:12, lineHeight:1.65, color:"rgba(255,255,255,0.38)" }}>
                 <div style={{ color:"#a855f7", fontWeight:700, marginBottom:3 }}>💸 Disbursement</div>
                 {tier.disbursement}
               </div>
-
               <div style={{ display:"flex", gap:8 }}>
                 <button className="btn-ghost" onClick={()=>setStep(1)}>← Back</button>
                 <button className="btn-lime" style={{ flex:1 }}
@@ -290,13 +274,10 @@ export function ScholarshipsView({ pwBalance, onBack }) {
     );
   }
 
-  // ── Home view ──
   return (
     <div className="pw-scroll">
       <Header title="Scholarships" onBack={onBack} />
       <div className="f-section f-stack">
-
-        {/* Mission statement */}
         <div style={{ borderRadius:14, padding:"16px 15px", background:"linear-gradient(140deg,rgba(59,130,246,0.1),rgba(168,85,247,0.07))", border:"1px solid rgba(59,130,246,0.2)", position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, background:"radial-gradient(circle,rgba(168,85,247,0.12),transparent 70%)", borderRadius:"50%", filter:"blur(14px)" }} />
           <div style={{ position:"relative" }}>
@@ -314,8 +295,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             </div>
           </div>
         </div>
-
-        {/* Tier cards */}
         {TIERS.map(t => (
           <div key={t.id} className="glass click" style={{ padding:"15px 14px", borderColor:`${t.color}22` }}
             onClick={()=>{setSelTier(t.id);setView("apply");setStep(1);}}>
@@ -329,8 +308,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
               </div>
               <div style={{ flexShrink:0, padding:"5px 11px", background:`${t.color}18`, border:`1px solid ${t.color}33`, borderRadius:20, fontFamily:"var(--font-d)", fontWeight:800, fontSize:15, color:t.color }}>{t.pct}%</div>
             </div>
-
-            {/* Key conditions preview */}
             <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:12 }}>
               {t.conditions.slice(0,3).map((c,i) => (
                 <div key={i} style={{ display:"flex", alignItems:"center", gap:7 }}>
@@ -342,7 +319,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                 <div style={{ fontSize:11, color:`${t.color}88`, paddingLeft:11 }}>+{t.conditions.length-3} more conditions</div>
               )}
             </div>
-
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)" }}>Max: ₦{t.maxAmt.toLocaleString()} / semester</div>
               <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, fontWeight:600, color:t.color }}>
@@ -351,8 +327,6 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             </div>
           </div>
         ))}
-
-        {/* Info footer */}
         <div style={{ borderRadius:12, padding:"13px 14px", background:"rgba(255,255,255,0.02)", border:"1px dashed rgba(255,255,255,0.07)", fontSize:12, color:"rgba(255,255,255,0.28)", lineHeight:1.7 }}>
           <div style={{ fontWeight:700, color:"rgba(255,255,255,0.45)", marginBottom:4 }}>How it works</div>
           Applications are reviewed in 5–7 days. Approved scholarships are disbursed directly to your institution. No repayment required — this is a grant, not a loan. Funds come from the Xeevia Global Impact Fund (5% of platform revenue).
