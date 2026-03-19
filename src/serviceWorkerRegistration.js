@@ -32,7 +32,9 @@ export function register() {
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              document.getElementById("update-banner").classList.add("show");
+              if (typeof window.__xvShowUpdate === "function") {
+                window.__xvShowUpdate();
+              }
             }
           });
         });
