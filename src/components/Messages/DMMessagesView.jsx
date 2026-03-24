@@ -1,4 +1,4 @@
-// components/Messages/DMMessagesView.jsx - REALTIME-FIRST PERFECTION
+// components/Messages/DMMessagesView.jsx — FULL SCREEN FIX
 import React, { useState, useEffect, useRef } from "react";
 import dmMessageService from "../../services/messages/dmMessageService";
 import onlineStatusService from "../../services/messages/onlineStatusService";
@@ -18,23 +18,16 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    console.log("🚀 [DM] Initializing messaging system");
-
     onlineStatusService.start(currentUser.id);
-    
+
     dmMessageService.init(currentUser.id).then(() => {
       setLoading(false);
-      console.log("✅ [DM] Messaging system initialized");
     });
 
-    // Subscribe to conversation list changes
     unsubscribeList.current = dmMessageService.subscribeToConversationList();
 
     return () => {
-      console.log("🧹 [DM] Cleaning up messaging system");
-      if (unsubscribeList.current) {
-        unsubscribeList.current();
-      }
+      if (unsubscribeList.current) unsubscribeList.current();
       dmMessageService.cleanup();
     };
   }, [currentUser?.id]);
@@ -42,8 +35,6 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   useEffect(() => {
     if (!initialOtherUserId || !currentUser?.id || initialized.current) return;
     initialized.current = true;
-
-    console.log("📨 [DM] Opening initial conversation with:", initialOtherUserId);
 
     dmMessageService
       .createConversation(currentUser.id, initialOtherUserId)
@@ -55,21 +46,25 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
       .catch((e) => console.error("❌ [DM] Init chat error:", e));
   }, [initialOtherUserId, currentUser?.id]);
 
+  // Lock body scroll while open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const handleSelect = (conv) => {
-    console.log("📨 [DM] Opening conversation:", conv.id);
     setSelectedConv(conv);
     setView("chat");
   };
 
   const handleBack = () => {
-    console.log("🔙 [DM] Returning to conversation list");
     setSelectedConv(null);
     setView("list");
   };
 
   const handleUserSelect = async (user) => {
     try {
-      console.log("📨 [DM] Creating conversation with:", user.id);
       const conv = await dmMessageService.createConversation(currentUser.id, user.id);
       const otherUser = conv.user1_id === currentUser.id ? conv.user2 : conv.user1;
       setSelectedConv({ ...conv, otherUser, lastMessage: null, unreadCount: 0 });
@@ -82,8 +77,48 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
 
   return (
     <>
-      <div className="dm-overlay" onClick={onClose}>
-        <div className="dm-panel" onClick={(e) => e.stopPropagation()}>
+      <style>{`
+        /* ── Full-screen overlay — covers EVERYTHING including header + bottom nav ── */
+        .dm-overlay {
+          position: fixed;
+          inset: 0;                  /* top:0 right:0 bottom:0 left:0 */
+          z-index: 9999;             /* above header (z:100) and bottom nav (z:100) */
+          background: #000;
+          display: flex;
+          flex-direction: column;
+          /* No backdrop, no partial — this IS the screen */
+        }
+
+        /* ── Panel fills the overlay completely ── */
+        .dm-panel {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background: #000;
+        }
+
+        /* ── Desktop: side drawer (keep existing behaviour) ── */
+        @media (min-width: 769px) {
+          .dm-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            flex-direction: row;
+            align-items: stretch;
+            justify-content: flex-end;
+          }
+          .dm-panel {
+            width: 400px;
+            height: 100vh;
+            border-left: 1px solid rgba(132, 204, 22, 0.2);
+            border-radius: 0;
+          }
+        }
+      `}</style>
+
+      <div className="dm-overlay">
+        <div className="dm-panel">
           {view === "list" && (
             <ConversationList
               currentUserId={currentUser?.id}
@@ -112,41 +147,6 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
           onSelect={handleUserSelect}
         />
       )}
-
-      <style>{`
-        .dm-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 9000;
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: stretch;
-          justify-content: flex-end;
-        }
-        .dm-panel {
-          width: 400px;
-          max-width: 100%;
-          height: 100vh;
-          background: #000;
-          border-left: 1px solid rgba(132, 204, 22, 0.2);
-          display: flex;
-          flex-direction: column;
-        }
-        @media (max-width: 768px) {
-          .dm-overlay {
-            align-items: flex-end;
-            justify-content: center;
-          }
-          .dm-panel {
-            width: 100%;
-            height: 92vh;
-            border-left: none;
-            border-top: 1px solid rgba(132, 204, 22, 0.2);
-            border-radius: 20px 20px 0 0;
-          }
-        }
-      `}</style>
     </>
   );
 };

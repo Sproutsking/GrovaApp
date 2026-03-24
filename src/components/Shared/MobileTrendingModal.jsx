@@ -1,956 +1,684 @@
-import React, { useState, useEffect } from "react";
-import {
-  X,
-  TrendingUp,
-  Eye,
-  Flame,
-  Crown,
-  RefreshCw,
-  ArrowRight,
-  Sparkles,
-} from "lucide-react";
-import { supabase } from "../../services/config/supabase";
-import mediaUrlService from "../../services/shared/mediaUrlService";
-import UnifiedLoader from "./UnifiedLoader";
-import UserProfileModal from "../Modals/UserProfileModal";
+// src/components/Shared/MobileTrendingModal.jsx
+// ============================================================================
+// Same stable top-streamers algorithm as TrendingSidebar:
+//   - Uses get_top_streamers() RPC (SECURITY DEFINER) to bypass RLS
+//   - Falls back to direct query if RPC not yet deployed
+//   - Sessions weighted heavily (×300) so every streamer always has a score
+//   - streamersCache ref — list never blanks after first successful load
+//   - Refresh interval 10 min (stable data doesn't need rapid polling)
+//   - Per-user avatar fallback gradients (no hardcoded red)
+//   - StreamerDetailModal rendered via ReactDOM.createPortal on document.body
+// ============================================================================
 
-const MobileTrendingModal = ({ isOpen, onClose, currentUser }) => {
-  const [trendingTags, setTrendingTags] = useState([]);
-  const [eliteCreators, setEliteCreators] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
+import {
+  X, TrendingUp, Eye, Flame, Crown, RefreshCw,
+  ArrowRight, ArrowLeft, Sparkles, ChevronRight,
+  Hash, FileText, Play, BookOpen, Zap, Radio, Tv,
+} from "lucide-react";
+
+import { supabase }         from "../../services/config/supabase";
+import mediaUrlService      from "../../services/shared/mediaUrlService";
+import UnifiedLoader        from "./UnifiedLoader";
+import UserProfileModal     from "../Modals/UserProfileModal";
+import StreamerDetailModal  from "./StreamerDetailModal";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = (n) => {
+  if (!n) return "0";
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return String(n);
+};
+
+const rankStyle = (rank) => {
+  if (rank === 1) return { bg: "linear-gradient(135deg,#fbbf24,#f59e0b)", color: "#000" };
+  if (rank === 2) return { bg: "linear-gradient(135deg,#e2e8f0,#94a3b8)", color: "#000" };
+  if (rank === 3) return { bg: "linear-gradient(135deg,#cd7c3a,#a16027)", color: "#fff" };
+  return { bg: "rgba(239,68,68,.12)", color: "#ef4444" };
+};
+
+// ── Per-user avatar gradient — same palette as TrendingSidebar ────────────────
+const AVATAR_GRADIENTS = [
+  "linear-gradient(135deg,#84cc16,#4d7c0f)",
+  "linear-gradient(135deg,#60a5fa,#1d4ed8)",
+  "linear-gradient(135deg,#a78bfa,#6d28d9)",
+  "linear-gradient(135deg,#f59e0b,#b45309)",
+  "linear-gradient(135deg,#f472b6,#be185d)",
+  "linear-gradient(135deg,#34d399,#065f46)",
+  "linear-gradient(135deg,#fb923c,#c2410c)",
+  "linear-gradient(135deg,#38bdf8,#0369a1)",
+];
+const avatarGradient = (seed = "") => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+};
+
+const STREAMERS_PREVIEW = 3;
+
+// ── Live sessions fetcher ─────────────────────────────────────────────────────
+const fetchLiveSessions = async () => {
+  const { data, error } = await supabase
+    .from("live_sessions")
+    .select(`id, title, category, mode, peak_viewers, total_likes, started_at, livekit_room, is_private,
+             profiles:user_id (id, full_name, username, avatar_id, verified)`)
+    .eq("status", "live")
+    .eq("is_private", false)
+    .order("peak_viewers", { ascending: false })
+    .limit(20);
+  if (error) {
+    if (error.code === "42P01" || error.message?.includes("does not exist")) return [];
+    throw error;
+  }
+  return data || [];
+};
+
+// ── Top streamers fetcher — RPC bypasses RLS, direct query as fallback ────────
+const fetchTopStreamers = async () => {
+  let ranked = [];
+
+  try {
+    // PRIMARY: RPC with SECURITY DEFINER bypasses RLS so ALL users are ranked,
+    // not just the logged-in user's own sessions.
+    // Deploy get_top_streamers.sql in Supabase SQL Editor to enable this.
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc("get_top_streamers");
+
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      ranked = rpcData.map((row) => ({
+        userId:      row.user_id,
+        peakViewers: row.peak_viewers  || 0,
+        totalLikes:  row.total_likes   || 0,
+        sessions:    row.sessions      || 0,
+        score:       row.score         || 0,
+      }));
+    } else {
+      // FALLBACK: direct query (shows only logged-in user's sessions due to RLS)
+      const { data, error } = await supabase
+        .from("live_sessions")
+        .select("user_id, peak_viewers, total_likes")
+        .not("user_id", "is", null)
+        .order("peak_viewers", { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        if (error.code === "42P01" || error.message?.includes("does not exist")) return [];
+        throw error;
+      }
+
+      const map = {};
+      (data || []).forEach((s) => {
+        const uid = s.user_id;
+        if (!map[uid]) map[uid] = { peakViewers: 0, totalLikes: 0, sessions: 0 };
+        map[uid].peakViewers  = Math.max(map[uid].peakViewers, s.peak_viewers  || 0);
+        map[uid].totalLikes  += s.total_likes  || 0;
+        map[uid].sessions    += 1;
+      });
+
+      ranked = Object.entries(map)
+        .map(([uid, d]) => ({
+          userId:      uid,
+          peakViewers: d.peakViewers,
+          totalLikes:  d.totalLikes,
+          sessions:    d.sessions,
+          score:       d.sessions * 300 + d.peakViewers * 0.6 + d.totalLikes * 0.4,
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 30);
+    }
+  } catch {
+    return [];
+  }
+
+  if (ranked.length === 0) return [];
+
+  const ids = ranked.map((r) => r.userId);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, username, avatar_id, verified")
+    .in("id", ids);
+
+  const pm = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+
+  return ranked
+    .map((item, i) => ({
+      ...item,
+      rank:    i + 1,
+      profile: pm[item.userId] || {
+        id: item.userId, full_name: null, username: null,
+        avatar_id: null, verified: false,
+      },
+    }))
+    .filter((item) => pm[item.userId] || item.sessions > 0);
+};
+
+// ── Compact streamer row ──────────────────────────────────────────────────────
+const StreamerRow = ({ streamer, onClick }) => {
+  const [imgErr, setImgErr] = useState(false);
+  const rc  = rankStyle(streamer.rank);
+  const pr  = streamer.profile || {};
+  const avatarUrl = !imgErr && pr.avatar_id
+    ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 60, height: 60, crop: "fill", gravity: "face" })
+    : null;
+  const initial  = (pr.full_name || pr.username || "?").charAt(0).toUpperCase();
+  const fallback = avatarGradient(pr.id || pr.username || String(streamer.rank));
+
+  return (
+    <div
+      onClick={() => onClick?.(streamer)}
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 11, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", cursor: "pointer", marginBottom: 7 }}
+    >
+      <div style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, background: rc.bg, color: rc.color, fontSize: 10, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {streamer.rank}
+      </div>
+      {/* Avatar — per-user gradient fallback, no hardcoded red */}
+      <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: avatarUrl ? "transparent" : fallback, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 12, border: "1.5px solid rgba(255,255,255,.1)" }}>
+        {avatarUrl
+          ? <img src={avatarUrl} alt="" onError={() => setImgErr(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <span>{initial}</span>}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 2 }}>
+          {pr.full_name || pr.username || `Streamer #${streamer.rank}`}
+          {pr.verified && <span style={{ width: 14, height: 14, background: "#84cc16", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Sparkles size={8} color="#000" /></span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#484848", whiteSpace: "nowrap", overflow: "hidden" }}>
+          {pr.username && <><span>@{pr.username}</span><span style={{ color: "#2a2a2a" }}>·</span></>}
+          <Eye size={9} style={{ opacity: .7 }} />
+          <span style={{ color: "#84cc16", fontWeight: 700 }}>{fmt(streamer.peakViewers)}</span>
+          <span style={{ color: "#2a2a2a" }}>·</span>
+          <span style={{ color: "#84cc16", fontWeight: 700 }}>{streamer.sessions}</span>
+          <span>{streamer.sessions === 1 ? "stream" : "streams"}</span>
+        </div>
+      </div>
+      <ChevronRight size={14} color="#2a2a2a" style={{ flexShrink: 0 }} />
+    </div>
+  );
+};
+
+// ── Streamer circle card ──────────────────────────────────────────────────────
+const StreamerCircle = ({ session, onJoin, isOwn }) => {
+  const profile = session.profiles || {};
+  const [imgErr,    setImgErr]    = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const avatarUrl = !imgErr && profile.avatar_id
+    ? mediaUrlService.getImageUrl(profile.avatar_id, { width: 100, height: 100, crop: "fill", gravity: "face" })
+    : null;
+  const initial = (profile.full_name || profile.username || "?").charAt(0).toUpperCase();
+
+  return (
+    <div
+      onClick={() => !isOwn && onJoin(session)}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0, width: 60, cursor: isOwn ? "default" : "pointer", opacity: isOwn ? .45 : 1, scrollSnapAlign: "start" }}
+    >
+      <div style={{ position: "relative", width: 52, height: 52, flexShrink: 0 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", background: "#0a0a0a" }}>
+          <div className="mt-sc-spin" />
+          <div style={{ position: "absolute", inset: 3, borderRadius: "50%", overflow: "hidden", zIndex: 1 }}>
+            <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "linear-gradient(135deg,#84cc16,#4d7c0f)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+              <span style={{ fontSize: 14, fontWeight: 900, color: "#000", position: "absolute", zIndex: 0, userSelect: "none", lineHeight: 1 }}>{initial}</span>
+              {avatarUrl && <img src={avatarUrl} alt="" onLoad={() => setImgLoaded(true)} onError={() => setImgErr(true)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", zIndex: 1, opacity: imgLoaded ? 1 : 0, transition: "opacity .2s" }} />}
+            </div>
+          </div>
+        </div>
+        <div className="mt-sc-pulse" style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(239,68,68,.35)", pointerEvents: "none" }} />
+        <div className="mt-sc-dot" style={{ position: "absolute", bottom: 2, right: 2, width: 11, height: 11, borderRadius: "50%", background: "#ef4444", border: "2px solid #050505", zIndex: 2 }} />
+        <div style={{ position: "absolute", top: -3, right: -5, display: "flex", alignItems: "center", gap: 2, padding: "2px 4px", borderRadius: 4, background: "rgba(0,0,0,.88)", border: "1px solid rgba(255,255,255,.1)", fontSize: 7.5, fontWeight: 800, color: "#c4c4c4", zIndex: 3, whiteSpace: "nowrap" }}>
+          <Eye size={7} strokeWidth={2.5} />{fmt(session.peak_viewers || 0)}
+        </div>
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color: "#c4c4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 60, textAlign: "center", lineHeight: 1.3 }}>
+        {(profile.username || profile.full_name || "stream").slice(0, 9)}
+      </span>
+      <span style={{ fontSize: 8.5, fontWeight: 500, color: "#363636", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 60, textAlign: "center", marginTop: -3 }}>
+        {(session.category || "").slice(0, 8)}
+      </span>
+    </div>
+  );
+};
+
+// ── Section header ────────────────────────────────────────────────────────────
+const SectionHeader = ({ icon: Icon, iconColor, iconBg, iconBorder, title, subtitle, right }) => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,.06)", position: "relative" }}>
+    <div style={{ position: "absolute", left: 0, bottom: -1, width: 28, height: 2, background: `linear-gradient(90deg,${iconColor},transparent)`, borderRadius: 1 }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 30, height: 30, borderRadius: 9, background: iconBg, border: `1px solid ${iconBorder}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icon size={15} color={iconColor} />
+      </div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#e5e5e5", letterSpacing: ".4px", textTransform: "uppercase" }}>{title}</div>
+        <div style={{ fontSize: 11, color: "#484848", marginTop: 1 }}>{subtitle}</div>
+      </div>
+    </div>
+    {right}
+  </div>
+);
+
+// ── Tag row ───────────────────────────────────────────────────────────────────
+const TagRow = ({ tag, index, onNavigate, onDrill }) => (
+  <div onClick={() => onNavigate(tag)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 11, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", marginBottom: 7, cursor: "pointer" }}>
+    <div style={{ width: 28, height: 28, borderRadius: 8, background: index < 3 ? "rgba(239,68,68,.15)" : "rgba(255,255,255,.05)", color: index < 3 ? "#ef4444" : "#525252", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      {index < 3 ? <Flame size={12} /> : index + 1}
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tag.label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#484848", flexWrap: "wrap" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Eye size={9} />{fmt(tag.views)}</span>
+        <span style={{ color: "#2e2e2e" }}>·</span><span>{tag.posts} posts</span>
+        {index < 3 && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", background: "rgba(239,68,68,.15)", color: "#ef4444", borderRadius: 4 }}>HOT</span>}
+      </div>
+    </div>
+    <button onClick={(e) => { e.stopPropagation(); onDrill(tag); }} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", color: "#484848", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+      <ChevronRight size={13} />
+    </button>
+  </div>
+);
+
+// ── Creator row ───────────────────────────────────────────────────────────────
+const CreatorRow = ({ creator, onClick }) => {
+  const rc = rankStyle(creator.rank);
+  return (
+    <div onClick={() => onClick(creator)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 12, background: creator.isTopTier ? "rgba(251,191,36,.03)" : "rgba(255,255,255,.03)", border: `1px solid ${creator.isTopTier ? "rgba(251,191,36,.18)" : "rgba(255,255,255,.06)"}`, marginBottom: 7, cursor: "pointer" }}>
+      <div style={{ width: 22, height: 22, borderRadius: 7, background: rc.bg, color: rc.color, fontSize: 10, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{creator.rank}</div>
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#84cc16,#65a30d)", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", fontWeight: 900, fontSize: 14, overflow: "hidden", border: `2px solid ${creator.isTopTier ? "rgba(251,191,36,.4)" : "rgba(132,204,22,.2)"}` }}>
+          {typeof creator.avatar === "string" && creator.avatar.startsWith("http") ? <img src={creator.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : creator.avatar}
+        </div>
+        {creator.isTopTier && <div style={{ position: "absolute", top: -5, right: -5, width: 16, height: 16, background: "linear-gradient(135deg,#fbbf24,#f59e0b)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #000" }}><Crown size={8} color="#000" /></div>}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#d4d4d4", display: "flex", alignItems: "center", gap: 4, marginBottom: 2, overflow: "hidden" }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creator.name}</span>
+          {creator.verified && <span style={{ width: 14, height: 14, background: "#84cc16", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Sparkles size={8} color="#000" /></span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#484848" }}>
+          <span>@{creator.username}</span>
+          <span style={{ color: "#2a2a2a" }}>·</span>
+          <span style={{ color: "#84cc16", fontWeight: 700 }}>{fmt(creator.stats.likes)}</span><span>likes</span>
+          <span style={{ color: "#2a2a2a" }}>·</span>
+          <span style={{ color: "#84cc16", fontWeight: 700 }}>{creator.stats.posts}</span><span>posts</span>
+        </div>
+      </div>
+      <ChevronRight size={14} color="#2a2a2a" style={{ flexShrink: 0 }} />
+    </div>
+  );
+};
+
+// ── View more button ──────────────────────────────────────────────────────────
+const ViewMoreBtn = ({ onClick, children, red }) => (
+  <button onClick={onClick} style={{ width: "100%", padding: "10px", marginTop: 4, background: red ? "rgba(239,68,68,.05)" : "rgba(132,204,22,.05)", border: `1px dashed ${red ? "rgba(239,68,68,.22)" : "rgba(132,204,22,.2)"}`, borderRadius: 10, color: red ? "#ef4444" : "#84cc16", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+    {children}
+  </button>
+);
+
+// ── Sub-panel ─────────────────────────────────────────────────────────────────
+const SubPanel = ({ title, subtitle, icon: Icon, iconColor, iconBg, iconBorder, onBack, children }) => (
+  <div style={{ position: "absolute", inset: 0, background: "#050505", zIndex: 20, display: "flex", flexDirection: "column", animation: "mtSlideIn .22s cubic-bezier(.34,1.1,.64,1)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0 }}>
+      <button onClick={onBack} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#737373", flexShrink: 0 }}>
+        <ArrowLeft size={15} />
+      </button>
+      <div style={{ width: 30, height: 30, borderRadius: 9, background: iconBg, border: `1px solid ${iconBorder}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icon size={14} color={iconColor} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 11, color: "#484848", marginTop: 1 }}>{subtitle}</div>}
+      </div>
+    </div>
+    <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>{children}</div>
+  </div>
+);
+
+// ── Post card ─────────────────────────────────────────────────────────────────
+const PostCard = ({ post, onNavigate }) => (
+  <div onClick={() => onNavigate(post)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderRadius: 11, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", marginBottom: 8, cursor: "pointer" }}>
+    {post.thumbnail && (
+      <div style={{ width: 48, height: 48, borderRadius: 9, overflow: "hidden", flexShrink: 0, position: "relative" }}>
+        <img src={post.thumbnail} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        {post.contentType === "reel" && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.4)" }}><Play size={12} color="#fff" /></div>}
+      </div>
+    )}
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(132,204,22,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#84cc16", flexShrink: 0, overflow: "hidden" }}>
+          {post.authorAvatar?.startsWith("http") ? <img src={post.authorAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span>{post.authorAvatar || "?"}</span>}
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#d4d4d4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.authorName}</span>
+        <span style={{ fontSize: 10, color: "#484848" }}>@{post.authorUsername}</span>
+      </div>
+      {post.caption && <p style={{ fontSize: 11, color: "#606060", margin: "0 0 4px", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.caption}</p>}
+      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "#404040" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Eye size={9} />{fmt(post.views)}</span>
+        <span>❤ {fmt(post.likes)}</span>
+      </div>
+    </div>
+    <ChevronRight size={14} color="#2a2a2a" style={{ flexShrink: 0 }} />
+  </div>
+);
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setActiveTab: setAppTab, setFeedFilter }) => {
+  const [liveSessions,    setLiveSessions]    = useState([]);
+  const [liveLoading,     setLiveLoading]     = useState(true);
+  const [topStreamers,    setTopStreamers]    = useState([]);
+  const [trendingTags,    setTrendingTags]    = useState([]);
+  const [eliteCreators,   setEliteCreators]   = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState(null);
+  const [refreshing,      setRefreshing]      = useState(false);
+
+  const streamersCache = useRef([]);
+
+  const [panel,           setPanel]           = useState(null);
+  const [activeTag,       setActiveTag]       = useState(null);
+  const [tagPosts,        setTagPosts]        = useState([]);
+  const [tagPostsLoading, setTagPostsLoading] = useState(false);
+
+  const [creatorModal,    setCreatorModal]    = useState(false);
   const [selectedCreator, setSelectedCreator] = useState(null);
-  const [expandedTags, setExpandedTags] = useState(false);
-  const [expandedCreators, setExpandedCreators] = useState(false);
+  const [streamerDetail,  setStreamerDetail]  = useState(null);
+
+  const liveRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
-      loadLiveData(true);
-    }
+    if (!isOpen) return;
+    loadAll(true);
+    loadLive();
+    const iv = setInterval(() => loadAll(false), 10 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [isOpen]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let alive = true;
+    const ch = supabase.channel("mt_live_v3")
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_sessions" }, async () => {
+        try { const d = await fetchLiveSessions(); if (alive) setLiveSessions(d); } catch {}
+      }).subscribe();
+    liveRef.current = ch;
+    return () => { alive = false; supabase.removeChannel(ch); };
   }, [isOpen]);
 
-  const loadLiveData = async (isInitial = false) => {
-    if (isInitial) {
-      setLoading(true);
-    }
-    setError(null);
+  const loadLive = async () => {
+    try { const d = await fetchLiveSessions(); setLiveSessions(d); }
+    catch { /* silent */ }
+    finally { setLiveLoading(false); }
+  };
 
+  const loadAll = async (initial = false) => {
+    if (initial) setLoading(true);
+    setError(null);
     try {
-      const [tags, creators] = await Promise.all([
+      const [streamers, tags, creators] = await Promise.all([
+        fetchTopStreamers(),
         loadTrendingTags(),
         loadActiveCreators(),
       ]);
-
+      if (streamers.length > 0) {
+        setTopStreamers(streamers);
+        streamersCache.current = streamers;
+      } else if (streamersCache.current.length > 0) {
+        setTopStreamers(streamersCache.current);
+      }
       setTrendingTags(tags);
       setEliteCreators(creators);
-    } catch (err) {
-      console.error("Failed to load trending data:", err);
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
+      if (streamersCache.current.length > 0) setTopStreamers(streamersCache.current);
     } finally {
-      if (isInitial) {
-        setLoading(false);
-      }
+      if (initial) setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadLiveData(false);
-  };
-
   const loadTrendingTags = async () => {
-    try {
-      console.log("📊 Loading trending tags for mobile...");
-
-      const [stories, posts, reels] = await Promise.all([
-        supabase
-          .from("stories")
-          .select("category, views")
-          .is("deleted_at", null)
-          .order("views", { ascending: false })
-          .limit(100),
-        supabase
-          .from("posts")
-          .select("category, views")
-          .is("deleted_at", null)
-          .order("views", { ascending: false })
-          .limit(100),
-        supabase
-          .from("reels")
-          .select("category, views")
-          .is("deleted_at", null)
-          .order("views", { ascending: false })
-          .limit(100),
-      ]);
-
-      const categoryMap = {};
-      const allContent = [
-        ...(stories.data || []),
-        ...(posts.data || []),
-        ...(reels.data || []),
-      ];
-
-      allContent.forEach((item) => {
-        const cat = item.category || "General";
-        if (!categoryMap[cat]) {
-          categoryMap[cat] = { views: 0, count: 0 };
-        }
-        categoryMap[cat].views += item.views || 0;
-        categoryMap[cat].count++;
-      });
-
-      const tags = Object.entries(categoryMap)
-        .map(([label, data]) => ({
-          type: "category",
-          label,
-          views: data.views,
-          posts: data.count,
-          trendScore: data.views * 0.7 + data.count * 100 * 0.3,
-        }))
-        .sort((a, b) => b.trendScore - a.trendScore)
-        .slice(0, 30);
-
-      console.log("✅ Loaded trending tags for mobile:", tags);
-      return tags;
-    } catch (error) {
-      console.error("Failed to load trending tags:", error);
-      return [];
-    }
+    const [s, p, r] = await Promise.all([
+      supabase.from("stories").select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
+      supabase.from("posts"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
+      supabase.from("reels"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
+    ]);
+    const map = {};
+    [...(s.data || []), ...(p.data || []), ...(r.data || [])].forEach((item) => {
+      const cat = item.category || "General";
+      if (!map[cat]) map[cat] = { views: 0, count: 0 };
+      map[cat].views += item.views || 0; map[cat].count++;
+    });
+    return Object.entries(map)
+      .map(([label, d]) => ({ label, views: d.views, posts: d.count, trendScore: d.views * 0.7 + d.count * 100 * 0.3 }))
+      .sort((a, b) => b.trendScore - a.trendScore).slice(0, 30);
   };
 
   const loadActiveCreators = async () => {
-    try {
-      console.log("👑 Loading active creators for mobile...");
-
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const weekAgoISO = oneWeekAgo.toISOString();
-
-      const [posts, reels, stories] = await Promise.all([
-        supabase
-          .from("posts")
-          .select("user_id, likes, views, comments_count")
-          .is("deleted_at", null)
-          .gte("created_at", weekAgoISO),
-        supabase
-          .from("reels")
-          .select("user_id, likes, views, comments_count")
-          .is("deleted_at", null)
-          .gte("created_at", weekAgoISO),
-        supabase
-          .from("stories")
-          .select("user_id, likes, views, comments_count")
-          .is("deleted_at", null)
-          .gte("created_at", weekAgoISO),
-      ]);
-
-      const userStats = {};
-      const allContent = [
-        ...(posts.data || []),
-        ...(reels.data || []),
-        ...(stories.data || []),
-      ];
-
-      allContent.forEach((item) => {
-        const userId = item.user_id;
-        if (!userStats[userId]) {
-          userStats[userId] = {
-            totalLikes: 0,
-            totalViews: 0,
-            totalComments: 0,
-            postCount: 0,
-          };
-        }
-        userStats[userId].totalLikes += item.likes || 0;
-        userStats[userId].totalViews += item.views || 0;
-        userStats[userId].totalComments += item.comments_count || 0;
-        userStats[userId].postCount++;
-      });
-
-      const topUserIds = Object.entries(userStats)
-        .map(([userId, stats]) => ({
-          userId,
-          ...stats,
-          engagementScore:
-            stats.totalLikes * 3 +
-            stats.totalComments * 5 +
-            stats.totalViews * 0.1,
-        }))
-        .sort((a, b) => b.engagementScore - a.engagementScore)
-        .slice(0, 30)
-        .map((u) => u.userId);
-
-      if (topUserIds.length === 0) {
-        console.log("⚠️ No active creators found for mobile");
-        return [];
-      }
-
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name, username, avatar_id, verified, bio")
-        .in("id", topUserIds);
-
-      if (profileError) {
-        console.error("Profile fetch error:", profileError);
-        return [];
-      }
-
-      const creators = topUserIds
-        .map((userId, index) => {
-          const profile = profileData?.find((p) => p.id === userId);
-          if (!profile) return null;
-
-          const stats = userStats[userId];
-          const avatarUrl = profile.avatar_id
-            ? mediaUrlService.getImageUrl(profile.avatar_id, {
-                width: 200,
-                height: 200,
-                crop: "fill",
-                gravity: "face",
-              })
-            : null;
-
-          return {
-            userId: profile.id,
-            rank: index + 1,
-            name: profile.full_name || "Grova Creator",
-            username: profile.username || "user",
-            avatar: avatarUrl || profile.full_name?.charAt(0) || "G",
-            verified: profile.verified || false,
-            bio: profile.bio || "",
-            stats: {
-              likes: stats.totalLikes,
-              views: stats.totalViews,
-              comments: stats.totalComments,
-              posts: stats.postCount,
-            },
-            isTopTier: index < 3,
-          };
-        })
-        .filter(Boolean);
-
-      console.log("✅ Loaded active creators for mobile:", creators);
-      return creators;
-    } catch (error) {
-      console.error("Failed to load active creators:", error);
-      return [];
-    }
-  };
-
-  const formatNumber = (num) => {
-    if (!num) return "0";
-    if (num >= 1000000000) return `${(num / 1000000000).toFixed(1)}B`;
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  };
-
-  const handleCreatorClick = (creator) => {
-    setSelectedCreator({
-      id: creator.userId,
-      user_id: creator.userId,
-      name: creator.name,
-      author: creator.name,
-      username: creator.username,
-      avatar: creator.avatar,
-      verified: creator.verified,
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+    const iso = cutoff.toISOString();
+    const [p, r, s] = await Promise.all([
+      supabase.from("posts"  ).select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
+      supabase.from("reels"  ).select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
+      supabase.from("stories").select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
+    ]);
+    const stats = {};
+    [...(p.data || []), ...(r.data || []), ...(s.data || [])].forEach((item) => {
+      const uid = item.user_id;
+      if (!stats[uid]) stats[uid] = { likes: 0, views: 0, comments: 0, posts: 0 };
+      stats[uid].likes += item.likes || 0; stats[uid].views += item.views || 0;
+      stats[uid].comments += item.comments_count || 0; stats[uid].posts++;
     });
-    setShowProfileModal(true);
+    const topIds = Object.entries(stats)
+      .map(([uid, st]) => ({ uid, score: st.likes * 3 + st.comments * 5 + st.views * 0.1, ...st }))
+      .sort((a, b) => b.score - a.score).slice(0, 30).map((u) => u.uid);
+    if (!topIds.length) return [];
+    const { data: profiles } = await supabase.from("profiles").select("id,full_name,username,avatar_id,verified,bio").in("id", topIds);
+    return topIds.map((uid, i) => {
+      const pr = profiles?.find((x) => x.id === uid); if (!pr) return null;
+      const st = stats[uid];
+      const avatar = pr.avatar_id ? mediaUrlService.getImageUrl(pr.avatar_id, { width: 160, height: 160, crop: "fill", gravity: "face" }) : null;
+      return { userId: pr.id, rank: i + 1, name: pr.full_name || "Creator", username: pr.username || "user", avatar: avatar || pr.full_name?.charAt(0) || "G", verified: pr.verified || false, stats: { likes: st.likes, views: st.views, comments: st.comments, posts: st.posts }, isTopTier: i < 3 };
+    }).filter(Boolean);
   };
 
-  const handleTagClick = (tag) => {
-    console.log("Tag clicked:", tag.label);
+  const loadTagPosts = async (tag) => {
+    setTagPostsLoading(true); setTagPosts([]);
+    try {
+      const [pr, rr, sr] = await Promise.all([
+        supabase.from("posts"  ).select("id,user_id,caption,category,views,likes,media_id"   ).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+        supabase.from("reels"  ).select("id,user_id,caption,category,views,likes,thumbnail_id").eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+        supabase.from("stories").select("id,user_id,caption,category,views,likes,media_id"   ).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+      ]);
+      const all = [
+        ...(pr.data || []).map((x) => ({ ...x, contentType: "post",  thumbField: "media_id"     })),
+        ...(rr.data || []).map((x) => ({ ...x, contentType: "reel",  thumbField: "thumbnail_id" })),
+        ...(sr.data || []).map((x) => ({ ...x, contentType: "story", thumbField: "media_id"     })),
+      ];
+      const uids = [...new Set(all.map((x) => x.user_id))];
+      const { data: prs } = uids.length ? await supabase.from("profiles").select("id,full_name,username,avatar_id").in("id", uids) : { data: [] };
+      const pm = Object.fromEntries((prs || []).map((x) => [x.id, x]));
+      setTagPosts(all.map((item) => {
+        const p = pm[item.user_id] || {}; const thumbId = item[item.thumbField];
+        return { id: item.id, contentType: item.contentType, caption: item.caption || "", views: item.views || 0, likes: item.likes || 0, authorName: p.full_name || "Creator", authorUsername: p.username || "user", authorAvatar: p.avatar_id ? mediaUrlService.getImageUrl(p.avatar_id, { width: 80, height: 80, crop: "fill", gravity: "face" }) : p.full_name?.charAt(0) || "?", thumbnail: thumbId ? mediaUrlService.getImageUrl(thumbId, { width: 160, height: 160, crop: "fill" }) : null };
+      }).sort((a, b) => b.views - a.views));
+    } catch (e) { console.error(e); }
+    finally { setTagPostsLoading(false); }
   };
+
+  const handleTagNavigate   = (tag)     => { setFeedFilter?.({ type: "tag",  value: tag.label }); setAppTab?.("home"); onClose(); };
+  const handleTagDrill      = (tag)     => { setActiveTag(tag); loadTagPosts(tag); setPanel("tagPosts"); };
+  const handlePostNavigate  = (post)    => { setFeedFilter?.({ type: "post", value: post.id, contentType: post.contentType }); setAppTab?.("home"); onClose(); };
+  const handleJoin          = (session) => { onJoinStream?.(session); onClose(); };
+  const handleStreamerClick  = (s)      => setStreamerDetail(s);
+  const handleCreatorClick   = (c)     => { setSelectedCreator({ id: c.userId, user_id: c.userId, name: c.name, author: c.name, username: c.username, avatar: c.avatar, verified: c.verified }); setCreatorModal(true); };
 
   if (!isOpen) return null;
 
-  const displayedTags = expandedTags ? trendingTags : trendingTags.slice(0, 5);
-  const displayedCreators = expandedCreators
-    ? eliteCreators
-    : eliteCreators.slice(0, 5);
+  const topTags     = trendingTags.slice(0, 3);
+  const topCreators = eliteCreators.slice(0, 3);
 
   return (
     <>
       <style>{`
-        .mobile-trending-sidebar-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.8);
-          backdrop-filter: blur(10px);
-          z-index: 10000;
-          animation: mobileTrendingFadeIn 0.2s ease;
-        }
-
-        @keyframes mobileTrendingFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .mobile-trending-sidebar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: #000000;
-          z-index: 10001;
-          display: flex;
-          flex-direction: column;
-          animation: mobileTrendingSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes mobileTrendingSlideUp {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-
-        .mobile-trending-sidebar-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-          background: rgba(0, 0, 0, 0.98);
-          backdrop-filter: blur(20px);
-        }
-
-        .mobile-trending-sidebar-title-wrapper {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .mobile-trending-sidebar-title {
-          font-size: 20px;
-          font-weight: 800;
-          color: #fff;
-        }
-
-        .mobile-trending-sidebar-actions {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .mobile-trending-sidebar-refresh-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(132, 204, 22, 0.1);
-          border: 1px solid rgba(132, 204, 22, 0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #84cc16;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .mobile-trending-sidebar-refresh-btn:active {
-          transform: scale(0.92);
-          background: rgba(132, 204, 22, 0.15);
-        }
-
-        .mobile-trending-sidebar-refreshing {
-          animation: mobileTrendingSpin 1s linear infinite;
-        }
-
-        @keyframes mobileTrendingSpin {
-          to { transform: rotate(360deg); }
-        }
-
-        .mobile-trending-sidebar-close-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #737373;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .mobile-trending-sidebar-close-btn:active {
-          transform: scale(0.92);
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
-
-        .mobile-trending-sidebar-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 20px;
-        }
-
-        .mobile-trending-sidebar-content::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .mobile-trending-sidebar-content::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-        }
-
-        .mobile-trending-sidebar-content::-webkit-scrollbar-thumb {
-          background: rgba(132, 204, 22, 0.3);
-          border-radius: 3px;
-        }
-
-        .mobile-trending-sidebar-section {
-          margin-bottom: 32px;
-        }
-
-        .mobile-trending-sidebar-section-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 2px solid rgba(132, 204, 22, 0.18);
-        }
-
-        .mobile-trending-sidebar-section-icon-wrapper {
-          width: 42px;
-          height: 42px;
-          border-radius: 14px;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 6px 16px rgba(132, 204, 22, 0.3);
-        }
-
-        .mobile-trending-sidebar-section-title {
-          font-size: 18px;
-          font-weight: 800;
-          color: #ffffff;
-        }
-
-        .mobile-trending-sidebar-section-subtitle {
-          font-size: 12px;
-          color: #84cc16;
-          font-weight: 600;
-        }
-
-        .mobile-trending-sidebar-tag-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .mobile-trending-sidebar-tag-item {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 14px 16px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(132, 204, 22, 0.14);
-          border-radius: 14px;
-          cursor: pointer;
-          transition: all 0.25s ease;
-        }
-
-        .mobile-trending-sidebar-tag-item:active {
-          transform: scale(0.98);
-          background: rgba(132, 204, 22, 0.09);
-          border-color: rgba(132, 204, 22, 0.45);
-        }
-
-        .mobile-trending-sidebar-tag-rank {
-          min-width: 42px;
-          height: 42px;
-          border-radius: 12px;
-          background: rgba(132, 204, 22, 0.18);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #84cc16;
-          font-size: 17px;
-          font-weight: 900;
-          flex-shrink: 0;
-        }
-
-        .mobile-trending-sidebar-tag-rank.top-rank {
-          background: linear-gradient(135deg, #fbbf24, #f59e0b);
-          color: #000;
-          font-size: 18px;
-          box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
-        }
-
-        .mobile-trending-sidebar-tag-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .mobile-trending-sidebar-tag-label {
-          font-size: 15.5px;
-          font-weight: 700;
-          color: #ffffff;
-          margin: 0 0 5px 0;
-          line-height: 1.3;
-        }
-
-        .mobile-trending-sidebar-tag-stats {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 10px;
-          font-size: 13px;
-          color: #b0b0b0;
-        }
-
-        .mobile-trending-sidebar-tag-stat {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-        }
-
-        .mobile-trending-sidebar-separator {
-          color: #444;
-        }
-
-        .mobile-trending-sidebar-trending-badge {
-          padding: 3px 9px;
-          background: rgba(239, 68, 68, 0.18);
-          border-radius: 6px;
-          color: #ef4444;
-          font-size: 10px;
-          font-weight: 800;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .mobile-trending-sidebar-view-more-btn {
-          width: 100%;
-          padding: 14px;
-          margin-top: 12px;
-          background: rgba(132, 204, 22, 0.08);
-          border: 1px dashed rgba(132, 204, 22, 0.3);
-          border-radius: 12px;
-          color: #84cc16;
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .mobile-trending-sidebar-view-more-btn:active {
-          transform: scale(0.98);
-          background: rgba(132, 204, 22, 0.15);
-          border-color: #84cc16;
-          border-style: solid;
-        }
-
-        .mobile-trending-sidebar-creator-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .mobile-trending-sidebar-creator-item {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 14px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(132, 204, 22, 0.15);
-          border-radius: 16px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .mobile-trending-sidebar-creator-item:active {
-          transform: scale(0.98);
-          box-shadow: 0 6px 20px rgba(132, 204, 22, 0.2);
-          border-color: rgba(132, 204, 22, 0.4);
-        }
-
-        .mobile-trending-sidebar-creator-item.top-tier {
-          border-color: rgba(251, 191, 36, 0.4);
-          background: linear-gradient(135deg, rgba(251, 191, 36, 0.05), rgba(245, 158, 11, 0.05));
-        }
-
-        .mobile-trending-sidebar-creator-rank-badge {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          font-size: 13px;
-          font-weight: 900;
-          flex-shrink: 0;
-          box-shadow: 0 4px 12px rgba(132, 204, 22, 0.4);
-        }
-
-        .mobile-trending-sidebar-creator-rank-badge.gold {
-          background: linear-gradient(135deg, #fbbf24, #f59e0b);
-        }
-
-        .mobile-trending-sidebar-creator-rank-badge.silver {
-          background: linear-gradient(135deg, #e5e7eb, #9ca3af);
-        }
-
-        .mobile-trending-sidebar-creator-rank-badge.bronze {
-          background: linear-gradient(135deg, #d97706, #b45309);
-        }
-
-        .mobile-trending-sidebar-creator-avatar-wrapper {
-          position: relative;
-          flex-shrink: 0;
-        }
-
-        .mobile-trending-sidebar-creator-avatar {
-          width: 52px;
-          height: 52px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          font-weight: 900;
-          font-size: 20px;
-          overflow: hidden;
-          border: 3px solid rgba(132, 204, 22, 0.3);
-        }
-
-        .mobile-trending-sidebar-creator-item.top-tier .mobile-trending-sidebar-creator-avatar {
-          border-color: rgba(251, 191, 36, 0.6);
-        }
-
-        .mobile-trending-sidebar-creator-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .mobile-trending-sidebar-crown-icon {
-          position: absolute;
-          top: -8px;
-          right: -8px;
-          width: 24px;
-          height: 24px;
-          background: linear-gradient(135deg, #fbbf24, #f59e0b);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid #000;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        }
-
-        .mobile-trending-sidebar-creator-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .mobile-trending-sidebar-creator-name {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 15px;
-          font-weight: 700;
-          color: #ffffff;
-          margin: 0 0 4px 0;
-        }
-
-        .mobile-trending-sidebar-verified-badge {
-          background: #84cc16;
-          color: #000;
-          border-radius: 50%;
-          width: 16px;
-          height: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .mobile-trending-sidebar-creator-username {
-          font-size: 13px;
-          color: #737373;
-          margin: 0 0 6px 0;
-        }
-
-        .mobile-trending-sidebar-creator-stats {
-          display: flex;
-          gap: 12px;
-          font-size: 12px;
-          color: #a3a3a3;
-        }
-
-        .mobile-trending-sidebar-stat-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .mobile-trending-sidebar-stat-value {
-          color: #84cc16;
-          font-weight: 700;
-        }
-
-        .mobile-trending-sidebar-empty-state {
-          text-align: center;
-          padding: 60px 20px;
-          color: #737373;
-        }
-
-        .mobile-trending-sidebar-empty-state-icon {
-          font-size: 64px;
-          margin-bottom: 16px;
-          opacity: 0.5;
-        }
-
-        .mobile-trending-sidebar-empty-state-text {
-          font-size: 14px;
-          margin: 0;
-        }
+        @keyframes mtSlideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        @keyframes mtSlideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+        @keyframes mtSpin    { to{transform:rotate(360deg)} }
+        @keyframes mtBlink   { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .mt-sc-spin { position:absolute; top:50%; left:50%; width:200%; height:200%; margin:-100% 0 0 -100%; background:conic-gradient(#ef4444 0deg,#fb7185 40%,#ef4444 360deg); animation:mtScSpin 4s linear infinite; z-index:0; }
+        @keyframes mtScSpin { to{transform:rotate(360deg)} }
+        .mt-sc-pulse { animation:mtScPulse 2s ease-out infinite; }
+        @keyframes mtScPulse { 0%{transform:scale(1);opacity:.5} 100%{transform:scale(1.55);opacity:0} }
+        .mt-sc-dot { animation:mtScBlink 1.4s ease-in-out infinite; }
+        @keyframes mtScBlink { 0%,100%{opacity:1} 50%{opacity:.4} }
       `}</style>
 
-      <div className="mobile-trending-sidebar-overlay" onClick={onClose}>
-        <div className="mobile-trending-sidebar" onClick={(e) => e.stopPropagation()}>
-          <div className="mobile-trending-sidebar-header">
-            <div className="mobile-trending-sidebar-title-wrapper">
-              <TrendingUp size={24} style={{ color: "#84cc16" }} />
-              <span className="mobile-trending-sidebar-title">Trending</span>
-            </div>
-            <div className="mobile-trending-sidebar-actions">
-              <button
-                className="mobile-trending-sidebar-refresh-btn"
-                onClick={handleRefresh}
-                disabled={refreshing}
-              >
-                <RefreshCw
-                  size={18}
-                  className={refreshing ? "mobile-trending-sidebar-refreshing" : ""}
-                />
-              </button>
-              <button className="mobile-trending-sidebar-close-btn" onClick={onClose}>
-                <X size={20} />
-              </button>
-            </div>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", backdropFilter: "blur(8px)", zIndex: 9999 }} />
+
+      <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#050505", display: "flex", flexDirection: "column", fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif", color: "#fff", animation: "mtSlideUp .28s cubic-bezier(.34,1.1,.64,1)", overflow: "hidden" }}>
+
+        {/* Top bar */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(5,5,5,.98)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(132,204,22,.1)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <TrendingUp size={20} color="#84cc16" />
+            <span style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>Trending</span>
           </div>
-
-          <div className="mobile-trending-sidebar-content">
-            {loading ? (
-              <UnifiedLoader type="section" message="Loading trending..." />
-            ) : error ? (
-              <UnifiedLoader
-                type="section"
-                error={error}
-                onRetry={() => loadLiveData(true)}
-              />
-            ) : (
-              <>
-                {/* TRENDING TAGS */}
-                <div className="mobile-trending-sidebar-section">
-                  <div className="mobile-trending-sidebar-section-header">
-                    <div className="mobile-trending-sidebar-section-icon-wrapper">
-                      <Flame size={22} style={{ color: "#000" }} />
-                    </div>
-                    <div>
-                      <div className="mobile-trending-sidebar-section-title">Trending Now</div>
-                      <div className="mobile-trending-sidebar-section-subtitle">
-                        What's hot on Grova
-                      </div>
-                    </div>
-                  </div>
-
-                  {trendingTags.length > 0 ? (
-                    <>
-                      <div className="mobile-trending-sidebar-tag-list">
-                        {displayedTags.map((tag, index) => (
-                          <div
-                            key={`${tag.label}-${index}`}
-                            className="mobile-trending-sidebar-tag-item"
-                            onClick={() => handleTagClick(tag)}
-                          >
-                            <div
-                              className={`mobile-trending-sidebar-tag-rank ${index < 3 ? "top-rank" : ""}`}
-                            >
-                              #{index + 1}
-                            </div>
-                            <div className="mobile-trending-sidebar-tag-content">
-                              <p className="mobile-trending-sidebar-tag-label">{tag.label}</p>
-                              <div className="mobile-trending-sidebar-tag-stats">
-                                <span className="mobile-trending-sidebar-tag-stat">
-                                  <Eye size={13} />
-                                  {formatNumber(tag.views)}
-                                </span>
-                                <span className="mobile-trending-sidebar-separator">•</span>
-                                <span className="mobile-trending-sidebar-tag-stat">
-                                  {tag.posts} posts
-                                </span>
-                                {index < 3 && (
-                                  <>
-                                    <span className="mobile-trending-sidebar-separator">•</span>
-                                    <span className="mobile-trending-sidebar-trending-badge">
-                                      <Flame size={11} />
-                                      HOT
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {trendingTags.length > 5 && (
-                        <button
-                          className="mobile-trending-sidebar-view-more-btn"
-                          onClick={() => setExpandedTags(!expandedTags)}
-                        >
-                          {expandedTags ? "Show Less" : `View All ${trendingTags.length} Tags`}
-                          <ArrowRight size={16} />
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div className="mobile-trending-sidebar-empty-state">
-                      <div className="mobile-trending-sidebar-empty-state-icon">🔥</div>
-                      <p className="mobile-trending-sidebar-empty-state-text">
-                        No trending tags yet
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* TOP CREATORS */}
-                <div className="mobile-trending-sidebar-section">
-                  <div className="mobile-trending-sidebar-section-header">
-                    <div className="mobile-trending-sidebar-section-icon-wrapper">
-                      <Crown size={22} style={{ color: "#000" }} />
-                    </div>
-                    <div>
-                      <div className="mobile-trending-sidebar-section-title">Top Creators</div>
-                      <div className="mobile-trending-sidebar-section-subtitle">
-                        This week's stars
-                      </div>
-                    </div>
-                  </div>
-
-                  {eliteCreators.length > 0 ? (
-                    <>
-                      <div className="mobile-trending-sidebar-creator-list">
-                        {displayedCreators.map((creator) => (
-                          <div
-                            key={creator.userId}
-                            className={`mobile-trending-sidebar-creator-item ${creator.isTopTier ? "top-tier" : ""}`}
-                            onClick={() => handleCreatorClick(creator)}
-                          >
-                            <div
-                              className={`mobile-trending-sidebar-creator-rank-badge ${
-                                creator.rank === 1
-                                  ? "gold"
-                                  : creator.rank === 2
-                                    ? "silver"
-                                    : creator.rank === 3
-                                      ? "bronze"
-                                      : ""
-                              }`}
-                            >
-                              {creator.rank}
-                            </div>
-
-                            <div className="mobile-trending-sidebar-creator-avatar-wrapper">
-                              <div className="mobile-trending-sidebar-creator-avatar">
-                                {typeof creator.avatar === "string" &&
-                                creator.avatar.startsWith("http") ? (
-                                  <img src={creator.avatar} alt={creator.name} />
-                                ) : (
-                                  creator.avatar
-                                )}
-                                {creator.isTopTier && (
-                                  <div className="mobile-trending-sidebar-crown-icon">
-                                    <Crown size={12} color="#000" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="mobile-trending-sidebar-creator-info">
-                              <div className="mobile-trending-sidebar-creator-name">
-                                <span>{creator.name}</span>
-                                {creator.verified && (
-                                  <span className="mobile-trending-sidebar-verified-badge">
-                                    <Sparkles size={10} />
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mobile-trending-sidebar-creator-username">
-                                @{creator.username}
-                              </p>
-                              <div className="mobile-trending-sidebar-creator-stats">
-                                <span className="mobile-trending-sidebar-stat-item">
-                                  <span className="mobile-trending-sidebar-stat-value">
-                                    {formatNumber(creator.stats.likes)}
-                                  </span>{" "}
-                                  likes
-                                </span>
-                                <span className="mobile-trending-sidebar-separator">•</span>
-                                <span className="mobile-trending-sidebar-stat-item">
-                                  <span className="mobile-trending-sidebar-stat-value">
-                                    {creator.stats.posts}
-                                  </span>{" "}
-                                  posts
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {eliteCreators.length > 5 && (
-                        <button
-                          className="mobile-trending-sidebar-view-more-btn"
-                          onClick={() => setExpandedCreators(!expandedCreators)}
-                        >
-                          {expandedCreators
-                            ? "Show Less"
-                            : `View All ${eliteCreators.length} Creators`}
-                          <ArrowRight size={16} />
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div className="mobile-trending-sidebar-empty-state">
-                      <div className="mobile-trending-sidebar-empty-state-icon">👑</div>
-                      <p className="mobile-trending-sidebar-empty-state-text">
-                        No creators this week
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => { setRefreshing(true); loadAll(false); loadLive(); }} disabled={refreshing}
+              style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(132,204,22,.1)", border: "1px solid rgba(132,204,22,.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#84cc16", cursor: "pointer" }}>
+              <RefreshCw size={15} style={{ animation: refreshing ? "mtSpin 1s linear infinite" : "none" }} />
+            </button>
+            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#737373", cursor: "pointer" }}>
+              <X size={18} />
+            </button>
           </div>
         </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 32px" }}>
+          {loading && topStreamers.length === 0 ? (
+            <UnifiedLoader type="section" message="Loading trending…" />
+          ) : error && topStreamers.length === 0 ? (
+            <UnifiedLoader type="section" error={error} onRetry={() => loadAll(true)} />
+          ) : (
+            <>
+              {/* ══ TOP STREAMERS ══ */}
+              <div style={{ marginBottom: 22 }}>
+                <SectionHeader icon={Tv} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)" title="Top Streamers" subtitle="Ranked by peak viewers" />
+                {topStreamers.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}>
+                    <div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>📡</div>
+                    <p style={{ fontSize: 13, margin: 0 }}>No streamers yet — be the first to go live!</p>
+                  </div>
+                ) : (
+                  <>
+                    {topStreamers.slice(0, STREAMERS_PREVIEW).map((s) => (
+                      <StreamerRow key={s.userId} streamer={s} onClick={handleStreamerClick} />
+                    ))}
+                    {topStreamers.length > STREAMERS_PREVIEW && (
+                      <ViewMoreBtn onClick={() => setPanel("streamers")} red>
+                        View All {topStreamers.length} Streamers <ArrowRight size={14} />
+                      </ViewMoreBtn>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* ══ LIVE NOW ══ */}
+              {!liveLoading && liveSessions.length > 0 && (
+                <div style={{ marginBottom: 22, background: "rgba(239,68,68,.03)", border: "1px solid rgba(239,68,68,.08)", borderRadius: 13, padding: "12px 12px 6px" }}>
+                  <SectionHeader icon={Radio} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)" title="Live Now" subtitle="Tap a circle to join"
+                    right={<div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", fontSize: 10, fontWeight: 800, color: "#ef4444" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "mtBlink 1.6s infinite" }} />{liveSessions.length}</div>} />
+                  <div style={{ display: "flex", flexDirection: "row", gap: 12, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollbarWidth: "none", padding: "2px 0 10px" }}>
+                    {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
+                  </div>
+                </div>
+              )}
+
+              {/* ══ TRENDING TAGS ══ */}
+              <div style={{ marginBottom: 22 }}>
+                <SectionHeader icon={Flame} iconColor="#84cc16" iconBg="rgba(132,204,22,.1)" iconBorder="rgba(132,204,22,.2)" title="Trending Now" subtitle="What's hot on Xeevia" />
+                {topTags.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}><div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>🔥</div><p style={{ fontSize: 13, margin: 0 }}>No trending tags yet</p></div>
+                ) : (
+                  <>
+                    {topTags.map((tag, i) => <TagRow key={tag.label} tag={tag} index={i} onNavigate={handleTagNavigate} onDrill={handleTagDrill} />)}
+                    {trendingTags.length > 3 && <ViewMoreBtn onClick={() => setPanel("tags")}>View Top 30 Tags <ArrowRight size={14} /></ViewMoreBtn>}
+                  </>
+                )}
+              </div>
+
+              {/* ══ TOP CREATORS ══ */}
+              <div style={{ marginBottom: 16 }}>
+                <SectionHeader icon={Crown} iconColor="#fbbf24" iconBg="rgba(251,191,36,.1)" iconBorder="rgba(251,191,36,.25)" title="Top Creators" subtitle="This week's stars" />
+                {topCreators.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "24px 0", color: "#2e2e2e" }}><div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>👑</div><p style={{ fontSize: 13, margin: 0 }}>No creators this week</p></div>
+                ) : (
+                  <>
+                    {topCreators.map((c) => <CreatorRow key={c.userId} creator={c} onClick={handleCreatorClick} />)}
+                    {eliteCreators.length > 3 && <ViewMoreBtn onClick={() => setPanel("creators")}>View Top 30 Creators <ArrowRight size={14} /></ViewMoreBtn>}
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ══ SUB-PANELS ══ */}
+        {panel === "streamers" && (
+          <SubPanel title="Top Streamers" subtitle={`${topStreamers.length} streamers · ranked by peak viewers`}
+            icon={Tv} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)"
+            onBack={() => setPanel(null)}>
+            {topStreamers.map((s) => <StreamerRow key={s.userId} streamer={s} onClick={(str) => { setPanel(null); handleStreamerClick(str); }} />)}
+          </SubPanel>
+        )}
+
+        {panel === "tags" && (
+          <SubPanel title="Trending Tags" subtitle="Top 30 · tap label to explore, arrow for posts"
+            icon={Flame} iconColor="#84cc16" iconBg="rgba(132,204,22,.1)" iconBorder="rgba(132,204,22,.2)"
+            onBack={() => setPanel(null)}>
+            {trendingTags.map((tag, i) => <TagRow key={tag.label} tag={tag} index={i} onNavigate={(t) => { handleTagNavigate(t); setPanel(null); }} onDrill={handleTagDrill} />)}
+          </SubPanel>
+        )}
+
+        {panel === "creators" && (
+          <SubPanel title="Top Creators" subtitle="This week's top 30"
+            icon={Crown} iconColor="#fbbf24" iconBg="rgba(251,191,36,.1)" iconBorder="rgba(251,191,36,.25)"
+            onBack={() => setPanel(null)}>
+            {eliteCreators.map((c) => <CreatorRow key={c.userId} creator={c} onClick={handleCreatorClick} />)}
+          </SubPanel>
+        )}
+
+        {panel === "tagPosts" && activeTag && (
+          <SubPanel title={activeTag.label} subtitle={`${activeTag.posts} posts · ${fmt(activeTag.views)} views`}
+            icon={Hash} iconColor="#60a5fa" iconBg="rgba(96,165,250,.1)" iconBorder="rgba(96,165,250,.22)"
+            onBack={() => { setPanel("tags"); setActiveTag(null); setTagPosts([]); }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", marginBottom: 10, background: "rgba(132,204,22,.05)", border: "1px solid rgba(132,204,22,.1)", borderRadius: 9, fontSize: 12, color: "#84cc16", fontWeight: 600 }}>
+              <Zap size={13} />Tap any post to open it in your feed
+            </div>
+            {tagPostsLoading
+              ? <UnifiedLoader type="section" message={`Loading ${activeTag.label} posts…`} />
+              : tagPosts.length > 0
+                ? tagPosts.map((post) => <PostCard key={`${post.contentType}-${post.id}`} post={post} onNavigate={(p) => { handlePostNavigate(p); setPanel(null); }} />)
+                : <div style={{ textAlign: "center", padding: "32px 0", color: "#2e2e2e" }}><div style={{ fontSize: 32, marginBottom: 8, opacity: .4 }}>📭</div><p style={{ fontSize: 13, margin: 0 }}>No posts found for {activeTag.label}</p></div>}
+          </SubPanel>
+        )}
       </div>
 
-      {showProfileModal && selectedCreator && (
-        <UserProfileModal
-          user={selectedCreator}
-          currentUser={currentUser}
-          onClose={() => {
-            setShowProfileModal(false);
-            setSelectedCreator(null);
-          }}
-        />
+      {creatorModal && selectedCreator && (
+        <UserProfileModal user={selectedCreator} currentUser={currentUser}
+          onClose={() => { setCreatorModal(false); setSelectedCreator(null); }} />
+      )}
+
+      {/* StreamerDetailModal — portal on document.body, always above everything */}
+      {streamerDetail && ReactDOM.createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 10050 }}>
+          <StreamerDetailModal
+            streamer={streamerDetail}
+            onClose={() => setStreamerDetail(null)}
+          />
+        </div>,
+        document.body
       )}
     </>
   );

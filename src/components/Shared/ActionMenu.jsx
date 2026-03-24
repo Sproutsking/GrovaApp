@@ -1,6 +1,5 @@
 // ============================================================================
-// src/components/Shared/ActionMenu.jsx — COMPLETE REWRITE v3
-// All options functional, compact elegant design, custom dialogs only
+// src/components/Shared/ActionMenu.jsx — FIXED: Share opens via portal
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -9,6 +8,7 @@ import {
   Edit3, Flag, Trash2, Share2, X, Copy, BookmarkPlus,
   ThumbsDown, ThumbsUp, Check, AlertTriangle, FolderPlus,
 } from "lucide-react";
+import ShareModal from "../Modals/ShareModal";
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 const Toast = ({ message, type = "success", onDone }) => {
@@ -197,7 +197,7 @@ const ReportDialog = ({ contentType, onConfirm, onCancel }) => {
   );
 };
 
-// ─── SAVE FOLDER PICKER (POPUP) ───────────────────────────────────────────────
+// ─── SAVE FOLDER PICKER ───────────────────────────────────────────────────────
 const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
   const STORAGE_KEY = "save_folders";
   const ITEMS_KEY = "saved_content_items";
@@ -240,7 +240,7 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
       }
       showFlash(`Saved to ${folder}!`);
       setTimeout(() => { onSaved?.(folder); onClose(); }, 1200);
-    } catch (e) {
+    } catch {
       showFlash("Failed to save", "error");
     } finally {
       setSaving(null);
@@ -277,7 +277,6 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
         display: "flex", flexDirection: "column",
         animation: "confirmIn 0.2s ease",
       }}>
-        {/* Header */}
         <div style={{
           padding: "18px 20px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -303,7 +302,6 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
           }}><X size={14} /></button>
         </div>
 
-        {/* Flash */}
         {flash && (
           <div style={{
             margin: "10px 16px 0", padding: "8px 12px", borderRadius: "8px",
@@ -314,7 +312,6 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
           }}>{flash.msg}</div>
         )}
 
-        {/* Folder list */}
         <div style={{ padding: "10px 14px", overflowY: "auto", flex: 1 }}>
           {folders.map(folder => (
             <button key={folder} onClick={() => saveToFolder(folder)} disabled={saving === folder} style={{
@@ -336,7 +333,6 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
           ))}
         </div>
 
-        {/* Create folder */}
         <div style={{ padding: "10px 14px 16px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           {!creating ? (
             <button onClick={() => setCreating(true)} disabled={folders.length >= 10} style={{
@@ -391,11 +387,18 @@ const ActionMenu = ({
   currentUser, onClose, onEdit, onDelete, onShare, onSave, onReport,
 }) => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [showReport, setShowReport] = useState(false);
-  const [showInterested, setShowInterested] = useState(null); // true=interested, false=not interested
-  const [showSavePicker, setShowSavePicker] = useState(false);
+  const [showReport,        setShowReport]        = useState(false);
+  const [showInterested,    setShowInterested]    = useState(null);
+  const [showSavePicker,    setShowSavePicker]    = useState(false);
+
+  // ── KEY FIX: ShareModal is now managed inside ActionMenu itself,
+  // rendered via ReactDOM.createPortal into document.body — exactly
+  // the same way ReactionPanel does it. This means the modal is
+  // never clipped by the bottom nav's stacking context.
+  const [showShareModal,    setShowShareModal]    = useState(false);
+
   const [deleting, setDeleting] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast,    setToast]    = useState(null);
   const [isMobile] = useState(() => window.innerWidth <= 768);
   const menuRef = useRef(null);
 
@@ -419,11 +422,13 @@ const ActionMenu = ({
     onClose();
   }, [onEdit, content, onClose]);
 
+  // ── Share handler: open portalled ShareModal, call parent callback too
   const handleShare = useCallback((e) => {
     e.stopPropagation();
-    if (onShare) onShare(content);
-    onClose();
-  }, [onShare, content, onClose]);
+    setShowShareModal(true);
+    // Close the action menu panel itself so it doesn't sit behind the share modal
+    // We keep ActionMenu mounted so the portal keeps rendering
+  }, []);
 
   const handleCopyLink = useCallback(async (e) => {
     e.stopPropagation();
@@ -473,10 +478,9 @@ const ActionMenu = ({
 
   const typeLabel = contentType.charAt(0).toUpperCase() + contentType.slice(1);
 
-  // Compact item renderer
   const Item = ({ icon: Icon, label, desc, color = "#d4d4d4", iconBg = "rgba(255,255,255,0.06)", iconColor = "#a3a3a3", onClick, danger, muted, report }) => (
     <button className="am-item" role="menuitem" onClick={onClick} style={{
-      '--item-hover-bg': danger ? 'rgba(239,68,68,0.07)' : report ? 'rgba(251,146,60,0.07)' : 'rgba(132,204,22,0.06)',
+      '--item-hover-bg':     danger ? 'rgba(239,68,68,0.07)' : report ? 'rgba(251,146,60,0.07)' : 'rgba(132,204,22,0.06)',
       '--item-hover-border': danger ? 'rgba(239,68,68,0.25)' : report ? 'rgba(251,146,60,0.25)' : 'rgba(132,204,22,0.18)',
       color: danger ? '#ef4444' : report ? '#fb923c' : muted ? '#a3a3a3' : color,
     }}>
@@ -490,56 +494,62 @@ const ActionMenu = ({
     </button>
   );
 
+  // When share modal is open, hide the menu panel but keep component mounted
+  // so the portal (ShareModal) stays alive
+  const menuVisible = !showShareModal;
+
   const menuContent = (
     <>
-      <div className="am-overlay" onClick={onClose} />
-      <div
-        ref={menuRef}
-        className={`am-panel ${isMobile ? "am-panel--mobile" : "am-panel--desktop"}`}
-        style={!isMobile ? {
-          top: Math.min(position.y + 4, window.innerHeight - 460),
-          left: Math.min(Math.max(position.x - 260, 12), window.innerWidth - 280),
-        } : {}}
-        onClick={e => e.stopPropagation()}
-      >
-        {isMobile && <div className="am-drag" />}
-        <div className="am-head">
-          <span className="am-head-dot" />
-          <span className="am-head-title">{isOwnPost ? `Manage ${typeLabel}` : `${typeLabel} Options`}</span>
-          <button className="am-x" onClick={onClose}><X size={14} /></button>
-        </div>
+      {menuVisible && <div className="am-overlay" onClick={onClose} />}
+      {menuVisible && (
+        <div
+          ref={menuRef}
+          className={`am-panel ${isMobile ? "am-panel--mobile" : "am-panel--desktop"}`}
+          style={!isMobile ? {
+            top:  Math.min(position.y + 4, window.innerHeight - 460),
+            left: Math.min(Math.max(position.x - 260, 12), window.innerWidth - 280),
+          } : {}}
+          onClick={e => e.stopPropagation()}
+        >
+          {isMobile && <div className="am-drag" />}
+          <div className="am-head">
+            <span className="am-head-dot" />
+            <span className="am-head-title">{isOwnPost ? `Manage ${typeLabel}` : `${typeLabel} Options`}</span>
+            <button className="am-x" onClick={onClose}><X size={14} /></button>
+          </div>
 
-        <div className="am-body">
-          {isOwnPost ? (
-            <>
-              <Item icon={Edit3} label={`Edit ${typeLabel}`} desc="Update content" iconBg="rgba(132,204,22,0.1)" iconColor="#84cc16" onClick={handleEdit} />
-              <Item icon={Copy} label="Copy Link" desc="Share link" iconBg="rgba(99,102,241,0.1)" iconColor="#818cf8" onClick={handleCopyLink} />
-              <Item icon={Share2} label={`Share`} desc="Share to profile" iconBg="rgba(14,165,233,0.1)" iconColor="#38bdf8" onClick={handleShare} />
-              <div className="am-divider" />
-              <Item icon={Trash2} label={`Delete ${typeLabel}`} desc="Permanently remove" iconBg="rgba(239,68,68,0.1)" iconColor="#ef4444" onClick={e => { e.stopPropagation(); setShowConfirmDelete(true); }} danger />
-            </>
-          ) : (
-            <>
-              <Item icon={BookmarkPlus} label={`Save ${typeLabel}`} desc="Add to saved" iconBg="rgba(251,191,36,0.1)" iconColor="#fbbf24" onClick={e => { e.stopPropagation(); setShowSavePicker(true); }} />
-              <Item icon={Copy} label="Copy Link" desc="Copy link" iconBg="rgba(99,102,241,0.1)" iconColor="#818cf8" onClick={handleCopyLink} />
-              <Item icon={Share2} label="Share" desc="Share content" iconBg="rgba(14,165,233,0.1)" iconColor="#38bdf8" onClick={handleShare} />
-              <div className="am-divider" />
-              <Item icon={ThumbsUp} label="Interested" desc="See more like this" iconBg="rgba(132,204,22,0.1)" iconColor="#84cc16" onClick={e => { e.stopPropagation(); setShowInterested(true); }} />
-              <Item icon={ThumbsDown} label="Not Interested" desc="See less like this" iconBg="rgba(115,115,115,0.1)" iconColor="#737373" onClick={e => { e.stopPropagation(); setShowInterested(false); }} muted />
-              <div className="am-divider" />
-              <Item icon={Flag} label={`Report ${typeLabel}`} desc="Report content" iconBg="rgba(251,146,60,0.1)" iconColor="#fb923c" onClick={e => { e.stopPropagation(); setShowReport(true); }} report />
-            </>
-          )}
-          <div className="am-divider" />
-          <Item icon={X} label="Cancel" iconBg="rgba(63,63,70,0.2)" iconColor="#525252" onClick={onClose} muted />
+          <div className="am-body">
+            {isOwnPost ? (
+              <>
+                <Item icon={Edit3}      label={`Edit ${typeLabel}`}   desc="Update content"   iconBg="rgba(132,204,22,0.1)"   iconColor="#84cc16"  onClick={handleEdit} />
+                <Item icon={Copy}       label="Copy Link"             desc="Share link"        iconBg="rgba(99,102,241,0.1)"   iconColor="#818cf8"  onClick={handleCopyLink} />
+                <Item icon={Share2}     label="Share"                 desc="Share to profile"  iconBg="rgba(14,165,233,0.1)"   iconColor="#38bdf8"  onClick={handleShare} />
+                <div className="am-divider" />
+                <Item icon={Trash2}     label={`Delete ${typeLabel}`} desc="Permanently remove" iconBg="rgba(239,68,68,0.1)"  iconColor="#ef4444"  onClick={e => { e.stopPropagation(); setShowConfirmDelete(true); }} danger />
+              </>
+            ) : (
+              <>
+                <Item icon={BookmarkPlus} label={`Save ${typeLabel}`}  desc="Add to saved"      iconBg="rgba(251,191,36,0.1)"  iconColor="#fbbf24"  onClick={e => { e.stopPropagation(); setShowSavePicker(true); }} />
+                <Item icon={Copy}         label="Copy Link"            desc="Copy link"         iconBg="rgba(99,102,241,0.1)"  iconColor="#818cf8"  onClick={handleCopyLink} />
+                <Item icon={Share2}       label="Share"                desc="Share content"     iconBg="rgba(14,165,233,0.1)"  iconColor="#38bdf8"  onClick={handleShare} />
+                <div className="am-divider" />
+                <Item icon={ThumbsUp}    label="Interested"           desc="See more like this" iconBg="rgba(132,204,22,0.1)" iconColor="#84cc16"  onClick={e => { e.stopPropagation(); setShowInterested(true); }} />
+                <Item icon={ThumbsDown}  label="Not Interested"       desc="See less like this" iconBg="rgba(115,115,115,0.1)" iconColor="#737373" onClick={e => { e.stopPropagation(); setShowInterested(false); }} muted />
+                <div className="am-divider" />
+                <Item icon={Flag}        label={`Report ${typeLabel}`} desc="Report content"    iconBg="rgba(251,146,60,0.1)"  iconColor="#fb923c"  onClick={e => { e.stopPropagation(); setShowReport(true); }} report />
+              </>
+            )}
+            <div className="am-divider" />
+            <Item icon={X} label="Cancel" iconBg="rgba(63,63,70,0.2)" iconColor="#525252" onClick={onClose} muted />
+          </div>
         </div>
-      </div>
+      )}
 
       <style>{`
-        @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
-        @keyframes confirmIn { from{opacity:0;transform:translate(-50%,-46%) scale(0.95)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
-        @keyframes amUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-        @keyframes amIn { from{opacity:0;transform:scale(0.95) translateY(-4px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes toastIn    { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+        @keyframes confirmIn  { from{opacity:0;transform:translate(-50%,-46%) scale(0.95)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+        @keyframes amUp       { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        @keyframes amIn       { from{opacity:0;transform:scale(0.95) translateY(-4px)} to{opacity:1;transform:scale(1) translateY(0)} }
 
         .am-overlay {
           position:fixed;inset:0;background:rgba(0,0,0,0.5);
@@ -575,8 +585,8 @@ const ActionMenu = ({
           border-bottom:1px solid rgba(255,255,255,0.055);flex-shrink:0;
         }
         .am-panel--mobile .am-head { padding-top:6px; }
-        .am-head-dot { width:7px;height:7px;background:#84cc16;border-radius:50%;flex-shrink:0; }
-        .am-head-title { flex:1;font-size:11px;font-weight:700;color:#84cc16;text-transform:uppercase;letter-spacing:.7px; }
+        .am-head-dot  { width:7px;height:7px;background:#84cc16;border-radius:50%;flex-shrink:0; }
+        .am-head-title{ flex:1;font-size:11px;font-weight:700;color:#84cc16;text-transform:uppercase;letter-spacing:.7px; }
         .am-x {
           width:26px;height:26px;background:rgba(255,255,255,0.05);
           border:1px solid rgba(255,255,255,0.09);border-radius:50%;
@@ -600,13 +610,13 @@ const ActionMenu = ({
         }
         .am-label-wrap { flex:1;display:flex;flex-direction:column;gap:1px;min-width:0; }
         .am-label { font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .am-desc { font-size:10.5px;color:#444;line-height:1.2; }
+        .am-desc  { font-size:10.5px;color:#444;line-height:1.2; }
         .am-divider { height:1px;background:rgba(255,255,255,0.055);margin:5px 3px; }
         @media(max-width:768px) {
           .am-item { padding:11px 10px; }
           .am-icon-wrap { width:33px;height:33px;border-radius:9px; }
           .am-label { font-size:14px; }
-          .am-desc { font-size:11px;color:#525252; }
+          .am-desc  { font-size:11px;color:#525252; }
         }
         @media(max-width:360px) { .am-desc { display:none; } }
       `}</style>
@@ -649,6 +659,28 @@ const ActionMenu = ({
           onClose={() => setShowSavePicker(false)}
           onSaved={(folder) => { if (onSave) onSave(folder); }}
         />
+      )}
+
+      {/* ── THE KEY FIX: ShareModal portalled inside ActionMenu itself.
+           z-index 100002 ensures it sits above the menu panel (9999)
+           and above all other dialogs (100001). Because it uses
+           ReactDOM.createPortal → document.body it is never clipped
+           by the bottom nav or any parent stacking context. ── */}
+      {showShareModal && (
+        ReactDOM.createPortal(
+          <div style={{ position: "fixed", inset: 0, zIndex: 100002 }}>
+            <ShareModal
+              content={content}
+              contentType={contentType}
+              currentUser={currentUser}
+              onClose={() => {
+                setShowShareModal(false);
+                onClose(); // close action menu too once share is done
+              }}
+            />
+          </div>,
+          document.body
+        )
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}

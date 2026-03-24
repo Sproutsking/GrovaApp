@@ -190,7 +190,7 @@ export default function HomeTab({
     .toUpperCase();
 
   return (
-    <div className="pw-scroll-px" style={{ paddingLeft: 16, paddingRight: 16 }}>
+    <div className="pw-scroll-px">
       <style>{HOMETAB_CSS}</style>
 
       {/* ───────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ export default function HomeTab({
         {/* Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <button
-            className="ic-chip"
+            className="xpw__ic-chip"
             onClick={handleRefresh}
             title="Refresh"
             style={{ opacity: refreshing ? 0.5 : 1 }}
@@ -261,10 +261,10 @@ export default function HomeTab({
               }}
             />
           </button>
-          <button className="ic-chip" onClick={() => setPage("notifications")}>
+          <button className="xpw__ic-chip" onClick={() => setPage("notifications")}>
             <Bell size={13} />
             {unreadCount > 0 && (
-              <div className="notif-pip">
+              <div className="xpw__notif-pip">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </div>
             )}
@@ -532,39 +532,17 @@ export default function HomeTab({
             </div>
           </div>
 
-          {/* Action buttons — FIX: both flex:1 + identical padding + identical fontSize */}
-          <div style={{ display: "flex", gap: 10 }}>
+          {/* Action buttons — .xpw__btn-pair ensures identical height, .xpw__btn-dark matches .xpw__btn-primary height exactly */}
+          <div className="xpw__btn-pair">
             <button
-              className="btn-lime"
-              style={{
-                flex: 1,
-                padding: "13px 0",
-                fontSize: 13.5,
-                fontWeight: 800,
-              }}
+              className="xpw__btn-primary"
               onClick={() => setPage("send")}
             >
               <Send size={14} /> Send ₦
             </button>
             <button
+              className="xpw__btn-dark"
               onClick={() => setPage("receive")}
-              style={{
-                flex: 1,
-                padding: "13px 0",
-                borderRadius: "var(--r-sm)",
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                color: "var(--text)",
-                fontFamily: "var(--font-d)",
-                fontWeight: 700,
-                fontSize: 13.5,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 7,
-                transition: "all .18s",
-              }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "rgba(255,255,255,0.1)";
                 e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
@@ -629,7 +607,7 @@ export default function HomeTab({
       {/* ───────────────────────────────────────────────────────
           QUICK ACTIONS — FIX: Bills → "bills" page, FileText icon
       ─────────────────────────────────────────────────────── */}
-      <div className="quick-grid">
+      <div className="xpw__quick-grid">
         {[
           {
             icon: Smartphone,
@@ -662,11 +640,11 @@ export default function HomeTab({
         ].map((item, i) => (
           <button
             key={i}
-            className="quick-btn"
+            className="xpw__quick-btn"
             onClick={() => setPage(item.page)}
           >
             <div
-              className="quick-icon"
+              className="xpw__quick-icon"
               style={{
                 background: item.grad,
                 width: 58,
@@ -677,7 +655,7 @@ export default function HomeTab({
               <item.icon size={24} color="#fff" strokeWidth={1.8} />
             </div>
             <span
-              className="quick-label"
+              className="xpw__quick-label"
               style={{
                 fontSize: 10.5,
                 fontWeight: 600,
@@ -736,7 +714,7 @@ export default function HomeTab({
             </span>
           </div>
           <button
-            className="sec-link"
+            className="xpw__sec-link"
             style={{ display: "flex", alignItems: "center", gap: 3 }}
             onClick={() => setPage("transactions")}
           >
@@ -825,15 +803,15 @@ export default function HomeTab({
                 return (
                   <div
                     key={tx.id}
-                    className="ht-row glass click"
+                    className="ht-row xpw__glass xpw__click"
                     style={{
                       padding: "11px 13px",
                       animationDelay: `${idx * 0.04}s`,
                     }}
                   >
-                    <div className="tx-row">
-                      <div className="tx-left">
-                        <div className={`tx-icon ${isCredit ? "cr" : ""}`}>
+                    <div className="xpw__tx-row">
+                      <div className="xpw__tx-left">
+                        <div className={`xpw__tx-icon ${isCredit ? "xpw__credit" : ""}`}>
                           <Icon
                             size={13}
                             color={
@@ -845,15 +823,15 @@ export default function HomeTab({
                           />
                         </div>
                         <div>
-                          <div className="tx-title">{tx.title}</div>
-                          <div className="tx-date">{tx.date}</div>
+                          <div className="xpw__tx-title">{tx.title}</div>
+                          <div className="xpw__tx-date">{tx.date}</div>
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div className={`tx-amt ${isCredit ? "cr" : ""}`}>
+                        <div className={`xpw__tx-amt ${isCredit ? "xpw__credit" : ""}`}>
                           {isCredit ? "+" : "−"}₦{fmtNGN(tx.amount)}
                         </div>
-                        <div className="tx-status">Completed</div>
+                        <div className="xpw__tx-status">Completed</div>
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,9 @@
+// src/components/Header/DesktopHeader.jsx
 // ============================================================================
-// src/components/Header/DesktopHeader.jsx — Updated
-// Avatar now opens a dropdown with Account + Logout options.
+// BOOST EDITION — original preserved, additions:
+//   [B1] BoostAvatarRing replaces plain avatar circle
+//   [B2] Greeting text color = tier color when boosted
+//   [B3] tier + themeId read from profile.subscription_tier + boost_selections
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -10,10 +13,33 @@ import conversationState from "../../services/messages/ConversationStateManager"
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
+// [B1]
+import BoostAvatarRing from "../Shared/BoostAvatarRing";
 
-// ============================================================================
-// DesktopHeader — v3
-// ============================================================================
+// [B3] Tier → greeting color
+const TIER_GREETING_COLORS = {
+  silver: "#d4d4d4",
+  gold: "#fbbf24",
+  diamond: "#a78bfa",
+};
+const DIAMOND_THEME_COLORS = {
+  "diamond-cosmos": "#a78bfa",
+  "diamond-glacier": "#60a5fa",
+  "diamond-emerald": "#34d399",
+  "diamond-rose": "#f472b6",
+  "diamond-void": "#e5e5e5",
+  "diamond-inferno": "#ff6b35",
+  "diamond-aurora": "#22d3ee",
+};
+const getGreetingColor = (profile) => {
+  const tier =
+    profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
+  const themeId = profile?.boost_selections?.themeId ?? null;
+  if (!TIER_GREETING_COLORS[tier]) return "rgba(255,255,255,0.65)";
+  if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
+    return DIAMOND_THEME_COLORS[themeId];
+  return TIER_GREETING_COLORS[tier];
+};
 
 const DesktopHeader = ({
   currentUser,
@@ -31,20 +57,20 @@ const DesktopHeader = ({
   onSignOut,
 }) => {
   const [displayedText, setDisplayedText] = useState("");
-  const [isTyping,      setIsTyping]      = useState(false);
-  const [greetingText,  setGreetingText]  = useState(getGreeting());
-  const [imageLoaded,   setImageLoaded]   = useState(false);
-  const [imageError,    setImageError]    = useState(false);
-  const [badgeCount,    setBadgeCount]    = useState(
-    () => notificationService.getHeaderBadgeCountSync()
+  const [isTyping, setIsTyping] = useState(false);
+  const [greetingText, setGreetingText] = useState(getGreeting());
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [badgeCount, setBadgeCount] = useState(() =>
+    notificationService.getHeaderBadgeCountSync(),
   );
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [showMessages,   setShowMessages]   = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
 
-  const timerRef        = useRef(null);
+  const timerRef = useRef(null);
   const typeIntervalRef = useRef(null);
 
-  // ── Avatar ─────────────────────────────────────────────────────────────
+  // ── Avatar ──────────────────────────────────────────────────────────────
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
@@ -59,34 +85,40 @@ const DesktopHeader = ({
     !imageError &&
     (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
-  // ── Badge ───────────────────────────────────────────────────────────────
+  // [B3] Boost tier from profile
+  const tier =
+    profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
+  const themeId = profile?.boost_selections?.themeId ?? null;
+  const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
+  const greetingColor = getGreetingColor(profile);
+
+  // ── Badge ────────────────────────────────────────────────────────────────
   const syncBadge = useCallback(() => {
     setBadgeCount(notificationService.getHeaderBadgeCountSync());
   }, []);
 
   useEffect(() => {
     if (!userId) return;
-
-    notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
+    notificationService
+      .getHeaderBadgeCount(userId)
+      .then(setBadgeCount)
+      .catch(() => {});
     const unsubNotif = notificationService.subscribe(syncBadge);
-
     const unsubConv = conversationState.subscribe(() => {
       setUnreadMessages(conversationState.getTotalUnreadCount());
     });
     setUnreadMessages(conversationState.getTotalUnreadCount());
-
     onlineStatusService.start(userId);
-
     return () => {
       unsubNotif();
       unsubConv();
     };
   }, [userId, syncBadge]);
 
-  // ── Typing animation ────────────────────────────────────────────────────
+  // ── Typing animation ─────────────────────────────────────────────────────
   useEffect(() => {
     const fullText = `${greetingText}, ${currentUser?.name || currentUser?.fullName || "User"}`;
-    let cancelled  = false;
+    let cancelled = false;
 
     const typeText = (text, cb) => {
       setIsTyping(true);
@@ -96,7 +128,10 @@ const DesktopHeader = ({
         setDisplayedText(text.slice(0, i));
         i++;
         if (i <= text.length) typeIntervalRef.current = setTimeout(tick, 80);
-        else { setIsTyping(false); cb?.(); }
+        else {
+          setIsTyping(false);
+          cb?.();
+        }
       };
       tick();
     };
@@ -109,7 +144,10 @@ const DesktopHeader = ({
         setDisplayedText(text.slice(0, i));
         i--;
         if (i >= 0) typeIntervalRef.current = setTimeout(tick, 45);
-        else { setIsTyping(false); cb?.(); }
+        else {
+          setIsTyping(false);
+          cb?.();
+        }
       };
       tick();
     };
@@ -140,15 +178,22 @@ const DesktopHeader = ({
     };
   }, [greetingText, currentUser?.name, currentUser?.fullName, getGreeting]);
 
-  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <>
-      <style>{desktopHeaderStyles(isTyping, displayedText)}</style>
+      <style>
+        {desktopHeaderStyles(
+          isTyping,
+          displayedText,
+          greetingColor,
+          hasBoosted,
+        )}
+      </style>
 
       <header className="dh-header">
         <div className="dh-content">
-          {/* Left: avatar dropdown + greeting */}
+          {/* Left */}
           <div className="dh-left">
+            {/* [B1] AvatarDropdown wraps BoostAvatarRing for the clickable dropdown */}
             <AvatarDropdown
               profile={profile}
               userId={userId}
@@ -157,24 +202,36 @@ const DesktopHeader = ({
               isValidAvatar={isValidAvatar}
               imageLoaded={imageLoaded}
               imageError={imageError}
-              onImageLoad={() => { setImageLoaded(true); setImageError(false); }}
-              onImageError={() => { setImageLoaded(false); setImageError(true); }}
+              onImageLoad={() => {
+                setImageLoaded(true);
+                setImageError(false);
+              }}
+              onImageError={() => {
+                setImageLoaded(false);
+                setImageError(true);
+              }}
               onOpenAccount={() => setActiveTab("account")}
               onSignOut={onSignOut}
               isMobile={false}
+              // Pass boost props so AvatarDropdown can render BoostAvatarRing internally
+              boostTier={hasBoosted ? tier : null}
+              boostThemeId={hasBoosted ? themeId : null}
             />
 
+            {/* [B2] Greeting with tier color */}
             <div className="dh-greeting-box">
               <Clock size={15} className="dh-greeting-icon" />
               <span className="dh-greeting-text">{displayedText}</span>
             </div>
           </div>
 
-          {/* Right: action buttons */}
+          {/* Right */}
           <div className="dh-right">
             <button
               className="dh-action-btn messages"
-              onClick={() => { if (currentUser?.id || userId) setShowMessages(true); }}
+              onClick={() => {
+                if (currentUser?.id || userId) setShowMessages(true);
+              }}
               aria-label="Messages"
             >
               <MessageCircle size={16} />
@@ -185,7 +242,6 @@ const DesktopHeader = ({
                 </span>
               )}
             </button>
-
             <button
               className="dh-action-btn notification"
               onClick={onNotificationClick}
@@ -199,7 +255,6 @@ const DesktopHeader = ({
                 </span>
               )}
             </button>
-
             <button
               className="dh-action-btn support"
               onClick={onSupportClick}
@@ -230,8 +285,12 @@ const DesktopHeader = ({
   );
 };
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const desktopHeaderStyles = (isTyping, displayedText) => `
+const desktopHeaderStyles = (
+  isTyping,
+  displayedText,
+  greetingColor,
+  hasBoosted,
+) => `
   .dh-header {
     height: 58px;
     position: sticky; top: 0; z-index: 100;
@@ -248,37 +307,36 @@ const desktopHeaderStyles = (isTyping, displayedText) => `
   .dh-left  { display: flex; align-items: center; gap: 12px; }
   .dh-right { display: flex; align-items: center; gap: 8px;  }
 
-  /* Greeting */
   .dh-greeting-box {
     display: flex; align-items: center; gap: 7px;
     padding: 4px 11px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.07);
+    background: ${hasBoosted ? `${greetingColor}10` : "rgba(255,255,255,0.03)"};
+    border: 1px solid ${hasBoosted ? `${greetingColor}30` : "rgba(255,255,255,0.07)"};
     border-radius: 10px;
     min-height: 30px; min-width: 40px;
+    transition: background 0.4s, border-color 0.4s;
   }
   .dh-greeting-icon {
-    color: #84cc16; flex-shrink: 0;
+    color: ${greetingColor}; flex-shrink: 0;
     opacity: ${displayedText ? "1" : "0"};
-    transition: opacity 0.3s;
+    transition: opacity 0.3s, color 0.4s;
   }
   .dh-greeting-text {
     font-size: 12px; font-weight: 600;
-    color: rgba(255,255,255,0.65);
+    color: ${greetingColor};
     white-space: nowrap; position: relative;
+    transition: color 0.4s;
+    ${hasBoosted ? `text-shadow: 0 0 12px ${greetingColor}60;` : ""}
   }
   .dh-greeting-text::after {
     content: "";
     position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
     width: 2px; height: 14px;
-    background: #84cc16; border-radius: 1px;
+    background: ${greetingColor}; border-radius: 1px;
     animation: ${isTyping ? "dhBlink 0.9s ease-in-out infinite" : "none"};
   }
-  @keyframes dhBlink {
-    0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1}
-  }
+  @keyframes dhBlink { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
 
-  /* Action buttons */
   .dh-action-btn {
     position: relative;
     display: flex; align-items: center; gap: 6px;
@@ -297,7 +355,6 @@ const desktopHeaderStyles = (isTyping, displayedText) => `
   .dh-action-btn.notification:hover { background: rgba(132,204,22,0.1); border-color: rgba(132,204,22,0.3); transform: translateY(-1px); }
   .dh-action-btn.support:hover      { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); transform: translateY(-1px); }
 
-  /* Badge */
   .dh-badge {
     position: absolute; top: -6px; right: -6px;
     min-width: 18px; height: 18px; padding: 0 5px;
@@ -308,9 +365,7 @@ const desktopHeaderStyles = (isTyping, displayedText) => `
     border: 2px solid #0a0a0a;
     animation: dhBadgePulse 2.5s ease-in-out infinite;
   }
-  @keyframes dhBadgePulse {
-    0%,100%{transform:scale(1)} 50%{transform:scale(1.12)}
-  }
+  @keyframes dhBadgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
 `;
 
 export default DesktopHeader;

@@ -1,15 +1,11 @@
 ﻿﻿/* ==========================================================================
-   GLOBAL.CSS — CLEAN ARCHITECTURE v7
+   GLOBAL.CSS — CLEAN ARCHITECTURE v8
    ==========================================================================
-   KEY FIXES:
-   1. html/body/#root → background: #000000 — Chrome 135 edge-to-edge
-      paints the gesture nav bar using html background. Pure black = invisible.
-   2. color-scheme: dark on html — signals Chrome 135 chin to use dark paint.
-   3. overscroll-behavior: none — no rubber-band bounce exposing background.
-   4. .mobile-header → border: none — no line at top of app.
-   5. .mobile-bottom-nav → border-top only, no other borders.
-   6. .main-content-mobile → top: 56px (was 47px), fixes gap under header.
-   7. .app-container → height: 100dvh (dynamic viewport height).
+   KEY FIXES vs v7:
+   8. .trending-sidebar → padding: 0 (was 12px)
+      Padding moved to .ts-inner-content wrapper inside TrendingSidebar.jsx
+      so the sticky header, scrollbar track, and border sit flush at the edge.
+      The inner content sections (ts-section) carry their own horizontal padding.
    ========================================================================== */
 
 /* ==========================================================================
@@ -156,6 +152,10 @@ img, video {
 
 /* ==========================================================================
    5. TRENDING SIDEBAR
+   ==========================================================================
+   padding: 0 on the container — padding lives on .ts-inner-content inside
+   TrendingSidebar.jsx so the sticky header, scrollbar, and left/right border
+   sit flush edge-to-edge. Inner content sections add their own 12px padding.
    ========================================================================== */
 
 .trending-sidebar {
@@ -166,7 +166,7 @@ img, video {
   width: 340px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px;
+  padding: 0;
   background: #000000;
   border-left: 1px solid #1a1a1a;
   border-right: 1px solid #1a1a1a;
@@ -175,15 +175,6 @@ img, video {
 
 /* ==========================================================================
    6. MOBILE LAYOUT
-   ==========================================================================
-   FORMULA — all three must be consistent:
-     .mobile-header        fixed, top 0, height 56px, NO border
-     .main-content-mobile  top 56px, bottom = 56px + safe-area
-     .mobile-bottom-nav    fixed, bottom 0, border-top only,
-                           padding-bottom = safe-area-inset-bottom
-
-   top: 56px on .main-content-mobile is the critical fix —
-   previously 47px which left a 9px gap under the header.
    ========================================================================== */
 
 .mobile-bottom-nav {

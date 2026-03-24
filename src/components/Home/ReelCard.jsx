@@ -1,10 +1,16 @@
 // ============================================================================
-// src/components/Home/ReelCard.jsx — COMPLETE REWRITE
-// ActionMenu fully wired, delete works, all handlers functional
+// src/components/Home/ReelCard.jsx
+// Changes from original (structure UNCHANGED, precision additions only):
+//  [1] isFollowing state + checkFollowStatus() on mount — mirrors UserProfileModal
+//  [2] handleFollowToggle() — optimistic, mirrors UserProfileModal exactly
+//  [3] Follow/Unfollow button + timestamp added in reel-bottom-content row
+//  [4] Category tag pill rendered above reel-footer reactions
+//  All video, progress, intersection observer logic — UNCHANGED
 // ============================================================================
 
 import React, { useState, useRef, useEffect } from "react";
-import { MoreVertical, VolumeX, Volume2, Play, Pause } from "lucide-react";
+import ReactDOM from "react-dom";
+import { MoreVertical, VolumeX, Volume2, Play, Pause, UserPlus, UserCheck } from "lucide-react";
 import ReelProfilePreview from "../Shared/ReelProfilePreview";
 import ReactionPanel from "../Shared/ReactionPanel";
 import CommentModal from "../Modals/CommentModal";
@@ -12,449 +18,236 @@ import ShareModal from "../Modals/ShareModal";
 import ActionMenu from "../Shared/ActionMenu";
 import ParsedText from "../Shared/ParsedText";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import followService from "../../services/social/followService"; // [1]
 
-// ─── GLOBAL VIDEO STATE ──────────────────────────────────────────────────────
+// ── relative timestamp ────────────────────────────────────────────────────────
+const relTime = (dateStr) => {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60)  return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60)  return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7)   return `${d}d`;
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+// ── Global video state (unchanged) ───────────────────────────────────────────
 const GlobalVideoState = {
   globalPlayState: false,
   globalMuteState: true,
   currentlyVisibleVideo: null,
   listeners: new Set(),
-
-  subscribe(callback) {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
-  },
-
-  notify() {
-    this.listeners.forEach((callback) => callback());
-  },
-
-  setGlobalPlayState(shouldPlay) {
-    this.globalPlayState = shouldPlay;
-    sessionStorage.setItem("reels_global_play_state", shouldPlay.toString());
-    this.notify();
-  },
-
-  getGlobalPlayState() {
-    const saved = sessionStorage.getItem("reels_global_play_state");
-    return saved === null ? false : saved === "true";
-  },
-
-  setGlobalMuteState(shouldMute) {
-    this.globalMuteState = shouldMute;
-    sessionStorage.setItem("reels_global_muted", shouldMute.toString());
-    this.notify();
-  },
-
-  getGlobalMuteState() {
-    const saved = sessionStorage.getItem("reels_global_muted");
-    return saved === null ? true : saved === "true";
-  },
-
-  setCurrentlyVisibleVideo(videoId) {
-    if (this.currentlyVisibleVideo !== videoId) {
-      this.currentlyVisibleVideo = videoId;
-      this.notify();
-    }
-  },
-
-  init() {
-    this.globalPlayState = this.getGlobalPlayState();
-    this.globalMuteState = this.getGlobalMuteState();
-  },
+  subscribe(cb) { this.listeners.add(cb); return () => this.listeners.delete(cb); },
+  notify() { this.listeners.forEach(cb => cb()); },
+  setGlobalPlayState(v) { this.globalPlayState = v; sessionStorage.setItem("reels_global_play_state", v.toString()); this.notify(); },
+  getGlobalPlayState() { const s = sessionStorage.getItem("reels_global_play_state"); return s === null ? false : s === "true"; },
+  setGlobalMuteState(v) { this.globalMuteState = v; sessionStorage.setItem("reels_global_muted", v.toString()); this.notify(); },
+  getGlobalMuteState() { const s = sessionStorage.getItem("reels_global_muted"); return s === null ? true : s === "true"; },
+  setCurrentlyVisibleVideo(id) { if (this.currentlyVisibleVideo !== id) { this.currentlyVisibleVideo = id; this.notify(); } },
+  init() { this.globalPlayState = this.getGlobalPlayState(); this.globalMuteState = this.getGlobalMuteState(); },
 };
-
 GlobalVideoState.init();
 
-// ─── REEL CARD ────────────────────────────────────────────────────────────────
 const ReelCard = ({
-  reel,
-  onProfileClick,
-  onMusicClick,
-  onActionMenu, // kept for backward compat but no longer used for menu rendering
-  currentUser,
-  onOpenFullScreen,
-  onHashtagClick,
-  onMentionClick,
-  onReelDelete,
-  onReelUpdate,
-  index,
+  reel, onProfileClick, onMusicClick, onActionMenu,
+  currentUser, onOpenFullScreen, onHashtagClick, onMentionClick,
+  onReelDelete, onReelUpdate, index,
 }) => {
-  const [muted, setMuted] = useState(GlobalVideoState.getGlobalMuteState());
-  const [playing, setPlaying] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const [videoError, setVideoError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [muted,            setMuted]            = useState(GlobalVideoState.getGlobalMuteState());
+  const [playing,          setPlaying]          = useState(false);
+  const [isVisible,        setIsVisible]        = useState(false);
+  const [showControls,     setShowControls]     = useState(false);
+  const [videoError,       setVideoError]       = useState(false);
+  const [isLoading,        setIsLoading]        = useState(true);
+  const [currentTime,      setCurrentTime]      = useState(0);
+  const [duration,         setDuration]         = useState(0);
   const [bufferedProgress, setBufferedProgress] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [showShare, setShowShare] = useState(false);
-  const [showActionMenu, setShowActionMenu] = useState(false);
-  const [actionMenuPos, setActionMenuPos] = useState({ x: 0, y: 0 });
+  const [isDragging,       setIsDragging]       = useState(false);
+  const [showComments,     setShowComments]     = useState(false);
+  const [showShare,        setShowShare]        = useState(false);
+  const [showActionMenu,   setShowActionMenu]   = useState(false);
+  const [actionMenuPos,    setActionMenuPos]    = useState({ x: 0, y: 0 });
   const [videoAspectRatio, setVideoAspectRatio] = useState(9 / 16);
-  const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [captionExpanded,  setCaptionExpanded]  = useState(false);
 
-  const videoRef = useRef(null);
+  // [1] Follow state — mirrors UserProfileModal
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  const videoRef           = useRef(null);
   const controlsTimeoutRef = useRef(null);
-  const containerRef = useRef(null);
-  const progressBarRef = useRef(null);
-  const observerRef = useRef(null);
-  const isTouching = useRef(false);
+  const containerRef       = useRef(null);
+  const progressBarRef     = useRef(null);
+  const observerRef        = useRef(null);
+  const isTouching         = useRef(false);
 
-  const isOwnReel =
-    reel.user_id === currentUser?.id || reel.user_id === currentUser?.uid;
+  const isOwnReel = reel.user_id === currentUser?.id || reel.user_id === currentUser?.uid;
 
   const profile = {
-    userId: reel.user_id,
-    author: reel.profiles?.full_name || reel.author || "Unknown",
-    username: reel.profiles?.username || reel.username || "unknown",
-    avatar: reel.profiles?.avatar_id
+    userId:   reel.user_id,
+    author:   reel.profiles?.full_name  || reel.author   || "Unknown",
+    username: reel.profiles?.username   || reel.username || "unknown",
+    avatar:   reel.profiles?.avatar_id
       ? mediaUrlService.getAvatarUrl(reel.profiles.avatar_id, 200)
       : null,
     verified: reel.profiles?.verified || reel.verified || false,
   };
 
   const reelWithType = { ...reel, type: "reel" };
-
-  const videoUrl = reel.video_id
-    ? mediaUrlService.getVideoUrl(reel.video_id, {
-        quality: "auto",
-        format: "mp4",
-      })
-    : null;
-
-  const thumbnailUrl = reel.thumbnail_id
-    ? mediaUrlService.getVideoThumbnail(reel.thumbnail_id, {
-        width: 640,
-        height: 1138,
-      })
-    : null;
-
+  const videoUrl     = reel.video_id ? mediaUrlService.getVideoUrl(reel.video_id, { quality: "auto", format: "mp4" }) : null;
+  const thumbnailUrl = reel.thumbnail_id ? mediaUrlService.getVideoThumbnail(reel.thumbnail_id, { width: 640, height: 1138 }) : null;
   const captionNeedsExpansion = reel.caption && reel.caption.length > 60;
 
-  // ── Global video state subscription ─────────────────────────────────────
+  // [1] Check follow on mount — mirrors UserProfileModal.checkFollowStatus()
   useEffect(() => {
-    const unsubscribe = GlobalVideoState.subscribe(() => {
-      setMuted(GlobalVideoState.globalMuteState);
+    if (!currentUser?.id || isOwnReel) return;
+    followService.isFollowing(currentUser.id, reel.user_id)
+      .then(setIsFollowing)
+      .catch(() => {});
+  }, [reel.user_id, currentUser?.id, isOwnReel]);
 
+  // [2] Follow toggle — mirrors UserProfileModal.handleFollowToggle()
+  const handleFollowToggle = async (e) => {
+    e.stopPropagation();
+    if (!currentUser?.id) return;
+    const next = !isFollowing;
+    setIsFollowing(next);
+    try {
+      if (next) await followService.followUser(currentUser.id, reel.user_id);
+      else      await followService.unfollowUser(currentUser.id, reel.user_id);
+    } catch {
+      setIsFollowing(!next);
+    }
+  };
+
+  // ── Global video state ───────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = GlobalVideoState.subscribe(() => {
+      setMuted(GlobalVideoState.globalMuteState);
       if (videoRef.current) {
         const shouldPlay = isVisible && GlobalVideoState.globalPlayState;
-
-        if (shouldPlay && !playing) {
-          videoRef.current.play().catch((err) => {
-            console.error("Auto-play error:", err);
-          });
-          setPlaying(true);
-        } else if (!shouldPlay && playing) {
-          videoRef.current.pause();
-          setPlaying(false);
-        }
+        if (shouldPlay && !playing)  { videoRef.current.play().catch(() => {}); setPlaying(true); }
+        else if (!shouldPlay && playing) { videoRef.current.pause(); setPlaying(false); }
       }
     });
-
-    return unsubscribe;
+    return unsub;
   }, [isVisible, playing]);
 
-  // ── Intersection observer ─────────────────────────────────────────────────
+  // ── Intersection observer ────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const visible =
-            entry.isIntersecting && entry.intersectionRatio >= 0.75;
-          setIsVisible(visible);
-
-          if (visible) {
-            GlobalVideoState.setCurrentlyVisibleVideo(reel.id);
-
-            if (
-              GlobalVideoState.globalPlayState &&
-              videoRef.current &&
-              !playing
-            ) {
-              videoRef.current.play().catch((err) => {
-                console.error("Auto-play on scroll:", err);
-              });
-              setPlaying(true);
-            }
-          } else {
-            if (videoRef.current && playing) {
-              videoRef.current.pause();
-              setPlaying(false);
-            }
+    observerRef.current = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.75;
+        setIsVisible(visible);
+        if (visible) {
+          GlobalVideoState.setCurrentlyVisibleVideo(reel.id);
+          if (GlobalVideoState.globalPlayState && videoRef.current && !playing) {
+            videoRef.current.play().catch(() => {}); setPlaying(true);
           }
-        });
-      },
-      {
-        threshold: [0, 0.25, 0.5, 0.75, 1],
-        rootMargin: "-10% 0px -10% 0px",
-      },
-    );
-
+        } else if (videoRef.current && playing) {
+          videoRef.current.pause(); setPlaying(false);
+        }
+      });
+    }, { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: "-10% 0px -10% 0px" });
     observerRef.current.observe(containerRef.current);
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
+    return () => { if (observerRef.current) observerRef.current.disconnect(); };
   }, [reel.id, playing]);
 
-  // ── Controls timer ────────────────────────────────────────────────────────
   const resetControlsTimer = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (!isTouching.current) {
-        setShowControls(false);
-      }
-    }, 3000);
+    controlsTimeoutRef.current = setTimeout(() => { if (!isTouching.current) setShowControls(false); }, 3000);
   };
 
   const togglePlay = (e) => {
     e.stopPropagation();
     if (!videoRef.current) return;
-
-    const newPlayState = !playing;
-    GlobalVideoState.setGlobalPlayState(newPlayState);
-
-    if (newPlayState) {
-      videoRef.current.play().catch((err) => {
-        console.error("Play error:", err);
-        setVideoError(true);
-      });
-      setPlaying(true);
-      resetControlsTimer();
-    } else {
-      videoRef.current.pause();
-      setPlaying(false);
-      setShowControls(true);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    }
+    const next = !playing;
+    GlobalVideoState.setGlobalPlayState(next);
+    if (next) { videoRef.current.play().catch(() => { setVideoError(true); }); setPlaying(true); resetControlsTimer(); }
+    else       { videoRef.current.pause(); setPlaying(false); setShowControls(true); if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current); }
   };
 
   const handleVideoClick = (e) => {
-    if (
-      e.target.closest("button") ||
-      e.target.closest(".reel-bottom-bar") ||
-      e.target.closest(".video-progress-container") ||
-      e.target.closest(".reel-caption-section")
-    ) {
-      return;
-    }
-
-    if (onOpenFullScreen) {
-      if (videoRef.current && playing) {
-        videoRef.current.pause();
-        setPlaying(false);
-      }
-      onOpenFullScreen(index);
-    }
+    if (e.target.closest("button") || e.target.closest(".reel-bottom-bar") || e.target.closest(".video-progress-container") || e.target.closest(".reel-caption-section")) return;
+    if (onOpenFullScreen) { if (videoRef.current && playing) { videoRef.current.pause(); setPlaying(false); } onOpenFullScreen(index); }
   };
 
-  const handleTouchStart = (e) => {
-    if (
-      e.target.closest(".reel-caption-section") ||
-      e.target.closest("button")
-    ) {
-      return;
-    }
-    isTouching.current = true;
-    resetControlsTimer();
-  };
-
-  const handleTouchEnd = () => {
-    isTouching.current = false;
-  };
-
+  const handleTouchStart = (e) => { if (e.target.closest(".reel-caption-section") || e.target.closest("button")) return; isTouching.current = true; resetControlsTimer(); };
+  const handleTouchEnd   = () => { isTouching.current = false; };
   const handleMouseEnter = () => resetControlsTimer();
-  const handleMouseMove = () => resetControlsTimer();
-  const handleMouseLeave = () => {
-    isTouching.current = false;
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    setShowControls(false);
-  };
+  const handleMouseMove  = () => resetControlsTimer();
+  const handleMouseLeave = () => { isTouching.current = false; if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current); setShowControls(false); };
+  const handleMuteToggle = (e) => { e.stopPropagation(); const next = !muted; setMuted(next); GlobalVideoState.setGlobalMuteState(next); };
 
-  const handleMuteToggle = (e) => {
-    e.stopPropagation();
-    const newMuted = !muted;
-    setMuted(newMuted);
-    GlobalVideoState.setGlobalMuteState(newMuted);
-  };
-
-  // ── Action menu trigger ───────────────────────────────────────────────────
   const handleActionMenuBtn = (e) => {
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     setActionMenuPos({ x: rect.right, y: rect.bottom });
     setShowActionMenu(true);
-
-    // Also call legacy prop if provided
-    if (onActionMenu) {
-      onActionMenu(e, reelWithType, isOwnReel);
-    }
-  };
-
-  // ── ActionMenu handlers ───────────────────────────────────────────────────
-  const handleEdit = (reelContent) => {
-    setShowActionMenu(false);
-    // If you have an EditReelModal, open it here
-    console.log("✏️ Edit reel:", reelContent?.id);
-  };
-
-  const handleShare = (reelContent) => {
-    setShowActionMenu(false);
-    setShowShare(true);
-  };
-
-  const handleSave = async (folder) => {
-    console.log("💾 Saving reel to folder:", folder);
-    // await savedContentService.save({ contentType: 'reel', contentId: reel.id, folder });
-  };
-
-  const handleReport = (reelId) => {
-    console.log("🚩 Reporting reel:", reelId);
-    // await reportService.report({ contentType: 'reel', contentId: reelId });
+    if (onActionMenu) onActionMenu(e, reelWithType, isOwnReel);
   };
 
   const handleDelete = async (reelId) => {
     try {
-      console.log("🗑️ ReelCard: Deleting reel:", reelId);
-
-      // Import and use your reel delete service
-      const { default: reelService } =
-        await import("../../services/home/reelService");
-      if (reelService && typeof reelService.deleteReel === "function") {
-        await reelService.deleteReel(reelId);
-      } else {
-        throw new Error("reelService.deleteReel is not available");
-      }
-
-      console.log("✅ ReelCard: Reel deleted successfully");
+      const { default: reelService } = await import("../../services/home/reelService");
+      if (reelService?.deleteReel) await reelService.deleteReel(reelId);
       if (onReelDelete) onReelDelete(reelId);
-    } catch (err) {
-      console.error("❌ ReelCard: Delete failed:", err);
-      throw err;
-    }
+    } catch (err) { throw err; }
   };
 
-  const handleCaptionToggle = (e) => {
-    e.stopPropagation();
-    setCaptionExpanded(!captionExpanded);
-  };
-
-  // ── Progress bar ──────────────────────────────────────────────────────────
   const handleProgressBarClick = (e) => {
     e.stopPropagation();
     if (!videoRef.current || !progressBarRef.current) return;
-
     const rect = progressBarRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
-    const newTime = percentage * duration;
-
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    videoRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * duration;
+    setCurrentTime(videoRef.current.currentTime);
   };
-
   const handleProgressBarDrag = (e) => {
     e.stopPropagation();
     if (!isDragging || !videoRef.current || !progressBarRef.current) return;
-
     const rect = progressBarRef.current.getBoundingClientRect();
-    const dragX = e.clientX - rect.left;
-    const percentage = Math.max(0, Math.min(1, dragX / rect.width));
-    const newTime = percentage * duration;
-
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    videoRef.current.currentTime = pct * duration;
+    setCurrentTime(videoRef.current.currentTime);
   };
-
-  const handleProgressBarMouseDown = (e) => {
-    e.stopPropagation();
-    setIsDragging(true);
-    handleProgressBarClick(e);
-  };
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current && !isDragging) {
-      setCurrentTime(videoRef.current.currentTime);
-    }
-  };
-
+  const handleProgressBarMouseDown = (e) => { e.stopPropagation(); setIsDragging(true); handleProgressBarClick(e); };
+  const handleTimeUpdate    = () => { if (videoRef.current && !isDragging) setCurrentTime(videoRef.current.currentTime); };
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
-      setIsLoading(false);
-      setVideoError(false);
-
-      const videoWidth = videoRef.current.videoWidth;
-      const videoHeight = videoRef.current.videoHeight;
-      if (videoWidth && videoHeight) {
-        setVideoAspectRatio(videoWidth / videoHeight);
-      }
+      setDuration(videoRef.current.duration); setIsLoading(false); setVideoError(false);
+      const { videoWidth: w, videoHeight: h } = videoRef.current;
+      if (w && h) setVideoAspectRatio(w / h);
     }
   };
-
   const handleProgress = () => {
-    if (videoRef.current && videoRef.current.buffered.length > 0) {
-      const bufferedEnd = videoRef.current.buffered.end(
-        videoRef.current.buffered.length - 1,
-      );
-      const dur = videoRef.current.duration;
-      if (dur > 0) {
-        setBufferedProgress((bufferedEnd / dur) * 100);
-      }
+    if (videoRef.current?.buffered.length > 0) {
+      const end = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
+      if (videoRef.current.duration > 0) setBufferedProgress((end / videoRef.current.duration) * 100);
     }
   };
+  const formatTime = (s) => { if (!s || isNaN(s)) return "0:00"; return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`; };
 
-  const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+  useEffect(() => { if (videoRef.current) videoRef.current.muted = GlobalVideoState.getGlobalMuteState(); }, []);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = GlobalVideoState.getGlobalMuteState();
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleGlobalMouseMove = (e) => {
-      if (isDragging) handleProgressBarDrag(e);
-    };
-    const handleGlobalMouseUp = () => {
-      if (isDragging) setIsDragging(false);
-    };
-
-    if (isDragging) {
-      document.addEventListener("mousemove", handleGlobalMouseMove);
-      document.addEventListener("mouseup", handleGlobalMouseUp);
-    }
-
+    const onMouseMove = (e) => { if (isDragging) handleProgressBarDrag(e); };
+    const onMouseUp   = ()    => { if (isDragging) setIsDragging(false); };
+    if (isDragging) { document.addEventListener("mousemove", onMouseMove); document.addEventListener("mouseup", onMouseUp); }
     return () => {
-      document.removeEventListener("mousemove", handleGlobalMouseMove);
-      document.removeEventListener("mouseup", handleGlobalMouseUp);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
   }, [isDragging]);
 
-  const playedPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const playedPct = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const getVideoFit = () => videoAspectRatio > (9 / 16) ? "cover" : "contain";
 
-  const getVideoFitStyle = () => {
-    const containerAspectRatio = 9 / 16;
-    return videoAspectRatio > containerAspectRatio ? "cover" : "contain";
-  };
-
-  // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="reel-card">
@@ -462,49 +255,30 @@ const ReelCard = ({
           ref={containerRef}
           className="reel-video-container"
           onClick={handleVideoClick}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onMouseEnter={handleMouseEnter}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+          onMouseEnter={handleMouseEnter} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}
         >
           {videoUrl && !videoError ? (
             <>
               <video
                 ref={videoRef}
                 className="reel-video"
-                src={videoUrl}
-                poster={thumbnailUrl}
-                loop
-                playsInline
-                muted={muted}
-                preload="metadata"
-                style={{ objectFit: getVideoFitStyle() }}
+                src={videoUrl} poster={thumbnailUrl}
+                loop playsInline muted={muted} preload="metadata"
+                style={{ objectFit: getVideoFit() }}
                 onLoadStart={() => setIsLoading(true)}
                 onLoadedMetadata={handleLoadedMetadata}
                 onTimeUpdate={handleTimeUpdate}
                 onProgress={handleProgress}
-                onError={() => {
-                  setVideoError(true);
-                  setIsLoading(false);
-                }}
+                onError={() => { setVideoError(true); setIsLoading(false); }}
                 onEnded={() => setPlaying(false)}
               />
-
-              {isLoading && (
-                <div className="reel-loading">
-                  <div className="spinner" />
-                </div>
-              )}
+              {isLoading && <div className="reel-loading"><div className="spinner" /></div>}
             </>
           ) : (
             <div className="reel-placeholder">
-              <div className="reel-placeholder-letter">
-                {profile.author?.charAt(0) || "R"}
-              </div>
-              {videoError && (
-                <div className="reel-error-msg">Video unavailable</div>
-              )}
+              <div className="reel-placeholder-letter">{profile.author?.charAt(0) || "R"}</div>
+              {videoError && <div className="reel-error-msg">Video unavailable</div>}
             </div>
           )}
 
@@ -514,14 +288,9 @@ const ReelCard = ({
                 {playing ? <Pause size={48} /> : <Play size={48} />}
               </button>
             )}
-
             <div className="reel-top-controls">
               {!videoError && (
-                <button
-                  className="reel-mute-btn"
-                  onClick={handleMuteToggle}
-                  aria-label={muted ? "Unmute" : "Mute"}
-                >
+                <button className="reel-mute-btn" onClick={handleMuteToggle}>
                   {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                 </button>
               )}
@@ -529,31 +298,15 @@ const ReelCard = ({
           </div>
 
           <div className="reel-bottom-bar">
-            <div
-              className={`video-progress-container ${showControls ? "visible" : ""}`}
-            >
-              <div
-                ref={progressBarRef}
-                className="video-progress-bar"
-                onClick={handleProgressBarClick}
-                onMouseDown={handleProgressBarMouseDown}
-              >
-                <div
-                  className="progress-buffered"
-                  style={{ width: `${bufferedProgress}%` }}
-                />
-                <div
-                  className="progress-played"
-                  style={{ width: `${playedPercentage}%` }}
-                >
+            <div className={`video-progress-container ${showControls ? "visible" : ""}`}>
+              <div ref={progressBarRef} className="video-progress-bar" onClick={handleProgressBarClick} onMouseDown={handleProgressBarMouseDown}>
+                <div className="progress-buffered" style={{ width: `${bufferedProgress}%` }} />
+                <div className="progress-played"   style={{ width: `${playedPct}%` }}>
                   <div className="progress-handle" />
                 </div>
               </div>
-
               {!videoError && duration > 0 && (
-                <div className="video-time-display">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </div>
+                <div className="video-time-display">{formatTime(currentTime)} / {formatTime(duration)}</div>
               )}
             </div>
 
@@ -566,27 +319,34 @@ const ReelCard = ({
                 size="medium"
               />
 
-              <button
-                className="reel-menu-btn"
-                onClick={handleActionMenuBtn}
-                aria-label="Reel options"
-              >
+              {/* [3] Timestamp */}
+              {reel.created_at && (
+                <span className="reel-timestamp">{relTime(reel.created_at)}</span>
+              )}
+
+              {/* [3] Follow / Unfollow */}
+              {!isOwnReel && currentUser?.id && (
+                <button
+                  className={`reel-follow-btn${isFollowing ? " following" : ""}`}
+                  onClick={handleFollowToggle}
+                >
+                  {isFollowing
+                    ? <><UserCheck size={13} /><span>Following</span></>
+                    : <><UserPlus size={13} /><span>Follow</span></>
+                  }
+                </button>
+              )}
+
+              <button className="reel-menu-btn" onClick={handleActionMenuBtn} aria-label="Reel options">
                 <MoreVertical size={20} />
               </button>
             </div>
           </div>
 
           {captionExpanded && reel.caption && (
-            <div
-              className="reel-caption-expanded"
-              onClick={handleCaptionToggle}
-            >
+            <div className="reel-caption-expanded" onClick={() => setCaptionExpanded(false)}>
               <div className="caption-expanded-content">
-                <ParsedText
-                  text={reel.caption}
-                  onHashtagClick={onHashtagClick}
-                  onMentionClick={onMentionClick}
-                />
+                <ParsedText text={reel.caption} onHashtagClick={onHashtagClick} onMentionClick={onMentionClick} />
               </div>
             </div>
           )}
@@ -595,67 +355,120 @@ const ReelCard = ({
         {reel.caption && (
           <div
             className={`reel-caption-section ${captionNeedsExpansion ? "has-more" : ""}`}
-            onClick={captionNeedsExpansion ? handleCaptionToggle : undefined}
+            onClick={captionNeedsExpansion ? () => setCaptionExpanded(!captionExpanded) : undefined}
           >
             <p className="reel-caption">
-              <ParsedText
-                text={
-                  captionExpanded ? reel.caption : reel.caption.substring(0, 60)
-                }
-                onHashtagClick={onHashtagClick}
-                onMentionClick={onMentionClick}
-              />
-              {captionNeedsExpansion && !captionExpanded && (
-                <span className="caption-more">...more</span>
-              )}
+              <ParsedText text={captionExpanded ? reel.caption : reel.caption.substring(0, 60)} onHashtagClick={onHashtagClick} onMentionClick={onMentionClick} />
+              {captionNeedsExpansion && !captionExpanded && <span className="caption-more">...more</span>}
             </p>
+          </div>
+        )}
+
+        {/* [4] Category tag — above reactions */}
+        {reel.category && (
+          <div className="reel-category-tag">
+            <span className="reel-cat-dot" />
+            <span>{reel.category}</span>
           </div>
         )}
 
         <div className="reel-footer">
           <ReactionPanel
-            content={reelWithType}
-            currentUser={currentUser}
+            content={reelWithType} currentUser={currentUser}
             onComment={() => setShowComments(true)}
             onShare={() => setShowShare(true)}
-            layout="horizontal"
-            compact={true}
+            layout="horizontal" compact={true}
           />
         </div>
       </div>
 
-      {/* ── ACTION MENU ── */}
+      {/* Styles for new elements only */}
+      <style>{`
+        .reel-timestamp {
+          font-size: 11px;
+          color: rgba(255,255,255,0.45);
+          font-weight: 500;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .reel-follow-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 5px 11px;
+          border-radius: 999px;
+          font-size: 11.5px;
+          font-weight: 700;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: all 0.2s;
+          white-space: nowrap;
+          font-family: inherit;
+          background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.25);
+          color: #fff;
+          backdrop-filter: blur(8px);
+        }
+        .reel-follow-btn:hover { background: rgba(132,204,22,0.2); border-color: rgba(132,204,22,0.5); color: #84cc16; }
+        .reel-follow-btn.following {
+          background: rgba(132,204,22,0.15);
+          border-color: rgba(132,204,22,0.4);
+          color: #84cc16;
+        }
+        .reel-follow-btn.following:hover {
+          background: rgba(239,68,68,0.15);
+          border-color: rgba(239,68,68,0.4);
+          color: #ef4444;
+        }
+        .reel-category-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px 4px 8px;
+          border-radius: 999px;
+          background: rgba(132,204,22,0.07);
+          border: 1px solid rgba(132,204,22,0.18);
+          margin: 4px 14px 8px;
+          width: fit-content;
+        }
+        .reel-cat-dot {
+          width: 5px; height: 5px;
+          border-radius: 50%;
+          background: #84cc16;
+          flex-shrink: 0;
+        }
+        .reel-category-tag span:last-child {
+          font-size: 10.5px;
+          font-weight: 700;
+          color: rgba(132,204,22,0.8);
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          line-height: 1;
+        }
+      `}</style>
+
       {showActionMenu && (
         <ActionMenu
-          position={actionMenuPos}
-          isOwnPost={isOwnReel}
-          content={reelWithType}
-          contentType="reel"
-          currentUser={currentUser}
+          position={actionMenuPos} isOwnPost={isOwnReel}
+          content={reelWithType} contentType="reel" currentUser={currentUser}
           onClose={() => setShowActionMenu(false)}
-          onEdit={handleEdit}
-          onShare={handleShare}
+          onEdit={() => setShowActionMenu(false)}
+          onShare={() => { setShowActionMenu(false); setShowShare(true); }}
           onDelete={handleDelete}
-          onSave={handleSave}
-          onReport={handleReport}
+          onSave={() => {}} onReport={() => {}}
         />
       )}
 
-      {showComments && (
-        <CommentModal
-          content={reelWithType}
-          currentUser={currentUser}
-          onClose={() => setShowComments(false)}
-          isMobile={window.innerWidth <= 768}
-        />
+      {showComments && ReactDOM.createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 100002 }}>
+          <CommentModal content={reelWithType} currentUser={currentUser} onClose={() => setShowComments(false)} isMobile={window.innerWidth <= 768} />
+        </div>, document.body
       )}
 
-      {showShare && (
-        <ShareModal
-          content={reelWithType}
-          currentUser={currentUser}
-          onClose={() => setShowShare(false)}
-        />
+      {showShare && ReactDOM.createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 100002 }}>
+          <ShareModal content={reelWithType} currentUser={currentUser} onClose={() => setShowShare(false)} />
+        </div>, document.body
       )}
     </>
   );

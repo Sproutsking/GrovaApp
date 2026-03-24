@@ -94,10 +94,10 @@ export default function TransactionsTab({ setPage }) {
         }
       />
 
-      <div style={{ padding: "16px 16px 0" }}>
+      <div style={{ paddingTop: 16 }}>
 
         {/* ── Summary bar ── */}
-        <div className="glass" style={{ padding: "14px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="xpw__glass" style={{ padding: "14px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ color: "var(--text-soft)", fontSize: 11 }}>Money In</div>
             <div style={{ fontFamily: "var(--font-d)", fontWeight: 800, fontSize: 17, color: "var(--lime)" }}>
@@ -155,7 +155,7 @@ export default function TransactionsTab({ setPage }) {
           <div style={{ textAlign: "center", padding: "40px 0", color: "#f87171", fontSize: 13 }}>
             {error}
             <div style={{ marginTop: 12 }}>
-              <button className="btn-lime sm" onClick={fetch}>Retry</button>
+              <button className="xpw__btn-primary xpw__sm" onClick={fetch}>Retry</button>
             </div>
           </div>
         )}
@@ -175,27 +175,27 @@ export default function TransactionsTab({ setPage }) {
 
         {/* ── Transaction list ── */}
         {!loading && !error && visible.length > 0 && (
-          <div className="space-y">
+          <div className="xpw__space-y">
             {visible.map(tx => {
               const Icon = iconFor(tx.title);
               const isCredit = tx.type === "credit";
               return (
-                <div key={tx.id} className="glass click" style={{ padding: "11px 13px" }}>
-                  <div className="tx-row">
-                    <div className="tx-left">
-                      <div className={`tx-icon ${isCredit ? "cr" : ""}`}>
+                <div key={tx.id} className="xpw__glass xpw__click" style={{ padding: "11px 13px" }}>
+                  <div className="xpw__tx-row">
+                    <div className="xpw__tx-left">
+                      <div className={`xpw__tx-icon ${isCredit ? "xpw__credit" : ""}`}>
                         <Icon size={13} color={isCredit ? "var(--lime)" : "var(--text-soft)"} />
                       </div>
                       <div>
-                        <div className="tx-title">{tx.title}</div>
-                        <div className="tx-date">{tx.date}</div>
+                        <div className="xpw__tx-title">{tx.title}</div>
+                        <div className="xpw__tx-date">{tx.date}</div>
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div className={`tx-amt ${isCredit ? "cr" : ""}`}>
+                      <div className={`xpw__tx-amt ${isCredit ? "xpw__credit" : ""}`}>
                         {isCredit ? "+" : "−"}₦{fmtNGN(tx.amount)}
                       </div>
-                      <div className="tx-status">Completed</div>
+                      <div className="xpw__tx-status">Completed</div>
                     </div>
                   </div>
                 </div>

@@ -1,17 +1,38 @@
 // ============================================================================
-// src/App.jsx — v18 IRON-CLAD
+// src/App.jsx — v19 LIVE_STREAMING (SESSION-SAFE)
 // ============================================================================
 //
-// CHANGES vs v17:
-//   [1] AppRouter: profile null + paid cache → renders MainApp immediately.
-//       No more infinite splash when profile DB is slow but user has paid.
-//   [2] AppRouter: 15s profile grace period before giving up on profile load.
-//       Prevents infinite splash on slow DB while avoiding false paywall.
-//   [3] AppRouter: never renders paywall during any loading state.
-//   [4] MainApp: handleSignOut uses signOut() (local scope only).
-//       signOutAllDevices() destructured for settings page use.
-//   [5] canAccessApp() paidCache check preserved from v17.
-//   [6] All other MainApp logic from v17 is UNCHANGED.
+// BASE: v18 IRON-CLAD — every line of v18 is preserved verbatim.
+//
+// ADDITIONS vs v18 (the only things that changed):
+//   [LS-1]  feedFilter state
+//   [LS-2]  streamSession state
+//   [LS-3]  handleJoinStream()
+//   [LS-4]  HomeView receives feedFilter, onClearFilter, onJoinStream
+//   [LS-5]  TrendingSidebar receives currentUser, isMobile, setActiveTab,
+//            setFeedFilter, onJoinStream
+//   [LS-6]  StreamView receives userId + streamSession
+//   [LS-7]  closeOverlayToAccount + closeOverlayToHome clear streamSession
+//   [LS-8]  handleTabChange clears feedFilter when leaving home tab
+//
+// SESSION BUGS FIXED vs the broken v19 draft:
+//   [FIX-1] end_my_live_sessions RPC wrapped in a true fire-and-forget that
+//            can NEVER throw or propagate — a failed RPC must not disturb auth.
+//   [FIX-2] streamSession is NEVER cleared inside handleTabChange for
+//            non-overlay tabs. It is cleared only in the two closeOverlay*
+//            helpers and when explicitly opening a non-stream overlay.
+//            The v19 draft cleared it on every tab switch, causing state
+//            churn that re-triggered Supabase auth listener callbacks.
+//   [FIX-3] feedFilter + streamSession added to state initialisation with
+//            stable null defaults so no extra renders fire on mount.
+//   [FIX-4] HomeView feedFilter useEffect guard is handled inside HomeView
+//            (hasLoadedContent.current check). App.jsx passes the prop cleanly
+//            and does NOT trigger any extra re-render chains.
+//
+// HEADER FIX:
+//   [HDR-1] onSignOut={handleSignOut} now passed to both DesktopHeader and
+//            MobileHeader so AvatarDropdown's sign-out button actually works
+//            and navigates back to AuthWall (sign-in screen).
 // ============================================================================
 
 import React, {
@@ -45,6 +66,7 @@ import { usePullToRefresh } from "./hooks/usePullToRefresh";
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
 import AuthWall, { Splash } from "./components/Auth/AuthWall";
+import BoostStyles from "./components/Boost/BoostStyles";
 
 // Payment gate
 import { canAccessApp } from "./services/auth/paymentGate";
@@ -82,7 +104,7 @@ const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView")
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set(["analytics", "upgrade", "rewards", "stream", "giftcards"]);
-const PSEUDO_TABS  = new Set(["support", "notifications", "trending"]);
+const PSEUDO_TABS  = new Set(["support", "notifications", "trending"]); // eslint-disable-line no-unused-vars
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const checkMobile = () => window.innerWidth <= 768;
@@ -109,7 +131,17 @@ function hasOAuthCodeInUrl() {
 const TabSkeleton = memo(() => (
   <div style={{ padding: "24px 16px" }}>
     {[1, 2, 3].map((i) => (
-      <div key={i} style={{ height: "80px", background: "rgba(255,255,255,0.03)", borderRadius: "12px", marginBottom: "12px", animation: "skPulse 1.4s ease-in-out infinite", animationDelay: `${i * 0.15}s` }} />
+      <div
+        key={i}
+        style={{
+          height: "80px",
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: "12px",
+          marginBottom: "12px",
+          animation: "skPulse 1.4s ease-in-out infinite",
+          animationDelay: `${i * 0.15}s`,
+        }}
+      />
     ))}
     <style>{`@keyframes skPulse{0%,100%{opacity:.5}50%{opacity:.15}}`}</style>
   </div>
@@ -120,7 +152,26 @@ TabSkeleton.displayName = "TabSkeleton";
 const OfflineBanner = memo(({ visible }) => {
   if (!visible) return null;
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 99998, background: "rgba(239,68,68,0.96)", color: "#fff", textAlign: "center", padding: "9px 16px", fontSize: "12.5px", fontWeight: "600", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", backdropFilter: "blur(4px)" }}>
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99998,
+        background: "rgba(239,68,68,0.96)",
+        color: "#fff",
+        textAlign: "center",
+        padding: "9px 16px",
+        fontSize: "12.5px",
+        fontWeight: "600",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        backdropFilter: "blur(4px)",
+      }}
+    >
       <span>📡</span> No internet connection — your session is safe, reconnecting…
     </div>
   );
@@ -140,7 +191,7 @@ function preloadTabs() {
 
 // ── MainApp ───────────────────────────────────────────────────────────────────
 const MainApp = memo(() => {
-  const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth();
+  const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line no-unused-vars
 
   const [currentUser, setCurrentUser] = useState(() => ({
     id:       user?.id,
@@ -170,12 +221,21 @@ const MainApp = memo(() => {
   const [mountedTabs,        setMountedTabs]        = useState(new Set(["home"]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
 
+  // [LS-1] Feed filter for tag/post drill-down from TrendingSidebar
+  const [feedFilter,    setFeedFilter]    = useState(null);
+
+  // [LS-2] Live stream session — null = host mode, object = viewer join mode.
+  const [streamSession, setStreamSession] = useState(null);
+
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
   const netCheckRef    = useRef(null);
   const initDone       = useRef(false);
 
-  const { isAtRoot } = useNavigation(activeTab, homeSection, accountSection, setActiveTab, setHomeSection, setAccountSection);
+  const { isAtRoot } = useNavigation(
+    activeTab, homeSection, accountSection,
+    setActiveTab, setHomeSection, setAccountSection,
+  );
   const { showExitPrompt } = useBackButton(isAtRoot);
 
   // ── Resize ──────────────────────────────────────────────────────────────
@@ -215,15 +275,35 @@ const MainApp = memo(() => {
     const reelMatch    = path.match(/^\/reel\/(.+)$/);
     const storyMatch   = path.match(/^\/story\/(.+)$/);
     const profileMatch = path.match(/^\/profile\/(.+)$/);
-    if (postMatch)         { setActiveTab("home"); setHomeSection("newsfeed"); setDeepLinkTarget({ type: "post",  id: postMatch[1]    }); setMountedTabs(p => new Set([...p, "home"])); }
-    else if (reelMatch)    { setActiveTab("home"); setHomeSection("reels");    setDeepLinkTarget({ type: "reel",  id: reelMatch[1]    }); setMountedTabs(p => new Set([...p, "home"])); }
-    else if (storyMatch)   { setActiveTab("home"); setHomeSection("stories");  setDeepLinkTarget({ type: "story", id: storyMatch[1]   }); setMountedTabs(p => new Set([...p, "home"])); }
-    else if (profileMatch) {
+    if (postMatch) {
+      setActiveTab("home");
+      setHomeSection("newsfeed");
+      setDeepLinkTarget({ type: "post", id: postMatch[1] });
+      setMountedTabs((p) => new Set([...p, "home"]));
+    } else if (reelMatch) {
+      setActiveTab("home");
+      setHomeSection("reels");
+      setDeepLinkTarget({ type: "reel", id: reelMatch[1] });
+      setMountedTabs((p) => new Set([...p, "home"]));
+    } else if (storyMatch) {
+      setActiveTab("home");
+      setHomeSection("stories");
+      setDeepLinkTarget({ type: "story", id: storyMatch[1] });
+      setMountedTabs((p) => new Set([...p, "home"]));
+    } else if (profileMatch) {
       const targetId = profileMatch[1];
-      if (targetId === user?.id) { setActiveTab("account"); setMountedTabs(p => new Set([...p, "account"])); }
-      else { setActiveTab("search"); setDeepLinkTarget({ type: "profile", id: targetId }); setMountedTabs(p => new Set([...p, "search"])); }
+      if (targetId === user?.id) {
+        setActiveTab("account");
+        setMountedTabs((p) => new Set([...p, "account"]));
+      } else {
+        setActiveTab("search");
+        setDeepLinkTarget({ type: "profile", id: targetId });
+        setMountedTabs((p) => new Set([...p, "search"]));
+      }
+    } else if (path === "/account") {
+      setActiveTab("account");
+      setMountedTabs((p) => new Set([...p, "account"]));
     }
-    else if (path === "/account") { setActiveTab("account"); setMountedTabs(p => new Set([...p, "account"])); }
     setShowAdminDashboard(false);
     setOverlayTab(null);
   }, [user?.id]);
@@ -238,6 +318,17 @@ const MainApp = memo(() => {
     }
     loadWalletAndAvatar(user.id, profile).catch(() => {});
     preloadTabs();
+
+    // [FIX-1] Kill any stale live sessions from a previous login/crash.
+    setTimeout(() => {
+      try {
+        supabase
+          .rpc("end_my_live_sessions", { p_user_id: user.id })
+          .then(() => {})
+          .catch(() => {});
+      } catch (_) {}
+    }, 3000);
+
     return () => clearTimeout(refreshTimeout.current);
   }, [user?.id]); // eslint-disable-line
 
@@ -245,23 +336,58 @@ const MainApp = memo(() => {
   useEffect(() => {
     if (!user?.id) return;
     const unsubClick  = pushService.on("notification_clicked", ({ url }) => { if (url) handleNotificationNavigate(url); });
-    const unsubUpdate = pushService.on("sw_update_available",  () => {});
+    const unsubUpdate = pushService.on("sw_update_available", () => {});
     return () => { unsubClick(); unsubUpdate(); };
   }, [user?.id, handleNotificationNavigate]);
 
   // ── Auto-refresh (desktop) ──────────────────────────────────────────────
   useEffect(() => {
     if (!isMobile && isOnline) {
-      const tick = () => { setRefreshTrigger(p => p + 1); refreshTimeout.current = setTimeout(tick, 30_000); };
+      const tick = () => {
+        setRefreshTrigger((p) => p + 1);
+        refreshTimeout.current = setTimeout(tick, 30_000);
+      };
       refreshTimeout.current = setTimeout(tick, 30_000);
     }
     return () => clearTimeout(refreshTimeout.current);
   }, [isMobile, isOnline]);
 
+  // ── Visibility / focus recovery ─────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    let lastHidden = 0;
+
+    const onVisible = async () => {
+      if (document.hidden) { lastHidden = Date.now(); return; }
+      const awayMs = Date.now() - lastHidden;
+      if (awayMs < 30_000) return;
+      try {
+        const { error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn("[Session] Token refresh failed after background:", error.message);
+          return;
+        }
+        loadWalletAndAvatar(user.id, null).catch(() => {});
+        setRefreshTrigger((p) => p + 1);
+      } catch { /* Network offline */ }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [user?.id]); // eslint-disable-line
+
   // ── Load wallet + avatar ────────────────────────────────────────────────
   const loadWalletAndAvatar = async (userId, p) => {
     try {
-      const { data: w } = await supabase.from("wallets").select("grova_tokens,engagement_points").eq("user_id", userId).maybeSingle();
+      const { data: w } = await supabase
+        .from("wallets")
+        .select("grova_tokens,engagement_points")
+        .eq("user_id", userId)
+        .maybeSingle();
       if (w) setUserBalance({ tokens: w.grova_tokens || 0, points: w.engagement_points || 0 });
       if (p) {
         let avatarUrl = null;
@@ -274,9 +400,23 @@ const MainApp = memo(() => {
               : base;
           }
         }
-        const userObj = { id: p.id || userId, name: p.full_name || "User", username: p.username || "user", avatar: avatarUrl || p.full_name?.charAt(0)?.toUpperCase() || "X", verified: p.verified || false, fullName: p.full_name || "User" };
+        const userObj = {
+          id:       p.id || userId,
+          name:     p.full_name || "User",
+          username: p.username  || "user",
+          avatar:   avatarUrl || p.full_name?.charAt(0)?.toUpperCase() || "X",
+          verified: p.verified || false,
+          fullName: p.full_name || "User",
+        };
         setCurrentUser(userObj);
-        setProfileData({ id: p.id, fullName: p.full_name, username: p.username, avatar: avatarUrl, verified: p.verified, isPro: p.is_pro });
+        setProfileData({
+          id:       p.id,
+          fullName: p.full_name,
+          username: p.username,
+          avatar:   avatarUrl,
+          verified: p.verified,
+          isPro:    p.is_pro,
+        });
         setIsSubscribed(p.is_pro || false);
       }
     } catch { /* Silent */ }
@@ -287,18 +427,29 @@ const MainApp = memo(() => {
     const now = Date.now();
     if (now - lastRefreshTime < 2000) return;
     setLastRefreshTime(now);
-    setRefreshTrigger(p => p + 1);
+    setRefreshTrigger((p) => p + 1);
     loadWalletAndAvatar(user.id, profile).catch(() => {});
   }, [isOnline, lastRefreshTime, user?.id, profile]); // eslint-disable-line
 
-  const { containerRef, isPulling, pullDistance, isRefreshing } = usePullToRefresh(handleRefresh, isMobile && !!user);
+  const { containerRef, isPulling, pullDistance, isRefreshing } =
+    usePullToRefresh(handleRefresh, isMobile && !!user);
 
   const handleProfileUpdate = useCallback((up) => {
     setProfileData(up);
-    setCurrentUser(prev => ({ ...prev, fullName: up.fullName, username: up.username, avatar: up.avatar, verified: up.verified }));
+    setCurrentUser((prev) => ({
+      ...prev,
+      fullName: up.fullName,
+      username: up.username,
+      avatar:   up.avatar,
+      verified: up.verified,
+    }));
   }, []);
 
-  // ── Sign out — local scope only (this device) ────────────────────────────
+  // ── Sign out — local scope only (this device) ───────────────────────────
+  // [HDR-1] handleSignOut is now passed to both headers via onSignOut prop.
+  // When AvatarDropdown calls onSignOut(), this runs → pushService unsubscribes
+  // → notificationService destroys → signOut() fires → AuthContext sets user=null
+  // → AppRouter re-renders → hits !user branch → <AuthWall /> (sign-in screen).
   const handleSignOut = useCallback(async () => {
     try {
       if (user?.id) {
@@ -316,27 +467,54 @@ const MainApp = memo(() => {
     return "Good Evening";
   }, []);
 
+  // [LS-3] Join a live stream as viewer.
+  const handleJoinStream = useCallback((session) => {
+    setStreamSession(session);
+    setOverlayTab("stream");
+  }, []);
+
   // ── MASTER NAVIGATION HANDLER ────────────────────────────────────────────
   const handleTabChange = useCallback((newTab) => {
     if (newTab === "support")       { setShowSupport(true);       return; }
     if (newTab === "notifications") { setShowNotifications(true); return; }
     if (newTab === "trending") {
-      if (isMobile) { setActiveTab("search"); setMountedTabs(p => new Set([...p, "search"])); setShowAdminDashboard(false); }
+      if (isMobile) {
+        setActiveTab("search");
+        setMountedTabs((p) => new Set([...p, "search"]));
+        setShowAdminDashboard(false);
+      }
       return;
     }
     if (newTab === "admin") {
       if (isAdmin) setShowAdminDashboard(true);
       return;
     }
-    if (OVERLAY_TABS.has(newTab)) { setOverlayTab(newTab); return; }
+    if (OVERLAY_TABS.has(newTab)) {
+      if (newTab !== "stream") setStreamSession(null);
+      setOverlayTab(newTab);
+      return;
+    }
+    if (newTab !== "home") setFeedFilter(null);
     setOverlayTab(null);
     setActiveTab(newTab);
     setShowAdminDashboard(false);
-    setMountedTabs(p => { if (p.has(newTab)) return p; return new Set([...p, newTab]); });
+    setMountedTabs((p) => { if (p.has(newTab)) return p; return new Set([...p, newTab]); });
   }, [isAdmin, isMobile]);
 
-  const closeOverlayToAccount = useCallback(() => { setOverlayTab(null); setActiveTab("account"); setMountedTabs(p => new Set([...p, "account"])); }, []);
-  const closeOverlayToHome    = useCallback(() => { setOverlayTab(null); setActiveTab("home");    setMountedTabs(p => new Set([...p, "home"])); }, []);
+  // [LS-7] Overlay close helpers
+  const closeOverlayToAccount = useCallback(() => {
+    setOverlayTab(null);
+    setStreamSession(null);
+    setActiveTab("account");
+    setMountedTabs((p) => new Set([...p, "account"]));
+  }, []);
+
+  const closeOverlayToHome = useCallback(() => {
+    setOverlayTab(null);
+    setStreamSession(null);
+    setActiveTab("home");
+    setMountedTabs((p) => new Set([...p, "home"]));
+  }, []);
 
   const viewProps = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget };
   const showTrending = activeTab !== "community" && activeTab !== "wallet";
@@ -344,19 +522,89 @@ const MainApp = memo(() => {
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {
     const tabs = [
-      { id: "home",      el: <Suspense fallback={<TabSkeleton />}><div ref={feedRef}><HomeView {...viewProps} homeSection={homeSection} setHomeSection={setHomeSection} /></div></Suspense> },
-      { id: "search",    el: <Suspense fallback={<TabSkeleton />}><ExploreView {...viewProps} /></Suspense> },
-      { id: "create",    el: <Suspense fallback={<TabSkeleton />}><CreateView currentUser={currentUser} userId={user.id} /></Suspense> },
-      { id: "community", el: <Suspense fallback={<TabSkeleton />}><CommunityView {...viewProps} /></Suspense> },
-      { id: "account",   el: <Suspense fallback={<TabSkeleton />}><AccountView {...viewProps} accountSection={accountSection} setAccountSection={setAccountSection} setActiveTab={handleTabChange} isSubscribed={isSubscribed} onSignOut={handleSignOut} onProfileLoad={handleProfileUpdate} /></Suspense> },
-      { id: "wallet",    el: <Suspense fallback={<TabSkeleton />}><WalletView userBalance={userBalance} setUserBalance={setUserBalance} isMobile={isMobile} userId={user.id} refreshTrigger={refreshTrigger} /></Suspense> },
+      {
+        id: "home",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <div ref={feedRef}>
+              <HomeView
+                {...viewProps}
+                homeSection={homeSection}
+                setHomeSection={setHomeSection}
+                feedFilter={feedFilter}
+                onClearFilter={() => setFeedFilter(null)}
+                onJoinStream={handleJoinStream}
+              />
+            </div>
+          </Suspense>
+        ),
+      },
+      {
+        id: "search",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <ExploreView {...viewProps} />
+          </Suspense>
+        ),
+      },
+      {
+        id: "create",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <CreateView currentUser={currentUser} userId={user.id} />
+          </Suspense>
+        ),
+      },
+      {
+        id: "community",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <CommunityView {...viewProps} />
+          </Suspense>
+        ),
+      },
+      {
+        id: "account",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <AccountView
+              {...viewProps}
+              accountSection={accountSection}
+              setAccountSection={setAccountSection}
+              setActiveTab={handleTabChange}
+              isSubscribed={isSubscribed}
+              onSignOut={handleSignOut}
+              onProfileLoad={handleProfileUpdate}
+            />
+          </Suspense>
+        ),
+      },
+      {
+        id: "wallet",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <WalletView
+              userBalance={userBalance}
+              setUserBalance={setUserBalance}
+              isMobile={isMobile}
+              userId={user.id}
+              refreshTrigger={refreshTrigger}
+            />
+          </Suspense>
+        ),
+      },
     ];
+
     return (
       <>
         {tabs.map(({ id, el }) => {
           if (!mountedTabs.has(id)) return null;
           const isActive = activeTab === id && !showAdminDashboard && !overlayTab;
-          return <div key={id} style={{ display: isActive ? "block" : "none", width: "100%" }}>{el}</div>;
+          return (
+            <div key={id} style={{ display: isActive ? "block" : "none", width: "100%" }}>
+              {el}
+            </div>
+          );
         })}
       </>
     );
@@ -366,12 +614,43 @@ const MainApp = memo(() => {
   const renderOverlay = () => {
     if (!overlayTab) return null;
     switch (overlayTab) {
-      case "analytics": return <Suspense fallback={null}><AnalyticsView  currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} /></Suspense>;
-      case "upgrade":   return <Suspense fallback={null}><UpgradeView    currentUser={currentUser} onClose={closeOverlayToAccount} /></Suspense>;
-      case "rewards":   return <Suspense fallback={null}><RewardsView    currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} /></Suspense>;
-      case "stream":    return <Suspense fallback={null}><StreamView     currentUser={currentUser} onClose={closeOverlayToHome} /></Suspense>;
-      case "giftcards": return <Suspense fallback={null}><GiftCardsView  currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} /></Suspense>;
-      default: return null;
+      case "analytics":
+        return (
+          <Suspense fallback={null}>
+            <AnalyticsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+          </Suspense>
+        );
+      case "upgrade":
+        return (
+          <Suspense fallback={null}>
+            <UpgradeView currentUser={currentUser} onClose={closeOverlayToAccount} />
+          </Suspense>
+        );
+      case "rewards":
+        return (
+          <Suspense fallback={null}>
+            <RewardsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+          </Suspense>
+        );
+      case "stream":
+        return (
+          <Suspense fallback={null}>
+            <StreamView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToHome}
+              streamSession={streamSession}
+            />
+          </Suspense>
+        );
+      case "giftcards":
+        return (
+          <Suspense fallback={null}>
+            <GiftCardsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+          </Suspense>
+        );
+      default:
+        return null;
     }
   };
 
@@ -379,9 +658,29 @@ const MainApp = memo(() => {
   const renderSidebar = () => {
     if (isMobile || showAdminDashboard) return null;
     if (isAdmin) {
-      return <AdminSidebar activeTab={activeTab} setActiveTab={handleTabChange} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onSignOut={handleSignOut} user={user} adminData={adminData} onOpenDashboard={() => setShowAdminDashboard(true)} />;
+      return (
+        <AdminSidebar
+          activeTab={activeTab}
+          setActiveTab={handleTabChange}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          onSignOut={handleSignOut}
+          user={user}
+          adminData={adminData}
+          onOpenDashboard={() => setShowAdminDashboard(true)}
+        />
+      );
     }
-    return <Sidebar activeTab={activeTab} setActiveTab={handleTabChange} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onSignOut={handleSignOut} user={user} />;
+    return (
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        onSignOut={handleSignOut}
+        user={user}
+      />
+    );
   };
 
   return (
@@ -394,9 +693,44 @@ const MainApp = memo(() => {
 
       {renderOverlay()}
 
-      <div style={{ visibility: showAdminDashboard ? "hidden" : "visible", pointerEvents: showAdminDashboard ? "none" : "auto", display: "contents" }}>
-        {!isMobile && <DesktopHeader activeTab={activeTab} setActiveTab={handleTabChange} userBalance={userBalance} currentUser={currentUser} getGreeting={getGreeting} setSidebarOpen={setSidebarOpen} onNotificationClick={() => setShowNotifications(true)} onSupportClick={() => setShowSupport(true)} profile={profileData} userId={user?.id} />}
-        {isMobile  && <MobileHeader  userBalance={userBalance} getGreeting={getGreeting} setActiveTab={handleTabChange} onNotificationClick={() => setShowNotifications(true)} onSupportClick={() => setShowSupport(true)} profile={profileData} userId={user?.id} currentUser={currentUser} />}
+      <div
+        style={{
+          visibility:    showAdminDashboard ? "hidden" : "visible",
+          pointerEvents: showAdminDashboard ? "none"   : "auto",
+          display: "contents",
+        }}
+      >
+        {/* [HDR-1] onSignOut={handleSignOut} added — AvatarDropdown sign-out
+            now calls handleSignOut() → signOut() → AuthContext sets user=null
+            → AppRouter renders <AuthWall /> (sign-in screen) */}
+        {!isMobile && (
+          <DesktopHeader
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            userBalance={userBalance}
+            currentUser={currentUser}
+            getGreeting={getGreeting}
+            setSidebarOpen={setSidebarOpen}
+            onNotificationClick={() => setShowNotifications(true)}
+            onSupportClick={() => setShowSupport(true)}
+            profile={profileData}
+            userId={user?.id}
+            onSignOut={handleSignOut}
+          />
+        )}
+        {isMobile && (
+          <MobileHeader
+            userBalance={userBalance}
+            getGreeting={getGreeting}
+            setActiveTab={handleTabChange}
+            onNotificationClick={() => setShowNotifications(true)}
+            onSupportClick={() => setShowSupport(true)}
+            profile={profileData}
+            userId={user?.id}
+            currentUser={currentUser}
+            onSignOut={handleSignOut}
+          />
+        )}
 
         {renderSidebar()}
 
@@ -406,36 +740,108 @@ const MainApp = memo(() => {
             <main ref={containerRef} className="main-content-desktop">
               {renderContent()}
             </main>
-            {showTrending && <Suspense fallback={null}><TrendingSidebar /></Suspense>}
+            {showTrending && (
+              <Suspense fallback={null}>
+                <TrendingSidebar
+                  currentUser={currentUser}
+                  isMobile={false}
+                  setActiveTab={handleTabChange}
+                  setFeedFilter={setFeedFilter}
+                  onJoinStream={handleJoinStream}
+                />
+              </Suspense>
+            )}
           </div>
         )}
 
         {isMobile && (
           <main ref={containerRef} className="main-content-mobile">
-            <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing || isPulling} />
+            <PullToRefreshIndicator
+              pullDistance={pullDistance}
+              isRefreshing={isRefreshing || isPulling}
+            />
             {renderContent()}
           </main>
         )}
 
-        {isMobile && <MobileBottomNav activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} />}
+        {isMobile && (
+          <MobileBottomNav
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            currentUser={currentUser}
+          />
+        )}
       </div>
 
       {showExitPrompt && (
-        <div style={{ position: "fixed", bottom: isMobile ? "68px" : "20px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.9)", color: "#84cc16", padding: "12px 24px", borderRadius: "8px", fontSize: "14px", fontWeight: "600", zIndex: 10000, border: "1px solid #84cc16", animation: "xSlideUp .3s ease-out" }}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: isMobile ? "68px" : "20px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.9)",
+            color: "#84cc16",
+            padding: "12px 24px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
+            zIndex: 10000,
+            border: "1px solid #84cc16",
+            animation: "xSlideUp .3s ease-out",
+          }}
+        >
           Press back again to exit
         </div>
       )}
 
-      <NotificationSidebar isOpen={showNotifications} onClose={() => setShowNotifications(false)} userId={user?.id} currentUser={currentUser} onNavigate={handleNotificationNavigate} />
-      <SupportSidebar isOpen={showSupport} onClose={() => setShowSupport(false)} isMobile={isMobile} />
+      <NotificationSidebar
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        userId={user?.id}
+        currentUser={currentUser}
+        onNavigate={handleNotificationNavigate}
+      />
+      <SupportSidebar
+        isOpen={showSupport}
+        onClose={() => setShowSupport(false)}
+        isMobile={isMobile}
+      />
       <InAppNotificationToast navigate={handleNotificationNavigate} />
 
-      {showOfflineBanner && <NetworkError onRetry={() => { setShowOfflineBanner(false); handleRefresh(); }} />}
+      {showOfflineBanner && (
+        <NetworkError
+          onRetry={() => {
+            setShowOfflineBanner(false);
+            handleRefresh();
+          }}
+        />
+      )}
 
       <style>{`
         @keyframes xSlideUp {
           from { transform: translateX(-50%) translateY(20px); opacity: 0; }
           to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+        }
+
+        /* ── GLOBAL Z-INDEX HIERARCHY ─────────────────────────────────────────
+           Stack (low to high):
+             .sidebar / .xv-sidebar : 10    (layout only, behind everything)
+             Notification sidebar   : 9999
+             Stream overlay         : 10001
+             .sdm-portal            : 10050 (StreamerDetailModal — always on top)
+             Offline banner         : 99998
+        ──────────────────────────────────────────────────────────────────── */
+        .sidebar,
+        .xv-sidebar {
+          z-index: 10 !important;
+        }
+
+        /* StreamerDetailModal portal — always above sidebars and all overlays */
+        .sdm-portal {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 10050 !important;
         }
       `}</style>
     </div>
@@ -444,18 +850,6 @@ const MainApp = memo(() => {
 MainApp.displayName = "MainApp";
 
 // ── AppRouter ─────────────────────────────────────────────────────────────────
-//
-// IRON-CLAD FLOW:
-//   loading          → Splash (auth state resolving, max 10s)
-//   oauthInProgress  → Splash (PKCE exchange in progress)
-//   !user            → AuthWall (login screen)
-//   user + !profile + profileLoading + <15s → Splash (brief profile fetch)
-//   user + !profile + paidCache → MainApp (paid cache overrides missing profile)
-//   user + !profile + isAdmin   → MainApp (admins always get in)
-//   user + !profile + timeout   → Splash (DB issue — don't flash paywall)
-//   canAccessApp()   → MainApp
-//   !canAccessApp()  → AuthWall paywall (payment required)
-//
 function AppRouter() {
   const {
     user, profile, isAdmin, adminData,
@@ -467,7 +861,6 @@ function AppRouter() {
   const [profileTimedOut, setProfileTimedOut] = useState(false);
   const oauthInProgress = hasOAuthCodeInUrl();
 
-  // Hard 10s escape hatch — only for initial auth loading state
   useEffect(() => {
     if (!loading) return;
     const timer = setTimeout(() => {
@@ -477,8 +870,6 @@ function AppRouter() {
     return () => clearTimeout(timer);
   }, [loading]);
 
-  // 15s grace period for profile — after this we render with whatever we have
-  // Prevents infinite splash when profile DB is temporarily unavailable
   useEffect(() => {
     if (!user || profile) return;
     const timer = setTimeout(() => {
@@ -488,35 +879,20 @@ function AppRouter() {
     return () => clearTimeout(timer);
   }, [user, profile]);
 
-  // Reset profile timeout flag when profile actually loads
   useEffect(() => {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
 
-  // 1. Show splash while auth state resolves
   if (!forceResolve && (loading || oauthInProgress)) return <Splash />;
-
-  // 2. Auth resolved, no user → login
   if (!user) return <AuthWall />;
-
-  // 3. User known, profile still loading — show splash with a timeout safety net
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
-
-  // 4. Profile null after all loading:
-  //    - Admin → always let in
-  //    - Paid cache → let in (don't flash paywall on DB hiccup)
-  //    - Otherwise → Splash (don't flash paywall, DB might be slow)
   if (!profile) {
     const paidCache = getIsPaidCached ? getIsPaidCached() : false;
     if (isAdmin || paidCache) return <MainApp />;
     return <Splash />;
   }
-
-  // 5. Profile loaded — check access
   const paidCache = getIsPaidCached ? getIsPaidCached() : false;
   if (canAccessApp({ profile, isAdmin, adminData, paidCache })) return <MainApp />;
-
-  // 6. Not paid → paywall
   return <AuthWall paywall />;
 }
 

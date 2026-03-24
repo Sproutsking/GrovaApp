@@ -27,30 +27,30 @@ export default function ServicesTab({ setPage }) {
   ];
 
   return (
-    <div className="pw-scroll-px" style={{ paddingLeft: 16, paddingRight: 16 }}>
+    <div className="pw-scroll-px">
       <div style={{ paddingTop: 18, paddingBottom: 16 }}>
         <div style={{ fontFamily: "var(--font-d)", fontSize: 20, fontWeight: 800, letterSpacing: "-0.025em" }}>Services</div>
       </div>
 
       {/* Bills & Payments */}
-      <div className="sec-hd"><span className="sec-title">Bills & Payments</span></div>
-      <div className="srv-grid mb-4">
+      <div className="xpw__sec-hd"><span className="xpw__sec-title">Bills & Payments</span></div>
+      <div className="xpw__srv-grid xpw__mb-4">
         {billItems.map((item, i) => (
-          <button key={i} className="srv-item" onClick={() => setPage(item.page)}>
-            <div className={`srv-icon ${item.cls}`}><item.icon size={20} color="#fff" /></div>
-            <span className="srv-label">{item.label}</span>
+          <button key={i} className="xpw__srv-item" onClick={() => setPage(item.page)}>
+            <div className={`xpw__srv-icon ${item.cls}`}><item.icon size={20} color="#fff" /></div>
+            <span className="xpw__srv-label">{item.label}</span>
           </button>
         ))}
       </div>
 
       {/* Financial Services */}
-      <div className="sec-hd"><span className="sec-title">Financial Services</span></div>
-      <div className="space-y">
+      <div className="xpw__sec-hd"><span className="xpw__sec-title">Financial Services</span></div>
+      <div className="xpw__space-y">
         {financialServices.map((item, i) => (
-          <div key={i} className="glass click" style={{ padding: "13px 14px" }} onClick={() => setPage(item.page)}>
+          <div key={i} className="xpw__glass xpw__click" style={{ padding: "13px 14px" }} onClick={() => setPage(item.page)}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                <div className={`quick-icon ${item.cls}`} style={{ width: 44, height: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.3)", flexShrink: 0 }}>
+                <div className={`xpw__quick-icon ${item.cls}`} style={{ width: 44, height: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.3)", flexShrink: 0 }}>
                   <item.icon size={19} color="#fff" />
                 </div>
                 <div>
@@ -165,7 +165,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
     return (
       <div className="pw-scroll">
         <Header title="Scholarships" onBack={onBack} />
-        <div className="f-section" style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:400, textAlign:"center", gap:16 }}>
+        <div className="xpw__section" style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:400, textAlign:"center", gap:16 }}>
           <div style={{ width:68, height:68, borderRadius:"50%", background:"rgba(163,230,53,0.12)", border:"2px solid var(--lime)", display:"flex", alignItems:"center", justifyContent:"center", animation:"pw-pulse 2s infinite" }}>
             <CheckCircle size={30} color="var(--lime)" />
           </div>
@@ -178,7 +178,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
               You'll receive an email notification once your application is reviewed. Keep your school invoice and academic record ready for verification.
             </div>
           </div>
-          <button className="btn-lime full" onClick={onBack}>Back to Services</button>
+          <button className="xpw__btn-primary xpw__full" onClick={onBack}>Back to Services</button>
           <div style={{ fontSize:11, color:"var(--text-soft)" }}>No student should have to drop out.</div>
         </div>
         <style>{`@keyframes pw-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(163,230,53,0.2)} 50%{box-shadow:0 0 0 12px rgba(163,230,53,0)} }`}</style>
@@ -190,7 +190,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
     return (
       <div className="pw-scroll">
         <Header title={`Apply — ${tier.name}`} onBack={()=>{setView("home");setStep(1);}} />
-        <div className="f-section f-stack">
+        <div className="xpw__section xpw__stack">
           <div style={{ borderRadius:12, padding:"12px 14px", background:`${tier.color}18`, border:`1px solid ${tier.color}33`, display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ fontSize:24 }}>{tier.icon}</div>
             <div>
@@ -211,20 +211,20 @@ export function ScholarshipsView({ pwBalance, onBack }) {
             <>
               {fields.map(f=>(
                 <div key={f.key}>
-                  <label className="f-label">{f.label}</label>
-                  <div className="f-card">
-                    <input type={f.type||"text"} value={formData[f.key]} onChange={e=>setFormData({...formData,[f.key]:e.target.value})} placeholder={f.placeholder} className="f-input" />
+                  <label className="xpw__label">{f.label}</label>
+                  <div className="xpw__field">
+                    <input type={f.type||"text"} value={formData[f.key]} onChange={e=>setFormData({...formData,[f.key]:e.target.value})} placeholder={f.placeholder} className="xpw__input" />
                   </div>
                 </div>
               ))}
               <div>
-                <label className="f-label">Current Level</label>
-                <select value={formData.level} onChange={e=>setFormData({...formData,level:e.target.value})} className="bank-sel">
+                <label className="xpw__label">Current Level</label>
+                <select value={formData.level} onChange={e=>setFormData({...formData,level:e.target.value})} className="xpw__bank-sel">
                   <option value="">— Select Level —</option>
                   {LEVELS.map(l=><option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
-              <button className="btn-lime full"
+              <button className="xpw__btn-primary xpw__full"
                 disabled={!formData.fullName||!formData.institution||!formData.course||!formData.cgpa||!formData.tuitionAmt||!formData.level}
                 onClick={()=>setStep(2)}>
                 Next: Supporting Statement →
@@ -243,16 +243,16 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                 ))}
               </div>
               <div>
-                <label className="f-label">Why do you deserve this scholarship?</label>
-                <div className="f-card">
-                  <textarea value={formData.statement} onChange={e=>setFormData({...formData,statement:e.target.value})} placeholder="Tell us your story. Your background, your ambitions, how this scholarship changes your trajectory…" className="f-input" style={{ minHeight:120, resize:"vertical", lineHeight:1.6 }} />
+                <label className="xpw__label">Why do you deserve this scholarship?</label>
+                <div className="xpw__field">
+                  <textarea value={formData.statement} onChange={e=>setFormData({...formData,statement:e.target.value})} placeholder="Tell us your story. Your background, your ambitions, how this scholarship changes your trajectory…" className="xpw__input" style={{ minHeight:120, resize:"vertical", lineHeight:1.6 }} />
                 </div>
                 <div style={{ fontSize:11, color:"var(--text-soft)", marginTop:4 }}>Minimum 100 characters. Be honest. Be specific.</div>
               </div>
               <div>
-                <label className="f-label">School Fee Invoice Reference</label>
-                <div className="f-card">
-                  <input type="text" value={formData.evidence} onChange={e=>setFormData({...formData,evidence:e.target.value})} placeholder="Invoice number or payment reference from school" className="f-input" />
+                <label className="xpw__label">School Fee Invoice Reference</label>
+                <div className="xpw__field">
+                  <input type="text" value={formData.evidence} onChange={e=>setFormData({...formData,evidence:e.target.value})} placeholder="Invoice number or payment reference from school" className="xpw__input" />
                 </div>
               </div>
               <div style={{ borderRadius:10, padding:"11px 13px", background:"rgba(168,85,247,0.06)", border:"1px solid rgba(168,85,247,0.15)", fontSize:12, lineHeight:1.65, color:"rgba(255,255,255,0.38)" }}>
@@ -260,8 +260,8 @@ export function ScholarshipsView({ pwBalance, onBack }) {
                 {tier.disbursement}
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                <button className="btn-ghost" onClick={()=>setStep(1)}>← Back</button>
-                <button className="btn-lime" style={{ flex:1 }}
+                <button className="xpw__btn-secondary" onClick={()=>setStep(1)}>← Back</button>
+                <button className="xpw__btn-primary" style={{ flex:1, minWidth:0 }}
                   disabled={!formData.statement||formData.statement.length<100||!formData.evidence||loading}
                   onClick={handleApply}>
                   {loading ? "Submitting…" : "Submit Application"}
@@ -277,7 +277,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
   return (
     <div className="pw-scroll">
       <Header title="Scholarships" onBack={onBack} />
-      <div className="f-section f-stack">
+      <div className="xpw__section xpw__stack">
         <div style={{ borderRadius:14, padding:"16px 15px", background:"linear-gradient(140deg,rgba(59,130,246,0.1),rgba(168,85,247,0.07))", border:"1px solid rgba(59,130,246,0.2)", position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, background:"radial-gradient(circle,rgba(168,85,247,0.12),transparent 70%)", borderRadius:"50%", filter:"blur(14px)" }} />
           <div style={{ position:"relative" }}>
@@ -296,7 +296,7 @@ export function ScholarshipsView({ pwBalance, onBack }) {
           </div>
         </div>
         {TIERS.map(t => (
-          <div key={t.id} className="glass click" style={{ padding:"15px 14px", borderColor:`${t.color}22` }}
+          <div key={t.id} className="xpw__glass xpw__click" style={{ padding:"15px 14px", borderColor:`${t.color}22` }}
             onClick={()=>{setSelTier(t.id);setView("apply");setStep(1);}}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:10 }}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
