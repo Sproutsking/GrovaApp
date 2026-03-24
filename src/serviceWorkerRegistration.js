@@ -1,19 +1,21 @@
 "use strict";
 
 // ============================================================================
-// src/serviceWorkerRegistration.js — Xeevia v2 SAFE
+// src/serviceWorkerRegistration.js — Xeevia v2 POISON-PILL-AWARE
 // ============================================================================
 //
 // CHANGES vs v1:
-//   [1] FORCE-UNREGISTER ON LOAD — on every page load in production, we check
-//       for any SW registration with an old cache name and unregister it before
-//       registering the new one. This clears the broken "Offline" SW from
-//       users who have the old broken version cached.
-//   [2] CLAIM CLIENTS — after SW activates we call clients.claim() (already
-//       done in SW activate handler) and post a SKIP_WAITING message to any
-//       waiting worker immediately so it takes over without requiring a reload.
-//   [3] Dev mode guard unchanged — SW is never registered on localhost.
-//
+//   [1] SW_POISON_PILL_RELOAD listener — when the new SW detects an old
+//       broken cache and posts this message, every open tab calls
+//       window.location.reload() automatically. The user sees a normal
+//       page refresh and lands on the clean app. Zero manual steps needed.
+//   [2] Waiting SW fast-track — if a SW is already in waiting state when
+//       the page loads, we immediately post SKIP_WAITING so it activates
+//       without requiring a tab close.
+//   [3] controllerchange reload — when the SW controller changes (new SW
+//       took over) we reload once so the app is served fresh.
+//   [4] Dev mode guard unchanged — SW never runs on localhost.
+// ============================================================================
 
 const isLocalhost = Boolean(
   window.location.hostname === "localhost" ||
@@ -31,6 +33,16 @@ export function register(config) {
     return;
   }
 
+  // ── Listen for poison pill reload message from SW ─────────────────────────
+  // The new SW posts SW_POISON_PILL_RELOAD when it detects and nukes an old
+  // broken cache. We reload the page so the user lands on the clean app.
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "SW_POISON_PILL_RELOAD") {
+      console.log("[PWA] Poison pill cleanup complete — reloading");
+      window.location.reload();
+    }
+  });
+
   window.addEventListener("load", () => {
     const swUrl = "/service-worker.js";
 
@@ -45,8 +57,7 @@ export function register(config) {
         // Check for updates every hour
         setInterval(() => reg.update(), 3_600_000);
 
-        // If a new worker is already waiting (user had old broken SW),
-        // tell it to skip waiting and take over immediately.
+        // If a new worker is already waiting, activate it immediately
         if (reg.waiting) {
           reg.waiting.postMessage({ type: "SKIP_WAITING" });
         }
@@ -60,7 +71,6 @@ export function register(config) {
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              // A new version is ready — show update UI
               if (config?.onUpdate) {
                 config.onUpdate(reg);
               } else if (typeof window.__xvShowUpdate === "function") {
@@ -68,8 +78,10 @@ export function register(config) {
               }
             }
 
-            if (newWorker.state === "activated" && !navigator.serviceWorker.controller) {
-              // First install — SW active for the first time
+            if (
+              newWorker.state === "activated" &&
+              !navigator.serviceWorker.controller
+            ) {
               if (config?.onSuccess) {
                 config.onSuccess(reg);
               }
@@ -77,8 +89,7 @@ export function register(config) {
           });
         });
 
-        // When the SW controller changes (new SW took over), reload the page
-        // so the app is served by the fresh service worker.
+        // When SW controller changes (new SW took over), reload once
         let refreshing = false;
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           if (refreshing) return;
@@ -86,7 +97,9 @@ export function register(config) {
           window.location.reload();
         });
       })
-      .catch((err) => console.warn("[PWA] SW registration failed:", err.message));
+      .catch((err) =>
+        console.warn("[PWA] SW registration failed:", err.message),
+      );
   });
 }
 

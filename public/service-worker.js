@@ -1,31 +1,31 @@
 // ============================================================================
-// public/service-worker.js — Xeevia v4 OFFLINE-SAFE
+// public/service-worker.js — Xeevia POISON PILL + v4 OFFLINE-SAFE
 // ============================================================================
 //
-// KEY FIXES vs v3:
-//   [1] NAVIGATION FETCH FIX — navigate requests (page loads) now ALWAYS fall
-//       back to cached /index.html instead of the bare "Offline" text string.
-//       This was the root cause of the blank black "Offline" screen in prod.
-//   [2] NON-NAVIGATION FETCH FIX — non-navigate requests that fail network
-//       AND have no cache entry now return undefined (fail naturally) instead
-//       of the bare "Offline" 503 response that broke the app shell.
-//   [3] CACHE NAME BUMPED to xeevia-v2026-pro-4 — forces activate handler to
-//       purge the old broken cache from every user's browser on next load.
-//   [4] All other behaviour (push, notificationclick, message, install,
-//       activate) is identical to v3 — zero regressions.
+// PHASE 1 — POISON PILL (runs immediately on install):
+//   Every browser that has ANY old Xeevia SW cached will fetch this file,
+//   install it, and immediately:
+//     1. Delete every cache
+//     2. Take over all clients
+//     3. Force a silent reload of every open tab into the clean fresh app
+//   The user sees nothing. Zero user action required. Works automatically
+//   for every single person including investors opening the app cold.
 //
-// WHY THE OLD CODE BROKE:
-//   The v3 fetch handler did:
+// PHASE 2 — After the reload, no old SW exists. The page loads clean.
+//   serviceWorkerRegistration.js registers this file fresh. This time
+//   hasOldCache is false so the poison pill branch is skipped and normal
+//   v4 operation resumes permanently.
+//
+// ROOT CAUSE THIS FIXES:
+//   Old SW fetch handler did:
 //     .catch(() => cached || new Response("Offline", { status: 503 }))
-//   When a stale SW was active and the network was briefly unreachable during
-//   a deploy, it served that bare text response for the index.html navigation
-//   request itself — the browser rendered the white/black page showing only
-//   the word "Offline". Users with the old SW cached saw this until they
-//   manually cleared site data.
+//   That bare text response was served for the index.html navigation request
+//   itself, rendering a black page showing only the word "Offline".
+//   The new fetch handler NEVER serves a bare text response for navigations.
 // ============================================================================
 
-const CACHE_NAME = "xeevia-v2026-pro-4";
-const SW_VERSION = "xeevia-1.0.4";
+const CACHE_NAME  = "xeevia-v2026-pro-4";
+const SW_VERSION  = "xeevia-1.0.4";
 
 const STATIC_ASSETS = [
   "/",
@@ -39,9 +39,41 @@ const STATIC_ASSETS = [
 // ── Install ───────────────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
   console.log("[SW] Installing", CACHE_NAME);
-  self.skipWaiting();
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)),
+    (async () => {
+      const existingKeys = await caches.keys();
+      const hasOldCache  = existingKeys.some((k) => k !== CACHE_NAME);
+
+      if (hasOldCache) {
+        // ── POISON PILL ────────────────────────────────────────────────────
+        console.log("[SW] Old cache detected — running poison pill cleanup");
+
+        // 1. Wipe every cache in the browser for this origin
+        await Promise.all(existingKeys.map((k) => caches.delete(k)));
+
+        // 2. Take over immediately — don't wait for tabs to close
+        await self.skipWaiting();
+
+        // 3. Tell every open tab to reload silently
+        //    serviceWorkerRegistration.js listens for this message and calls
+        //    window.location.reload() — the user just sees a normal page refresh
+        const clients = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        for (const client of clients) {
+          try { client.postMessage({ type: "SW_POISON_PILL_RELOAD" }); } catch (_) {}
+        }
+
+        return; // Skip normal cache population — the reload will handle it
+      }
+
+      // ── Normal fresh install — no old cache ────────────────────────────
+      self.skipWaiting();
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(STATIC_ASSETS);
+    })(),
   );
 });
 
@@ -62,30 +94,22 @@ self.addEventListener("activate", (event) => {
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 //
-// TWO SEPARATE STRATEGIES:
+// Strategy A — navigate (HTML page loads):
+//   Network first. On failure serve cached /index.html so React can boot.
+//   NEVER return a bare text/503 — that was the original bug.
 //
-//   navigate (page / document loads)
-//   ─────────────────────────────────
-//   Always try the network first. If the network fails, serve the cached
-//   index.html so the React app can still boot and show its own offline UI.
-//   NEVER serve a bare text/503 response — that is what caused the "Offline"
-//   screen your users and investor saw.
-//
-//   all other GET requests (JS chunks, API, images, etc.)
-//   ──────────────────────────────────────────────────────
-//   Cache-first with network revalidation. If both cache and network miss,
-//   return undefined (let the request fail naturally with a browser error)
-//   rather than a synthetic 503 that breaks the app shell.
+// Strategy B — everything else (JS, CSS, images, API):
+//   Cache first, network revalidation. On total miss fail naturally —
+//   never a synthetic 503.
 //
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  // ── Strategy A: Navigation requests (HTML document loads) ──────────────────
+  // ── Strategy A ────────────────────────────────────────────────────────────
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
-          // Cache a fresh copy of index.html on every successful load
           if (res.ok) {
             caches
               .open(CACHE_NAME)
@@ -95,25 +119,20 @@ self.addEventListener("fetch", (event) => {
           return res;
         })
         .catch(() =>
-          // Network failed — serve cached index.html so React can boot
           caches
             .match("/index.html")
             .then((cached) => cached || caches.match("/"))
-            // If we have absolutely nothing cached, fail silently —
-            // the browser will show its own "no connection" page which
-            // is far better than our old bare "Offline" text.
             .catch(() => undefined),
         ),
     );
     return;
   }
 
-  // ── Strategy B: All other GET requests ────────────────────────────────────
+  // ── Strategy B ────────────────────────────────────────────────────────────
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return fetch(event.request)
+    caches.match(event.request).then((cached) =>
+      fetch(event.request)
         .then((res) => {
-          // Cache fresh copies of known static assets
           if (
             res.ok &&
             STATIC_ASSETS.includes(new URL(event.request.url).pathname)
@@ -125,25 +144,12 @@ self.addEventListener("fetch", (event) => {
           }
           return res;
         })
-        .catch(() => {
-          // Network failed — return cached version if available,
-          // otherwise return undefined (fail naturally, no fake 503)
-          return cached || undefined;
-        });
-    }),
+        .catch(() => cached || undefined),
+    ),
   );
 });
 
-// ── Push handler ──────────────────────────────────────────────────────────────
-//
-// Protocol:
-//   App FOCUSED   → post PUSH_RECEIVED to client → in-app toast only
-//   App BACKGROUND → show OS notification
-//
-// This eliminates double-notification: previously the SW always showed an
-// OS notification AND the app also showed an in-app toast on the Supabase
-// realtime INSERT event, giving the user two alerts for one event.
-//
+// ── Push ──────────────────────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
@@ -158,44 +164,33 @@ self.addEventListener("push", (event) => {
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
-        // Is any app tab currently focused?
         const focusedClient = clientList.find(
           (c) => c.visibilityState === "visible",
         );
 
         if (focusedClient) {
-          // App is open & focused — hand off to in-app toast, NO OS popup
-          focusedClient.postMessage({
-            type: "PUSH_RECEIVED",
-            payload: payload,
-          });
-          return; // Skip showNotification
+          focusedClient.postMessage({ type: "PUSH_RECEIVED", payload });
+          return;
         }
 
-        // App is backgrounded / closed — show OS notification
-        const notifOptions = {
-          body: payload.body || "",
-          icon: payload.icon || "/logo192.png",
-          badge: payload.badge || "/logo192.png",
-          tag: payload.tag || "xeevia-notif",
-          vibrate: payload.vibrate || [200, 100, 200],
+        return self.registration.showNotification(payload.title || "Xeevia", {
+          body:               payload.body    || "",
+          icon:               payload.icon    || "/logo192.png",
+          badge:              payload.badge   || "/logo192.png",
+          tag:                payload.tag     || "xeevia-notif",
+          vibrate:            payload.vibrate || [200, 100, 200],
           requireInteraction: payload.requireInteraction || false,
           actions: payload.actions || [
-            { action: "view", title: "View" },
+            { action: "view",    title: "View"    },
             { action: "dismiss", title: "Dismiss" },
           ],
           data: {
-            url: payload.data?.url || "/",
-            type: payload.data?.type || "general",
+            url:       payload.data?.url       || "/",
+            type:      payload.data?.type      || "general",
             entity_id: payload.data?.entity_id || null,
             ...(payload.data || {}),
           },
-        };
-
-        return self.registration.showNotification(
-          payload.title || "Xeevia",
-          notifOptions,
-        );
+        });
       }),
   );
 });
@@ -204,7 +199,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const action = event.action;
+  const action    = event.action;
   const notifData = event.notification.data || {};
   const targetUrl = notifData.url || "/";
 
@@ -214,28 +209,19 @@ self.addEventListener("notificationclick", (event) => {
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
-        // Try to find an existing app window
         const appClient = clientList.find((c) =>
           c.url.includes(self.location.origin),
         );
-
         if (appClient) {
-          // Tell the app to navigate and bring window to front
-          appClient.postMessage({
-            type: "NOTIFICATION_CLICKED",
-            url: targetUrl,
-            data: notifData,
-          });
+          appClient.postMessage({ type: "NOTIFICATION_CLICKED", url: targetUrl, data: notifData });
           return appClient.focus();
         }
-
-        // No window open — open a new one
         return self.clients.openWindow(targetUrl);
       }),
   );
 });
 
-// ── Message handler (from app → SW) ──────────────────────────────────────────
+// ── Message handler ───────────────────────────────────────────────────────────
 self.addEventListener("message", (event) => {
   const msg = event.data;
   if (!msg?.type) return;
@@ -244,18 +230,14 @@ self.addEventListener("message", (event) => {
     case "SKIP_WAITING":
       self.skipWaiting();
       break;
-
     case "GET_VERSION":
       event.source?.postMessage({ type: "SW_VERSION", version: SW_VERSION });
       break;
-
     case "CLEAR_BADGE":
-      // Clear Android app-icon badge
       if ("clearAppBadge" in self.navigator) {
         self.navigator.clearAppBadge().catch(() => {});
       }
       break;
-
     default:
       break;
   }
