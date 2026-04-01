@@ -1,20 +1,28 @@
 // services/messages/ConversationStateManager.js
+// ============================================================================
+// FIXES vs previous:
+//   [CSM-1] Added getConversation(id) method — was missing, caused
+//           dmMessageService._triggerDmPush to throw a runtime error
+//           and silently kill all DM push notifications.
+// ============================================================================
+
 class ConversationStateManager {
   constructor() {
     this.state = {
-      conversations: new Map(),
-      messagesByConversation: new Map(),
-      messageStatusById: new Map(),
-      unreadByConversation: new Map(),
-      activeConversationId: null,
+      conversations:           new Map(),
+      messagesByConversation:  new Map(),
+      messageStatusById:       new Map(),
+      unreadByConversation:    new Map(),
+      activeConversationId:    null,
     };
     this.listeners = new Set();
   }
 
-  // CONVERSATIONS
+  // ── CONVERSATIONS ──────────────────────────────────────────────────────────
+
   initConversations(conversations) {
-    this.state.conversations = new Map();
-    this.state.unreadByConversation = new Map();
+    this.state.conversations           = new Map();
+    this.state.unreadByConversation    = new Map();
 
     conversations.forEach((conv) => {
       this.state.conversations.set(conv.id, conv);
@@ -32,10 +40,11 @@ class ConversationStateManager {
     }
   }
 
-  // MESSAGES
+  // ── MESSAGES ───────────────────────────────────────────────────────────────
+
   initMessages(conversationId, messages) {
     this.state.messagesByConversation.set(conversationId, messages);
-    
+
     messages.forEach((msg) => {
       const status = msg.read ? "read" : msg.delivered ? "delivered" : "sent";
       this.state.messageStatusById.set(msg.id, status);
@@ -46,7 +55,7 @@ class ConversationStateManager {
 
   addMessage(conversationId, message) {
     let messages = this.state.messagesByConversation.get(conversationId) || [];
-    
+
     const existingIdx = messages.findIndex(
       (m) => m.id === message.id || (m._tempId && m._tempId === message._tempId)
     );
@@ -63,7 +72,7 @@ class ConversationStateManager {
     this.state.messageStatusById.set(message.id, status);
 
     this.updateConversation(conversationId, {
-      lastMessage: message,
+      lastMessage:     message,
       last_message_at: message.created_at,
     });
 
@@ -75,11 +84,9 @@ class ConversationStateManager {
       const idx = messages.findIndex((m) => m.id === messageId);
       if (idx !== -1) {
         messages[idx] = { ...messages[idx], ...updates };
-        
         if (updates.read) {
           this.state.messageStatusById.set(messageId, "read");
         }
-        
         this.emit();
         return;
       }
@@ -98,10 +105,11 @@ class ConversationStateManager {
     }
   }
 
-  // UNREAD
+  // ── UNREAD ─────────────────────────────────────────────────────────────────
+
   incrementUnread(conversationId, senderId) {
     if (this.state.activeConversationId === conversationId) return;
-    
+
     const current = this.state.unreadByConversation.get(conversationId) || 0;
     this.state.unreadByConversation.set(conversationId, current + 1);
 
@@ -129,11 +137,11 @@ class ConversationStateManager {
     messages.forEach((msg) => {
       this.state.messageStatusById.set(msg.id, "read");
     });
-
     this.clearUnread(conversationId);
   }
 
-  // ACTIVE
+  // ── ACTIVE ─────────────────────────────────────────────────────────────────
+
   setActive(conversationId) {
     this.state.activeConversationId = conversationId;
     this.clearUnread(conversationId);
@@ -147,13 +155,19 @@ class ConversationStateManager {
     return this.state.activeConversationId === conversationId;
   }
 
-  // GETTERS
+  // ── GETTERS ────────────────────────────────────────────────────────────────
+
   getConversations() {
     return Array.from(this.state.conversations.values()).sort((a, b) => {
       const aTime = new Date(a.last_message_at || a.created_at);
       const bTime = new Date(b.last_message_at || b.created_at);
       return bTime - aTime;
     });
+  }
+
+  // [CSM-1] Single conversation by id — was missing, caused runtime crash
+  getConversation(conversationId) {
+    return this.state.conversations.get(conversationId) || null;
   }
 
   getMessages(conversationId) {
@@ -172,7 +186,8 @@ class ConversationStateManager {
     return total;
   }
 
-  // SUBSCRIPTION
+  // ── SUBSCRIPTION ───────────────────────────────────────────────────────────
+
   subscribe(listener) {
     this.listeners.add(listener);
     listener(this.getConversations());
@@ -185,7 +200,7 @@ class ConversationStateManager {
       try {
         listener(conversations);
       } catch (e) {
-        console.error("Listener error:", e);
+        console.error("[ConversationState] Listener error:", e);
       }
     });
   }

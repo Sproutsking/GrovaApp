@@ -1,121 +1,103 @@
-// src/components/Rewards/RewardsView.jsx — v3 LEVEL_SYSTEM
+// src/components/Rewards/RewardsView.jsx — v5 PREVIEW_MATCH
 // ============================================================================
-// CHANGES vs v2:
-//  [REFORM] Daily tasks no longer directly mint EP. Completing tasks
-//           contributes to your activity metrics which determine your reward
-//           LEVEL (silver/gold/diamond). Each level earns a % share of
-//           weekly ecosystem revenue, distributed as EP backed by real money.
-//           This prevents unbacked EP inflation.
-//
-//  [NEW] LevelSystemView — shows Silver/Gold/Diamond criteria, user's
-//        current progress toward each level, and the weekly revenue share.
-//
-//  [NEW] get_user_level_progress RPC called to fetch real level data.
-//
-//  [KEPT] Deposit flow ($1=100EP backed by real money) — unchanged.
-//  [KEPT] Redeem/spend EP — unchanged.
-//  [KEPT] Weekly quality bonus — kept as small incentive (10 EP) since it
-//         requires real engagements, not free minting.
-//  [CHANGED] Daily tasks: now called "Activity Tracker" — completion is
-//             tracked for level eligibility but gives 0 direct EP mint.
-//             Only the login task still gives 1 EP as a micro-reward since
-//             it's negligible and creates habit.
+// Matches the approved preview design exactly.
+// PC: tight 236px sidebar + scrollable main panel, max-width 1160px centered.
+// Mobile: compact stats strip (not a bloated hero card), pill tabs, dense content.
+// Sidebar: no excess padding — every element is snug, elegant, purposeful.
+// Water model: Silver 15% / Gold 30% / Diamond 55% — proportional by score.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   X, Zap, Flame, CheckCircle, Lock, ChevronRight, ChevronDown,
-  Image, Film, Heart, Crown, TrendingUp, AlertCircle, Wallet,
-  Trophy, Sparkles, Gift, ArrowUpRight, Star, Target, Shield,
-  Award, Users, Activity, TrendingDown,
+  Image, Film, Heart, Crown, Wallet, Trophy, Sparkles, Gift,
+  Star, Target, TrendingUp, Layers, Activity, Droplets,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import {
   getRewardsProfile, getTodayTaskState, claimDailyTask,
   claimWeeklyBonus, spendEP, subscribeToEPBalance,
   WEEKLY_BONUS_EP, EP_PER_USD, PROTOCOL_FEE,
+  LEVEL_SCORE_THRESHOLDS, TASK_WEIGHTS, LEVEL_POOL_ALLOCATIONS,
 } from "../../services/rewards/rewardsService";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants & config
+// ─────────────────────────────────────────────────────────────────────────────
 const EP = (n) => {
   const v = Number(n) || 0;
-  if (v >= 1_000_000) return `${(v/1_000_000).toFixed(2)}M`;
-  if (v >= 1_000)     return `${(v/1_000).toFixed(1)}K`;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
   return String(v);
 };
+const clamp = (val, max) => Math.min(Math.round((val / Math.max(max, 1)) * 100), 100);
 
-// ── Level configuration ───────────────────────────────────────────────────────
 const LEVELS = {
   silver: {
-    name:        "Silver",
-    emoji:       "🥈",
-    color:       "#d4d4d8",
-    glow:        "rgba(212,212,216,0.3)",
-    revenueShare: 2,
+    name: "Silver", emoji: "🥈", color: "#c0c0c0", glow: "rgba(192,192,192,0.2)",
+    poolPct: LEVEL_POOL_ALLOCATIONS.silver,
+    scoreMin: LEVEL_SCORE_THRESHOLDS.silver,
     criteria: [
-      { key:"account_age_days",   label:"Account age",        target:14,    unit:"days",    desc:"Account must be ≥14 days old" },
-      { key:"active_days_30",     label:"Active days (30d)",  target:15,    unit:"days",    desc:"Log in on ≥15 of the last 30 days" },
-      { key:"qual_posts_2eng",    label:"Quality posts (30d)", target:3,    unit:"posts",   desc:"≥3 posts with ≥2 engagements each" },
-      { key:"task_rate_pct",      label:"Task completion",    target:60,    unit:"%",       desc:"Complete ≥60% of possible daily tasks" },
+      { key: "login_days",  label: "Login days (7d)",   target: 4,  unit: "days"  },
+      { key: "posts",       label: "Posts published",   target: 2,  unit: "posts" },
+      { key: "engagements", label: "Engagements given", target: 10, unit: ""      },
+      { key: "score",       label: "Engagement score",  target: LEVEL_SCORE_THRESHOLDS.silver, unit: "pts" },
     ],
   },
   gold: {
-    name:        "Gold",
-    emoji:       "🥇",
-    color:       "#fbbf24",
-    glow:        "rgba(251,191,36,0.3)",
-    revenueShare: 5,
-    requires:    "silver",
-    holdDays:    30,
+    name: "Gold", emoji: "🥇", color: "#f5a623", glow: "rgba(245,166,35,0.2)",
+    poolPct: LEVEL_POOL_ALLOCATIONS.gold,
+    scoreMin: LEVEL_SCORE_THRESHOLDS.gold,
     criteria: [
-      { key:"account_age_days",   label:"Account age",        target:45,    unit:"days",    desc:"Account must be ≥45 days old" },
-      { key:"active_days_30",     label:"Active days (30d)",  target:22,    unit:"days",    desc:"Log in on ≥22 of the last 30 days" },
-      { key:"qual_posts_5eng",    label:"Quality posts (30d)", target:8,    unit:"posts",   desc:"≥8 posts with ≥5 engagements each" },
-      { key:"followers",          label:"Followers",           target:25,   unit:"followers",desc:"At least 25 followers" },
-      { key:"task_rate_pct",      label:"Task completion",    target:80,    unit:"%",       desc:"Complete ≥80% of possible daily tasks" },
+      { key: "login_days",  label: "Login days (7d)",   target: 6,  unit: "days"  },
+      { key: "posts",       label: "Posts published",   target: 5,  unit: "posts" },
+      { key: "reels",       label: "Reels uploaded",    target: 2,  unit: "reels" },
+      { key: "engagements", label: "Engagements given", target: 30, unit: ""      },
+      { key: "score",       label: "Engagement score",  target: LEVEL_SCORE_THRESHOLDS.gold, unit: "pts" },
     ],
   },
   diamond: {
-    name:        "Diamond",
-    emoji:       "💎",
-    color:       "#a78bfa",
-    glow:        "rgba(167,139,250,0.3)",
-    revenueShare: 10,
-    requires:    "gold",
-    holdDays:    30,
+    name: "Diamond", emoji: "💎", color: "#a78bfa", glow: "rgba(167,139,250,0.2)",
+    poolPct: LEVEL_POOL_ALLOCATIONS.diamond,
+    scoreMin: LEVEL_SCORE_THRESHOLDS.diamond,
     criteria: [
-      { key:"account_age_days",   label:"Account age",        target:90,    unit:"days",    desc:"Account must be ≥90 days old" },
-      { key:"active_days_30",     label:"Active days (30d)",  target:28,    unit:"days",    desc:"Log in on ≥28 of the last 30 days" },
-      { key:"qual_posts_10eng",   label:"Quality posts (30d)", target:15,   unit:"posts",   desc:"≥15 posts with ≥10 engagements each" },
-      { key:"followers",          label:"Followers",           target:100,  unit:"followers",desc:"At least 100 followers" },
-      { key:"task_rate_pct",      label:"Task completion",    target:95,    unit:"%",       desc:"Complete ≥95% of possible daily tasks" },
+      { key: "login_days",  label: "Login days (7d)",   target: 7,   unit: "days"  },
+      { key: "posts",       label: "Posts published",   target: 10,  unit: "posts" },
+      { key: "reels",       label: "Reels uploaded",    target: 5,   unit: "reels" },
+      { key: "engagements", label: "Engagements given", target: 75,  unit: ""      },
+      { key: "score",       label: "Engagement score",  target: LEVEL_SCORE_THRESHOLDS.diamond, unit: "pts" },
     ],
   },
 };
-
 const LEVEL_ORDER = ["none", "silver", "gold", "diamond"];
 
-// ── Activity tasks (for level tracking — minimal direct EP) ──────────────────
 const ACTIVITY_TASKS = [
-  { id:"login",       Icon:Flame,  label:"Daily Login",      desc:"Shows up in active_days_30 criteria.",    giveEP:true,  ep:1, color:"#f97316" },
-  { id:"post_create", Icon:Image,  label:"Publish a Post",   desc:"Boosts quality post count for your level.",giveEP:false, ep:0, color:"#84cc16" },
-  { id:"reel_create", Icon:Film,   label:"Upload a Reel",    desc:"Content helps your engagement metrics.",   giveEP:false, ep:0, color:"#e879f9" },
-  { id:"engage_5",    Icon:Heart,  label:"Engage 5 Posts",   desc:"Genuine engagement raises your score.",    giveEP:false, ep:0, color:"#f472b6" },
+  { id: "login",       Icon: Flame,  label: "Daily Login",    desc: `+${TASK_WEIGHTS.login} score · 1 EP`,        giveEP: true,  ep: 1, color: "#f97316", weight: TASK_WEIGHTS.login },
+  { id: "post_create", Icon: Image,  label: "Publish a Post", desc: `+${TASK_WEIGHTS.post_create} score`,          giveEP: false, ep: 0, color: "#84cc16", weight: TASK_WEIGHTS.post_create },
+  { id: "reel_create", Icon: Film,   label: "Upload a Reel",  desc: `+${TASK_WEIGHTS.reel_create} score`,          giveEP: false, ep: 0, color: "#e879f9", weight: TASK_WEIGHTS.reel_create },
+  { id: "engage_5",    Icon: Heart,  label: "Engage 5 Posts", desc: `+${TASK_WEIGHTS.engage_5} score`,             giveEP: false, ep: 0, color: "#f472b6", weight: TASK_WEIGHTS.engage_5 },
 ];
 
-// Redeem catalog
 const REDEEM = [
-  { id:"boost24",  Icon:Zap,        label:"24h Visibility Boost",  cost:50,   color:"#84cc16", desc:"2× reach for 24 hours." },
-  { id:"frame",    Icon:Star,       label:"Creator Frame",          cost:150,  color:"#60a5fa", desc:"Animated border on posts & profile." },
-  { id:"gift50",   Icon:Gift,       label:"Send 50 EP Gift",        cost:52,   color:"#34d399", desc:"Gift 50 EP to any creator (2% fee)." },
-  { id:"silver",   Icon:Trophy,     label:"Silver Badge · 3 days",  cost:300,  color:"#d4d4d8", desc:"Stand out in every comment." },
-  { id:"gold",     Icon:Crown,      label:"Gold Badge · 3 days",    cost:800,  color:"#fbbf24", desc:"Priority discovery placement." },
-  { id:"diamond",  Icon:Sparkles,   label:"Diamond Badge · 7 days", cost:2000, color:"#a78bfa", desc:"Maximum visibility for 7 days." },
-  { id:"boost7",   Icon:TrendingUp, label:"7-Day Reach Amplifier",  cost:500,  color:"#f97316", desc:"Extended reach for an entire week." },
-  { id:"featured", Icon:Star,       label:"Featured Creator Slot",  cost:5000, color:"#e879f9", desc:"Appear on Discover for 24 hours." },
+  { id: "boost24",  Icon: Zap,        label: "24h Visibility Boost",  cost: 50,   color: "#84cc16", desc: "2× reach for 24 hours" },
+  { id: "frame",    Icon: Star,       label: "Creator Frame",          cost: 150,  color: "#60a5fa", desc: "Animated border on posts & profile" },
+  { id: "gift50",   Icon: Gift,       label: "Send 50 EP Gift",        cost: 52,   color: "#34d399", desc: "Gift 50 EP to any creator (2% fee)" },
+  { id: "silver",   Icon: Trophy,     label: "Silver Badge · 3 days",  cost: 300,  color: "#c0c0c0", desc: "Stand out in every comment" },
+  { id: "gold",     Icon: Crown,      label: "Gold Badge · 3 days",    cost: 800,  color: "#f5a623", desc: "Priority discovery placement" },
+  { id: "diamond",  Icon: Sparkles,   label: "Diamond Badge · 7 days", cost: 2000, color: "#a78bfa", desc: "Maximum visibility for 7 days" },
+  { id: "boost7",   Icon: TrendingUp, label: "7-Day Reach Amplifier",  cost: 500,  color: "#f97316", desc: "Extended reach for an entire week" },
+  { id: "featured", Icon: Star,       label: "Featured Creator Slot",  cost: 5000, color: "#e879f9", desc: "Appear on Discover for 24 hours" },
 ];
 
-// ── Hooks ─────────────────────────────────────────────────────────────────────
+const NAV = [
+  { key: "levels",   Icon: Layers,   label: "Levels & Pools" },
+  { key: "activity", Icon: Activity, label: "Activity"       },
+  { key: "redeem",   Icon: Zap,      label: "Redeem EP"      },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hooks
+// ─────────────────────────────────────────────────────────────────────────────
 const useCount = (to, ms = 900) => {
   const [v, setV] = useState(0);
   const r = useRef(null);
@@ -133,281 +115,327 @@ const useCount = (to, ms = 900) => {
   return v;
 };
 
-async function fetchLoginStreak(uid) {
+async function fetchStreak(uid) {
   try {
     const { data } = await supabase.from("daily_task_completions")
       .select("completed_at").eq("user_id", uid).eq("task_id", "login")
       .order("completed_at", { ascending: false }).limit(365);
     if (!data?.length) return 0;
-    let streak = 0;
+    let s = 0;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     for (let i = 0; i < data.length; i++) {
       const d = new Date(data[i].completed_at); d.setHours(0, 0, 0, 0);
-      const expected = new Date(today); expected.setDate(today.getDate() - i);
-      if (d.getTime() === expected.getTime()) streak++;
-      else break;
+      const exp = new Date(today); exp.setDate(today.getDate() - i);
+      if (d.getTime() === exp.getTime()) s++; else break;
     }
-    return streak;
+    return s;
   } catch { return 0; }
 }
 
 function getMonday() {
   const d = new Date(); const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff); d.setHours(0, 0, 0, 0); return d;
+  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+  d.setHours(0, 0, 0, 0); return d;
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared mini-components
+// ─────────────────────────────────────────────────────────────────────────────
 const Toast = ({ msg, color = "#84cc16" }) => (
-  <div style={{ position:"fixed", bottom:88, left:"50%", transform:"translateX(-50%)", padding:"10px 22px", borderRadius:14, background:`linear-gradient(135deg,${color},${color}cc)`, color:"#000", fontSize:12, fontWeight:900, zIndex:99999, pointerEvents:"none", whiteSpace:"nowrap", boxShadow:`0 6px 26px ${color}55`, animation:"rwToast 2.8s ease forwards" }}>
+  <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", padding: "9px 18px", borderRadius: 12, background: color, color: "#000", fontSize: 12, fontWeight: 900, zIndex: 99999, pointerEvents: "none", whiteSpace: "nowrap", boxShadow: `0 4px 20px ${color}55`, animation: "rwToast 2.8s ease forwards" }}>
     {msg}
   </div>
 );
 
-// ── DepositSheet (unchanged) ──────────────────────────────────────────────────
-const DepositSheet = ({ onClose, onSuccess }) => {
-  const [amt, setAmt] = useState("5");
-  const ep  = Math.floor((parseFloat(amt) || 0) * EP_PER_USD);
-  const fee = Math.round(ep * PROTOCOL_FEE);
-  const net = ep - fee;
+const CriteriaRow = ({ c, val, color }) => {
+  const p = clamp(val, c.target);
+  const met = p >= 100;
   return (
-    <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position:"fixed", inset:0, zIndex:98000, background:"rgba(0,0,0,0.82)", backdropFilter:"blur(16px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:"linear-gradient(180deg,#0e0e0e,#070707)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:"22px 22px 0 0", width:"100%", maxWidth:500, padding:"0 0 44px", animation:"rwSheet .32s cubic-bezier(.34,1.56,.64,1)", boxShadow:"0 -20px 60px rgba(132,204,22,0.07)" }}>
-        <div style={{ width:36, height:4, background:"rgba(255,255,255,0.1)", borderRadius:2, margin:"14px auto 22px" }} />
-        <div style={{ padding:"0 22px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
-            <div>
-              <div style={{ fontSize:20, fontWeight:900, color:"#fff", letterSpacing:"-0.4px" }}>Deposit EP</div>
-              <div style={{ fontSize:11, color:"#3a3a3a", marginTop:3 }}>$1 = 100 EP · 2% protocol fee · Backs the liquidity pool</div>
-            </div>
-            <button onClick={onClose} style={{ width:32, height:32, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", color:"#555", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={14} /></button>
-          </div>
-          <div style={{ background:"rgba(132,204,22,0.05)", border:"1px solid rgba(132,204,22,0.16)", borderRadius:15, padding:"14px 16px", marginBottom:12 }}>
-            <div style={{ fontSize:10, color:"#3a5c10", fontWeight:800, textTransform:"uppercase", letterSpacing:"1px", marginBottom:7 }}>Amount (USD)</div>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ fontSize:30, fontWeight:900, color:"#3a3a3a" }}>$</span>
-              <input type="number" min="1" step="1" value={amt} onChange={e => setAmt(e.target.value)} style={{ fontSize:36, fontWeight:900, color:"#fff", background:"none", border:"none", outline:"none", flex:1, caretColor:"#84cc16", fontFamily:"inherit" }} />
-            </div>
-          </div>
-          <div style={{ display:"flex", gap:7, marginBottom:16 }}>
-            {[1,5,10,25,50].map(v => (
-              <button key={v} onClick={() => setAmt(String(v))} style={{ flex:1, padding:"9px 4px", borderRadius:11, background:parseFloat(amt)===v?"rgba(132,204,22,0.12)":"rgba(255,255,255,0.03)", border:`1px solid ${parseFloat(amt)===v?"rgba(132,204,22,0.3)":"rgba(255,255,255,0.07)"}`, color:parseFloat(amt)===v?"#84cc16":"#555", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"inherit", transition:"all .15s" }}>${v}</button>
-            ))}
-          </div>
-          {ep > 0 && (
-            <div style={{ background:"rgba(132,204,22,0.04)", border:"1px solid rgba(132,204,22,0.1)", borderRadius:13, padding:"12px 14px", marginBottom:14 }}>
-              {[["EP credited",`+${ep} EP`,"#84cc16"],["Protocol fee (2%)",`−${fee} EP`,"#3a3a3a"]].map(([l,v,c]) => (
-                <div key={l} style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#555", marginBottom:6 }}><span>{l}</span><span style={{ color:c, fontWeight:800 }}>{v}</span></div>
-              ))}
-              <div style={{ height:1, background:"rgba(132,204,22,0.08)", marginBottom:7 }} />
-              <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, fontWeight:900 }}><span style={{ color:"#666" }}>You receive</span><span style={{ color:"#84cc16" }}>{net} EP</span></div>
-            </div>
-          )}
-          <button onClick={() => { if (net > 0) { onSuccess(net); onClose(); } }} disabled={net<=0} style={{ width:"100%", padding:"14px", borderRadius:14, border:"none", background:net>0?"linear-gradient(135deg,#84cc16,#4d7c0f)":"rgba(255,255,255,0.04)", color:net>0?"#000":"#333", fontSize:14, fontWeight:900, cursor:net>0?"pointer":"not-allowed", fontFamily:"inherit", transition:"all .18s" }}>
-            {net > 0 ? `Deposit $${amt} → Get ${net} EP` : "Enter amount"}
-          </button>
-        </div>
+    <div style={{ marginBottom: 9 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 3 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5, color: met ? "#22c55e" : "#666", fontWeight: 700 }}>
+          {met
+            ? <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#22c55e", display: "inline-block", flexShrink: 0 }} />
+            : <span style={{ width: 9, height: 9, borderRadius: "50%", border: `1.5px solid ${color}40`, display: "inline-block", flexShrink: 0 }} />}
+          {c.label}
+        </span>
+        <span style={{ color: met ? "#22c55e" : "#3a3a3a", fontWeight: 800, fontSize: 9 }}>
+          {Math.min(val, c.target)}{c.unit ? ` ${c.unit}` : ""} / {c.target}{c.unit ? ` ${c.unit}` : ""}
+        </span>
+      </div>
+      <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${p}%`, background: color, borderRadius: 2, transition: "width .7s ease", boxShadow: met ? `0 0 6px ${color}` : "none" }} />
       </div>
     </div>
   );
 };
 
-// ── Criteria Progress Bar ─────────────────────────────────────────────────────
-function CriteriaBar({ criterion, progress, color }) {
-  const pct = Math.min((progress / criterion.target) * 100, 100);
-  const met  = pct >= 100;
+// ─────────────────────────────────────────────────────────────────────────────
+// DepositSheet
+// ─────────────────────────────────────────────────────────────────────────────
+const DepositSheet = ({ onClose, onSuccess }) => {
+  const [amt, setAmt] = useState("5");
+  const ep = Math.floor((parseFloat(amt) || 0) * EP_PER_USD);
+  const fee = Math.round(ep * PROTOCOL_FEE);
+  const net = ep - fee;
   return (
-    <div style={{ marginBottom:10 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, marginBottom:4 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          {met
-            ? <CheckCircle size={11} color="#22c55e" />
-            : <div style={{ width:11, height:11, borderRadius:"50%", border:`1.5px solid ${color}40` }} />
-          }
-          <span style={{ color: met ? "#22c55e" : "#737373", fontWeight:700 }}>{criterion.label}</span>
-        </div>
-        <span style={{ color: met ? "#22c55e" : "#484848", fontWeight:800, fontSize:10 }}>
-          {Math.min(progress, criterion.target)}{criterion.unit === "%" ? "" : ""} / {criterion.target}{criterion.unit === "%" ? "%" : ` ${criterion.unit}`}
-        </span>
-      </div>
-      <div style={{ height:3, background:"rgba(255,255,255,0.05)", borderRadius:2, overflow:"hidden" }}>
-        <div style={{ height:"100%", width:`${pct}%`, background:`linear-gradient(90deg,${color},${color}99)`, borderRadius:2, transition:"width .8s cubic-bezier(.4,0,.2,1)", boxShadow: met ? `0 0 6px ${color}` : "none" }} />
-      </div>
-      {!met && <div style={{ fontSize:9, color:"#2a2a2a", marginTop:2 }}>{criterion.desc}</div>}
-    </div>
-  );
-}
-
-// ── Level Card ────────────────────────────────────────────────────────────────
-function LevelCard({ levelKey, levelData, progress, currentLevel, idx }) {
-  const level     = LEVELS[levelKey];
-  const isCurrent = currentLevel === levelKey;
-  const isPassed  = LEVEL_ORDER.indexOf(currentLevel) > LEVEL_ORDER.indexOf(levelKey);
-  const [expanded, setExpanded] = useState(isCurrent);
-
-  const taskRatePct = Math.round(((progress?.tasks_14 || 0) / 56) * 100);
-  const progressMap = {
-    account_age_days:  progress?.account_age_days  || 0,
-    active_days_30:    progress?.active_days_30    || 0,
-    qual_posts_2eng:   progress?.qual_posts_2eng   || 0,
-    qual_posts_5eng:   progress?.qual_posts_5eng   || 0,
-    qual_posts_10eng:  progress?.qual_posts_10eng  || 0,
-    followers:         progress?.followers         || 0,
-    task_rate_pct:     taskRatePct,
-  };
-
-  const criteriaMet = level.criteria.filter(c => {
-    const val = progressMap[c.key] || 0;
-    return c.unit === "%" ? val >= c.target : val >= c.target;
-  }).length;
-  const total = level.criteria.length;
-
-  return (
-    <div style={{
-      background:    isCurrent ? `${level.color}08` : isPassed ? "rgba(34,197,94,0.04)" : "rgba(255,255,255,0.02)",
-      border:        `1px solid ${isCurrent ? level.color + "35" : isPassed ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)"}`,
-      borderRadius:  16,
-      marginBottom:  12,
-      overflow:      "hidden",
-      animation:     `rwUp .3s ease ${idx * 0.07}s both`,
-      transition:    "border-color .2s",
-    }}>
-      {/* Card header */}
-      <div
-        onClick={() => setExpanded(e => !e)}
-        style={{ display:"flex", alignItems:"center", gap:14, padding:"16px 16px", cursor:"pointer", position:"relative", overflow:"hidden" }}
-      >
-        {isPassed && (
-          <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,transparent,rgba(34,197,94,0.4),transparent)" }} />
-        )}
-        {isCurrent && (
-          <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${level.color}60,transparent)` }} />
-        )}
-
-        <div style={{ width:48, height:48, borderRadius:14, flexShrink:0, background:`${level.color}12`, border:`1px solid ${level.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, boxShadow: isCurrent ? `0 4px 16px ${level.glow}` : "none" }}>
-          {level.emoji}
-        </div>
-
-        <div style={{ flex:1 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap" }}>
-            <span style={{ fontSize:16, fontWeight:900, color: isCurrent ? level.color : isPassed ? "#22c55e" : "#737373" }}>
-              {level.name}
-            </span>
-            {isCurrent && <span style={{ padding:"2px 8px", borderRadius:6, background:`${level.color}15`, border:`1px solid ${level.color}30`, color:level.color, fontSize:9, fontWeight:800 }}>YOUR LEVEL</span>}
-            {isPassed && <span style={{ padding:"2px 8px", borderRadius:6, background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.2)", color:"#22c55e", fontSize:9, fontWeight:800 }}>✓ ACHIEVED</span>}
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: "fixed", inset: 0, zIndex: 98000, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(18px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 20, width: "100%", maxWidth: 420, padding: "24px 22px 28px", animation: "rwSheet .28s cubic-bezier(.34,1.56,.64,1)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.4px" }}>Deposit EP</div>
+            <div style={{ fontSize: 10, color: "#3a3a3a", marginTop: 2 }}>$1 = 100 EP · 2% protocol fee</div>
           </div>
-          <div style={{ fontSize:12, color:"#525252" }}>
-            Earns <span style={{ color:level.color, fontWeight:800 }}>{level.revenueShare}%</span> of weekly ecosystem revenue
-            {level.holdDays && !isCurrent && !isPassed && (
-              <span style={{ color:"#383838" }}> · Requires {level.holdDays}d at {LEVELS[level.requires]?.name}</span>
-            )}
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
+        </div>
+        <div style={{ background: "rgba(132,204,22,0.05)", border: "1px solid rgba(132,204,22,0.14)", borderRadius: 14, padding: "12px 14px", marginBottom: 10 }}>
+          <div style={{ fontSize: 9, color: "#3a5c10", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 6 }}>Amount (USD)</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 26, fontWeight: 900, color: "#2a2a2a" }}>$</span>
+            <input type="number" min="1" step="1" value={amt} onChange={e => setAmt(e.target.value)}
+              style={{ fontSize: 34, fontWeight: 900, color: "#fff", background: "none", border: "none", outline: "none", flex: 1, caretColor: "#84cc16", fontFamily: "inherit" }} />
           </div>
         </div>
-
-        <div style={{ textAlign:"right", flexShrink:0 }}>
-          <div style={{ fontSize:18, fontWeight:900, color: criteriaMet === total ? (isPassed ? "#22c55e" : level.color) : "#383838" }}>
-            {criteriaMet}/{total}
-          </div>
-          <div style={{ fontSize:9, color:"#383838", fontWeight:700 }}>criteria met</div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          {[1, 5, 10, 25, 50].map(v => (
+            <button key={v} onClick={() => setAmt(String(v))}
+              style={{ flex: 1, padding: "8px 2px", borderRadius: 9, background: parseFloat(amt) === v ? "rgba(132,204,22,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${parseFloat(amt) === v ? "rgba(132,204,22,0.28)" : "rgba(255,255,255,0.07)"}`, color: parseFloat(amt) === v ? "#84cc16" : "#555", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>${v}</button>
+          ))}
         </div>
-
-        <ChevronDown size={14} color="#383838" style={{ flexShrink:0, transform: expanded ? "rotate(180deg)" : "none", transition:"transform .2s" }} />
-      </div>
-
-      {/* Expanded criteria */}
-      {expanded && (
-        <div style={{ padding:"0 16px 16px", borderTop:"1px solid rgba(255,255,255,0.05)" }}>
-          <div style={{ paddingTop:14 }}>
-            {level.holdDays && level.requires && (
-              <div style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 10px", borderRadius:9, background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)", marginBottom:12 }}>
-                <AlertCircle size={11} color="#383838" />
-                <span style={{ fontSize:10, color:"#484848" }}>
-                  Must hold <span style={{ color:LEVELS[level.requires]?.color, fontWeight:700 }}>{LEVELS[level.requires]?.name}</span> for ≥{level.holdDays} days before qualifying.
-                </span>
+        {ep > 0 && (
+          <div style={{ background: "rgba(132,204,22,0.03)", border: "1px solid rgba(132,204,22,0.09)", borderRadius: 12, padding: "10px 13px", marginBottom: 12 }}>
+            {[["EP credited", `+${ep} EP`, "#84cc16"], ["Protocol fee (2%)", `−${fee} EP`, "#2a2a2a"]].map(([l, v, c]) => (
+              <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#444", marginBottom: 5 }}>
+                <span>{l}</span><span style={{ color: c, fontWeight: 800 }}>{v}</span>
               </div>
-            )}
-            {level.criteria.map(c => (
-              <CriteriaBar key={c.key} criterion={c} progress={progressMap[c.key] || 0} color={level.color} />
             ))}
+            <div style={{ height: 1, background: "rgba(132,204,22,0.07)", marginBottom: 6 }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 900 }}>
+              <span style={{ color: "#555" }}>You receive</span><span style={{ color: "#84cc16" }}>{net} EP</span>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Activity Task Card ────────────────────────────────────────────────────────
-const ActivityCard = ({ task, done, count = 0, onClaim, idx }) => {
-  const progress = task.cap > 1 ? Math.min(count / (task.cap || 1), 1) : done ? 1 : 0;
-  return (
-    <div style={{ background:"rgba(255,255,255,0.02)", border:`1px solid ${done ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.07)"}`, borderRadius:14, padding:"13px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:8, opacity:done ? 0.55 : 1, animation:`rwUp .3s ease ${idx*0.05}s both` }}>
-      <div style={{ width:40, height:40, borderRadius:12, flexShrink:0, background:done?"rgba(34,197,94,0.07)":`${task.color}10`, border:`1px solid ${done?"rgba(34,197,94,0.18)":task.color+"28"}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-        {done ? <CheckCircle size={18} color="#22c55e" /> : <task.Icon size={18} color={task.color} />}
-      </div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:13, fontWeight:800, color:done?"#484848":"#d4d4d4", marginBottom:2 }}>{task.label}</div>
-        <div style={{ fontSize:11, color:"#383838" }}>{task.desc}</div>
-      </div>
-      <div style={{ flexShrink:0, textAlign:"right" }}>
-        {task.giveEP
-          ? <div style={{ fontSize:12, fontWeight:900, color:task.color, marginBottom:5 }}>+{task.ep} EP</div>
-          : <div style={{ fontSize:10, fontWeight:700, color:"#383838", marginBottom:5 }}>Level XP</div>
-        }
-        <button onClick={() => !done && onClaim(task.id)} disabled={done || !task.giveEP}
-          style={{ padding:"4px 11px", borderRadius:8, background:done?"rgba(34,197,94,0.07)":task.giveEP?`${task.color}14`:"rgba(255,255,255,0.03)", border:`1px solid ${done?"rgba(34,197,94,0.16)":task.giveEP?task.color+"28":"rgba(255,255,255,0.06)"}`, color:done?"#22c55e":task.giveEP?task.color:"#383838", fontSize:10, fontWeight:800, cursor:done||!task.giveEP?"default":"pointer", fontFamily:"inherit" }}>
-          {done ? "Done ✓" : task.giveEP ? "Claim" : "Tracked"}
+        )}
+        <button onClick={() => { if (net > 0) { onSuccess(net); onClose(); } }} disabled={net <= 0}
+          style={{ width: "100%", padding: "13px", borderRadius: 13, border: "none", background: net > 0 ? "linear-gradient(135deg,#84cc16,#4d7c0f)" : "rgba(255,255,255,0.04)", color: net > 0 ? "#000" : "#333", fontSize: 13, fontWeight: 900, cursor: net > 0 ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+          {net > 0 ? `Deposit $${amt} → Get ${net} EP` : "Enter amount"}
         </button>
       </div>
     </div>
   );
 };
 
-// ── Redeem Card ───────────────────────────────────────────────────────────────
-const RedeemCard = ({ item, balance, onRedeem, idx }) => {
-  const can = balance >= item.cost;
+// ─────────────────────────────────────────────────────────────────────────────
+// Pool bar — water model visualizer
+// ─────────────────────────────────────────────────────────────────────────────
+const PoolBar = ({ levelKey, weeklyPool, userScore, isCurrent }) => {
+  const lvl = LEVELS[levelKey];
+  const poolEP = weeklyPool?.[`${levelKey}_share`] || 0;
+  const totalUsers = weeklyPool?.[`${levelKey}_users`] || 0;
+  const totalScore = Math.max(weeklyPool?.[`${levelKey}_total_score`] || 1, 1);
+  const userShare = isCurrent && userScore > 0 ? userScore / totalScore : 0;
+  const userEP = Math.round(poolEP * userShare);
+
   return (
-    <div onClick={() => can && onRedeem(item)} style={{ display:"flex", alignItems:"center", gap:13, padding:"13px 14px", background:can?"rgba(255,255,255,0.025)":"rgba(255,255,255,0.012)", border:`1px solid ${can?"rgba(255,255,255,0.07)":"rgba(255,255,255,0.03)"}`, borderRadius:15, marginBottom:8, opacity:can?1:0.3, cursor:can?"pointer":"not-allowed", transition:"all .2s", animation:`rwUp .3s ease ${idx*0.05}s both` }}
-      onMouseEnter={e => can && (e.currentTarget.style.borderColor=`${item.color}35`)}
-      onMouseLeave={e => can && (e.currentTarget.style.borderColor="rgba(255,255,255,0.07)")}
-    >
-      <div style={{ width:46, height:46, borderRadius:14, flexShrink:0, background:`${item.color}10`, border:`1px solid ${item.color}20`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <item.Icon size={21} color={item.color} />
-      </div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:13, fontWeight:800, color:"#d4d4d4", marginBottom:2 }}>{item.label}</div>
-        <div style={{ fontSize:11, color:"#383838", marginBottom:5 }}>{item.desc}</div>
-        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-          <Zap size={9} color={can?item.color:"#333"} />
-          <span style={{ fontSize:11, fontWeight:800, color:can?item.color:"#333" }}>{EP(item.cost)} EP</span>
+    <div style={{ padding: "11px 13px", borderRadius: 13, background: `${lvl.color}05`, border: `1px solid ${lvl.color}16`, marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>{lvl.emoji}</span>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: lvl.color, lineHeight: 1.2 }}>{lvl.name} Pool</div>
+            <div style={{ fontSize: 9, color: "#3a3a3a" }}>{lvl.poolPct}% revenue · {totalUsers} users</div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 15, fontWeight: 900, color: lvl.color }}>{EP(poolEP)} EP</div>
+          <div style={{ fontSize: 9, color: "#3a3a3a" }}>total pool</div>
         </div>
       </div>
-      <div style={{ width:34, height:34, borderRadius:11, flexShrink:0, background:can?`linear-gradient(135deg,${item.color},${item.color}99)`:"rgba(255,255,255,0.04)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        {can ? <ChevronRight size={16} color="#000" /> : <Lock size={13} color="#333" />}
+      <div style={{ position: "relative", height: 22, borderRadius: 8, background: "rgba(255,255,255,0.04)", border: `1px solid ${lvl.color}14`, overflow: "hidden", marginBottom: 6 }}>
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${lvl.poolPct}%`, background: `${lvl.color}18`, borderRight: `1px dashed ${lvl.color}28` }} />
+        {userShare > 0 && (
+          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(userShare * 100 * 4, lvl.poolPct)}%`, background: `${lvl.color}45`, transition: "width 1s ease" }} />
+        )}
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", paddingLeft: 8, paddingRight: 8, justifyContent: "space-between" }}>
+          <span style={{ fontSize: 9, color: lvl.color, fontWeight: 800 }}>{lvl.poolPct}% alloc</span>
+          <span style={{ fontSize: 9, color: isCurrent ? lvl.color : "#3a3a3a", fontWeight: isCurrent ? 800 : 700 }}>
+            {isCurrent ? `your share: ${(userShare * 100).toFixed(2)}%` : "not your level"}
+          </span>
+        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#444" }}>
+        <span>Score: <span style={{ color: lvl.color, fontWeight: 800 }}>{isCurrent ? userScore : 0} pts</span></span>
+        <span>Your EP: <span style={{ color: lvl.color, fontWeight: 800 }}>~{EP(userEP)} EP</span></span>
       </div>
     </div>
   );
 };
 
-// ── MAIN ──────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Level accordion card
+// ─────────────────────────────────────────────────────────────────────────────
+const LevelCard = ({ levelKey, progress, currentLevel, userWeeklyScore }) => {
+  const lvl = LEVELS[levelKey];
+  const isCurrent = currentLevel === levelKey;
+  const isPassed = LEVEL_ORDER.indexOf(currentLevel) > LEVEL_ORDER.indexOf(levelKey);
+  const [open, setOpen] = useState(isCurrent);
+
+  const pMap = {
+    login_days:  progress?.login_days_7     || 0,
+    posts:       progress?.posts_week       || 0,
+    reels:       progress?.reels_week       || 0,
+    engagements: progress?.engagements_week || 0,
+    score:       userWeeklyScore            || 0,
+  };
+  const met = lvl.criteria.filter(c => (pMap[c.key] || 0) >= c.target).length;
+
+  return (
+    <div style={{ borderRadius: 15, border: `1px solid ${isCurrent ? lvl.color + "30" : isPassed ? "rgba(34,197,94,0.14)" : "rgba(255,255,255,0.06)"}`, background: isCurrent ? `${lvl.color}05` : isPassed ? "rgba(34,197,94,0.025)" : "rgba(255,255,255,0.015)", overflow: "hidden", marginBottom: 8 }}>
+      {(isCurrent || isPassed) && <div style={{ height: 2, background: `linear-gradient(90deg,transparent,${isCurrent ? lvl.color : "#22c55e"}50,transparent)` }} />}
+      <div onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", cursor: "pointer" }}>
+        <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0, background: `${lvl.color}10`, border: `1px solid ${lvl.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: isCurrent ? `0 2px 14px ${lvl.glow}` : "none" }}>
+          {lvl.emoji}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: isCurrent ? lvl.color : isPassed ? "#22c55e" : "#666" }}>{lvl.name}</span>
+            {isCurrent && <span style={{ padding: "1px 6px", borderRadius: 5, background: `${lvl.color}14`, border: `1px solid ${lvl.color}26`, color: lvl.color, fontSize: 8, fontWeight: 800 }}>YOUR LEVEL</span>}
+            {isPassed && <span style={{ padding: "1px 6px", borderRadius: 5, background: "rgba(34,197,94,0.09)", border: "1px solid rgba(34,197,94,0.18)", color: "#22c55e", fontSize: 8, fontWeight: 800 }}>✓ ACHIEVED</span>}
+          </div>
+          <div style={{ fontSize: 10, color: "#484848" }}>
+            Score {lvl.scoreMin}+ · <span style={{ color: lvl.color, fontWeight: 700 }}>{lvl.poolPct}%</span> revenue pool
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0, marginRight: 6 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: met === lvl.criteria.length ? (isPassed ? "#22c55e" : lvl.color) : "#333" }}>{met}/{lvl.criteria.length}</div>
+          <div style={{ fontSize: 8, color: "#333", fontWeight: 700 }}>criteria</div>
+        </div>
+        <ChevronDown size={13} color="#333" style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+      </div>
+      {open && (
+        <div style={{ padding: "0 14px 13px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ marginTop: 11, marginBottom: 10, padding: "7px 9px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8, fontSize: 9, color: "#3a3a3a", lineHeight: 1.65 }}>
+            Score {lvl.scoreMin}+ · Share = <code style={{ background: "rgba(255,255,255,0.05)", padding: "0 4px", borderRadius: 3, fontSize: 9 }}>your_score / level_total</code>
+          </div>
+          {lvl.criteria.map(c => (
+            <CriteriaRow key={c.key} c={c} val={pMap[c.key] || 0} color={lvl.color} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Activity task card
+// ─────────────────────────────────────────────────────────────────────────────
+const ActivityCard = ({ task, done, onClaim, idx }) => (
+  <div style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${done ? "rgba(34,197,94,0.09)" : "rgba(255,255,255,0.06)"}`, borderRadius: 13, padding: "11px 13px", display: "flex", alignItems: "center", gap: 11, marginBottom: 7, opacity: done ? 0.5 : 1, animation: `rwUp .25s ease ${idx * 0.04}s both` }}>
+    <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: done ? "rgba(34,197,94,0.07)" : `${task.color}10`, border: `1px solid ${done ? "rgba(34,197,94,0.16)" : task.color + "26"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {done ? <CheckCircle size={16} color="#22c55e" /> : <task.Icon size={16} color={task.color} />}
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: done ? "#484848" : "#d4d4d4", marginBottom: 1 }}>{task.label}</div>
+      <div style={{ fontSize: 10, color: "#383838" }}>{task.desc}</div>
+    </div>
+    <div style={{ flexShrink: 0, textAlign: "right" }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: `${task.color}99`, marginBottom: 4 }}>+{task.weight} pts</div>
+      <button onClick={() => !done && onClaim(task.id)} disabled={done || !task.giveEP}
+        style={{ padding: "3px 9px", borderRadius: 7, background: done ? "rgba(34,197,94,0.07)" : task.giveEP ? `${task.color}12` : "rgba(255,255,255,0.03)", border: `1px solid ${done ? "rgba(34,197,94,0.14)" : task.giveEP ? task.color + "26" : "rgba(255,255,255,0.05)"}`, color: done ? "#22c55e" : task.giveEP ? task.color : "#333", fontSize: 9, fontWeight: 800, cursor: done || !task.giveEP ? "default" : "pointer", fontFamily: "inherit" }}>
+        {done ? "Done ✓" : task.giveEP ? "Claim" : "Tracked"}
+      </button>
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Redeem card
+// ─────────────────────────────────────────────────────────────────────────────
+const RedeemCard = ({ item, balance, onRedeem, idx }) => {
+  const can = balance >= item.cost;
+  return (
+    <div onClick={() => can && onRedeem(item)}
+      style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", background: can ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.01)", border: `1px solid ${can ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)"}`, borderRadius: 13, marginBottom: 7, opacity: can ? 1 : 0.28, cursor: can ? "pointer" : "not-allowed", transition: "border-color .15s", animation: `rwUp .25s ease ${idx * 0.04}s both` }}
+      onMouseEnter={e => can && (e.currentTarget.style.borderColor = `${item.color}30`)}
+      onMouseLeave={e => can && (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}>
+      <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: `${item.color}0f`, border: `1px solid ${item.color}1e`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <item.Icon size={18} color={item.color} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#d4d4d4", marginBottom: 2 }}>{item.label}</div>
+        <div style={{ fontSize: 10, color: "#383838", marginBottom: 4 }}>{item.desc}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <Zap size={8} color={can ? item.color : "#333"} />
+          <span style={{ fontSize: 10, fontWeight: 800, color: can ? item.color : "#333" }}>{EP(item.cost)} EP</span>
+        </div>
+      </div>
+      <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: can ? `linear-gradient(135deg,${item.color},${item.color}99)` : "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {can ? <ChevronRight size={14} color="#000" /> : <Lock size={11} color="#333" />}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Score gauge (PC sidebar widget)
+// ─────────────────────────────────────────────────────────────────────────────
+const ScoreGauge = ({ score, currentLevel }) => {
+  const lvl = currentLevel !== "none" ? LEVELS[currentLevel] : null;
+  const nextKey = LEVEL_ORDER[LEVEL_ORDER.indexOf(currentLevel) + 1];
+  const nextLvl = nextKey ? LEVELS[nextKey] : null;
+  const nextTarget = nextLvl?.scoreMin || LEVEL_SCORE_THRESHOLDS.silver;
+  const prevTarget = lvl?.scoreMin || 0;
+  const range = Math.max(nextTarget - prevTarget, 1);
+  const prog = Math.min(((score - prevTarget) / range) * 100, 100);
+  return (
+    <div style={{ padding: "10px 11px", borderRadius: 11, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.065)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9 }}>
+        <span style={{ fontSize: 9, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: ".8px" }}>Weekly Score</span>
+        <span style={{ fontSize: 18, fontWeight: 900, color: lvl?.color || "#84cc16" }}>{score}</span>
+      </div>
+      <div style={{ position: "relative", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.05)" }}>
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.max(prog, 3)}%`, background: lvl?.color || "#84cc16", borderRadius: 3, transition: "width 1s ease" }} />
+        {nextLvl && <div style={{ position: "absolute", right: 0, top: -2, width: 3, height: 10, background: nextLvl.color, borderRadius: 2 }} />}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#2a2a2a", marginTop: 4 }}>
+        <span>{prevTarget} pts</span>
+        {nextLvl  && <span style={{ color: nextLvl.color }}>{nextTarget} → {nextLvl.name}</span>}
+        {!nextLvl && <span style={{ color: "#a78bfa" }}>Max level ✓</span>}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN
+// ─────────────────────────────────────────────────────────────────────────────
 const RewardsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
   const uid = userId || currentUser?.id;
 
-  const [tab,           setTab]          = useState("levels");
-  const [balance,       setBalance]      = useState(0);
-  const [streak,        setStreak]       = useState(0);
-  const [loading,       setLoading]      = useState(true);
-  const [claimed,       setClaimed]      = useState(new Set());
-  const [counts,        setCounts]       = useState({});
-  const [weeklyQual,    setWeeklyQual]   = useState(false);
-  const [weeklyDone,    setWeeklyDone]   = useState(false);
-  const [showDeposit,   setShowDeposit]  = useState(false);
-  const [toast,         setToast]        = useState(null);
-  const [showAllRedeem, setShowAllRedeem]= useState(false);
-  const [claimingTask,  setClaimingTask] = useState(null);
-  const [levelProgress, setLevelProgress]= useState(null);
-  const [currentLevel,  setCurrentLevel] = useState("none");
-  const [weeklyPool,    setWeeklyPool]   = useState(null);
-  const realtimeSub                      = useRef(null);
+  const [tab,             setTab]            = useState("levels");
+  const [balance,         setBalance]        = useState(0);
+  const [streak,          setStreak]         = useState(0);
+  const [loading,         setLoading]        = useState(true);
+  const [claimed,         setClaimed]        = useState(new Set());
+  const [counts,          setCounts]         = useState({});
+  const [weeklyQual,      setWeeklyQual]     = useState(false);
+  const [weeklyDone,      setWeeklyDone]     = useState(false);
+  const [showDeposit,     setShowDeposit]    = useState(false);
+  const [toast,           setToast]          = useState(null);
+  const [showAllRedeem,   setShowAllRedeem]  = useState(false);
+  const [claimingTask,    setClaimingTask]   = useState(null);
+  const [levelProgress,   setLevelProgress]  = useState(null);
+  const [currentLevel,    setCurrentLevel]   = useState("none");
+  const [weeklyPool,      setWeeklyPool]     = useState(null);
+  const [userWeeklyScore, setUserWeeklyScore]= useState(0);
+  const [isWide,          setIsWide]         = useState(() => typeof window !== "undefined" ? window.innerWidth >= 768 : false);
+  const realtimeSub = useRef(null);
+
+  useEffect(() => {
+    const h = () => setIsWide(window.innerWidth >= 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
 
   const flash = useCallback((msg, color = "#84cc16") => {
     setToast({ msg, color }); setTimeout(() => setToast(null), 2800);
@@ -417,61 +445,38 @@ const RewardsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
     if (!uid) { setLoading(false); return; }
     try {
       const [profileRes, taskStateRes, streakRes] = await Promise.allSettled([
-        getRewardsProfile(uid),
-        getTodayTaskState(uid),
-        fetchLoginStreak(uid),
+        getRewardsProfile(uid), getTodayTaskState(uid), fetchStreak(uid),
       ]);
+      if (profileRes.status   === "fulfilled") setBalance(profileRes.value.balance);
+      if (taskStateRes.status === "fulfilled") { setClaimed(taskStateRes.value.claimed); setCounts(taskStateRes.value.counts); }
+      if (streakRes.status    === "fulfilled") setStreak(streakRes.value);
 
-      if (profileRes.status === "fulfilled") setBalance(profileRes.value.balance);
-      if (taskStateRes.status === "fulfilled") {
-        setClaimed(taskStateRes.value.claimed);
-        setCounts(taskStateRes.value.counts);
-      }
-      if (streakRes.status === "fulfilled") setStreak(streakRes.value);
-
-      // Weekly bonus check
       const monday = getMonday();
-      const { data: weeklyTx } = await supabase.from("ep_transactions")
-        .select("id").eq("user_id", uid).eq("type", "bonus_grant")
-        .ilike("reason", "%Weekly quality bonus%")
+      const { data: wTx } = await supabase.from("ep_transactions").select("id")
+        .eq("user_id", uid).eq("type", "bonus_grant").ilike("reason", "%Weekly quality bonus%")
         .gte("created_at", monday.toISOString()).maybeSingle();
-      setWeeklyDone(!!weeklyTx);
+      setWeeklyDone(!!wTx);
 
-      // Weekly qualification
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: posts } = await supabase.from("posts").select("likes, comments_count")
         .eq("user_id", uid).gte("created_at", weekAgo).is("deleted_at", null);
-      setWeeklyQual((posts ?? []).some(p => (p.likes||0)+(p.comments_count||0) >= 2));
+      setWeeklyQual((posts ?? []).some(p => (p.likes || 0) + (p.comments_count || 0) >= 2));
 
-      // Level progress via RPC
-      const { data: lvlData } = await supabase.rpc("get_user_level_progress", { p_user_id: uid });
-      if (lvlData) {
-        setLevelProgress(lvlData);
-        setCurrentLevel(lvlData.current_level || "none");
-      }
+      const { data: lvl } = await supabase.rpc("get_user_level_progress", { p_user_id: uid });
+      if (lvl) { setLevelProgress(lvl); setCurrentLevel(lvl.current_level || "none"); setUserWeeklyScore(lvl.weekly_score || 0); }
 
-      // Fetch current week's reward pool
       const { data: pool } = await supabase.from("reward_pools")
-        .select("week_start, total_revenue, silver_share, gold_share, diamond_share, silver_users, gold_users, diamond_users, distributed")
+        .select("week_start, total_revenue, silver_share, gold_share, diamond_share, silver_users, gold_users, diamond_users, silver_total_score, gold_total_score, diamond_total_score, distributed")
         .order("week_start", { ascending: false }).limit(1).maybeSingle();
       setWeeklyPool(pool);
 
-      // Auto-claim login task (1 EP — micro-reward)
       if (taskStateRes.status === "fulfilled" && !taskStateRes.value.claimed.has("login")) {
         claimDailyTask(uid, "login").then(({ ep_granted }) => {
-          if (ep_granted > 0) {
-            setBalance(prev => prev + ep_granted);
-            setClaimed(prev => new Set([...prev, "login"]));
-            setStreak(prev => prev + 1);
-            flash("+1 EP — Keep that streak! 🔥", "#f97316");
-          }
+          if (ep_granted > 0) { setBalance(b => b + ep_granted); setClaimed(c => new Set([...c, "login"])); setStreak(s => s + 1); flash("+1 EP · Streak! 🔥", "#f97316"); }
         }).catch(() => {});
       }
-    } catch (err) {
-      console.warn("[RewardsView]", err?.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.warn("[RewardsView]", err?.message); }
+    finally { setLoading(false); }
   }, [uid, flash]);
 
   useEffect(() => {
@@ -489,34 +494,27 @@ const RewardsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
     try {
       const { ep_granted, new_count, capped } = await claimDailyTask(uid, taskId);
       if (capped && ep_granted === 0) { flash("Daily cap reached ✓"); return; }
-      if (ep_granted > 0) {
-        setBalance(prev => prev + ep_granted);
-        setCounts(prev => ({ ...prev, [taskId]: new_count }));
-        setClaimed(prev => new Set([...prev, taskId]));
-        flash(`+${ep_granted} EP`, task.color);
-      }
-    } catch (err) {
-      flash(err?.message || "Could not claim", "#f87171");
-    } finally {
-      setClaimingTask(null);
-    }
+      if (ep_granted > 0) { setBalance(b => b + ep_granted); setCounts(c => ({ ...c, [taskId]: new_count })); setClaimed(c => new Set([...c, taskId])); flash(`+${ep_granted} EP`, task.color); }
+    } catch (err) { flash(err?.message || "Could not claim", "#f87171"); }
+    finally { setClaimingTask(null); }
   };
 
   const handleClaimWeekly = async () => {
     if (!weeklyQual || weeklyDone) return;
     try {
       const { ep_granted } = await claimWeeklyBonus(uid);
-      setWeeklyDone(true); setBalance(prev => prev + ep_granted);
+      setWeeklyDone(true); setBalance(b => b + ep_granted);
       flash(`+${ep_granted} EP — Quality bonus! 🏆`, "#fbbf24");
     } catch (err) { flash(err?.message || "Not qualified yet", "#f87171"); }
   };
 
   const handleDeposit = async (netEP) => {
     try {
-      const { error } = await supabase.rpc("increment_engagement_points", { p_user_id:uid, p_amount:netEP, p_reason:`EP Deposit — ${netEP} EP (after 2% fee)`, p_payment_id:null, p_product_id:null });
+      const { error } = await supabase.rpc("increment_engagement_points", {
+        p_user_id: uid, p_amount: netEP, p_reason: `EP Deposit — ${netEP} EP`, p_payment_id: null, p_product_id: null,
+      });
       if (error) throw error;
-      setBalance(prev => prev + netEP);
-      flash(`+${netEP} EP deposited! 💰`, "#84cc16");
+      setBalance(b => b + netEP); flash(`+${netEP} EP deposited! 💰`, "#84cc16");
     } catch { flash("Deposit failed.", "#f87171"); }
   };
 
@@ -524,219 +522,317 @@ const RewardsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
     if (balance < item.cost) return;
     try {
       const { new_balance } = await spendEP(uid, item.cost, `Redeemed: ${item.label}`);
-      setBalance(new_balance);
-      flash(`${item.label} activated! ✨`, item.color);
+      setBalance(new_balance); flash(`${item.label} activated! ✨`, item.color);
     } catch (err) { flash(err?.message || "Redemption failed", "#f87171"); }
   };
 
-  const activityDone = ACTIVITY_TASKS.filter(t => claimed.has(t.id)).length;
-  const nextMilestone = Math.ceil((balance + 1) / 1000) * 1000;
-  const progressPct   = Math.min(((balance % 1000) / 1000) * 100, 100);
-  const balCount      = useCount(balance, 1000);
-  const displayRedeem = showAllRedeem ? REDEEM : REDEEM.slice(0, 5);
+  const activityDone   = ACTIVITY_TASKS.filter(t => claimed.has(t.id)).length;
+  const nextMilestone  = Math.ceil((balance + 1) / 1000) * 1000;
+  const progressPct    = Math.min(((balance % 1000) / 1000) * 100, 100);
+  const balCount       = useCount(balance, 1000);
+  const levelColor     = currentLevel !== "none" ? LEVELS[currentLevel]?.color : "#84cc16";
+  const displayRedeem  = showAllRedeem ? REDEEM : REDEEM.slice(0, 5);
 
-  const nextLevel = LEVEL_ORDER[LEVEL_ORDER.indexOf(currentLevel) + 1];
+  const computeUserShare = () => {
+    if (currentLevel === "none" || !weeklyPool) return 0;
+    const total  = Math.max(weeklyPool?.[`${currentLevel}_total_score`] || 1, 1);
+    const poolEP = weeklyPool?.[`${currentLevel}_share`] || 0;
+    return Math.round(poolEP * (userWeeklyScore / total));
+  };
 
-  return (
-    <div style={{ display:"flex", flexDirection:"column", background:"#050505", fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif", color:"#fff", overflow:"hidden", ...(isSidebar ? { height:"100%", borderLeft:"1px solid rgba(132,204,22,0.1)" } : { position:"fixed", inset:0, zIndex:9500 }) }}>
-      <style>{`
-        @keyframes rwUp    { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes rwToast { 0%{opacity:0;transform:translateX(-50%) translateY(8px)} 15%,80%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0} }
-        @keyframes rwSpin  { to{transform:rotate(360deg)} }
-        @keyframes rwGlow  { 0%,100%{box-shadow:0 0 14px rgba(132,204,22,0.16)} 50%{box-shadow:0 0 30px rgba(132,204,22,0.42)} }
-        @keyframes rwSheet { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
-        @keyframes rwPulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-      `}</style>
+  // ── CSS ───────────────────────────────────────────────────────────────────
+  const css = `
+    @keyframes rwUp    { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes rwToast { 0%{opacity:0;transform:translateX(-50%) translateY(6px)} 12%,82%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0} }
+    @keyframes rwSpin  { to{transform:rotate(360deg)} }
+    @keyframes rwGlow  { 0%,100%{box-shadow:0 0 12px rgba(132,204,22,0.12)} 50%{box-shadow:0 0 26px rgba(132,204,22,0.36)} }
+    @keyframes rwSheet { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
+    .rws::-webkit-scrollbar{width:3px}.rws::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:2px}
+    .rnb{transition:all .13s}.rnb:hover{background:rgba(255,255,255,0.03)!important}
+  `;
 
-      {/* HEADER */}
-      <div style={{ display:"flex", alignItems:"center", gap:11, padding:"14px 16px", background:"rgba(5,5,5,0.98)", backdropFilter:"blur(28px)", borderBottom:"1px solid rgba(132,204,22,0.08)", flexShrink:0 }}>
-        <button onClick={onClose} style={{ width:36, height:36, borderRadius:11, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#606060" }}><X size={15} /></button>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:18, fontWeight:900, color:"#fff", letterSpacing:"-0.4px" }}>Rewards</div>
-          <div style={{ fontSize:10, color:"#2e2e2e", marginTop:1 }}>Level up · Share ecosystem revenue</div>
+  // ── Tab renderer ─────────────────────────────────────────────────────────
+  const renderTab = () => {
+    if (tab === "levels") return (
+      <div style={{ animation: "rwUp .2s ease" }}>
+        <div style={{ padding: "10px 12px", marginBottom: 13, background: "rgba(255,255,255,0.018)", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+            <Droplets size={12} color="#84cc16" />
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#666" }}>The Water Model</span>
+          </div>
+          <div style={{ fontSize: 10, color: "#383838", lineHeight: 1.75 }}>
+            Revenue pours into each level's pool. <span style={{ color: "#84cc16" }}>Your weekly score</span> = Σ(task weight × completions). Your share = <code style={{ fontSize: 9, background: "rgba(255,255,255,0.05)", padding: "0 4px", borderRadius: 3 }}>score / level_total</code>. Every EP backed by real income.
+          </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:12, background:"rgba(132,204,22,0.09)", border:"1px solid rgba(132,204,22,0.2)", animation:"rwGlow 3s ease-in-out infinite" }}>
-          <Zap size={12} color="#84cc16" />
-          <span style={{ fontSize:14, fontWeight:900, color:"#84cc16" }}>{loading ? "—" : EP(balCount)}</span>
-          <span style={{ fontSize:9, color:"#4d7c0f", fontWeight:800 }}>EP</span>
+
+        {weeklyPool && (
+          <>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#242424", textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>This Week's Revenue Pools</div>
+            {["silver", "gold", "diamond"].map(k => (
+              <PoolBar key={k} levelKey={k} weeklyPool={weeklyPool} userScore={userWeeklyScore} isCurrent={currentLevel === k} />
+            ))}
+          </>
+        )}
+
+        <div style={{ fontSize: 9, fontWeight: 800, color: "#242424", textTransform: "uppercase", letterSpacing: "1.1px", margin: "14px 0 7px" }}>Level Criteria</div>
+        {Object.keys(LEVELS).map(k => (
+          <LevelCard key={k} levelKey={k} progress={levelProgress} currentLevel={currentLevel} userWeeklyScore={userWeeklyScore} />
+        ))}
+      </div>
+    );
+
+    if (tab === "activity") return (
+      <div style={{ animation: "rwUp .2s ease" }}>
+        <div style={{ padding: "9px 11px", marginBottom: 12, background: "rgba(96,165,250,0.04)", border: "1px solid rgba(96,165,250,0.1)", borderRadius: 11, fontSize: 10, color: "#525252", lineHeight: 1.65 }}>
+          <span style={{ color: "#60a5fa", fontWeight: 800 }}>Activity Tracker:</span> Each action builds your weekly score. Score → level → proportional pool share.
+        </div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: "#242424", textTransform: "uppercase", letterSpacing: "1.1px", marginBottom: 7 }}>Daily Activity</div>
+        {ACTIVITY_TASKS.map((t, i) => (
+          <ActivityCard key={t.id} task={t} done={claimed.has(t.id)} onClaim={handleClaimTask} idx={i} />
+        ))}
+        <div style={{ marginTop: 12, padding: "11px 12px", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#484848", marginBottom: 8 }}>Score Weights</div>
+          {ACTIVITY_TASKS.map(t => (
+            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><t.Icon size={10} color={t.color} /><span style={{ fontSize: 10, color: "#484848" }}>{t.label}</span></div>
+              <span style={{ fontSize: 10, fontWeight: 800, color: t.color }}>+{t.weight} pts/action</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: "#242424", textTransform: "uppercase", letterSpacing: "1.1px", margin: "16px 0 7px" }}>Weekly Quality Bonus</div>
+        <div style={{ padding: "13px 13px", borderRadius: 14, background: weeklyQual ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.018)", border: `1px solid ${weeklyQual ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.05)"}`, opacity: weeklyDone ? 0.45 : 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, background: weeklyQual ? "rgba(251,191,36,0.09)" : "rgba(255,255,255,0.03)", border: `1px solid ${weeklyQual ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.05)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {weeklyDone ? <CheckCircle size={17} color="#22c55e" /> : <Crown size={17} color={weeklyQual ? "#fbbf24" : "#2a2a2a"} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#d4d4d4", marginBottom: 2 }}>Weekly Quality Bonus</div>
+              <div style={{ fontSize: 10, color: "#383838", marginBottom: 8 }}>≥2 genuine engagements on any post this week.</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: "#fbbf24" }}>+{WEEKLY_BONUS_EP} EP</span>
+                {!weeklyDone
+                  ? <button onClick={handleClaimWeekly} disabled={!weeklyQual}
+                    style={{ padding: "4px 12px", borderRadius: 8, background: weeklyQual ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${weeklyQual ? "rgba(251,191,36,0.22)" : "rgba(255,255,255,0.05)"}`, color: weeklyQual ? "#fbbf24" : "#2a2a2a", fontSize: 10, fontWeight: 800, cursor: weeklyQual ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+                    {weeklyQual ? "Claim Bonus" : "Not qualified yet"}
+                  </button>
+                  : <span style={{ fontSize: 10, color: "#22c55e", fontWeight: 700 }}>✓ Claimed this week</span>}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    );
+
+    if (tab === "redeem") return (
+      <div style={{ animation: "rwUp .2s ease" }}>
+        <div style={{ fontSize: 10, color: "#383838", marginBottom: 12, lineHeight: 1.65 }}>
+          Spend EP to amplify your presence. Every redemption burns EP — keeping supply healthy.
+        </div>
+        {displayRedeem.map((item, i) => (
+          <RedeemCard key={item.id} item={item} balance={balance} onRedeem={handleRedeemItem} idx={i} />
+        ))}
+        {REDEEM.length > 5 && (
+          <button onClick={() => setShowAllRedeem(s => !s)}
+            style={{ width: "100%", padding: "9px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "#484848", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit", marginTop: 3 }}>
+            <ChevronDown size={13} style={{ transform: showAllRedeem ? "rotate(180deg)" : "none", transition: ".18s" }} />
+            {showAllRedeem ? "Show less" : `+${REDEEM.length - 5} more`}
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // ── OUTER ─────────────────────────────────────────────────────────────────
+  const outerStyle = isSidebar
+    ? { height: "100%", borderLeft: "1px solid rgba(132,204,22,0.09)", background: "#060606", fontFamily: "'SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif", color: "#fff", display: "flex", flexDirection: "column", overflow: "hidden" }
+    : { position: "fixed", inset: 0, zIndex: 9500, background: "#060606", fontFamily: "'SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif", color: "#fff", display: "flex", flexDirection: "column", overflow: "hidden" };
+
+  return (
+    <div style={outerStyle}>
+      <style>{css}</style>
 
       {loading ? (
-        <div style={{ width:22, height:22, border:"2.5px solid rgba(132,204,22,0.1)", borderTopColor:"#84cc16", borderRadius:"50%", animation:"rwSpin .7s linear infinite", margin:"72px auto" }} />
-      ) : (
-        <div style={{ flex:1, overflowY:"auto" }}>
+        <div style={{ width: 20, height: 20, border: "2.5px solid rgba(132,204,22,0.1)", borderTopColor: "#84cc16", borderRadius: "50%", animation: "rwSpin .7s linear infinite", margin: "80px auto" }} />
+      ) : isWide ? (
 
-          {/* HERO CARD */}
-          <div style={{ margin:"14px 16px 0", background:"linear-gradient(145deg,rgba(132,204,22,0.09) 0%,rgba(132,204,22,0.025) 50%,transparent 100%)", border:"1px solid rgba(132,204,22,0.17)", borderRadius:22, padding:"20px 18px 18px", position:"relative", overflow:"hidden" }}>
-            <div style={{ position:"absolute", top:-40, right:-40, width:160, height:160, borderRadius:"50%", background:"radial-gradient(circle,rgba(132,204,22,0.08),transparent 68%)", pointerEvents:"none" }} />
-            <div style={{ position:"absolute", top:0, left:0, right:0, height:1, background:"linear-gradient(90deg,transparent,rgba(132,204,22,0.35),transparent)", pointerEvents:"none" }} />
+        // ══════════════════════════════════════════════
+        // PC LAYOUT — sidebar + main panel
+        // ══════════════════════════════════════════════
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", maxWidth: 1160, margin: "0 auto", width: "100%", alignSelf: "center" }}>
 
-            <div style={{ display:"flex", gap:0, alignItems:"stretch" }}>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:10, fontWeight:800, color:"#2d4a0a", textTransform:"uppercase", letterSpacing:".8px", marginBottom:6 }}>EP Balance</div>
-                <div style={{ fontSize:42, fontWeight:900, color:"#84cc16", lineHeight:1, letterSpacing:"-2px", marginBottom:5 }}>{EP(balCount)}</div>
-                <div style={{ fontSize:11, color:"#333" }}>Engagement Points</div>
-                <div style={{ marginTop:14 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#252525", marginBottom:5 }}>
-                    <span>Milestone</span><span>{EP(balance)} / {EP(nextMilestone)}</span>
-                  </div>
-                  <div style={{ height:5, background:"rgba(255,255,255,0.05)", borderRadius:3, overflow:"hidden" }}>
-                    <div style={{ height:"100%", width:`${progressPct}%`, background:"linear-gradient(90deg,#84cc16,#4d7c0f)", borderRadius:3, transition:"width 1.2s" }} />
-                  </div>
-                </div>
+          {/* ── SIDEBAR ── tight, no bloat ── */}
+          <div style={{ width: 236, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", overflowY: "auto", padding: "18px 13px" }} className="rws">
+
+            {/* Logo + close */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 900, color: "#fff", letterSpacing: "-0.4px", lineHeight: 1.1 }}>Rewards</div>
+                <div style={{ fontSize: 9, color: "#1e1e1e", marginTop: 1 }}>Level up · Earn revenue share</div>
               </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", paddingLeft:20, gap:11 }}>
-                <div style={{ textAlign:"center" }}>
-                  <div style={{ fontSize:32, animation:"rwGlow 2s ease-in-out infinite" }}>
-                    {currentLevel === "diamond" ? "💎" : currentLevel === "gold" ? "🥇" : currentLevel === "silver" ? "🥈" : "🔵"}
-                  </div>
-                  <div style={{ fontSize:12, fontWeight:900, color:currentLevel !== "none" ? LEVELS[currentLevel]?.color : "#383838", lineHeight:1.2 }}>
-                    {currentLevel === "none" ? "No Level" : LEVELS[currentLevel]?.name}
-                  </div>
-                  <div style={{ fontSize:9, fontWeight:700, color:"#383838", textTransform:"uppercase" }}>Level</div>
+              <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#484848", flexShrink: 0 }}><X size={12} /></button>
+            </div>
+
+            {/* EP Balance */}
+            <div style={{ padding: "13px 12px", borderRadius: 13, background: "rgba(132,204,22,0.08)", border: "1px solid rgba(132,204,22,0.18)", marginBottom: 9, position: "relative", overflow: "hidden", animation: "rwGlow 3s ease-in-out infinite" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(132,204,22,0.45),transparent)" }} />
+              <div style={{ fontSize: 8, fontWeight: 800, color: "#2d4a0a", textTransform: "uppercase", letterSpacing: ".7px", marginBottom: 1 }}>EP Balance</div>
+              <div style={{ fontSize: 32, fontWeight: 900, color: "#84cc16", lineHeight: 1, letterSpacing: "-1.5px", marginBottom: 1 }}>{EP(balCount)}</div>
+              <div style={{ fontSize: 8, color: "#2a4a0a" }}>Engagement Points</div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "#1a3606", marginBottom: 3 }}>
+                  <span>Milestone</span><span>{EP(balance)} / {EP(nextMilestone)}</span>
                 </div>
-                <div style={{ textAlign:"center" }}>
-                  <div style={{ fontSize:26, fontWeight:900, color:"#f97316", lineHeight:1 }}>{streak}</div>
-                  <div style={{ fontSize:9, fontWeight:700, color:"#383838", textTransform:"uppercase" }}>Streak</div>
+                <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${progressPct}%`, background: "#84cc16", borderRadius: 2 }} />
                 </div>
               </div>
             </div>
 
-            {/* Current level share info */}
-            {currentLevel !== "none" && weeklyPool && (
-              <div style={{ marginTop:14, padding:"10px 12px", borderRadius:12, background:`${LEVELS[currentLevel]?.color}08`, border:`1px solid ${LEVELS[currentLevel]?.color}20` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11 }}>
-                  <span style={{ color:"#525252" }}>Your weekly EP share</span>
-                  <span style={{ color:LEVELS[currentLevel]?.color, fontWeight:800 }}>
-                    {EP(weeklyPool?.[`${currentLevel}_share`] || 0)} EP
-                  </span>
+            {/* Level + Streak chips */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 9 }}>
+              <div style={{ padding: "8px 7px", borderRadius: 10, background: `${levelColor}07`, border: `1px solid ${levelColor}1a`, textAlign: "center" }}>
+                <div style={{ fontSize: 19, lineHeight: 1, marginBottom: 1 }}>
+                  {currentLevel === "diamond" ? "💎" : currentLevel === "gold" ? "🥇" : currentLevel === "silver" ? "🥈" : "🔵"}
                 </div>
-                <div style={{ fontSize:10, color:"#2a2a2a", marginTop:3 }}>
-                  From {LEVELS[currentLevel]?.revenueShare}% of ${weeklyPool.total_revenue?.toFixed(2) || "0.00"} weekly revenue
-                  {!weeklyPool.distributed && " · Pending distribution"}
-                  {weeklyPool.distributed && " · Distributed ✓"}
+                <div style={{ fontSize: 11, fontWeight: 900, color: levelColor }}>{currentLevel === "none" ? "None" : LEVELS[currentLevel]?.name}</div>
+                <div style={{ fontSize: 8, color: "#242424", textTransform: "uppercase", fontWeight: 700, marginTop: 1 }}>Level</div>
+              </div>
+              <div style={{ padding: "8px 7px", borderRadius: 10, background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.15)", textAlign: "center" }}>
+                <div style={{ fontSize: 19, fontWeight: 900, color: "#f97316", lineHeight: 1, marginBottom: 1 }}>{streak}</div>
+                <div style={{ fontSize: 11, fontWeight: 900, color: "#f97316" }}>day{streak !== 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 8, color: "#242424", textTransform: "uppercase", fontWeight: 700, marginTop: 1 }}>Streak 🔥</div>
+              </div>
+            </div>
+
+            {/* Score gauge */}
+            <div style={{ marginBottom: 9 }}>
+              <ScoreGauge score={userWeeklyScore} currentLevel={currentLevel} />
+            </div>
+
+            {/* Weekly share estimate */}
+            {currentLevel !== "none" && weeklyPool && (
+              <div style={{ padding: "9px 10px", borderRadius: 10, background: `${levelColor}06`, border: `1px solid ${levelColor}14`, marginBottom: 9 }}>
+                <div style={{ fontSize: 8, fontWeight: 800, color: "#2e2e2e", marginBottom: 2 }}>Your Weekly Share</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: levelColor, lineHeight: 1 }}>~{EP(computeUserShare())} EP</div>
+                <div style={{ fontSize: 8, color: "#242424", marginTop: 2 }}>
+                  {LEVELS[currentLevel]?.poolPct}% pool · {weeklyPool.distributed ? "Distributed ✓" : "Pending"}
                 </div>
               </div>
             )}
 
-            <div style={{ display:"flex", gap:9, marginTop:14 }}>
-              <button onClick={() => setShowDeposit(true)} style={{ flex:1, padding:"10px", borderRadius:12, background:"linear-gradient(135deg,#84cc16,#4d7c0f)", border:"none", color:"#000", fontSize:12, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit" }}>
-                <Wallet size={13} /> Deposit EP
-              </button>
-              <button onClick={() => setTab("activity")} style={{ flex:1, padding:"10px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", color:"#777", fontSize:12, fontWeight:800, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit" }}>
-                <Target size={13} /> {activityDone}/{ACTIVITY_TASKS.length} Today
-              </button>
-            </div>
-          </div>
+            {/* Action buttons */}
+            <button onClick={() => setShowDeposit(true)}
+              style={{ width: "100%", padding: "9px", borderRadius: 10, background: "linear-gradient(135deg,#84cc16,#4d7c0f)", border: "none", color: "#000", fontSize: 12, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit", marginBottom: 5 }}>
+              <Wallet size={12} /> Deposit EP
+            </button>
+            <button onClick={() => setTab("activity")}
+              style={{ width: "100%", padding: "7px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", color: "#484848", fontSize: 11, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit", marginBottom: 13 }}>
+              <Target size={11} /> {activityDone}/{ACTIVITY_TASKS.length} done today
+            </button>
 
-          {/* TABS */}
-          <div style={{ display:"flex", margin:"12px 16px 0", background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.055)", borderRadius:13, padding:3, gap:2 }}>
-            {[["levels","Levels"],["activity","Activity"],["redeem","Redeem"]].map(([k,l]) => (
-              <button key={k} onClick={() => setTab(k)} style={{ flex:1, padding:"9px 4px", borderRadius:10, border:"none", fontSize:11, fontWeight:800, cursor:"pointer", fontFamily:"inherit", background:tab===k?"rgba(132,204,22,0.1)":"transparent", color:tab===k?"#84cc16":"#484848", boxShadow:tab===k?"0 2px 10px rgba(132,204,22,0.18)":"none", outline:tab===k?"1px solid rgba(132,204,22,0.22)":"none", outlineOffset:"-1px", transition:"all .15s" }}>{l}</button>
+            {/* Nav */}
+            <div style={{ fontSize: 8, fontWeight: 800, color: "#191919", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4, paddingLeft: 2 }}>Navigate</div>
+            {NAV.map(({ key, Icon: NavIcon, label }) => (
+              <button key={key} className="rnb" onClick={() => setTab(key)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, background: tab === key ? "rgba(132,204,22,0.09)" : "transparent", border: `1px solid ${tab === key ? "rgba(132,204,22,0.19)" : "transparent"}`, color: tab === key ? "#84cc16" : "#404040", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 2, textAlign: "left" }}>
+                <NavIcon size={13} color={tab === key ? "#84cc16" : "#303030"} />
+                {label}
+                {tab === key && <div style={{ marginLeft: "auto", width: 4, height: 4, borderRadius: "50%", background: "#84cc16" }} />}
+              </button>
             ))}
           </div>
 
-          <div style={{ padding:"12px 16px 100px" }}>
+          {/* ── MAIN PANEL ── */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "22px 22px 80px" }} className="rws">
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.4px", marginBottom: 2 }}>
+                {NAV.find(n => n.key === tab)?.label}
+              </div>
+              <div style={{ fontSize: 10, color: "#2a2a2a" }}>
+                {tab === "levels"   && "Score-based levels · proportional revenue pools"}
+                {tab === "activity" && "Complete tasks to build your weekly engagement score"}
+                {tab === "redeem"   && "Burn EP for perks · keeps supply healthy"}
+              </div>
+            </div>
+            {renderTab()}
+          </div>
+        </div>
 
-            {/* ═══ LEVELS ═══ */}
-            {tab === "levels" && (
-              <>
-                {/* How it works */}
-                <div style={{ padding:"12px 13px", marginBottom:16, background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:14 }}>
-                  <div style={{ fontSize:12, fontWeight:800, color:"#737373", marginBottom:6 }}>How Revenue Sharing Works</div>
-                  <div style={{ fontSize:11, color:"#383838", lineHeight:1.75 }}>
-                    Complete daily activities to meet level criteria. Once at a level, you earn a <span style={{ color:"#84cc16" }}>share of real weekly ecosystem revenue</span>, distributed as EP. No free minting — every EP share is backed by actual platform income.
-                  </div>
-                </div>
+      ) : (
 
-                {/* Level cards */}
-                {Object.keys(LEVELS).map((key, i) => (
-                  <LevelCard key={key} levelKey={key} levelData={LEVELS[key]} progress={levelProgress} currentLevel={currentLevel} idx={i} />
-                ))}
+        // ══════════════════════════════════════════════
+        // MOBILE — compact, no wasted space
+        // ══════════════════════════════════════════════
+        <div style={{ flex: 1, overflowY: "auto" }} className="rws">
 
-                {/* Revenue pool this week */}
-                {weeklyPool && (
-                  <div style={{ padding:"14px 14px", borderRadius:14, background:"rgba(132,204,22,0.04)", border:"1px solid rgba(132,204,22,0.1)", marginTop:4 }}>
-                    <div style={{ fontSize:12, fontWeight:800, color:"#84cc16", marginBottom:10 }}>
-                      This Week's Revenue Pool
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-                      {[
-                        { level:"silver", label:"Silver", color:"#d4d4d8" },
-                        { level:"gold",   label:"Gold",   color:"#fbbf24" },
-                        { level:"diamond",label:"Diamond",color:"#a78bfa" },
-                      ].map(({ level, label, color }) => (
-                        <div key={level} style={{ textAlign:"center", padding:"10px 6px", background:`${color}06`, border:`1px solid ${color}18`, borderRadius:10 }}>
-                          <div style={{ fontSize:14, fontWeight:900, color }}>{EP(weeklyPool[`${level}_share`] || 0)} EP</div>
-                          <div style={{ fontSize:9, color:"#383838", fontWeight:700 }}>{label} / user</div>
-                          <div style={{ fontSize:9, color:"#2a2a2a" }}>{weeklyPool[`${level}_users`] || 0} users</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize:10, color:"#2a2a2a", marginTop:10, textAlign:"center" }}>
-                      Week of {weeklyPool.week_start} · Total ${weeklyPool.total_revenue?.toFixed(2)} revenue
-                    </div>
-                  </div>
-                )}
-              </>
+          {/* Top bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "rgba(6,6,6,0.98)", borderBottom: "1px solid rgba(132,204,22,0.07)", flexShrink: 0 }}>
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#555", flexShrink: 0 }}><X size={13} /></button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", letterSpacing: "-0.3px" }}>Rewards</div>
+              <div style={{ fontSize: 9, color: "#1e1e1e" }}>Level up · Share ecosystem revenue</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 10, background: "rgba(132,204,22,0.08)", border: "1px solid rgba(132,204,22,0.18)", animation: "rwGlow 3s ease-in-out infinite" }}>
+              <Zap size={11} color="#84cc16" />
+              <span style={{ fontSize: 13, fontWeight: 900, color: "#84cc16" }}>{EP(balCount)}</span>
+              <span style={{ fontSize: 8, color: "#4d7c0f", fontWeight: 800 }}>EP</span>
+            </div>
+          </div>
+
+          {/* Stats strip — 4 columns, one row */}
+          <div style={{ display: "flex", gap: 0, margin: "10px 14px 0", background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, overflow: "hidden" }}>
+            {[
+              { label: "Level",  val: currentLevel === "none" ? "—" : LEVELS[currentLevel]?.name, color: levelColor,  top: currentLevel === "diamond" ? "💎" : currentLevel === "gold" ? "🥇" : currentLevel === "silver" ? "🥈" : "🔵", isEmoji: true },
+              { label: "Streak", val: `${streak}d`,             color: "#f97316", top: "🔥", isEmoji: true },
+              { label: "Score",  val: `${userWeeklyScore}`,     color: "#84cc16", top: null, isEmoji: false },
+              { label: "Today",  val: `${activityDone}/${ACTIVITY_TASKS.length}`, color: "#60a5fa", top: null, isEmoji: false },
+            ].map((s, i, arr) => (
+              <div key={s.label} style={{ flex: 1, padding: "9px 0", textAlign: "center", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                {s.isEmoji && <div style={{ fontSize: 14, lineHeight: 1, marginBottom: 1 }}>{s.top}</div>}
+                <div style={{ fontSize: s.isEmoji ? 10 : 15, fontWeight: 900, color: s.color, lineHeight: 1, marginBottom: 1 }}>{s.val}</div>
+                <div style={{ fontSize: 8, color: "#242424", textTransform: "uppercase", fontWeight: 700 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Milestone + share strip */}
+          <div style={{ margin: "7px 14px 0", padding: "8px 11px", background: "rgba(132,204,22,0.04)", border: "1px solid rgba(132,204,22,0.09)", borderRadius: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "#242424", marginBottom: 3 }}>
+              <span>EP Milestone</span><span>{EP(balance)} / {EP(nextMilestone)}</span>
+            </div>
+            <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg,#84cc16,#4d7c0f)", borderRadius: 2 }} />
+            </div>
+            {currentLevel !== "none" && weeklyPool && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, marginTop: 4 }}>
+                <span style={{ color: "#2a2a2a" }}>Weekly share est.</span>
+                <span style={{ color: levelColor, fontWeight: 800 }}>~{EP(computeUserShare())} EP</span>
+              </div>
             )}
+          </div>
 
-            {/* ═══ ACTIVITY ═══ */}
-            {tab === "activity" && (
-              <>
-                <div style={{ padding:"11px 12px", marginBottom:14, background:"rgba(96,165,250,0.05)", border:"1px solid rgba(96,165,250,0.12)", borderRadius:12, fontSize:11, color:"#525252", lineHeight:1.6 }}>
-                  <span style={{ color:"#60a5fa", fontWeight:800 }}>Activity Tracker:</span> Your daily actions are logged and count toward level criteria (active_days_30, post count, etc.). The login task gives 1 EP as a micro-reward — all other actions contribute to your <span style={{ color:"#84cc16" }}>revenue level</span> instead.
-                </div>
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 7, padding: "7px 14px 0" }}>
+            <button onClick={() => setShowDeposit(true)} style={{ flex: 1, padding: "9px", borderRadius: 10, background: "linear-gradient(135deg,#84cc16,#4d7c0f)", border: "none", color: "#000", fontSize: 12, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit" }}>
+              <Wallet size={12} /> Deposit EP
+            </button>
+            <button onClick={() => setTab("activity")} style={{ flex: 1, padding: "9px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", color: "#555", fontSize: 11, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontFamily: "inherit" }}>
+              <Target size={11} /> {activityDone}/{ACTIVITY_TASKS.length} Today
+            </button>
+          </div>
 
-                <div style={{ fontSize:10, fontWeight:800, color:"#2a2a2a", textTransform:"uppercase", letterSpacing:"1.2px", marginBottom:9 }}>Daily Activity</div>
-                {ACTIVITY_TASKS.map((t, i) => {
-                  const done = t.cap > 1 ? (counts[t.id]||0) >= (t.cap||1) : claimed.has(t.id);
-                  return <ActivityCard key={t.id} task={t} done={done} count={counts[t.id]||0} onClaim={handleClaimTask} idx={i} />;
-                })}
+          {/* Tab bar */}
+          <div style={{ display: "flex", margin: "7px 14px 0", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 3, gap: 2 }}>
+            {NAV.map(({ key, label }) => (
+              <button key={key} onClick={() => setTab(key)}
+                style={{ flex: 1, padding: "7px 2px", borderRadius: 7, border: "none", fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", background: tab === key ? "rgba(132,204,22,0.1)" : "transparent", color: tab === key ? "#84cc16" : "#404040", outline: tab === key ? "1px solid rgba(132,204,22,0.19)" : "none", outlineOffset: "-1px", transition: "all .12s" }}>
+                {key === "levels" ? "Levels" : key === "activity" ? "Activity" : "Redeem"}
+              </button>
+            ))}
+          </div>
 
-                {/* Weekly quality bonus */}
-                <div style={{ fontSize:10, fontWeight:800, color:"#2a2a2a", textTransform:"uppercase", letterSpacing:"1.2px", margin:"20px 0 9px" }}>Weekly Quality Bonus</div>
-                <div style={{ padding:"15px 15px", borderRadius:16, background:weeklyQual?"rgba(251,191,36,0.06)":"rgba(255,255,255,0.02)", border:`1px solid ${weeklyQual?"rgba(251,191,36,0.2)":"rgba(255,255,255,0.05)"}`, opacity:weeklyDone?0.5:1 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:13 }}>
-                    <div style={{ width:46, height:46, borderRadius:14, flexShrink:0, background:weeklyQual?"rgba(251,191,36,0.1)":"rgba(255,255,255,0.04)", border:`1px solid ${weeklyQual?"rgba(251,191,36,0.2)":"rgba(255,255,255,0.06)"}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      {weeklyDone ? <CheckCircle size={20} color="#22c55e" /> : <Crown size={20} color={weeklyQual?"#fbbf24":"#2a2a2a"} />}
-                    </div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, fontWeight:800, color:"#d4d4d4", marginBottom:3 }}>Weekly Quality Bonus</div>
-                      <div style={{ fontSize:11, color:"#383838", lineHeight:1.65, marginBottom:10 }}>Earn when one of your posts gets ≥2 genuine engagements this week.</div>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ fontSize:15, fontWeight:900, color:"#fbbf24" }}>+{WEEKLY_BONUS_EP} EP</span>
-                        {!weeklyDone
-                          ? <button onClick={handleClaimWeekly} disabled={!weeklyQual} style={{ padding:"5px 14px", borderRadius:9, background:weeklyQual?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.04)", border:`1px solid ${weeklyQual?"rgba(251,191,36,0.26)":"rgba(255,255,255,0.06)"}`, color:weeklyQual?"#fbbf24":"#2a2a2a", fontSize:11, fontWeight:800, cursor:weeklyQual?"pointer":"not-allowed", fontFamily:"inherit" }}>
-                              {weeklyQual ? "Claim Bonus" : "Not qualified yet"}
-                            </button>
-                          : <span style={{ fontSize:11, color:"#22c55e", fontWeight:700 }}>✓ Claimed this week</span>
-                        }
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* ═══ REDEEM ═══ */}
-            {tab === "redeem" && (
-              <>
-                <div style={{ fontSize:11, color:"#383838", marginBottom:14, lineHeight:1.65 }}>
-                  Spend EP to amplify your presence. Every redemption burns EP — keeping supply healthy and your balance meaningful.
-                </div>
-                {displayRedeem.map((item, i) => (
-                  <RedeemCard key={item.id} item={item} balance={balance} onRedeem={handleRedeemItem} idx={i} />
-                ))}
-                {REDEEM.length > 5 && (
-                  <button onClick={() => setShowAllRedeem(s => !s)} style={{ width:"100%", padding:"10px", borderRadius:11, background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.07)", color:"#555", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit", marginTop:4 }}>
-                    <ChevronDown size={14} style={{ transform:showAllRedeem?"rotate(180deg)":"none", transition:".2s" }} />
-                    {showAllRedeem ? "Show less" : `Show ${REDEEM.length - 5} more`}
-                  </button>
-                )}
-              </>
-            )}
+          <div style={{ padding: "10px 14px 100px" }}>
+            {renderTab()}
           </div>
         </div>
       )}

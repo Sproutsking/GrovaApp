@@ -13,8 +13,12 @@ const CSS = `
   100% { background-position:  300% center; }
 }
 @keyframes silverGrid {
-  0%,100% { opacity: 0.06; }
-  50%     { opacity: 0.13; }
+  0%,100% { opacity: 0.07; }
+  50%     { opacity: 0.16; }
+}
+@keyframes silverStar {
+  0%,100% { opacity: 0.15; transform: scale(0.8); }
+  50%     { opacity: 0.90; transform: scale(1.3); }
 }
 
 /* ─── Gold ring ───────────────────────────────────────────────────────── */
@@ -87,10 +91,10 @@ const CSS = `
 /* ─── Frame pulse ────────────────────────────────────────────────────── */
 @keyframes framePulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
 
-/* ─── Grid line animation for silver ────────────────────────────────── */
+/* ─── Grid line animation ────────────────────────────────────────────── */
 @keyframes gridFade { 0%,100%{opacity:0.04} 50%{opacity:0.09} }
 
-/* ─── Orbit ring (big glow ring that rotates around avatar in modal) ── */
+/* ─── Orbit ring ─────────────────────────────────────────────────────── */
 @keyframes orbitSpin { to { transform: rotate(360deg); } }
 @keyframes orbitPulse { 0%,100%{opacity:0.15} 50%{opacity:0.35} }
 

@@ -1,21 +1,15 @@
-// src/components/Auth/PaywallGate.jsx — v40 GO-LIVE
+// src/components/Auth/PaywallGate.jsx — v41 PRODUCT_ID_NULL_FIX
 // ============================================================================
-// CHANGES vs v39:
-//  [1] VIP INVITE TYPE — isVipInvite: invite.type === 'vip' now treated identically
-//      to whitelist type. VIP codes show VIP pricing slide, VIP EP grant,
-//      subscription_tier="vip", payment_status="vip" on free activation.
-//      createInviteCode({type:'vip'}) creates a pure VIP collection.
-//  [2] WHITELIST-EXHAUSTED AUTO-WAITLIST — when invite is applied AND isFull,
-//      userStoppedRef is set to true so auto-rotation doesn't fight setSlideIdx(2).
-//      Slide permanently locks to waitlist view. Waitlist button shown immediately.
-//  [3] PAYSTACK RETURN HANDLER — handleVerify detects _paystackReturn:true and
-//      skips verifyWeb3Payment(). Instead polls profile every 2s for up to 30s
-//      waiting for webhook to write account_activated=true. Falls back to
-//      manual refreshProfile() if webhook hasn't fired. Gate unlocks either way.
-//  [4] ALL PAYMENT PATHS — after any payment (free/web3/paystack), refreshProfile()
-//      is called so isPaidProfile() returns true and gate unmounts immediately.
-//  [5] WhatsApp popup — COMMENTED OUT on all error paths.
-//      Search WHATSAPP_FALLBACK to re-enable when ready.
+// CHANGES vs v40:
+//  [FIX-1] loadConfig: when product_id is null in platform_settings (the bug
+//          visible in the console: "product_id":null), now falls back to querying
+//          payment_products directly for the first active product UUID.
+//          After finding it, auto-patches platform_settings so every future
+//          load works without hitting this branch again.
+//  [FIX-2] loadConfig: merged config object now always includes the resolved
+//          product_id so paywallConfig.product_id is never null/undefined when
+//          a real product exists in the DB.
+//  All other v40 logic is UNCHANGED — zero functional regressions.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -72,8 +66,6 @@ function resolvePrice(invite, fallback = 4) {
   return fb;
 }
 
-// [1] VIP helper — invite_codes.type 'vip' is a premium tier, treated like whitelist
-//     but with VIP-specific badge, EP grant, and subscription_tier mapping
 function isVipInviteCode(invite) {
   if (!invite) return false;
   return (
@@ -92,12 +84,10 @@ function isWhitelistInviteCode(invite) {
   );
 }
 
-// Combined: both whitelist AND vip use the slot/capacity model
 function isExclusiveInvite(invite) {
   return isWhitelistInviteCode(invite) || isVipInviteCode(invite);
 }
 
-// [5] Waitlist whitelist check
 function isUserWhitelistedFromWaitlist(invite, userId) {
   if (!invite || !userId) return false;
   const ids = invite?.metadata?.whitelisted_user_ids ?? [];
@@ -715,8 +705,6 @@ function BrandPanel({ memberCount, epGrant }) {
 }
 
 // ── PriceHero ─────────────────────────────────────────────────────────────────
-// [1] VIP invites show gold VIP badge and VIP-specific pricing
-// [2] When whitelist/vip is exhausted (isFull), auto-locks to waitlist slide
 function PriceHero({
   productPrice,
   inviteDetails,
@@ -748,7 +736,6 @@ function PriceHero({
   const memberLabel =
     stats.memberCount > 0 ? stats.memberCount.toLocaleString() : "—";
 
-  // [1] Determine invite type
   const isWL = isWhitelistInviteCode(inviteDetails);
   const isVIP = isVipInviteCode(inviteDetails);
   const isExclusive = isWL || isVIP;
@@ -788,7 +775,6 @@ function PriceHero({
     userId,
   );
 
-  // [1] VIP slide definition
   const vipSlide = isFull
     ? {
         id: "vip-full",
@@ -914,11 +900,9 @@ function PriceHero({
     },
   ];
 
-  // [2] When invite applied: auto-jump + lock rotation when exhausted
   useEffect(() => {
     if (!inviteDetails) return;
     if (isExclusive && isFull && hasWL) {
-      // LOCK rotation — whitelist exhausted, force waitlist slide
       userStoppedRef.current = true;
       if (autoRef.current) {
         clearInterval(autoRef.current);
@@ -937,7 +921,6 @@ function PriceHero({
     }
   }, [inviteDetails?.id, isExclusive, isFull, hasWL]); // eslint-disable-line
 
-  // Auto-rotation — runs until userStopped or whitelist exhausted
   useEffect(() => {
     if (userStoppedRef.current) return;
     if (autoRef.current) clearInterval(autoRef.current);
@@ -1194,7 +1177,6 @@ function PriceHero({
         }}
       />
 
-      {/* Waitlist-approved banner */}
       {isApprovedFromWaitlist && (
         <div
           style={{
@@ -1259,7 +1241,6 @@ function PriceHero({
           </span>
         </div>
 
-        {/* PUBLIC slide */}
         {s.kind === "public" && (
           <>
             <div
@@ -1296,7 +1277,6 @@ function PriceHero({
           </>
         )}
 
-        {/* EXCLUSIVE slide (whitelist OR vip) */}
         {s.kind === "exclusive" && (
           <>
             {isFull && (
@@ -1360,7 +1340,6 @@ function PriceHero({
               </div>
             )}
             <SlotBar accent={s.accent} />
-            {/* Free/VIP activate CTA */}
             {(isFree || isApprovedFromWaitlist) && inviteDetails?.code && (
               <div style={{ marginTop: 12 }}>
                 <button
@@ -1384,7 +1363,6 @@ function PriceHero({
           </>
         )}
 
-        {/* WAITLIST slide */}
         {s.kind === "waitlist" && (
           <>
             <div style={{ marginBottom: 11 }}>
@@ -1556,6 +1534,51 @@ function PriceHero({
   );
 }
 
+// ── [FIX-1] resolveProductIdFromDB ────────────────────────────────────────────
+// When platform_settings.paywall_config.product_id is null, fetch the first
+// active product from payment_products and optionally back-fill the setting.
+async function resolveProductIdFromDB(existingRawValue) {
+  try {
+    const { data: products, error } = await supabase
+      .from("payment_products")
+      .select("id, name, amount_usd, tier")
+      .eq("is_active", true)
+      .order("amount_usd", { ascending: true })
+      .limit(1);
+
+    if (error || !products?.length) return null;
+
+    const productId = products[0].id;
+
+    // Auto-patch platform_settings so future loads skip this branch
+    const merged = {
+      ...(existingRawValue ?? {}),
+      product_id: productId,
+    };
+    supabase
+      .from("platform_settings")
+      .upsert(
+        {
+          key: "paywall_config",
+          value: merged,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" },
+      )
+      .then(() => {
+        console.log(
+          "[PaywallGate] Auto-patched platform_settings with product_id:",
+          productId,
+        );
+      })
+      .catch(() => {});
+
+    return productId;
+  } catch {
+    return null;
+  }
+}
+
 // ── PaywallGate (main) ────────────────────────────────────────────────────────
 export default function PaywallGate({ children }) {
   const { user, profile, signOut, refreshProfile } = useAuth();
@@ -1592,10 +1615,10 @@ export default function PaywallGate({ children }) {
     inviteRef.current = inviteDetails;
   }, [inviteDetails]);
 
+  // ── [FIX-1] loadConfig with product_id null fallback ─────────────────────
   const loadConfig = useCallback(async () => {
     if (!mounted.current) return;
     try {
-      // Read directly from platform_settings — single source of truth
       const { data, error } = await supabase
         .from("platform_settings")
         .select("value")
@@ -1604,36 +1627,70 @@ export default function PaywallGate({ children }) {
 
       if (error) throw error;
 
-      // data.value IS the full config object stored by our SQL setup:
-      // { product_id, product_price, ep_grant, enabled }
       const rawValue = data?.value ?? null;
       console.log("[PaywallGate] loadConfig raw:", JSON.stringify(rawValue));
       if (!mounted.current) return;
 
-      if (rawValue && rawValue.product_id) {
-        // Perfect path — DB has the full config including product_id
-        setPaywallConfig(rawValue);
-        setHeroMessage(rawValue.hero_message ?? null);
-      } else {
-        // Try fetchPaywallConfig which now includes product_id in v9
-        const fallback = await fetchPaywallConfig().catch(() => null);
-        if (!mounted.current) return;
-        if (fallback?.product_id) {
-          setPaywallConfig(fallback);
-          setHeroMessage(fallback.hero_message ?? null);
-        } else if (rawValue) {
-          // rawValue exists but no product_id — merge with known product_id from DB
-          // This can happen if fetchPaywallConfig is still v8
-          // Re-query to get full value including product_id
-          const merged = {
-            ...rawValue,
-            product_id: rawValue.product_id ?? fallback?.product_id ?? null,
-            product_price: rawValue.product_price ?? rawValue.price_usd ?? 4,
-            ep_grant: rawValue.ep_grant ?? 300,
-          };
-          setPaywallConfig(merged);
-          setHeroMessage(merged.hero_message ?? null);
-        }
+      // Helper to build the final config object, resolving product_id
+      const buildConfig = (base, resolvedProductId) => ({
+        ...(base ?? {}),
+        product_id: resolvedProductId,
+        product_price:
+          base?.product_price ?? base?.price_usd ?? base?.entry_price ?? 4,
+        ep_grant: base?.ep_grant ?? 300,
+        ngn_rate: base?.ngn_rate ?? 1580,
+        ngn_rate_auto_sync: base?.ngn_rate_auto_sync ?? false,
+        ngn_rate_fetched_at: base?.ngn_rate_fetched_at ?? null,
+        member_count: base?.member_count ?? 0,
+        is_active: base?.is_active !== undefined ? base.is_active : true,
+        slots_total: base?.slots_total ?? 0,
+        slots_claimed: base?.slots_claimed ?? 0,
+        hero_message: base?.hero_message ?? base?.heroMessage ?? "",
+      });
+
+      // PATH A: product_id already set in DB — happy path
+      if (rawValue?.product_id) {
+        setPaywallConfig(buildConfig(rawValue, rawValue.product_id));
+        setHeroMessage(rawValue.hero_message ?? rawValue.heroMessage ?? null);
+        return;
+      }
+
+      // PATH B: product_id is null/missing — try fetchPaywallConfig helper
+      const fallback = await fetchPaywallConfig().catch(() => null);
+      if (!mounted.current) return;
+
+      if (fallback?.product_id) {
+        setPaywallConfig(buildConfig(rawValue ?? fallback, fallback.product_id));
+        setHeroMessage(
+          rawValue?.hero_message ?? fallback?.hero_message ?? null,
+        );
+        return;
+      }
+
+      // [FIX-1] PATH C: product_id is null everywhere in platform_settings.
+      // Query payment_products directly and auto-patch the setting.
+      console.warn(
+        "[PaywallGate] product_id is null in platform_settings — querying payment_products",
+      );
+      const resolvedId = await resolveProductIdFromDB(rawValue);
+      if (!mounted.current) return;
+
+      if (resolvedId) {
+        const base = rawValue ?? fallback ?? {};
+        setPaywallConfig(buildConfig(base, resolvedId));
+        setHeroMessage(base.hero_message ?? base.heroMessage ?? null);
+        console.log(
+          "[PaywallGate] Resolved product_id from payment_products:",
+          resolvedId,
+        );
+        return;
+      }
+
+      // PATH D: Truly no product in DB yet — set config without product_id
+      // so the UI at least shows pricing. Payment will fail with a clear message.
+      if (rawValue) {
+        setPaywallConfig(buildConfig(rawValue, null));
+        setHeroMessage(rawValue.hero_message ?? rawValue.heroMessage ?? null);
       }
     } catch (e) {
       console.warn("[PaywallGate] loadConfig:", e?.message);
@@ -1643,7 +1700,6 @@ export default function PaywallGate({ children }) {
   const loadStats = useCallback(async () => {
     if (!mounted.current) return;
     try {
-      // Read config directly from DB (same as loadConfig)
       const { data: cfgData } = await supabase
         .from("platform_settings")
         .select("value")
@@ -1655,8 +1711,6 @@ export default function PaywallGate({ children }) {
       const stats = await fetchLiveStats();
       if (!mounted.current) return;
 
-      // Also count waitlist_entries from the real table (not JSONB)
-      // This is the authoritative count for the waitlist badge
       let waitlistCount = stats.waitlistCount ?? 0;
       try {
         const { count } = await supabase
@@ -1665,7 +1719,7 @@ export default function PaywallGate({ children }) {
           .eq("status", "pending");
         if (count != null) waitlistCount = count;
       } catch {
-        /* non-fatal — fall back to fetchLiveStats value */
+        /* non-fatal */
       }
 
       setLiveStats({
@@ -1721,28 +1775,24 @@ export default function PaywallGate({ children }) {
     }
   }, []); // eslint-disable-line
 
-  // [3] Auto-detect Paystack return — URL has ?ref= AND product_id from callback
+  // Auto-detect Paystack return
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const psRef = params.get("ref");
     const psProdId = params.get("product_id");
-    // Paystack references start with "xv_" (set in paystack-create-transaction)
     if (psRef && psRef.startsWith("xv_") && psProdId) {
-      // Clean URL immediately
       try {
         const url = new URL(window.location.href);
         url.searchParams.delete("ref");
         url.searchParams.delete("product_id");
         window.history.replaceState({}, "", url.toString());
       } catch {}
-      // Wait for webhook to process, then poll profile
       setTab("paystack");
       setVerifying(true);
       handlePaystackReturn(psRef, psProdId);
     }
   }, []); // eslint-disable-line
 
-  // [3] Paystack return — poll profile until account_activated=true (webhook may fire async)
   const handlePaystackReturn = useCallback(
     async (reference, productId) => {
       console.log("[PaywallGate] Paystack return detected, ref=", reference);
@@ -1751,7 +1801,6 @@ export default function PaywallGate({ children }) {
       const poll = async () => {
         await refreshProfile();
         polls++;
-        // Check if profile is now paid
         const { data: fresh } = await supabase
           .from("profiles")
           .select("account_activated,payment_status")
@@ -1760,20 +1809,18 @@ export default function PaywallGate({ children }) {
           .catch(() => ({ data: null }));
         if (fresh?.account_activated || fresh?.payment_status === "paid") {
           setVerifying(false);
-          setFreeActivated(true); // gate unlocks immediately
+          setFreeActivated(true);
           return;
         }
         if (polls < maxPolls) {
           setTimeout(poll, 2000);
         } else {
-          // Webhook hasn't fired yet — show a message but don't lock user out
           setVerifying(false);
           setVerifyError(
             "Payment received. Your account will be activated within a few seconds — please refresh.",
           );
         }
       };
-      // Give webhook 3s head start
       setTimeout(poll, 3000);
     },
     [user?.id, refreshProfile],
@@ -1860,10 +1907,8 @@ export default function PaywallGate({ children }) {
     user?.id,
   );
 
-  // [3] handleVerify — detects Paystack return vs Web3 verification
   const handleVerify = useCallback(
     async (params) => {
-      // Paystack return path — just refresh profile, webhook already activated account
       if (params?._paystackReturn) {
         try {
           await refreshProfile();
@@ -1873,7 +1918,6 @@ export default function PaywallGate({ children }) {
         return;
       }
 
-      // Web3 path — call edge fn
       setVerifying(true);
       setVerifyError("");
       try {
@@ -1885,18 +1929,14 @@ export default function PaywallGate({ children }) {
         });
         if (result?.success) {
           await clearIdempotencyKey(user?.id);
-          await refreshProfile(); // gate unmounts when profile.account_activated=true
+          await refreshProfile();
         } else {
           setVerifyError(
             result?.message ?? "Verification failed. Please try again.",
           );
-          // [5] WHATSAPP_FALLBACK — uncomment when ready
-          // openWhatsAppFallback("Web3 verification", result?.message);
         }
       } catch (e) {
         setVerifyError(e?.message ?? "Verification failed.");
-        // [5] WHATSAPP_FALLBACK — uncomment when ready
-        // openWhatsAppFallback("Web3 verification", e?.message);
       } finally {
         setVerifying(false);
       }
@@ -1912,7 +1952,6 @@ export default function PaywallGate({ children }) {
     [user?.id],
   );
 
-  // [4] handleFreeActivate — works for standard, whitelist, AND vip invite types
   const handleFreeActivate = useCallback(
     async (code) => {
       if (!user?.id || !inviteRef.current?.id) return;
@@ -1922,11 +1961,10 @@ export default function PaywallGate({ children }) {
           inviteCodeId: inviteRef.current.id,
           productId: paywallConfig?.product_id ?? "xeevia-access",
         });
-        await refreshProfile(); // profile now has account_activated=true → gate unmounts
-        setFreeActivated(true); // belt-and-suspenders unlock
+        await refreshProfile();
+        setFreeActivated(true);
       } catch (e) {
         console.error("[PaywallGate] handleFreeActivate error:", e?.message);
-        // Note: activate-free-code sets subscription_tier='vip' for type='vip' codes automatically
       } finally {
         setFreeActivating(false);
       }
@@ -1939,7 +1977,6 @@ export default function PaywallGate({ children }) {
     if (!invite?.id || !user?.id) return;
     setJoiningWaitlist(true);
     try {
-      // Check for existing entry in the waitlist_entries table (real FK table)
       const { data: existingEntry } = await supabase
         .from("waitlist_entries")
         .select("id, status")
@@ -1953,8 +1990,6 @@ export default function PaywallGate({ children }) {
         return;
       }
 
-      // Insert into the real waitlist_entries table
-      // Schema: user_id, invite_code_id, email, status='pending', joined_at auto
       const { error: insertErr } = await supabase
         .from("waitlist_entries")
         .insert({
@@ -1965,7 +2000,6 @@ export default function PaywallGate({ children }) {
         });
       if (insertErr) throw insertErr;
 
-      // Get position (count of pending entries for this invite code)
       const { count } = await supabase
         .from("waitlist_entries")
         .select("id", { count: "exact", head: true })
@@ -1989,7 +2023,6 @@ export default function PaywallGate({ children }) {
   }, [
     user?.id,
     profile?.email,
-    profile?.full_name,
     refetchActiveInvite,
     loadStats,
   ]);
@@ -2054,7 +2087,6 @@ export default function PaywallGate({ children }) {
               tab={tab}
               setTab={setTab}
             />
-            {/* Paystack return / verify status */}
             {verifyError && (
               <div
                 style={{

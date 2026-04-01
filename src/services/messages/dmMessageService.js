@@ -1,23 +1,22 @@
-// src/services/messages/dmMessageService.js — v4 CORRECT TICK LIFECYCLE
+// ============================================================================
+// src/services/messages/dmMessageService.js — v5 BULLETPROOF PUSH
+// ============================================================================
 //
-// Tick state machine:
-//
-//   SENT (✓ grey)
-//     → message inserted to DB with delivered:false, read:false
-//     → optimistic broadcast fired to recipient
-//
-//   DELIVERED (✓✓ grey)
-//     → recipient's client receives the broadcast (onMessage fires)
-//     → recipient sends back a "message_delivered" broadcast
-//     → sender patches delivered:true in DB + updates readStatus locally
-//
-//   READ (✓✓ green)
-//     → recipient opens the conversation (markRead called)
-//     → DB sets read:true on all messages in conversation
-//     → postgres_changes fires on sender's client OR
-//       "message_read" broadcast arrives → green ticks
-//
-// ─────────────────────────────────────────────────────────────────────────────
+// FIXES vs v4:
+//   [DM-1]  _triggerDmPush now uses conversationState.getConversation(id)
+//           (singular) which now exists — previously crashed silently with
+//           TypeError, killing all DM push notifications.
+//   [DM-2]  broadcast config: self:false (was self:true). Sender no longer
+//           receives their own new_message echo, eliminating the need for
+//           the sender-id guard on broadcast receive.
+//   [DM-3]  _triggerDmPush is the SINGLE place push is triggered. The
+//           MessageNotificationService.triggerDmPush duplicate path is gone.
+//           Push fires once per sent message, period.
+//   [DM-4]  _seenBroadcastIds dedup extended to 30s (was 15s) to safely
+//           cover slow networks.
+//   [DM-5]  conversationState.getConversation() is used correctly with the
+//           now-fixed singular method.
+// ============================================================================
 
 import { supabase } from "../config/supabase";
 import conversationState from "./ConversationStateManager";
@@ -67,7 +66,7 @@ class DMMessageService {
               .maybeSingle(),
             supabase.rpc("get_conversation_unread_count", {
               p_conversation_id: conv.id,
-              p_user_id: this.userId,
+              p_user_id:         this.userId,
             }),
           ]);
           return {
@@ -82,7 +81,7 @@ class DMMessageService {
       conversationState.initConversations(enriched);
       return enriched;
     } catch (error) {
-      console.error("❌ Load conversations error:", error);
+      console.error("❌ [DM] Load conversations error:", error);
       return [];
     }
   }
@@ -116,7 +115,7 @@ class DMMessageService {
       if (error) throw error;
       return newConv;
     } catch (error) {
-      console.error("❌ Create conversation error:", error);
+      console.error("❌ [DM] Create conversation error:", error);
       throw error;
     }
   }
@@ -136,19 +135,12 @@ class DMMessageService {
       conversationState.initMessages(conversationId, data || []);
       return data || [];
     } catch (error) {
-      console.error("❌ Load messages error:", error);
+      console.error("❌ [DM] Load messages error:", error);
       return [];
     }
   }
 
   // ── SEND ──────────────────────────────────────────────────────────────────
-  // Lifecycle:
-  //   1. Optimistic message added to UI → tick shows ✓ (sent, grey)
-  //   2. Broadcast fires to recipient's client immediately
-  //   3. DB insert with delivered:false, read:false  ← KEY CHANGE
-  //   4. If recipient's client is online, they ACK with "message_delivered"
-  //      broadcast → we flip to ✓✓ grey
-  //   5. When recipient opens chat, markRead fires → ✓✓ green
   async sendMessage(conversationId, content, senderId) {
     if (!content?.trim() || !conversationId || !senderId) return null;
 
@@ -164,14 +156,14 @@ class DMMessageService {
       content:         content.trim(),
       created_at:      new Date().toISOString(),
       read:            false,
-      delivered:       false,   // ← starts false
+      delivered:       false,
     };
     conversationState.addMessage(conversationId, optimisticMessage);
     this.pendingMessages.set(tempId, optimisticMessage);
     this._seenBroadcastIds.add(tempId);
-    setTimeout(() => this._seenBroadcastIds.delete(tempId), 15_000);
+    setTimeout(() => this._seenBroadcastIds.delete(tempId), 30_000); // [DM-4]
 
-    // 2. Broadcast to recipient's client (instant delivery attempt)
+    // 2. Broadcast to recipient (instant delivery attempt)
     const channel = this.conversationChannels.get(`conversation:${conversationId}`);
     if (channel) {
       channel.send({
@@ -188,14 +180,14 @@ class DMMessageService {
     }
 
     try {
-      // 3. Persist to DB — delivered:false until recipient ACKs
+      // 3. Persist to DB
       const { data, error } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           sender_id:       senderId,
           content:         content.trim(),
-          delivered:       false,   // ← KEY CHANGE: was true, now false
+          delivered:       false,
           read:            false,
         })
         .select()
@@ -203,12 +195,10 @@ class DMMessageService {
 
       if (error) throw error;
 
-      // Replace optimistic with real message (still delivered:false → ✓ grey)
+      // Replace optimistic with real message
       const current = conversationState.getMessages(conversationId);
       const updated = current.map((m) =>
-        m._tempId === tempId
-          ? { ...data, _replaced: true }
-          : m
+        m._tempId === tempId ? { ...data, _replaced: true } : m
       );
       conversationState.state.messagesByConversation.set(conversationId, updated);
       conversationState.state.messageStatusById.set(data.id, "sent");
@@ -223,7 +213,7 @@ class DMMessageService {
         .eq("id", conversationId)
         .then();
 
-      // Broadcast real id so recipient can replace their temp entry
+      // Broadcast real id so recipient replaces their temp entry
       if (channel) {
         channel.send({
           type:    "broadcast",
@@ -232,12 +222,12 @@ class DMMessageService {
         });
       }
 
-      // Push notification (best-effort)
+      // [DM-3] Single push trigger — only here, not in MessageNotificationService
       this._triggerDmPush(conversationId, senderId, content.trim());
 
       return data;
     } catch (error) {
-      console.error("❌ [SEND] DB insert failed:", error);
+      console.error("❌ [DM] DB insert failed:", error);
       const current = conversationState.getMessages(conversationId);
       const updated = current.map((m) =>
         m._tempId === tempId ? { ...m, _failed: true } : m
@@ -249,21 +239,18 @@ class DMMessageService {
     }
   }
 
-  // ── Mark a message as delivered in DB ────────────────────────────────────
-  // Called when recipient's client receives the broadcast
   async markDelivered(messageId) {
     try {
       await supabase
         .from("messages")
         .update({ delivered: true })
         .eq("id", messageId)
-        .eq("delivered", false); // no-op if already delivered
+        .eq("delivered", false);
     } catch (err) {
-      console.warn("[DMMessageService] markDelivered failed:", err);
+      console.warn("[DM] markDelivered failed:", err);
     }
   }
 
-  // ── Mark conversation as read ─────────────────────────────────────────────
   async markRead(conversationId, userId) {
     try {
       conversationState.clearUnread(conversationId);
@@ -273,7 +260,6 @@ class DMMessageService {
       });
       if (error) throw error;
 
-      // Broadcast read receipt to the other person
       const channel = this.conversationChannels.get(`conversation:${conversationId}`);
       if (channel) {
         channel.send({
@@ -287,41 +273,54 @@ class DMMessageService {
         });
       }
     } catch (error) {
-      console.error("❌ [READ] Mark read error:", error);
+      console.error("❌ [DM] Mark read error:", error);
     }
   }
 
   // =========================================================================
-  // PUSH NOTIFICATION
+  // PUSH NOTIFICATION — [DM-1] Fixed: uses getConversation() (singular)
   // =========================================================================
 
   async _triggerDmPush(conversationId, senderId, content) {
     try {
+      // [DM-1] getConversation(id) now exists on ConversationStateManager
       const conv = conversationState.getConversation(conversationId);
       if (!conv) return;
+
       const recipientId = conv.user1_id === senderId ? conv.user2_id : conv.user1_id;
       if (!recipientId || recipientId === senderId) return;
+
+      // Build sender display name from state
+      const senderConvUser =
+        conv.user1_id === senderId ? conv.user1 : conv.user2;
+      const senderName =
+        senderConvUser?.full_name ||
+        senderConvUser?.username  ||
+        "Someone";
 
       await supabase.functions.invoke("send-push", {
         body: {
           recipient_user_id: recipientId,
           actor_user_id:     senderId,
           type:              "dm",
+          title:             senderName,
           message:           content.slice(0, 100),
           entity_id:         conversationId,
           metadata: {
-            conversation_id:   conversationId,
-            notification_id:   `dm_${conversationId}_${Date.now()}`,
+            conversation_id:  conversationId,
+            notification_id:  `dm_${conversationId}_${Date.now()}`,
           },
           data: {
-            url:             "/messages",
-            type:            "dm",
-            conversation_id: conversationId,
+            url:              "/messages",
+            type:             "dm",
+            conversation_id:  conversationId,
+            notification_id:  `dm_${conversationId}_${Date.now()}`,
           },
         },
       });
     } catch (err) {
-      console.warn("[DMMessageService] Push trigger failed:", err);
+      // Non-fatal — message was still delivered via broadcast
+      console.warn("[DM] Push trigger failed:", err);
     }
   }
 
@@ -334,19 +333,23 @@ class DMMessageService {
     if (this.conversationChannels.has(channelKey)) return () => {};
 
     const channel = supabase
-      .channel(channelKey, { config: { broadcast: { self: true } } })
+      .channel(channelKey, {
+        config: {
+          broadcast: {
+            // [DM-2] self:false — sender does NOT receive their own broadcasts.
+            // Eliminates the need for sender-id guards on receive.
+            self: false,
+          },
+        },
+      })
 
-      // ── New message broadcast ──────────────────────────────────────────
+      // ── New message broadcast ─────────────────────────────────────────────
       .on("broadcast", { event: "new_message" }, ({ payload }) => {
-        // Skip our own echoes
-        if (
-          payload.sender_id === this.userId &&
-          this._seenBroadcastIds.has(payload.tempId)
-        ) return;
+        // Guard: skip if we've seen this tempId (shouldn't happen with self:false
+        // but kept as a safety net for edge cases)
         if (this._seenBroadcastIds.has(payload.tempId)) return;
-
         this._seenBroadcastIds.add(payload.tempId);
-        setTimeout(() => this._seenBroadcastIds.delete(payload.tempId), 15_000);
+        setTimeout(() => this._seenBroadcastIds.delete(payload.tempId), 30_000);
 
         const message = {
           id:              payload.tempId || `temp_${Date.now()}`,
@@ -367,9 +370,7 @@ class DMMessageService {
           conversationState.incrementUnread(conversationId, payload.sender_id);
         }
 
-        // ── DELIVERED ACK ────────────────────────────────────────────────
-        // Recipient's client is online and received the message.
-        // Send "message_delivered" back to the sender immediately.
+        // Delivered ACK: recipient is online, tell the sender
         if (payload.sender_id !== this.userId && payload.tempId) {
           channel.send({
             type:    "broadcast",
@@ -385,7 +386,7 @@ class DMMessageService {
         callbacks.onMessage?.(message);
       })
 
-      // ── Message confirmed (tempId → real UUID) ────────────────────────
+      // ── Message confirmed (tempId → real UUID) ────────────────────────────
       .on("broadcast", { event: "message_confirmed" }, ({ payload }) => {
         const current = conversationState.getMessages(conversationId);
         const updated = current.map((m) =>
@@ -397,26 +398,23 @@ class DMMessageService {
         conversationState.emit();
       })
 
-      // ── Delivered ACK received by SENDER ─────────────────────────────
-      // Recipient is online → flip tick to ✓✓ grey
+      // ── Delivered ACK received by sender — flip to ✓✓ grey ───────────────
       .on("broadcast", { event: "message_delivered" }, ({ payload }) => {
-        if (payload.recipient_id === this.userId) return; // ignore our own ACK echo
+        if (payload.recipient_id === this.userId) return; // ignore our own echo
 
-        // Update DB (fire-and-forget)
         const msgs = conversationState.getMessages(conversationId);
         const msg  = msgs.find(
           (m) => m.id === payload.tempId || m._tempId === payload.tempId
         );
         if (msg?.id && !msg._tempId) {
           this.markDelivered(msg.id);
-          // Update local state status
           conversationState.state.messageStatusById?.set(msg.id, "delivered");
         }
 
         callbacks.onDelivered?.(payload.tempId);
       })
 
-      // ── Read receipt ───────────────────────────────────────────────────
+      // ── Read receipt ──────────────────────────────────────────────────────
       .on("broadcast", { event: "message_read" }, ({ payload }) => {
         if (payload.user_id !== this.userId) {
           conversationState.markAllRead(conversationId);
@@ -424,7 +422,7 @@ class DMMessageService {
         }
       })
 
-      // ── Typing ────────────────────────────────────────────────────────
+      // ── Typing ────────────────────────────────────────────────────────────
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload.userId !== this.userId) {
           callbacks.onTyping?.(payload.userId, payload.isTyping, payload.userName);
@@ -432,7 +430,7 @@ class DMMessageService {
       })
 
       .subscribe((status) => {
-        console.log(`🔌 [SUBSCRIBE] ${channelKey}:`, status);
+        console.log(`🔌 [DM] ${channelKey}:`, status);
       });
 
     this.conversationChannels.set(channelKey, channel);

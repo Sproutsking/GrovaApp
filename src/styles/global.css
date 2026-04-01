@@ -101,7 +101,7 @@ img, video {
   top: 0; left: 0; right: 0;
   height: 56px;
   background: #000000;
-  backdrop-filter: blur(24px);
+  /* backdrop-filter: blur(24px); */
   -webkit-backdrop-filter: blur(24px);
   border: none;
   z-index: 100;
@@ -199,7 +199,7 @@ img, video {
 
 .main-content-mobile {
   position: fixed;
-  top: 56px;
+  top: 47px;
   left: 0; right: 0;
   bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;

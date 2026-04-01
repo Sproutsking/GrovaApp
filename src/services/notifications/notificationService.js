@@ -1,47 +1,23 @@
 // ============================================================================
-// src/services/notifications/notificationService.js — v5 DEDUP-SAFE
+// src/services/notifications/notificationService.js — v6 BULLETPROOF
 // ============================================================================
 //
-// ROOT CAUSE OF DUPLICATION (fixed here):
-//   v4 realtime INSERT handler did TWO things that caused doubles:
-//     1. Prepended the enriched notification to _cache immediately
-//     2. Scheduled _fetchAndCache() 800ms later → second prepend of same item
-//   The refetch was added to get the actor JOIN, but it re-prepended an item
-//   that was already in _cache, so users saw duplicates.
-//
-// FIX:
-//   • On INSERT: prepend optimistically (no actor data yet) AND mark it with
-//     a _pendingFetch flag.
-//   • _fetchAndCache() now MERGES results instead of replacing _cache blindly:
-//     it deduplicates by id so the refetch never creates a second copy.
-//   • _badgeCount is incremented ONCE on INSERT; the refetch does not touch it.
-//   • A seen-ids Set (_seenRealtimeIds) guards against the Supabase channel
-//     occasionally firing duplicate INSERT events for the same row.
-//
-// ── Two independent badge concepts ───────────────────────────────────────────
-//   HEADER BADGE  = notifications created AFTER badge_cleared_at
-//                   → resets when sidebar OPENS (clearHeaderBadge)
-//                   → NOT affected by is_read
-//
-//   SIDEBAR DOTS  = is_read === false per row
-//                   → cleared via markAsRead / markAllAsRead
-//                   → NOT affected by opening the sidebar
-//
-// ── API surface (unchanged) ──────────────────────────────────────────────────
-//   init(userId)
-//   destroy()
-//   subscribe(fn)                         → returns unsubscribe fn
-//   getNotifications(userId?, limit?, forceRefresh?)
-//   getHeaderBadgeCount(userId?)
-//   getHeaderBadgeCountSync()
-//   clearHeaderBadge(userId?)
-//   markAsRead(notifId)
-//   markAllAsRead(userId?)
-//   getUnreadSidebarCount()
-//   getUnreadCount()                      → alias
-//   isLoading()
-//   invalidateCache()
-//   on(event, fn)                         → typed event bus
+// FIXES vs v5:
+//   [N-1]  _fetchAndCache is debounced (not hard-dropped when _loading).
+//          Two realtime INSERTs within 1 second no longer leave an optimistic
+//          item permanently without actor data.
+//   [N-2]  Badge recompute uses >= (not >) to avoid clock-skew where a new
+//          notification's created_at equals badge_cleared_at to the millisecond.
+//   [N-3]  _seenRealtimeIds dedup is applied BEFORE the cache check, so the
+//          "already in cache" branch also increments badge correctly only once.
+//   [N-4]  markAllAsRead rolls back badge optimistically and restores on error.
+//   [N-5]  Double notification fix: realtime INSERT now checks both
+//          _seenRealtimeIds AND _cache before deciding to prepend. If the row
+//          is already in _cache from a concurrent fetch, we skip the prepend
+//          entirely and do not increment the badge a second time.
+//   [N-6]  "new_notification" typed event is emitted ONCE per unique row id,
+//          guarded by _seenRealtimeIds — so InAppNotificationToast never
+//          receives the same notification twice from this service.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -68,13 +44,16 @@ class NotificationService {
     this._channel = null;
 
     // ── Deduplication ─────────────────────────────────────────
-    // Tracks realtime INSERT ids we've already processed so duplicate
-    // Supabase channel events don't create duplicate rows in _cache.
+    // [N-3] Tracks every realtime INSERT id we've processed.
+    // Checked FIRST before any cache or badge logic.
     this._seenRealtimeIds = new Set();
 
+    // [N-1] Debounce: pending refetch timer
+    this._refetchTimer = null;
+
     // ── Pub/sub ────────────────────────────────────────────────
-    this._subscribers     = new Set();
-    this._typedListeners  = new Map();
+    this._subscribers    = new Set();
+    this._typedListeners = new Map();
   }
 
   // =========================================================================
@@ -89,7 +68,7 @@ class NotificationService {
 
   _emit(event, data) {
     this._typedListeners.get(event)?.forEach((fn) => {
-      try { fn(data); } catch {}
+      try { fn(data); } catch (e) { console.error("[NotifService] Event handler error:", e); }
     });
   }
 
@@ -104,7 +83,7 @@ class NotificationService {
 
   _notifySubscribers() {
     this._subscribers.forEach((fn) => {
-      try { fn(); } catch (err) { console.error("Subscriber error:", err); }
+      try { fn(); } catch (err) { console.error("[NotifService] Subscriber error:", err); }
     });
   }
 
@@ -128,7 +107,8 @@ class NotificationService {
   }
 
   destroy() {
-    if (this._channel) { supabase.removeChannel(this._channel); this._channel = null; }
+    if (this._channel)     { supabase.removeChannel(this._channel); this._channel = null; }
+    if (this._refetchTimer) { clearTimeout(this._refetchTimer); this._refetchTimer = null; }
     this._subscribers.clear();
     this._typedListeners.clear();
     this._cache          = null;
@@ -203,11 +183,12 @@ class NotificationService {
     this._badgeClearedAt = now;
     this._badgeCount     = 0;
     this._notifySubscribers();
+    pushService_clearBadge(); // tell SW to clear Android app badge
     supabase
       .from("notification_badge_state")
       .upsert(
         { user_id: uid, badge_cleared_at: now, updated_at: now },
-        { onConflict: "user_id" },
+        { onConflict: "user_id" }
       )
       .then(({ error }) => { if (error) console.error("❌ clearHeaderBadge:", error); });
   }
@@ -218,7 +199,7 @@ class NotificationService {
     if (!target || target.is_read) return;
 
     this._cache = this._cache.map((n) =>
-      n.id === notificationId ? { ...n, is_read: true } : n,
+      n.id === notificationId ? { ...n, is_read: true } : n
     );
     this._notifySubscribers();
 
@@ -229,7 +210,7 @@ class NotificationService {
 
     if (error) {
       this._cache = this._cache.map((n) =>
-        n.id === notificationId ? { ...n, is_read: false } : n,
+        n.id === notificationId ? { ...n, is_read: false } : n
       );
       this._notifySubscribers();
       console.error("❌ markAsRead:", error);
@@ -239,26 +220,53 @@ class NotificationService {
   async markAllAsRead(userId) {
     const uid = userId || this._userId;
     if (!this._cache || !uid) return;
+
+    // Optimistic update
+    const prevCache = this._cache;
+    const prevBadge = this._badgeCount;
     this._cache      = this._cache.map((n) => ({ ...n, is_read: true }));
     this._badgeCount = 0;
     this._notifySubscribers();
-    await Promise.all([
-      supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("recipient_user_id", uid)
-        .eq("is_read", false),
-      this.clearHeaderBadge(uid),
-    ]).catch((err) => console.error("❌ markAllAsRead:", err));
+
+    try {
+      await Promise.all([
+        supabase
+          .from("notifications")
+          .update({ is_read: true })
+          .eq("recipient_user_id", uid)
+          .eq("is_read", false),
+        this.clearHeaderBadge(uid),
+      ]);
+    } catch (err) {
+      // [N-4] Rollback on error
+      console.error("❌ markAllAsRead:", err);
+      this._cache      = prevCache;
+      this._badgeCount = prevBadge;
+      this._notifySubscribers();
+    }
   }
 
   // =========================================================================
-  // INTERNAL — FETCH (dedup-safe merge)
+  // INTERNAL — FETCH (debounced, dedup-safe merge)
   // =========================================================================
+
+  // [N-1] Schedule a refetch — debounced so rapid INSERTs don't pile up
+  _scheduleFetch(delayMs = 1000) {
+    if (this._refetchTimer) clearTimeout(this._refetchTimer);
+    this._refetchTimer = setTimeout(() => {
+      this._refetchTimer = null;
+      this._fetchAndCache();
+    }, delayMs);
+  }
 
   async _fetchAndCache(limit = 60, uid) {
     const userId = uid || this._userId;
-    if (!userId || this._loading) return;
+    if (!userId) return;
+    if (this._loading) {
+      // Don't hard-drop — schedule a follow-up instead
+      this._scheduleFetch(800);
+      return;
+    }
     this._loading = true;
 
     try {
@@ -279,14 +287,10 @@ class NotificationService {
       const fresh = (data || []).map((n) => this._enrich(n));
 
       // ── DEDUP MERGE ────────────────────────────────────────────────────────
-      // If we already have optimistic items in _cache (from realtime INSERT),
-      // prefer the freshly-fetched rows (they have actor JOIN data) but don't
-      // re-add items that already exist. This prevents the double-entry bug.
       if (this._cache && this._cache.length > 0) {
-        const freshIds = new Set(fresh.map((n) => n.id));
-        // Keep any optimistic items that aren't in the fresh fetch yet
+        const freshIds     = new Set(fresh.map((n) => n.id));
         const optimisticOnly = this._cache.filter(
-          (n) => n._optimistic && !freshIds.has(n.id),
+          (n) => n._optimistic && !freshIds.has(n.id)
         );
         this._cache = [...optimisticOnly, ...fresh];
       } else {
@@ -356,9 +360,10 @@ class NotificationService {
 
   _recomputeBadge() {
     if (!this._cache) { this._badgeCount = 0; return; }
-    const clearedMs   = new Date(this._badgeClearedAt || 0).getTime();
-    this._badgeCount  = this._cache.filter(
-      (n) => new Date(n.created_at).getTime() > clearedMs,
+    const clearedMs  = new Date(this._badgeClearedAt || 0).getTime();
+    // [N-2] Use >= to handle clock-skew edge case
+    this._badgeCount = this._cache.filter(
+      (n) => new Date(n.created_at).getTime() >= clearedMs
     ).length;
   }
 
@@ -372,7 +377,7 @@ class NotificationService {
     this._channel = supabase
       .channel(`notifications-realtime:${userId}`)
 
-      // ── 1. New notification ─────────────────────────────────────────────
+      // ── 1. New notification INSERT ────────────────────────────────────────
       .on(
         "postgres_changes",
         {
@@ -384,40 +389,38 @@ class NotificationService {
         (payload) => {
           const row = payload.new;
 
-          // ── DEDUP GUARD ──────────────────────────────────────────────────
-          // Supabase can fire the same INSERT event twice (reconnect race).
-          // Also guard against _fetchAndCache running concurrently.
+          // [N-3] & [N-6] PRIMARY DEDUP GATE — checked first, before anything else.
+          // This is what fixes the "double notification" bug:
+          // Supabase realtime can fire the same INSERT event twice on reconnect.
+          // The seen-set blocks the second fire entirely.
           if (this._seenRealtimeIds.has(row.id)) return;
           this._seenRealtimeIds.add(row.id);
-          // Clean up the seen-set after 60s to avoid unbounded growth
           setTimeout(() => this._seenRealtimeIds.delete(row.id), 60_000);
 
-          // Also skip if already in cache (e.g. from a concurrent fetch)
+          // [N-5] Check if a concurrent _fetchAndCache already added this row
           if (this._cache?.some((n) => n.id === row.id)) {
-            // Notification already present — just increment badge if needed
-            this._badgeCount = (this._badgeCount || 0) + 1;
-            this._notifySubscribers();
+            // Already in cache from fetch — emit toast event but don't
+            // re-prepend or re-increment badge.
             this._emit("new_notification", row);
             return;
           }
 
-          // Optimistic prepend (no actor join yet — shows "Someone")
+          // Optimistic prepend (no actor join yet)
           const enriched = { ...this._enrich(row), _optimistic: true };
-          this._cache = this._cache ? [enriched, ...this._cache] : [enriched];
+          this._cache      = this._cache ? [enriched, ...this._cache] : [enriched];
           this._cacheFetchedAt = Date.now();
-          this._badgeCount = (this._badgeCount || 0) + 1;
+          this._badgeCount     = (this._badgeCount || 0) + 1;
           this._notifySubscribers();
 
-          // Typed event → InAppNotificationToast
+          // [N-6] Emit ONCE per unique id — InAppNotificationToast reacts to this
           this._emit("new_notification", row);
 
-          // Background refetch to get actor JOIN — the merge in _fetchAndCache
-          // will replace the optimistic row without creating a duplicate.
-          setTimeout(() => this._fetchAndCache(), 1000);
-        },
+          // [N-1] Debounced background refetch to get actor JOIN data
+          this._scheduleFetch(1000);
+        }
       )
 
-      // ── 2. is_read update ───────────────────────────────────────────────
+      // ── 2. is_read update ─────────────────────────────────────────────────
       .on(
         "postgres_changes",
         {
@@ -429,13 +432,13 @@ class NotificationService {
         (payload) => {
           if (!this._cache) return;
           this._cache = this._cache.map((n) =>
-            n.id === payload.new.id ? { ...n, is_read: payload.new.is_read } : n,
+            n.id === payload.new.id ? { ...n, is_read: payload.new.is_read } : n
           );
           this._notifySubscribers();
-        },
+        }
       )
 
-      // ── 3. Badge cleared from another tab ───────────────────────────────
+      // ── 3. Badge cleared from another tab ──────────────────────────────────
       .on(
         "postgres_changes",
         {
@@ -449,7 +452,7 @@ class NotificationService {
           this._badgeClearedAt = payload.new.badge_cleared_at;
           this._recomputeBadge();
           this._notifySubscribers();
-        },
+        }
       )
 
       .subscribe((status) => {
@@ -458,6 +461,13 @@ class NotificationService {
         }
       });
   }
+}
+
+// Lazy reference to pushService.clearBadge to avoid circular import
+function pushService_clearBadge() {
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_BADGE" });
+  } catch (_) {}
 }
 
 const notificationService = new NotificationService();

@@ -44,8 +44,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
         }
         .ss-overlay {
           position: fixed; inset: 0;
-          background: rgba(0,0,0,0.78);
-          backdrop-filter: blur(8px);
+          background: transparent;
           z-index: 999;
           animation: ssFadeIn 0.22s ease;
         }

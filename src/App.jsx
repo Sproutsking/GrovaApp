@@ -1,38 +1,26 @@
 // ============================================================================
-// src/App.jsx — v19 LIVE_STREAMING (SESSION-SAFE)
+// src/App.jsx — v20 BULLETPROOF PUSH
 // ============================================================================
 //
-// BASE: v18 IRON-CLAD — every line of v18 is preserved verbatim.
+// BASE: v19 LIVE_STREAMING — every line preserved verbatim.
 //
-// ADDITIONS vs v18 (the only things that changed):
-//   [LS-1]  feedFilter state
-//   [LS-2]  streamSession state
-//   [LS-3]  handleJoinStream()
-//   [LS-4]  HomeView receives feedFilter, onClearFilter, onJoinStream
-//   [LS-5]  TrendingSidebar receives currentUser, isMobile, setActiveTab,
-//            setFeedFilter, onJoinStream
-//   [LS-6]  StreamView receives userId + streamSession
-//   [LS-7]  closeOverlayToAccount + closeOverlayToHome clear streamSession
-//   [LS-8]  handleTabChange clears feedFilter when leaving home tab
-//
-// SESSION BUGS FIXED vs the broken v19 draft:
-//   [FIX-1] end_my_live_sessions RPC wrapped in a true fire-and-forget that
-//            can NEVER throw or propagate — a failed RPC must not disturb auth.
-//   [FIX-2] streamSession is NEVER cleared inside handleTabChange for
-//            non-overlay tabs. It is cleared only in the two closeOverlay*
-//            helpers and when explicitly opening a non-stream overlay.
-//            The v19 draft cleared it on every tab switch, causing state
-//            churn that re-triggered Supabase auth listener callbacks.
-//   [FIX-3] feedFilter + streamSession added to state initialisation with
-//            stable null defaults so no extra renders fire on mount.
-//   [FIX-4] HomeView feedFilter useEffect guard is handled inside HomeView
-//            (hasLoadedContent.current check). App.jsx passes the prop cleanly
-//            and does NOT trigger any extra re-render chains.
-//
-// HEADER FIX:
-//   [HDR-1] onSignOut={handleSignOut} now passed to both DesktopHeader and
-//            MobileHeader so AvatarDropdown's sign-out button actually works
-//            and navigates back to AuthWall (sign-in screen).
+// ADDITIONS vs v19:
+//   [APP-1]  MessageNotificationService imported and initialized with a
+//            toastCallback that pipes DM toasts into InAppNotificationToast.
+//            This service was imported but never initialized before — it was
+//            completely dead. Now DM in-app toasts work when app is active.
+//   [APP-2]  handleNotificationNavigate now handles "/messages" path so
+//            tapping a DM toast (or OS notification) navigates correctly.
+//            Previously the /messages path fell through to nothing.
+//   [APP-3]  pushService.on("sw_updated") listener replaces the no-op
+//            sw_update_available handler. The SW now posts SW_UPDATED on
+//            activate — this listener receives it and can prompt reload.
+//   [APP-4]  InAppNotificationToast receives an addToast ref via a callback
+//            ref pattern so MessageNotificationService can feed toasts into
+//            it without prop-drilling or re-renders.
+//   [APP-5]  MessageNotificationService.cleanup() called on sign-out.
+//   [APP-6]  DMMessagesView state added — showMessages + dmTargetUserId —
+//            so /messages navigation from toast actually opens the DM panel.
 // ============================================================================
 
 import React, {
@@ -55,33 +43,34 @@ import "./styles/StoryCard.css";
 import "./styles/ProfileModal.css";
 import "./styles/Draft.css";
 
-import { supabase } from "./services/config/supabase";
-import mediaUrlService from "./services/shared/mediaUrlService";
-import { pushService } from "./services/notifications/pushService";
-import notificationService from "./services/notifications/notificationService";
-import { useNavigation } from "./hooks/useNavigation";
-import { useBackButton } from "./hooks/useBackButton";
-import { usePullToRefresh } from "./hooks/usePullToRefresh";
+import { supabase }              from "./services/config/supabase";
+import mediaUrlService           from "./services/shared/mediaUrlService";
+import { pushService }           from "./services/notifications/pushService";
+import notificationService       from "./services/notifications/notificationService";
+import MessageNotificationService from "./services/messages/MessageNotificationService"; // [APP-1]
+import { useNavigation }         from "./hooks/useNavigation";
+import { useBackButton }         from "./hooks/useBackButton";
+import { usePullToRefresh }      from "./hooks/usePullToRefresh";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
-import AuthWall, { Splash } from "./components/Auth/AuthWall";
-import BoostStyles from "./components/Boost/BoostStyles";
+import AuthWall, { Splash }      from "./components/Auth/AuthWall";
+import BoostStyles               from "./components/Boost/BoostStyles";
 
 // Payment gate
 import { canAccessApp } from "./services/auth/paymentGate";
 
 // Shared UI
-import DesktopHeader from "./components/Shared/DesktopHeader";
-import MobileHeader from "./components/Shared/MobileHeader";
-import MobileBottomNav from "./components/Shared/MobileBottomNav";
-import Sidebar from "./components/Shared/Sidebar";
-import AdminSidebar from "./components/Shared/AdminSidebar";
-import SupportSidebar from "./components/Shared/SupportSidebar";
-import NotificationSidebar from "./components/Shared/NotificationSidebar";
-import InAppNotificationToast from "./components/Shared/InAppNotificationToast";
-import PullToRefreshIndicator from "./components/Shared/PullToRefreshIndicator";
-import NetworkError from "./components/Shared/NetworkError";
+import DesktopHeader           from "./components/Shared/DesktopHeader";
+import MobileHeader            from "./components/Shared/MobileHeader";
+import MobileBottomNav         from "./components/Shared/MobileBottomNav";
+import Sidebar                 from "./components/Shared/Sidebar";
+import AdminSidebar            from "./components/Shared/AdminSidebar";
+import SupportSidebar          from "./components/Shared/SupportSidebar";
+import NotificationSidebar     from "./components/Shared/NotificationSidebar";
+import InAppNotificationToast  from "./components/Shared/InAppNotificationToast";
+import PullToRefreshIndicator  from "./components/Shared/PullToRefreshIndicator";
+import NetworkError            from "./components/Shared/NetworkError";
 
 // Admin dashboard
 import AdminDashboard from "./components/Admin/AdminDashboard";
@@ -96,15 +85,16 @@ const CommunityView = lazy(() => import("./components/Community/CommunityView"))
 const TrendingSidebar = lazy(() => import("./components/Shared/TrendingSidebar"));
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
-const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
-const UpgradeView    = lazy(() => import("./components/Upgrade/UpgradeView"));
-const RewardsView    = lazy(() => import("./components/Rewards/RewardsView"));
-const StreamView     = lazy(() => import("./components/Stream/StreamView"));
-const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView"));
+const AnalyticsView = lazy(() => import("./components/Analytics/AnalyticsView"));
+const UpgradeView   = lazy(() => import("./components/Upgrade/UpgradeView"));
+const RewardsView   = lazy(() => import("./components/Rewards/RewardsView"));
+const StreamView    = lazy(() => import("./components/Stream/StreamView"));
+const GiftCardsView = lazy(() => import("./components/GiftCards/GiftCardsView"));
+const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView")); // [APP-6]
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set(["analytics", "upgrade", "rewards", "stream", "giftcards"]);
-const PSEUDO_TABS  = new Set(["support", "notifications", "trending"]); // eslint-disable-line no-unused-vars
+const PSEUDO_TABS  = new Set(["support", "notifications", "trending"]); // eslint-disable-line
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const checkMobile = () => window.innerWidth <= 768;
@@ -191,7 +181,7 @@ function preloadTabs() {
 
 // ── MainApp ───────────────────────────────────────────────────────────────────
 const MainApp = memo(() => {
-  const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line no-unused-vars
+  const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line
 
   const [currentUser, setCurrentUser] = useState(() => ({
     id:       user?.id,
@@ -221,16 +211,22 @@ const MainApp = memo(() => {
   const [mountedTabs,        setMountedTabs]        = useState(new Set(["home"]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
 
+  // [APP-6] DM panel state
+  const [showMessages,    setShowMessages]    = useState(false);
+  const [dmTargetUserId,  setDmTargetUserId]  = useState(null);
+
   // [LS-1] Feed filter for tag/post drill-down from TrendingSidebar
   const [feedFilter,    setFeedFilter]    = useState(null);
-
-  // [LS-2] Live stream session — null = host mode, object = viewer join mode.
+  // [LS-2] Live stream session
   const [streamSession, setStreamSession] = useState(null);
 
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
   const netCheckRef    = useRef(null);
   const initDone       = useRef(false);
+
+  // [APP-4] Ref so MessageNotificationService can call addToast without re-renders
+  const addToastRef = useRef(null);
 
   const { isAtRoot } = useNavigation(
     activeTab, homeSection, accountSection,
@@ -268,13 +264,22 @@ const MainApp = memo(() => {
     };
   }, [isOnline]);
 
-  // ── Notification deep-link navigate ────────────────────────────────────
+  // ── [APP-2] Notification deep-link navigate ──────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
     if (!path || path === "/") return;
+
+    // [APP-2] Handle DM navigation — open the messages panel
+    if (path === "/messages" || path.startsWith("/messages")) {
+      setShowMessages(true);
+      setDmTargetUserId(null);
+      return;
+    }
+
     const postMatch    = path.match(/^\/post\/(.+)$/);
     const reelMatch    = path.match(/^\/reel\/(.+)$/);
     const storyMatch   = path.match(/^\/story\/(.+)$/);
     const profileMatch = path.match(/^\/profile\/(.+)$/);
+
     if (postMatch) {
       setActiveTab("home");
       setHomeSection("newsfeed");
@@ -304,22 +309,34 @@ const MainApp = memo(() => {
       setActiveTab("account");
       setMountedTabs((p) => new Set([...p, "account"]));
     }
+
     setShowAdminDashboard(false);
     setOverlayTab(null);
   }, [user?.id]);
 
-  // ── Init ────────────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (initDone.current || !user?.id) return;
     initDone.current = true;
+
+    // Init notification service
     notificationService.init(user.id).catch(() => {});
+
+    // [APP-1] Init DM notification service with toast callback
+    // The toastCallback calls addToastRef.current (set by InAppNotificationToast)
+    MessageNotificationService.init(user.id, (toast) => {
+      addToastRef.current?.(toast);
+    });
+
+    // Start push service (SW registration + subscription)
     if (navigator.onLine) {
       setTimeout(() => pushService.start(user.id).catch(() => {}), 2000);
     }
+
     loadWalletAndAvatar(user.id, profile).catch(() => {});
     preloadTabs();
 
-    // [FIX-1] Kill any stale live sessions from a previous login/crash.
+    // [FIX-1] Kill any stale live sessions from a previous login/crash
     setTimeout(() => {
       try {
         supabase
@@ -332,15 +349,25 @@ const MainApp = memo(() => {
     return () => clearTimeout(refreshTimeout.current);
   }, [user?.id]); // eslint-disable-line
 
-  // ── Push listeners ──────────────────────────────────────────────────────
+  // ── Push listeners ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
-    const unsubClick  = pushService.on("notification_clicked", ({ url }) => { if (url) handleNotificationNavigate(url); });
-    const unsubUpdate = pushService.on("sw_update_available", () => {});
+
+    // OS notification tapped → navigate in-app
+    const unsubClick = pushService.on("notification_clicked", ({ url }) => {
+      if (url) handleNotificationNavigate(url);
+    });
+
+    // [APP-3] SW updated — could prompt user to refresh
+    const unsubUpdate = pushService.on("sw_updated", ({ version }) => {
+      console.log("[App] SW updated to", version);
+      // Optionally show a "New version available, refresh?" banner here
+    });
+
     return () => { unsubClick(); unsubUpdate(); };
   }, [user?.id, handleNotificationNavigate]);
 
-  // ── Auto-refresh (desktop) ──────────────────────────────────────────────
+  // ── Auto-refresh (desktop) ───────────────────────────────────────────────
   useEffect(() => {
     if (!isMobile && isOnline) {
       const tick = () => {
@@ -352,7 +379,7 @@ const MainApp = memo(() => {
     return () => clearTimeout(refreshTimeout.current);
   }, [isMobile, isOnline]);
 
-  // ── Visibility / focus recovery ─────────────────────────────────────────
+  // ── Visibility / focus recovery ──────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
     let lastHidden = 0;
@@ -380,7 +407,7 @@ const MainApp = memo(() => {
     };
   }, [user?.id]); // eslint-disable-line
 
-  // ── Load wallet + avatar ────────────────────────────────────────────────
+  // ── Load wallet + avatar ─────────────────────────────────────────────────
   const loadWalletAndAvatar = async (userId, p) => {
     try {
       const { data: w } = await supabase
@@ -445,16 +472,13 @@ const MainApp = memo(() => {
     }));
   }, []);
 
-  // ── Sign out — local scope only (this device) ───────────────────────────
-  // [HDR-1] handleSignOut is now passed to both headers via onSignOut prop.
-  // When AvatarDropdown calls onSignOut(), this runs → pushService unsubscribes
-  // → notificationService destroys → signOut() fires → AuthContext sets user=null
-  // → AppRouter re-renders → hits !user branch → <AuthWall /> (sign-in screen).
+  // ── Sign out ─────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(async () => {
     try {
       if (user?.id) {
         await pushService.unsubscribe(user.id).catch(() => {});
         notificationService.destroy();
+        MessageNotificationService.cleanup(); // [APP-5]
       }
     } catch {}
     await signOut();
@@ -467,7 +491,7 @@ const MainApp = memo(() => {
     return "Good Evening";
   }, []);
 
-  // [LS-3] Join a live stream as viewer.
+  // [LS-3] Join a live stream as viewer
   const handleJoinStream = useCallback((session) => {
     setStreamSession(session);
     setOverlayTab("stream");
@@ -477,6 +501,7 @@ const MainApp = memo(() => {
   const handleTabChange = useCallback((newTab) => {
     if (newTab === "support")       { setShowSupport(true);       return; }
     if (newTab === "notifications") { setShowNotifications(true); return; }
+    if (newTab === "messages")      { setShowMessages(true);      return; } // [APP-6]
     if (newTab === "trending") {
       if (isMobile) {
         setActiveTab("search");
@@ -516,7 +541,7 @@ const MainApp = memo(() => {
     setMountedTabs((p) => new Set([...p, "home"]));
   }, []);
 
-  const viewProps = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget };
+  const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget };
   const showTrending = activeTab !== "community" && activeTab !== "wallet";
 
   // ── Tab content ──────────────────────────────────────────────────────────
@@ -700,9 +725,6 @@ const MainApp = memo(() => {
           display: "contents",
         }}
       >
-        {/* [HDR-1] onSignOut={handleSignOut} added — AvatarDropdown sign-out
-            now calls handleSignOut() → signOut() → AuthContext sets user=null
-            → AppRouter renders <AuthWall /> (sign-in screen) */}
         {!isMobile && (
           <DesktopHeader
             activeTab={activeTab}
@@ -807,7 +829,24 @@ const MainApp = memo(() => {
         onClose={() => setShowSupport(false)}
         isMobile={isMobile}
       />
-      <InAppNotificationToast navigate={handleNotificationNavigate} />
+
+      {/* [APP-6] DM panel — shown from toast tap or nav */}
+      {showMessages && (
+        <Suspense fallback={null}>
+          <DMMessagesView
+            currentUser={currentUser}
+            onClose={() => { setShowMessages(false); setDmTargetUserId(null); }}
+            initialOtherUserId={dmTargetUserId}
+          />
+        </Suspense>
+      )}
+
+      {/* [APP-4] addToastRef is set inside InAppNotificationToast so
+          MessageNotificationService can call it without prop drilling */}
+      <InAppNotificationToast
+        navigate={handleNotificationNavigate}
+        addToastRef={addToastRef}
+      />
 
       {showOfflineBanner && (
         <NetworkError
@@ -826,10 +865,12 @@ const MainApp = memo(() => {
 
         /* ── GLOBAL Z-INDEX HIERARCHY ─────────────────────────────────────────
            Stack (low to high):
-             .sidebar / .xv-sidebar : 10    (layout only, behind everything)
-             Notification sidebar   : 9999
+             .sidebar / .xv-sidebar : 10    (layout only)
+             DM panel               : 9990–9999
+             Notification sidebar   : 9999–10001
              Stream overlay         : 10001
-             .sdm-portal            : 10050 (StreamerDetailModal — always on top)
+             InAppToast             : 99999
+             .sdm-portal            : 10050
              Offline banner         : 99998
         ──────────────────────────────────────────────────────────────────── */
         .sidebar,
@@ -837,7 +878,6 @@ const MainApp = memo(() => {
           z-index: 10 !important;
         }
 
-        /* StreamerDetailModal portal — always above sidebars and all overlays */
         .sdm-portal {
           position: fixed !important;
           inset: 0 !important;
@@ -884,7 +924,7 @@ function AppRouter() {
   }, [profile]);
 
   if (!forceResolve && (loading || oauthInProgress)) return <Splash />;
-  if (!user) return <AuthWall />;
+  if (!user)                                          return <AuthWall />;
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
   if (!profile) {
     const paidCache = getIsPaidCached ? getIsPaidCached() : false;

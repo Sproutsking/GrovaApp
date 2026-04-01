@@ -4,36 +4,38 @@
 //   [B1] BoostAvatarRing replaces plain avatar circle
 //   [B2] Greeting text color = tier color when boosted
 //   [B3] tier + themeId read from profile.subscription_tier + boost_selections
+// FIXES:
+//   [F1] Message badge resets instantly on click, repopulates on new messages
+//   [F2] Notification badge resets instantly on click
+//   [F3] Accurate Facebook Messenger SVG icon (circular bubble + lightning bolt)
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Clock, Bell, HelpCircle, MessageCircle } from "lucide-react";
+import { Clock, Bell, HelpCircle } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
-// [B1]
 import BoostAvatarRing from "../Shared/BoostAvatarRing";
 
-// [B3] Tier → greeting color
+// ── Boost tier colors ────────────────────────────────────────────────────────
 const TIER_GREETING_COLORS = {
   silver: "#d4d4d4",
-  gold: "#fbbf24",
-  diamond: "#a78bfa",
+  gold:   "#fbbf24",
+  diamond:"#a78bfa",
 };
 const DIAMOND_THEME_COLORS = {
-  "diamond-cosmos": "#a78bfa",
+  "diamond-cosmos":  "#a78bfa",
   "diamond-glacier": "#60a5fa",
   "diamond-emerald": "#34d399",
-  "diamond-rose": "#f472b6",
-  "diamond-void": "#e5e5e5",
+  "diamond-rose":    "#f472b6",
+  "diamond-void":    "#e5e5e5",
   "diamond-inferno": "#ff6b35",
-  "diamond-aurora": "#22d3ee",
+  "diamond-aurora":  "#22d3ee",
 };
 const getGreetingColor = (profile) => {
-  const tier =
-    profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
+  const tier    = profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
   const themeId = profile?.boost_selections?.themeId ?? null;
   if (!TIER_GREETING_COLORS[tier]) return "rgba(255,255,255,0.65)";
   if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
@@ -41,6 +43,31 @@ const getGreetingColor = (profile) => {
   return TIER_GREETING_COLORS[tier];
 };
 
+// ── [F3] Accurate Facebook Messenger icon ───────────────────────────────────
+// Circular speech bubble with pointed bottom-left tail + lightning bolt
+const MessengerIcon = ({ size = 16, color = "#a3e635" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Circular bubble body with pointed bottom-left tail */}
+    <path
+      d="M8 0.5C3.582 0.5 0 3.862 0 8c0 2.34 1.091 4.43 2.8 5.84V17l2.625-1.44C6.23 15.847 7.1 16 8 16c4.418 0 8-3.362 8-7.5S12.418 0.5 8 0.5Z"
+      fill={color}
+    />
+    {/* Lightning bolt — exact Messenger zigzag */}
+    <path
+      d="M8.5 4L4 9h3.6L7 12.5L11.5 7.5h-3.6L8.5 4Z"
+      fill="#000"
+      opacity="0.55"
+    />
+  </svg>
+);
+
+// ── Component ────────────────────────────────────────────────────────────────
 const DesktopHeader = ({
   currentUser,
   getGreeting = () => {
@@ -56,66 +83,70 @@ const DesktopHeader = ({
   userId,
   onSignOut,
 }) => {
-  const [displayedText, setDisplayedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [greetingText, setGreetingText] = useState(getGreeting());
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [badgeCount, setBadgeCount] = useState(() =>
-    notificationService.getHeaderBadgeCountSync(),
-  );
+  const [displayedText, setDisplayedText]   = useState("");
+  const [isTyping, setIsTyping]             = useState(false);
+  const [greetingText, setGreetingText]     = useState(getGreeting());
+  const [imageLoaded, setImageLoaded]       = useState(false);
+  const [imageError,  setImageError]        = useState(false);
+  const [badgeCount,  setBadgeCount]        = useState(() => notificationService.getHeaderBadgeCountSync());
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [showMessages, setShowMessages] = useState(false);
+  const [showMessages, setShowMessages]     = useState(false);
 
-  const timerRef = useRef(null);
+  const timerRef        = useRef(null);
   const typeIntervalRef = useRef(null);
 
-  // ── Avatar ──────────────────────────────────────────────────────────────
+  // ── Avatar ─────────────────────────────────────────────────────────────
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
-    if (cleanUrl.includes("supabase")) {
+    if (cleanUrl.includes("supabase"))
       avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
-    }
   }
   const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
-  const isValidAvatar =
+  const isValidAvatar  =
     avatarUrl &&
     typeof avatarUrl === "string" &&
     !imageError &&
     (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
-  // [B3] Boost tier from profile
-  const tier =
-    profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
-  const themeId = profile?.boost_selections?.themeId ?? null;
-  const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
+  // ── Boost ──────────────────────────────────────────────────────────────
+  const tier         = profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
+  const themeId      = profile?.boost_selections?.themeId ?? null;
+  const hasBoosted   = ["silver", "gold", "diamond"].includes(tier);
   const greetingColor = getGreetingColor(profile);
 
-  // ── Badge ────────────────────────────────────────────────────────────────
+  // ── Badge sync ─────────────────────────────────────────────────────────
   const syncBadge = useCallback(() => {
     setBadgeCount(notificationService.getHeaderBadgeCountSync());
   }, []);
 
   useEffect(() => {
     if (!userId) return;
-    notificationService
-      .getHeaderBadgeCount(userId)
-      .then(setBadgeCount)
-      .catch(() => {});
+    notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
     const unsubNotif = notificationService.subscribe(syncBadge);
-    const unsubConv = conversationState.subscribe(() => {
+    const unsubConv  = conversationState.subscribe(() => {
       setUnreadMessages(conversationState.getTotalUnreadCount());
     });
     setUnreadMessages(conversationState.getTotalUnreadCount());
     onlineStatusService.start(userId);
-    return () => {
-      unsubNotif();
-      unsubConv();
-    };
+    return () => { unsubNotif(); unsubConv(); };
   }, [userId, syncBadge]);
 
-  // ── Typing animation ─────────────────────────────────────────────────────
+  // ── [F1] Messages click — zero badge instantly ─────────────────────────
+  const handleMessagesClick = useCallback(() => {
+    if (currentUser?.id || userId) {
+      setUnreadMessages(0);
+      setShowMessages(true);
+    }
+  }, [currentUser?.id, userId]);
+
+  // ── [F2] Notifications click — zero badge instantly ────────────────────
+  const handleNotificationClick = useCallback(() => {
+    setBadgeCount(0);
+    onNotificationClick?.();
+  }, [onNotificationClick]);
+
+  // ── Typing animation ───────────────────────────────────────────────────
   useEffect(() => {
     const fullText = `${greetingText}, ${currentUser?.name || currentUser?.fullName || "User"}`;
     let cancelled = false;
@@ -128,10 +159,7 @@ const DesktopHeader = ({
         setDisplayedText(text.slice(0, i));
         i++;
         if (i <= text.length) typeIntervalRef.current = setTimeout(tick, 80);
-        else {
-          setIsTyping(false);
-          cb?.();
-        }
+        else { setIsTyping(false); cb?.(); }
       };
       tick();
     };
@@ -144,10 +172,7 @@ const DesktopHeader = ({
         setDisplayedText(text.slice(0, i));
         i--;
         if (i >= 0) typeIntervalRef.current = setTimeout(tick, 45);
-        else {
-          setIsTyping(false);
-          cb?.();
-        }
+        else { setIsTyping(false); cb?.(); }
       };
       tick();
     };
@@ -178,22 +203,16 @@ const DesktopHeader = ({
     };
   }, [greetingText, currentUser?.name, currentUser?.fullName, getGreeting]);
 
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <>
-      <style>
-        {desktopHeaderStyles(
-          isTyping,
-          displayedText,
-          greetingColor,
-          hasBoosted,
-        )}
-      </style>
+      <style>{desktopHeaderStyles(isTyping, displayedText, greetingColor, hasBoosted)}</style>
 
       <header className="dh-header">
         <div className="dh-content">
+
           {/* Left */}
           <div className="dh-left">
-            {/* [B1] AvatarDropdown wraps BoostAvatarRing for the clickable dropdown */}
             <AvatarDropdown
               profile={profile}
               userId={userId}
@@ -202,19 +221,12 @@ const DesktopHeader = ({
               isValidAvatar={isValidAvatar}
               imageLoaded={imageLoaded}
               imageError={imageError}
-              onImageLoad={() => {
-                setImageLoaded(true);
-                setImageError(false);
-              }}
-              onImageError={() => {
-                setImageLoaded(false);
-                setImageError(true);
-              }}
+              onImageLoad={() => { setImageLoaded(true);  setImageError(false); }}
+              onImageError={() => { setImageLoaded(false); setImageError(true);  }}
               onOpenAccount={() => setActiveTab("account")}
               onSignOut={onSignOut}
               isMobile={false}
-              // Pass boost props so AvatarDropdown can render BoostAvatarRing internally
-              boostTier={hasBoosted ? tier : null}
+              boostTier={hasBoosted ? tier    : null}
               boostThemeId={hasBoosted ? themeId : null}
             />
 
@@ -227,14 +239,13 @@ const DesktopHeader = ({
 
           {/* Right */}
           <div className="dh-right">
+            {/* [F1] + [F3] Messenger icon + instant badge reset */}
             <button
               className="dh-action-btn messages"
-              onClick={() => {
-                if (currentUser?.id || userId) setShowMessages(true);
-              }}
+              onClick={handleMessagesClick}
               aria-label="Messages"
             >
-              <MessageCircle size={16} />
+              <MessengerIcon size={16} color="#a3e635" />
               <span>Messages</span>
               {unreadMessages > 0 && (
                 <span className="dh-badge">
@@ -242,9 +253,11 @@ const DesktopHeader = ({
                 </span>
               )}
             </button>
+
+            {/* [F2] Instant badge reset */}
             <button
               className="dh-action-btn notification"
-              onClick={onNotificationClick}
+              onClick={handleNotificationClick}
               aria-label="Notifications"
             >
               <Bell size={16} />
@@ -255,6 +268,7 @@ const DesktopHeader = ({
                 </span>
               )}
             </button>
+
             <button
               className="dh-action-btn support"
               onClick={onSupportClick}
@@ -270,13 +284,13 @@ const DesktopHeader = ({
       {showMessages && (
         <DMMessagesView
           currentUser={{
-            id: userId || currentUser?.id,
-            name: currentUser?.name || currentUser?.fullName || "User",
-            fullName: currentUser?.fullName || currentUser?.name || "User",
-            username: currentUser?.username || profile?.username || "user",
-            avatar: avatarUrl || currentUser?.avatar,
-            avatarId: profile?.id || currentUser?.avatarId,
-            verified: currentUser?.verified || profile?.verified || false,
+            id:        userId || currentUser?.id,
+            name:      currentUser?.name     || currentUser?.fullName || "User",
+            fullName:  currentUser?.fullName || currentUser?.name     || "User",
+            username:  currentUser?.username || profile?.username     || "user",
+            avatar:    avatarUrl             || currentUser?.avatar,
+            avatarId:  profile?.id           || currentUser?.avatarId,
+            verified:  currentUser?.verified || profile?.verified     || false,
           }}
           onClose={() => setShowMessages(false)}
         />
@@ -285,12 +299,8 @@ const DesktopHeader = ({
   );
 };
 
-const desktopHeaderStyles = (
-  isTyping,
-  displayedText,
-  greetingColor,
-  hasBoosted,
-) => `
+// ── Styles ───────────────────────────────────────────────────────────────────
+const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted) => `
   .dh-header {
     height: 58px;
     position: sticky; top: 0; z-index: 100;
@@ -348,12 +358,13 @@ const desktopHeaderStyles = (
     cursor: pointer; transition: all 0.18s;
     white-space: nowrap;
   }
-  .dh-action-btn.messages    { color: #a3e635; }
-  .dh-action-btn.notification{ color: #84cc16; }
-  .dh-action-btn.support     { color: #60a5fa; }
+  .dh-action-btn.messages     { color: #a3e635; }
+  .dh-action-btn.notification { color: #84cc16; }
+  .dh-action-btn.support      { color: #60a5fa; }
   .dh-action-btn.messages:hover     { background: rgba(163,230,53,0.1); border-color: rgba(163,230,53,0.3); transform: translateY(-1px); }
   .dh-action-btn.notification:hover { background: rgba(132,204,22,0.1); border-color: rgba(132,204,22,0.3); transform: translateY(-1px); }
-  .dh-action-btn.support:hover      { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); transform: translateY(-1px); }
+  .dh-action-btn.support:hover      { background: rgba(96,165,250,0.1);  border-color: rgba(96,165,250,0.3);  transform: translateY(-1px); }
+  .dh-action-btn:active { transform: scale(0.97); }
 
   .dh-badge {
     position: absolute; top: -6px; right: -6px;

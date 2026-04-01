@@ -3,6 +3,11 @@
 // BOOST EDITION — original preserved, additions:
 //   [B1] Greeting text color = tier color when boosted
 //   [B2] Boost tier/themeId passed to AvatarDropdown
+// FIXES:
+//   [F1] No excess bottom padding on header
+//   [F2] Message badge resets instantly on click, repopulates on new messages
+//   [F3] Notification badge resets instantly on click
+//   [F4] Accurate Facebook Messenger SVG icon (circular bubble + lightning bolt)
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -11,7 +16,6 @@ import {
   HeadsetIcon,
   Clock,
   TrendingUp,
-  MessageCircle,
 } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
@@ -39,11 +43,35 @@ const getGreetingColor = (profile) => {
   const tier =
     profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
   const themeId = profile?.boost_selections?.themeId ?? null;
-  if (!TIER_GREETING_COLORS[tier]) return null; // null = use default gradient
+  if (!TIER_GREETING_COLORS[tier]) return null;
   if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
     return DIAMOND_THEME_COLORS[themeId];
   return TIER_GREETING_COLORS[tier];
 };
+
+// [F4] Accurate Facebook Messenger icon
+// Circular speech bubble with pointed bottom-left tail + lightning bolt
+const MessengerIcon = ({ size = 17, color = "#a3e635" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 17 17"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Circular bubble body with pointed bottom-left tail */}
+    <path
+      d="M8.5 0.5C3.806 0.5 0 4.045 0 8.401c0 2.494 1.161 4.723 2.984 6.218v3.6l2.794-1.534C6.562 16.826 7.512 17 8.5 17c4.694 0 8.5-3.545 8.5-7.599S13.194 0.5 8.5 0.5Z"
+      fill={color}
+    />
+    {/* Lightning bolt — exact Messenger zigzag */}
+    <path
+      d="M9 4.5L4.5 9.5h3.8L7.5 13L12 8h-3.8L9 4.5Z"
+      fill="#000"
+      opacity="0.55"
+    />
+  </svg>
+);
 
 const MobileHeader = ({
   getGreeting,
@@ -116,6 +144,20 @@ const MobileHeader = ({
     };
   }, [userId, syncBadge]);
 
+  // [F2] Open messages: zero badge instantly, subscription repopulates on new msgs
+  const handleMessagesClick = useCallback(() => {
+    if (currentUser?.id || userId) {
+      setUnreadMessages(0);
+      setShowMessages(true);
+    }
+  }, [currentUser?.id, userId]);
+
+  // [F3] Notification click: zero badge instantly, then fire parent handler
+  const handleNotificationClick = useCallback(() => {
+    setBadgeCount(0);
+    onNotificationClick?.();
+  }, [onNotificationClick]);
+
   // ── Typing animation ──────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -184,6 +226,7 @@ const MobileHeader = ({
         {mobileHeaderStyles(isTyping, displayedText, tierColor, hasBoosted)}
       </style>
 
+      {/* [F1] Explicit zero margin/padding — no browser default spacing */}
       <header className="mh-header">
         <div className="mh-content">
           <div className="mh-left">
@@ -226,23 +269,25 @@ const MobileHeader = ({
             >
               <TrendingUp size={17} />
             </button>
+
+            {/* [F2] + [F4] Instant badge reset + Messenger SVG icon */}
             <button
               className="mh-btn messages"
-              onClick={() => {
-                if (currentUser?.id || userId) setShowMessages(true);
-              }}
+              onClick={handleMessagesClick}
               aria-label="Messages"
             >
-              <MessageCircle size={17} />
+              <MessengerIcon size={17} color="#a3e635" />
               {unreadMessages > 0 && (
                 <span className="mh-badge">
                   {unreadMessages > 99 ? "99+" : unreadMessages}
                 </span>
               )}
             </button>
+
+            {/* [F3] Instant badge reset */}
             <button
               className="mh-btn notification"
-              onClick={onNotificationClick}
+              onClick={handleNotificationClick}
               aria-label="Notifications"
             >
               <Bell size={17} />
@@ -252,6 +297,7 @@ const MobileHeader = ({
                 </span>
               )}
             </button>
+
             <button
               className="mh-btn support"
               onClick={onSupportClick}
@@ -288,7 +334,6 @@ const MobileHeader = ({
 };
 
 const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted) => {
-  // When boosted use tier color; otherwise use the default green gradient
   const textStyle =
     hasBoosted && tierColor
       ? `color: ${tierColor}; text-shadow: 0 0 10px ${tierColor}60;`
@@ -304,8 +349,17 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted) => {
     hasBoosted && tierColor ? `${tierColor}08` : "rgba(255,255,255,0.02)";
 
   return `
-    .mh-header { position: sticky; top: 0; z-index: 100; background: #000; }
-    .mh-content { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; gap: 8px; }
+    .mh-header {
+      position: sticky; top: 0; z-index: 100;
+      background: #000;
+      margin: 0; padding: 0;
+    }
+    .mh-content {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 12px 6px 12px;
+      gap: 8px;
+      margin: 0;
+    }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
     .mh-greeting-box {
@@ -346,7 +400,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted) => {
       background: rgba(255,255,255,0.03); color: #666;
     }
     .mh-btn.trending     { border-color: rgba(132,204,22,0.2);  background: rgba(132,204,22,0.04);  color: #84cc16; }
-    .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.04);  color: #a3e635; }
+    .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.04); }
     .mh-btn.notification { border-color: rgba(132,204,22,0.15); color: #84cc16; }
     .mh-btn.support      { color: #60a5fa; border-color: rgba(96,165,250,0.15); }
     .mh-btn:active       { transform: scale(0.9); }

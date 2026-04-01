@@ -228,7 +228,6 @@ const ActionButtons = memo(({ notif, onNavigate, currentUserId }) => {
 ActionButtons.displayName = "ActionButtons";
 
 // ── Single notification item ──────────────────────────────────────────────────
-// v4 extension: PayWave notifications get a different visual treatment.
 const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
   const [expanded,  setExpanded]  = useState(false);
   const [isClamped, setIsClamped] = useState(false);
@@ -239,12 +238,10 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
   const pwType   = notif.metadata?.pw_type;
   const pwDef    = isPW && pwType ? PW_TYPE_DEF[pwType] : null;
 
-  // Colors: PayWave uses pw_type colours, others use type colours
   const colors = pwDef
     ? { color: pwDef.color, bg: pwDef.bg }
     : COLOR_MAP[notif.type] || { color: "#737373", bg: "rgba(255,255,255,0.05)" };
 
-  // For PayWave notifs, message is split with \n — only show the first line in the list
   const lines      = (notif.message || "").split("\n");
   const displayMsg = isPW && lines.length > 1 ? lines[0] : notif.message;
   const subLine    = isPW && lines.length > 1 ? lines.slice(1).join(" ").trim() : null;
@@ -281,7 +278,6 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
       <div className="ni__top" onClick={handleBodyClick} role="button" tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && handleBodyClick()}>
 
-        {/* Avatar — circle icon for PayWave, user avatar for social */}
         <div className="ni__avatar"
           style={isPW ? { background: colors.bg, border: `1.5px solid ${colors.color}44` } : {}}>
           {isPW && pwDef ? (
@@ -307,9 +303,7 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
               {displayMsg}
             </p>
           </div>
-          {/* Sub-line for PayWave (body text after the \n) */}
           {subLine && <p className="ni__preview">{subLine}</p>}
-          {/* Comment preview for social */}
           {!subLine && notif.metadata?.comment_preview && (
             <p className="ni__preview">"{notif.metadata.comment_preview}"</p>
           )}
@@ -322,7 +316,6 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
               </button>
             )}
             {!notif.is_read && <span className="ni__new-pill">New</span>}
-            {/* PayWave type pill */}
             {isPW && pwDef?.label && (
               <span style={{
                 padding: "1px 6px", borderRadius: 12, fontSize: 9, fontWeight: 700,
@@ -344,7 +337,6 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
         </div>
       </div>
 
-      {/* No action buttons for PayWave — they're informational */}
       {!isPW && (
         <ActionButtons notif={notif} onNavigate={onNavigate} currentUserId={currentUserId} />
       )}
@@ -353,7 +345,7 @@ const NotifItem = memo(({ notif, onRead, onNavigate, currentUserId }) => {
 });
 NotifItem.displayName = "NotifItem";
 
-// ── Skeleton (v3, unchanged) ──────────────────────────────────────────────────
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 const Skeleton = memo(() => (
   <div className="ns__skeletons">
     {[0,1,2,3].map(i => (
@@ -392,7 +384,6 @@ const NotificationSidebar = ({ isOpen, onClose, userId, currentUser, onNavigate 
     onClose();
   }, [onNavigate, onClose]);
 
-  // ── Load ───────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) { badgeCleared.current = false; return; }
     if (!userId) return;
@@ -426,7 +417,6 @@ const NotificationSidebar = ({ isOpen, onClose, userId, currentUser, onNavigate 
     finally { setRetrying(false); }
   }, [userId]);
 
-  // ── Category filter + counts ───────────────────────────────
   const totalUnread = notifications.filter(n => !n.is_read).length;
 
   const catCounts = Object.fromEntries(
@@ -474,7 +464,7 @@ const NotificationSidebar = ({ isOpen, onClose, userId, currentUser, onNavigate 
             </div>
           </div>
 
-          {/* ── Category filter strip (NEW in v4) ── */}
+          {/* ── Category filter strip ── */}
           <div className="ns__cats">
             {CATEGORIES.map(cat => {
               const cnt = catCounts[cat.id] || 0;
@@ -548,11 +538,10 @@ const NotificationSidebar = ({ isOpen, onClose, userId, currentUser, onNavigate 
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const CSS = `
-  /* ── Overlay ── */
+  /* ── Overlay: fully transparent, click-through backdrop only ── */
   .ns-overlay {
     position:fixed; inset:0;
-    background:rgba(0,0,0,0.72);
-    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    background:transparent;
     z-index:10000; animation:nsFadeIn .2s ease;
   }
   @keyframes nsFadeIn { from{opacity:0} to{opacity:1} }
@@ -560,7 +549,7 @@ const CSS = `
   /* ── Panel ── */
   .ns {
     position:fixed; top:0; right:0;
-    width:390px; max-width:100vw; height:100vh;
+    width:36%; max-width:100vw; height:100vh;
     background:#0a0a0a;
     border-left:1px solid rgba(132,204,22,.15);
     display:flex; flex-direction:column;
@@ -615,7 +604,7 @@ const CSS = `
   }
   .ns__close-btn:hover { background:rgba(255,255,255,.09); color:#fff; }
 
-  /* ── Category filter strip (NEW v4) ── */
+  /* ── Category filter strip ── */
   .ns__cats {
     display:flex; gap:5px;
     padding:10px 12px;
@@ -677,7 +666,6 @@ const CSS = `
   .ni--unread      { background:rgba(132,204,22,.04); border-color:rgba(132,204,22,.14); }
   .ni--unread:hover{ background:rgba(132,204,22,.07); border-color:rgba(132,204,22,.24); }
 
-  /* PayWave items: subtle gradient tint */
   .ni--paywave.ni--unread {
     background:linear-gradient(135deg,rgba(163,230,53,.04),rgba(168,85,247,.02));
     border-color:rgba(163,230,53,.15);
