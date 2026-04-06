@@ -1,7 +1,5 @@
 // components/Community/CommunityView.jsx
-// Self-contained fixed-position view — layout handled entirely in CommunityView.css
-// No DOM mutations, no :has() bleed into parent layout.
-
+// FULL REWRITE: No entry loader, online presence, invite auto-redirect, image icons
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../services/config/supabase";
 import CommunitySidebar from "./tabs/CommunitySidebar";
@@ -19,7 +17,7 @@ const CommunityView = ({ userId, currentUser }) => {
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [myCommunities, setMyCommunities] = useState([]);
   const [allCommunities, setAllCommunities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // NO loading state — we render immediately with empty data, fill as it arrives
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCommunity, setInviteCommunity] = useState(null);
@@ -35,7 +33,7 @@ const CommunityView = ({ userId, currentUser }) => {
   const switchTimeoutRef    = useRef(null);
   const sidebarRef          = useRef(null);
 
-  // ── Detect mobile ──────────────────────────────────────────
+  // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768);
     check();
@@ -43,35 +41,19 @@ const CommunityView = ({ userId, currentUser }) => {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // ── Hide mobile bottom nav when community chat is open ─────
-  // Adds "community-chat-open" to document.body so global CSS
-  // can target .mbn (MobileBottomNav) and hide it cleanly.
+  // ── Hide mobile nav when in chat ──────────────────────────────────────────
   useEffect(() => {
-    const shouldHideNav = isMobile && view === "chat";
-    if (shouldHideNav) {
-      document.body.classList.add("community-chat-open");
-    } else {
-      document.body.classList.remove("community-chat-open");
-    }
-    // Clean up whenever CommunityView unmounts (e.g. tab switch)
-    return () => {
-      document.body.classList.remove("community-chat-open");
-    };
+    const shouldHide = isMobile && view === "chat";
+    document.body.classList.toggle("community-chat-open", shouldHide);
+    return () => document.body.classList.remove("community-chat-open");
   }, [isMobile, view]);
 
-  // ── Load full user profile ─────────────────────────────────
-  useEffect(() => {
-    loadFullUserProfile();
-  }, [userId]);
+  // ── User profile ──────────────────────────────────────────────────────────
+  useEffect(() => { loadFullUserProfile(); }, [userId]);
 
   const loadFullUserProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-      if (error) throw error;
+      const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
       setFullUserProfile({
         id: data.id,
         username: data.username,
@@ -85,37 +67,28 @@ const CommunityView = ({ userId, currentUser }) => {
         id: userId,
         username: currentUser?.username || "user",
         full_name: currentUser?.fullName || currentUser?.full_name || "User",
-        avatar_id: null,
-        avatar_metadata: null,
-        verified: false,
+        avatar_id: null, avatar_metadata: null, verified: false,
       });
     }
   };
 
-  // ── Load communities ───────────────────────────────────────
+  // ── Load communities (no loading gate) ───────────────────────────────────
   useEffect(() => {
     loadCommunities();
     checkPendingInvite();
+    return () => { if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current); };
   }, [userId]);
 
-  useEffect(() => {
-    return () => {
-      if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
-    };
-  }, []);
-
   const checkPendingInvite = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const inviteCode = urlParams.get("invite");
-    if (inviteCode) {
-      setPendingInvite(inviteCode);
+    const code = new URLSearchParams(window.location.search).get("invite");
+    if (code) {
+      setPendingInvite(code);
       window.history.replaceState({}, "", window.location.pathname);
     }
   };
 
   const loadCommunities = async () => {
     try {
-      setLoading(true);
       const [userComms, allComms] = await Promise.all([
         communityService.fetchUserCommunities(userId),
         communityService.fetchCommunities(userId),
@@ -124,12 +97,10 @@ const CommunityView = ({ userId, currentUser }) => {
       setAllCommunities(allComms);
     } catch (error) {
       console.error("Error loading communities:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // ── Community actions ──────────────────────────────────────
+  // ── Community actions ─────────────────────────────────────────────────────
   const handleSelectCommunity = async (community) => {
     if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
     if (currentCommunityRef.current !== community.id) {
@@ -143,21 +114,16 @@ const CommunityView = ({ userId, currentUser }) => {
     switchTimeoutRef.current = setTimeout(async () => {
       try {
         const fresh = await communityService.fetchCommunityDetails(community.id);
-        if (currentCommunityRef.current === fresh.id) setSelectedCommunity(fresh);
+        if (currentCommunityRef.current === fresh?.id) setSelectedCommunity(fresh);
       } catch {}
-    }, 100);
+    }, 80);
   };
 
   const handleCreateCommunity = async (communityData) => {
-    try {
-      const newCommunity = await communityService.createCommunity(communityData, userId);
-      await loadCommunities();
-      handleSelectCommunity(newCommunity);
-      setShowCreateCommunity(false);
-    } catch (error) {
-      console.error("Error creating community:", error);
-      throw error;
-    }
+    const newCommunity = await communityService.createCommunity(communityData, userId);
+    await loadCommunities();
+    handleSelectCommunity(newCommunity);
+    setShowCreateCommunity(false);
   };
 
   const handleJoinCommunity = async (communityId) => {
@@ -172,6 +138,7 @@ const CommunityView = ({ userId, currentUser }) => {
     }
   };
 
+  // Invite success: reload and navigate straight into community
   const handleInviteSuccess = async (communityId) => {
     try {
       await loadCommunities();
@@ -186,7 +153,6 @@ const CommunityView = ({ userId, currentUser }) => {
 
   const handleInviteError = (error) => {
     console.error("Invite error:", error);
-    alert(error.message || "Failed to join community");
     setPendingInvite(null);
   };
 
@@ -195,10 +161,8 @@ const CommunityView = ({ userId, currentUser }) => {
     try {
       await communityService.leaveCommunity(communityId, userId);
       if (selectedCommunity?.id === communityId) {
-        setSelectedCommunity(null);
-        setSelectedChannel(null);
-        setView("discover");
-        currentCommunityRef.current = null;
+        setSelectedCommunity(null); setSelectedChannel(null);
+        setView("discover"); currentCommunityRef.current = null;
       }
       await loadCommunities();
     } catch (error) {
@@ -207,14 +171,12 @@ const CommunityView = ({ userId, currentUser }) => {
   };
 
   const handleDeleteCommunity = async (communityId) => {
-    if (!window.confirm("Are you sure you want to delete this community? This action cannot be undone.")) return;
+    if (!window.confirm("Delete this community? This cannot be undone.")) return;
     try {
       await communityService.deleteCommunity(communityId, userId);
       if (selectedCommunity?.id === communityId) {
-        setSelectedCommunity(null);
-        setSelectedChannel(null);
-        setView("discover");
-        currentCommunityRef.current = null;
+        setSelectedCommunity(null); setSelectedChannel(null);
+        setView("discover"); currentCommunityRef.current = null;
       }
       await loadCommunities();
     } catch (error) {
@@ -226,7 +188,7 @@ const CommunityView = ({ userId, currentUser }) => {
     await loadCommunities();
     if (selectedCommunity) {
       const updated = await communityService.fetchCommunityDetails(selectedCommunity.id);
-      if (currentCommunityRef.current === updated.id) setSelectedCommunity(updated);
+      if (currentCommunityRef.current === updated?.id) setSelectedCommunity(updated);
     }
   };
 
@@ -235,41 +197,24 @@ const CommunityView = ({ userId, currentUser }) => {
     setShowInviteModal(true);
   };
 
-  const handleCloseInvite = () => {
-    setShowInviteModal(false);
-    setInviteCommunity(null);
-  };
-
-  const handleBackToDiscover = () => {
-    setSelectedCommunity(null);
-    setSelectedChannel(null);
-    setView("discover");
-    currentCommunityRef.current = null;
-  };
-
-  // ── Touch swipe for mobile sidebar ────────────────────────
+  // ── Touch swipe ───────────────────────────────────────────────────────────
   const handleTouchStart = (e) => {
     if (!isMobile || view !== "chat") return;
-    const touch = e.touches[0];
-    setTouchStart(touch.clientX);
-    setTouchCurrent(touch.clientX);
-    if (touch.clientX < 30 || sidebarOpen) setIsSwiping(true);
+    const tx = e.touches[0].clientX;
+    setTouchStart(tx); setTouchCurrent(tx);
+    if (tx < 30 || sidebarOpen) setIsSwiping(true);
   };
-
   const handleTouchMove = (e) => {
     if (!isSwiping || !isMobile) return;
     setTouchCurrent(e.touches[0].clientX);
   };
-
   const handleTouchEnd = () => {
     if (!isSwiping || !isMobile) return;
     const diff = touchCurrent - touchStart;
-    if (sidebarOpen && diff < -50)                           setSidebarOpen(false);
-    else if (!sidebarOpen && diff > 50 && touchStart < 30)  setSidebarOpen(true);
-    else if (!sidebarOpen && diff > 100)                     setSidebarOpen(true);
-    setIsSwiping(false);
-    setTouchStart(0);
-    setTouchCurrent(0);
+    if (sidebarOpen && diff < -50) setSidebarOpen(false);
+    else if (!sidebarOpen && diff > 50 && touchStart < 30) setSidebarOpen(true);
+    else if (!sidebarOpen && diff > 100) setSidebarOpen(true);
+    setIsSwiping(false); setTouchStart(0); setTouchCurrent(0);
   };
 
   const getSidebarTransform = () => {
@@ -282,18 +227,7 @@ const CommunityView = ({ userId, currentUser }) => {
     return undefined;
   };
 
-  // ── Loading state ──────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="community-view">
-        <div className="community-loading">
-          <div className="spinner" />
-          <p>Loading communities...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // ── Render — NO loading spinner or gate ───────────────────────────────────
   return (
     <div
       className="community-view"
@@ -301,20 +235,14 @@ const CommunityView = ({ userId, currentUser }) => {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Mobile overlay when sidebar is open */}
       {isMobile && view === "chat" && sidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Community sidebar — hidden on mobile via CSS, shown as slide-over */}
       <div
         ref={sidebarRef}
         className={`sidebar-container${isMobile && view === "chat" ? " mobile-sidebar" : ""}${sidebarOpen ? " open" : ""}`}
-        style={
-          isSwiping
-            ? { transform: getSidebarTransform(), transition: "none" }
-            : undefined
-        }
+        style={isSwiping ? { transform: getSidebarTransform(), transition: "none" } : undefined}
       >
         <CommunitySidebar
           myCommunities={myCommunities}
@@ -322,17 +250,14 @@ const CommunityView = ({ userId, currentUser }) => {
           onSelectCommunity={handleSelectCommunity}
           onCreateCommunity={() => setShowCreateCommunity(true)}
           onGoHome={() => {
-            setSelectedCommunity(null);
-            setSelectedChannel(null);
-            setView("discover");
-            currentCommunityRef.current = null;
+            setSelectedCommunity(null); setSelectedChannel(null);
+            setView("discover"); currentCommunityRef.current = null;
             setSidebarOpen(false);
           }}
           view={view}
         />
       </div>
 
-      {/* Main content */}
       <div className="community-content">
         {view === "discover" ? (
           <DiscoverTab
@@ -354,14 +279,16 @@ const CommunityView = ({ userId, currentUser }) => {
               onCommunityUpdate={handleCommunityUpdate}
               onOpenInvite={handleOpenInvite}
               onDeleteCommunity={() => handleDeleteCommunity(selectedCommunity.id)}
-              onBack={isMobile ? handleBackToDiscover : undefined}
+              onBack={isMobile ? () => {
+                setSelectedCommunity(null); setSelectedChannel(null);
+                setView("discover"); currentCommunityRef.current = null;
+              } : undefined}
               onToggleSidebar={isMobile ? () => setSidebarOpen(!sidebarOpen) : undefined}
             />
           )
         )}
       </div>
 
-      {/* Modals */}
       {showCreateCommunity && (
         <CreateCommunityModal
           onClose={() => setShowCreateCommunity(false)}
@@ -373,7 +300,7 @@ const CommunityView = ({ userId, currentUser }) => {
         <InviteModal
           community={inviteCommunity}
           userId={userId}
-          onClose={handleCloseInvite}
+          onClose={() => { setShowInviteModal(false); setInviteCommunity(null); }}
         />
       )}
 

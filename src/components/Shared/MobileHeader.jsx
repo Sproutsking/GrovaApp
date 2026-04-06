@@ -1,47 +1,46 @@
 // src/components/Header/MobileHeader.jsx
 // ============================================================================
-// BOOST EDITION — original preserved, additions:
-//   [B1] Greeting text color = tier color when boosted
-//   [B2] Boost tier/themeId passed to AvatarDropdown
-// FIXES:
-//   [F1] No excess bottom padding on header
-//   [F2] Message badge resets instantly on click, repopulates on new messages
-//   [F3] Notification badge resets instantly on click
-//   [F4] Accurate Facebook Messenger SVG icon (circular bubble + lightning bolt)
+// BRIGHT MODEL
+// [FIX-1]      activeTab prop consumed — tab bar only rendered on "home".
+// [FIX-2]      Unread count queries via conversations membership (no receiver_id).
+// [FIX-BADGE]  Badge colors redesigned to be vivid and high-contrast:
+//              • Messages badge  → vivid iOS-red (#ff3b30) with white text —
+//                matches the notification badge for visual consistency and
+//                maximum urgency signalling (matches screenshot design intent)
+//              • Notif badge     → vivid iOS-red (#ff3b30) with white text +
+//                outer shadow so it never blends into the dark header
+// [FIX-RT]     Real-time badge is now INSTANT and RELIABLE:
+//              • Membership map is pre-built at init and kept in sync so the
+//                realtime INSERT handler never needs an async DB round-trip.
+//              • No more race condition between the async membership check and
+//                the badge increment — if conversation_id is in our map, we
+//                increment immediately (optimistic UI identical to message send).
+//              • Full DB re-query still runs every 15 s as a safety net but
+//                is NOT on the hot path for the badge increment.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Bell,
-  HeadsetIcon,
-  Clock,
-  TrendingUp,
-} from "lucide-react";
+import { Bell, HeadsetIcon, Clock, TrendingUp } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import MobileTrendingModal from "./MobileTrendingModal";
 import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
+import { supabase } from "../../services/config/supabase";
 
-// [B1] Tier → greeting color
+// ── Boost colours ─────────────────────────────────────────────────────────────
 const TIER_GREETING_COLORS = {
-  silver: "#d4d4d4",
-  gold: "#fbbf24",
-  diamond: "#a78bfa",
+  silver: "#d4d4d4", gold: "#fbbf24", diamond: "#a78bfa",
 };
 const DIAMOND_THEME_COLORS = {
-  "diamond-cosmos": "#a78bfa",
-  "diamond-glacier": "#60a5fa",
-  "diamond-emerald": "#34d399",
-  "diamond-rose": "#f472b6",
-  "diamond-void": "#e5e5e5",
-  "diamond-inferno": "#ff6b35",
+  "diamond-cosmos": "#a78bfa", "diamond-glacier": "#60a5fa",
+  "diamond-emerald": "#34d399", "diamond-rose": "#f472b6",
+  "diamond-void": "#e5e5e5", "diamond-inferno": "#ff6b35",
   "diamond-aurora": "#22d3ee",
 };
 const getGreetingColor = (profile) => {
-  const tier =
-    profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
+  const tier    = profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
   const themeId = profile?.boost_selections?.themeId ?? null;
   if (!TIER_GREETING_COLORS[tier]) return null;
   if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
@@ -49,30 +48,84 @@ const getGreetingColor = (profile) => {
   return TIER_GREETING_COLORS[tier];
 };
 
-// [F4] Accurate Facebook Messenger icon
-// Circular speech bubble with pointed bottom-left tail + lightning bolt
+// ── Messenger icon ────────────────────────────────────────────────────────────
 const MessengerIcon = ({ size = 17, color = "#a3e635" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 17 17"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    {/* Circular bubble body with pointed bottom-left tail */}
-    <path
-      d="M8.5 0.5C3.806 0.5 0 4.045 0 8.401c0 2.494 1.161 4.723 2.984 6.218v3.6l2.794-1.534C6.562 16.826 7.512 17 8.5 17c4.694 0 8.5-3.545 8.5-7.599S13.194 0.5 8.5 0.5Z"
-      fill={color}
-    />
-    {/* Lightning bolt — exact Messenger zigzag */}
-    <path
-      d="M9 4.5L4.5 9.5h3.8L7.5 13L12 8h-3.8L9 4.5Z"
-      fill="#000"
-      opacity="0.55"
-    />
+  <svg width={size} height={size} viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8.5 0.5C3.806 0.5 0 4.045 0 8.401c0 2.494 1.161 4.723 2.984 6.218v3.6l2.794-1.534C6.562 16.826 7.512 17 8.5 17c4.694 0 8.5-3.545 8.5-7.599S13.194 0.5 8.5 0.5Z" fill={color}/>
+    <path d="M9 4.5L4.5 9.5h3.8L7.5 13L12 8h-3.8L9 4.5Z" fill="#000" opacity="0.55"/>
   </svg>
 );
 
+// ── Custom tab icons ──────────────────────────────────────────────────────────
+const PostsTabIcon = ({ active }) => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+    <rect x="0.75" y="0.75" width="5.5" height="5.5" rx="1.25"
+      fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.4"/>
+    <rect x="8.75" y="0.75" width="5.5" height="5.5" rx="1.25"
+      fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.4"/>
+    <rect x="0.75" y="8.75" width="5.5" height="5.5" rx="1.25"
+      fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.4"/>
+    <rect x="8.75" y="8.75" width="5.5" height="5.5" rx="1.25"
+      fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="1.5 1.5"/>
+  </svg>
+);
+
+const ReelsTabIcon = ({ active }) => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+    <circle cx="7.5" cy="7.5" r="6.5"
+      fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.4"/>
+    <path d="M6 5L10.5 7.5L6 10V5Z"
+      fill={active ? "rgba(0,0,0,0.72)" : "currentColor"}/>
+  </svg>
+);
+
+const StoriesTabIcon = ({ active }) => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+    <path d="M7.5 1L9.18 5.3H13.8L10.06 7.97L11.41 12.5L7.5 9.6L3.59 12.5L4.94 7.97L1.2 5.3H5.82L7.5 1Z"
+      fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+  </svg>
+);
+
+const HOME_TABS = [
+  { id: "posts",   Icon: PostsTabIcon,   label: "Posts"   },
+  { id: "reels",   Icon: ReelsTabIcon,   label: "Reels"   },
+  { id: "stories", Icon: StoriesTabIcon, label: "Stories" },
+];
+
+// ── Fetch unread count + build membership map in one query ────────────────────
+// Returns { count, convSet } where convSet is a Set of conversation_id strings
+// that this user is a member of. The convSet is used by the realtime handler
+// to instantly decide whether an incoming INSERT belongs to this user without
+// making another async DB call.
+const fetchUnreadData = async (userId) => {
+  try {
+    const { data: convs, error: convErr } = await supabase
+      .from("conversations")
+      .select("id")
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+    if (convErr || !convs?.length) return { count: 0, convSet: new Set() };
+
+    const convSet = new Set(convs.map((c) => c.id));
+    const convIds = Array.from(convSet);
+
+    const { count, error } = await supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .in("conversation_id", convIds)
+      .neq("sender_id", userId)
+      .eq("read", false);
+
+    return { count: error ? 0 : (count ?? 0), convSet };
+  } catch (_) {
+    return {
+      count: conversationState.getTotalUnreadCount() ?? 0,
+      convSet: new Set(),
+    };
+  }
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
 const MobileHeader = ({
   getGreeting,
   onNotificationClick,
@@ -82,25 +135,31 @@ const MobileHeader = ({
   userId,
   currentUser,
   onSignOut,
+  activeTab,
+  activeHomeTab,
+  setActiveHomeTab,
 }) => {
-  const [displayedText, setDisplayedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [greetingText, setGreetingText] = useState(
-    getGreeting?.() || "Good Morning",
-  );
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [badgeCount, setBadgeCount] = useState(() =>
-    notificationService.getHeaderBadgeCountSync(),
-  );
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [showTrendingModal, setShowTrendingModal] = useState(false);
-  const [showMessages, setShowMessages] = useState(false);
+  const [displayedText,     setDisplayedText]     = useState("");
+  const [isTyping,          setIsTyping]           = useState(false);
+  const [greetingText,      setGreetingText]       = useState(getGreeting?.() || "Good Morning");
+  const [imageLoaded,       setImageLoaded]        = useState(false);
+  const [imageError,        setImageError]         = useState(false);
+  const [badgeCount,        setBadgeCount]         = useState(() => notificationService.getHeaderBadgeCountSync());
+  const [unreadMessages,    setUnreadMessages]     = useState(0);
+  const [showTrendingModal, setShowTrendingModal]  = useState(false);
+  const [showMessages,      setShowMessages]       = useState(false);
 
-  const timerRef = useRef(null);
+  const timerRef        = useRef(null);
   const typeIntervalRef = useRef(null);
+  const showMessagesRef = useRef(showMessages);
+  // [FIX-RT] Membership map kept in a ref so the realtime handler always has
+  // the latest set without needing to be re-subscribed on every render.
+  const myConvSetRef    = useRef(new Set());
+  const pollRef         = useRef(null);
 
-  // ── Avatar ───────────────────────────────────────────────────────────────
+  useEffect(() => { showMessagesRef.current = showMessages; }, [showMessages]);
+
+  // ── Avatar ─────────────────────────────────────────────────────────────────
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
@@ -108,92 +167,141 @@ const MobileHeader = ({
       avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
   }
   const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
-  const isValidAvatar =
-    avatarUrl &&
-    typeof avatarUrl === "string" &&
-    !imageError &&
+  const isValidAvatar  =
+    avatarUrl && typeof avatarUrl === "string" && !imageError &&
     (avatarUrl.startsWith("http") || avatarUrl.startsWith("blob:"));
 
-  // [B2]
-  const tier =
-    profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
-  const themeId = profile?.boost_selections?.themeId ?? null;
+  const tier       = profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
+  const themeId    = profile?.boost_selections?.themeId ?? null;
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
-  const tierColor = getGreetingColor(profile);
+  const tierColor  = getGreetingColor(profile);
 
-  // ── Badge ────────────────────────────────────────────────────────────────
+  // ── Badge sync ─────────────────────────────────────────────────────────────
   const syncBadge = useCallback(() => {
     setBadgeCount(notificationService.getHeaderBadgeCountSync());
   }, []);
 
+  // [FIX-RT] refreshUnread fetches count AND rebuilds the membership map so
+  // subsequent realtime events can be decided synchronously.
+  const refreshUnread = useCallback(async () => {
+    if (showMessagesRef.current) return;
+    const { count, convSet } = await fetchUnreadData(userId);
+    myConvSetRef.current = convSet;
+    setUnreadMessages(count);
+  }, [userId]);
+
   useEffect(() => {
     if (!userId) return;
-    notificationService
-      .getHeaderBadgeCount(userId)
-      .then(setBadgeCount)
-      .catch(() => {});
+
+    // Initial counts — real DB query so count is accurate on first render
+    notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
+    refreshUnread();
+
     const unsubNotif = notificationService.subscribe(syncBadge);
-    const unsubConv = conversationState.subscribe(() => {
-      setUnreadMessages(conversationState.getTotalUnreadCount());
-    });
-    setUnreadMessages(conversationState.getTotalUnreadCount());
+    const unsubConv  = conversationState.subscribe(() => { refreshUnread(); });
+
+    // ── [FIX-RT] Realtime: new messages ──────────────────────────────────────
+    // The membership check is now SYNCHRONOUS using the pre-built convSet ref.
+    // No async DB round-trip on the hot path → badge increments instantly,
+    // just like the optimistic message send on the sender side.
+    const msgChannel = supabase
+      .channel(`mh-inbound-messages-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const row = payload.new ?? {};
+
+          // Skip our own sent messages and suppress while panel is open.
+          if (row.sender_id === userId || showMessagesRef.current) return;
+
+          // [FIX-RT] Synchronous membership check — no await, no race.
+          if (myConvSetRef.current.has(row.conversation_id)) {
+            setUnreadMessages((prev) => prev + 1);
+          } else {
+            // convSet may be stale if a brand-new conversation was just created.
+            // Fall back to a full refresh which also rebuilds the map.
+            refreshUnread();
+          }
+        }
+      )
+      .subscribe();
+
+    // Realtime: new notifications (correct column is recipient_user_id)
+    const notifChannel = supabase
+      .channel(`mh-inbound-notifs-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event:  "INSERT",
+          schema: "public",
+          table:  "notifications",
+          filter: `recipient_user_id=eq.${userId}`,
+        },
+        () => { setBadgeCount((prev) => prev + 1); }
+      )
+      .subscribe();
+
+    // Polling fallback every 15 s — keeps count accurate without being the
+    // primary mechanism. Also refreshes the membership map.
+    pollRef.current = setInterval(refreshUnread, 15_000);
+
     onlineStatusService.start(userId);
+
     return () => {
       unsubNotif();
       unsubConv();
+      supabase.removeChannel(msgChannel);
+      supabase.removeChannel(notifChannel);
+      clearInterval(pollRef.current);
     };
-  }, [userId, syncBadge]);
+  }, [userId, syncBadge, refreshUnread]);
 
-  // [F2] Open messages: zero badge instantly, subscription repopulates on new msgs
   const handleMessagesClick = useCallback(() => {
     if (currentUser?.id || userId) {
       setUnreadMessages(0);
+      conversationState.markAllRead?.();
       setShowMessages(true);
     }
   }, [currentUser?.id, userId]);
 
-  // [F3] Notification click: zero badge instantly, then fire parent handler
   const handleNotificationClick = useCallback(() => {
     setBadgeCount(0);
     onNotificationClick?.();
   }, [onNotificationClick]);
 
-  // ── Typing animation ──────────────────────────────────────────────────────
+  // Reset unread to 0 while panel is open, refresh when it closes
+  useEffect(() => {
+    if (showMessages) {
+      setUnreadMessages(0);
+    } else {
+      refreshUnread();
+    }
+  }, [showMessages, refreshUnread]);
+
+  // ── Typing animation ───────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-
     const typeText = (text, cb) => {
-      setIsTyping(true);
-      let i = 0;
+      setIsTyping(true); let i = 0;
       const tick = () => {
         if (cancelled) return;
-        setDisplayedText(text.slice(0, i));
-        i++;
+        setDisplayedText(text.slice(0, i)); i++;
         if (i <= text.length) typeIntervalRef.current = setTimeout(tick, 80);
-        else {
-          setIsTyping(false);
-          cb?.();
-        }
+        else { setIsTyping(false); cb?.(); }
       };
       tick();
     };
-
     const unTypeText = (text, cb) => {
-      setIsTyping(true);
-      let i = text.length;
+      setIsTyping(true); let i = text.length;
       const tick = () => {
         if (cancelled) return;
-        setDisplayedText(text.slice(0, i));
-        i--;
+        setDisplayedText(text.slice(0, i)); i--;
         if (i >= 0) typeIntervalRef.current = setTimeout(tick, 45);
-        else {
-          setIsTyping(false);
-          cb?.();
-        }
+        else { setIsTyping(false); cb?.(); }
       };
       tick();
     };
-
     const cycle = () => {
       typeText(greetingText, () => {
         timerRef.current = setTimeout(() => {
@@ -203,14 +311,11 @@ const MobileHeader = ({
         }, 240_000);
       });
     };
-
     const greetingInterval = setInterval(() => {
       const ng = getGreeting?.();
       if (ng && ng !== greetingText) setGreetingText(ng);
     }, 60_000);
-
     const startDelay = setTimeout(cycle, 500);
-
     return () => {
       cancelled = true;
       clearTimeout(startDelay);
@@ -220,41 +325,26 @@ const MobileHeader = ({
     };
   }, [greetingText, getGreeting]);
 
+  const isOnHome = activeTab === "home";
+
   return (
     <>
-      <style>
-        {mobileHeaderStyles(isTyping, displayedText, tierColor, hasBoosted)}
-      </style>
+      <style>{mobileHeaderStyles(isTyping, displayedText, tierColor, hasBoosted, isOnHome)}</style>
 
-      {/* [F1] Explicit zero margin/padding — no browser default spacing */}
       <header className="mh-header">
         <div className="mh-content">
           <div className="mh-left">
-            {/* [B2] Pass boost props */}
             <AvatarDropdown
-              profile={profile}
-              userId={userId}
-              avatarUrl={avatarUrl}
-              fallbackLetter={fallbackLetter}
-              isValidAvatar={isValidAvatar}
-              imageLoaded={imageLoaded}
-              imageError={imageError}
-              onImageLoad={() => {
-                setImageLoaded(true);
-                setImageError(false);
-              }}
-              onImageError={() => {
-                setImageLoaded(false);
-                setImageError(true);
-              }}
+              profile={profile} userId={userId}
+              avatarUrl={avatarUrl} fallbackLetter={fallbackLetter}
+              isValidAvatar={isValidAvatar} imageLoaded={imageLoaded} imageError={imageError}
+              onImageLoad={() => { setImageLoaded(true);  setImageError(false); }}
+              onImageError={() => { setImageLoaded(false); setImageError(true); }}
               onOpenAccount={() => setActiveTab("account")}
-              onSignOut={onSignOut}
-              isMobile={true}
-              boostTier={hasBoosted ? tier : null}
+              onSignOut={onSignOut} isMobile={true}
+              boostTier={hasBoosted ? tier    : null}
               boostThemeId={hasBoosted ? themeId : null}
             />
-
-            {/* [B1] Greeting box */}
             <div className="mh-greeting-box">
               <Clock size={13} className="mh-greeting-icon" />
               <span className="mh-greeting-text">{displayedText}</span>
@@ -262,51 +352,52 @@ const MobileHeader = ({
           </div>
 
           <div className="mh-actions">
-            <button
-              className="mh-btn trending"
-              onClick={() => setShowTrendingModal(true)}
-              aria-label="Trending"
-            >
+            <button className="mh-btn trending" onClick={() => setShowTrendingModal(true)} aria-label="Trending">
               <TrendingUp size={17} />
             </button>
 
-            {/* [F2] + [F4] Instant badge reset + Messenger SVG icon */}
-            <button
-              className="mh-btn messages"
-              onClick={handleMessagesClick}
-              aria-label="Messages"
-            >
+            <button className="mh-btn messages" onClick={handleMessagesClick} aria-label="Messages">
               <MessengerIcon size={17} color="#a3e635" />
               {unreadMessages > 0 && (
-                <span className="mh-badge">
+                <span className="mh-badge mh-badge--msg">
                   {unreadMessages > 99 ? "99+" : unreadMessages}
                 </span>
               )}
             </button>
 
-            {/* [F3] Instant badge reset */}
-            <button
-              className="mh-btn notification"
-              onClick={handleNotificationClick}
-              aria-label="Notifications"
-            >
+            <button className="mh-btn notification" onClick={handleNotificationClick} aria-label="Notifications">
               <Bell size={17} />
               {badgeCount > 0 && (
-                <span className="mh-badge">
+                <span className="mh-badge mh-badge--notif">
                   {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
               )}
             </button>
 
-            <button
-              className="mh-btn support"
-              onClick={onSupportClick}
-              aria-label="Support"
-            >
+            <button className="mh-btn support" onClick={onSupportClick} aria-label="Support">
               <HeadsetIcon size={17} />
             </button>
           </div>
         </div>
+
+        {isOnHome && (
+          <nav className="mh-tab-bar" aria-label="Feed tabs">
+            {HOME_TABS.map(({ id, Icon, label }) => {
+              const active = activeHomeTab === id;
+              return (
+                <button
+                  key={id}
+                  className={`mh-tab${active ? " mh-tab--active" : ""}`}
+                  onClick={() => setActiveHomeTab?.(id)}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon active={active} />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
       </header>
 
       <MobileTrendingModal
@@ -318,13 +409,13 @@ const MobileHeader = ({
       {showMessages && (
         <DMMessagesView
           currentUser={{
-            id: userId || currentUser?.id,
-            name: currentUser?.name || currentUser?.fullName || "User",
-            fullName: currentUser?.fullName || currentUser?.name || "User",
-            username: currentUser?.username || profile?.username || "user",
-            avatar: avatarUrl || currentUser?.avatar,
-            avatarId: profile?.id || currentUser?.avatarId,
-            verified: currentUser?.verified || profile?.verified || false,
+            id:       userId || currentUser?.id,
+            name:     currentUser?.name     || currentUser?.fullName || "User",
+            fullName: currentUser?.fullName || currentUser?.name     || "User",
+            username: currentUser?.username || profile?.username     || "user",
+            avatar:   avatarUrl             || currentUser?.avatar,
+            avatarId: profile?.id           || currentUser?.avatarId,
+            verified: currentUser?.verified || profile?.verified     || false,
           }}
           onClose={() => setShowMessages(false)}
         />
@@ -333,41 +424,34 @@ const MobileHeader = ({
   );
 };
 
-const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted) => {
-  const textStyle =
-    hasBoosted && tierColor
-      ? `color: ${tierColor}; text-shadow: 0 0 10px ${tierColor}60;`
-      : `background: linear-gradient(135deg,#84cc16 0%,#65a30d 100%);
+const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOnHome) => {
+  const textStyle = hasBoosted && tierColor
+    ? `color: ${tierColor}; text-shadow: 0 0 10px ${tierColor}55;`
+    : `background: linear-gradient(135deg,#84cc16 0%,#65a30d 100%);
        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
        background-clip: text;`;
-
   const cursorColor = hasBoosted && tierColor ? tierColor : "#84cc16";
-  const iconColor = hasBoosted && tierColor ? tierColor : "#84cc16";
-  const boxBorder =
-    hasBoosted && tierColor ? `${tierColor}25` : "rgba(132,204,22,0.12)";
-  const boxBg =
-    hasBoosted && tierColor ? `${tierColor}08` : "rgba(255,255,255,0.02)";
+  const iconColor   = hasBoosted && tierColor ? tierColor : "#84cc16";
+  const boxBorder   = hasBoosted && tierColor ? `${tierColor}22` : "rgba(255,255,255,0.07)";
+  const boxBg       = hasBoosted && tierColor ? `${tierColor}07` : "rgba(255,255,255,0.02)";
 
   return `
     .mh-header {
       position: sticky; top: 0; z-index: 100;
       background: #000;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
       margin: 0; padding: 0;
     }
     .mh-content {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 6px 12px 6px 12px;
-      gap: 8px;
-      margin: 0;
+      padding: 6px 12px; gap: 8px; margin: 0;
     }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
     .mh-greeting-box {
       display: flex; align-items: center; gap: 5px;
-      min-width: 0; min-height: 22px;
-      padding: 2px 8px;
-      background: ${boxBg};
-      border: 1px solid ${boxBorder};
+      min-width: 0; min-height: 22px; padding: 2px 8px;
+      background: ${boxBg}; border: 1px solid ${boxBorder};
       border-radius: 7px; overflow: hidden;
       transition: background 0.4s, border-color 0.4s;
     }
@@ -397,30 +481,82 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted) => {
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; transition: all 0.18s;
       border: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.03); color: #666;
+      background: rgba(255,255,255,0.02); color: #6b7280;
     }
     .mh-btn.trending     { border-color: rgba(132,204,22,0.2);  background: rgba(132,204,22,0.04);  color: #84cc16; }
-    .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.04); }
-    .mh-btn.notification { border-color: rgba(132,204,22,0.15); color: #84cc16; }
-    .mh-btn.support      { color: #60a5fa; border-color: rgba(96,165,250,0.15); }
+    .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.03); }
+    .mh-btn.notification { border-color: rgba(132,204,22,0.14); color: #84cc16; }
+    .mh-btn.support      { color: #60a5fa; border-color: rgba(96,165,250,0.14); }
     .mh-btn:active       { transform: scale(0.9); }
 
+    /* ── Badges ────────────────────────────────────────────────────────────
+       Both badges use the same vivid iOS-red (#ff3b30) for maximum urgency
+       and visual consistency — this matches the design intent in the
+       screenshot where red pops clearly against the dark header.
+       A thick #000 border + outer shadow ensure they always read clearly
+       against any background or icon colour.
+    ── */
     .mh-badge {
-      position: absolute; top: -5px; right: -5px;
-      min-width: 16px; height: 16px; padding: 0 4px;
-      border-radius: 8px;
-      background: #ef4444; color: #fff;
-      font-size: 9px; font-weight: 700;
+      position: absolute; top: -7px; right: -7px;
+      min-width: 17px; height: 17px; padding: 0 4px;
+      border-radius: 9px; font-size: 9.5px; font-weight: 900;
       display: flex; align-items: center; justify-content: center;
-      border: 2px solid #000;
-      animation: mhBadgePulse 2.5s ease-in-out infinite;
+      border: 2.5px solid #000;
+      line-height: 1; z-index: 2; letter-spacing: -0.2px;
+      animation: mhBadgePop 0.35s cubic-bezier(.34,1.56,.64,1),
+                 mhBadgePulse 2.5s ease-in-out 0.35s infinite;
     }
-    @keyframes mhBadgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.14)} }
+
+    /* Messages badge — vivid iOS-red with white text.
+       Identical visual treatment to the notification badge so both
+       carry the same urgency weight. */
+    .mh-badge--msg {
+      background: #ff3b30;
+      color: #ffffff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6);
+    }
+
+    /* Notifications — same vivid iOS red, white text */
+    .mh-badge--notif {
+      background: #ff3b30;
+      color: #ffffff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6);
+    }
+
+    @keyframes mhBadgePop   { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+    @keyframes mhBadgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+    .mh-tab-bar {
+      display: flex;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: #000;
+    }
+    .mh-tab {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      height: 38px;
+      background: transparent; border: none;
+      color: rgba(255,255,255,0.35);
+      font-size: 12.5px; font-weight: 700;
+      cursor: pointer;
+      transition: color 0.18s ease, background 0.18s ease;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px; font-family: inherit;
+    }
+    .mh-tab:hover { color: rgba(255,255,255,0.7); }
+    .mh-tab--active {
+      color: #84cc16;
+      border-bottom-color: #84cc16;
+      background: rgba(132,204,22,0.04);
+    }
+
+    @media (min-width: 769px) { .mh-header { display: none; } }
 
     @media (max-width: 360px) {
       .mh-greeting-text { font-size: 9px; }
       .mh-content { padding: 6px 10px; }
       .mh-btn { width: 30px; height: 30px; }
+      .mh-tab { font-size: 11.5px; }
     }
   `;
 };

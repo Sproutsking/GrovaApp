@@ -9,18 +9,14 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    background: #030303;
-    border-left: 1px solid rgba(255,255,255,0.05);
-    border-right: 1px solid rgba(255,255,255,0.05);
+    /* FIX: was #030303 — pure black, lost in page bg. Lifted to a true surface. */
+    background: #0f0f0f;
+    /* FIX: was rgba(255,255,255,0.05) — invisible. Now 0.1 on each side. */
+    border-left: 1px solid rgba(255,255,255,0.1);
+    border-right: 1px solid rgba(255,255,255,0.1);
     display: flex;
     flex-direction: column;
     position: fixed;
-    /* ── Z-INDEX RULE ────────────────────────────────────────────────────────
-       Keep this at 50 — same as the normal Sidebar. The sidebar is part of
-       the page layout, NOT a modal. Any modal or overlay (StreamerDetailModal
-       portal at z-index:10050, StreamView at 10001, NotificationSidebar at
-       9999) must always render above it. NEVER raise this above 100 or you
-       will break every modal in the app. */
     z-index: 50;
     font-family: 'Syne', sans-serif;
     left: 4%;
@@ -35,7 +31,8 @@ const STYLES = `
 
   .xv-logo {
     padding: 18px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    /* FIX: was rgba(255,255,255,0.05) — invisible separator. Now 0.1. */
+    border-bottom: 1px solid rgba(255,255,255,0.1);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -58,7 +55,8 @@ const STYLES = `
   .xv-logo-name {
     font-size: 16px;
     font-weight: 800;
-    color: #f4f4f5;
+    /* FIX: was #f4f4f5 — this was fine, keeping it */
+    color: #f0f0f0;
     letter-spacing: 0.5px;
     line-height: 1.1;
   }
@@ -70,6 +68,7 @@ const STYLES = `
     font-weight: 700;
     margin-top: 2px;
     font-family: 'DM Mono', monospace;
+    /* color is set inline via role.color — already vivid */
   }
 
   .xv-nav {
@@ -86,7 +85,8 @@ const STYLES = `
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #3f3f46;
+    /* FIX: was #3f3f46 — invisible on dark bg. Now #6b7280, actually readable. */
+    color: #6b7280;
     padding: 0 10px 8px;
     font-family: 'DM Mono', monospace;
   }
@@ -102,7 +102,8 @@ const STYLES = `
     border-radius: 10px;
     background: transparent;
     border: 1px solid transparent;
-    color: #71717a;
+    /* FIX: was #71717a — too dark on #0f0f0f. Now #9ca3af, readable. */
+    color: #9ca3af;
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
@@ -113,7 +114,12 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
   }
 
-  .xv-nav-btn:hover { background: rgba(255,255,255,0.04); color: #d4d4d8; }
+  .xv-nav-btn:hover {
+    /* FIX: was rgba(255,255,255,0.04) — invisible. Now 0.08. */
+    background: rgba(255,255,255,0.08);
+    /* FIX: was #d4d4d8 — fine but bumped to pure white for sharp contrast */
+    color: #f0f0f0;
+  }
 
   .xv-nav-btn--active { font-weight: 700; }
 
@@ -125,6 +131,7 @@ const STYLES = `
     width: 3px;
     height: 60%;
     border-radius: 0 3px 3px 0;
+    /* background & boxShadow set inline via role.color */
   }
 
   .xv-nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
@@ -137,8 +144,10 @@ const STYLES = `
     padding: 11px 12px;
     border-radius: 10px;
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.06);
-    color: #71717a;
+    /* FIX: was rgba(255,255,255,0.06) — barely visible. Now 0.12. */
+    border: 1px solid rgba(255,255,255,0.12);
+    /* FIX: was #71717a — now #9ca3af */
+    color: #9ca3af;
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
@@ -148,7 +157,11 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
   }
 
-  .xv-menu-btn:hover { background: rgba(255,255,255,0.04); color: #d4d4d8; border-color: rgba(255,255,255,0.1); }
+  .xv-menu-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #f0f0f0;
+    border-color: rgba(255,255,255,0.22);
+  }
 
   .xv-admin-btn {
     width: 100%;
@@ -163,15 +176,17 @@ const STYLES = `
     transition: background 0.15s, box-shadow 0.15s;
     text-align: left;
     font-family: 'Syne', sans-serif;
+    /* background, border, color, boxShadow all set inline via role.color */
   }
 
-  .xv-admin-btn:hover { filter: brightness(1.08); }
+  .xv-admin-btn:hover { filter: brightness(1.1); }
   .xv-admin-btn-label { flex: 1; }
-  .xv-chevron { width: 14px; height: 14px; opacity: 0.6; }
+  .xv-chevron { width: 14px; height: 14px; opacity: 0.7; }
 
   .xv-footer {
     padding: 12px 12px 18px;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    /* FIX: was rgba(255,255,255,0.05) — invisible. Now 0.1. */
+    border-top: 1px solid rgba(255,255,255,0.1);
     flex-shrink: 0;
   }
 
@@ -180,9 +195,11 @@ const STYLES = `
     align-items: center;
     gap: 11px;
     padding: 12px;
-    background: rgba(255,255,255,0.03);
+    /* FIX: was rgba(255,255,255,0.03) — invisible card surface. Now 0.07. */
+    background: rgba(255,255,255,0.07);
     border-radius: 12px;
     margin-bottom: 10px;
+    /* border set inline via role.color */
   }
 
   .xv-avatar {
@@ -195,12 +212,14 @@ const STYLES = `
     font-size: 14px;
     font-weight: 800;
     flex-shrink: 0;
+    /* bg, border, color, boxShadow all set inline via role.color */
   }
 
   .xv-profile-name {
     font-size: 13px;
     font-weight: 700;
-    color: #e4e4e7;
+    /* FIX: was #e4e4e7 — fine, keeping essentially the same */
+    color: #f0f0f0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -213,6 +232,7 @@ const STYLES = `
     letter-spacing: 0.04em;
     margin-top: 3px;
     font-family: 'DM Mono', monospace;
+    /* color set inline via role.color */
   }
 
   .xv-signout-btn {
@@ -223,9 +243,11 @@ const STYLES = `
     gap: 8px;
     padding: 10px;
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.07);
+    /* FIX: was rgba(255,255,255,0.07) — invisible. Now 0.12. */
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 10px;
-    color: #52525b;
+    /* FIX: was #52525b — nearly invisible. Now #888, readable. */
+    color: #888;
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
@@ -233,13 +255,18 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
   }
 
-  .xv-signout-btn:hover { background: rgba(239,68,68,0.10); color: #f87171; border-color: rgba(239,68,68,0.25); }
+  .xv-signout-btn:hover {
+    background: rgba(239,68,68,0.12);
+    color: #f87171;
+    border-color: rgba(239,68,68,0.35);
+  }
 
   .xv-credits {
     text-align: center;
     margin-top: 12px;
     font-size: 9.5px;
-    color: #27272a;
+    /* FIX: was #27272a — invisible. Now #4b5563, faint but present. */
+    color: #4b5563;
     letter-spacing: 0.06em;
     font-style: italic;
     font-family: 'DM Mono', monospace;
@@ -338,8 +365,8 @@ export default function AdminSidebar({
   function navBtnStyle(id) {
     const isActive = activeTab === id;
     return {
-      background: isActive ? `${role.color}12` : undefined,
-      border:     isActive ? `1px solid ${role.color}28` : undefined,
+      background: isActive ? `${role.color}18` : undefined,
+      border:     isActive ? `1px solid ${role.color}38` : undefined,
       color:      isActive ? role.color : undefined,
     };
   }
@@ -384,7 +411,12 @@ export default function AdminSidebar({
           <div className="xv-section-label xv-section-label--spaced">Administration</div>
 
           <button className="xv-admin-btn"
-            style={{ background: hovered === "dashboard" ? `${role.color}18` : `${role.color}0e`, border: `1px solid ${role.color}30`, color: role.color, boxShadow: hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none" }}
+            style={{
+              background:  hovered === "dashboard" ? `${role.color}20` : `${role.color}12`,
+              border:      `1px solid ${role.color}38`,
+              color:       role.color,
+              boxShadow:   hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none",
+            }}
             onClick={onOpenDashboard}
             onMouseEnter={() => setHovered("dashboard")} onMouseLeave={() => setHovered(null)}>
             <ShieldIcon />
@@ -394,8 +426,8 @@ export default function AdminSidebar({
         </nav>
 
         <div className="xv-footer">
-          <div className="xv-profile-card" style={{ border: `1px solid ${role.color}20` }}>
-            <div className="xv-avatar" style={{ background: `${role.color}18`, border: `1.5px solid ${role.color}40`, color: role.color, boxShadow: `0 2px 12px ${role.glow}` }}>
+          <div className="xv-profile-card" style={{ border: `1px solid ${role.color}28` }}>
+            <div className="xv-avatar" style={{ background: `${role.color}20`, border: `1.5px solid ${role.color}50`, color: role.color, boxShadow: `0 2px 12px ${role.glow}` }}>
               {initials}
             </div>
             <div style={{ flex:1, minWidth:0 }}>

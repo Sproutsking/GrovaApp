@@ -37,10 +37,10 @@ const fmt = (n) => {
 };
 
 const rankStyle = (rank) => {
-  if (rank === 1) return { bg: "linear-gradient(135deg,#fbbf24,#f59e0b)", color: "#000", shadow: "rgba(251,191,36,.35)" };
-  if (rank === 2) return { bg: "linear-gradient(135deg,#e2e8f0,#94a3b8)", color: "#000", shadow: "rgba(148,163,184,.3)" };
-  if (rank === 3) return { bg: "linear-gradient(135deg,#cd7c3a,#a16027)", color: "#fff", shadow: "rgba(205,124,58,.3)" };
-  return { bg: "rgba(239,68,68,.12)", color: "#ef4444", shadow: "transparent" };
+  if (rank === 1) return { bg: "linear-gradient(135deg,#fbbf24,#f59e0b)", color: "#000", shadow: "rgba(251,191,36,.4)" };
+  if (rank === 2) return { bg: "linear-gradient(135deg,#e2e8f0,#94a3b8)", color: "#000", shadow: "rgba(148,163,184,.35)" };
+  if (rank === 3) return { bg: "linear-gradient(135deg,#cd7c3a,#a16027)", color: "#fff", shadow: "rgba(205,124,58,.35)" };
+  return { bg: "rgba(239,68,68,.18)", color: "#ef4444", shadow: "transparent" };
 };
 
 // ── Live sessions fetcher (currently live only) ───────────────────────────────
@@ -62,19 +62,10 @@ const fetchLiveSessions = async () => {
 
 // ── Top streamers fetcher ─────────────────────────────────────────────────────
 const fetchTopStreamers = async () => {
-  // ── USE RPC to bypass Row Level Security ───────────────────────────────────
-  // live_sessions has RLS: users can only SELECT their own rows.
-  // Querying directly means each user only sees themselves in the leaderboard.
-  // The get_top_streamers() function runs with SECURITY DEFINER, bypassing RLS
-  // to produce a true cross-user ranking. See get_top_streamers.sql to deploy it.
   let ranked = [];
-
   try {
-    const { data: rpcData, error: rpcError } = await supabase
-      .rpc("get_top_streamers");
-
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_top_streamers");
     if (!rpcError && rpcData && rpcData.length > 0) {
-      // RPC succeeded — use the full cross-user leaderboard
       ranked = rpcData.map((row, i) => ({
         userId:      row.user_id,
         peakViewers: row.peak_viewers  || 0,
@@ -83,20 +74,16 @@ const fetchTopStreamers = async () => {
         score:       row.score         || 0,
       }));
     } else {
-      // RPC not deployed yet — fall back to direct query (shows own data only)
-      // This is the degraded mode until the SQL function is deployed.
       const { data, error } = await supabase
         .from("live_sessions")
         .select("user_id, peak_viewers, total_likes")
         .not("user_id", "is", null)
         .order("peak_viewers", { ascending: false })
         .limit(1000);
-
       if (error) {
         if (error.code === "42P01" || error.message?.includes("does not exist")) return [];
         throw error;
       }
-
       const map = {};
       (data || []).forEach((s) => {
         const uid = s.user_id;
@@ -105,7 +92,6 @@ const fetchTopStreamers = async () => {
         map[uid].totalLikes  += s.total_likes  || 0;
         map[uid].sessions    += 1;
       });
-
       ranked = Object.entries(map)
         .map(([uid, d]) => ({
           userId:      uid,
@@ -117,29 +103,20 @@ const fetchTopStreamers = async () => {
         .sort((a, b) => b.score - a.score)
         .slice(0, 30);
     }
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 
   if (ranked.length === 0) return [];
-
-  // Fetch profiles for all ranked user IDs
   const ids = ranked.map((r) => r.userId);
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, full_name, username, avatar_id, verified")
     .in("id", ids);
-
   const pm = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
-
   return ranked
     .map((item, i) => ({
       ...item,
       rank:    i + 1,
-      profile: pm[item.userId] || {
-        id: item.userId, full_name: null, username: null,
-        avatar_id: null, verified: false,
-      },
+      profile: pm[item.userId] || { id: item.userId, full_name: null, username: null, avatar_id: null, verified: false },
     }))
     .filter((item) => pm[item.userId] || item.sessions > 0);
 };
@@ -148,7 +125,7 @@ const fetchTopStreamers = async () => {
 const SlidingPanel = ({
   isMobile, onClose, title, subtitle,
   icon: Icon, iconColor = "#84cc16",
-  iconBg = "rgba(132,204,22,.1)", iconBorder = "rgba(132,204,22,.2)",
+  iconBg = "rgba(132,204,22,.12)", iconBorder = "rgba(132,204,22,.25)",
   children,
 }) => {
   const top = isMobile ? MOBILE_HEADER_H : DESKTOP_HEADER_H;
@@ -219,14 +196,14 @@ const MobileHeader = ({ onClose }) => (
 
 // ── Compact streamer row ──────────────────────────────────────────────────────
 const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg,#84cc16,#4d7c0f)",   // green
-  "linear-gradient(135deg,#60a5fa,#1d4ed8)",   // blue
-  "linear-gradient(135deg,#a78bfa,#6d28d9)",   // purple
-  "linear-gradient(135deg,#f59e0b,#b45309)",   // amber
-  "linear-gradient(135deg,#f472b6,#be185d)",   // pink
-  "linear-gradient(135deg,#34d399,#065f46)",   // emerald
-  "linear-gradient(135deg,#fb923c,#c2410c)",   // orange
-  "linear-gradient(135deg,#38bdf8,#0369a1)",   // sky
+  "linear-gradient(135deg,#84cc16,#4d7c0f)",
+  "linear-gradient(135deg,#60a5fa,#1d4ed8)",
+  "linear-gradient(135deg,#a78bfa,#6d28d9)",
+  "linear-gradient(135deg,#f59e0b,#b45309)",
+  "linear-gradient(135deg,#f472b6,#be185d)",
+  "linear-gradient(135deg,#34d399,#065f46)",
+  "linear-gradient(135deg,#fb923c,#c2410c)",
+  "linear-gradient(135deg,#38bdf8,#0369a1)",
 ];
 const avatarGradient = (seed = "") => {
   let h = 0;
@@ -530,14 +507,18 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {isMobile && <MobileHeader onClose={onClose} />}
       {!isMobile && (
         <div style={{
-          position: "sticky", top: 0, zIndex: 5, background: "#080808",
-          padding: "10px 12px", borderBottom: "1px solid rgba(132,204,22,0.08)",
+          position: "sticky", top: 0, zIndex: 5,
+          /* FIX: was #080808 — same as page bg. Now #111 for visible surface. */
+          background: "#111",
+          padding: "10px 12px",
+          /* FIX: was rgba(132,204,22,0.08) — invisible. Now 0.18. */
+          borderBottom: "1px solid rgba(132,204,22,0.18)",
           display: "flex", alignItems: "center", gap: 8,
         }}>
-          <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.1)", border: "1px solid rgba(132,204,22,.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.15)", border: "1px solid rgba(132,204,22,.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <TrendingUp size={13} color="#84cc16" />
           </div>
-          <span style={{ fontSize: 12, fontWeight: 800, color: "#d4d4d4", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "#e0e0e0", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
         </div>
       )}
       <div style={{ padding: "12px" }}>
@@ -555,177 +536,257 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         /* ── DESKTOP STICKY RIGHT COLUMN ── */
         .trending-sidebar::-webkit-scrollbar       { width:3px; }
         .trending-sidebar::-webkit-scrollbar-track { background:transparent; }
-        .trending-sidebar::-webkit-scrollbar-thumb { background:rgba(132,204,22,.18); border-radius:2px; }
-        /* No padding on .trending-sidebar container — padding lives on .ts-inner-content */
+        /* FIX: was rgba(132,204,22,.18) — barely visible. Now .35. */
+        .trending-sidebar::-webkit-scrollbar-thumb { background:rgba(132,204,22,.35); border-radius:2px; }
         @media(max-width:1100px){ .trending-sidebar { width:256px; min-width:256px; } }
         @media(max-width:768px) { .trending-sidebar:not(.trending-mobile-fullscreen){ display:none !important; } }
-        .trending-mobile-fullscreen { position:fixed !important; inset:0 !important; z-index:10000 !important; background:#000 !important; overflow-y:auto !important; animation:slideUp .28s cubic-bezier(.34,1.1,.64,1); }
-        /* Mobile fullscreen: MobileHeader is full-width, content inside gets padding via ts-inner-content */
+        .trending-mobile-fullscreen { position:fixed !important; inset:0 !important; z-index:10000 !important; background:#0d0d0d !important; overflow-y:auto !important; animation:slideUp .28s cubic-bezier(.34,1.1,.64,1); }
         @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-        .mob-hdr { position:sticky; top:0; z-index:10; background:#000; border-bottom:1px solid rgba(132,204,22,.15); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
-        .mob-hdr-title { display:flex; align-items:center; gap:10px; font-size:16px; font-weight:800; color:#fff; }
-        .mob-hdr-title svg { color:#84cc16; }
-        .mob-close { width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
 
+        /* ── MOBILE HEADER ── */
+        .mob-hdr {
+          position:sticky; top:0; z-index:10;
+          /* FIX: was #000 — same as bg. Now #111. */
+          background:#111;
+          /* FIX: was rgba(132,204,22,.15) — invisible. Now .28. */
+          border-bottom:1px solid rgba(132,204,22,.28);
+          padding:12px 16px; display:flex; align-items:center; justify-content:space-between;
+        }
+        .mob-hdr-title { display:flex; align-items:center; gap:10px; font-size:16px; font-weight:800; color:#f0f0f0; }
+        .mob-hdr-title svg { color:#84cc16; }
+        .mob-close {
+          width:34px; height:34px; border-radius:50%;
+          /* FIX: was rgba(255,255,255,.05) — invisible. Now .1. */
+          background:rgba(255,255,255,.1);
+          border:1px solid rgba(255,255,255,.15);
+          color:#c0c0c0; display:flex; align-items:center; justify-content:center; cursor:pointer;
+        }
+
+        /* ── SECTIONS ── */
         .ts-section { margin-bottom:22px; }
         .ts-section:last-child { margin-bottom:0; }
-        .ts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid rgba(255,255,255,.06); position:relative; }
+        .ts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid rgba(255,255,255,.1); position:relative; }
         .ts-header::before { content:""; position:absolute; left:0; bottom:-1px; width:28px; height:2px; background:linear-gradient(90deg,var(--ha,#84cc16),transparent); border-radius:1px; }
         .ts-header-left { display:flex; align-items:center; gap:9px; }
-        .ts-icon-pill { width:26px; height:26px; border-radius:8px; background:rgba(132,204,22,.1); border:1px solid rgba(132,204,22,.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .ts-icon-pill.red  { background:rgba(239,68,68,.1);  border-color:rgba(239,68,68,.22); }
-        .ts-icon-pill.gold { background:rgba(251,191,36,.1); border-color:rgba(251,191,36,.25); }
+
+        .ts-icon-pill { width:26px; height:26px; border-radius:8px; background:rgba(132,204,22,.12); border:1px solid rgba(132,204,22,.28); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .ts-icon-pill.red  { background:rgba(239,68,68,.12);  border-color:rgba(239,68,68,.3); }
+        .ts-icon-pill.gold { background:rgba(251,191,36,.12); border-color:rgba(251,191,36,.3); }
+
         .ts-title-block { display:flex; flex-direction:column; gap:1px; }
-        .ts-title    { font-size:11px; font-weight:800; color:#e5e5e5; letter-spacing:.5px; text-transform:uppercase; line-height:1; }
-        .ts-subtitle { font-size:10px; color:#484848; font-weight:500; line-height:1; margin-top:2px; }
-        .ts-live-count { display:flex; align-items:center; gap:3px; padding:2px 7px; border-radius:5px; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); font-size:9px; font-weight:800; color:#ef4444; }
+        /* FIX: was #e5e5e5 — fine; bumped to #f0f0f0 for crispness */
+        .ts-title    { font-size:11px; font-weight:800; color:#f0f0f0; letter-spacing:.5px; text-transform:uppercase; line-height:1; }
+        /* FIX: was #484848 — invisible. Now #6b7280, clearly readable. */
+        .ts-subtitle { font-size:10px; color:#6b7280; font-weight:500; line-height:1; margin-top:2px; }
+
+        .ts-live-count { display:flex; align-items:center; gap:3px; padding:2px 7px; border-radius:5px; background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.3); font-size:9px; font-weight:800; color:#ef4444; }
         .ts-live-dot { width:5px; height:5px; border-radius:50%; background:#ef4444; animation:tsBlink 1.6s infinite; }
         @keyframes tsBlink { 0%,100%{opacity:1} 50%{opacity:.35} }
-        .ts-refresh { width:26px; height:26px; border-radius:7px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); color:#484848; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
-        .ts-refresh:hover { background:rgba(132,204,22,.08); color:#84cc16; }
+
+        .ts-refresh { width:26px; height:26px; border-radius:7px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#888; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
+        .ts-refresh:hover { background:rgba(132,204,22,.12); color:#84cc16; border-color:rgba(132,204,22,.3); }
         .spin { animation:spin 1s linear infinite; }
         @keyframes spin { to{transform:rotate(360deg);} }
 
+        /* ── STREAMER ROWS ── */
         .streamer-list { display:flex; flex-direction:column; gap:5px; }
-        .streamer-row { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.05); cursor:pointer; transition:all .2s; }
-        .streamer-row:hover { background:rgba(239,68,68,.06); border-color:rgba(239,68,68,.2); transform:translateX(2px); }
+        .streamer-row {
+          display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
+          /* FIX: was rgba(255,255,255,.025) — invisible card. Now .06. */
+          background:rgba(255,255,255,.06);
+          /* FIX: was rgba(255,255,255,.05) — invisible border. Now .12. */
+          border:1px solid rgba(255,255,255,.12);
+          cursor:pointer; transition:all .2s;
+        }
+        .streamer-row:hover { background:rgba(239,68,68,.1); border-color:rgba(239,68,68,.3); transform:translateX(2px); }
         .streamer-rank { width:20px; height:20px; border-radius:6px; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .streamer-avatar { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#525252,#2a2a2a); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:12px; overflow:hidden; border:1.5px solid rgba(255,255,255,.1); }
+        .streamer-avatar { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#525252,#2a2a2a); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:12px; overflow:hidden; border:1.5px solid rgba(255,255,255,.18); }
         .streamer-avatar img { width:100%; height:100%; object-fit:cover; }
         .streamer-info { flex:1; min-width:0; }
-        .streamer-name { font-size:12px; font-weight:700; color:#d4d4d4; display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; margin-bottom:2px; }
+        /* FIX: was #d4d4d4 — bumped to #e8e8e8 */
+        .streamer-name { font-size:12px; font-weight:700; color:#e8e8e8; display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; margin-bottom:2px; }
         .streamer-row:hover .streamer-name { color:#fff; }
-        .streamer-meta { display:flex; align-items:center; gap:4px; font-size:10px; color:#454545; white-space:nowrap; overflow:hidden; }
-        .streamer-meta svg { opacity:.7; flex-shrink:0; }
-        .streamer-arrow { color:#2a2a2a; flex-shrink:0; transition:all .2s; }
+        /* FIX: was #454545 — invisible. Now #7a7a7a. */
+        .streamer-meta { display:flex; align-items:center; gap:4px; font-size:10px; color:#7a7a7a; white-space:nowrap; overflow:hidden; }
+        .streamer-meta svg { opacity:.8; flex-shrink:0; }
+        /* FIX: was #2a2a2a — invisible arrow. Now #555. */
+        .streamer-arrow { color:#555; flex-shrink:0; transition:all .2s; }
         .streamer-row:hover .streamer-arrow { color:#ef4444; transform:translateX(2px); }
 
-        .ts-live-strip { background:rgba(239,68,68,.03); border:1px solid rgba(239,68,68,.08); border-radius:11px; padding:9px 9px 3px; }
+        /* ── LIVE NOW STRIP ── */
+        /* FIX: was rgba(239,68,68,.03) — invisible section bg. Now .07. */
+        .ts-live-strip { background:rgba(239,68,68,.07); border:1px solid rgba(239,68,68,.16); border-radius:11px; padding:9px 9px 3px; }
         .sc-scroll { display:flex; flex-direction:row; gap:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; padding:2px 0 8px; }
         .sc-scroll::-webkit-scrollbar { display:none; }
         .sc-card { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; width:54px; background:transparent; border:none; cursor:pointer; padding:2px 0 0; scroll-snap-align:start; -webkit-tap-highlight-color:transparent; transition:transform .18s; }
         .sc-card:hover { transform:translateY(-2px); } .sc-card:active { transform:scale(.93); }
         .sc-card.sc-own { opacity:.45; cursor:default; pointer-events:none; }
         .sc-ring-wrap { position:relative; width:50px; height:50px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .sc-ring { position:absolute; inset:0; border-radius:50%; overflow:hidden; background:#0a0a0a; }
+        /* FIX: was #0a0a0a — same as dark bg. Now #1a1a1a. */
+        .sc-ring { position:absolute; inset:0; border-radius:50%; overflow:hidden; background:#1a1a1a; }
         .sc-spin { position:absolute; top:50%; left:50%; width:200%; height:200%; margin:-100% 0 0 -100%; background:conic-gradient(#ef4444 0deg,#fb7185 40%,#ef4444 360deg); animation:scSpin 4s linear infinite; z-index:0; }
         @keyframes scSpin { to{transform:rotate(360deg)} }
         .sc-avatar-wrap { position:absolute; inset:3px; border-radius:50%; overflow:hidden; z-index:1; }
         .sc-avatar-inner { width:100%; height:100%; border-radius:50%; background:linear-gradient(135deg,#84cc16,#4d7c0f); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
         .sc-initial { font-size:13px; font-weight:900; color:#000; position:absolute; z-index:0; user-select:none; line-height:1; }
         .sc-avatar-inner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; z-index:1; transition:opacity .2s; }
-        .sc-pulse { position:absolute; inset:0; border-radius:50%; border:2px solid rgba(239,68,68,.35); animation:scPulse 2s ease-out infinite; pointer-events:none; z-index:0; }
-        @keyframes scPulse { 0%{transform:scale(1);opacity:.5} 100%{transform:scale(1.55);opacity:0} }
-        .sc-dot { position:absolute; bottom:1px; right:1px; width:10px; height:10px; border-radius:50%; background:#ef4444; border:2px solid #0a0a0a; animation:scBlink 1.4s ease-in-out infinite; z-index:2; }
+        .sc-pulse { position:absolute; inset:0; border-radius:50%; border:2px solid rgba(239,68,68,.4); animation:scPulse 2s ease-out infinite; pointer-events:none; z-index:0; }
+        @keyframes scPulse { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.55);opacity:0} }
+        /* FIX: was #0a0a0a border — invisible. Now #1a1a1a. */
+        .sc-dot { position:absolute; bottom:1px; right:1px; width:10px; height:10px; border-radius:50%; background:#ef4444; border:2px solid #1a1a1a; animation:scBlink 1.4s ease-in-out infinite; z-index:2; }
         @keyframes scBlink { 0%,100%{opacity:1} 50%{opacity:.4} }
-        .sc-chip { position:absolute; top:-3px; right:-5px; display:flex; align-items:center; gap:2px; padding:2px 4px; border-radius:4px; background:rgba(0,0,0,.88); border:1px solid rgba(255,255,255,.1); font-size:7.5px; font-weight:800; color:#c4c4c4; z-index:3; white-space:nowrap; }
-        .sc-name { font-size:10px; font-weight:700; color:#c4c4c4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px; text-align:center; line-height:1.3; transition:color .15s; }
+        /* FIX: was rgba(0,0,0,.88) bg — invisible. Now rgba(20,20,20,.92). */
+        .sc-chip { position:absolute; top:-3px; right:-5px; display:flex; align-items:center; gap:2px; padding:2px 4px; border-radius:4px; background:rgba(20,20,20,.92); border:1px solid rgba(255,255,255,.18); font-size:7.5px; font-weight:800; color:#c4c4c4; z-index:3; white-space:nowrap; }
+        /* FIX: was #c4c4c4 — ok; sc-name bumped to #d0d0d0 */
+        .sc-name { font-size:10px; font-weight:700; color:#d0d0d0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px; text-align:center; line-height:1.3; transition:color .15s; }
         .sc-card:hover .sc-name { color:#fff; }
-        .sc-cat { font-size:8px; font-weight:500; color:#363636; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px; text-align:center; }
+        /* FIX: was #363636 — invisible. Now #5a5a5a. */
+        .sc-cat { font-size:8px; font-weight:500; color:#5a5a5a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px; text-align:center; }
 
+        /* ── TAG ROWS ── */
         .tag-list { display:flex; flex-direction:column; gap:5px; }
-        .tag-row { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.05); cursor:pointer; transition:all .2s; }
-        .tag-row:hover { background:rgba(132,204,22,.07); border-color:rgba(132,204,22,.25); transform:translateX(2px); }
-        .tag-num { width:24px; height:24px; border-radius:7px; background:rgba(255,255,255,.05); color:#525252; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .tag-num.hot { background:rgba(239,68,68,.15); color:#ef4444; }
+        .tag-row {
+          display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
+          background:rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.12);
+          cursor:pointer; transition:all .2s;
+        }
+        .tag-row:hover { background:rgba(132,204,22,.1); border-color:rgba(132,204,22,.3); transform:translateX(2px); }
+        /* FIX: was rgba(255,255,255,.05) bg — invisible. Now .09. */
+        .tag-num { width:24px; height:24px; border-radius:7px; background:rgba(255,255,255,.09); color:#888; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .tag-num.hot { background:rgba(239,68,68,.18); color:#ef4444; }
         .tag-body { flex:1; min-width:0; }
-        .tag-name { font-size:12px; font-weight:700; color:#d4d4d4; display:block; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
+        .tag-name { font-size:12px; font-weight:700; color:#e8e8e8; display:block; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
         .tag-row:hover .tag-name { color:#fff; }
-        .tag-meta { display:flex; align-items:center; gap:5px; font-size:10px; color:#454545; flex-wrap:wrap; }
-        .tag-meta svg { opacity:.6; }
-        .hot-chip { font-size:9px; font-weight:800; padding:1px 5px; background:rgba(239,68,68,.15); color:#ef4444; border-radius:4px; }
-        .dot { color:#2e2e2e; }
-        .tag-drill-btn { width:26px; height:26px; border-radius:7px; flex-shrink:0; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); color:#3a3a3a; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
-        .tag-row:hover .tag-drill-btn { background:rgba(132,204,22,.1); border-color:rgba(132,204,22,.25); color:#84cc16; }
+        /* FIX: was #454545 — invisible. Now #7a7a7a. */
+        .tag-meta { display:flex; align-items:center; gap:5px; font-size:10px; color:#7a7a7a; flex-wrap:wrap; }
+        .tag-meta svg { opacity:.7; }
+        .hot-chip { font-size:9px; font-weight:800; padding:1px 5px; background:rgba(239,68,68,.18); color:#ef4444; border-radius:4px; }
+        /* FIX: was #2e2e2e — invisible dot. Now #555. */
+        .dot { color:#555; }
+        /* FIX: was rgba(255,255,255,.04) bg, rgba(255,255,255,.07) border — invisible. */
+        .tag-drill-btn { width:26px; height:26px; border-radius:7px; flex-shrink:0; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); color:#888; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
+        .tag-row:hover .tag-drill-btn { background:rgba(132,204,22,.14); border-color:rgba(132,204,22,.35); color:#84cc16; }
 
+        /* ── CREATOR ROWS ── */
         .creator-list { display:flex; flex-direction:column; gap:5px; }
-        .creator-row { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.05); cursor:pointer; transition:all .2s; }
-        .creator-row:hover { background:rgba(132,204,22,.06); border-color:rgba(132,204,22,.22); transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.28); }
-        .creator-row.top-tier { border-color:rgba(251,191,36,.18); }
-        .creator-row.top-tier:hover { border-color:rgba(251,191,36,.38); background:rgba(251,191,36,.04); }
+        .creator-row {
+          display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
+          background:rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.12);
+          cursor:pointer; transition:all .2s;
+        }
+        .creator-row:hover { background:rgba(132,204,22,.09); border-color:rgba(132,204,22,.28); transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.35); }
+        .creator-row.top-tier { border-color:rgba(251,191,36,.22); }
+        .creator-row.top-tier:hover { border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.06); }
         .creator-rank { width:22px; height:22px; border-radius:6px; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .creator-avatar-wrap { position:relative; flex-shrink:0; }
-        .creator-avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#84cc16,#65a30d); display:flex; align-items:center; justify-content:center; color:#000; font-weight:900; font-size:13px; overflow:hidden; border:2px solid rgba(132,204,22,.2); }
-        .creator-row.top-tier .creator-avatar { border-color:rgba(251,191,36,.4); }
+        .creator-avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#84cc16,#65a30d); display:flex; align-items:center; justify-content:center; color:#000; font-weight:900; font-size:13px; overflow:hidden; border:2px solid rgba(132,204,22,.3); }
+        .creator-row.top-tier .creator-avatar { border-color:rgba(251,191,36,.5); }
         .creator-avatar img { width:100%; height:100%; object-fit:cover; }
-        .crown-pip { position:absolute; top:-5px; right:-5px; width:15px; height:15px; background:linear-gradient(135deg,#fbbf24,#f59e0b); border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #000; }
+        .crown-pip { position:absolute; top:-5px; right:-5px; width:15px; height:15px; background:linear-gradient(135deg,#fbbf24,#f59e0b); border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #1a1a1a; }
         .creator-info { flex:1; min-width:0; }
-        .creator-name { font-size:12px; font-weight:700; color:#d4d4d4; display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
+        .creator-name { font-size:12px; font-weight:700; color:#e8e8e8; display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
         .creator-row:hover .creator-name { color:#fff; }
         .v-badge { width:14px; height:14px; background:#84cc16; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .creator-meta { display:flex; align-items:center; gap:4px; font-size:10px; color:#404040; margin-top:2px; white-space:nowrap; overflow:hidden; }
+        /* FIX: was #404040 — invisible. Now #7a7a7a. */
+        .creator-meta { display:flex; align-items:center; gap:4px; font-size:10px; color:#7a7a7a; margin-top:2px; white-space:nowrap; overflow:hidden; }
         .accent { color:#84cc16; font-weight:700; }
-        .creator-arrow { color:#2a2a2a; flex-shrink:0; transition:all .2s; }
+        /* FIX: was #2a2a2a — invisible arrow. Now #555. */
+        .creator-arrow { color:#555; flex-shrink:0; transition:all .2s; }
         .creator-row:hover .creator-arrow { color:#84cc16; transform:translateX(2px); }
 
-        .view-more-btn { width:100%; margin-top:7px; padding:8px 12px; background:rgba(132,204,22,.05); border:1px dashed rgba(132,204,22,.2); border-radius:9px; color:#84cc16; font-size:11px; font-weight:700; cursor:pointer; transition:all .22s; display:flex; align-items:center; justify-content:center; gap:6px; }
-        .view-more-btn:hover { background:rgba(132,204,22,.1); border-color:#84cc16; border-style:solid; transform:translateY(-1px); box-shadow:0 4px 14px rgba(132,204,22,.12); }
-        .view-more-btn.red { background:rgba(239,68,68,.05); border-color:rgba(239,68,68,.22); color:#ef4444; }
-        .view-more-btn.red:hover { background:rgba(239,68,68,.1); border-color:#ef4444; border-style:solid; box-shadow:0 4px 14px rgba(239,68,68,.1); }
+        /* ── VIEW MORE BUTTONS ── */
+        /* FIX: was rgba(132,204,22,.05) bg, rgba(132,204,22,.2) border — barely visible. */
+        .view-more-btn { width:100%; margin-top:7px; padding:8px 12px; background:rgba(132,204,22,.08); border:1px dashed rgba(132,204,22,.3); border-radius:9px; color:#84cc16; font-size:11px; font-weight:700; cursor:pointer; transition:all .22s; display:flex; align-items:center; justify-content:center; gap:6px; }
+        .view-more-btn:hover { background:rgba(132,204,22,.14); border-color:#84cc16; border-style:solid; transform:translateY(-1px); box-shadow:0 4px 14px rgba(132,204,22,.15); }
+        .view-more-btn.red { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.3); color:#ef4444; }
+        .view-more-btn.red:hover { background:rgba(239,68,68,.14); border-color:#ef4444; border-style:solid; box-shadow:0 4px 14px rgba(239,68,68,.14); }
 
-        .empty-state { text-align:center; padding:20px; color:#333; }
-        .empty-icon  { font-size:28px; margin-bottom:6px; opacity:.4; }
-        .empty-text  { font-size:12px; font-weight:600; }
+        /* ── EMPTY STATES ── */
+        .empty-state { text-align:center; padding:20px; color:#555; }
+        .empty-icon  { font-size:28px; margin-bottom:6px; opacity:.5; }
+        /* FIX: was #333 — invisible. Now #888. */
+        .empty-text  { font-size:12px; font-weight:600; color:#888; }
 
-        .sp-overlay { position:fixed; left:0; right:0; bottom:0; background:rgba(0,0,0,.72); backdrop-filter:blur(12px); z-index:9998; animation:fadeIn .22s ease; }
+        /* ── SLIDING PANEL ── */
+        .sp-overlay { position:fixed; left:0; right:0; bottom:0; background:rgba(0,0,0,.75); backdrop-filter:blur(12px); z-index:9998; animation:fadeIn .22s ease; }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-        .sp-panel { position:fixed; right:0; bottom:0; width:min(440px,92vw); background:#0b0b0b; border-left:1px solid rgba(132,204,22,.15); border-top:1px solid rgba(255,255,255,.05); z-index:9999; animation:panelSlide .28s cubic-bezier(.34,1.1,.64,1); display:flex; flex-direction:column; overflow:hidden; box-shadow:-14px 0 44px rgba(0,0,0,.55); }
+        .sp-panel {
+          position:fixed; right:0; bottom:0; width:min(440px,92vw);
+          /* FIX: was #0b0b0b — same as dark bg. Now #141414. */
+          background:#141414;
+          border-left:1px solid rgba(132,204,22,.22);
+          border-top:1px solid rgba(255,255,255,.08);
+          z-index:9999; animation:panelSlide .28s cubic-bezier(.34,1.1,.64,1);
+          display:flex; flex-direction:column; overflow:hidden; box-shadow:-14px 0 44px rgba(0,0,0,.6);
+        }
         @keyframes panelSlide { from{transform:translateX(100%)} to{transform:translateX(0)} }
-        .sp-hdr { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .sp-hdr { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
         .sp-hdr-left { display:flex; align-items:center; gap:10px; }
         .sp-icon { width:28px; height:28px; border-radius:8px; border:1px solid; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .sp-title    { font-size:13px; font-weight:800; color:#fff; }
-        .sp-subtitle { font-size:10px; color:#484848; font-weight:500; margin-top:1px; }
-        .sp-close { width:27px; height:27px; border-radius:8px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); color:#484848; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .18s; }
-        .sp-close:hover { background:rgba(255,255,255,.1); color:#fff; transform:rotate(90deg); }
+        .sp-title    { font-size:13px; font-weight:800; color:#f0f0f0; }
+        /* FIX: was #484848 — invisible. Now #6b7280. */
+        .sp-subtitle { font-size:10px; color:#6b7280; font-weight:500; margin-top:1px; }
+        .sp-close { width:27px; height:27px; border-radius:8px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#888; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .18s; }
+        .sp-close:hover { background:rgba(255,255,255,.14); color:#f0f0f0; transform:rotate(90deg); }
         .sp-body { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:5px; }
         .sp-body::-webkit-scrollbar { width:3px; }
-        .sp-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,.2); border-radius:2px; }
-        .sp-back { display:flex; align-items:center; gap:7px; padding:7px 10px; margin-bottom:4px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:9px; color:#606060; font-size:11px; font-weight:700; cursor:pointer; transition:all .18s; width:100%; }
-        .sp-back:hover { background:rgba(132,204,22,.07); border-color:rgba(132,204,22,.2); color:#84cc16; }
-        .nav-hint { display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:4px; background:rgba(132,204,22,.05); border:1px solid rgba(132,204,22,.12); border-radius:9px; font-size:10.5px; color:#84cc16; font-weight:600; }
+        .sp-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,.3); border-radius:2px; }
+        /* FIX: was rgba(255,255,255,.03) bg, rgba(255,255,255,.06) border — invisible. */
+        .sp-back { display:flex; align-items:center; gap:7px; padding:7px 10px; margin-bottom:4px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:9px; color:#888; font-size:11px; font-weight:700; cursor:pointer; transition:all .18s; width:100%; }
+        .sp-back:hover { background:rgba(132,204,22,.1); border-color:rgba(132,204,22,.28); color:#84cc16; }
+        .nav-hint { display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:4px; background:rgba(132,204,22,.07); border:1px solid rgba(132,204,22,.2); border-radius:9px; font-size:10.5px; color:#84cc16; font-weight:600; }
 
-        .pp-card { display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.05); cursor:pointer; text-align:left; width:100%; transition:all .2s; animation:ppIn .22s ease both; }
+        /* ── POST PREVIEW CARDS ── */
+        .pp-card { display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); cursor:pointer; text-align:left; width:100%; transition:all .2s; animation:ppIn .22s ease both; }
         @keyframes ppIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        .pp-card:hover { background:rgba(132,204,22,.07); border-color:rgba(132,204,22,.22); transform:translateX(3px); }
-        .pp-thumb { width:48px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(255,255,255,.05); position:relative; }
+        .pp-card:hover { background:rgba(132,204,22,.1); border-color:rgba(132,204,22,.28); transform:translateX(3px); }
+        .pp-thumb { width:48px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0; background:rgba(255,255,255,.08); position:relative; }
         .pp-thumb img { width:100%; height:100%; object-fit:cover; }
-        .pp-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.4); }
+        .pp-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.45); }
         .pp-body { flex:1; min-width:0; }
         .pp-author-row { display:flex; align-items:center; gap:7px; margin-bottom:4px; }
-        .pp-avatar { width:20px; height:20px; border-radius:50%; background:rgba(132,204,22,.2); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#84cc16; }
+        .pp-avatar { width:20px; height:20px; border-radius:50%; background:rgba(132,204,22,.25); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#84cc16; }
         .pp-avatar img { width:100%; height:100%; object-fit:cover; }
         .pp-author-info { flex:1; min-width:0; }
-        .pp-author-name   { font-size:11px; font-weight:700; color:#d4d4d4; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .pp-author-handle { font-size:9.5px; color:#484848; }
-        .pp-type-badge { display:flex; align-items:center; gap:3px; padding:2px 5px; background:rgba(255,255,255,.06); border-radius:5px; font-size:9px; font-weight:700; color:#525252; flex-shrink:0; text-transform:capitalize; }
-        .pp-caption { font-size:11px; color:#606060; margin:0 0 4px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-        .pp-stats { display:flex; gap:10px; font-size:10px; color:#404040; }
+        /* FIX: was #d4d4d4 — bumped to #e8e8e8 */
+        .pp-author-name   { font-size:11px; font-weight:700; color:#e8e8e8; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        /* FIX: was #484848 — invisible. Now #7a7a7a. */
+        .pp-author-handle { font-size:9.5px; color:#7a7a7a; }
+        /* FIX: was rgba(255,255,255,.06) bg, #525252 text — murky. Now .1 bg, #888 text. */
+        .pp-type-badge { display:flex; align-items:center; gap:3px; padding:2px 5px; background:rgba(255,255,255,.1); border-radius:5px; font-size:9px; font-weight:700; color:#888; flex-shrink:0; text-transform:capitalize; }
+        /* FIX: was #606060 — low contrast. Now #7a7a7a. */
+        .pp-caption { font-size:11px; color:#7a7a7a; margin:0 0 4px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        /* FIX: was #404040 — invisible. Now #666. */
+        .pp-stats { display:flex; gap:10px; font-size:10px; color:#666; }
         .pp-stats span { display:flex; align-items:center; gap:3px; }
-        .pp-arrow { color:#2a2a2a; flex-shrink:0; transition:all .2s; }
+        /* FIX: was #2a2a2a — invisible arrow. Now #555. */
+        .pp-arrow { color:#555; flex-shrink:0; transition:all .2s; }
         .pp-card:hover .pp-arrow { color:#84cc16; transform:translateX(2px); }
-
-        /* StreamerDetailModal uses ReactDOM.createPortal on document.body — no CSS class needed */
       `}</style>
 
       <aside className={isMobile ? "trending-mobile-fullscreen" : "trending-sidebar"}>
         {isMobile && <MobileHeader onClose={onClose} />}
 
-        {/* Desktop sticky top label — full width, no horizontal padding from container */}
+        {/* Desktop sticky top label */}
         {!isMobile && (
           <div style={{
             position: "sticky", top: 0, zIndex: 5,
-            background: "#080808",
+            /* FIX: was #080808 — same as page. Now #111 for visible surface. */
+            background: "#111",
             padding: "10px 12px 10px 12px",
             marginBottom: 0,
-            borderBottom: "1px solid rgba(132,204,22,0.08)",
+            /* FIX: was rgba(132,204,22,0.08) — invisible. Now .2. */
+            borderBottom: "1px solid rgba(132,204,22,0.2)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.1)", border: "1px solid rgba(132,204,22,.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.15)", border: "1px solid rgba(132,204,22,.32)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <TrendingUp size={13} color="#84cc16" />
               </div>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#d4d4d4", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
+              {/* FIX: was #d4d4d4 — bumped to #f0f0f0 */}
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#f0f0f0", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
             </div>
             <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh">
               <RefreshCw size={11} className={refreshing ? "spin" : ""} />
@@ -733,125 +794,124 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           </div>
         )}
 
-        {/* Inner content wrapper — this is where all horizontal padding lives */}
+        {/* Inner content wrapper */}
         <div style={{ padding: "12px 12px 24px" }}>
 
-        {/* ── TOP STREAMERS ── */}
-        <div className="ts-section" style={{ "--ha": "#ef4444" }}>
-          <div className="ts-header">
-            <div className="ts-header-left">
-              <div className="ts-icon-pill red"><Tv size={13} color="#ef4444" /></div>
-              <div className="ts-title-block">
-                <span className="ts-title">Top Streamers</span>
-                <span className="ts-subtitle">Ranked by peak viewers</span>
-              </div>
-            </div>
-            {isMobile && (
-              <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
-                <RefreshCw size={12} className={refreshing ? "spin" : ""} />
-              </button>
-            )}
-          </div>
-          {topStreamers.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📡</div>
-              <p className="empty-text">No streamers yet — be the first to go live!</p>
-            </div>
-          ) : (
-            <>
-              {/* Top 3 preview — identical pattern to Tags and Creators */}
-              <div className="streamer-list">
-                {topStreamers.slice(0, STREAMERS_PREVIEW).map((s) => (
-                  <StreamerRow key={s.userId} streamer={s} onClick={handleStreamerClick} />
-                ))}
-              </div>
-              {/* View All button — shows whenever there are more than 3 */}
-              {topStreamers.length > STREAMERS_PREVIEW && (
-                <button className="view-more-btn red" onClick={() => setStreamersPanel(true)}>
-                  View All {topStreamers.length} Streamers <ArrowRight size={13} />
-                </button>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* ── LIVE NOW ── */}
-        {!liveLoading && liveSessions.length > 0 && (
-          <div className="ts-section ts-live-strip" style={{ "--ha": "#ef4444" }}>
+          {/* ── TOP STREAMERS ── */}
+          <div className="ts-section" style={{ "--ha": "#ef4444" }}>
             <div className="ts-header">
               <div className="ts-header-left">
-                <div className="ts-icon-pill red"><Radio size={13} color="#ef4444" /></div>
+                <div className="ts-icon-pill red"><Tv size={13} color="#ef4444" /></div>
                 <div className="ts-title-block">
-                  <span className="ts-title">Live Now</span>
-                  <span className="ts-subtitle">Tap a circle to join</span>
+                  <span className="ts-title">Top Streamers</span>
+                  <span className="ts-subtitle">Ranked by peak viewers</span>
                 </div>
               </div>
-              <div className="ts-live-count"><span className="ts-live-dot" />{liveSessions.length}</div>
+              {isMobile && (
+                <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
+                  <RefreshCw size={12} className={refreshing ? "spin" : ""} />
+                </button>
+              )}
             </div>
-            <div className="sc-scroll">
-              {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
-            </div>
-          </div>
-        )}
-
-        {/* ── TRENDING TAGS ── */}
-        <div className="ts-section">
-          <div className="ts-header">
-            <div className="ts-header-left">
-              <div className="ts-icon-pill"><Flame size={13} color="#84cc16" /></div>
-              <div className="ts-title-block">
-                <span className="ts-title">Trending Now</span>
-                <span className="ts-subtitle">What's hot on Xeevia</span>
+            {topStreamers.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📡</div>
+                <p className="empty-text">No streamers yet — be the first to go live!</p>
               </div>
-            </div>
-            {isMobile && (
-              <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
-                <RefreshCw size={12} className={refreshing ? "spin" : ""} />
-              </button>
+            ) : (
+              <>
+                <div className="streamer-list">
+                  {topStreamers.slice(0, STREAMERS_PREVIEW).map((s) => (
+                    <StreamerRow key={s.userId} streamer={s} onClick={handleStreamerClick} />
+                  ))}
+                </div>
+                {topStreamers.length > STREAMERS_PREVIEW && (
+                  <button className="view-more-btn red" onClick={() => setStreamersPanel(true)}>
+                    View All {topStreamers.length} Streamers <ArrowRight size={13} />
+                  </button>
+                )}
+              </>
             )}
           </div>
-          {topTags.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon">🔥</div><p className="empty-text">No trending tags yet</p></div>
-          ) : (
-            <>
-              <div className="tag-list">{topTags.map((tag, i) => <TagRow key={tag.label} tag={tag} index={i} />)}</div>
-              {trendingTags.length > 3 && (
-                <button className="view-more-btn" onClick={() => setTagsPanel(true)}>View Top 30 Tags <ArrowRight size={13} /></button>
-              )}
-            </>
-          )}
-        </div>
 
-        {/* ── TOP CREATORS ── */}
-        <div className="ts-section">
-          <div className="ts-header">
-            <div className="ts-header-left">
-              <div className="ts-icon-pill gold"><Crown size={13} color="#fbbf24" /></div>
-              <div className="ts-title-block">
-                <span className="ts-title">Top Creators</span>
-                <span className="ts-subtitle">This week's stars</span>
+          {/* ── LIVE NOW ── */}
+          {!liveLoading && liveSessions.length > 0 && (
+            <div className="ts-section ts-live-strip" style={{ "--ha": "#ef4444" }}>
+              <div className="ts-header">
+                <div className="ts-header-left">
+                  <div className="ts-icon-pill red"><Radio size={13} color="#ef4444" /></div>
+                  <div className="ts-title-block">
+                    <span className="ts-title">Live Now</span>
+                    <span className="ts-subtitle">Tap a circle to join</span>
+                  </div>
+                </div>
+                <div className="ts-live-count"><span className="ts-live-dot" />{liveSessions.length}</div>
+              </div>
+              <div className="sc-scroll">
+                {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
               </div>
             </div>
-          </div>
-          {topCreators.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon">👑</div><p className="empty-text">No creators this week</p></div>
-          ) : (
-            <>
-              <div className="creator-list">{topCreators.map((c) => <CreatorRow key={c.userId} creator={c} />)}</div>
-              {eliteCreators.length > 3 && (
-                <button className="view-more-btn" onClick={() => setCreatorsPanel(true)}>View Top 30 Creators <ArrowRight size={13} /></button>
-              )}
-            </>
           )}
-        </div>
-        </div>{/* end ts-inner-content */}
+
+          {/* ── TRENDING TAGS ── */}
+          <div className="ts-section">
+            <div className="ts-header">
+              <div className="ts-header-left">
+                <div className="ts-icon-pill"><Flame size={13} color="#84cc16" /></div>
+                <div className="ts-title-block">
+                  <span className="ts-title">Trending Now</span>
+                  <span className="ts-subtitle">What's hot on Xeevia</span>
+                </div>
+              </div>
+              {isMobile && (
+                <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
+                  <RefreshCw size={12} className={refreshing ? "spin" : ""} />
+                </button>
+              )}
+            </div>
+            {topTags.length === 0 ? (
+              <div className="empty-state"><div className="empty-icon">🔥</div><p className="empty-text">No trending tags yet</p></div>
+            ) : (
+              <>
+                <div className="tag-list">{topTags.map((tag, i) => <TagRow key={tag.label} tag={tag} index={i} />)}</div>
+                {trendingTags.length > 3 && (
+                  <button className="view-more-btn" onClick={() => setTagsPanel(true)}>View Top 30 Tags <ArrowRight size={13} /></button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ── TOP CREATORS ── */}
+          <div className="ts-section">
+            <div className="ts-header">
+              <div className="ts-header-left">
+                <div className="ts-icon-pill gold"><Crown size={13} color="#fbbf24" /></div>
+                <div className="ts-title-block">
+                  <span className="ts-title">Top Creators</span>
+                  <span className="ts-subtitle">This week's stars</span>
+                </div>
+              </div>
+            </div>
+            {topCreators.length === 0 ? (
+              <div className="empty-state"><div className="empty-icon">👑</div><p className="empty-text">No creators this week</p></div>
+            ) : (
+              <>
+                <div className="creator-list">{topCreators.map((c) => <CreatorRow key={c.userId} creator={c} />)}</div>
+                {eliteCreators.length > 3 && (
+                  <button className="view-more-btn" onClick={() => setCreatorsPanel(true)}>View Top 30 Creators <ArrowRight size={13} /></button>
+                )}
+              </>
+            )}
+          </div>
+
+        </div>{/* end inner content */}
       </aside>
 
       {/* ══ Streamers panel ══ */}
       {streamersPanel && (
         <SlidingPanel isMobile={isMobile} onClose={() => setStreamersPanel(false)}
           title="Top Streamers" subtitle={`${topStreamers.length} streamers · ranked by peak viewers`}
-          icon={Tv} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)">
+          icon={Tv} iconColor="#ef4444" iconBg="rgba(239,68,68,.12)" iconBorder="rgba(239,68,68,.3)">
           <div className="streamer-list">
             {topStreamers.map((s) => (
               <StreamerRow key={s.userId} streamer={s} onClick={(str) => { setStreamersPanel(false); handleStreamerClick(str); }} />
@@ -872,7 +932,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {creatorsPanel && (
         <SlidingPanel isMobile={isMobile} onClose={() => setCreatorsPanel(false)}
           title="Top Creators" subtitle="This week's top 30"
-          icon={Crown} iconColor="#fbbf24" iconBg="rgba(251,191,36,.1)" iconBorder="rgba(251,191,36,.25)">
+          icon={Crown} iconColor="#fbbf24" iconBg="rgba(251,191,36,.12)" iconBorder="rgba(251,191,36,.3)">
           <div className="creator-list">{eliteCreators.map((c) => <CreatorRow key={c.userId} creator={c} />)}</div>
         </SlidingPanel>
       )}
@@ -881,7 +941,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {tagPostsPanel && activeTag && (
         <SlidingPanel isMobile={isMobile} onClose={() => { setTagPostsPanel(false); setActiveTag(null); setTagPosts([]); }}
           title={activeTag.label} subtitle={`${activeTag.posts} posts · ${fmt(activeTag.views)} views`}
-          icon={Hash} iconColor="#60a5fa" iconBg="rgba(96,165,250,.1)" iconBorder="rgba(96,165,250,.22)">
+          icon={Hash} iconColor="#60a5fa" iconBg="rgba(96,165,250,.12)" iconBorder="rgba(96,165,250,.3)">
           <button className="sp-back" onClick={() => { setTagPostsPanel(false); setTagsPanel(true); }}>
             <ArrowLeft size={12} /> Back to all tags
           </button>
@@ -900,17 +960,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           onClose={() => { setCreatorModal(false); setSelectedCreator(null); }} />
       )}
 
-      {/* ══ Streamer detail modal ══
-          Rendered via ReactDOM.createPortal directly onto document.body.
-          This places it COMPLETELY outside the TrendingSidebar DOM tree and
-          outside the Sidebar/AdminSidebar stacking context entirely.
-          No z-index competition is possible — it always wins. */}
+      {/* ══ Streamer detail modal ══ */}
       {streamerDetail && ReactDOM.createPortal(
-        <div style={{
-          position: "fixed", inset: 0,
-          zIndex: 10050,
-          // No background here — StreamerDetailModal provides its own backdrop
-        }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 10050 }}>
           <StreamerDetailModal
             streamer={streamerDetail}
             onClose={() => setStreamerDetail(null)}

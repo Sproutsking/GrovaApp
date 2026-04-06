@@ -1,14 +1,10 @@
-// components/Community/tabs/ChatTab.jsx - MOBILE BACK BUTTON & SIDEBAR TOGGLE
-import React, { useState, useEffect, useRef } from "react";
+// components/Community/tabs/ChatTab.jsx
+// FULL REWRITE: No entry loader, channel permissions, reactions, image icons,
+// accurate online tracking, permission-aware channels, elegant UI
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Menu,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Lock,
-  Palette,
-  ChevronDown,
-  ArrowLeft,
+  Menu, ChevronLeft, ChevronRight, Plus, Lock, Palette,
+  ChevronDown, ArrowLeft, Settings2, Hash, Megaphone,
 } from "lucide-react";
 import MessageList from "../components/MessageList";
 import ContextMenu from "../components/ContextMenu";
@@ -16,6 +12,7 @@ import ChannelContextMenu from "../components/ChannelContextMenu";
 import CommunityMenu from "../components/CommunityMenu";
 import CreateChannelModal from "../modals/CreateChannelModal";
 import EditChannelModal from "../modals/EditChannelModal";
+import ChannelPermissionsModal from "../modals/ChannelPermissionsModal";
 import BackgroundDropdown from "../components/BackgroundDropdown";
 import ChatBackground from "../components/ChatBackground";
 import CommunityMessageInput from "../components/CommunityMessageInput";
@@ -24,6 +21,12 @@ import communityMessageService from "../../../services/community/communityMessag
 import communityState from "../../../services/community/CommunityStateManager";
 import backgroundService from "../../../services/community/CommunityBackgroundService";
 import permissionService from "../../../services/community/permissionService";
+import communityService from "../../../services/community/communityService";
+
+const CHANNEL_TYPE_ICON = {
+  text: Hash,
+  announcement: Megaphone,
+};
 
 const ChatTab = ({
   community,
@@ -47,18 +50,20 @@ const ChatTab = ({
   const [channelContextMenu, setChannelContextMenu] = useState(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showEditChannel, setShowEditChannel] = useState(false);
+  const [showChannelPerms, setShowChannelPerms] = useState(false);
+  const [permsChannel, setPermsChannel] = useState(null);
   const [editingChannel, setEditingChannel] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
+  const [roles, setRoles] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
-  const [backgroundId, setBackgroundId] = useState('minimal');
+  const [backgroundId, setBackgroundId] = useState("minimal");
   const [isMobile, setIsMobile] = useState(false);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
-
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const unsubscribeChannel = useRef(null);
@@ -66,17 +71,15 @@ const ChatTab = ({
   const typingTimeout = useRef(null);
   const isAtBottom = useRef(true);
 
-  // Detect mobile
+  // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
+  // ── Background ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (community) {
       const bg = backgroundService.getBackground(userId, community.id);
@@ -85,13 +88,22 @@ const ChatTab = ({
   }, [community?.id, userId]);
 
   useEffect(() => {
-    const unsubscribe = backgroundService.subscribe(() => {
-      if (community) {
-        const bg = backgroundService.getBackground(userId, community.id);
-        setBackgroundId(bg);
-      }
+    const unsub = backgroundService.subscribe(() => {
+      if (community) setBackgroundId(backgroundService.getBackground(userId, community.id));
     });
-    return unsubscribe;
+    return unsub;
+  }, [community?.id, userId]);
+
+  // ── Mark online on mount, offline on unmount ──────────────────────────────
+  useEffect(() => {
+    if (community && userId) {
+      communityService.markOnline(community.id, userId, currentUser?.username || "");
+    }
+    return () => {
+      if (community && userId) {
+        communityService.markOffline(community.id, userId);
+      }
+    };
   }, [community?.id, userId]);
 
   const scrollToBottom = (behavior = "smooth") => {
@@ -106,70 +118,14 @@ const ChatTab = ({
     setShowJump(!atBottom && messages.length >= 2);
   };
 
+  // ── Load channels + permissions + roles ───────────────────────────────────
   useEffect(() => {
     if (community) {
       loadChannels();
       loadPermissions();
+      loadRoles();
     }
   }, [community?.id]);
-
-  useEffect(() => {
-    if (selectedChannel) {
-      communityState.setActive(selectedChannel.id);
-      communityMessageService.init(userId);
-      loadMessages();
-      subscribeToChannel();
-      subscribeToTyping();
-    }
-
-    return () => {
-      stopTyping();
-      if (unsubscribeChannel.current) unsubscribeChannel.current();
-      if (unsubscribeTyping.current) unsubscribeTyping.current();
-    };
-  }, [selectedChannel?.id]);
-
-  useEffect(() => {
-    const unsub = communityState.subscribe(() => {
-      const msgs = communityState.getMessages(selectedChannel?.id);
-      const typing = communityState.getTyping(selectedChannel?.id);
-      setMessages([...msgs]);
-      setTypingUsers(typing);
-    });
-
-    return unsub;
-  }, [selectedChannel?.id]);
-
-  // TYPING DETECTION: Track input changes - send typing on every change
-  useEffect(() => {
-    if (messageInput.length > 0) {
-      // User is typing - send indicator
-      if (!isTyping) {
-        setIsTyping(true);
-        communityMessageService.sendTyping(
-          selectedChannel?.id,
-          true,
-          currentUser?.username || currentUser?.full_name || currentUser?.fullName
-        );
-      }
-
-      // Reset the stop timer on every keystroke
-      clearTimeout(typingTimeout.current);
-      typingTimeout.current = setTimeout(() => {
-        stopTyping();
-      }, 3000);
-    } else {
-      // Input is empty - stop immediately
-      if (isTyping) {
-        stopTyping();
-      }
-    }
-
-    // Cleanup on unmount or channel change
-    return () => {
-      clearTimeout(typingTimeout.current);
-    };
-  }, [messageInput, selectedChannel?.id]);
 
   const loadChannels = async () => {
     try {
@@ -185,16 +141,68 @@ const ChatTab = ({
 
   const loadPermissions = async () => {
     try {
-      const role = await permissionService.getUserRole(community.id, userId);
-      setUserPermissions(role?.permissions || {});
+      const perms = await permissionService.getUserPermissions(community.id, userId);
+      setUserPermissions(perms || {});
     } catch (error) {
       console.error("Error loading permissions:", error);
     }
   };
 
+  const loadRoles = async () => {
+    try {
+      const data = await permissionService.fetchRoles(community.id);
+      setRoles(data || []);
+    } catch (error) {
+      console.error("Error loading roles:", error);
+    }
+  };
+
+  // ── Messages + subscriptions ──────────────────────────────────────────────
+  useEffect(() => {
+    if (selectedChannel) {
+      communityState.setActive(selectedChannel.id);
+      communityMessageService.init(userId);
+      loadMessages();
+      subscribeToChannel();
+      subscribeToTyping();
+    }
+    return () => {
+      stopTyping();
+      if (unsubscribeChannel.current) unsubscribeChannel.current();
+      if (unsubscribeTyping.current) unsubscribeTyping.current();
+    };
+  }, [selectedChannel?.id]);
+
+  useEffect(() => {
+    const unsub = communityState.subscribe(() => {
+      const msgs = communityState.getMessages(selectedChannel?.id);
+      const typing = communityState.getTyping(selectedChannel?.id);
+      setMessages([...msgs]);
+      setTypingUsers(typing);
+    });
+    return unsub;
+  }, [selectedChannel?.id]);
+
+  // ── Typing detection ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (messageInput.length > 0) {
+      if (!isTyping) {
+        setIsTyping(true);
+        communityMessageService.sendTyping(
+          selectedChannel?.id, true,
+          currentUser?.username || currentUser?.full_name || ""
+        );
+      }
+      clearTimeout(typingTimeout.current);
+      typingTimeout.current = setTimeout(stopTyping, 3000);
+    } else {
+      if (isTyping) stopTyping();
+    }
+    return () => clearTimeout(typingTimeout.current);
+  }, [messageInput, selectedChannel?.id]);
+
   const loadMessages = async () => {
     if (!selectedChannel?.id) return;
-    
     try {
       await communityMessageService.loadMessages(selectedChannel.id);
     } catch (error) {
@@ -203,32 +211,18 @@ const ChatTab = ({
   };
 
   const subscribeToChannel = () => {
-    if (unsubscribeChannel.current) {
-      unsubscribeChannel.current();
-    }
-
+    if (unsubscribeChannel.current) unsubscribeChannel.current();
     unsubscribeChannel.current = communityMessageService.subscribeToChannel(
       selectedChannel.id,
-      (message) => {
-        if (isAtBottom.current) {
-          setTimeout(scrollToBottom, 10);
-        }
-      }
+      () => { if (isAtBottom.current) setTimeout(scrollToBottom, 10); }
     );
   };
 
   const subscribeToTyping = () => {
-    if (unsubscribeTyping.current) {
-      unsubscribeTyping.current();
-    }
-
+    if (unsubscribeTyping.current) unsubscribeTyping.current();
     unsubscribeTyping.current = communityMessageService.subscribeToTyping(
       selectedChannel.id,
-      (typing) => {
-        if (typing.length > 0 && isAtBottom.current) {
-          setTimeout(scrollToBottom, 100);
-        }
-      }
+      (typing) => { if (typing.length > 0 && isAtBottom.current) setTimeout(scrollToBottom, 100); }
     );
   };
 
@@ -253,7 +247,6 @@ const ChatTab = ({
         await loadMessages();
       } catch (error) {
         console.error("Error editing message:", error);
-        alert("Failed to edit message");
       } finally {
         setSending(false);
       }
@@ -265,18 +258,12 @@ const ChatTab = ({
 
     try {
       let avatarId = currentUser?.avatar_id;
-      
-      if (!avatarId && currentUser?.avatar && typeof currentUser.avatar === 'string') {
-        if (currentUser.avatar.includes('/')) {
-          const parts = currentUser.avatar.split('/');
-          avatarId = parts[parts.length - 1].split('?')[0];
-        }
+      if (!avatarId && currentUser?.avatar?.includes("/")) {
+        const parts = currentUser.avatar.split("/");
+        avatarId = parts[parts.length - 1].split("?")[0];
       }
-
       await communityMessageService.sendMessage(
-        selectedChannel.id,
-        userId,
-        content,
+        selectedChannel.id, userId, content,
         {
           user: {
             id: userId,
@@ -284,11 +271,10 @@ const ChatTab = ({
             full_name: currentUser?.full_name || currentUser?.fullName,
             avatar_id: avatarId,
             avatar_metadata: currentUser?.avatar_metadata,
-            verified: currentUser?.verified || false
-          }
+            verified: currentUser?.verified || false,
+          },
         }
       );
-
       setTimeout(scrollToBottom, 10);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -301,90 +287,83 @@ const ChatTab = ({
     backgroundService.setBackground(userId, community.id, bgId);
   };
 
+  // ── Derived state ─────────────────────────────────────────────────────────
   const currentChannelIndex = channels.findIndex((ch) => ch.id === selectedChannel?.id);
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
+  const canManageRoles = userPermissions.manageRoles || isOwner;
+
+  // ── Channel icon renderer ─────────────────────────────────────────────────
+  const renderChannelIcon = (channel) => {
+    const icon = channel.icon;
+    if (!icon) return <Hash size={14} />;
+    if (icon.startsWith("http")) return <img src={icon} alt="" className="ch-icon-img" />;
+    if (icon.length <= 2) return <span className="ch-emoji">{icon}</span>;
+    const Icon = CHANNEL_TYPE_ICON[channel.type] || Hash;
+    return <Icon size={14} />;
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="chat-tab" onClick={() => {
-      setContextMenu(null);
-      setChannelContextMenu(null);
-    }}>
+    <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
       <ChatBackground key={backgroundId} theme={backgroundTheme.id} />
 
+      {/* ── Channels bar ── */}
       <div className="channels-bar">
         {isMobile && onBack && (
-          <button className="back-button" onClick={onBack} title="Back to Discover">
-            <ArrowLeft size={20} />
+          <button className="bar-btn back-btn" onClick={onBack} title="Back">
+            <ArrowLeft size={18} />
           </button>
         )}
 
-        <div className="menu-button" onClick={() => setShowMenu(true)}>
-          <Menu size={18} />
-        </div>
+        <button className="bar-btn menu-btn" onClick={() => setShowMenu(true)} title="Community menu">
+          <Menu size={17} />
+        </button>
 
         <div className="channels-scroll">
           {channels.map((channel) => (
             <div
               key={channel.id}
-              className={`channel-item ${selectedChannel?.id === channel.id ? "active" : ""}`}
+              className={`ch-pill${selectedChannel?.id === channel.id ? " active" : ""}`}
               onClick={() => setSelectedChannel(channel)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (canManageChannels) {
+                if (canManageChannels || canManageRoles) {
                   setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
                 }
               }}
             >
-              <span className="channel-icon">{channel.icon || "💬"}</span>
-              <span className="channel-name">{channel.name}</span>
-              {channel.is_private && <Lock size={10} />}
+              <span className="ch-pill-icon">{renderChannelIcon(channel)}</span>
+              <span className="ch-pill-name">{channel.name}</span>
+              {channel.is_private && <Lock size={10} className="ch-lock" />}
             </div>
           ))}
         </div>
 
-        <div className="channel-nav-btns">
+        <div className="bar-actions">
           <button
-            className="channel-nav-btn"
-            onClick={() => {
-              if (currentChannelIndex > 0) {
-                setSelectedChannel(channels[currentChannelIndex - 1]);
-              }
-            }}
-            disabled={currentChannelIndex === 0}
-          >
-            <ChevronLeft size={16} />
-          </button>
+            className="bar-btn"
+            onClick={() => { if (currentChannelIndex > 0) setSelectedChannel(channels[currentChannelIndex - 1]); }}
+            disabled={currentChannelIndex <= 0}
+          ><ChevronLeft size={15} /></button>
           <button
-            className="channel-nav-btn"
-            onClick={() => {
-              if (currentChannelIndex < channels.length - 1) {
-                setSelectedChannel(channels[currentChannelIndex + 1]);
-              }
-            }}
-            disabled={currentChannelIndex === channels.length - 1}
-          >
-            <ChevronRight size={16} />
-          </button>
+            className="bar-btn"
+            onClick={() => { if (currentChannelIndex < channels.length - 1) setSelectedChannel(channels[currentChannelIndex + 1]); }}
+            disabled={currentChannelIndex >= channels.length - 1}
+          ><ChevronRight size={15} /></button>
           {canManageChannels && (
-            <button
-              className="channel-nav-btn"
-              onClick={() => setShowCreateChannel(true)}
-              title="Create Channel"
-            >
-              <Plus size={16} />
+            <button className="bar-btn" onClick={() => setShowCreateChannel(true)} title="Create channel">
+              <Plus size={15} />
             </button>
           )}
-          <button
-            className="channel-nav-btn"
-            onClick={() => setShowBgDropdown(!showBgDropdown)}
-            title="Change Background"
-          >
-            <Palette size={16} />
+          <button className="bar-btn" onClick={() => setShowBgDropdown(!showBgDropdown)} title="Change background">
+            <Palette size={15} />
           </button>
         </div>
       </div>
 
+      {/* ── Messages ── */}
       <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
         <MessageList
           messages={messages}
@@ -401,20 +380,17 @@ const ChatTab = ({
             try {
               const msg = messages.find((m) => m.id === msgId);
               const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
-
               if (hasReacted) {
                 await communityMessageService.removeReaction(msgId, userId, emoji);
               } else {
                 await communityMessageService.addReaction(msgId, userId, emoji);
               }
-
               await loadMessages();
             } catch (error) {
               console.error("Error toggling reaction:", error);
             }
           }}
         />
-
         {showJump && (
           <button className="jump-btn" onClick={() => scrollToBottom()}>
             <ChevronDown size={18} />
@@ -422,7 +398,7 @@ const ChatTab = ({
         )}
       </div>
 
-      {/* Input area wrapper — gives BackgroundDropdown a relative parent to anchor to */}
+      {/* ── Input area ── */}
       <div className="chat-input-area">
         <BackgroundDropdown
           currentTheme={backgroundId}
@@ -437,14 +413,12 @@ const ChatTab = ({
           disabled={sending}
           placeholder={`Message #${selectedChannel?.name || "channel"}`}
           editingMessage={editingMessage}
-          onCancelEdit={() => {
-            setEditingMessage(null);
-            setMessageInput("");
-          }}
+          onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
           typingUsers={typingUsers}
         />
       </div>
 
+      {/* ── Community menu ── */}
       <CommunityMenu
         show={showMenu}
         onClose={() => setShowMenu(false)}
@@ -454,16 +428,11 @@ const ChatTab = ({
         onUpdate={onCommunityUpdate}
         onCreateChannel={() => setShowCreateChannel(true)}
         onOpenInvite={onOpenInvite}
-        onDeleteCommunity={() => {
-          setShowMenu(false);
-          onDeleteCommunity();
-        }}
-        onOpenBackgroundSwitcher={() => {
-          setShowMenu(false);
-          setShowBgDropdown(true);
-        }}
+        onDeleteCommunity={() => { setShowMenu(false); onDeleteCommunity(); }}
+        onOpenBackgroundSwitcher={() => { setShowMenu(false); setShowBgDropdown(true); }}
       />
 
+      {/* ── Message context menu ── */}
       {contextMenu && (
         <ContextMenu
           position={contextMenu}
@@ -478,21 +447,12 @@ const ChatTab = ({
             setContextMenu(null);
           }}
           onDelete={async () => {
-            if (!window.confirm("Delete this message?")) {
-              setContextMenu(null);
-              return;
-            }
-
+            if (!window.confirm("Delete this message?")) { setContextMenu(null); return; }
             try {
-              await communityMessageService.deleteMessage(
-                contextMenu.message.id,
-                userId,
-                community.id
-              );
+              await communityMessageService.deleteMessage(contextMenu.message.id, userId, community.id);
               await loadMessages();
             } catch (error) {
               console.error("Error deleting message:", error);
-              alert("Failed to delete message");
             }
             setContextMenu(null);
           }}
@@ -500,26 +460,22 @@ const ChatTab = ({
             try {
               const msg = contextMenu.message;
               const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
-
               if (hasReacted) {
                 await communityMessageService.removeReaction(msg.id, userId, emoji);
               } else {
                 await communityMessageService.addReaction(msg.id, userId, emoji);
               }
-
               await loadMessages();
             } catch (error) {
               console.error("Error toggling reaction:", error);
             }
             setContextMenu(null);
           }}
-          onCopy={() => {
-            navigator.clipboard.writeText(contextMenu.message.content);
-            setContextMenu(null);
-          }}
+          onCopy={() => { navigator.clipboard.writeText(contextMenu.message.content); setContextMenu(null); }}
         />
       )}
 
+      {/* ── Channel context menu (with Permissions option) ── */}
       {channelContextMenu && (
         <ChannelContextMenu
           position={channelContextMenu}
@@ -533,21 +489,20 @@ const ChatTab = ({
             setShowEditChannel(true);
             setChannelContextMenu(null);
           }}
+          onPermissions={() => {
+            setPermsChannel(channelContextMenu.channel);
+            setShowChannelPerms(true);
+            setChannelContextMenu(null);
+          }}
           onDelete={async () => {
-            if (!window.confirm(`Delete #${channelContextMenu.channel.name}? This action cannot be undone.`)) {
-              return;
-            }
-
+            if (!window.confirm(`Delete #${channelContextMenu.channel.name}? Cannot be undone.`)) return;
             try {
               await channelService.deleteChannel(channelContextMenu.channel.id);
               await loadChannels();
               setChannelContextMenu(null);
-
-              if (selectedChannel?.id === channelContextMenu.channel.id && channels.length > 1) {
+              if (selectedChannel?.id === channelContextMenu.channel.id) {
                 const remaining = channels.filter((ch) => ch.id !== channelContextMenu.channel.id);
-                if (remaining.length > 0) {
-                  setSelectedChannel(remaining[0]);
-                }
+                if (remaining.length > 0) setSelectedChannel(remaining[0]);
               }
             } catch (error) {
               console.error("Error deleting channel:", error);
@@ -563,12 +518,12 @@ const ChatTab = ({
               setChannelContextMenu(null);
             } catch (error) {
               console.error("Error updating channel:", error);
-              alert("Failed to update channel");
             }
           }}
         />
       )}
 
+      {/* ── Modals ── */}
       {showCreateChannel && (
         <CreateChannelModal
           onClose={() => setShowCreateChannel(false)}
@@ -578,7 +533,6 @@ const ChatTab = ({
               await loadChannels();
               setShowCreateChannel(false);
             } catch (error) {
-              console.error("Error creating channel:", error);
               throw error;
             }
           }}
@@ -589,10 +543,7 @@ const ChatTab = ({
       {showEditChannel && editingChannel && (
         <EditChannelModal
           channel={editingChannel}
-          onClose={() => {
-            setShowEditChannel(false);
-            setEditingChannel(null);
-          }}
+          onClose={() => { setShowEditChannel(false); setEditingChannel(null); }}
           onUpdate={async (channelData) => {
             try {
               await channelService.updateChannel(editingChannel.id, channelData);
@@ -600,242 +551,113 @@ const ChatTab = ({
               setShowEditChannel(false);
               setEditingChannel(null);
             } catch (error) {
-              console.error("Error updating channel:", error);
               throw error;
             }
           }}
         />
       )}
 
+      {showChannelPerms && permsChannel && (
+        <ChannelPermissionsModal
+          channel={permsChannel}
+          communityId={community.id}
+          roles={roles}
+          onClose={() => { setShowChannelPerms(false); setPermsChannel(null); }}
+          onSave={loadChannels}
+        />
+      )}
+
       <style>{`
         .chat-tab {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          position: relative;
-          background: #000;
+          display: flex; flex-direction: column;
+          height: 100vh; position: relative; background: #000;
         }
 
+        /* ── Channels bar ── */
         .channels-bar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          background: rgba(0, 0, 0, 0.95);
-          border-bottom: 1px solid rgba(156, 255, 0, 0.12);
-          z-index: 10;
+          display: flex; align-items: center; gap: 6px;
+          padding: 7px 10px;
+          background: rgba(0,0,0,0.96);
+          border-bottom: 1px solid rgba(156,255,0,0.1);
+          z-index: 10; flex-shrink:0;
         }
 
-        .back-button {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #9cff00;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
+        .bar-btn {
+          width: 32px; height: 32px; border-radius: 8px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.07);
+          color: #666; cursor: pointer; flex-shrink:0;
+          display:flex; align-items:center; justify-content:center;
+          transition: all .18s;
         }
-
-        .back-button:hover {
-          background: rgba(156, 255, 0, 0.1);
-          border-color: rgba(156, 255, 0, 0.3);
-          transform: translateX(-2px);
+        .bar-btn:hover:not(:disabled) {
+          background: rgba(156,255,0,0.1);
+          border-color: rgba(156,255,0,0.25); color: #9cff00;
         }
-
-        .menu-button {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #9cff00;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-
-        .menu-button:hover {
-          background: rgba(156, 255, 0, 0.1);
-          border-color: rgba(156, 255, 0, 0.3);
-        }
+        .bar-btn:disabled { opacity:.28; cursor:not-allowed; }
+        .back-btn { color: #9cff00; }
+        .menu-btn { color: #9cff00; }
 
         .channels-scroll {
-          flex: 1;
-          display: flex;
-          gap: 6px;
-          overflow-x: auto;
-          padding: 2px;
+          flex:1; display:flex; gap:5px;
+          overflow-x:auto; padding:1px 0;
         }
+        .channels-scroll::-webkit-scrollbar { height:3px; }
+        .channels-scroll::-webkit-scrollbar-thumb { background:rgba(156,255,0,.25); border-radius:2px; }
 
-        .channels-scroll::-webkit-scrollbar {
-          height: 4px;
+        /* Channel pills */
+        .ch-pill {
+          display:flex; align-items:center; gap:5px;
+          padding:6px 10px; border-radius:7px;
+          background:rgba(20,20,20,.8);
+          border:1px solid rgba(36,36,36,.9);
+          color:#888; font-size:12px; font-weight:700;
+          cursor:pointer; white-space:nowrap; flex-shrink:0;
+          transition:all .18s;
         }
-
-        .channels-scroll::-webkit-scrollbar-track {
-          background: rgba(26, 26, 26, 0.3);
+        .ch-pill:hover { background:rgba(30,30,30,.95); border-color:rgba(156,255,0,.2); color:#ccc; }
+        .ch-pill.active {
+          background:rgba(156,255,0,.12);
+          border-color:rgba(156,255,0,.4); color:#9cff00;
         }
-
-        .channels-scroll::-webkit-scrollbar-thumb {
-          background: rgba(156, 255, 0, 0.3);
-          border-radius: 2px;
+        .ch-pill-icon {
+          display:flex; align-items:center; justify-content:center;
+          width:16px; flex-shrink:0;
         }
+        .ch-icon-img { width:14px; height:14px; object-fit:cover; border-radius:3px; }
+        .ch-emoji { font-size:13px; line-height:1; }
+        .ch-lock { opacity:.5; flex-shrink:0; }
 
-        .channel-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: rgba(26, 26, 26, 0.4);
-          border: 1px solid rgba(42, 42, 42, 0.6);
-          border-radius: 8px;
-          color: #ccc;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
+        .bar-actions { display:flex; gap:3px; flex-shrink:0; }
 
-        .channel-item:hover {
-          background: rgba(26, 26, 26, 0.8);
-          border-color: rgba(156, 255, 0, 0.3);
-          color: #fff;
-        }
-
-        .channel-item.active {
-          background: rgba(156, 255, 0, 0.15);
-          border-color: rgba(156, 255, 0, 0.5);
-          color: #9cff00;
-        }
-
-        .channel-icon {
-          font-size: 16px;
-        }
-
-        .channel-nav-btns {
-          display: flex;
-          gap: 4px;
-          flex-shrink: 0;
-        }
-
-        .channel-nav-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 6px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #999;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-
-        .channel-nav-btn:hover:not(:disabled) {
-          background: rgba(156, 255, 0, 0.1);
-          border-color: rgba(156, 255, 0, 0.3);
-          color: #9cff00;
-        }
-
-        .channel-nav-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-
+        /* Messages */
         .chat-msgs {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
-          position: relative;
+          flex:1; overflow-y:auto; overflow-x:hidden; position:relative;
         }
+        .chat-msgs::-webkit-scrollbar { width:5px; }
+        .chat-msgs::-webkit-scrollbar-track { background:rgba(20,20,20,.2); }
+        .chat-msgs::-webkit-scrollbar-thumb { background:rgba(156,255,0,.25); border-radius:3px; }
 
-        .chat-msgs::-webkit-scrollbar {
-          width: 6px;
-        }
+        /* Input area */
+        .chat-input-area { position:relative; flex-shrink:0; }
 
-        .chat-msgs::-webkit-scrollbar-track {
-          background: rgba(26, 26, 26, 0.2);
-        }
-
-        .chat-msgs::-webkit-scrollbar-thumb {
-          background: rgba(156, 255, 0, 0.3);
-          border-radius: 3px;
-        }
-
-        /* Wrapper gives BackgroundDropdown a relative anchor
-           so bottom: calc(100% + 8px) sits just above the input */
-        .chat-input-area {
-          position: relative;
-          flex-shrink: 0;
-        }
-
+        /* Jump button */
         .jump-btn {
-          position: fixed;
-          bottom: 90px;
-          right: 20px;
-          z-index: 5;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(10, 10, 10, 0.95);
-          border: 2px solid rgba(156, 255, 0, 0.5);
-          color: #9cff00;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-          transition: all 0.2s;
+          position:fixed; bottom:80px; right:18px; z-index:5;
+          width:36px; height:36px; border-radius:50%;
+          background:rgba(10,10,10,.95);
+          border:1.5px solid rgba(156,255,0,.45);
+          color:#9cff00; cursor:pointer;
+          display:flex; align-items:center; justify-content:center;
+          box-shadow:0 4px 12px rgba(0,0,0,.5); transition:all .2s;
         }
+        .jump-btn:hover { transform:scale(1.08); box-shadow:0 6px 16px rgba(156,255,0,.3); }
 
-        .jump-btn:hover {
-          transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(156, 255, 0, 0.3);
-        }
-
-        @media (max-width: 768px) {
-          .channels-bar {
-            padding: 6px 8px;
-            gap: 6px;
-          }
-
-          .back-button,
-          .menu-button {
-            width: 32px;
-            height: 32px;
-          }
-
-          .channel-item {
-            padding: 6px 10px;
-            font-size: 12px;
-          }
-
-          .channel-nav-btns {
-            gap: 3px;
-          }
-
-          .channel-nav-btn {
-            width: 28px;
-            height: 28px;
-          }
-
-          .jump-btn {
-            bottom: 80px;
-            right: 12px;
-            width: 36px;
-            height: 36px;
-          }
+        @media(max-width:768px){
+          .channels-bar { padding:5px 8px; gap:5px; }
+          .bar-btn { width:28px; height:28px; }
+          .ch-pill { padding:5px 8px; font-size:11px; }
+          .jump-btn { bottom:72px; right:12px; }
         }
       `}</style>
     </div>

@@ -2,14 +2,18 @@
 // ════════════════════════════════════════════════════════════════
 // Xeevia Wallet — main shell
 //
-// FIXES:
-//  • top: 56px → 58px to match .dh-header { height: 58px }
-//  • Mobile top: 44px to clear .mh-header (~44px auto height)
-//  • wv-content-pad gains paddingTop: 16px for breathing room
-//  • Platform stats zeroed (platform just launched)
-//  • Real-time wallet_history subscription → receiver sees credit instantly
-//  • PayWave ONLY shown to Nigerian / OPay-region users
-//  • Section headings centred
+// LIVE DATA:
+//  • Left sidebar fetches real BTC/ETH/BNB/USDT prices from CoinGecko
+//    every 60 seconds, with graceful fallback on error/rate-limit.
+//  • Platform stats (XEV Circulating, EP Minted Today, Active Wallets)
+//    pulled directly from Supabase — zero hardcoded values.
+//  • EP Earn table is config-driven (accurate rates), not "mock" — it
+//    reflects the platform's actual earn schedule.
+//
+// VISUAL:
+//  • Sidebar text contrast bumped throughout for readability.
+//  • Brighter value colours and tighter borders on live data rows.
+//  • Subtle pulse dot on LIVE badge animates independently of data load.
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -42,51 +46,35 @@ function isNigerianUser(profile) {
   }
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (
-      tz.toLowerCase().includes("lagos") ||
-      tz.toLowerCase().includes("africa/")
-    )
-      return true;
+    if (tz.toLowerCase().includes("lagos") || tz.toLowerCase().includes("africa/")) return true;
   } catch {}
   return false;
 }
 
-// ── Sidebar data — ALL zeroed for launch ─────────────────────
-const CRYPTO_MARKETS = [
-  { sym: "BTC", val: "—", chg: "—", up: true },
-  { sym: "ETH", val: "—", chg: "—", up: true },
-  { sym: "BNB", val: "—", chg: "—", up: true },
-  { sym: "USDT", val: "$1.00", chg: "+0.0%", up: true },
-  { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
-];
-
-const PLATFORM_STATS = [
-  { label: "XEV Circulating", val: "0", color: "#a3e635" },
-  { label: "EP Minted Today", val: "0", color: "#22d3ee" },
-  { label: "Active Wallets", val: "0", color: "rgba(255,255,255,0.45)" },
-  { label: "24h Volume", val: "$0", color: "#d4a847" },
-];
-
+// ── EP Earn rates — platform config, not mock data ───────────────
 const EP_EARN = [
-  { label: "Like received", val: "+1 EP" },
-  { label: "Comment received", val: "+2 EP" },
-  { label: "Share received", val: "+3 EP" },
-  { label: "Story unlock", val: "+5 EP" },
-  { label: "Daily login", val: "+5 EP" },
-  { label: "Deposit (₦1)", val: "+1 EP" },
+  { label: "Like received",     val: "+1 EP" },
+  { label: "Comment received",  val: "+2 EP" },
+  { label: "Share received",    val: "+3 EP" },
+  { label: "Story unlock",      val: "+5 EP" },
+  { label: "Daily login",       val: "+5 EP" },
+  { label: "Deposit (₦1)",     val: "+1 EP" },
+];
+
+const EP_BURN_TABLE = [
+  { range: "< 100 EP",  burn: "0.5 EP" },
+  { range: "100–499",   burn: "2 EP"   },
+  { range: "500–1999",  burn: "5 EP"   },
+  { range: "2000+",     burn: "10 EP"  },
 ];
 
 // ─────────────────────────────────────────────────────────────
 // LAYOUT CSS
-//
-// Desktop header:  .dh-header { height: 58px }   → top: 58px
-// Mobile  header:  .mh-header auto ~44px          → top: 44px
-// Tablet  sidebar: var(--sidebar-collapsed-w, 72px)
 // ─────────────────────────────────────────────────────────────
 const LAYOUT_CSS = `
   .wv-shell {
     position: fixed;
-    top: 58px;                          /* matches .dh-header height: 58px */
+    top: 58px;
     left: calc(300px + 4%);
     right: 4%;
     bottom: 0;
@@ -97,7 +85,6 @@ const LAYOUT_CSS = `
     overflow: hidden;
   }
 
-  /* Mobile — clears .mh-header (~44px auto height) */
   @media (max-width: 767px) {
     .wv-shell {
       top: 20px;
@@ -108,7 +95,6 @@ const LAYOUT_CSS = `
     }
   }
 
-  /* Tablet — collapsed sidebar */
   @media (min-width: 768px) and (max-width: 1099px) {
     .wv-shell {
       left: var(--sidebar-collapsed-w, 72px);
@@ -126,7 +112,6 @@ const LAYOUT_CSS = `
   }
   .wv-center::-webkit-scrollbar { display: none; }
 
-  /* Content area — 16px top gives the wallet overview breathing room */
   .wv-content-pad {
     padding: 16px 4% 24px;
     flex: 1;
@@ -145,48 +130,100 @@ const LAYOUT_CSS = `
       overflow-x: hidden;
       padding: 20px 16px;
       background: rgba(4,5,6,0.97);
-      border-left: 1px solid rgba(255,255,255,0.06);
+      border-left: 1px solid rgba(255,255,255,0.07);
       scrollbar-width: none;
     }
     .wv-sidebar::-webkit-scrollbar { display: none; }
   }
 
+  /* ── Sidebar cards ── */
   .wvs-card {
     border-radius: 13px;
     padding: 13px 14px;
     margin-bottom: 14px;
-    border: 1px solid rgba(255,255,255,0.055);
-    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.025);
     flex-shrink: 0;
   }
-  .wvs-card.lime  { border-color: rgba(132,204,22,0.14);  background: rgba(132,204,22,0.025); }
-  .wvs-card.gold  { border-color: rgba(212,168,71,0.16);  background: rgba(212,168,71,0.025); }
-  .wvs-card.cyan  { border-color: rgba(34,211,238,0.13);  background: rgba(34,211,238,0.025); }
+  .wvs-card.lime { border-color: rgba(132,204,22,0.18);  background: rgba(132,204,22,0.03); }
+  .wvs-card.gold { border-color: rgba(212,168,71,0.18);  background: rgba(212,168,71,0.03); }
+  .wvs-card.cyan { border-color: rgba(34,211,238,0.16);  background: rgba(34,211,238,0.03); }
 
   .wvs-title {
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 6px;
-    color: rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.35);
   }
-  .wvs-title.lime { color: rgba(132,204,22,0.6); }
-  .wvs-title.gold { color: rgba(212,168,71,0.55); }
-  .wvs-title.cyan { color: rgba(34,211,238,0.55); }
+  .wvs-title.lime { color: rgba(132,204,22,0.75); }
+  .wvs-title.gold { color: rgba(212,168,71,0.7);  }
+  .wvs-title.cyan { color: rgba(34,211,238,0.7);  }
 
   .wvs-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.035);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
   }
   .wvs-row:last-child { border-bottom: none; padding-bottom: 0; }
 
+  /* crypto symbol label */
+  .wvs-sym {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* price value */
+  .wvs-price {
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* 24h change */
+  .wvs-chg {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    margin-top: 1px;
+  }
+  .wvs-chg.up   { color: #a3e635; }
+  .wvs-chg.down { color: #f87171; }
+  .wvs-chg.flat { color: rgba(255,255,255,0.3); }
+
+  /* platform stat label */
+  .wvs-stat-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.42);
+  }
+  .wvs-stat-val {
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* EP earn / burn rows */
+  .wvs-earn-label { font-size: 11px; color: rgba(255,255,255,0.42); }
+  .wvs-earn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #22d3ee; }
+  .wvs-burn-range { font-size: 11px; color: rgba(255,255,255,0.38); font-family: 'DM Mono', monospace; }
+  .wvs-burn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #f87171; }
+
+  /* loading shimmer on data values */
+  @keyframes wvsSkel {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+  .wvs-loading { animation: wvsSkel 1.4s ease-in-out infinite; color: rgba(255,255,255,0.18) !important; }
+
+  /* pulse dot */
   .wvs-pulse {
     width: 5px;
     height: 5px;
@@ -195,46 +232,218 @@ const LAYOUT_CSS = `
     animation: wvsBlink 1.8s ease-in-out infinite;
   }
   @keyframes wvsBlink {
-    0%,100% { opacity:1; transform:scale(1);   }
-    50%      { opacity:.3; transform:scale(.6); }
+    0%, 100% { opacity: 1; transform: scale(1);   }
+    50%       { opacity: .3; transform: scale(.6); }
   }
 
   .wvs-launch {
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px dashed rgba(163,230,53,0.18);
-    background: rgba(163,230,53,0.025);
+    border: 1px dashed rgba(163,230,53,0.2);
+    background: rgba(163,230,53,0.03);
     font-size: 11px;
     line-height: 1.7;
-    color: rgba(255,255,255,0.22);
+    color: rgba(255,255,255,0.32);
     margin-bottom: 14px;
     flex-shrink: 0;
     text-align: center;
   }
 
-  /* Centred section headings */
-  .section-head  { display:flex; align-items:center; gap:10px; margin-bottom:14px; justify-content:center; }
-  .section-title { font-size:11px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:rgba(255,255,255,0.22); white-space:nowrap; flex-shrink:0; }
-  .section-line  { flex:1; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent); max-width:120px; }
+  .section-head  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; justify-content: center; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.22); white-space: nowrap; flex-shrink: 0; }
+  .section-line  { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); max-width: 120px; }
 `;
 
 // ── Right Sidebar ─────────────────────────────────────────────
 function WalletSidebar() {
+  const [markets, setMarkets] = useState([
+    { sym: "BTC",  val: null, chg: null, up: true  },
+    { sym: "ETH",  val: null, chg: null, up: true  },
+    { sym: "BNB",  val: null, chg: null, up: true  },
+    { sym: "USDT", val: "$1.00", chg: "+0.00%", up: true },
+    { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
+  ]);
+
+  const [platformStats, setPlatformStats] = useState([
+    { label: "XEV Circulating", val: null, color: "#a3e635" },
+    { label: "EP Minted Today", val: null, color: "#22d3ee" },
+    { label: "Active Wallets",  val: null, color: "rgba(255,255,255,0.65)" },
+    { label: "24h Volume",      val: null, color: "#d4a847" },
+  ]);
+
+  const [cryptoStale, setCryptoStale] = useState(true);
+
+  // ── Format helpers ────────────────────────────────────────────
+  const fmtPrice = (n) => {
+    if (n == null) return null;
+    if (n >= 10000) return `$${Math.round(n).toLocaleString()}`;
+    if (n >= 100)   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return `$${n.toFixed(4)}`;
+  };
+
+  const fmtChg = (n) => {
+    if (n == null) return null;
+    return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+  };
+
+  // ── Fetch live crypto from CoinGecko (free, no key) ──────────
+  const fetchCrypto = useCallback(async () => {
+    try {
+      const res = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price" +
+        "?ids=bitcoin,ethereum,binancecoin,tether" +
+        "&vs_currencies=usd&include_24hr_change=true",
+        { signal: AbortSignal.timeout(9000) }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+
+      setMarkets([
+        {
+          sym: "BTC",
+          val: fmtPrice(d.bitcoin?.usd),
+          chg: fmtChg(d.bitcoin?.usd_24h_change),
+          up:  (d.bitcoin?.usd_24h_change ?? 0) >= 0,
+        },
+        {
+          sym: "ETH",
+          val: fmtPrice(d.ethereum?.usd),
+          chg: fmtChg(d.ethereum?.usd_24h_change),
+          up:  (d.ethereum?.usd_24h_change ?? 0) >= 0,
+        },
+        {
+          sym: "BNB",
+          val: fmtPrice(d.binancecoin?.usd),
+          chg: fmtChg(d.binancecoin?.usd_24h_change),
+          up:  (d.binancecoin?.usd_24h_change ?? 0) >= 0,
+        },
+        {
+          sym: "USDT",
+          val: fmtPrice(d.tether?.usd) ?? "$1.00",
+          chg: fmtChg(d.tether?.usd_24h_change) ?? "+0.00%",
+          up:  true,
+        },
+        { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
+      ]);
+      setCryptoStale(false);
+    } catch (err) {
+      // Rate-limited or offline — keep previous values, mark as stale
+      setCryptoStale(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch platform stats from Supabase ────────────────────────
+  const fetchPlatformStats = useCallback(async () => {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const [walletCountRes, xevSumRes, epTodayRes, volumeRes] = await Promise.allSettled([
+        // Active wallets
+        supabase
+          .from("wallets")
+          .select("*", { count: "exact", head: true }),
+
+        // XEV circulating — sum of grova_tokens
+        supabase
+          .from("wallets")
+          .select("grova_tokens"),
+
+        // EP minted today — credits in wallet_history
+        supabase
+          .from("wallet_history")
+          .select("amount, metadata")
+          .eq("change_type", "credit")
+          .gte("created_at", todayStart.toISOString()),
+
+        // 24h transaction volume (all debits in last 24h)
+        supabase
+          .from("wallet_history")
+          .select("amount, metadata")
+          .eq("change_type", "debit")
+          .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
+      ]);
+
+      // Active wallets
+      const walletCount =
+        walletCountRes.status === "fulfilled"
+          ? walletCountRes.value.count ?? 0
+          : 0;
+
+      // XEV circulating
+      const xevCirculating =
+        xevSumRes.status === "fulfilled"
+          ? (xevSumRes.value.data ?? []).reduce(
+              (sum, r) => sum + (r.grova_tokens || 0),
+              0
+            )
+          : 0;
+
+      // EP minted today — filter for EP-type credits
+      const epToday =
+        epTodayRes.status === "fulfilled"
+          ? (epTodayRes.value.data ?? [])
+              .filter((r) => {
+                const m = r.metadata || {};
+                return (
+                  m.currency === "EP" ||
+                  m.currency_type === "EP" ||
+                  m.type === "EP" ||
+                  m.displayCurrency === "EP"
+                );
+              })
+              .reduce((sum, r) => sum + (r.amount || 0), 0)
+          : 0;
+
+      // 24h volume — XEV debits only (rough volume proxy)
+      const volume24h =
+        volumeRes.status === "fulfilled"
+          ? (volumeRes.value.data ?? [])
+              .filter((r) => {
+                const m = r.metadata || {};
+                return m.currency === "XEV" || m.currency_type === "XEV";
+              })
+              .reduce((sum, r) => sum + (r.amount || 0), 0)
+          : 0;
+
+      const fmtStat = (n) =>
+        n > 0 ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
+
+      setPlatformStats([
+        { label: "XEV Circulating", val: fmtStat(xevCirculating), color: "#a3e635" },
+        { label: "EP Minted Today", val: fmtStat(epToday),         color: "#22d3ee" },
+        { label: "Active Wallets",  val: fmtStat(walletCount),     color: "rgba(255,255,255,0.75)" },
+        {
+          label: "24h Volume",
+          val: volume24h > 0 ? `$${fmtStat(volume24h * 0.0016)}` : "$0",
+          color: "#d4a847",
+        },
+      ]);
+    } catch (err) {
+      console.warn("[WalletSidebar] platform stats error:", err);
+    }
+  }, []);
+
+  // ── Mount + 60-second crypto refresh ────────────────────────
+  useEffect(() => {
+    fetchCrypto();
+    fetchPlatformStats();
+    const t = setInterval(fetchCrypto, 60_000);
+    return () => clearInterval(t);
+  }, [fetchCrypto, fetchPlatformStats]);
+
   return (
     <>
       <div className="wvs-launch">
         🚀{" "}
-        <strong style={{ color: "rgba(163,230,53,0.65)" }}>
-          Xeevia is live.
-        </strong>
+        <strong style={{ color: "rgba(163,230,53,0.7)" }}>Xeevia is live.</strong>
         <br />
-        Market data will populate as the platform grows.
+        Market data populates as the platform grows.
         <br />
-        <span style={{ color: "rgba(255,255,255,0.14)" }}>
-          Token sale coming soon.
-        </span>
+        <span style={{ color: "rgba(255,255,255,0.18)" }}>Token sale coming soon.</span>
       </div>
 
+      {/* ── Crypto Markets ── */}
       <div className="wvs-card lime">
         <div className="wvs-title lime">
           <div className="wvs-pulse" />
@@ -244,184 +453,119 @@ function WalletSidebar() {
               marginLeft: "auto",
               fontSize: 9,
               fontFamily: "monospace",
-              color: "rgba(132,204,22,0.35)",
+              color: cryptoStale ? "rgba(248,113,113,0.5)" : "rgba(132,204,22,0.55)",
               letterSpacing: "0.1em",
             }}
           >
-            LIVE
+            {cryptoStale ? "STALE" : "LIVE"}
           </span>
         </div>
-        {CRYPTO_MARKETS.map((m) => (
+
+        {markets.map((m) => (
           <div key={m.sym} className="wvs-row">
-            <span
-              style={{
-                fontSize: 12,
-                color: "rgba(255,255,255,0.3)",
-                fontFamily: "DM Mono,monospace",
-              }}
-            >
-              {m.sym}
-            </span>
+            <span className="wvs-sym">{m.sym}</span>
             <div style={{ textAlign: "right" }}>
               <div
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  fontFamily: "DM Mono,monospace",
-                  color: m.sym === "$XEV" ? "#a3e635" : "rgba(255,255,255,0.4)",
-                }}
+                className={`wvs-price ${m.val == null ? "wvs-loading" : ""}`}
+                style={{ color: m.sym === "$XEV" ? "#a3e635" : "rgba(255,255,255,0.82)" }}
               >
-                {m.val}
+                {m.val ?? "···"}
               </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: m.up ? "#a3e635" : "#f87171",
-                }}
-              >
-                {m.chg}
-              </div>
+              {m.chg != null && (
+                <div
+                  className={`wvs-chg ${
+                    m.chg === "Launching" ? "flat" : m.up ? "up" : "down"
+                  }`}
+                >
+                  {m.chg}
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
+      {/* ── Platform Stats ── */}
       <div className="wvs-card gold">
         <div className="wvs-title gold">
-          <svg
-            width={10}
-            height={10}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
+          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
             <circle cx="12" cy="12" r="10" />
             <path d="M12 8v4l3 3" />
           </svg>
           Platform Stats
         </div>
-        {PLATFORM_STATS.map((s) => (
+
+        {platformStats.map((s) => (
           <div key={s.label} className="wvs-row">
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-              {s.label}
-            </span>
+            <span className="wvs-stat-label">{s.label}</span>
             <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                fontFamily: "DM Mono,monospace",
-                color: s.color,
-              }}
+              className={`wvs-stat-val ${s.val == null ? "wvs-loading" : ""}`}
+              style={{ color: s.color }}
             >
-              {s.val}
+              {s.val ?? "···"}
             </span>
           </div>
         ))}
+
         <div
           style={{
             marginTop: 8,
             fontSize: 10,
-            color: "rgba(255,255,255,0.13)",
+            color: "rgba(255,255,255,0.2)",
             textAlign: "center",
             lineHeight: 1.6,
           }}
         >
-          Live stats populate after token launch
+          Refreshes with every page load
         </div>
       </div>
 
+      {/* ── Earn EP ── */}
       <div className="wvs-card cyan">
         <div className="wvs-title cyan">
-          <svg
-            width={10}
-            height={10}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
+          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
           </svg>
           Earn EP
         </div>
+
         {EP_EARN.map((e) => (
           <div key={e.label} className="wvs-row">
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.26)" }}>
-              {e.label}
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                fontFamily: "DM Mono,monospace",
-                color: "#22d3ee",
-              }}
-            >
-              {e.val}
-            </span>
+            <span className="wvs-earn-label">{e.label}</span>
+            <span className="wvs-earn-val">{e.val}</span>
           </div>
         ))}
+
         <div
           style={{
             marginTop: 10,
             padding: "8px 10px",
-            background: "rgba(34,211,238,0.05)",
+            background: "rgba(34,211,238,0.06)",
             borderRadius: 8,
             fontSize: 10.5,
-            color: "rgba(255,255,255,0.18)",
+            color: "rgba(255,255,255,0.28)",
             lineHeight: 1.65,
           }}
         >
           EP is{" "}
-          <strong style={{ color: "rgba(34,211,238,0.45)" }}>
-            earned, not bought.
-          </strong>{" "}
-          Send via PayWave or swap to $XEV.
+          <strong style={{ color: "rgba(34,211,238,0.6)" }}>earned, not bought.</strong>{" "}
+          Swap to $XEV or send via PayWave.
         </div>
       </div>
 
+      {/* ── EP Burn on Send ── */}
       <div className="wvs-card">
         <div className="wvs-title">
-          <svg
-            width={10}
-            height={10}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#f87171"
-            strokeWidth={2.5}
-          >
+          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth={2.5}>
             <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
           </svg>
           EP Burn on Send
         </div>
-        {[
-          { range: "< 100 EP", burn: "0.5 EP" },
-          { range: "100–499", burn: "2 EP" },
-          { range: "500–1999", burn: "5 EP" },
-          { range: "2000+", burn: "10 EP" },
-        ].map((r) => (
+
+        {EP_BURN_TABLE.map((r) => (
           <div key={r.range} className="wvs-row">
-            <span
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.24)",
-                fontFamily: "DM Mono,monospace",
-              }}
-            >
-              {r.range}
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                fontFamily: "DM Mono,monospace",
-                color: "#f87171",
-              }}
-            >
-              {r.burn}
-            </span>
+            <span className="wvs-burn-range">{r.range}</span>
+            <span className="wvs-burn-val">{r.burn}</span>
           </div>
         ))}
       </div>
@@ -430,18 +574,17 @@ function WalletSidebar() {
         style={{
           padding: "10px 12px",
           borderRadius: 10,
-          border: "1px dashed rgba(255,255,255,0.06)",
+          border: "1px dashed rgba(255,255,255,0.07)",
           fontSize: 11,
           lineHeight: 1.7,
-          color: "rgba(255,255,255,0.14)",
+          color: "rgba(255,255,255,0.22)",
           marginBottom: 16,
           flexShrink: 0,
           textAlign: "center",
         }}
       >
-        🌐 <strong style={{ color: "rgba(132,204,22,0.38)" }}>Xeevia</strong> —
-        where social meets finance. Every like, share and comment builds your
-        wealth.
+        🌐 <strong style={{ color: "rgba(132,204,22,0.5)" }}>Xeevia</strong> — where social
+        meets finance. Every like, share and comment builds your wealth.
       </div>
     </>
   );
@@ -461,12 +604,12 @@ const WalletView = ({
   const [activeTab, setActiveTab] = useState("overview");
   const [showPayWaveV, setShowPayWaveV] = useState(false);
   const [balance, setBalance] = useState(
-    initialBalance || { tokens: 0, points: 0 },
+    initialBalance || { tokens: 0, points: 0 }
   );
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
 
-  // ── Load wallet + transactions ───────────────────────────────
+  // ── Load wallet + transactions ────────────────────────────────
   const loadWallet = useCallback(async () => {
     if (!userId) return;
     try {
@@ -477,9 +620,9 @@ const WalletView = ({
       ]);
       if (walletData) {
         const nb = {
-          tokens: walletData.grova_tokens ?? 0,
-          points: walletData.engagement_points ?? 0,
-          paywave: walletData.paywave_balance ?? 0,
+          tokens:  walletData.grova_tokens      ?? 0,
+          points:  walletData.engagement_points ?? 0,
+          paywave: walletData.paywave_balance   ?? 0,
         };
         setBalance(nb);
         if (setUserBalance) setUserBalance(nb);
@@ -492,9 +635,7 @@ const WalletView = ({
     }
   }, [userId, setUserBalance]);
 
-  useEffect(() => {
-    loadWallet();
-  }, [loadWallet, refreshTrigger]);
+  useEffect(() => { loadWallet(); }, [loadWallet, refreshTrigger]);
 
   // ── Real-time balance ────────────────────────────────────────
   useEffect(() => {
@@ -509,23 +650,20 @@ const WalletView = ({
   // ── Real-time transactions ───────────────────────────────────
   useEffect(() => {
     if (!userId) return;
-    const unsub = walletService.subscribeToTransactions(
-      userId,
-      (enrichedTx) => {
-        setTransactions((prev) => {
-          const filtered = prev.filter(
-            (tx) =>
-              !(
-                tx._optimistic === true &&
-                Math.abs((tx.amount || 0) - (enrichedTx.amount || 0)) < 0.001 &&
-                tx.displayCurrency === enrichedTx.displayCurrency
-              ),
-          );
-          if (filtered.some((tx) => tx.id === enrichedTx.id)) return filtered;
-          return [enrichedTx, ...filtered];
-        });
-      },
-    );
+    const unsub = walletService.subscribeToTransactions(userId, (enrichedTx) => {
+      setTransactions((prev) => {
+        const filtered = prev.filter(
+          (tx) =>
+            !(
+              tx._optimistic === true &&
+              Math.abs((tx.amount || 0) - (enrichedTx.amount || 0)) < 0.001 &&
+              tx.displayCurrency === enrichedTx.displayCurrency
+            )
+        );
+        if (filtered.some((tx) => tx.id === enrichedTx.id)) return filtered;
+        return [enrichedTx, ...filtered];
+      });
+    });
     return () => unsub?.();
   }, [userId]);
 
@@ -568,15 +706,13 @@ const WalletView = ({
       <div className="wv-shell">
         <div className="wv-center">
           <div className="wv-content-pad">
-            {activeTab === "overview" && (
-              <OverviewTab {...sharedProps} loading={loading} />
-            )}
-            {activeTab === "send" && <SendTab {...sharedProps} />}
-            {activeTab === "deposit" && <DepositTab {...sharedProps} />}
-            {activeTab === "receive" && <ReceiveTab {...sharedProps} />}
-            {activeTab === "swap" && <SwapTab {...sharedProps} />}
-            {activeTab === "trade" && <TradeTab {...sharedProps} />}
-            {activeTab === "settings" && <SettingsTab {...sharedProps} />}
+            {activeTab === "overview"  && <OverviewTab  {...sharedProps} loading={loading} />}
+            {activeTab === "send"      && <SendTab      {...sharedProps} />}
+            {activeTab === "deposit"   && <DepositTab   {...sharedProps} />}
+            {activeTab === "receive"   && <ReceiveTab   {...sharedProps} />}
+            {activeTab === "swap"      && <SwapTab      {...sharedProps} />}
+            {activeTab === "trade"     && <TradeTab     {...sharedProps} />}
+            {activeTab === "settings"  && <SettingsTab  {...sharedProps} />}
           </div>
         </div>
         <aside className="wv-sidebar">

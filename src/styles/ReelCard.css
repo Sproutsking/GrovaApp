@@ -1,18 +1,49 @@
-.reel-card {
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid #4444;
+/* ============================================================================
+   ReelCard.css — FULL REDESIGN
+   Xeevia · Supa-smart reel card · PC + Mobile
+   ============================================================================ */
+
+/* ── Card shell ──────────────────────────────────────────────────────────────── */
+.xv-reel-card {
   position: relative;
-  transition: transform 0.15s ease;
-  max-height: 84vh;
+  background: #080808;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+  /* subtle limegreen glow on the card edge */
+  box-shadow:
+    0 0 0 0 rgba(132, 204, 22, 0),
+    0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-.reel-card:hover {
-  transform: scale(1.002);
+.xv-reel-card.hovered {
+  transform: translateY(-2px) scale(1.003);
+  border-color: rgba(132, 204, 22, 0.2);
+  box-shadow:
+    0 0 24px rgba(132, 204, 22, 0.08),
+    0 16px 48px rgba(0, 0, 0, 0.6);
 }
 
-.reel-video-container {
+/* Thin limegreen accent line at very top of card */
+.xv-card-accent {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #84cc16 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 20;
+}
+.xv-reel-card.hovered .xv-card-accent {
+  opacity: 1;
+}
+
+/* ── Video container ─────────────────────────────────────────────────────────── */
+.xv-reel-video-wrap {
   position: relative;
   width: 100%;
   aspect-ratio: 9 / 14;
@@ -22,362 +53,448 @@
   overflow: hidden;
 }
 
-.reel-video {
+.xv-reel-video {
   width: 100%;
   height: 100%;
   background: #000;
+  display: block;
 }
 
-.reel-loading {
+/* ── Cinematic gradient overlay ──────────────────────────────────────────────── */
+.xv-cinematic-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.35) 0%,
+      transparent 18%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.5) 78%,
+      rgba(0, 0, 0, 0.88) 100%
+    );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Loading spinner ─────────────────────────────────────────────────────────── */
+.xv-reel-loading {
+  position: absolute;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   z-index: 10;
 }
 
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(132, 204, 22, 0.2);
+.xv-spinner {
+  width: 44px; height: 44px;
+  border: 3px solid rgba(132, 204, 22, 0.15);
   border-top-color: #84cc16;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: xv-spin 0.9s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes xv-spin { to { transform: rotate(360deg); } }
+
+/* ── Placeholder ─────────────────────────────────────────────────────────────── */
+.xv-reel-placeholder {
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(132, 204, 22, 0.08) 0%, transparent 60%),
+    linear-gradient(135deg, #111 0%, #080808 100%);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px;
 }
 
-.reel-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #171717 0%, #0a0a0a 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.reel-placeholder-letter {
-  width: 80px;
-  height: 80px;
+.xv-placeholder-letter {
+  width: 72px; height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  font-weight: 800;
-  color: #000;
+  background: linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 900; color: #000;
+  letter-spacing: -1px;
 }
 
-.reel-error-msg {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 13px;
+.xv-error-msg {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
 }
 
-.reel-overlay {
+/* ── Top controls ────────────────────────────────────────────────────────────── */
+.xv-top-controls {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.3) 0%,
-    transparent 20%,
-    transparent 80%,
-    rgba(0, 0, 0, 0.6) 100%
-  );
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 14px; right: 14px;
+  z-index: 12;
+  display: flex; gap: 8px;
   opacity: 0;
-  transition: opacity 0.3s;
+  transform: translateY(-4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
   pointer-events: none;
 }
-
-.reel-overlay.visible {
+.xv-top-controls.visible {
   opacity: 1;
-}
-
-.reel-play-btn {
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  transform: translateY(0);
   pointer-events: all;
 }
 
-.reel-play-btn:hover {
-  background: rgba(0, 0, 0, 0.8);
-  transform: scale(1.05);
-}
-
-.reel-top-controls {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-}
-
-.reel-mute-btn {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  width: 40px;
-  height: 40px;
+/* ── Icon button (shared) ────────────────────────────────────────────────────── */
+.xv-icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
   cursor: pointer;
-  transition: all 0.2s;
-  pointer-events: all;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s, color 0.2s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+.xv-icon-btn:hover {
+  background: rgba(132, 204, 22, 0.15);
+  border-color: rgba(132, 204, 22, 0.4);
+  color: #a3e635;
+  transform: scale(1.08);
+}
+.xv-icon-btn:active {
+  transform: scale(0.95);
 }
 
-.reel-mute-btn:hover {
-  background: rgba(0, 0, 0, 0.8);
-  transform: scale(1.05);
-}
-
-.reel-bottom-bar {
+/* ── Centre play area ────────────────────────────────────────────────────────── */
+.xv-play-area {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
-  padding: 8px 12px 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.video-progress-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 11;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.25s ease;
   pointer-events: none;
 }
-
-.video-progress-container.visible {
+.xv-play-area.visible {
   opacity: 1;
   pointer-events: all;
 }
 
-.video-progress-bar {
+.xv-play-ring {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.2s, transform 0.15s, border-color 0.2s;
+}
+.xv-play-area:hover .xv-play-ring {
+  background: rgba(132, 204, 22, 0.2);
+  border-color: rgba(132, 204, 22, 0.5);
+  transform: scale(1.06);
+}
+
+/* ── Bottom bar (inside video) ───────────────────────────────────────────────── */
+.xv-reel-bottom-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 10;
+  padding: 0 12px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* ── Progress ────────────────────────────────────────────────────────────────── */
+.xv-progress-wrap {
+  display: flex; align-items: center; gap: 10px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.xv-progress-wrap.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.xv-progress-track {
   flex: 1;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 99px;
   cursor: pointer;
-  transition: height 0.2s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  transition: height 0.2s ease;
+}
+.xv-progress-track:hover {
+  height: 5px;
 }
 
-.video-progress-bar:hover {
-  height: 6px;
-}
-
-.progress-buffered {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.35);
+.xv-progress-buffered {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 99px;
   transition: width 0.3s ease;
-  border-radius: 2px;
 }
 
-.progress-played {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+.xv-progress-played {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: linear-gradient(90deg, #65a30d 0%, #a3e635 100%);
+  border-radius: 99px;
   transition: width 0.1s linear;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  border-radius: 2px;
+  display: flex; align-items: center; justify-content: flex-end;
+  overflow: visible;
 }
 
-.progress-handle {
-  width: 10px;
-  height: 10px;
+.xv-progress-thumb {
+  width: 11px; height: 11px;
   background: #fff;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 2px rgba(132, 204, 22, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
   opacity: 0;
   transition: opacity 0.2s ease;
   transform: translateX(50%);
+  flex-shrink: 0;
 }
-
-.video-progress-bar:hover .progress-handle {
+.xv-progress-track:hover .xv-progress-thumb {
   opacity: 1;
 }
 
-.video-time-display {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  color: white;
-  padding: 3px 8px;
-  border-radius: 6px;
+.xv-time-badge {
   font-size: 10px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
   white-space: nowrap;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.xv-time-sep {
+  opacity: 0.45;
+  margin: 0 2px;
 }
 
-.reel-bottom-content {
+/* ── Bottom row ──────────────────────────────────────────────────────────────── */
+.xv-bottom-row {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.reel-menu-btn {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.xv-profile-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.xv-bottom-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.reel-menu-btn:hover {
-  background: rgba(0, 0, 0, 0.8);
-  transform: scale(1.05);
+/* ── Timestamp ───────────────────────────────────────────────────────────────── */
+.xv-timestamp {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.38);
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
 }
 
-.reel-caption-expanded {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.95) 0%,
-    rgba(0, 0, 0, 0.85) 100%
-  );
-  backdrop-filter: blur(10px);
-  padding: 16px;
-  max-height: 60%;
+/* ── Follow button ───────────────────────────────────────────────────────────── */
+.xv-follow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.xv-follow-btn:hover {
+  background: rgba(132, 204, 22, 0.18);
+  border-color: rgba(132, 204, 22, 0.5);
+  color: #a3e635;
+  transform: scale(1.04);
+}
+.xv-follow-btn.following {
+  background: rgba(132, 204, 22, 0.14);
+  border-color: rgba(132, 204, 22, 0.38);
+  color: #a3e635;
+}
+.xv-follow-btn.following:hover {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.38);
+  color: #f87171;
+}
+.xv-follow-btn.pop {
+  animation: xv-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes xv-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  70%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+/* ── Expanded caption inside video ──────────────────────────────────────────── */
+.xv-caption-expanded-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.96) 0%, rgba(0, 0, 0, 0.8) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 20px 16px;
+  max-height: 55%;
   overflow-y: auto;
   z-index: 50;
   cursor: pointer;
-  animation: slideUp 0.3s ease;
+  animation: xv-slide-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes xv-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.xv-caption-expanded-content {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13.5px;
+  line-height: 1.6;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.caption-expanded-content {
-  color: #e5e5e5;
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.reel-caption-section {
-  padding: 3px 12px;
-  background: black;
-  /* border-top: 1px solid #4444; */
+/* ── Caption section below video ────────────────────────────────────────────── */
+.xv-caption-section {
+  padding: 6px 14px;
+  background: #080808;
   cursor: default;
+  transition: background 0.2s;
 }
-
-.reel-caption-section.has-more {
+.xv-caption-section.expandable {
   cursor: pointer;
 }
-
-.reel-caption-section.has-more:hover {
-  background: rgba(0, 0, 0, 0.4);
+.xv-caption-section.expandable:hover {
+  background: rgba(132, 204, 22, 0.04);
 }
 
-.reel-caption {
-  color: #e5e5e5;
-  font-size: 13px;
-  line-height: 1.4;
+.xv-caption-text {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12.5px;
+  line-height: 1.45;
   margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
+  display: flex; align-items: baseline; gap: 3px; flex-wrap: wrap;
 }
-
-.caption-more {
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 600;
-  flex-shrink: 0;
+.xv-caption-more {
+  color: rgba(132, 204, 22, 0.65);
+  font-weight: 700;
+  font-size: 11.5px;
   transition: color 0.2s;
+  flex-shrink: 0;
+}
+.xv-caption-section.expandable:hover .xv-caption-more {
+  color: #a3e635;
 }
 
-.reel-caption-section.has-more:hover .caption-more {
-  color: #84cc16;
+/* ── Category pill ───────────────────────────────────────────────────────────── */
+.xv-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  margin: 0 14px 8px;
+  width: fit-content;
+}
+.xv-category-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.xv-category-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  line-height: 1;
 }
 
-.reel-footer {
+/* ── Footer (reactions) ──────────────────────────────────────────────────────── */
+.xv-reel-footer {
   padding: 0;
-  background: black;
+  background: #080808;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+/* ── Mobile ──────────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .reel-card {
+  .xv-reel-card {
     border-radius: 0;
     border-left: none;
     border-right: none;
-    max-height: 88vh;
-    background: rgba(0, 0, 0, 0.8);
+    border-top: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    max-height: 92vh;
   }
 
-  .reel-video-container {
+  .xv-reel-card.hovered {
+    transform: none;
+    box-shadow: none;
+  }
+  .xv-card-accent {
+    display: none;
+  }
+
+  .xv-reel-video-wrap {
     aspect-ratio: 9 / 16;
-    max-height: 80vh;
+    max-height: 82vh;
+    height: auto;
   }
 
-  .reel-bottom-bar {
-    padding: 6px 10px;
+  .xv-reel-bottom-bar {
+    padding: 0 10px 10px;
   }
 
-  .video-time-display {
+  .xv-time-badge {
     font-size: 9px;
-    padding: 2px 6px;
+    padding: 2px 5px;
   }
 
-  .reel-caption-section {
-    padding: 2px 10px;
+  .xv-caption-section {
+    padding: 4px 12px;
   }
 
-  .caption-expanded-content {
-    font-size: 13px;
+  .xv-caption-text {
+    font-size: 12px;
+  }
+
+  .xv-category-pill {
+    margin: 0 12px 6px;
+  }
+
+  .xv-follow-btn {
+    padding: 4px 10px;
+    font-size: 10.5px;
+  }
+
+  .xv-icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .xv-play-ring {
+    width: 56px;
+    height: 56px;
   }
 }

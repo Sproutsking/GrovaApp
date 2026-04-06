@@ -1,26 +1,15 @@
 // src/components/Create/CreateView.jsx
 // ============================================================================
-// FIX 1 (Reel — root cause): MediaUploader fires onMediaReady with the
-//   already-uploaded Cloudinary URL. handleReelMediaReady was only storing
-//   it when mediaData.type === "video", but MediaUploader may return
-//   type="created" OR type="mixed" OR include a top-level `url` field.
-//   Now we capture every shape that carries a usable video URL/file.
-//
-// FIX 2 (Reel — safety): handlePublishReel validates that videoToUpload
-//   was actually resolved before calling createService, giving a clear
-//   error instead of a silent "Video is required" from inside the service.
-//
-// FIX 3 (Story): titleColor / textColor are now forwarded to createService
-//   (they were already being passed — createService.js is the file that
-//   needed the fix to store them safely inside cover_image_metadata).
-//
-// Everything else is the original code, unchanged.
+// Redesigned visual layer — all business logic preserved exactly as authored.
+// Only the JSX structure, className usage, and inline styles have been updated
+// to match the new CreateStudio.css design system.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
 import {
   Image, Film, BookOpen, Sparkles, DollarSign, Users, Plus, Minus, Loader,
   Infinity, Palette, Save, FileText, CheckCircle, Eye, Lock, Wand2, Type,
+  Send,
 } from "lucide-react";
 import { supabase }       from "../../services/config/supabase";
 import createService      from "../../services/create/createService";
@@ -112,18 +101,18 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
     "Self-Help","Poetry","Drama","Comedy","Satire","Dystopian","Utopian",
   ];
   const titleColors = [
-    { name:"White",  value:"#ffffff" },{ name:"Green",  value:"#84cc16" },
-    { name:"Lime",   value:"#bef264" },{ name:"Gold",   value:"#fbbf24" },
-    { name:"Amber",  value:"#f59e0b" },{ name:"Orange", value:"#f97316" },
-    { name:"Red",    value:"#ef4444" },{ name:"Rose",   value:"#f43f5e" },
-    { name:"Pink",   value:"#ec4899" },
+    { name: "White",  value: "#ffffff" }, { name: "Green",  value: "#84cc16" },
+    { name: "Lime",   value: "#bef264" }, { name: "Gold",   value: "#fbbf24" },
+    { name: "Amber",  value: "#f59e0b" }, { name: "Orange", value: "#f97316" },
+    { name: "Red",    value: "#ef4444" }, { name: "Rose",   value: "#f43f5e" },
+    { name: "Pink",   value: "#ec4899" },
   ];
   const textColors = [
-    { name:"Light Gray",   value:"#d4d4d4" },{ name:"White",        value:"#ffffff" },
-    { name:"Gray",         value:"#a3a3a3" },{ name:"Slate",        value:"#94a3b8" },
-    { name:"Light Green",  value:"#bef264" },{ name:"Light Lime",   value:"#d9f99d" },
-    { name:"Light Yellow", value:"#fde047" },{ name:"Light Amber",  value:"#fcd34d" },
-    { name:"Light Orange", value:"#fdba74" },
+    { name: "Light Gray",   value: "#d4d4d4" }, { name: "White",        value: "#ffffff" },
+    { name: "Gray",         value: "#a3a3a3" }, { name: "Slate",        value: "#94a3b8" },
+    { name: "Light Green",  value: "#bef264" }, { name: "Light Lime",   value: "#d9f99d" },
+    { name: "Light Yellow", value: "#fde047" }, { name: "Light Amber",  value: "#fcd34d" },
+    { name: "Light Orange", value: "#fdba74" },
   ];
 
   useEffect(() => {
@@ -208,37 +197,15 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
 
   const handlePostMediaReady = (mediaData) => setPostMedia(mediaData.items);
 
-  // ── FIX: capture every shape MediaUploader can return for a reel video ──────
-  // MediaUploader may return any of:
-  //   { type: "video",   url, duration }          ← slide-show creator output
-  //   { type: "created", url, duration }          ← same, alternate type label
-  //   { type: "items",   items: [{ file, url }] } ← single file upload
-  //   { type: "mixed",   items: [...], url }       ← Cloudinary pre-upload done
-  //   { url, items, ... }                          ← any other shape with a url
-  // In ALL cases we want to end up with reelMedia set to something useful.
-  // ────────────────────────────────────────────────────────────────────────────
   const handleReelMediaReady = (mediaData) => {
     console.log("📹 handleReelMediaReady received:", mediaData);
-
     if (!mediaData) return;
-
-    // Case 1: slide-show creator already produced a final URL
-    if (
-      (mediaData.type === "video" || mediaData.type === "created") &&
-      mediaData.url
-    ) {
-      setReelMedia({
-        type:     "created",
-        url:      mediaData.url,
-        duration: mediaData.duration || null,
-      });
+    if ((mediaData.type === "video" || mediaData.type === "created") && mediaData.url) {
+      setReelMedia({ type: "created", url: mediaData.url, duration: mediaData.duration || null });
       return;
     }
-
-    // Case 2: single file upload — one item with a File object
     if (mediaData.items?.length === 1) {
       const item = mediaData.items[0];
-      // If the item already has a cloud URL (pre-uploaded), prefer that
       if (item.url && typeof item.url === "string" && item.url.startsWith("http")) {
         setReelMedia({ type: "created", url: item.url, duration: item.duration || null });
       } else if (item.file) {
@@ -246,18 +213,10 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
       }
       return;
     }
-
-    // Case 3: any shape that carries a top-level URL (Cloudinary callback)
     if (mediaData.url && typeof mediaData.url === "string" && mediaData.url.startsWith("http")) {
-      setReelMedia({
-        type:     "created",
-        url:      mediaData.url,
-        duration: mediaData.duration || null,
-      });
+      setReelMedia({ type: "created", url: mediaData.url, duration: mediaData.duration || null });
       return;
     }
-
-    // Case 4: multiple items — user needs to go through the creator first
     if (mediaData.items?.length > 1) {
       setReelMedia({ type: "items", items: mediaData.items });
     }
@@ -305,13 +264,13 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
     if (cardFontSize !== null) return cardFontSize;
     const chars = postContent.trim().length;
     const words = postContent.trim().split(/\s+/).filter(Boolean).length;
-    if (words <= 2  && chars <= 10)  return 56;
-    if (words <= 3  && chars <= 22)  return 42;
-    if (words <= 6  && chars <= 40)  return 32;
-    if (words <= 10 && chars <= 65)  return 26;
-    if (chars <= 100) return 21;
-    if (chars <= 160) return 18;
-    return 15;
+    if (words <= 2  && chars <= 10)  return 48;
+    if (words <= 3  && chars <= 22)  return 36;
+    if (words <= 6  && chars <= 40)  return 28;
+    if (words <= 10 && chars <= 65)  return 22;
+    if (chars <= 100) return 18;
+    if (chars <= 160) return 15;
+    return 13;
   };
 
   // ── PUBLISH: POST ─────────────────────────────────────────────────────────
@@ -337,11 +296,9 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
         if (onPublishSuccess) onPublishSuccess(newPost, "post");
         if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
         clearForm();
-
       } else {
         if (!postCaption.trim() && postMedia.length === 0)
           throw new Error("Post must have a caption or media");
-
         const imagesToUpload = postMedia.filter((m) => m.type === "image").map((m) => m.file);
         const videosToUpload = postMedia.filter((m) => m.type === "video").map((m) => m.file);
         const postData = {
@@ -357,63 +314,41 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
     } catch (err) {
       console.error("Failed to publish post:", err);
       alert(err.message || "Failed to publish post. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   // ── PUBLISH: REEL ─────────────────────────────────────────────────────────
   const handlePublishReel = async () => {
     try {
-      setLoading(true);
-      setUploadProgress(0);
+      setLoading(true); setUploadProgress(0);
       if (securityService?.updateActivity) securityService.updateActivity();
       if (!currentUser || !userProfile) throw new Error("Please complete your profile setup");
       if (!reelMedia) throw new Error("Video is required");
 
-      // ── FIX: resolve videoToUpload with clear handling for all cases ──────
       let videoToUpload;
-
       if (reelMedia.type === "created" && reelMedia.url) {
-        // Already uploaded to Cloudinary — pass the URL string.
-        // createService.createReel() now handles URL strings correctly.
         videoToUpload = reelMedia.url;
-
       } else if (reelMedia.type === "items" && reelMedia.items?.length === 1) {
         const item = reelMedia.items[0];
-        // Prefer cloud URL if item was pre-uploaded, else pass the File
-        videoToUpload = (item.url && item.url.startsWith("http"))
-          ? item.url
-          : item.file;
-
+        videoToUpload = (item.url && item.url.startsWith("http")) ? item.url : item.file;
       } else if (reelMedia.type === "items" && reelMedia.items?.length > 1) {
         throw new Error("Please use the reel creator to combine your clips into one video first");
       }
-
-      // Safety guard — should not be reached given handleReelMediaReady above
-      if (!videoToUpload) {
-        throw new Error("Could not resolve video. Please re-attach your video and try again.");
-      }
-      // ─────────────────────────────────────────────────────────────────────
+      if (!videoToUpload) throw new Error("Could not resolve video. Please re-attach your video and try again.");
 
       const newReel = await createService.createReel(
         { video: videoToUpload, caption: reelCaption.trim(), music: "Original Audio", category: reelCategory },
         currentUser.id,
         (progress) => setUploadProgress(progress)
       );
-
       dispatchPublish(newReel, "reel");
       if (onPublishSuccess) onPublishSuccess(newReel, "reel");
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
-      clearForm();
-      setUploadProgress(0);
-
+      clearForm(); setUploadProgress(0);
     } catch (err) {
       console.error("Failed to publish reel:", err);
       alert(err.message || "Failed to publish reel. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   // ── PUBLISH: STORY ────────────────────────────────────────────────────────
@@ -432,30 +367,26 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
 
       const newStory = await createService.createStory(
         {
-          title:        storyTitle.trim(),
-          preview:      storyPreview.trim(),
-          fullContent:  storyContent.trim(),
-          coverImage:   storyCover,
-          category:     storyCategory,
-          unlockCost:   unlockPrice,
-          maxAccesses:  isUnlimitedAccess ? 999999 : maxAccesses,
-          titleColor,   // forwarded — createService stores in cover_image_metadata
-          textColor,    // forwarded — createService stores in cover_image_metadata
+          title:       storyTitle.trim(),
+          preview:     storyPreview.trim(),
+          fullContent: storyContent.trim(),
+          coverImage:  storyCover,
+          category:    storyCategory,
+          unlockCost:  unlockPrice,
+          maxAccesses: isUnlimitedAccess ? 999999 : maxAccesses,
+          titleColor,
+          textColor,
         },
         currentUser.id
       );
-
       dispatchPublish(newStory, "story");
       if (onPublishSuccess) onPublishSuccess(newStory, "story");
       if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
       clearForm();
-
     } catch (err) {
       console.error("Failed to publish story:", err);
       alert(err.message || "Failed to publish story. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleCoverUpload = (e) => {
@@ -465,8 +396,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
 
   const handleSaveDraft = async () => {
     try {
-      setAutoSaving(true);
-      await handleAutoSave();
+      setAutoSaving(true); await handleAutoSave();
       setShowExitDialog(false);
       if (pendingNavigation) { pendingNavigation(); setPendingNavigation(null); }
     } catch (err) { console.error("Failed to save draft:", err); }
@@ -477,8 +407,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
     if (currentDraftId) {
       try { await draftsService.deleteDraft(currentDraftId, currentUser.id); } catch {}
     }
-    clearForm();
-    setShowExitDialog(false);
+    clearForm(); setShowExitDialog(false);
     if (pendingNavigation) { pendingNavigation(); setPendingNavigation(null); }
   };
 
@@ -527,22 +456,24 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
         <div className="studio-header">
           <h1 className="studio-title">Creator Studio</h1>
           <p className="studio-subtitle">Share your creativity, earn Grova Tokens</p>
+
           <div className="studio-header-actions">
             <button className="save-draft-btn" onClick={handleManualSave} disabled={!hasUnsavedChanges || autoSaving}>
               {autoSaving
-                ? <><Loader size={18} className="spinner" /><span>Saving…</span></>
-                : <><Save size={18} /><span>Save Draft</span></>}
+                ? <><Loader size={14} className="spinner" /><span>Saving…</span></>
+                : <><Save size={14} /><span>Save Draft</span></>}
             </button>
             <button className="drafts-btn" onClick={() => setShowDrafts(true)}>
-              <FileText size={18} /><span>My Drafts</span>
+              <FileText size={14} /><span>My Drafts</span>
             </button>
             <button className="drafts-btn" onClick={() => setShowTemplates(true)}>
-              <Sparkles size={18} /><span>Templates</span>
+              <Sparkles size={14} /><span>Templates</span>
             </button>
           </div>
+
           {lastSaved && !autoSaving && (
             <div className="auto-save-status">
-              <CheckCircle size={14} /><span>{formatLastSaved()}</span>
+              <CheckCircle size={12} /><span>{formatLastSaved()}</span>
             </div>
           )}
         </div>
@@ -551,65 +482,109 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
         {uploadProgress > 0 && uploadProgress < 100 && (
           <div className="upload-progress-bar">
             <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
-            <span className="upload-progress-text">{Math.round(uploadProgress)}%</span>
           </div>
         )}
 
         {/* ── TABS ── */}
         <div className="content-tabs">
           <button className={`content-tab${activeTab === "post"  ? " active" : ""}`} onClick={() => handleTabChange("post")}>
-            <Image size={18} /> Post
+            <Image size={14} /> Post
           </button>
           <button className={`content-tab${activeTab === "reel"  ? " active" : ""}`} onClick={() => handleTabChange("reel")}>
-            <Film size={18} /> Reel
+            <Film size={14} /> Reel
           </button>
           <button className={`content-tab${activeTab === "story" ? " active" : ""}`} onClick={() => handleTabChange("story")}>
-            <BookOpen size={18} /> Story
+            <BookOpen size={14} /> Story
           </button>
         </div>
 
         {/* ════ POST TAB ════ */}
         {activeTab === "post" && (
           <div className="create-form">
+
+            {/* Post type */}
             <div className="form-group">
-              <label className="form-label"><Wand2 size={16} /> Post Type</label>
+              <label className="form-label"><Wand2 size={12} /> Post Type</label>
               <div className="post-type-toggle">
-                <button className={`toggle-btn${!useTextCard ? " active" : ""}`} onClick={() => { setUseTextCard(false); setPostContent(""); }} disabled={loading}>Regular Post</button>
-                <button className={`toggle-btn${useTextCard ? " active" : ""}`}  onClick={() => { setUseTextCard(true);  setPostContent(""); }} disabled={loading}>Text Card</button>
+                <button className={`toggle-btn${!useTextCard ? " active" : ""}`}
+                  onClick={() => { setUseTextCard(false); setPostContent(""); }} disabled={loading}>
+                  Regular Post
+                </button>
+                <button className={`toggle-btn${useTextCard ? " active" : ""}`}
+                  onClick={() => { setUseTextCard(true); setPostContent(""); }} disabled={loading}>
+                  Text Card
+                </button>
               </div>
             </div>
 
             {useTextCard && (
               <>
+                {/* Card designer trigger */}
                 <div className="form-group">
-                  <label className="form-label"><Palette size={16} /> Card Designer</label>
+                  <label className="form-label"><Palette size={12} /> Card Designer</label>
                   <button className="custom-card-trigger" onClick={() => setShowCustomColorPicker(true)} disabled={loading}>
-                    <Wand2 size={20} /><span>Open Card Designer</span>
+                    <Wand2 size={16} /><span>Open Card Designer</span>
                   </button>
                 </div>
+
+                {/* Card preview */}
                 <div className="form-group">
                   <div className="text-card-preview-studio" style={{ background: cardGradient }}>
-                    <p style={{ fontSize: `${previewFontPx}px`, textAlign, color: customTextColor, fontWeight: 800, lineHeight: 1.2, letterSpacing: "-0.02em", margin: 0, wordBreak: "break-word", textShadow: "0 2px 12px rgba(0,0,0,0.3)", transition: "font-size 0.2s ease" }}>
+                    <p style={{
+                      fontSize:    `${previewFontPx}px`,
+                      textAlign,
+                      color:       customTextColor,
+                      fontWeight:  800,
+                      lineHeight:  1.25,
+                      letterSpacing: "-0.02em",
+                      margin:      0,
+                      wordBreak:   "break-word",
+                      textShadow:  "0 2px 10px rgba(0,0,0,0.3)",
+                      transition:  "font-size 0.2s ease",
+                    }}>
                       {postContent || "Your text here…"}
                     </p>
                   </div>
                   {cardFontSize !== null && (
-                    <div style={{ textAlign: "right", fontSize: "11px", color: "#555", marginTop: "4px" }}>
+                    <div style={{ textAlign: "right", fontSize: "10px", color: "#444", marginTop: "3px" }}>
                       Font locked at {cardFontSize}px ·{" "}
-                      <button onClick={() => setCardFontSize(null)} style={{ background: "none", border: "none", color: "#84cc16", fontSize: "11px", cursor: "pointer", padding: 0 }}>Reset to Auto</button>
+                      <button onClick={() => setCardFontSize(null)} style={{ background: "none", border: "none", color: "#84cc16", fontSize: "10px", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
+                        Reset to Auto
+                      </button>
                     </div>
                   )}
                 </div>
+
+                {/* Card text */}
                 <div className="form-group">
-                  <label className="form-label"><Type size={16} /> Card Text (max 40 words)</label>
-                  <SmartTextarea value={postContent} onChange={handlePostContentChange}
-                    onInsert={(val) => { const wc = val.trim().split(/\s+/).filter((w) => w.length > 0).length; if (wc <= 40) setPostContent(val); }}
-                    placeholder="Enter text for your card…" rows={3} disabled={loading} maxWords={40} textareaRef={postContentRef} />
+                  <label className="form-label"><Type size={12} /> Card Text (max 40 words)</label>
+                  <SmartTextarea
+                    value={postContent}
+                    onChange={handlePostContentChange}
+                    onInsert={(val) => {
+                      const wc = val.trim().split(/\s+/).filter((w) => w.length > 0).length;
+                      if (wc <= 40) setPostContent(val);
+                    }}
+                    placeholder="Enter text for your card…"
+                    rows={3}
+                    disabled={loading}
+                    maxWords={40}
+                    textareaRef={postContentRef}
+                  />
                 </div>
+
+                {/* Optional caption */}
                 <div className="form-group">
-                  <label className="form-label"><Sparkles size={16} /> Caption (Optional)</label>
-                  <SmartTextarea value={postCaption} onChange={(e) => setPostCaption(e.target.value)} onInsert={setPostCaption}
-                    placeholder="Add an optional caption…" rows={3} disabled={loading} textareaRef={postCaptionRef} />
+                  <label className="form-label"><Sparkles size={12} /> Caption (Optional)</label>
+                  <SmartTextarea
+                    value={postCaption}
+                    onChange={(e) => setPostCaption(e.target.value)}
+                    onInsert={setPostCaption}
+                    placeholder="Add an optional caption…"
+                    rows={3}
+                    disabled={loading}
+                    textareaRef={postCaptionRef}
+                  />
                 </div>
               </>
             )}
@@ -617,20 +592,33 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
             {!useTextCard && (
               <>
                 <div className="form-group">
-                  <label className="form-label"><Sparkles size={16} /> Caption</label>
-                  <SmartTextarea value={postCaption} onChange={(e) => setPostCaption(e.target.value)} onInsert={setPostCaption}
-                    placeholder="Share your thoughts, ideas, or moments…" rows={5} disabled={loading} textareaRef={postCaptionRef} />
+                  <label className="form-label"><Sparkles size={12} /> Caption</label>
+                  <SmartTextarea
+                    value={postCaption}
+                    onChange={(e) => setPostCaption(e.target.value)}
+                    onInsert={setPostCaption}
+                    placeholder="Share your thoughts, ideas, or moments…"
+                    rows={5}
+                    disabled={loading}
+                    textareaRef={postCaptionRef}
+                  />
                 </div>
                 <div className="form-group">
-                  <label className="form-label"><Image size={16} /> Media (Images &amp; Videos)</label>
-                  <MediaUploader onMediaReady={handlePostMediaReady} maxItems={10} allowMixed={true} defaultType="mixed" />
+                  <label className="form-label"><Image size={12} /> Media (Images &amp; Videos)</label>
+                  <MediaUploader
+                    onMediaReady={handlePostMediaReady}
+                    maxItems={10}
+                    allowMixed={true}
+                    defaultType="mixed"
+                  />
                 </div>
               </>
             )}
 
             <div className="form-group">
-              <label className="form-label"><Sparkles size={16} /> Category</label>
-              <select className="category-select" value={postCategory} onChange={(e) => setPostCategory(e.target.value)} disabled={loading}>
+              <label className="form-label"><Sparkles size={12} /> Category</label>
+              <select className="category-select" value={postCategory}
+                onChange={(e) => setPostCategory(e.target.value)} disabled={loading}>
                 {postCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
@@ -638,7 +626,9 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishPost}
                 disabled={loading || (!useTextCard && !postCaption.trim() && postMedia.length === 0) || (useTextCard && !postContent.trim()) || !currentUser}>
-                {loading ? <><Loader size={18} className="spinner" /> Publishing…</> : "Publish Post"}
+                {loading
+                  ? <><Loader size={15} className="spinner" /> Publishing…</>
+                  : <><Send size={15} /> Publish Post</>}
               </button>
             </div>
           </div>
@@ -648,23 +638,39 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
         {activeTab === "reel" && (
           <div className="create-form">
             <div className="form-group">
-              <label className="form-label"><Film size={16} /> Create Your Reel</label>
-              <MediaUploader onMediaReady={handleReelMediaReady} maxItems={10} allowMixed={true} defaultType="video" />
+              <label className="form-label"><Film size={12} /> Create Your Reel</label>
+              <MediaUploader
+                onMediaReady={handleReelMediaReady}
+                maxItems={10}
+                allowMixed={true}
+                defaultType="video"
+              />
             </div>
             <div className="form-group">
-              <label className="form-label"><Sparkles size={16} /> Caption</label>
-              <SmartTextarea value={reelCaption} onChange={(e) => setReelCaption(e.target.value)} onInsert={setReelCaption}
-                placeholder="Write a catchy caption for your reel…" rows={3} disabled={loading} textareaRef={reelCaptionRef} />
+              <label className="form-label"><Sparkles size={12} /> Caption</label>
+              <SmartTextarea
+                value={reelCaption}
+                onChange={(e) => setReelCaption(e.target.value)}
+                onInsert={setReelCaption}
+                placeholder="Write a catchy caption for your reel…"
+                rows={3}
+                disabled={loading}
+                textareaRef={reelCaptionRef}
+              />
             </div>
             <div className="form-group">
-              <label className="form-label"><Sparkles size={16} /> Category</label>
-              <select className="category-select" value={reelCategory} onChange={(e) => setReelCategory(e.target.value)} disabled={loading}>
+              <label className="form-label"><Sparkles size={12} /> Category</label>
+              <select className="category-select" value={reelCategory}
+                onChange={(e) => setReelCategory(e.target.value)} disabled={loading}>
                 {reelCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
             <div className="publish-btn-wrapper">
-              <button className="publish-btn" onClick={handlePublishReel} disabled={loading || !reelMedia || !currentUser}>
-                {loading ? <><Loader size={18} className="spinner" /> Publishing…</> : "Publish Reel"}
+              <button className="publish-btn" onClick={handlePublishReel}
+                disabled={loading || !reelMedia || !currentUser}>
+                {loading
+                  ? <><Loader size={15} className="spinner" /> Publishing…</>
+                  : <><Send size={15} /> Publish Reel</>}
               </button>
             </div>
           </div>
@@ -673,36 +679,53 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
         {/* ════ STORY TAB ════ */}
         {activeTab === "story" && (
           <div className="create-form">
+
             <div className="form-group">
-              <label className="form-label"><BookOpen size={16} /> Story Title</label>
-              <input type="text" className="form-input" placeholder="Enter your story title (3–200 characters)…"
-                value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} disabled={loading} maxLength={200} />
+              <label className="form-label"><BookOpen size={12} /> Story Title</label>
+              <input type="text" className="form-input"
+                placeholder="Enter your story title (3–200 characters)…"
+                value={storyTitle}
+                onChange={(e) => setStoryTitle(e.target.value)}
+                disabled={loading}
+                maxLength={200}
+              />
               <div className="char-count">{storyTitle.length}/200</div>
             </div>
+
             <div className="form-group">
-              <label className="form-label"><Sparkles size={16} /> Category</label>
-              <select className="category-select" value={storyCategory} onChange={(e) => setStoryCategory(e.target.value)} disabled={loading}>
+              <label className="form-label"><Sparkles size={12} /> Category</label>
+              <select className="category-select" value={storyCategory}
+                onChange={(e) => setStoryCategory(e.target.value)} disabled={loading}>
                 {storyCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
+
             <div className="form-group">
-              <label className="form-label"><Image size={16} /> Cover Image (Optional)</label>
-              <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} id="story-cover-upload" disabled={loading} />
+              <label className="form-label"><Image size={12} /> Cover Image (Optional)</label>
+              <input type="file" accept="image/*" onChange={handleCoverUpload}
+                style={{ display: "none" }} id="story-cover-upload" disabled={loading} />
               <label htmlFor="story-cover-upload" className="upload-area-compact">
-                <Image size={20} />
-                <span>{storyCover ? storyCover.name : "Upload cover"}</span>
-                <small>JPG, PNG up to 5 MB</small>
+                <Image size={16} />
+                <span>{storyCover ? storyCover.name : "Upload cover image"}</span>
+                <small>JPG, PNG · 5 MB</small>
               </label>
             </div>
+
+            {/* Customisation */}
             <div className="customization-section">
-              <div className="customization-header"><Palette size={18} /><span>Customisation</span></div>
+              <div className="customization-header"><Palette size={13} /><span>Customisation</span></div>
               <div className="color-picker-row">
                 <div className="color-picker-group">
                   <label className="color-label">Title Color</label>
                   <div className="color-options">
                     {titleColors.map((c) => (
-                      <button key={c.value} className={`color-btn${titleColor === c.value ? " active" : ""}`}
-                        style={{ background: c.value }} onClick={() => setTitleColor(c.value)} title={c.name} disabled={loading} />
+                      <button key={c.value}
+                        className={`color-btn${titleColor === c.value ? " active" : ""}`}
+                        style={{ background: c.value }}
+                        onClick={() => setTitleColor(c.value)}
+                        title={c.name}
+                        disabled={loading}
+                      />
                     ))}
                   </div>
                 </div>
@@ -710,48 +733,90 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
                   <label className="color-label">Text Color</label>
                   <div className="color-options">
                     {textColors.map((c) => (
-                      <button key={c.value} className={`color-btn${textColor === c.value ? " active" : ""}`}
-                        style={{ background: c.value }} onClick={() => setTextColor(c.value)} title={c.name} disabled={loading} />
+                      <button key={c.value}
+                        className={`color-btn${textColor === c.value ? " active" : ""}`}
+                        style={{ background: c.value }}
+                        onClick={() => setTextColor(c.value)}
+                        title={c.name}
+                        disabled={loading}
+                      />
                     ))}
                   </div>
                 </div>
               </div>
             </div>
+
             <div className="form-group">
-              <label className="form-label"><Eye size={16} /> Story Preview (Free)</label>
-              <SmartTextarea value={storyPreview} onChange={(e) => setStoryPreview(e.target.value)} onInsert={setStoryPreview}
-                placeholder="Write a preview to hook readers (10–500 characters)…" rows={3} disabled={loading} textareaRef={storyPreviewRef} />
+              <label className="form-label"><Eye size={12} /> Story Preview (Free)</label>
+              <SmartTextarea
+                value={storyPreview}
+                onChange={(e) => setStoryPreview(e.target.value)}
+                onInsert={setStoryPreview}
+                placeholder="Write a preview to hook readers (10–500 characters)…"
+                rows={3}
+                disabled={loading}
+                textareaRef={storyPreviewRef}
+              />
               <div className="char-count">{storyPreview.length}/500</div>
             </div>
+
             <div className="form-group">
-              <label className="form-label"><Lock size={16} /> Full Story Content (Locked)</label>
-              <SmartTextarea value={storyContent} onChange={(e) => setStoryContent(e.target.value)} onInsert={setStoryContent}
-                placeholder="Write your full story here…" rows={10} disabled={loading} textareaRef={storyContentRef} />
+              <label className="form-label"><Lock size={12} /> Full Story Content (Locked)</label>
+              <SmartTextarea
+                value={storyContent}
+                onChange={(e) => setStoryContent(e.target.value)}
+                onInsert={setStoryContent}
+                placeholder="Write your full story here…"
+                rows={10}
+                disabled={loading}
+                textareaRef={storyContentRef}
+              />
             </div>
+
+            {/* Monetisation */}
             <div className="monetization-section">
-              <div className="monetization-header"><DollarSign size={20} color="#84cc16" /><span>Monetisation</span></div>
+              <div className="monetization-header"><DollarSign size={14} /><span>Monetisation</span></div>
+
               <div className="form-group">
-                <label className="form-label"><Lock size={16} /> Unlock Price (GT)</label>
+                <label className="form-label"><Lock size={12} /> Unlock Price (GT)</label>
                 <div className="price-grid">
-                  <button className={`price-btn${unlockPrice === 0 ? " active" : ""}`} onClick={() => setUnlockPrice(0)} disabled={loading}>Free</button>
+                  <button className={`price-btn${unlockPrice === 0 ? " active" : ""}`}
+                    onClick={() => setUnlockPrice(0)} disabled={loading}>Free</button>
                   {[10, 20, 50, 100].map((price) => (
-                    <button key={price} className={`price-btn${unlockPrice === price ? " active" : ""}`} onClick={() => setUnlockPrice(price)} disabled={loading}>{price} GT</button>
+                    <button key={price}
+                      className={`price-btn${unlockPrice === price ? " active" : ""}`}
+                      onClick={() => setUnlockPrice(price)} disabled={loading}>
+                      {price} GT
+                    </button>
                   ))}
                 </div>
               </div>
+
               <div className="form-group">
-                <label className="form-label"><Users size={16} /> Maximum Accesses</label>
+                <label className="form-label"><Users size={12} /> Maximum Accesses</label>
                 <div className="access-control-row">
                   <div className="number-input-group">
-                    <button className="number-btn" onClick={() => setMaxAccesses(Math.max(100, maxAccesses - 100))} disabled={loading || isUnlimitedAccess}><Minus size={16} /></button>
+                    <button className="number-btn"
+                      onClick={() => setMaxAccesses(Math.max(100, maxAccesses - 100))}
+                      disabled={loading || isUnlimitedAccess}>
+                      <Minus size={13} />
+                    </button>
                     <div className="number-display">{isUnlimitedAccess ? "∞" : maxAccesses}</div>
-                    <button className="number-btn" onClick={() => setMaxAccesses(Math.min(10000, maxAccesses + 100))} disabled={loading || isUnlimitedAccess}><Plus size={16} /></button>
+                    <button className="number-btn"
+                      onClick={() => setMaxAccesses(Math.min(10000, maxAccesses + 100))}
+                      disabled={loading || isUnlimitedAccess}>
+                      <Plus size={13} />
+                    </button>
                   </div>
-                  <button className={`unlimited-btn${isUnlimitedAccess ? " active" : ""}`} onClick={() => setIsUnlimitedAccess(!isUnlimitedAccess)} disabled={loading}>
-                    <Infinity size={18} /> Unlimited
+                  <button
+                    className={`unlimited-btn${isUnlimitedAccess ? " active" : ""}`}
+                    onClick={() => setIsUnlimitedAccess(!isUnlimitedAccess)}
+                    disabled={loading}>
+                    <Infinity size={14} /> Unlimited
                   </button>
                 </div>
               </div>
+
               <div className="stats-grid">
                 <div className="stat-card">
                   <div className="stat-label">Potential Earnings</div>
@@ -761,14 +826,17 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Per Access</div>
-                  <div className="stat-value">{unlockPrice} GT</div>
+                  <div className="stat-value">{unlockPrice === 0 ? "Free" : `${unlockPrice} GT`}</div>
                 </div>
               </div>
             </div>
+
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishStory}
                 disabled={loading || !storyTitle.trim() || !storyPreview.trim() || !storyContent.trim() || !currentUser}>
-                {loading ? <><Loader size={18} className="spinner" /> Publishing…</> : "Publish Story"}
+                {loading
+                  ? <><Loader size={15} className="spinner" /> Publishing…</>
+                  : <><Send size={15} /> Publish Story</>}
               </button>
             </div>
           </div>
@@ -796,7 +864,11 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
             setShowCustomColorPicker(false);
           }}
           onClose={() => setShowCustomColorPicker(false)}
-          initialValues={{ angle: gradientAngle, color1: customCardColor1, color2: customCardColor2, textColor: customTextColor, cardText: postContent, align: textAlign, fontSize: cardFontSize }}
+          initialValues={{
+            angle: gradientAngle, color1: customCardColor1,
+            color2: customCardColor2, textColor: customTextColor,
+            cardText: postContent, align: textAlign, fontSize: cardFontSize,
+          }}
           onTextChange={setPostContent}
         />
       )}
@@ -807,7 +879,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
             <p>You have unsaved changes. Would you like to save them as a draft?</p>
             <div className="exit-dialog-actions">
               <button className="dialog-btn save-btn" onClick={handleSaveDraft} disabled={autoSaving}>
-                {autoSaving ? <><Loader size={18} className="spinner" /> Saving…</> : <><Save size={18} /> Save Draft</>}
+                {autoSaving ? <><Loader size={15} className="spinner" /> Saving…</> : <><Save size={15} /> Save Draft</>}
               </button>
               <button className="dialog-btn discard-btn" onClick={handleDiscardDraft} disabled={autoSaving}>Discard</button>
               <button className="dialog-btn cancel-btn" onClick={() => setShowExitDialog(false)} disabled={autoSaving}>Cancel</button>

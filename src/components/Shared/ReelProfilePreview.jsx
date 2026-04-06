@@ -1,48 +1,91 @@
+// src/components/Shared/ReelProfilePreview.jsx
+// ============================================================================
+// CLEAN BOOST EDITION
+//
+// Architecture fix: tier resolved ONCE at the top via useUserBoostTier().
+// BoostAvatarRing receives tier+themeId as props only — it no longer fetches
+// internally, so there's zero double-fetch, zero race condition, zero flash.
+//
+// Visual changes:
+//   • BoostAvatarRing with new SVG-based tier rings
+//   • Name + username coloured with live tier colour, CSS-transitioned
+//   • Verified badge inherits tier colour when boosted
+//   • Music row and slot animation logic unchanged
+// ============================================================================
+
 import React, { useState, useEffect } from "react";
-import ReactDOM from "react-dom";
-import { Sparkles, Music } from "lucide-react";
-import UserProfileModal from "../Modals/UserProfileModal";
-import mediaUrlService from "../../services/shared/mediaUrlService";
+import ReactDOM                        from "react-dom";
+import { Sparkles, Music }             from "lucide-react";
+import UserProfileModal                from "../Modals/UserProfileModal";
+import BoostAvatarRing                 from "./BoostAvatarRing";
+import { useUserBoostTier }            from "../../hooks/useUserBoostTier";
+import mediaUrlService                 from "../../services/shared/mediaUrlService";
+
+// ── Tier colour maps (shared with ProfilePreview) ─────────────────────────
+
+const TIER_NAME_COLORS = {
+  silver:  "#d4d4d4",
+  gold:    "#fbbf24",
+  diamond: "#a78bfa",
+};
+
+const DIAMOND_THEME_COLORS = {
+  "diamond-cosmos":  "#a78bfa",
+  "diamond-glacier": "#60a5fa",
+  "diamond-emerald": "#34d399",
+  "diamond-rose":    "#f472b6",
+  "diamond-void":    "#e5e5e5",
+  "diamond-inferno": "#ff6b35",
+  "diamond-aurora":  "#22d3ee",
+};
+
+const getNameColor = (tier, themeId) => {
+  if (!tier || !TIER_NAME_COLORS[tier]) return null;
+  if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId]) {
+    return DIAMOND_THEME_COLORS[themeId];
+  }
+  return TIER_NAME_COLORS[tier];
+};
+
+// ── Component ─────────────────────────────────────────────────────────────
 
 const ReelProfilePreview = ({
   profile,
   music,
   currentUser,
   onMusicClick,
-  size = "medium",
+  size      = "medium",
   className = "",
 }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [animationIndex, setAnimationIndex] = useState(0);
+  const [animationIndex,   setAnimationIndex]   = useState(0);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Smart data extraction - handles both pre-formatted and raw database objects
+  // ── Resolve static user data from props ──────────────────────────────
   const getUserData = () => {
-    // If profile is already formatted with userId, author, username, avatar
     if (profile.userId || profile.author) {
       return {
-        userId: profile.userId || profile.user_id || profile.id,
-        author:
-          profile.author || profile.name || profile.full_name || "Unknown User",
-        username: profile.username || "unknown",
-        avatar: profile.avatar,
-        verified: profile.verified || false,
+        userId:     profile.userId || profile.user_id || profile.id,
+        author:     profile.author || profile.name || profile.full_name || "Unknown User",
+        username:   profile.username || "unknown",
+        avatar:     profile.avatar,
+        verified:   profile.verified || false,
+        propTier:   profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
+        propThemeId:
+          profile.boost_selections?.themeId ??
+          profile.boostSelections?.themeId ??
+          null,
       };
     }
 
-    // If profile is raw database object (from posts/reels/stories)
-    const userId = profile.user_id || profile.id;
+    const userId      = profile.user_id || profile.id;
     const profileData = profile.profiles || profile;
-
-    const author =
+    const author      =
       profileData.full_name || profile.author || profile.name || "Unknown User";
-    const username =
+    const username    =
       profileData.username ||
       profile.username ||
       (author || "user").toLowerCase().replace(/\s+/g, "_");
 
-    // Handle avatar - check for avatar_id first
     let avatar = null;
     if (profileData.avatar_id) {
       avatar = mediaUrlService.getAvatarUrl(profileData.avatar_id, 200);
@@ -57,142 +100,149 @@ const ReelProfilePreview = ({
       author,
       username,
       avatar,
-      verified: profileData.verified || profile.verified || false,
+      verified:    profileData.verified || profile.verified || false,
+      propTier:    profileData.subscription_tier ?? profile.subscription_tier ?? "standard",
+      propThemeId:
+        profileData.boost_selections?.themeId ??
+        profile.boost_selections?.themeId ??
+        null,
     };
   };
 
-  const userData = getUserData();
-  const { userId, author, username, avatar, verified } = userData;
+  const {
+    userId,
+    author,
+    username,
+    avatar,
+    verified,
+    propTier,
+    propThemeId,
+  } = getUserData();
 
+  // ── Single source of truth for boost tier ────────────────────────────
+  // While loading, fall back to prop values so there's no unstyled flash.
+  // After the first resolve, live data always wins.
+  const { tier: liveTier, themeId: liveThemeId, loading: boostLoading } =
+    useUserBoostTier(userId);
+
+  const tier    = boostLoading ? propTier    : (liveTier    ?? null);
+  const themeId = boostLoading ? propThemeId : (liveThemeId ?? null);
+
+  const hasBoostedTier   = ["silver", "gold", "diamond"].includes(tier);
+  const nameColor        = getNameColor(tier, themeId);
+  const displayNameColor = nameColor ?? "#ffffff";
+  const displayUserColor = nameColor ? `${nameColor}90` : "rgba(255,255,255,0.65)";
+
+  // ── Sizes ─────────────────────────────────────────────────────────────
   const sizes = {
-    small: { avatar: 32, name: 13, music: 11 },
+    small:  { avatar: 32, name: 13, music: 11 },
     medium: { avatar: 42, name: 14, music: 11 },
-    large: { avatar: 52, name: 16, music: 12 },
+    large:  { avatar: 52, name: 16, music: 12 },
   };
+  const sz = sizes[size] ?? sizes.medium;
 
-  const currentSize = sizes[size];
   const hasMusic = music && music.trim().length > 0;
 
+  // Slot-machine text when there's no music
   useEffect(() => {
-    if (!hasMusic) {
-      const interval = setInterval(() => {
-        setAnimationIndex((prev) => (prev + 1) % 2);
-      }, 3000);
-      return () => clearInterval(interval);
-    }
+    if (hasMusic) return;
+    const id = setInterval(() => setAnimationIndex((p) => (p + 1) % 2), 3000);
+    return () => clearInterval(id);
   }, [hasMusic]);
 
-  const handleProfileClick = (e) => {
-    e.stopPropagation();
-    setShowProfileModal(true);
-  };
-
-  const handleMusicClick = (e) => {
-    e.stopPropagation();
-    if (hasMusic && onMusicClick) {
-      onMusicClick(music);
-    }
-  };
-
-  // Enhanced avatar URL with quality parameters
+  // ── Resolve avatar URL ────────────────────────────────────────────────
   let enhancedAvatar = avatar;
   if (avatar && typeof avatar === "string") {
     const cleanUrl = avatar.split("?")[0];
     if (cleanUrl.includes("supabase") || cleanUrl.includes("cloudinary")) {
-      const targetSize = currentSize.avatar * 3;
+      const targetPx = sz.avatar * 3;
       enhancedAvatar = avatar.includes("?")
         ? avatar
-        : `${cleanUrl}?quality=100&width=${targetSize}&height=${targetSize}&resize=cover&format=webp`;
+        : `${cleanUrl}?quality=100&width=${targetPx}&height=${targetPx}&resize=cover&format=webp`;
     }
   }
-
   const isValidUrl =
     enhancedAvatar &&
     typeof enhancedAvatar === "string" &&
-    !imageError &&
     (enhancedAvatar.startsWith("http://") ||
       enhancedAvatar.startsWith("https://") ||
       enhancedAvatar.startsWith("blob:"));
 
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  const handleImageError = (e) => {
-    console.error("ReelProfilePreview image error:", e);
-    setImageLoaded(false);
-    setImageError(true);
+  const handleProfileClick = (e) => { e.stopPropagation(); setShowProfileModal(true); };
+  const handleMusicClick   = (e) => {
+    e.stopPropagation();
+    if (hasMusic && onMusicClick) onMusicClick(music);
   };
 
   return (
     <>
-      <div className={`reel-profile-preview ${className}`}>
-        <div className="reel-profile-container">
-          <div
-            className="reel-profile-avatar"
-            style={{
-              width: `${currentSize.avatar}px`,
-              height: `${currentSize.avatar}px`,
-            }}
-            onClick={handleProfileClick}
-          >
-            {isValidUrl && (
-              <img
-                src={enhancedAvatar}
-                alt={author}
-                loading="eager"
-                decoding="async"
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                crossOrigin="anonymous"
-              />
-            )}
-            <span
-              className="reel-profile-fallback"
-              style={{
-                fontSize: `${currentSize.avatar * 0.5}px`,
-              }}
-            >
-              {typeof avatar === "string" && avatar.length === 1
-                ? avatar
-                : author?.charAt(0)?.toUpperCase() || "U"}
-            </span>
-          </div>
+      <div className={`rpp ${className}`}>
+        <div className="rpp-container">
 
-          <div className="reel-profile-text">
+          {/* Avatar — BoostAvatarRing is pure display, receives resolved tier */}
+          <BoostAvatarRing
+            tier={hasBoostedTier ? tier : null}
+            themeId={themeId}
+            size={sz.avatar}
+            src={isValidUrl ? enhancedAvatar : null}
+            letter={
+              typeof avatar === "string" && avatar.length === 1
+                ? avatar
+                : author?.charAt(0)?.toUpperCase() || "U"
+            }
+            showBadge={false}
+            borderRadius="circle"
+            onClick={handleProfileClick}
+            style={{ cursor: "pointer", flexShrink: 0 }}
+          />
+
+          <div className="rpp-text">
+            {/* Author name */}
             <div
-              className="reel-profile-name"
-              style={{ fontSize: `${currentSize.name}px` }}
+              className="rpp-name"
+              style={{
+                fontSize:   sz.name,
+                color:      displayNameColor,
+                textShadow: hasBoostedTier
+                  ? `0 0 14px ${displayNameColor}50, 0 2px 6px rgba(0,0,0,0.9)`
+                  : "0 2px 6px rgba(0,0,0,0.9)",
+                transition: "color 0.4s ease, text-shadow 0.4s ease",
+              }}
               onClick={handleProfileClick}
             >
               <span>{author}</span>
               {verified && (
-                <div className="reel-profile-verified">
-                  <Sparkles size={currentSize.name - 2} />
-                </div>
+                <span
+                  className="rpp-verified"
+                  style={{
+                    background: hasBoostedTier
+                      ? `linear-gradient(135deg,${displayNameColor},${displayNameColor}bb)`
+                      : "linear-gradient(135deg,#84cc16,#a3e635)",
+                    boxShadow:  `0 2px 8px ${displayNameColor}55`,
+                    transition: "background 0.4s ease, box-shadow 0.4s ease",
+                  }}
+                >
+                  <Sparkles size={sz.name - 2} />
+                </span>
               )}
             </div>
 
+            {/* Music row */}
             <button
-              className={`reel-profile-music ${!hasMusic ? "no-music" : ""}`}
+              className={`rpp-music${!hasMusic ? " rpp-music--silent" : ""}`}
               onClick={handleMusicClick}
-              style={{ fontSize: `${currentSize.music}px` }}
+              style={{ fontSize: sz.music }}
               disabled={!hasMusic}
             >
-              <Music size={currentSize.music + 1} />
+              <Music size={sz.music + 1} />
               {hasMusic ? (
-                <span className="reel-music-text">{music}</span>
+                <span className="rpp-music-text">{music}</span>
               ) : (
-                <span className="reel-music-text-animated">
-                  <span
-                    className={`music-text-slide ${animationIndex === 0 ? "active" : ""}`}
-                  >
+                <span className="rpp-music-animated">
+                  <span className={`rpp-slide${animationIndex === 0 ? " rpp-slide--on" : ""}`}>
                     No sound used
                   </span>
-                  <span
-                    className={`music-text-slide ${animationIndex === 1 ? "active" : ""}`}
-                  >
+                  <span className={`rpp-slide${animationIndex === 1 ? " rpp-slide--on" : ""}`}>
                     @{username}
                   </span>
                 </span>
@@ -202,206 +252,91 @@ const ReelProfilePreview = ({
         </div>
       </div>
 
+      {/* Profile modal — receives already-resolved tier + themeId */}
       {showProfileModal &&
         ReactDOM.createPortal(
           <UserProfileModal
             user={{
-              id: userId,
-              user_id: userId,
-              userId: userId,
-              name: author,
-              author: author,
-              username: username,
-              avatar: avatar,
-              verified: verified,
+              id:                userId,
+              user_id:           userId,
+              userId,
+              name:              author,
+              author,
+              username,
+              avatar,
+              verified,
+              subscription_tier: tier,
+              boost_selections:  { themeId },
             }}
             currentUser={currentUser}
             onClose={() => setShowProfileModal(false)}
           />,
-          document.body,
+          document.body
         )}
 
-      <style jsx>{`
-        .reel-profile-preview {
-          display: flex;
-          max-width: fit-content;
+      <style>{`
+        .rpp { display:flex; max-width:fit-content; }
+
+        .rpp-container {
+          display:flex; align-items:center; gap:10px;
+          background:rgba(0,0,0,0.50);
+          backdrop-filter:blur(10px);
+          padding:6px 12px 6px 6px;
+          border-radius:12px;
+          border:1px solid rgba(255,255,255,0.10);
+          transition:background 0.2s;
+        }
+        .rpp-container:hover { background:rgba(0,0,0,0.65); }
+
+        .rpp-text {
+          display:flex; flex-direction:column; gap:1px; min-width:0;
         }
 
-        .reel-profile-container {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(10px);
-          padding: 6px 12px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          transition: all 0.2s;
+        .rpp-name {
+          font-weight:700;
+          display:flex; align-items:center; gap:6px;
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          cursor:pointer;
+          transition:transform 0.2s;
+        }
+        .rpp-name:hover { transform:scale(1.02); }
+
+        .rpp-verified {
+          width:18px; height:18px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          color:#000; flex-shrink:0;
         }
 
-        .reel-profile-container:hover {
-          background: rgba(0, 0, 0, 0.65);
+        .rpp-music {
+          background:transparent; padding:0; border:none;
+          display:flex; align-items:center; gap:4px;
+          color:rgba(255,255,255,0.70); cursor:pointer;
+          transition:all 0.2s; max-width:180px;
+          text-shadow:0 1px 4px rgba(0,0,0,0.9); text-align:left;
+        }
+        .rpp-music--silent { cursor:default; opacity:0.70; }
+        .rpp-music:not(.rpp-music--silent):hover { color:#84cc16; transform:scale(1.02); }
+
+        .rpp-music-text {
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;
         }
 
-        .reel-profile-avatar {
-          border-radius: 50%;
-          border: 2.5px solid #84cc16;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          color: #000;
-          flex-shrink: 0;
-          overflow: hidden;
-          position: relative;
-          box-shadow: 0 3px 12px rgba(132, 204, 22, 0.4);
-          cursor: pointer;
-          transition: transform 0.2s;
+        .rpp-music-animated {
+          position:relative; display:inline-block;
+          height:1.2em; overflow:hidden; width:100%;
         }
 
-        .reel-profile-avatar:hover {
-          transform: scale(1.05);
+        .rpp-slide {
+          position:absolute; top:0; left:0; width:100%;
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          font-weight:500; opacity:0; transform:translateY(20px);
+          transition:all 0.5s cubic-bezier(0.4,0,0.2,1);
         }
+        .rpp-slide--on { opacity:1; transform:translateY(0); }
 
-        .reel-profile-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          position: absolute;
-          top: 0;
-          left: 0;
-          image-rendering: -webkit-optimize-contrast;
-          image-rendering: crisp-edges;
-          backface-visibility: hidden;
-          transform: translateZ(0);
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          filter: brightness(1.15) contrast(1.2) saturate(1.25) sharpen(1.5);
-          opacity: ${imageLoaded && !imageError ? "1" : "0"};
-          transition: opacity 0.4s ease-in-out;
-        }
-
-        .reel-profile-fallback {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          font-weight: 800;
-          color: #000;
-          opacity: ${imageLoaded && !imageError ? "0" : "1"};
-          transition: opacity 0.4s ease-in-out;
-        }
-
-        .reel-profile-text {
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          min-width: 0;
-        }
-
-        .reel-profile-name {
-          font-weight: 700;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          filter: brightness(1.1);
-          cursor: pointer;
-          transition: transform 0.2s;
-        }
-
-        .reel-profile-name:hover {
-          transform: scale(1.02);
-        }
-
-        .reel-profile-verified {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16 0%, #a3e635 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #000;
-          flex-shrink: 0;
-          box-shadow: 0 2px 8px rgba(132, 204, 22, 0.5);
-        }
-
-        .reel-profile-music {
-          background: transparent;
-          padding: 0;
-          border: none;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          color: rgba(255, 255, 255, 0.7);
-          cursor: pointer;
-          transition: all 0.2s;
-          max-width: 180px;
-          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-          text-align: left;
-        }
-
-        .reel-profile-music.no-music {
-          cursor: default;
-          opacity: 0.7;
-        }
-
-        .reel-profile-music:not(.no-music):hover {
-          color: #84cc16;
-          transform: scale(1.02);
-        }
-
-        .reel-music-text {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-weight: 500;
-        }
-
-        .reel-music-text-animated {
-          position: relative;
-          display: inline-block;
-          height: 1.2em;
-          overflow: hidden;
-          width: 100%;
-        }
-
-        .music-text-slide {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-weight: 500;
-          opacity: 0;
-          transform: translateY(20px);
-          transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .music-text-slide.active {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
-        @media (max-width: 768px) {
-          .reel-profile-container {
-            padding: 5px 10px;
-          }
-
-          .reel-profile-music {
-            max-width: 160px;
-          }
+        @media (max-width:768px) {
+          .rpp-container { padding:5px 10px 5px 5px; }
+          .rpp-music { max-width:160px; }
         }
       `}</style>
     </>

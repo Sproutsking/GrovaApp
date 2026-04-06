@@ -21,6 +21,17 @@
 //   [APP-5]  MessageNotificationService.cleanup() called on sign-out.
 //   [APP-6]  DMMessagesView state added — showMessages + dmTargetUserId —
 //            so /messages navigation from toast actually opens the DM panel.
+//
+// ADDITIONS vs v20:
+//   [SYNC-1] activeHomeTab + setActiveHomeTab state lifted up from HomeView
+//            into App.jsx so DesktopHeader, MobileHeader, and HomeView all
+//            share a single source of truth. Header tabs and feed are now
+//            perfectly in sync.
+//
+// ADDITIONS vs v21:
+//   [SYNC-2] activeTab passed to MobileHeader so it can conditionally render
+//            the Posts/Reels/Stories home tabs only when the user is on the
+//            home section — tabs were incorrectly visible on every section.
 // ============================================================================
 
 import React, {
@@ -85,11 +96,11 @@ const CommunityView = lazy(() => import("./components/Community/CommunityView"))
 const TrendingSidebar = lazy(() => import("./components/Shared/TrendingSidebar"));
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
-const AnalyticsView = lazy(() => import("./components/Analytics/AnalyticsView"));
-const UpgradeView   = lazy(() => import("./components/Upgrade/UpgradeView"));
-const RewardsView   = lazy(() => import("./components/Rewards/RewardsView"));
-const StreamView    = lazy(() => import("./components/Stream/StreamView"));
-const GiftCardsView = lazy(() => import("./components/GiftCards/GiftCardsView"));
+const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
+const UpgradeView    = lazy(() => import("./components/Upgrade/UpgradeView"));
+const RewardsView    = lazy(() => import("./components/Rewards/RewardsView"));
+const StreamView     = lazy(() => import("./components/Stream/StreamView"));
+const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView"));
 const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView")); // [APP-6]
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
@@ -212,13 +223,19 @@ const MainApp = memo(() => {
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
 
   // [APP-6] DM panel state
-  const [showMessages,    setShowMessages]    = useState(false);
-  const [dmTargetUserId,  setDmTargetUserId]  = useState(null);
+  const [showMessages,   setShowMessages]   = useState(false);
+  const [dmTargetUserId, setDmTargetUserId] = useState(null);
 
   // [LS-1] Feed filter for tag/post drill-down from TrendingSidebar
   const [feedFilter,    setFeedFilter]    = useState(null);
   // [LS-2] Live stream session
   const [streamSession, setStreamSession] = useState(null);
+
+  // [SYNC-1] Home feed tab — owned here so DesktopHeader, MobileHeader, and
+  //          HomeView all share a single source of truth. HomeView no longer
+  //          owns its own activeTab state; the header tabs and feed are now
+  //          perfectly in sync.
+  const [activeHomeTab, setActiveHomeTab] = useState("posts");
 
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
@@ -559,6 +576,8 @@ const MainApp = memo(() => {
                 feedFilter={feedFilter}
                 onClearFilter={() => setFeedFilter(null)}
                 onJoinStream={handleJoinStream}
+                activeHomeTab={activeHomeTab}        // [SYNC-1]
+                setActiveHomeTab={setActiveHomeTab}  // [SYNC-1]
               />
             </div>
           </Suspense>
@@ -738,6 +757,8 @@ const MainApp = memo(() => {
             profile={profileData}
             userId={user?.id}
             onSignOut={handleSignOut}
+            activeHomeTab={activeHomeTab}        // [SYNC-1]
+            setActiveHomeTab={setActiveHomeTab}  // [SYNC-1]
           />
         )}
         {isMobile && (
@@ -751,6 +772,9 @@ const MainApp = memo(() => {
             userId={user?.id}
             currentUser={currentUser}
             onSignOut={handleSignOut}
+            activeTab={activeTab}                // [SYNC-2] so MobileHeader hides home tabs when not on home
+            activeHomeTab={activeHomeTab}        // [SYNC-1]
+            setActiveHomeTab={setActiveHomeTab}  // [SYNC-1]
           />
         )}
 

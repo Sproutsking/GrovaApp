@@ -1,99 +1,94 @@
-import React, { useEffect, useState } from "react";
-import { UserPlus, CheckCircle, X, AlertCircle } from "lucide-react";
+// components/Community/components/InviteHandler.jsx
+// Fixed: auto-join + immediate navigation into community
+import React, { useState, useEffect } from "react";
+import { UserPlus, CheckCircle, X, AlertCircle, ArrowRight } from "lucide-react";
 import communityService from "../../../services/community/communityService";
 
 const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
-  const [status, setStatus] = useState("loading"); // loading, success, error
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("loading");
+  const [message, setMessage] = useState("Verifying invite…");
   const [communityName, setCommunityName] = useState("");
+  const [communityId, setCommunityId] = useState(null);
 
   useEffect(() => {
-    if (inviteCode && userId) {
-      handleInvite();
-    }
+    if (inviteCode && userId) handleInvite();
   }, [inviteCode, userId]);
 
   const handleInvite = async () => {
     try {
       setStatus("loading");
-      setMessage("Joining community...");
+      setMessage("Joining community…");
 
-      const community = await communityService.joinCommunityViaInvite(
-        inviteCode,
-        userId,
-      );
+      const community = await communityService.joinCommunityViaInvite(inviteCode, userId);
 
       setCommunityName(community.name);
+      setCommunityId(community.id);
       setStatus("success");
-      setMessage(`Successfully joined ${community.name}!`);
+      setMessage(`You're now a member of ${community.name}!`);
 
-      // Wait a bit before calling success callback
+      // Auto-navigate after a short celebration delay
       setTimeout(() => {
-        if (onSuccess) {
-          onSuccess(community.id);
-        }
-      }, 1500);
+        if (onSuccess) onSuccess(community.id);
+      }, 1600);
     } catch (error) {
       console.error("Invite handler error:", error);
       setStatus("error");
       setMessage(error.message || "Failed to join community");
-
-      // Auto-close error after 5 seconds
-      setTimeout(() => {
-        if (onError) {
-          onError(error);
-        }
-      }, 5000);
     }
+  };
+
+  const handleGoNow = () => {
+    if (communityId && onSuccess) onSuccess(communityId);
   };
 
   return (
     <>
-      <div className="invite-overlay" onClick={onClose}>
-        <div className="invite-modal" onClick={(e) => e.stopPropagation()}>
-          <button className="invite-close" onClick={onClose}>
-            <X size={18} />
-          </button>
+      <div className="inv-overlay" onClick={status === "error" ? onClose : undefined}>
+        <div className="inv-modal" onClick={(e) => e.stopPropagation()}>
+          {status !== "loading" && (
+            <button className="close-x" onClick={onClose}><X size={16} /></button>
+          )}
 
-          <div className="invite-content">
+          <div className="inv-body">
             {status === "loading" && (
               <>
-                <div className="invite-icon loading">
-                  <UserPlus size={40} />
+                <div className="inv-spinner-wrap">
+                  <div className="inv-spinner-ring" />
+                  <div className="inv-spinner-icon"><UserPlus size={22} /></div>
                 </div>
-                <h3 className="invite-title">Joining Community</h3>
-                <p className="invite-message">{message}</p>
-                <div className="loading-spinner"></div>
+                <h3 className="inv-title">Joining Community</h3>
+                <p className="inv-msg">{message}</p>
               </>
             )}
 
             {status === "success" && (
               <>
-                <div className="invite-icon success">
+                <div className="inv-icon success">
                   <CheckCircle size={40} />
                 </div>
-                <h3 className="invite-title">Welcome to {communityName}!</h3>
-                <p className="invite-message">{message}</p>
-                <p className="invite-submessage">
-                  You've been assigned the Novis role. Complete verification to
-                  unlock full access.
+                <h3 className="inv-title">Welcome!</h3>
+                <p className="inv-msg">{message}</p>
+                <p className="inv-sub">
+                  You&apos;ve been assigned the Novis role. Complete verification in
+                  the #verification channel to unlock full access.
                 </p>
+                <button className="go-btn" onClick={handleGoNow}>
+                  Go to community <ArrowRight size={16} />
+                </button>
               </>
             )}
 
             {status === "error" && (
               <>
-                <div className="invite-icon error">
+                <div className="inv-icon error">
                   <AlertCircle size={40} />
                 </div>
-                <h3 className="invite-title">Failed to Join</h3>
-                <p className="invite-message">{message}</p>
-                <button className="retry-btn" onClick={handleInvite}>
-                  Try Again
-                </button>
-                <button className="retry-btn secondary" onClick={onClose}>
-                  Close
-                </button>
+                <h3 className="inv-title">Could not join</h3>
+                <p className="inv-msg">{message}</p>
+                <div className="err-actions">
+                  <button className="retry-btn" onClick={handleInvite}>Try Again</button>
+                  <button className="dismiss-btn" onClick={onClose}>Close</button>
+                </div>
               </>
             )}
           </div>
@@ -101,219 +96,101 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
       </div>
 
       <style>{`
-        .invite-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.8);
-          backdrop-filter: blur(8px);
-          z-index: 100000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 20px;
-          animation: fadeIn 0.2s ease;
+        .inv-overlay {
+          position:fixed; inset:0;
+          background:rgba(0,0,0,.8); backdrop-filter:blur(10px);
+          z-index:100000; display:flex; align-items:center; justify-content:center;
+          padding:20px;
+        }
+        .inv-modal {
+          width:100%; max-width:380px;
+          background:#0c0c0c; border:1.5px solid rgba(156,255,0,.2);
+          border-radius:20px; padding:32px 28px;
+          position:relative;
+          animation:modalIn .3s cubic-bezier(.4,0,.2,1);
+          box-shadow:0 24px 64px rgba(0,0,0,.9), 0 0 0 1px rgba(156,255,0,.06);
+        }
+        @keyframes modalIn {
+          from{opacity:0;transform:translateY(24px) scale(.96)}
+          to  {opacity:1;transform:translateY(0)    scale(1)  }
+        }
+        .close-x {
+          position:absolute; top:14px; right:14px;
+          width:28px; height:28px; border-radius:7px;
+          background:rgba(255,255,255,.06); border:none;
+          color:#888; cursor:pointer;
+          display:flex; align-items:center; justify-content:center;
+          transition:all .2s;
+        }
+        .close-x:hover { background:rgba(255,100,100,.15); color:#ff6b6b; }
+
+        .inv-body { text-align:center; }
+
+        /* Spinner */
+        .inv-spinner-wrap {
+          width:80px; height:80px; margin:0 auto 20px;
+          position:relative; display:flex; align-items:center; justify-content:center;
+        }
+        .inv-spinner-ring {
+          position:absolute; inset:0; border-radius:50%;
+          border:3px solid rgba(156,255,0,.15);
+          border-top-color:#9cff00;
+          animation:spin 1s linear infinite;
+        }
+        .inv-spinner-icon { color:#9cff00; }
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* Icons */
+        .inv-icon {
+          width:80px; height:80px; border-radius:50%;
+          margin:0 auto 20px;
+          display:flex; align-items:center; justify-content:center;
+        }
+        .inv-icon.success {
+          background:rgba(16,185,129,.15); color:#10b981;
+          animation:pop .4s cubic-bezier(.4,0,.2,1);
+        }
+        .inv-icon.error {
+          background:rgba(255,107,107,.15); color:#ff6b6b;
+          animation:shake .4s;
+        }
+        @keyframes pop{
+          0%{transform:scale(0)}50%{transform:scale(1.1)}100%{transform:scale(1)}
+        }
+        @keyframes shake{
+          0%,100%{transform:translateX(0)}
+          25%{transform:translateX(-8px)}75%{transform:translateX(8px)}
         }
 
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
+        .inv-title { font-size:22px; font-weight:900; color:#fff; margin:0 0 8px; }
+        .inv-msg   { font-size:14px; color:#999; line-height:1.5; margin:0 0 8px; }
+        .inv-sub   { font-size:12px; color:#555; font-style:italic; margin:0 0 20px; }
 
-        .invite-modal {
-          position: relative;
-          width: 100%;
-          max-width: 400px;
-          background: rgba(15, 15, 15, 0.98);
-          border: 2px solid rgba(156, 255, 0, 0.3);
-          border-radius: 20px;
-          padding: 32px;
-          animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.9);
+        .go-btn {
+          display:inline-flex; align-items:center; gap:7px;
+          padding:12px 24px; border-radius:10px;
+          background:linear-gradient(135deg,#9cff00,#667eea);
+          border:none; color:#000; font-size:14px; font-weight:800;
+          cursor:pointer; transition:all .25s;
+          box-shadow:0 4px 16px rgba(156,255,0,.3);
         }
+        .go-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(156,255,0,.45); }
 
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .invite-close {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: rgba(26, 26, 26, 0.8);
-          border: 1px solid rgba(42, 42, 42, 0.8);
-          color: #999;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .invite-close:hover {
-          background: rgba(255, 107, 107, 0.2);
-          border-color: rgba(255, 107, 107, 0.6);
-          color: #ff6b6b;
-        }
-
-        .invite-content {
-          text-align: center;
-        }
-
-        .invite-icon {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          margin: 0 auto 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .invite-icon.loading {
-          background: rgba(156, 255, 0, 0.1);
-          color: #9cff00;
-          animation: pulse 2s ease-in-out infinite;
-        }
-
-        .invite-icon.success {
-          background: rgba(16, 185, 129, 0.2);
-          color: #10b981;
-          animation: successPop 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .invite-icon.error {
-          background: rgba(255, 107, 107, 0.2);
-          color: #ff6b6b;
-          animation: errorShake 0.5s;
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.05);
-            opacity: 0.8;
-          }
-        }
-
-        @keyframes successPop {
-          0% {
-            transform: scale(0);
-          }
-          50% {
-            transform: scale(1.1);
-          }
-          100% {
-            transform: scale(1);
-          }
-        }
-
-        @keyframes errorShake {
-          0%, 100% {
-            transform: translateX(0);
-          }
-          25% {
-            transform: translateX(-10px);
-          }
-          75% {
-            transform: translateX(10px);
-          }
-        }
-
-        .invite-title {
-          font-size: 24px;
-          font-weight: 800;
-          color: #fff;
-          margin-bottom: 12px;
-        }
-
-        .invite-message {
-          font-size: 15px;
-          color: #999;
-          margin-bottom: 8px;
-          line-height: 1.5;
-        }
-
-        .invite-submessage {
-          font-size: 13px;
-          color: #666;
-          font-style: italic;
-          margin-top: 8px;
-        }
-
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid rgba(156, 255, 0, 0.2);
-          border-top-color: #9cff00;
-          border-radius: 50%;
-          margin: 20px auto 0;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
+        .err-actions { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
         .retry-btn {
-          margin-top: 12px;
-          padding: 12px 24px;
-          background: rgba(26, 26, 26, 0.8);
-          border: 2px solid rgba(156, 255, 0, 0.4);
-          border-radius: 10px;
-          color: #9cff00;
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-          width: 100%;
+          padding:11px; border-radius:10px;
+          background:rgba(18,18,18,.95); border:1.5px solid rgba(156,255,0,.35);
+          color:#9cff00; font-size:14px; font-weight:700; cursor:pointer;
+          transition:all .2s;
         }
-
-        .retry-btn:hover {
-          background: rgba(156, 255, 0, 0.1);
-          border-color: #9cff00;
+        .retry-btn:hover { background:rgba(156,255,0,.1); }
+        .dismiss-btn {
+          padding:11px; border-radius:10px;
+          background:transparent; border:1.5px solid rgba(42,42,42,.8);
+          color:#666; font-size:14px; font-weight:700; cursor:pointer;
+          transition:all .2s;
         }
-
-        .retry-btn.secondary {
-          background: rgba(26, 26, 26, 0.6);
-          border-color: rgba(42, 42, 42, 0.6);
-          color: #999;
-          margin-top: 8px;
-        }
-
-        .retry-btn.secondary:hover {
-          background: rgba(26, 26, 26, 0.9);
-          border-color: rgba(255, 107, 107, 0.4);
-          color: #ff6b6b;
-        }
-
-        @media (max-width: 768px) {
-          .invite-modal {
-            padding: 24px;
-          }
-
-          .invite-title {
-            font-size: 20px;
-          }
-        }
+        .dismiss-btn:hover { border-color:rgba(255,107,107,.4); color:#ff6b6b; }
       `}</style>
     </>
   );

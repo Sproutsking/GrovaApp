@@ -5,6 +5,9 @@
 //  [2] handleFollowToggle() — optimistic, mirrors UserProfileModal exactly
 //  [3] Author row: old category badge → Follow/Unfollow button + timestamp
 //  [4] Category tag moved: rendered as pill just above card footer
+//  [5] Spacing tightened: post-header bottom padding 4px, text marginTop 2px,
+//      text marginBottom for media 6px — eliminates the dead gap between
+//      header → caption → image.
 //  All media, video, lightbox, fullscreen, edit, delete logic — UNCHANGED
 // ============================================================================
 
@@ -273,7 +276,7 @@ const PostCard = ({ post: initialPost, currentUser, onPostUpdate, onPostDelete }
           {/* ProfilePreview — unchanged */}
           <ProfilePreview profile={profile} onClick={() => {}} size="small" />
 
-          {/* [4] Timestamp */}
+          {/* [3] Timestamp */}
           {post.created_at && (
             <span className="post-timestamp">{relTime(post.created_at)}</span>
           )}
@@ -301,7 +304,7 @@ const PostCard = ({ post: initialPost, currentUser, onPostUpdate, onPostDelete }
           </button>
         </div>
 
-        {/* ── BODY — UNCHANGED ── */}
+        {/* ── BODY ── */}
         <div className="post-content" style={{ paddingTop: 0, marginTop: 0 }}>
           {isTextCard ? (
             <>
@@ -309,7 +312,11 @@ const PostCard = ({ post: initialPost, currentUser, onPostUpdate, onPostDelete }
                 <CardPostDisplay post={post} />
               </div>
               {post.card_caption && (
-                <div ref={captionRef} className={`post-text${!captionExpanded && needsTruncation ? " collapsed" : ""}`} style={{ marginTop: 8 }}>
+                <div
+                  ref={captionRef}
+                  className={`post-text${!captionExpanded && needsTruncation ? " collapsed" : ""}`}
+                  style={{ marginTop: 4, marginBottom: 6 }}
+                >
                   <ParsedText text={post.card_caption} />
                   {!captionExpanded && needsTruncation && (
                     <span className="view-more-text" onClick={handleViewMore} role="button" tabIndex={0}> ...more</span>
@@ -326,8 +333,9 @@ const PostCard = ({ post: initialPost, currentUser, onPostUpdate, onPostDelete }
                   style={{
                     maxHeight: !captionExpanded && needsTruncation && !hasMedia ? "50vh" : "none",
                     overflow:  !captionExpanded && needsTruncation && !hasMedia ? "hidden" : "visible",
-                    marginBottom: hasMedia ? 10 : 0,
-                    marginTop: 6,
+                    // [5] Tight spacing: 2px top gap from header, 6px bottom gap before media
+                    marginTop:    2,
+                    marginBottom: hasMedia ? 6 : 0,
                     padding: "0 14px",
                   }}
                 >
@@ -397,7 +405,7 @@ const PostCard = ({ post: initialPost, currentUser, onPostUpdate, onPostDelete }
           )}
         </div>
 
-        {/* [5] Category tag — above reactions */}
+        {/* [4] Category tag — above reactions */}
         {post.category && (
           <div className="post-category-tag">
             <span className="post-cat-dot" />
@@ -411,13 +419,15 @@ const PostCard = ({ post: initialPost, currentUser, onPostUpdate, onPostDelete }
         </div>
       </div>
 
-      {/* Styles for new elements only */}
+      {/* Styles */}
       <style>{`
+        /* [5] Header: reduced bottom padding from 10px → 4px eliminates the
+               dead gap between avatar row and the caption/image below it.    */
         .post-header {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 12px 14px 10px;
+          padding: 10px 14px 4px;
         }
         .post-timestamp {
           font-size: 11px;

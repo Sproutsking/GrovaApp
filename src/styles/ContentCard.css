@@ -53,8 +53,7 @@
   color: #f0f0f0;                            /* near-white — was #d4d4d4 */
   font-size: 15px;
   line-height: 1.65;
-  margin: 0;
-  padding: 0;
+  margin: 0 0 14px 0;
   white-space: pre-wrap;
   word-wrap: break-word;
   font-weight: 400;
@@ -83,7 +82,7 @@
 .post-media-container {
   position: relative;
   width: 100%;
-  height: 70vh;
+  height: 80vh;
   border-radius: 12px;
   overflow: hidden;
   background: #0a0a0a;
@@ -284,7 +283,6 @@
   align-items: center;
   justify-content: space-between;
   background: transparent;
-  border-top: 1px solid #44444421;
 }
 
 /* ── Stat / action buttons ───────────────────────────────────────────────── */

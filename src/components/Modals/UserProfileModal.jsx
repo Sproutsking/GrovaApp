@@ -1,47 +1,54 @@
 // src/components/Modals/UserProfileModal.jsx
 // ============================================================================
-// BOOST VISUAL EDITION — fixes: full-width card, close btn inside card
+// LIVE BOOST EDITION
+//
+// useUserBoostTier(targetId) is the single source of truth for tier + themeId.
+// Profile biographical data (bio, join date, avatar URL) still comes from a
+// fresh Supabase fetch on open — only boost visuals use the shared hook so
+// they stay live while the modal is open.
+//
+// Everything transitions smoothly via CSS so a boost activation or cancellation
+// while the modal is open animates rather than snapping.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 import {
-  X,
-  UserPlus,
-  UserCheck,
-  Loader,
-  Shield,
-  Crown,
-  Image,
-  Film,
-  BookOpen,
-  Heart,
-  Eye,
+  X, UserPlus, UserCheck, Loader,
+  Shield, Crown, Image, Film, BookOpen, Heart, Eye,
 } from "lucide-react";
-import { supabase } from "../../services/config/supabase";
-import mediaUrlService from "../../services/shared/mediaUrlService";
-import followService from "../../services/social/followService";
-import {
-  BOOST_VISUAL,
-  getTierBadge,
-} from "../../services/account/profileTierService";
-import BoostProfileCard from "../Boost/BoostProfileCard";
-import BoostAvatarRing from "../Shared/BoostAvatarRing";
+import { supabase }          from "../../services/config/supabase";
+import mediaUrlService       from "../../services/shared/mediaUrlService";
+import followService         from "../../services/social/followService";
+import { BOOST_VISUAL, getTierBadge } from "../../services/account/profileTierService";
+import BoostProfileCard      from "../Boost/BoostProfileCard";
+import BoostAvatarRing       from "../Shared/BoostAvatarRing";
+import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 
-const TIER_COLORS = { silver: "#d4d4d4", gold: "#fbbf24", diamond: "#a78bfa" };
-const DIAMOND_THEMES = {
-  "diamond-cosmos": "#a78bfa",
+// ── Colour helpers ────────────────────────────────────────────────────────
+
+const TIER_COLORS = {
+  silver:  "#d4d4d4",
+  gold:    "#fbbf24",
+  diamond: "#a78bfa",
+};
+
+const DIAMOND_THEME_COLORS = {
+  "diamond-cosmos":  "#a78bfa",
   "diamond-glacier": "#60a5fa",
   "diamond-emerald": "#34d399",
-  "diamond-rose": "#f472b6",
-  "diamond-void": "#e5e5e5",
+  "diamond-rose":    "#f472b6",
+  "diamond-void":    "#e5e5e5",
 };
+
 const getTierColor = (tier, themeId) => {
   if (!tier || !TIER_COLORS[tier]) return "#ffffff";
-  if (tier === "diamond" && themeId && DIAMOND_THEMES[themeId])
-    return DIAMOND_THEMES[themeId];
+  if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
+    return DIAMOND_THEME_COLORS[themeId];
   return TIER_COLORS[tier];
 };
+
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 const fmt = (n) => {
   const v = Number(n || 0);
@@ -50,24 +57,27 @@ const fmt = (n) => {
   return String(Math.floor(v));
 };
 
+// ── Tier badge pill ───────────────────────────────────────────────────────
+
 const TierBadgePill = ({ tier, paymentStatus }) => {
   const b = getTierBadge(tier, paymentStatus);
   if (!b) return null;
   return (
     <span
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "2px 8px",
+        display:     "inline-flex",
+        alignItems:  "center",
+        gap:         4,
+        padding:     "2px 8px",
         borderRadius: 20,
-        fontSize: 10,
-        fontWeight: 800,
-        color: b.color,
-        background: `${b.color}18`,
-        border: `1px solid ${b.color}35`,
-        boxShadow: `0 0 6px ${b.glow}`,
-        flexShrink: 0,
+        fontSize:    10,
+        fontWeight:  800,
+        color:       b.color,
+        background:  `${b.color}18`,
+        border:      `1px solid ${b.color}35`,
+        boxShadow:   `0 0 6px ${b.glow}`,
+        flexShrink:  0,
+        transition:  "color 0.4s ease, background 0.4s ease, border-color 0.4s ease",
       }}
     >
       {b.emoji} {b.label}
@@ -75,130 +85,113 @@ const TierBadgePill = ({ tier, paymentStatus }) => {
   );
 };
 
+// ── Content grid card ─────────────────────────────────────────────────────
+
 const ContentCard = ({ item, type }) => {
-  const imgUrl = item.image_ids?.[0]
-    ? mediaUrlService.getImageUrl(item.image_ids[0], { width: 200 })
-    : item.cover_image_id
-      ? mediaUrlService.getStoryImageUrl(item.cover_image_id, 200)
-      : item.thumbnail_id
-        ? mediaUrlService.getVideoThumbnail(item.thumbnail_id, { width: 200 })
-        : null;
+  const imgUrl =
+    item.image_ids?.[0]
+      ? mediaUrlService.getImageUrl(item.image_ids[0], { width: 200 })
+      : item.cover_image_id
+        ? mediaUrlService.getStoryImageUrl(item.cover_image_id, 200)
+        : item.thumbnail_id
+          ? mediaUrlService.getVideoThumbnail(item.thumbnail_id, { width: 200 })
+          : null;
+
   return (
     <div
       style={{
-        borderRadius: 12,
-        overflow: "hidden",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        aspectRatio: "1",
-        position: "relative",
+        borderRadius: 12, overflow: "hidden",
+        background:   "rgba(255,255,255,0.04)",
+        border:       "1px solid rgba(255,255,255,0.07)",
+        aspectRatio:  "1", position: "relative",
       }}
     >
       {imgUrl ? (
-        <img
-          src={imgUrl}
-          alt=""
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
+        <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(132,204,22,0.05)",
-          }}
-        >
-          {type === "reel" ? (
-            <Film size={22} color="#84cc16" opacity={0.3} />
-          ) : type === "story" ? (
-            <BookOpen size={22} color="#84cc16" opacity={0.3} />
-          ) : (
-            <Image size={22} color="#84cc16" opacity={0.3} />
-          )}
+        <div style={{
+          width: "100%", height: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(132,204,22,0.05)",
+        }}>
+          {type === "reel"  ? <Film     size={22} color="#84cc16" opacity={0.3} />
+          : type === "story" ? <BookOpen size={22} color="#84cc16" opacity={0.3} />
+          :                    <Image    size={22} color="#84cc16" opacity={0.3} />}
         </div>
       )}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background:
-            "linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 100%)",
-          padding: "5px 5px 4px",
-          display: "flex",
-          gap: 6,
-          fontSize: 9,
-          color: "rgba(255,255,255,0.8)",
-          fontWeight: 600,
-        }}
-      >
+
+      <div style={{
+        position:   "absolute", bottom: 0, left: 0, right: 0,
+        background: "linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 100%)",
+        padding:    "5px 5px 4px",
+        display:    "flex", gap: 6,
+        fontSize:   9, color: "rgba(255,255,255,0.8)", fontWeight: 600,
+      }}>
         {item.likes > 0 && (
           <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Heart size={8} />
-            {fmt(item.likes)}
+            <Heart size={8} /> {fmt(item.likes)}
           </span>
         )}
         {item.views > 0 && (
           <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Eye size={8} />
-            {fmt(item.views)}
+            <Eye size={8} /> {fmt(item.views)}
           </span>
         )}
       </div>
+
       {type === "reel" && (
-        <div
-          style={{
-            position: "absolute",
-            top: 5,
-            right: 5,
-            background: "rgba(0,0,0,0.5)",
-            borderRadius: 4,
-            padding: "1px 4px",
-            fontSize: 8,
-            color: "#fff",
-            fontWeight: 700,
-          }}
-        >
-          ▶
-        </div>
+        <div style={{
+          position: "absolute", top: 5, right: 5,
+          background: "rgba(0,0,0,0.5)", borderRadius: 4,
+          padding: "1px 4px", fontSize: 8, color: "#fff", fontWeight: 700,
+        }}>▶</div>
       )}
     </div>
   );
 };
 
+// ── Main modal ────────────────────────────────────────────────────────────
+
 const UserProfileModal = ({ user, currentUser, onClose }) => {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("posts");
-  const [posts, setPosts] = useState([]);
-  const [reels, setReels] = useState([]);
-  const [stories, setStories] = useState([]);
+  const [profile,        setProfile]        = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [isFollowing,    setIsFollowing]    = useState(false);
+  const [followLoading,  setFollowLoading]  = useState(false);
+  const [activeTab,      setActiveTab]      = useState("posts");
+  const [posts,          setPosts]          = useState([]);
+  const [reels,          setReels]          = useState([]);
+  const [stories,        setStories]        = useState([]);
   const [contentLoading, setContentLoading] = useState(false);
   const [stats, setStats] = useState({
-    posts: 0,
-    reels: 0,
-    stories: 0,
-    followers: 0,
-    following: 0,
+    posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
   });
 
-  const mounted = useRef(true);
+  const mounted  = useRef(true);
   const targetId = user?.id || user?.user_id || user?.userId;
-  const myId = currentUser?.id;
-  const isOwn = myId && targetId === myId;
+  const myId     = currentUser?.id;
+  const isOwn    = myId && targetId === myId;
 
+  // ── LIVE boost tier ── single source of truth for all visuals ────────
+  const { tier: liveTier, themeId: liveThemeId, loading: boostLoading } =
+    useUserBoostTier(targetId);
+
+  // Prop-level values serve as render-instant hints only
+  const propTier    = user?.subscription_tier ?? "standard";
+  const propThemeId = user?.boost_selections?.themeId ?? null;
+
+  const tier    = boostLoading ? propTier    : (liveTier    ?? null);
+  const themeId = boostLoading ? propThemeId : (liveThemeId ?? null);
+
+  const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
+  const nameColor  = hasBoosted ? getTierColor(tier, themeId) : "#ffffff";
+  const glowColor  = hasBoosted ? `${nameColor}50` : "transparent";
+  const v          = hasBoosted ? BOOST_VISUAL[tier] : null;
+
+  // ── Data load ─────────────────────────────────────────────────────────
   useEffect(() => {
     mounted.current = true;
     if (targetId) loadProfile();
-    return () => {
-      mounted.current = false;
-    };
+    return () => { mounted.current = false; };
   }, [targetId]); // eslint-disable-line
 
   const loadProfile = async () => {
@@ -207,7 +200,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
       const { data: p } = await supabase
         .from("profiles")
         .select(
-          "id,full_name,username,avatar_id,bio,verified,is_pro,subscription_tier,payment_status,boost_selections,created_at",
+          "id,full_name,username,avatar_id,bio,verified,is_pro,payment_status,created_at"
         )
         .eq("id", targetId)
         .maybeSingle();
@@ -222,85 +215,54 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
             ? `${clean}?quality=100&width=300&height=300&resize=cover&format=webp`
             : base;
         }
-      } else if (
-        user?.avatar &&
-        typeof user.avatar === "string" &&
-        user.avatar.startsWith("http")
-      ) {
+      } else if (user?.avatar && typeof user.avatar === "string" && user.avatar.startsWith("http")) {
         avatarUrl = user.avatar;
       }
 
       if (mounted.current)
         setProfile({
-          id: targetId,
-          fullName: raw.full_name || user?.name || user?.author || "Unknown",
-          username: raw.username || user?.username || "unknown",
+          id:            targetId,
+          fullName:      raw.full_name || user?.name || user?.author || "Unknown",
+          username:      raw.username  || user?.username || "unknown",
           avatarUrl,
-          bio: raw.bio || null,
-          verified: raw.verified || user?.verified || false,
-          isPro: raw.is_pro || false,
-          joinDate: raw.created_at
+          bio:           raw.bio       || null,
+          verified:      raw.verified  || user?.verified || false,
+          isPro:         raw.is_pro    || false,
+          joinDate:      raw.created_at
             ? new Date(raw.created_at).toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
+                month: "long", year: "numeric",
               })
             : null,
-          subscriptionTier:
-            raw.subscription_tier ?? user?.subscription_tier ?? "standard",
-          paymentStatus:
-            raw.payment_status ?? user?.payment_status ?? "pending",
-          themeId: raw.boost_selections?.themeId ?? null,
+          // NOTE: tier / themeId deliberately NOT stored here —
+          // useUserBoostTier is the live source.
+          paymentStatus: raw.payment_status ?? user?.payment_status ?? "pending",
         });
 
+      // Counts + follow status in parallel
       const [postsR, reelsR, storiesR, followersR, followingR] =
         await Promise.allSettled([
-          supabase
-            .from("posts")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", targetId)
-            .is("deleted_at", null),
-          supabase
-            .from("reels")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", targetId)
-            .is("deleted_at", null),
-          supabase
-            .from("stories")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", targetId)
-            .is("deleted_at", null),
-          supabase
-            .from("follows")
-            .select("*", { count: "exact", head: true })
-            .eq("following_id", targetId),
-          supabase
-            .from("follows")
-            .select("*", { count: "exact", head: true })
-            .eq("follower_id", targetId),
+          supabase.from("posts")  .select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
+          supabase.from("reels")  .select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
+          supabase.from("stories").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
+          supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", targetId),
+          supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id",  targetId),
         ]);
+
       if (mounted.current)
         setStats({
-          posts: postsR.status === "fulfilled" ? (postsR.value.count ?? 0) : 0,
-          reels: reelsR.status === "fulfilled" ? (reelsR.value.count ?? 0) : 0,
-          stories:
-            storiesR.status === "fulfilled" ? (storiesR.value.count ?? 0) : 0,
-          followers:
-            followersR.status === "fulfilled"
-              ? (followersR.value.count ?? 0)
-              : 0,
-          following:
-            followingR.status === "fulfilled"
-              ? (followingR.value.count ?? 0)
-              : 0,
+          posts:     postsR.status     === "fulfilled" ? (postsR.value.count     ?? 0) : 0,
+          reels:     reelsR.status     === "fulfilled" ? (reelsR.value.count     ?? 0) : 0,
+          stories:   storiesR.status   === "fulfilled" ? (storiesR.value.count   ?? 0) : 0,
+          followers: followersR.status === "fulfilled" ? (followersR.value.count ?? 0) : 0,
+          following: followingR.status === "fulfilled" ? (followingR.value.count ?? 0) : 0,
         });
 
       if (myId && !isOwn)
         followService
           .isFollowing(myId, targetId)
-          .then((v) => {
-            if (mounted.current) setIsFollowing(v);
-          })
+          .then((v) => { if (mounted.current) setIsFollowing(v); })
           .catch(() => {});
+
       loadContent("posts");
     } catch (e) {
       console.warn("[UserProfileModal]", e?.message);
@@ -315,35 +277,23 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
       if (tab === "posts") {
         const { data } = await supabase
           .from("posts")
-          .select(
-            "id,content,image_ids,video_ids,likes,views,comments_count,created_at",
-          )
-          .eq("user_id", targetId)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(12);
+          .select("id,content,image_ids,video_ids,likes,views,comments_count,created_at")
+          .eq("user_id", targetId).is("deleted_at", null)
+          .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setPosts(data || []);
       } else if (tab === "reels") {
         const { data } = await supabase
           .from("reels")
-          .select(
-            "id,caption,thumbnail_id,video_id,likes,views,comments_count,created_at",
-          )
-          .eq("user_id", targetId)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(12);
+          .select("id,caption,thumbnail_id,video_id,likes,views,comments_count,created_at")
+          .eq("user_id", targetId).is("deleted_at", null)
+          .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setReels(data || []);
       } else {
         const { data } = await supabase
           .from("stories")
-          .select(
-            "id,title,cover_image_id,likes,views,comments_count,created_at",
-          )
-          .eq("user_id", targetId)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(12);
+          .select("id,title,cover_image_id,likes,views,comments_count,created_at")
+          .eq("user_id", targetId).is("deleted_at", null)
+          .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setStories(data || []);
       }
     } catch (e) {
@@ -353,10 +303,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
     }
   };
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    loadContent(tab);
-  };
+  const handleTabChange = (tab) => { setActiveTab(tab); loadContent(tab); };
 
   const handleFollow = useCallback(
     async (e) => {
@@ -368,7 +315,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
       setStats((s) => ({ ...s, followers: s.followers + (next ? 1 : -1) }));
       try {
         if (next) await followService.followUser(myId, targetId);
-        else await followService.unfollowUser(myId, targetId);
+        else      await followService.unfollowUser(myId, targetId);
       } catch {
         setIsFollowing(!next);
         setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));
@@ -376,24 +323,16 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
         if (mounted.current) setFollowLoading(false);
       }
     },
-    [myId, targetId, isOwn, isFollowing, followLoading],
+    [myId, targetId, isOwn, isFollowing, followLoading]
   );
 
-  const tier = profile?.subscriptionTier ?? "standard";
-  const themeId = profile?.themeId ?? null;
-  const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
-  const nameColor = hasBoosted ? getTierColor(tier, themeId) : "#ffffff";
-  const glowColor = hasBoosted ? `${nameColor}50` : "transparent";
-  const v = hasBoosted ? BOOST_VISUAL[tier] : null;
   const currentContent =
     activeTab === "posts" ? posts : activeTab === "reels" ? reels : stories;
 
   return ReactDOM.createPortal(
     <div
       className="upm-bd"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="upm-sheet">
         {loading ? (
@@ -403,25 +342,22 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
           </div>
         ) : (
           <>
-            {/* Full-width boost card — close button sits inside it */}
+            {/*
+              BoostProfileCard: background, frame glow, and overlay animations
+              all driven by live tier + themeId — updates in real-time if the
+              user activates/cancels a boost while the modal is open.
+            */}
             <BoostProfileCard
               tier={hasBoosted ? tier : null}
               themeId={themeId}
               style={{ borderRadius: "20px 20px 0 0", position: "relative" }}
             >
-              {/* Close — inside the card so it's over the themed background */}
               <button className="upm-close" onClick={onClose}>
                 <X size={16} />
               </button>
 
               <div className="upm-hdr">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginBottom: 14,
-                  }}
-                >
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
                   <BoostAvatarRing
                     userId={targetId}
                     tier={hasBoosted ? tier : null}
@@ -440,54 +376,51 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                     borderRadius="circle"
                   />
                 </div>
+
+                {/* Name — live colour + glow, CSS-transitioned */}
                 <h2
                   className="upm-name"
                   style={{
-                    color: nameColor,
-                    textShadow: hasBoosted ? `0 0 24px ${glowColor}` : "none",
+                    color:      nameColor,
+                    textShadow: hasBoosted
+                      ? `0 0 28px ${glowColor}, 0 0 56px ${glowColor}80`
+                      : "none",
+                    transition: "color 0.4s ease, text-shadow 0.4s ease",
                   }}
                 >
                   {profile?.fullName || "Unknown"}
                 </h2>
+
                 <div className="upm-badges">
                   {profile?.isPro && (
-                    <span className="upm-b-pro">
-                      <Crown size={9} /> PRO
-                    </span>
+                    <span className="upm-b-pro"><Crown size={9} /> PRO</span>
                   )}
                   {profile?.verified && (
-                    <span className="upm-b-ver">
-                      <Shield size={9} /> Verified
-                    </span>
+                    <span className="upm-b-ver"><Shield size={9} /> Verified</span>
                   )}
-                  <TierBadgePill
-                    tier={tier}
-                    paymentStatus={profile?.paymentStatus}
-                  />
+                  <TierBadgePill tier={tier} paymentStatus={profile?.paymentStatus} />
                 </div>
+
+                {/* Username — live faded colour */}
                 <p
                   className="upm-uname"
                   style={{
-                    color: hasBoosted
-                      ? `${nameColor}80`
-                      : "rgba(255,255,255,0.5)",
+                    color:      hasBoosted ? `${nameColor}80` : "rgba(255,255,255,0.5)",
+                    transition: "color 0.4s ease",
                   }}
                 >
                   @{profile?.username || "unknown"}
                 </p>
-                {profile?.bio && <p className="upm-bio">{profile.bio}</p>}
-                {profile?.joinDate && (
-                  <p className="upm-join">Joined {profile.joinDate}</p>
-                )}
+
+                {profile?.bio    && <p className="upm-bio">{profile.bio}</p>}
+                {profile?.joinDate && <p className="upm-join">Joined {profile.joinDate}</p>}
               </div>
             </BoostProfileCard>
 
-            {/* Stats */}
+            {/* Stats row */}
             <div className="upm-stats">
               <div className="upm-stat">
-                <span className="upm-sv">
-                  {fmt(stats.posts + stats.reels + stats.stories)}
-                </span>
+                <span className="upm-sv">{fmt(stats.posts + stats.reels + stats.stories)}</span>
                 <span className="upm-sl">Posts</span>
               </div>
               <div className="upm-sdiv" />
@@ -502,7 +435,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
               </div>
             </div>
 
-            {/* Follow */}
+            {/* Follow button */}
             {!isOwn && myId && (
               <div style={{ padding: "14px 20px 0" }}>
                 <button
@@ -513,58 +446,34 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                     hasBoosted && !isFollowing
                       ? {
                           background: `linear-gradient(135deg,${v?.grad?.[0] ?? "#84cc16"},${v?.grad?.[1] ?? "#65a30d"})`,
-                          boxShadow: `0 6px 20px ${v?.glow ?? "rgba(132,204,22,0.4)"}`,
-                          color: "#000",
-                          border: "none",
+                          boxShadow:  `0 6px 20px ${v?.glow ?? "rgba(132,204,22,0.4)"}`,
+                          color:      "#000",
+                          border:     "none",
                         }
                       : hasBoosted && isFollowing
                         ? {
                             borderColor: `${nameColor}45`,
-                            color: nameColor,
-                            background: `${nameColor}12`,
+                            color:       nameColor,
+                            background:  `${nameColor}12`,
                           }
                         : {}
                   }
                 >
-                  {followLoading ? (
-                    <Loader
-                      size={15}
-                      style={{ animation: "upmSpin 0.7s linear infinite" }}
-                    />
-                  ) : isFollowing ? (
-                    <>
-                      <UserCheck size={15} /> Following
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={15} /> Follow
-                    </>
-                  )}
+                  {followLoading
+                    ? <Loader size={15} style={{ animation: "upmSpin 0.7s linear infinite" }} />
+                    : isFollowing
+                      ? <><UserCheck size={15} /> Following</>
+                      : <><UserPlus  size={15} /> Follow</>}
                 </button>
               </div>
             )}
 
-            {/* Tabs */}
+            {/* Content tabs */}
             <div className="upm-tabs">
               {[
-                {
-                  id: "posts",
-                  icon: <Image size={14} />,
-                  label: "Posts",
-                  count: stats.posts,
-                },
-                {
-                  id: "reels",
-                  icon: <Film size={14} />,
-                  label: "Reels",
-                  count: stats.reels,
-                },
-                {
-                  id: "stories",
-                  icon: <BookOpen size={14} />,
-                  label: "Stories",
-                  count: stats.stories,
-                },
+                { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
+                { id: "reels",   icon: <Film     size={14} />, label: "Reels",   count: stats.reels   },
+                { id: "stories", icon: <BookOpen size={14} />, label: "Stories", count: stats.stories },
               ].map((t) => (
                 <button
                   key={t.id}
@@ -573,32 +482,24 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                   style={
                     activeTab === t.id && hasBoosted
                       ? {
-                          color: nameColor,
+                          color:             nameColor,
                           borderBottomColor: nameColor,
-                          background: `${nameColor}10`,
+                          background:        `${nameColor}10`,
                         }
                       : {}
                   }
                 >
                   {t.icon}
                   <span>{t.label}</span>
-                  {t.count > 0 && (
-                    <span className="upm-tc">{fmt(t.count)}</span>
-                  )}
+                  {t.count > 0 && <span className="upm-tc">{fmt(t.count)}</span>}
                 </button>
               ))}
             </div>
 
-            {/* Content */}
+            {/* Content grid */}
             <div className="upm-cnt">
               {contentLoading ? (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    padding: 28,
-                  }}
-                >
+                <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
                   <div className="upm-spin-sm" />
                 </div>
               ) : currentContent.length > 0 ? (
@@ -608,24 +509,18 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                       key={item.id}
                       item={item}
                       type={
-                        activeTab === "reels"
-                          ? "reel"
-                          : activeTab === "stories"
-                            ? "story"
-                            : "post"
+                        activeTab === "reels"   ? "reel"
+                        : activeTab === "stories" ? "story"
+                        : "post"
                       }
                     />
                   ))}
                 </div>
               ) : (
                 <div className="upm-empty">
-                  {activeTab === "posts" ? (
-                    <Image size={32} opacity={0.2} />
-                  ) : activeTab === "reels" ? (
-                    <Film size={32} opacity={0.2} />
-                  ) : (
-                    <BookOpen size={32} opacity={0.2} />
-                  )}
+                  {activeTab === "posts"   ? <Image    size={32} opacity={0.2} />
+                  : activeTab === "reels"  ? <Film     size={32} opacity={0.2} />
+                  :                          <BookOpen size={32} opacity={0.2} />}
                   <p>No {activeTab} yet</p>
                 </div>
               )}
@@ -644,11 +539,11 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
         .upm-spin{width:36px;height:36px;border:3px solid rgba(132,204,22,.2);border-top-color:#84cc16;border-radius:50%;animation:upmSpin .8s linear infinite}
         .upm-spin-sm{width:22px;height:22px;border:2px solid rgba(132,204,22,.2);border-top-color:#84cc16;border-radius:50%;animation:upmSpin .8s linear infinite}
         .upm-hdr{padding:44px 24px 24px;text-align:center;position:relative}
-        .upm-name{font-size:22px;font-weight:900;margin:0 0 8px;transition:color .3s}
+        .upm-name{font-size:22px;font-weight:900;margin:0 0 8px}
         .upm-badges{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
         .upm-b-pro{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.35)}
         .upm-b-ver{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:800;color:#84cc16;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.3)}
-        .upm-uname{font-size:13px;font-weight:600;margin:0 0 10px;transition:color .3s}
+        .upm-uname{font-size:13px;font-weight:600;margin:0 0 10px}
         .upm-bio{font-size:13px;color:#a3a3a3;line-height:1.5;margin:0 0 8px;max-width:320px;margin-left:auto;margin-right:auto}
         .upm-join{font-size:11px;color:#525252;font-weight:500;margin:0}
         .upm-stats{display:flex;align-items:stretch;background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
@@ -672,7 +567,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
         @keyframes upmSpin{to{transform:rotate(360deg)}}
       `}</style>
     </div>,
-    document.body,
+    document.body
   );
 };
 
