@@ -79,10 +79,17 @@
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Push ALL home content (LiveStreamersRow, FilterChip, feed) below the
+     sticky tab bar that floats above main-content-mobile.
+     main-content-mobile starts at top: 47px (first header row), so we only
+     need to clear the additional tab bar (≈38px) plus a 6px breathing gap. */
+  .home-view {
+    padding-top: 39px;
+  }
+
   .feed-container {
     padding: 0;
-    /* Push content below sticky mobile header:
-       top row ≈58px + tab bar ≈38px = 96px total                          */
-    padding-top: 96px;
+    padding-top: 1px;   /* small visual gap at the top of the feed itself */
+    padding-bottom: 24px;
   }
 }

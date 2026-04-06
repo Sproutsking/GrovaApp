@@ -433,7 +433,7 @@
   .feed-container { padding: 0; }
 
   .content-card {
-    margin-bottom: 1px;
+    margin-bottom: 0px;
     border-radius: 0;
     border-left: none;
     border-right: none;

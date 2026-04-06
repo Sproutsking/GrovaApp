@@ -6,6 +6,8 @@
 //  [2] Online status dot sits ON the avatar border, not inside
 //  [3] Group chats persist in chat list for all members
 //  [4] Bucket setup guide for status-media upload errors
+//  [5] Header close / plus buttons now have proper 20px side padding so they
+//      never rob against the panel edge on any screen size
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -435,8 +437,12 @@ const HUB_CSS = `
   .dmhub-list-wrap { display:flex;flex-direction:column;height:100%;overflow:hidden; }
   .dmhub-tab-body { flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0; }
 
-  /* ── Header — proper left/right padding ── */
-  .dmhub-hdr { display:flex;align-items:center;padding:calc(env(safe-area-inset-top,0px)+12px) 18px 12px;border-bottom:1px solid rgba(132,204,22,.1);background:rgba(0,0,0,.98);flex-shrink:0;gap:10px;min-height:56px; }
+  /* ── Header
+     Horizontal padding bumped to 20px so the close button (left) and the
+     action buttons (right) have clear breathing room from both panel edges
+     on every screen size.
+  ── */
+  .dmhub-hdr { display:flex;align-items:center;padding:calc(env(safe-area-inset-top,0px)+12px) 20px 12px;border-bottom:1px solid rgba(132,204,22,.1);background:rgba(0,0,0,.98);flex-shrink:0;gap:10px;min-height:56px; }
   .dmhub-hdr-close { width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#84cc16;cursor:pointer;flex-shrink:0;transition:background .15s; }
   .dmhub-hdr-close:hover { background:rgba(132,204,22,.1); }
   .dmhub-hdr-title { flex:1;text-align:center;font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px; }
@@ -446,9 +452,9 @@ const HUB_CSS = `
   .dmhub-btn-grp { background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.25);color:#60a5fa; }
   .dmhub-btn-grp:hover { background:rgba(96,165,250,.2)!important; }
 
-  /* ── Group rows in chat list — proper 18px side padding ── */
+  /* ── Group rows in chat list — 20px side padding to match header ── */
   .dmhub-groups-section { border-bottom:1px solid rgba(255,255,255,.04);padding:4px 0; }
-  .dmhub-group-row { display:flex;align-items:center;gap:14px;padding:11px 18px;cursor:pointer;transition:background .15s; }
+  .dmhub-group-row { display:flex;align-items:center;gap:14px;padding:11px 20px;cursor:pointer;transition:background .15s; }
   .dmhub-group-row:hover { background:rgba(255,255,255,.03); }
   .dmhub-group-av { width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#0d1a00,#1a3300);border:2px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0; }
   .dmhub-group-info { flex:1;min-width:0; }
@@ -495,6 +501,19 @@ const HUB_CSS = `
   .cgm-ck-on { background:#84cc16;border-color:#84cc16;color:#000;font-weight:800; }
   .cgm-empty { text-align:center;padding:24px;color:#444;font-size:13px; }
 
+  .dmhub-hdr {
+  display:flex;
+  align-items:center;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+  padding-right: 10px;
+  padding-bottom: 12px;
+  padding-left: 10px;
+  border-bottom:1px solid rgba(132,204,22,.1);
+  background:rgba(0,0,0,.98);
+  flex-shrink:0;
+  gap:10px;
+  min-height:56px;
+}
   /* ── Desktop ── */
   @media (min-width:769px) {
     .dmhub-panel { left:auto;right:0;width:420px;height:100vh;border-left:1px solid rgba(132,204,22,.12);box-shadow:-24px 0 72px rgba(0,0,0,.7);animation:dmSlide .28s cubic-bezier(.22,1,.36,1); }
@@ -503,8 +522,9 @@ const HUB_CSS = `
     .dmhub-bnav { display:none!important; }
     .dmhub-fullscreen { position:absolute;inset:0; }
     .dmhub-hdr-close { display:none; }
-    /* On desktop: title left-aligned, bigger padding since no close btn */
-    .dmhub-hdr { padding-left:18px; }
+    /* On desktop the close button is hidden via the rail, so we keep the
+       same 20px left padding to left-align the title comfortably. */
+    .dmhub-hdr { padding-left:20px; }
     .dmhub-hdr-title { text-align:left; }
   }
 `;
