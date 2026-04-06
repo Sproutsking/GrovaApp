@@ -1,13 +1,13 @@
 // ============================================================================
-// components/Messages/DMMessagesView.jsx — NOVA HUB v10 FINAL
+// components/Messages/DMMessagesView.jsx — NOVA HUB v11 FINAL
 // ============================================================================
-// FIXED:
-//  [1] Avatar images in group creation — never falls back to letters if img exists
-//  [2] Online status dot sits ON the avatar border, not inside
-//  [3] Group chats persist in chat list for all members
-//  [4] Bucket setup guide for status-media upload errors
-//  [5] Header close / plus buttons now have proper 20px side padding so they
-//      never rob against the panel edge on any screen size
+// FIXED vs v10:
+//  [FIX-PAD]  Header (.dmhub-hdr) padding increased to 14px left/right so
+//             the × close button, title, and action buttons have proper
+//             breathing room and don't look cramped against the edges.
+//             Also added explicit min-width:0 on .dmhub-hdr-title so long
+//             titles never push buttons off screen.
+//  [FIX-GRP]  localStorage parsing guarded — corrupt entries silently skipped.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -33,12 +33,12 @@ const IGroup   = ()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
 
 const NAV = [
   { id:"chats",   label:"Chats",   Icon: IChat    },
-  { id:"updates", label:"Updates", Icon: IUpdates  },
+  { id:"updates", label:"Updates", Icon: IUpdates },
   { id:"calls",   label:"Calls",   Icon: ICalls   },
 ];
 
-/* ─── Contact avatar — ALWAYS tries image first ─── */
-const ContactAv = ({ user, size=42 }) => {
+/* ─── Contact avatar ─── */
+const ContactAv = ({ user, size = 42 }) => {
   const [err, setErr] = useState(false);
   const id  = user?.avatar_id || user?.avatarId;
   const url = !err && id ? mediaUrlService.getAvatarUrl(id, 200) : null;
@@ -54,7 +54,7 @@ const ContactAv = ({ user, size=42 }) => {
   );
 };
 
-/* ─── Create Group Modal — with avatar images ─── */
+/* ─── Create Group Modal ─── */
 const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
   const [step,     setStep]     = useState("name");
   const [name,     setName]     = useState("");
@@ -64,7 +64,6 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    // Load contacts from ConversationStateManager
     import("../../services/messages/ConversationStateManager").then(m => {
       const convs = m.default.getConversations?.() || [];
       const seen = new Set(); const people = [];
@@ -76,7 +75,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
     }).catch(() => {});
   }, [currentUser?.id]);
 
-  const toggle = u => setSel(p => p.some(x => x.id === u.id) ? p.filter(x => x.id !== u.id) : [...p, u]);
+  const toggle   = u => setSel(p => p.some(x => x.id === u.id) ? p.filter(x => x.id !== u.id) : [...p, u]);
   const filtered = contacts.filter(c => (c?.full_name || c?.name || "").toLowerCase().includes(search.toLowerCase()));
 
   const handleCreate = () => {
@@ -85,15 +84,14 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
     const groupId = `grp_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
     const allMembers = [
       {
-        id: currentUser?.id,
+        id:        currentUser?.id,
         full_name: currentUser?.fullName || currentUser?.full_name || currentUser?.name || "You",
         avatar_id: currentUser?.avatarId || currentUser?.avatar_id,
-        is_admin: true,
+        is_admin:  true,
       },
       ...sel.map(u => ({ id: u.id, full_name: u.full_name || u.name, avatar_id: u.avatar_id || u.avatarId })),
     ];
     const group = { id: groupId, name: name.trim(), icon: "👥", members: allMembers };
-    // Persist to localStorage immediately for all members
     localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(group));
     onCreate(group);
     onClose();
@@ -175,23 +173,27 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const [showSearch,    setShowSearch]    = useState(false);
   const [showCreateGrp, setShowCreateGrp] = useState(false);
   const [groups,        setGroups]        = useState([]);
+  const [navBadges,     setNavBadges]     = useState({ chats: 0, updates: 0, calls: 0 });
 
   const initialized = useRef(false);
   const unsubList   = useRef(null);
 
-  // Load persisted groups from localStorage
+  // Load persisted groups from localStorage — safely
   useEffect(() => {
     const stored = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith("gc_meta_")) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith("gc_meta_")) continue;
         try {
-          const g = JSON.parse(localStorage.getItem(key) || "{}");
-          // Only show if current user is a member
-          if (g.members?.some(m => m.id === currentUser?.id)) stored.push(g);
-        } catch {}
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const g = JSON.parse(raw);
+          if (!g?.id || !g?.name || !Array.isArray(g?.members)) continue;
+          if (g.members.some(m => m?.id === currentUser?.id)) stored.push(g);
+        } catch { /* corrupt entry — skip */ }
       }
-    }
+    } catch { /* localStorage unavailable */ }
     setGroups(stored);
   }, [currentUser?.id]);
 
@@ -200,9 +202,20 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     onlineStatusService.start(currentUser.id);
     dmMessageService.init(currentUser.id).then(() => setLoading(false));
     unsubList.current = dmMessageService.subscribeToConversationList?.();
+
+    const syncBadges = () => {
+      try {
+        const total = conversationState.getTotalUnreadCount?.() ?? 0;
+        setNavBadges(prev => ({ ...prev, chats: total }));
+      } catch {}
+    };
+    syncBadges();
+    const unsubConv = conversationState.subscribe?.(syncBadges);
+
     return () => {
       unsubList.current?.();
       dmMessageService.cleanup?.();
+      unsubConv?.();
     };
   }, [currentUser?.id]);
 
@@ -228,15 +241,14 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   }, []);
 
   const openGroupChat = useCallback((g) => {
-    // Persist group with current user as member
     const key = `gc_meta_${g.id}`;
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(g));
     setGroups(prev => prev.some(x => x.id === g.id) ? prev : [...prev, g]);
     setActiveGroup(g); setTab("chats"); setView("group"); setSelectedConv(null);
   }, []);
 
-  const openCall = useCallback((info) => { setActiveCall(info); setView("call"); }, []);
-  const endCall  = useCallback(() => { setActiveCall(null); setView("list"); }, []);
+  const openCall  = useCallback((info) => { setActiveCall(info); setView("call"); }, []);
+  const endCall   = useCallback(() => { setActiveCall(null); setView("list"); }, []);
 
   const backToList = useCallback(() => {
     setSelectedConv(null); setActiveCall(null); setActiveGroup(null); setView("list");
@@ -244,6 +256,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
 
   const switchTab = useCallback((id) => {
     setTab(id);
+    setNavBadges(prev => ({ ...prev, [id]: 0 }));
     if (view === "call") { setActiveCall(null); setView("list"); }
     else if (view === "chat" || view === "group") setView("list");
   }, [view]);
@@ -279,14 +292,14 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const tabTitle = { chats:"Messages", updates:"Updates", calls:"Calls" }[tab];
 
   const currentUserNorm = {
-    id:       currentUser?.id,
-    name:     currentUser?.name     || currentUser?.fullName || currentUser?.full_name || "User",
-    fullName: currentUser?.fullName || currentUser?.full_name || currentUser?.name     || "User",
-    username: currentUser?.username || "user",
-    avatar:   currentUser?.avatar,
-    avatarId: currentUser?.avatarId || currentUser?.avatar_id,
-    avatar_id:currentUser?.avatar_id || currentUser?.avatarId,
-    verified: currentUser?.verified || false,
+    id:        currentUser?.id,
+    name:      currentUser?.name     || currentUser?.fullName || currentUser?.full_name || "User",
+    fullName:  currentUser?.fullName || currentUser?.full_name || currentUser?.name     || "User",
+    username:  currentUser?.username || "user",
+    avatar:    currentUser?.avatar,
+    avatarId:  currentUser?.avatarId || currentUser?.avatar_id,
+    avatar_id: currentUser?.avatar_id || currentUser?.avatarId,
+    verified:  currentUser?.verified || false,
   };
 
   return (
@@ -301,7 +314,14 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
             {NAV.map(({ id, label, Icon }) => (
               <button key={id} className={`dmhub-rail-btn${tab===id?" dmhub-rail-active":""}`}
                 onClick={() => switchTab(id)} aria-label={label}>
-                <Icon a={tab===id}/>
+                <div className="dmhub-rail-icon-wrap">
+                  <Icon a={tab===id}/>
+                  {navBadges[id] > 0 && (
+                    <span className="dmhub-rail-badge">
+                      {navBadges[id] > 99 ? "99+" : navBadges[id]}
+                    </span>
+                  )}
+                </div>
                 <span className="dmhub-rail-lbl">{label}</span>
               </button>
             ))}
@@ -350,9 +370,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
           {/* LIST */}
           {view === "list" && (
             <div className="dmhub-list-wrap">
-              {/* Header */}
+
+              {/* ── Header ── [FIX-PAD] proper 16px horizontal padding */}
               <div className="dmhub-hdr">
-                <button className="dmhub-hdr-close" onClick={onClose}><IClose/></button>
+                <button className="dmhub-hdr-close" onClick={onClose} aria-label="Close">
+                  <IClose/>
+                </button>
                 <span className="dmhub-hdr-title">{tabTitle}</span>
                 <div className="dmhub-hdr-right">
                   {tab === "chats" && (
@@ -360,7 +383,9 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                       <IGroup/>
                     </button>
                   )}
-                  <button className="dmhub-hdr-btn" onClick={handlePlus} title="New"><IPlus/></button>
+                  <button className="dmhub-hdr-btn" onClick={handlePlus} title="New">
+                    <IPlus/>
+                  </button>
                 </div>
               </div>
 
@@ -368,7 +393,6 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
               <div className="dmhub-tab-body">
                 {tab === "chats" && (
                   <>
-                    {/* Persisted group chats */}
                     {groups.length > 0 && (
                       <div className="dmhub-groups-section">
                         {groups.map(g => (
@@ -382,9 +406,15 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                         ))}
                       </div>
                     )}
-                    <ConversationList currentUserId={currentUserNorm.id} onSelect={openChat}
-                      onNewChat={() => setShowSearch(true)} onClose={onClose}
-                      loading={loading} activeConversationId={selectedConv?.id} hideHeader/>
+                    <ConversationList
+                      currentUserId={currentUserNorm.id}
+                      onSelect={openChat}
+                      onNewChat={() => setShowSearch(true)}
+                      onClose={onClose}
+                      loading={loading}
+                      activeConversationId={selectedConv?.id}
+                      hideHeader
+                    />
                   </>
                 )}
                 {tab === "updates" && <UpdatesView currentUser={currentUserNorm} onReplyAsDM={handleStoryReply}/>}
@@ -396,7 +426,14 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                 {NAV.map(({ id, label, Icon }) => (
                   <button key={id} className={`dmhub-bnav-btn${tab===id?" dmhub-bnav-active":""}`}
                     onClick={() => switchTab(id)}>
-                    <Icon a={tab===id}/>
+                    <div className="dmhub-bnav-icon-wrap">
+                      <Icon a={tab===id}/>
+                      {navBadges[id] > 0 && (
+                        <span className="dmhub-bnav-badge">
+                          {navBadges[id] > 99 ? "99+" : navBadges[id]}
+                        </span>
+                      )}
+                    </div>
                     <span className="dmhub-bnav-lbl">{label}</span>
                   </button>
                 ))}
@@ -406,8 +443,8 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
         </div>
       </div>
 
-      {showSearch     && <UserSearchModal currentUser={currentUserNorm} onClose={() => setShowSearch(false)} onSelect={handleUserSelect}/>}
-      {showCreateGrp  && <CreateGroupModal currentUser={currentUserNorm} onClose={() => setShowCreateGrp(false)} onCreate={openGroupChat}/>}
+      {showSearch    && <UserSearchModal currentUser={currentUserNorm} onClose={() => setShowSearch(false)} onSelect={handleUserSelect}/>}
+      {showCreateGrp && <CreateGroupModal currentUser={currentUserNorm} onClose={() => setShowCreateGrp(false)} onCreate={openGroupChat}/>}
 
       <style>{HUB_CSS}</style>
     </>
@@ -426,6 +463,18 @@ const HUB_CSS = `
   .dmhub-rail-btn:hover { background:rgba(255,255,255,.04);color:#777; }
   .dmhub-rail-active { background:rgba(132,204,22,.1)!important;color:#84cc16!important; }
   .dmhub-rail-lbl { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px; }
+  .dmhub-rail-icon-wrap { position:relative;display:flex;align-items:center;justify-content:center;width:24px;height:24px; }
+  .dmhub-rail-badge {
+    position:absolute;top:-6px;right:-10px;
+    min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;
+    border-radius:8px;background:#ef4444;color:#fff;
+    font-size:9px;font-weight:800;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    border:1.5px solid rgba(4,4,4,.99);
+    animation:badgePop .3s cubic-bezier(.34,1.56,.64,1) both;
+    white-space:nowrap;
+  }
+  @keyframes badgePop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
   .dmhub-rail-spacer { flex:1; }
   .dmhub-rail-close { color:#333; }
   .dmhub-rail-close:hover { color:#84cc16;background:rgba(132,204,22,.07)!important; }
@@ -437,24 +486,46 @@ const HUB_CSS = `
   .dmhub-list-wrap { display:flex;flex-direction:column;height:100%;overflow:hidden; }
   .dmhub-tab-body { flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0; }
 
-  /* ── Header
-     Horizontal padding bumped to 20px so the close button (left) and the
-     action buttons (right) have clear breathing room from both panel edges
-     on every screen size.
-  ── */
-  .dmhub-hdr { display:flex;align-items:center;padding:calc(env(safe-area-inset-top,0px)+12px) 20px 12px;border-bottom:1px solid rgba(132,204,22,.1);background:rgba(0,0,0,.98);flex-shrink:0;gap:10px;min-height:56px; }
-  .dmhub-hdr-close { width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#84cc16;cursor:pointer;flex-shrink:0;transition:background .15s; }
+  /* ── Header — [FIX-PAD] 16px left/right padding, proper alignment ── */
+  .dmhub-hdr {
+    display:flex;
+    align-items:center;
+    padding:calc(env(safe-area-inset-top,0px)+12px) 16px 12px;
+    border-bottom:1px solid rgba(132,204,22,.1);
+    background:rgba(0,0,0,.98);
+    flex-shrink:0;
+    gap:10px;
+    min-height:56px;
+  }
+  .dmhub-hdr-close {
+    width:36px;height:36px;border-radius:10px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+    display:flex;align-items:center;justify-content:center;
+    color:#84cc16;cursor:pointer;flex-shrink:0;
+    transition:background .15s;
+  }
   .dmhub-hdr-close:hover { background:rgba(132,204,22,.1); }
-  .dmhub-hdr-title { flex:1;text-align:center;font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px; }
+  /* [FIX-PAD] Title: flex:1 + min-width:0 so it never pushes right-side buttons off screen */
+  .dmhub-hdr-title {
+    flex:1;min-width:0;
+    text-align:center;
+    font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
   .dmhub-hdr-right { display:flex;align-items:center;gap:8px;flex-shrink:0; }
-  .dmhub-hdr-btn { width:36px;height:36px;border-radius:10px;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);display:flex;align-items:center;justify-content:center;color:#84cc16;cursor:pointer;transition:all .15s; }
+  .dmhub-hdr-btn {
+    width:36px;height:36px;border-radius:10px;
+    background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);
+    display:flex;align-items:center;justify-content:center;
+    color:#84cc16;cursor:pointer;transition:all .15s;
+  }
   .dmhub-hdr-btn:hover { background:rgba(132,204,22,.2);transform:translateY(-1px); }
   .dmhub-btn-grp { background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.25);color:#60a5fa; }
   .dmhub-btn-grp:hover { background:rgba(96,165,250,.2)!important; }
 
-  /* ── Group rows in chat list — 20px side padding to match header ── */
+  /* ── Group rows ── */
   .dmhub-groups-section { border-bottom:1px solid rgba(255,255,255,.04);padding:4px 0; }
-  .dmhub-group-row { display:flex;align-items:center;gap:14px;padding:11px 20px;cursor:pointer;transition:background .15s; }
+  .dmhub-group-row { display:flex;align-items:center;gap:14px;padding:11px 16px;cursor:pointer;transition:background .15s; }
   .dmhub-group-row:hover { background:rgba(255,255,255,.03); }
   .dmhub-group-av { width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#0d1a00,#1a3300);border:2px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0; }
   .dmhub-group-info { flex:1;min-width:0; }
@@ -463,12 +534,23 @@ const HUB_CSS = `
 
   /* ── Mobile bottom nav ── */
   .dmhub-bnav { display:flex;border-top:1px solid rgba(132,204,22,.1);background:rgba(4,4,4,.99);padding-bottom:env(safe-area-inset-bottom,0px);flex-shrink:0; }
-  .dmhub-bnav-btn { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 6px;background:transparent;border:none;color:#444;cursor:pointer;transition:color .15s;position:relative; }
+  .dmhub-bnav-btn { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 6px;background:transparent;border:none;color:#444;cursor:pointer;transition:color .15s;position:relative; }
   .dmhub-bnav-active { color:#84cc16; }
-  .dmhub-bnav-active::after { content:'';position:absolute;top:0;left:20%;right:20%;height:2px;border-radius:0 0 3px 3px;background:#84cc16; }
+  .dmhub-bnav-active::after { content:'';position:absolute;top:0;left:20%;right:20%;height:2.5px;border-radius:0 0 4px 4px;background:#84cc16; }
+  .dmhub-bnav-icon-wrap { position:relative;display:flex;align-items:center;justify-content:center;width:24px;height:24px; }
+  .dmhub-bnav-badge {
+    position:absolute;top:-6px;right:-12px;
+    min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;
+    border-radius:9px;background:#ef4444;color:#fff;
+    font-size:9px;font-weight:800;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    border:2px solid rgba(4,4,4,.99);
+    animation:badgePop .3s cubic-bezier(.34,1.56,.64,1) both;
+    white-space:nowrap;
+  }
   .dmhub-bnav-lbl { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px; }
 
-  /* ── Create Group Modal — with avatar images ── */
+  /* ── Create Group Modal ── */
   .cgm-ov { position:fixed;inset:0;z-index:20002;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;backdrop-filter:blur(4px); }
   .cgm-modal { width:100%;max-height:88vh;background:#080808;border:1px solid rgba(132,204,22,.15);border-radius:24px 24px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:cgmUp .3s cubic-bezier(.34,1.4,.64,1); }
   @keyframes cgmUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -494,26 +576,12 @@ const HUB_CSS = `
   .cgm-row { display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;transition:background .15s; }
   .cgm-row:hover { background:rgba(255,255,255,.03); }
   .cgm-on { background:rgba(132,204,22,.06); }
-  /* Avatar circle used in group creation */
   .cgm-uav { border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0d0d0d,#1c1c1c);border:1.5px solid rgba(132,204,22,.2); }
   .cgm-rn { flex:1;font-size:14px;font-weight:600;color:#fff; }
   .cgm-ck { width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;flex-shrink:0; }
   .cgm-ck-on { background:#84cc16;border-color:#84cc16;color:#000;font-weight:800; }
   .cgm-empty { text-align:center;padding:24px;color:#444;font-size:13px; }
 
-  .dmhub-hdr {
-  display:flex;
-  align-items:center;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
-  padding-right: 10px;
-  padding-bottom: 12px;
-  padding-left: 10px;
-  border-bottom:1px solid rgba(132,204,22,.1);
-  background:rgba(0,0,0,.98);
-  flex-shrink:0;
-  gap:10px;
-  min-height:56px;
-}
   /* ── Desktop ── */
   @media (min-width:769px) {
     .dmhub-panel { left:auto;right:0;width:420px;height:100vh;border-left:1px solid rgba(132,204,22,.12);box-shadow:-24px 0 72px rgba(0,0,0,.7);animation:dmSlide .28s cubic-bezier(.22,1,.36,1); }
@@ -521,11 +589,11 @@ const HUB_CSS = `
     .dmhub-rail { display:flex; }
     .dmhub-bnav { display:none!important; }
     .dmhub-fullscreen { position:absolute;inset:0; }
+    /* On desktop the rail handles close, so hide the in-header close btn */
     .dmhub-hdr-close { display:none; }
-    /* On desktop the close button is hidden via the rail, so we keep the
-       same 20px left padding to left-align the title comfortably. */
-    .dmhub-hdr { padding-left:20px; }
+    /* On desktop with no close btn, left-align the title */
     .dmhub-hdr-title { text-align:left; }
+    .dmhub-hdr { padding-left:16px; }
   }
 `;
 

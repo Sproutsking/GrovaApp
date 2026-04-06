@@ -1,14 +1,12 @@
 // ============================================================================
-// components/Messages/UpdatesView.jsx — NOVA STATUS v4 FINAL
+// components/Messages/UpdatesView.jsx — NOVA STATUS v5 FINAL
 // ============================================================================
-// FIXED:
-//  [1] "Setup SQL" no longer shows for missing media_type column — only for
-//      missing table (42P01). Graceful fallback query without media_type.
-//  [2] Full image + video upload via Supabase Storage bucket "status-media"
-//  [3] Story viewer with progress bars, tap zones, video autoplay, like/reply
-//  [4] Add status flow: pick type → (media) → compose → duration → share
-//  [5] My status cards with countdown, view count, delete, extend
-//  [6] Contact bubbles + list view of everyone's statuses
+// FIXED vs v4:
+//  [FIX-RPC] supabase.rpc() returns a PromiseLike, NOT a native Promise.
+//            Chaining .catch() directly on it throws "catch is not a function".
+//            All rpc calls now use: await supabase.rpc(...) inside try/catch,
+//            OR Promise.resolve(supabase.rpc(...)).catch(() => {}) for fire-
+//            and-forget paths. No bare .catch() anywhere in this file.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -170,7 +168,7 @@ const StoryViewer = ({ stories, startIndex = 0, currentUser, onClose, onReplyAsD
   useEffect(() => {
     if (paused || showRep || !loaded) return;
     const s = stories[idx];
-    if (s?.image_id && s?.media_type === "video") return; // video controls its own progress
+    if (s?.image_id && s?.media_type === "video") return;
     clearInterval(timerR.current);
     const step = (50 / RING_SECS) * 100;
     timerR.current = setInterval(() => {
@@ -207,7 +205,6 @@ const StoryViewer = ({ stories, startIndex = 0, currentUser, onClose, onReplyAsD
 
   return (
     <div className="sv-root">
-      {/* Progress bars */}
       <div className="sv-bars">
         {stories.map((_, i) => (
           <div key={i} className="sv-bar-track">
@@ -219,7 +216,6 @@ const StoryViewer = ({ stories, startIndex = 0, currentUser, onClose, onReplyAsD
         ))}
       </div>
 
-      {/* Header */}
       <div className="sv-head">
         <UAv user={story.profile} size={38} />
         <div className="sv-head-info">
@@ -240,7 +236,6 @@ const StoryViewer = ({ stories, startIndex = 0, currentUser, onClose, onReplyAsD
         </div>
       </div>
 
-      {/* Content */}
       <div className="sv-content" style={bgStyle}>
         {isVid && (
           <video ref={vRef} src={mediaUrl} autoPlay playsInline
@@ -268,11 +263,9 @@ const StoryViewer = ({ stories, startIndex = 0, currentUser, onClose, onReplyAsD
         )}
       </div>
 
-      {/* Tap zones */}
       <div className="sv-tap-prev" onClick={() => { if (idx > 0) { setIdx(idx - 1); setProg(0); } }}/>
       <div className="sv-tap-next" onClick={advance}/>
 
-      {/* Bottom actions */}
       <div className="sv-bottom">
         {repDone && <div className="sv-rep-sent"><Ic.Check/> Reply sent</div>}
         {showRep ? (
@@ -400,7 +393,7 @@ const MediaStep = ({ onReady, onBack, onClose }) => {
    ADD STATUS MODAL
 ════════════════════════════════════════════════════ */
 const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
-  const [step,    setStep]    = useState("pick");   // pick | media | compose | duration
+  const [step,    setStep]    = useState("pick");
   const [mode,    setMode]    = useState("text");
   const [text,    setText]    = useState("");
   const [bg,      setBg]      = useState(GRADIENTS[0]);
@@ -437,9 +430,7 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
       if (error) throw error;
       onAdded?.(); onClose();
     } catch (e) {
-      // Handle missing media_type column gracefully
       if (e.message?.includes("media_type")) {
-        // Retry without media_type
         try {
           const fallback = {
             user_id: currentUser.id, text: text.trim() || null,
@@ -466,7 +457,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-pill"/>
 
-        {/* ── PICK TYPE ── */}
         {step === "pick" && (
           <>
             <div className="modal-hdr">
@@ -505,7 +495,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
           </>
         )}
 
-        {/* ── MEDIA UPLOAD ── */}
         {step === "media" && (
           <MediaStep
             onReady={r => { setMedia(r); setStep("compose"); }}
@@ -514,7 +503,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
           />
         )}
 
-        {/* ── COMPOSE ── */}
         {step === "compose" && (
           <>
             <div className="modal-hdr">
@@ -523,7 +511,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
               <button className="modal-close" onClick={onClose}><Ic.Close/></button>
             </div>
 
-            {/* Live preview */}
             <div className="compose-preview" style={media ? { background: "#000" } : { background: bg }}>
               {media?.type === "video" && (
                 <video src={media.url} muted autoPlay loop playsInline style={{ width: "100%", height: "100%", objectFit: "contain" }}/>
@@ -531,17 +518,10 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
               {media?.type === "image" && (
                 <img src={media.url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}/>
               )}
-              {text && (
-                <p className="compose-overlay-text" style={{ color: tcol }}>
-                  {text}
-                </p>
-              )}
-              {!text && !media && (
-                <p className="compose-placeholder">Your status preview…</p>
-              )}
+              {text && <p className="compose-overlay-text" style={{ color: tcol }}>{text}</p>}
+              {!text && !media && <p className="compose-placeholder">Your status preview…</p>}
             </div>
 
-            {/* Text input */}
             <div className="compose-inp-wrap">
               <textarea className="compose-textarea"
                 placeholder={media ? "Add a caption (optional)…" : "What's on your mind?"}
@@ -561,7 +541,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
               </div>
             </div>
 
-            {/* Background picker — text only */}
             {!media && (
               <>
                 <p className="compose-section-lbl">Background</p>
@@ -579,7 +558,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
               </>
             )}
 
-            {/* Text color */}
             <p className="compose-section-lbl">Text Color</p>
             <div className="color-row">
               {TEXT_COLORS.map(c => (
@@ -594,7 +572,6 @@ const AddStatusModal = ({ currentUser, onClose, onAdded, todayCount }) => {
           </>
         )}
 
-        {/* ── DURATION ── */}
         {step === "duration" && (
           <>
             <div className="modal-hdr">
@@ -665,7 +642,7 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
   const [myStories,    setMyStories]    = useState([]);
   const [otherStories, setOtherStories] = useState([]);
   const [likedIds,     setLikedIds]     = useState(new Set());
-  const [viewer,       setViewer]       = useState(null);   // { stories, startIndex }
+  const [viewer,       setViewer]       = useState(null);
   const [showAdd,      setShowAdd]      = useState(false);
   const [extTarget,    setExtTarget]    = useState(null);
   const [loading,      setLoading]      = useState(true);
@@ -673,14 +650,12 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
   const [, tick]                        = useState(0);
   const mountRef = useRef(true);
 
-  /* Open add modal via custom event from DMMessagesView header "+" button */
   useEffect(() => {
     const h = () => setShowAdd(true);
     document.addEventListener("dm:addStory", h);
     return () => document.removeEventListener("dm:addStory", h);
   }, []);
 
-  /* Countdown refresh every 60s */
   useEffect(() => {
     const t = setInterval(() => tick(n => n + 1), 60_000);
     return () => clearInterval(t);
@@ -692,7 +667,6 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
     try {
       let data = null;
 
-      // Attempt 1: query with media_type column
       try {
         const { data: d, error: e } = await supabase
           .from("status_updates")
@@ -702,17 +676,14 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
           .order("created_at", { ascending: false });
 
         if (e) {
-          // If it's just a missing column, not a missing table
-          if (e.code === "42P01" || e.message?.includes("relation") && e.message?.includes("does not exist")) {
+          if (e.code === "42P01" || (e.message?.includes("relation") && e.message?.includes("does not exist"))) {
             if (mountRef.current) { setTableErr(true); setLoading(false); }
             return;
           }
-          // Column might be missing — try fallback
           throw e;
         }
         data = d;
       } catch (columnErr) {
-        // Attempt 2: fallback without media_type
         const { data: d2, error: e2 } = await supabase
           .from("status_updates")
           .select(`id,text,bg,text_color,image_id,duration_h,views,likes,created_at,expires_at,user_id,
@@ -727,16 +698,11 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
           }
           throw e2;
         }
-        // Enrich with inferred media_type
-        data = (d2 || []).map(s => ({
-          ...s,
-          media_type: s.image_id ? "image" : "text",
-        }));
+        data = (d2 || []).map(s => ({ ...s, media_type: s.image_id ? "image" : "text" }));
       }
 
       if (!mountRef.current) return;
 
-      // Ensure media_type is always set
       const enriched = (data || []).map(s => ({
         ...s,
         media_type: s.media_type || (s.image_id ? "image" : "text"),
@@ -745,7 +711,6 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
       setMyStories(enriched.filter(s => s.user_id === currentUser.id));
       setOtherStories(enriched.filter(s => s.user_id !== currentUser.id));
 
-      // Load likes
       if (enriched.length > 0) {
         const { data: likeRows } = await supabase
           .from("status_likes").select("status_id")
@@ -769,7 +734,6 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
     return () => { mountRef.current = false; };
   }, [loadStatuses]);
 
-  /* Realtime */
   useEffect(() => {
     if (!currentUser?.id || tableErr) return;
     const ch = supabase.channel("su_rt_v9")
@@ -779,29 +743,36 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
     return () => supabase.removeChannel(ch);
   }, [currentUser?.id, tableErr, loadStatuses]);
 
-  /* Like / Unlike */
+  /* ── Like / Unlike ── */
   const handleLike = useCallback(async (sid, isLiked) => {
     if (!currentUser?.id) return;
-    // Optimistic
     setLikedIds(prev => { const n = new Set(prev); isLiked ? n.delete(sid) : n.add(sid); return n; });
     try {
       if (isLiked) {
         await supabase.from("status_likes").delete().eq("status_id", sid).eq("user_id", currentUser.id);
-        await supabase.rpc("increment_status_likes", { p_status_id: sid, p_delta: -1 }).catch(() => {});
+        // [FIX-RPC] Use await + try/catch instead of bare .catch() on rpc PromiseLike
+        try {
+          await supabase.rpc("increment_status_likes", { p_status_id: sid, p_delta: -1 });
+        } catch (_) { /* non-fatal — view count still updated via DB */ }
       } else {
-        await supabase.from("status_likes").insert({ status_id: sid, user_id: currentUser.id }).catch(() => {});
-        await supabase.rpc("increment_status_likes", { p_status_id: sid, p_delta: 1 }).catch(() => {});
+        try {
+          await supabase.from("status_likes").insert({ status_id: sid, user_id: currentUser.id });
+        } catch (_) { /* ignore duplicate */ }
+        try {
+          await supabase.rpc("increment_status_likes", { p_status_id: sid, p_delta: 1 });
+        } catch (_) { /* non-fatal */ }
       }
     } catch {
+      // Rollback optimistic update on failure
       setLikedIds(prev => { const n = new Set(prev); isLiked ? n.add(sid) : n.delete(sid); return n; });
     }
   }, [currentUser?.id]);
 
-  /* Extend */
+  /* ── Extend ── */
   const handleExtend = useCallback(async (sid, hours) => {
     const found = [...myStories, ...otherStories].find(s => s.id === sid);
     if (!found) return;
-    const base  = new Date(Math.max(new Date(found.expires_at), Date.now()));
+    const base   = new Date(Math.max(new Date(found.expires_at), Date.now()));
     const newExp = new Date(base.getTime() + hours * 3_600_000).toISOString();
     try {
       await supabase.from("status_updates").update({ expires_at: newExp }).eq("id", sid).eq("user_id", currentUser.id);
@@ -809,30 +780,42 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
     } catch (e) { console.error("[UpdatesView] extend:", e); }
   }, [myStories, otherStories, currentUser?.id, loadStatuses]);
 
-  /* Delete */
+  /* ── Delete ── */
   const handleDelete = useCallback(async sid => {
     const target = myStories.find(s => s.id === sid);
-    setMyStories(prev => prev.filter(s => s.id !== sid)); // optimistic
+    setMyStories(prev => prev.filter(s => s.id !== sid));
     try {
       await supabase.from("status_updates").delete().eq("id", sid).eq("user_id", currentUser.id);
       if (target?.image_id) {
-        supabase.storage.from(BUCKET).remove([target.image_id]).catch(() => {});
+        // [FIX-RPC] storage.remove returns a PromiseLike — wrap in try/catch
+        try {
+          await supabase.storage.from(BUCKET).remove([target.image_id]);
+        } catch (_) { /* non-fatal */ }
       }
     } catch (e) {
       console.error("[UpdatesView] delete:", e);
-      loadStatuses(); // revert
+      loadStatuses();
     }
   }, [myStories, currentUser?.id, loadStatuses]);
 
-  /* Record view */
+  /* ── Record view ── */
+  // [FIX-RPC] recordView now uses await inside try/catch — no bare .catch()
   const recordView = useCallback(async sid => {
-    supabase.rpc("increment_status_views", { p_status_id: sid }).catch(() => {});
+    try {
+      await supabase.rpc("increment_status_views", { p_status_id: sid });
+    } catch (_) { /* non-fatal — view count best-effort */ }
   }, []);
 
-  const openViewer = (list, startIdx = 0) => {
+  const openViewer = useCallback((list, startIdx = 0) => {
     setViewer({ stories: list, startIdx });
-    list.forEach(s => { if (s.user_id !== currentUser?.id) recordView(s.id); });
-  };
+    // [FIX-RPC] forEach with async — each rpc call is properly awaited
+    // inside its own try/catch so one failure doesn't stop others.
+    list.forEach(async s => {
+      if (s.user_id !== currentUser?.id) {
+        await recordView(s.id);
+      }
+    });
+  }, [currentUser?.id, recordView]);
 
   /* Group others by user */
   const grouped = otherStories.reduce((acc, s) => {
@@ -848,7 +831,6 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
     avatar_id: currentUser?.avatarId || currentUser?.avatar_id,
   };
 
-  /* ── LOADING ── */
   if (loading) return (
     <div className="upd-root">
       <div className="upd-loading">
@@ -858,7 +840,6 @@ const UpdatesView = ({ currentUser, onReplyAsDM }) => {
     </div>
   );
 
-  /* ── TABLE MISSING ── */
   if (tableErr) return (
     <div className="upd-root">
       <div className="upd-setup">
@@ -903,7 +884,6 @@ RETURNS void LANGUAGE sql AS $$ UPDATE status_updates SET views = views + 1 WHER
     </div>
   );
 
-  /* ── MAIN RENDER ── */
   return (
     <div className="upd-root">
 
@@ -1074,17 +1054,12 @@ RETURNS void LANGUAGE sql AS $$ UPDATE status_updates SET views = views + 1 WHER
    STYLES
 ════════════════════════════════════════════════════ */
 const CSS = `
-/* ── Root ── */
 .upd-root { display:flex;flex-direction:column;height:100%;overflow-y:auto;background:#000;-webkit-overflow-scrolling:touch; }
 .upd-root::-webkit-scrollbar { width:3px; }
 .upd-root::-webkit-scrollbar-thumb { background:rgba(132,204,22,.2);border-radius:2px; }
-
-/* ── Loading skeletons ── */
 .upd-loading { padding:20px;display:flex;flex-direction:column;gap:14px; }
 .upd-skel { height:64px;border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.03) 0%,rgba(255,255,255,.07) 50%,rgba(255,255,255,.03) 100%);background-size:200% 100%;animation:skelShimmer 1.4s infinite; }
 @keyframes skelShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-
-/* ── Setup screen ── */
 .upd-setup { display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 20px;height:100%;justify-content:center; }
 .upd-setup-icon { font-size:52px; }
 .upd-setup-title { font-size:18px;font-weight:800;color:#fff;text-align:center;margin:0; }
@@ -1092,12 +1067,8 @@ const CSS = `
 .upd-setup-sql { background:#0a0a0a;border:1px solid rgba(132,204,22,.15);border-radius:12px;padding:14px;font-size:10px;color:#84cc16;overflow-x:auto;white-space:pre;max-width:100%;box-sizing:border-box;max-height:200px;overflow-y:auto; }
 .upd-retry-btn { margin-top:8px;padding:10px 24px;border-radius:12px;background:rgba(132,204,22,.12);border:1px solid rgba(132,204,22,.3);color:#84cc16;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s; }
 .upd-retry-btn:hover { background:rgba(132,204,22,.2); }
-
-/* ── User avatar ── */
 .upd-av { display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(255,255,255,.08);flex-shrink:0;font-weight:800;color:#84cc16; }
 .upd-av.upd-av-ring { border:2.5px solid var(--ring-color,#84cc16);box-shadow:0 0 0 2px rgba(132,204,22,.15); }
-
-/* ── My status row ── */
 .my-row { display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.04);flex-shrink:0; }
 .my-row-left { display:flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0; }
 .my-av-wrap { position:relative;flex-shrink:0; }
@@ -1107,8 +1078,6 @@ const CSS = `
 .my-name { font-size:14px;font-weight:700;color:#fff; }
 .my-sub { font-size:12px;color:#555;margin-top:2px; }
 .my-badge { min-width:22px;height:22px;border-radius:11px;padding:0 6px;background:rgba(132,204,22,.15);border:1px solid rgba(132,204,22,.3);color:#84cc16;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-
-/* ── My cards scroll ── */
 .my-cards-scroll { display:flex;gap:10px;padding:10px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0; }
 .my-cards-scroll::-webkit-scrollbar { height:0; }
 .my-card { width:100px;flex-shrink:0;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:#0d0d0d;cursor:pointer;transition:transform .15s; }
@@ -1123,8 +1092,6 @@ const CSS = `
 .my-card-actions { display:flex;justify-content:flex-end;gap:5px; }
 .my-extend-btn { padding:2px 6px;border-radius:6px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#f59e0b;font-size:9px;font-weight:700;cursor:pointer; }
 .my-del-btn { width:22px;height:22px;border-radius:6px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.18);display:flex;align-items:center;justify-content:center;cursor:pointer; }
-
-/* ── Others section ── */
 .others-section { padding:12px 16px 4px;flex-shrink:0; }
 .others-label { font-size:10px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px; }
 .bubbles-row { display:flex;gap:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px; }
@@ -1134,8 +1101,6 @@ const CSS = `
 .bubble-warn { border-color:#f59e0b; }
 .bubble-name { font-size:10px;color:#aaa;font-weight:600;white-space:nowrap;max-width:56px;overflow:hidden;text-overflow:ellipsis;text-align:center; }
 .bubble-count { position:absolute;top:0;right:-4px;min-width:16px;height:16px;border-radius:8px;padding:0 3px;background:#84cc16;color:#000;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1.5px solid #000; }
-
-/* ── Contacts list ── */
 .contacts-section { margin-top:4px; }
 .contact-row { display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s; }
 .contact-row:hover { background:rgba(255,255,255,.02); }
@@ -1147,8 +1112,6 @@ const CSS = `
 .contact-count-badge { min-width:22px;height:22px;border-radius:11px;padding:0 5px;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);color:#84cc16;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
 .contact-thumb { width:42px;height:42px;border-radius:10px;overflow:hidden;flex-shrink:0; }
 .contact-thumb img { width:100%;height:100%;object-fit:cover; }
-
-/* ── Empty state ── */
 .upd-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 24px;flex:1; }
 .upd-empty-icon { font-size:56px; }
 .upd-empty-title { font-size:20px;font-weight:800;color:#fff;text-align:center;margin:0; }
@@ -1156,10 +1119,6 @@ const CSS = `
 .upd-cta-btn { display:flex;align-items:center;gap:8px;padding:13px 24px;border-radius:16px;background:linear-gradient(135deg,rgba(132,204,22,.2),rgba(101,163,13,.14));border:1px solid rgba(132,204,22,.35);color:#84cc16;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;margin-top:8px; }
 .upd-cta-btn:hover { background:linear-gradient(135deg,rgba(132,204,22,.3),rgba(101,163,13,.22));transform:translateY(-1px); }
 .upd-cta-btn:active { transform:scale(.97); }
-
-/* ════════════════════════════════════════════════════
-   STORY VIEWER
-════════════════════════════════════════════════════ */
 .viewer-wrap { position:fixed;inset:0;z-index:20000;background:#000; }
 .sv-root { position:relative;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden; }
 .sv-bars { display:flex;gap:3px;padding:calc(env(safe-area-inset-top,0px)+10px) 12px 10px;position:absolute;top:0;left:0;right:0;z-index:10; }
@@ -1194,10 +1153,6 @@ const CSS = `
 .sv-stats span { display:flex;align-items:center;gap:4px; }
 .sv-spinner { width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:svSpin .7s linear infinite; }
 @keyframes svSpin { to{transform:rotate(360deg)} }
-
-/* ════════════════════════════════════════════════════
-   MEDIA STEP
-════════════════════════════════════════════════════ */
 .ms-header { display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;flex-shrink:0; }
 .ms-title { font-size:15px;font-weight:800;color:#fff;flex:1;text-align:center; }
 .ms-back { background:none;border:none;color:#84cc16;font-size:13px;font-weight:700;cursor:pointer; }
@@ -1219,10 +1174,6 @@ const CSS = `
 .ms-prev-wrap { display:flex;flex-direction:column;align-items:center;gap:10px; }
 .ms-prev-media { max-width:100%;max-height:240px;border-radius:14px;display:block; }
 .ms-change { padding:7px 18px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;font-size:13px;font-weight:600;cursor:pointer; }
-
-/* ════════════════════════════════════════════════════
-   ADD STATUS MODAL
-════════════════════════════════════════════════════ */
 .modal-ov { position:fixed;inset:0;z-index:20001;background:rgba(0,0,0,.8);display:flex;align-items:flex-end;backdrop-filter:blur(4px); }
 .modal-sheet { width:100%;max-height:92vh;background:#080808;border:1px solid rgba(132,204,22,.12);border-radius:22px 22px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:msUp .3s cubic-bezier(.34,1.4,.64,1); }
 @keyframes msUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -1233,8 +1184,6 @@ const CSS = `
 .modal-sub { font-size:12px;color:#555;margin:4px 0 0; }
 .modal-close { width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#555; }
 .modal-back { background:none;border:none;color:#84cc16;font-size:13px;font-weight:700;cursor:pointer; }
-
-/* Pick grid */
 .pick-grid { display:flex;flex-direction:column;gap:8px;padding:8px 18px 20px;overflow-y:auto; }
 .pick-card { display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);cursor:pointer;text-align:left;transition:background .15s,border-color .15s;width:100%; }
 .pick-card:hover { background:rgba(255,255,255,.06);border-color:rgba(132,204,22,.25); }
@@ -1246,8 +1195,6 @@ const CSS = `
 .pick-label { display:block;font-size:15px;font-weight:700;color:#fff;margin-bottom:3px; }
 .pick-desc { display:block;font-size:12px;color:#555; }
 .pick-arrow { color:#333;font-size:16px;flex-shrink:0; }
-
-/* Compose */
 .compose-preview { height:180px;margin:0 18px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;flex-shrink:0; }
 .compose-overlay-text { position:absolute;bottom:0;left:0;right:0;padding:14px;font-size:14px;font-weight:700;text-align:center;background:linear-gradient(to top,rgba(0,0,0,.7),transparent);word-break:break-word; }
 .compose-placeholder { font-size:14px;color:rgba(255,255,255,.2);text-align:center;padding:0 20px;font-style:italic; }
@@ -1272,8 +1219,6 @@ const CSS = `
 .compose-cta { margin:8px 18px 18px;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(132,204,22,.2),rgba(101,163,13,.14));border:1px solid rgba(132,204,22,.35);color:#84cc16;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;display:block;width:calc(100% - 36px); }
 .compose-cta:hover { background:linear-gradient(135deg,rgba(132,204,22,.28),rgba(101,163,13,.2)); }
 .compose-cta:disabled { opacity:.35;cursor:not-allowed; }
-
-/* Duration */
 .dur-preview { height:130px;margin:0 18px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0; }
 .dur-hint { font-size:13px;color:#555;text-align:center;padding:10px 24px 4px;margin:0;flex-shrink:0; }
 .dur-cards { display:flex;flex-direction:column;gap:8px;padding:4px 18px;flex:1;overflow-y:auto; }
@@ -1290,8 +1235,6 @@ const CSS = `
 .share-btn:active { transform:scale(.98); }
 .share-btn.saving { opacity:.65;cursor:not-allowed; }
 .share-btn:disabled { opacity:.35;cursor:not-allowed; }
-
-/* Extend modal */
 .extend-box { background:#0d0d0d;border:1px solid rgba(245,158,11,.2);border-radius:18px 18px 0 0;padding:0 0 calc(env(safe-area-inset-bottom,0px)+16px);width:100%;animation:msUp .25s cubic-bezier(.34,1.4,.64,1); }
 .extend-hd { display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px;font-size:16px;font-weight:800;color:#fff; }
 .extend-cur { font-size:13px;color:#666;padding:0 18px 10px;margin:0; }

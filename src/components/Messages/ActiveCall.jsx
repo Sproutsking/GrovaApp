@@ -436,9 +436,14 @@ const ActiveCall = ({ call, onEnd, currentUser }) => {
     ...parts.map(pt=>({...pt,isLocal:false,stream:remStr})),
   ];
 
-  /* Ended screen */
+  /* Ended screen — MUST include style tag so CSS applies */
   if(stage==="ended"&&endR){
-    return <EndScreen reason={endR} call={{...call,duration:callDur}} onClose={onEnd} onCallback={()=>onEnd()}/>;
+    return(
+      <div style={{position:"absolute",inset:0,zIndex:200,fontFamily:"inherit"}}>
+        <EndScreen reason={endR} call={{...call,duration:callDur}} onClose={onEnd} onCallback={()=>onEnd()}/>
+        <style>{CSS}</style>
+      </div>
+    );
   }
 
   return(

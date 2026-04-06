@@ -8,6 +8,7 @@
 //  [4] Full DM-style background experience
 //  [5] Online status dots on avatars correctly positioned ON the border
 //  [6] Members can all see the group after creation
+//  [7] Guard against initialGroup being undefined — no more crash on mount
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -56,7 +57,7 @@ const UAv = ({ user, size=36, showDot=false, online=false }) => {
 
 /* ─── Group Avatar (quad grid) ─── */
 const GroupAv = ({ members=[], size=44, icon="👥" }) => {
-  const shown = members.filter(m => m).slice(0, 4);
+  const shown = (Array.isArray(members) ? members : []).filter(Boolean).slice(0, 4);
   const q = size / 2 - 2;
   if (shown.length === 0) {
     return (
@@ -75,7 +76,7 @@ const GroupAv = ({ members=[], size=44, icon="👥" }) => {
   return (
     <div className="gav-root gav-grid" style={{ width: size, height: size }}>
       {shown.map((m, i) => (
-        <div key={m.id||i} className="gav-cell" style={{ width: q, height: q }}>
+        <div key={m?.id || i} className="gav-cell" style={{ width: q, height: q }}>
           <UAv user={m} size={q}/>
         </div>
       ))}
@@ -99,16 +100,15 @@ const TypingRow = ({ names }) => {
 
 /* ─── Edit Group Modal ─── */
 const EditGroupModal = ({ group, currentUser, members, onSave, onClose }) => {
-  const [name,    setName]    = useState(group.name || "");
-  const [icon,    setIcon]    = useState(group.icon || "👥");
-  const [saving,  setSaving]  = useState(false);
+  const [name,   setName]   = useState(group?.name || "");
+  const [icon,   setIcon]   = useState(group?.icon || "👥");
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim() || saving) return;
     setSaving(true);
     try {
-      // Update localStorage
-      const key = `gc_meta_${group.id}`;
+      const key  = `gc_meta_${group?.id}`;
       const meta = JSON.parse(localStorage.getItem(key) || "{}");
       meta.name = name.trim(); meta.icon = icon;
       localStorage.setItem(key, JSON.stringify(meta));
@@ -128,7 +128,6 @@ const EditGroupModal = ({ group, currentUser, members, onSave, onClose }) => {
           </button>
         </div>
         <div className="egm-body">
-          {/* Icon picker */}
           <div className="egm-cur-icon">{icon}</div>
           <p className="egm-lbl">Group Icon</p>
           <div className="egm-icon-grid">
@@ -140,13 +139,13 @@ const EditGroupModal = ({ group, currentUser, members, onSave, onClose }) => {
           <p className="egm-lbl">Group Name</p>
           <input className="egm-inp" value={name} onChange={e => setName(e.target.value)}
             maxLength={60} placeholder="Group name…"/>
-          <p className="egm-members-hd">Members ({members.length})</p>
+          <p className="egm-members-hd">Members ({(members || []).length})</p>
           <div className="egm-members">
-            {members.map(m => (
-              <div key={m.id} className="egm-member">
+            {(members || []).map(m => (
+              <div key={m?.id} className="egm-member">
                 <UAv user={m} size={36}/>
-                <span className="egm-mname">{m.full_name}{m.id===currentUser?.id?" (You)":""}</span>
-                {m.is_admin && <span className="egm-crown">👑</span>}
+                <span className="egm-mname">{m?.full_name}{m?.id===currentUser?.id?" (You)":""}</span>
+                {m?.is_admin && <span className="egm-crown">👑</span>}
               </div>
             ))}
           </div>
@@ -161,23 +160,23 @@ const MembersPanel = ({ members, group, currentUserId, onClose, onEdit }) => (
   <div className="gmp-overlay" onClick={onClose}>
     <div className="gmp-panel" onClick={e => e.stopPropagation()}>
       <div className="gmp-header">
-        <span className="gmp-title">{group.icon||"👥"} {group.name} · {members.length}</span>
+        <span className="gmp-title">{group?.icon||"👥"} {group?.name} · {(members||[]).length}</span>
         <div style={{display:"flex",gap:6}}>
-          {members.find(m=>m.id===currentUserId)?.is_admin && (
+          {(members||[]).find(m=>m?.id===currentUserId)?.is_admin && (
             <button className="gmp-edit-btn" onClick={()=>{onClose();onEdit();}}><Ic.Edit/></button>
           )}
           <button className="gmp-close" onClick={onClose}><Ic.Close/></button>
         </div>
       </div>
       <div className="gmp-list">
-        {members.map(m => {
-          const isMe = m.id === currentUserId;
+        {(members||[]).map(m => {
+          const isMe = m?.id === currentUserId;
           return (
-            <div key={m.id} className="gmp-member">
-              <UAv user={m} size={42} showDot={true} online={m.online}/>
+            <div key={m?.id} className="gmp-member">
+              <UAv user={m} size={42} showDot={true} online={m?.online}/>
               <div className="gmp-info">
-                <span className="gmp-name">{m.full_name}{isMe?" (You)":""}</span>
-                <span className="gmp-role">{m.is_admin?"👑 Admin":m.online?"Online":"Offline"}</span>
+                <span className="gmp-name">{m?.full_name}{isMe?" (You)":""}</span>
+                <span className="gmp-role">{m?.is_admin?"👑 Admin":m?.online?"Online":"Offline"}</span>
               </div>
             </div>
           );
@@ -190,16 +189,20 @@ const MembersPanel = ({ members, group, currentUserId, onClose, onEdit }) => (
 /* ─── Message Bubble ─── */
 const MsgBubble = ({ msg, isMe, showAvatar, members }) => {
   const [showReact, setShowReact] = useState(false);
-  const sender   = members.find(m => m.id === (msg.sender_id || msg.user_id));
+  const safeMems   = Array.isArray(members) ? members : [];
+  const sender     = safeMems.find(m => m?.id === (msg?.sender_id || msg?.user_id));
   const senderName = isMe ? "You" : (sender?.full_name || "Unknown");
-  const EMOJI = ["👍","❤️","😂","😮","😢","🔥"];
+  const EMOJI      = ["👍","❤️","😂","😮","😢","🔥"];
 
   const fmtTime = d => {
     if (!d) return "";
-    const dt = new Date(d); const h = dt.getHours()%12||12; const m = dt.getMinutes().toString().padStart(2,"0");
+    const dt = new Date(d);
+    const h  = dt.getHours() % 12 || 12;
+    const m  = dt.getMinutes().toString().padStart(2,"0");
     return `${h}:${m} ${dt.getHours()>=12?"PM":"AM"}`;
   };
-  const isValid = msg.content && typeof msg.content === "string" &&
+
+  const isValid = msg?.content && typeof msg.content === "string" &&
     !/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(msg.content.trim());
 
   return (
@@ -211,7 +214,7 @@ const MsgBubble = ({ msg, isMe, showAvatar, members }) => {
       )}
       <div className="gcm-col">
         {!isMe && showAvatar && <div className="gcm-sender">{senderName}</div>}
-        <div className={`gcm-bubble${isMe?" gcm-me-b":" gcm-them-b"}${msg._optimistic?" gcm-opt":""}${msg._failed?" gcm-fail":""}`}
+        <div className={`gcm-bubble${isMe?" gcm-me-b":" gcm-them-b"}${msg?._optimistic?" gcm-opt":""}${msg?._failed?" gcm-fail":""}`}
           onDoubleClick={() => setShowReact(p=>!p)}>
           {isValid
             ? <span className="gcm-text">{msg.content}</span>
@@ -224,10 +227,10 @@ const MsgBubble = ({ msg, isMe, showAvatar, members }) => {
           )}
         </div>
         <div className={`gcm-meta${isMe?" gcm-meta-me":""}`}>
-          <span className="gcm-time">{fmtTime(msg.created_at)}</span>
-          {isMe && <span className="gcm-ticks">{msg._optimistic?"✓":msg.read?<span style={{color:"#22c55e"}}>✓✓</span>:msg.delivered?"✓✓":"✓"}</span>}
+          <span className="gcm-time">{fmtTime(msg?.created_at)}</span>
+          {isMe && <span className="gcm-ticks">{msg?._optimistic?"✓":msg?.read?<span style={{color:"#22c55e"}}>✓✓</span>:msg?.delivered?"✓✓":"✓"}</span>}
         </div>
-        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+        {msg?.reactions && Object.keys(msg.reactions).length > 0 && (
           <div className="gcm-react-disp">
             {Object.entries(msg.reactions).map(([e,c])=><span key={e} className="gcm-react-chip">{e} {c}</span>)}
           </div>
@@ -239,11 +242,21 @@ const MsgBubble = ({ msg, isMe, showAvatar, members }) => {
 
 /* ════════════════════════════════════════════════════
    MAIN GROUP CHAT VIEW
+   — group prop defaults to {} so the component never
+     crashes when the prop is momentarily undefined
 ════════════════════════════════════════════════════ */
-const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }) => {
-  const [group,       setGroup]       = useState({ icon:"👥", ...initialGroup });
+const GroupChatView = ({ group: initialGroup = {}, currentUser, onBack, onStartCall }) => {
+  // ── Safe initial values — guard every field so nothing explodes on mount ──
+  const safeInitial = {
+    id:      initialGroup?.id      || "",
+    name:    initialGroup?.name    || "Group Chat",
+    icon:    initialGroup?.icon    || "👥",
+    members: Array.isArray(initialGroup?.members) ? initialGroup.members : [],
+  };
+
+  const [group,       setGroup]       = useState({ icon:"👥", ...safeInitial });
   const [messages,    setMessages]    = useState([]);
-  const [members,     setMembers]     = useState(initialGroup.members || []);
+  const [members,     setMembers]     = useState(safeInitial.members);
   const [loading,     setLoading]     = useState(true);
   const [typingNames, setTypingNames] = useState([]);
   const [showMembers, setShowMembers] = useState(false);
@@ -259,6 +272,9 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
   const mountedRef   = useRef(true);
   const isAtBottom   = useRef(true);
 
+  // If the group id is empty there is nothing to load — bail early after render
+  const groupId = group?.id;
+
   const scrollToBottom = (beh="smooth") => endRef.current?.scrollIntoView({ behavior: beh });
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -269,46 +285,52 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
 
   // ── Persist group to localStorage for ALL members ──────────────────────
   useEffect(() => {
-    const key = `gc_meta_${group.id}`;
+    if (!groupId) return;
+    const key      = `gc_meta_${groupId}`;
     const existing = JSON.parse(localStorage.getItem(key) || "{}");
-    const updated  = { ...existing, id: group.id, name: group.name, icon: group.icon || "👥", members };
+    const updated  = { ...existing, id: groupId, name: group.name, icon: group.icon || "👥", members };
     localStorage.setItem(key, JSON.stringify(updated));
 
-    // Also notify other members via broadcast
     if (channelRef.current && currentUser?.id) {
       channelRef.current.send({
         type: "broadcast", event: "gc_group_meta",
-        payload: { id: group.id, name: group.name, icon: group.icon || "👥", members },
+        payload: { id: groupId, name: group.name, icon: group.icon || "👥", members },
       });
     }
-  }, [group.id, group.name, group.icon, members, currentUser?.id]);
+  }, [groupId, group.name, group.icon, members, currentUser?.id]);
 
   // ── Load messages from localStorage + DB ──────────────────────────────
   useEffect(() => {
+    if (!groupId) { setLoading(false); return; }
     mountedRef.current = true;
+
     // Restore messages from localStorage first (instant)
-    const localKey = `gc_msgs_${group.id}`;
-    const cached = JSON.parse(localStorage.getItem(localKey) || "[]");
-    if (cached.length > 0) { setMessages(cached); setLoading(false); setTimeout(()=>scrollToBottom("auto"),40); }
+    const localKey = `gc_msgs_${groupId}`;
+    try {
+      const cached = JSON.parse(localStorage.getItem(localKey) || "[]");
+      if (cached.length > 0) { setMessages(cached); setLoading(false); setTimeout(()=>scrollToBottom("auto"),40); }
+    } catch { /* corrupt cache — ignore */ }
 
-    // Also restore group meta
-    const metaKey = `gc_meta_${group.id}`;
-    const meta = JSON.parse(localStorage.getItem(metaKey) || "{}");
-    if (meta.name) setGroup(g => ({ ...g, ...meta }));
-    if (meta.members?.length > 0) setMembers(meta.members);
+    // Restore group meta
+    const metaKey = `gc_meta_${groupId}`;
+    try {
+      const meta = JSON.parse(localStorage.getItem(metaKey) || "{}");
+      if (meta.name) setGroup(g => ({ ...g, ...meta }));
+      if (Array.isArray(meta.members) && meta.members.length > 0) setMembers(meta.members);
+    } catch { /* ignore */ }
 
-    // Then fetch from DB if community_messages table exists
+    // Fetch from DB
     (async () => {
       try {
         const { data, error } = await supabase
           .from("community_messages")
           .select(`id,channel_id,user_id,content,created_at,reactions,attachments`)
-          .eq("channel_id", group.id)
+          .eq("channel_id", groupId)
           .is("deleted_at", null)
           .order("created_at", { ascending: true })
           .limit(200);
 
-        if (!error && mountedRef.current && data) {
+        if (!error && mountedRef.current && Array.isArray(data)) {
           const enriched = data.map(m => ({ ...m, sender_id: m.user_id }));
           setMessages(enriched);
           localStorage.setItem(localKey, JSON.stringify(enriched.slice(-100)));
@@ -323,25 +345,25 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
     })();
 
     return () => { mountedRef.current = false; };
-  }, [group.id]);
+  }, [groupId]);
 
   // ── Realtime subscription ──────────────────────────────────────────────
   useEffect(() => {
+    if (!groupId) return;
     const ch = supabase
-      .channel(`gc:${group.id}`, { config: { broadcast: { self: false } } })
+      .channel(`gc:${groupId}`, { config: { broadcast: { self: false } } })
       .on("broadcast", { event: "gc_msg" }, ({ payload }) => {
         if (!mountedRef.current) return;
         setMessages(prev => {
           if (prev.some(m => m.id === payload.id || m._tempId === payload._tempId)) return prev;
           const next = [...prev, payload];
-          const localKey = `gc_msgs_${group.id}`;
-          localStorage.setItem(localKey, JSON.stringify(next.slice(-100)));
+          localStorage.setItem(`gc_msgs_${groupId}`, JSON.stringify(next.slice(-100)));
           return next;
         });
         if (isAtBottom.current) setTimeout(scrollToBottom, 10);
       })
       .on("broadcast", { event: "gc_typing" }, ({ payload }) => {
-        if (!mountedRef.current || payload.userId === currentUser?.id) return;
+        if (!mountedRef.current || payload?.userId === currentUser?.id) return;
         typingMap.current.set(payload.userId, payload.userName);
         setTypingNames(Array.from(typingMap.current.values()));
         clearTimeout(typingTOs.current[payload.userId]);
@@ -352,28 +374,27 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
       })
       .on("broadcast", { event: "gc_group_meta" }, ({ payload }) => {
         if (!mountedRef.current) return;
-        if (payload.name) setGroup(g => ({ ...g, name: payload.name, icon: payload.icon || g.icon }));
-        if (payload.members?.length > 0) setMembers(payload.members);
-        const metaKey = `gc_meta_${group.id}`;
-        localStorage.setItem(metaKey, JSON.stringify(payload));
+        if (payload?.name) setGroup(g => ({ ...g, name: payload.name, icon: payload.icon || g.icon }));
+        if (Array.isArray(payload?.members) && payload.members.length > 0) setMembers(payload.members);
+        localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(payload));
       })
       .subscribe();
 
     channelRef.current = ch;
     return () => { supabase.removeChannel(ch); channelRef.current = null; };
-  }, [group.id, currentUser?.id]);
+  }, [groupId, currentUser?.id]);
 
   const handleSend = useCallback(async (text) => {
-    if (!text?.trim() || !currentUser?.id) return;
-    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
+    if (!text?.trim() || !currentUser?.id || !groupId) return;
+    const tempId    = `temp_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
     const optimistic = {
       id: tempId, _tempId: tempId, _optimistic: true,
-      channel_id: group.id, user_id: currentUser.id, sender_id: currentUser.id,
+      channel_id: groupId, user_id: currentUser.id, sender_id: currentUser.id,
       content: text.trim(), created_at: new Date().toISOString(),
     };
     setMessages(prev => {
       const next = [...prev, optimistic];
-      localStorage.setItem(`gc_msgs_${group.id}`, JSON.stringify(next.slice(-100)));
+      localStorage.setItem(`gc_msgs_${groupId}`, JSON.stringify(next.slice(-100)));
       return next;
     });
     setTimeout(scrollToBottom, 10);
@@ -382,19 +403,19 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
     try {
       const { data, error } = await supabase
         .from("community_messages")
-        .insert({ channel_id: group.id, user_id: currentUser.id, content: text.trim() })
+        .insert({ channel_id: groupId, user_id: currentUser.id, content: text.trim() })
         .select().single();
       if (error) throw error;
       const real = { ...data, sender_id: data.user_id };
       setMessages(prev => {
         const next = prev.map(m => m._tempId === tempId ? real : m);
-        localStorage.setItem(`gc_msgs_${group.id}`, JSON.stringify(next.slice(-100)));
+        localStorage.setItem(`gc_msgs_${groupId}`, JSON.stringify(next.slice(-100)));
         return next;
       });
     } catch {
       setMessages(prev => prev.map(m => m._tempId === tempId ? { ...m, _failed: true } : m));
     }
-  }, [group.id, currentUser?.id]);
+  }, [groupId, currentUser?.id]);
 
   const handleTyping = useCallback(() => {
     channelRef.current?.send({
@@ -405,36 +426,53 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
 
   const handleStartCall = useCallback((type) => {
     onStartCall?.({
-      name: group.name || "Group Call", initial: (group.icon||"👥"),
+      name: group.name || "Group Call", initial: (group.icon || "👥"),
       type, outgoing: true,
-      callId: `call_${group.id}_${Date.now()}`,
-      participants: members.filter(m=>m.id!==currentUser?.id).map(m=>({
-        id:m.id, full_name:m.full_name, name:m.full_name,
-        avatar_id:m.avatar_id, avatarId:m.avatar_id,
-        muted:false, camOff:false,
-      })),
+      callId: `call_${groupId}_${Date.now()}`,
+      participants: members
+        .filter(m => m?.id !== currentUser?.id)
+        .map(m => ({
+          id: m.id, full_name: m.full_name, name: m.full_name,
+          avatar_id: m.avatar_id, avatarId: m.avatar_id,
+          muted: false, camOff: false,
+        })),
     });
-  }, [group, members, currentUser?.id, onStartCall]);
+  }, [group, groupId, members, currentUser?.id, onStartCall]);
 
   const handleGroupSave = useCallback(({ name, icon }) => {
     setGroup(g => ({ ...g, name, icon }));
-    const metaKey = `gc_meta_${group.id}`;
+    if (!groupId) return;
+    const metaKey = `gc_meta_${groupId}`;
     const meta    = JSON.parse(localStorage.getItem(metaKey) || "{}");
     meta.name = name; meta.icon = icon;
     localStorage.setItem(metaKey, JSON.stringify(meta));
-  }, [group.id]);
+  }, [groupId]);
 
-  const otherMembers = members.filter(m => m.id !== currentUser?.id);
+  // ── Early exit — if we have no group id, something is badly wrong ──────
+  if (!groupId) {
+    return (
+      <div className="gc-root" style={{ alignItems:"center", justifyContent:"center" }}>
+        <div style={{ color:"#555", fontSize:13, padding:24, textAlign:"center" }}>
+          Group not found. Please go back and try again.
+        </div>
+        <button className="gc-back" onClick={onBack} style={{ margin:"0 auto" }}>
+          <Ic.Back/>
+        </button>
+        <style>{GC_CSS}</style>
+      </div>
+    );
+  }
 
-  // DM-style backgrounds
+  const otherMembers = members.filter(m => m?.id !== currentUser?.id);
+
   const BG_OPTIONS = [
-    { label:"Grid",   value:"repeating-linear-gradient(0deg,rgba(132,204,22,.03) 0px,rgba(132,204,22,.03) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,rgba(132,204,22,.03) 0px,rgba(132,204,22,.03) 1px,transparent 1px,transparent 28px),#000" },
-    { label:"Dark",   value:"#000" },
-    { label:"Forest", value:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(34,197,94,.08) 0%,#000 70%),#000" },
-    { label:"Ocean",  value:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(96,165,250,.08) 0%,#000 70%),#000" },
-    { label:"Cosmic", value:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(192,132,252,.08) 0%,#000 70%),#000" },
+    { value:"repeating-linear-gradient(0deg,rgba(132,204,22,.03) 0px,rgba(132,204,22,.03) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,rgba(132,204,22,.03) 0px,rgba(132,204,22,.03) 1px,transparent 1px,transparent 28px),#000" },
+    { value:"#000" },
+    { value:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(34,197,94,.08) 0%,#000 70%),#000" },
+    { value:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(96,165,250,.08) 0%,#000 70%),#000" },
+    { value:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(192,132,252,.08) 0%,#000 70%),#000" },
   ];
-  const bgStyle = bg !== null && bg !== undefined ? { background: BG_OPTIONS[bg]?.value || "#000" } : { background: BG_OPTIONS[0].value };
+  const bgStyle = { background: BG_OPTIONS[bg ?? 0]?.value || "#000" };
 
   return (
     <div className="gc-root">
@@ -472,20 +510,20 @@ const GroupChatView = ({ group: initialGroup, currentUser, onBack, onStartCall }
                 <div className="gc-banner-sub">Group · {members.length} members</div>
                 <div className="gc-banner-btns">
                   <button className="gc-banner-btn" onClick={() => setShowMembers(true)}>View members</button>
-                  {members.find(m=>m.id===currentUser?.id)?.is_admin && (
+                  {members.find(m=>m?.id===currentUser?.id)?.is_admin && (
                     <button className="gc-banner-btn gc-edit-btn" onClick={() => setShowEdit(true)}><Ic.Edit/> Edit group</button>
                   )}
                 </div>
               </div>
 
               {messages.map((msg, idx) => {
-                const isMe = msg.sender_id === currentUser?.id || msg.user_id === currentUser?.id;
-                const prev = messages[idx - 1];
-                const showAvatar = !isMe && (!prev || (prev.sender_id !== msg.sender_id && prev.user_id !== msg.sender_id));
+                const isMe       = msg?.sender_id === currentUser?.id || msg?.user_id === currentUser?.id;
+                const prev       = messages[idx - 1];
+                const showAvatar = !isMe && (!prev || (prev?.sender_id !== msg?.sender_id && prev?.user_id !== msg?.sender_id));
                 return (
                   <MsgBubble
-                    key={msg.id || msg._tempId}
-                    msg={{ ...msg, sender_id: msg.sender_id || msg.user_id }}
+                    key={msg?.id || msg?._tempId || idx}
+                    msg={{ ...msg, sender_id: msg?.sender_id || msg?.user_id }}
                     isMe={isMe} showAvatar={showAvatar} members={members}
                   />
                 );
@@ -536,7 +574,14 @@ const GC_CSS = `
 .gav-cell { display:flex;align-items:center;justify-content:center;border-radius:3px;overflow:hidden; }
 
 /* ── Header ── */
-.gc-header { display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.12);flex-shrink:0;z-index:10; }
+.gc-header {
+  display:flex;align-items:center;gap:10px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-right: 14px;
+  padding-bottom: 10px;
+  padding-left: 14px;
+  background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.12);flex-shrink:0;z-index:10;
+}
 .gc-back { width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0; }
 .gc-header-info { display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0; }
 .gc-header-text { flex:1;min-width:0; }
