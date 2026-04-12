@@ -1,148 +1,178 @@
-// =============================================================================
-// src/services/news/newsService.js
+// ============================================================================
+// src/services/news/newsService.js  — v4
 //
-// Fetches LIVE news from the news_posts Supabase table.
-// NO mock data — real articles only.
+// KEY CHANGE: On first load, immediately calls the Supabase Edge Function
+// to trigger a fresh RSS fetch. This ensures articles are never stale even
+// if the user opens the app right before the 3-min cron fires.
 //
-// Boot flow:
-//   1. Query news_posts for recent articles
-//   2. If the table is empty (cron hasn't run yet), call the Edge Function
-//      directly so articles are fetched immediately — no wait needed
-//   3. Re-query and return the fresh results
-//
-// Requires:
-//   • SQL migration:  sql/001_news_posts.sql
-//   • Edge function:  supabase/functions/fetch-news/index.ts  (deployed)
-//   • REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY in .env
-// =============================================================================
+// Flow:
+//   1. getNewsPosts()  → read existing articles from DB (instant)
+//   2. triggerFetch()  → call edge function to fetch new RSS (background)
+//   3. startRealtime() → WebSocket for instant push as new rows land
+// ============================================================================
 
 import { supabase } from "../config/supabase";
 
-const NEWS_MAX_AGE_HOURS = 48;
-const EDGE_FN_URL = `${import.meta.env.VITE_SUPABASE_URL ?? process.env.REACT_APP_SUPABASE_URL}/functions/v1/fetch-news`;
-const ANON_KEY    =  import.meta.env.VITE_SUPABASE_ANON_KEY ?? process.env.REACT_APP_SUPABASE_ANON_KEY ?? "";
+const NEWS_DEFAULT_LIMIT = 40;
+const EDGE_FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-fetcher`;
+const EDGE_FN_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// ── Normalise a news_posts row into the shape NewsCard/PostTab expects ────────
 function normalise(row) {
   return {
     ...row,
-    _type:      "news",
-    content:    row.description || "",
-    user_id:    "system-news",
+    _type: "news",
+    content: row.description || "",
+    user_id: "system-news",
     created_at: row.published_at,
     profiles: {
       full_name: row.source_name,
-      username:  (row.source_name || "news").toLowerCase().replace(/\s+/g, "-"),
-      verified:  true,
+      username: (row.source_name || "news")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-"),
+      verified: true,
       avatar_id: null,
     },
-    likes: 0, comments_count: 0, shares: 0, views: 0,
+    likes: 0,
+    comments_count: 0,
+    shares: 0,
+    views: 0,
   };
 }
 
-// ── Query news_posts ──────────────────────────────────────────────────────────
-async function queryNews({ limit = 12, category = null } = {}) {
-  const cutoff = new Date(Date.now() - NEWS_MAX_AGE_HOURS * 3_600_000).toISOString();
-
+async function queryNews({
+  limit = NEWS_DEFAULT_LIMIT,
+  category = null,
+  offset = 0,
+} = {}) {
   let q = supabase
     .from("news_posts")
     .select("*")
     .eq("is_active", true)
-    .gte("published_at", cutoff)
     .order("published_at", { ascending: false })
-    .limit(limit);
-
+    .range(offset, offset + limit - 1);
   if (category) q = q.eq("category", category);
-
   const { data, error } = await q;
-
-  if (error) {
-    // Table hasn't been migrated yet — throw so caller knows
-    throw new Error(`news_posts query failed: ${error.message}`);
-  }
-
+  if (error) throw new Error(`news_posts: ${error.message}`);
   return data ?? [];
 }
 
-// ── Trigger the Edge Function to fetch fresh news ─────────────────────────────
-async function triggerEdgeFunction() {
-  try {
-    const res = await fetch(EDGE_FN_URL, {
-      method:  "POST",
-      headers: {
-        "Authorization": `Bearer ${ANON_KEY}`,
-        "Content-Type":  "application/json",
-      },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) throw new Error(`Edge function returned ${res.status}`);
-    const json = await res.json();
-    console.log("[newsService] Edge function result:", json);
-    return true;
-  } catch (err) {
-    console.warn("[newsService] Edge function trigger failed:", err.message);
-    return false;
-  }
-}
+let _channel = null;
+let _pollCb = null;
+let _latestTs = null;
+let _failures = 0;
+let _fetchLock = false;
 
-// ── Singleton: only one trigger in-flight at a time ──────────────────────────
-let _triggerPromise: Promise<boolean> | null = null;
-
-// ── Main service ──────────────────────────────────────────────────────────────
 const newsService = {
-  /**
-   * getNewsPosts({ limit, category })
-   *
-   * Returns live articles from news_posts.
-   * If the table is empty, fires the edge function once to populate it,
-   * then re-queries.  Never returns mock data.
-   */
-  async getNewsPosts({ limit = 12, category = null } = {}) {
-    // 1. Try to get news from DB
-    let rows = [];
+  async getNewsPosts({
+    limit = NEWS_DEFAULT_LIMIT,
+    category = null,
+    offset = 0,
+  } = {}) {
     try {
-      rows = await queryNews({ limit, category });
+      const rows = await queryNews({ limit, category, offset });
+      const items = rows.map(normalise);
+      if (items.length > 0 && offset === 0) {
+        const ts = items[0].published_at;
+        if (!_latestTs || ts > _latestTs) _latestTs = ts;
+      }
+      return items;
     } catch (err) {
-      console.error("[newsService] Query error:", err.message);
-      // Table not migrated — return empty, don't block the feed
+      console.error("[newsService] getNewsPosts:", err.message);
       return [];
     }
-
-    // 2. Table exists but is empty — trigger the edge function once
-    if (rows.length === 0) {
-      if (!_triggerPromise) {
-        _triggerPromise = triggerEdgeFunction().finally(() => {
-          // Reset after 60 s so repeated empty-checks can re-trigger if needed
-          setTimeout(() => { _triggerPromise = null; }, 60_000);
-        });
-      }
-
-      // Wait for the fetch to complete (max 30 s already inside triggerEdgeFunction)
-      await _triggerPromise;
-
-      // Re-query now that news should be populated
-      try {
-        rows = await queryNews({ limit, category });
-      } catch {
-        return [];
-      }
-    }
-
-    return rows.map(normalise);
   },
 
-  /**
-   * Manually trigger a fresh fetch (e.g. pull-to-refresh).
-   * Fires the edge function and returns the updated articles.
-   */
-  async refresh({ limit = 12, category = null } = {}) {
-    await triggerEdgeFunction();
+  // Fires the Edge Function → fetches RSS → upserts → Realtime pushes to client
+  async triggerFetch({ category = null } = {}) {
+    if (_fetchLock) return null;
+    _fetchLock = true;
     try {
-      const rows = await queryNews({ limit, category });
-      return rows.map(normalise);
+      const body = category ? JSON.stringify({ category }) : "{}";
+      const res = await fetch(EDGE_FN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${EDGE_FN_KEY}`,
+        },
+        body,
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      console.log(
+        `[newsService] triggerFetch: ${data.inserted} new in ${data.elapsed_s}s`,
+      );
+      return data;
+    } catch (err) {
+      console.warn("[newsService] triggerFetch:", err.message);
+      return null;
+    } finally {
+      _fetchLock = false;
+    }
+  },
+
+  startRealtime(callback, { category = null } = {}) {
+    this.stopAll();
+    _pollCb = callback;
+    _failures = 0;
+
+    _channel = supabase
+      .channel(`news_rt_${category || "all"}_${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "news_posts" },
+        (payload) => {
+          const row = payload.new;
+          if (!row?.is_active) return;
+          if (
+            category &&
+            row.category?.toLowerCase() !== category.toLowerCase()
+          )
+            return;
+          const item = normalise(row);
+          if (!_latestTs || item.published_at > _latestTs)
+            _latestTs = item.published_at;
+          console.log(`[newsService] ⚡ "${row.title?.slice(0, 55)}"`);
+          callback([item]);
+        },
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("[newsService] ✓ Realtime connected");
+          _failures = 0;
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          _failures++;
+          if (_failures < 3)
+            setTimeout(() => this.startRealtime(callback, { category }), 5_000);
+        }
+      });
+
+    return () => this.stopAll();
+  },
+
+  async refresh({ limit = NEWS_DEFAULT_LIMIT, category = null } = {}) {
+    this.triggerFetch({ category });
+    try {
+      return (await queryNews({ limit, category })).map(normalise);
     } catch {
       return [];
     }
+  },
+
+  stopAll() {
+    if (_channel) {
+      supabase.removeChannel(_channel);
+      _channel = null;
+    }
+    _pollCb = null;
+    _failures = 0;
+  },
+
+  stopPolling() {
+    this.stopAll();
+  },
+  getStatus() {
+    return { latestSeen: _latestTs };
   },
 };
 

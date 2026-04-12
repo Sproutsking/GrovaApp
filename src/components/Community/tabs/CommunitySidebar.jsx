@@ -255,6 +255,7 @@ const CommunitySidebar = ({
             border-right: 1px solid rgba(156, 255, 0, 0.1);
             border-top: 1px solid rgba(156, 255, 0, 0.1);
             padding: 8px 0px;
+            padding-bottom: 15px;
           }
 
           .community-list {

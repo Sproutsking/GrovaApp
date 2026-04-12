@@ -2,6 +2,10 @@
 // ════════════════════════════════════════════════════════════════
 // Xeevia Wallet — main shell
 //
+// FIX: Realtime balance subscription now has a strict userId guard.
+//      Every incoming payload is checked against the current user's
+//      userId before updating state — no other user's EP can bleed in.
+//
 // LIVE DATA:
 //  • Left sidebar fetches real BTC/ETH/BNB/USDT prices from CoinGecko
 //    every 60 seconds, with graceful fallback on error/rate-limit.
@@ -9,24 +13,19 @@
 //    pulled directly from Supabase — zero hardcoded values.
 //  • EP Earn table is config-driven (accurate rates), not "mock" — it
 //    reflects the platform's actual earn schedule.
-//
-// VISUAL:
-//  • Sidebar text contrast bumped throughout for readability.
-//  • Brighter value colours and tighter borders on live data rows.
-//  • Subtle pulse dot on LIVE badge animates independently of data load.
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import "./styles/WalletStyles.css";
 import "./styles/tradeStyles.css";
-import OverviewTab from "./tabs/OverviewTab";
-import SendTab from "./tabs/SendTab";
-import DepositTab from "./tabs/DepositTab";
-import ReceiveTab from "./tabs/ReceiveTab";
-import SwapTab from "./tabs/SwapTab";
-import TradeTab from "./tabs/TradeTab";
-import SettingsTab from "./tabs/SettingsTab";
-import PayWave from "./paywave/PayWaveWrapper";
+import OverviewTab    from "./tabs/OverviewTab";
+import SendTab        from "./tabs/SendTab";
+import DepositTab     from "./tabs/DepositTab";
+import ReceiveTab     from "./tabs/ReceiveTab";
+import SwapTab        from "./tabs/SwapTab";
+import TradeTab       from "./tabs/TradeTab";
+import SettingsTab    from "./tabs/SettingsTab";
+import PayWave        from "./paywave/PayWaveWrapper";
 import { walletService } from "../../services/wallet/walletService";
 import { CurrencyProvider } from "../../contexts/CurrencyContext";
 import { useAuth } from "../Auth/AuthContext";
@@ -51,14 +50,14 @@ function isNigerianUser(profile) {
   return false;
 }
 
-// ── EP Earn rates — platform config, not mock data ───────────────
+// ── EP Earn rates ─────────────────────────────────────────────
 const EP_EARN = [
-  { label: "Like received",     val: "+1 EP" },
-  { label: "Comment received",  val: "+2 EP" },
-  { label: "Share received",    val: "+3 EP" },
-  { label: "Story unlock",      val: "+5 EP" },
-  { label: "Daily login",       val: "+5 EP" },
-  { label: "Deposit (₦1)",     val: "+1 EP" },
+  { label: "Like received",    val: "+1 EP" },
+  { label: "Comment received", val: "+2 EP" },
+  { label: "Share received",   val: "+3 EP" },
+  { label: "Story unlock",     val: "+5 EP" },
+  { label: "Daily login",      val: "+5 EP" },
+  { label: "Deposit (₦1)",    val: "+1 EP" },
 ];
 
 const EP_BURN_TABLE = [
@@ -173,61 +172,29 @@ const LAYOUT_CSS = `
   }
   .wvs-row:last-child { border-bottom: none; padding-bottom: 0; }
 
-  /* crypto symbol label */
-  .wvs-sym {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.55);
-    font-family: 'DM Mono', monospace;
-  }
-
-  /* price value */
-  .wvs-price {
-    font-size: 12.5px;
-    font-weight: 700;
-    font-family: 'DM Mono', monospace;
-  }
-
-  /* 24h change */
-  .wvs-chg {
-    font-size: 10px;
-    font-weight: 700;
-    font-family: 'DM Mono', monospace;
-    margin-top: 1px;
-  }
+  .wvs-sym   { font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,0.55); font-family: 'DM Mono', monospace; }
+  .wvs-price { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .wvs-chg   { font-size: 10px;   font-weight: 700; font-family: 'DM Mono', monospace; margin-top: 1px; }
   .wvs-chg.up   { color: #a3e635; }
   .wvs-chg.down { color: #f87171; }
   .wvs-chg.flat { color: rgba(255,255,255,0.3); }
 
-  /* platform stat label */
-  .wvs-stat-label {
-    font-size: 11px;
-    color: rgba(255,255,255,0.42);
-  }
-  .wvs-stat-val {
-    font-size: 12.5px;
-    font-weight: 700;
-    font-family: 'DM Mono', monospace;
-  }
+  .wvs-stat-label { font-size: 11px; color: rgba(255,255,255,0.42); }
+  .wvs-stat-val   { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; }
 
-  /* EP earn / burn rows */
   .wvs-earn-label { font-size: 11px; color: rgba(255,255,255,0.42); }
   .wvs-earn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #22d3ee; }
   .wvs-burn-range { font-size: 11px; color: rgba(255,255,255,0.38); font-family: 'DM Mono', monospace; }
   .wvs-burn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #f87171; }
 
-  /* loading shimmer on data values */
   @keyframes wvsSkel {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.35; }
   }
   .wvs-loading { animation: wvsSkel 1.4s ease-in-out infinite; color: rgba(255,255,255,0.18) !important; }
 
-  /* pulse dot */
   .wvs-pulse {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
+    width: 5px; height: 5px; border-radius: 50%;
     background: #a3e635;
     animation: wvsBlink 1.8s ease-in-out infinite;
   }
@@ -237,16 +204,12 @@ const LAYOUT_CSS = `
   }
 
   .wvs-launch {
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 10px 12px; border-radius: 10px;
     border: 1px dashed rgba(163,230,53,0.2);
     background: rgba(163,230,53,0.03);
-    font-size: 11px;
-    line-height: 1.7;
+    font-size: 11px; line-height: 1.7;
     color: rgba(255,255,255,0.32);
-    margin-bottom: 14px;
-    flex-shrink: 0;
-    text-align: center;
+    margin-bottom: 14px; flex-shrink: 0; text-align: center;
   }
 
   .section-head  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; justify-content: center; }
@@ -257,11 +220,11 @@ const LAYOUT_CSS = `
 // ── Right Sidebar ─────────────────────────────────────────────
 function WalletSidebar() {
   const [markets, setMarkets] = useState([
-    { sym: "BTC",  val: null, chg: null, up: true  },
-    { sym: "ETH",  val: null, chg: null, up: true  },
-    { sym: "BNB",  val: null, chg: null, up: true  },
-    { sym: "USDT", val: "$1.00", chg: "+0.00%", up: true },
-    { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
+    { sym: "BTC",  val: null,    chg: null,         up: true },
+    { sym: "ETH",  val: null,    chg: null,         up: true },
+    { sym: "BNB",  val: null,    chg: null,         up: true },
+    { sym: "USDT", val: "$1.00", chg: "+0.00%",     up: true },
+    { sym: "$XEV", val: "₦2.50", chg: "Launching",  up: true },
   ]);
 
   const [platformStats, setPlatformStats] = useState([
@@ -273,7 +236,6 @@ function WalletSidebar() {
 
   const [cryptoStale, setCryptoStale] = useState(true);
 
-  // ── Format helpers ────────────────────────────────────────────
   const fmtPrice = (n) => {
     if (n == null) return null;
     if (n >= 10000) return `$${Math.round(n).toLocaleString()}`;
@@ -286,7 +248,6 @@ function WalletSidebar() {
     return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
   };
 
-  // ── Fetch live crypto from CoinGecko (free, no key) ──────────
   const fetchCrypto = useCallback(async () => {
     try {
       const res = await fetch(
@@ -297,114 +258,61 @@ function WalletSidebar() {
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
-
       setMarkets([
-        {
-          sym: "BTC",
-          val: fmtPrice(d.bitcoin?.usd),
-          chg: fmtChg(d.bitcoin?.usd_24h_change),
-          up:  (d.bitcoin?.usd_24h_change ?? 0) >= 0,
-        },
-        {
-          sym: "ETH",
-          val: fmtPrice(d.ethereum?.usd),
-          chg: fmtChg(d.ethereum?.usd_24h_change),
-          up:  (d.ethereum?.usd_24h_change ?? 0) >= 0,
-        },
-        {
-          sym: "BNB",
-          val: fmtPrice(d.binancecoin?.usd),
-          chg: fmtChg(d.binancecoin?.usd_24h_change),
-          up:  (d.binancecoin?.usd_24h_change ?? 0) >= 0,
-        },
-        {
-          sym: "USDT",
-          val: fmtPrice(d.tether?.usd) ?? "$1.00",
-          chg: fmtChg(d.tether?.usd_24h_change) ?? "+0.00%",
-          up:  true,
-        },
+        { sym: "BTC",  val: fmtPrice(d.bitcoin?.usd),      chg: fmtChg(d.bitcoin?.usd_24h_change),      up: (d.bitcoin?.usd_24h_change      ?? 0) >= 0 },
+        { sym: "ETH",  val: fmtPrice(d.ethereum?.usd),     chg: fmtChg(d.ethereum?.usd_24h_change),     up: (d.ethereum?.usd_24h_change     ?? 0) >= 0 },
+        { sym: "BNB",  val: fmtPrice(d.binancecoin?.usd),  chg: fmtChg(d.binancecoin?.usd_24h_change),  up: (d.binancecoin?.usd_24h_change  ?? 0) >= 0 },
+        { sym: "USDT", val: fmtPrice(d.tether?.usd) ?? "$1.00", chg: fmtChg(d.tether?.usd_24h_change) ?? "+0.00%", up: true },
         { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
       ]);
       setCryptoStale(false);
-    } catch (err) {
-      // Rate-limited or offline — keep previous values, mark as stale
+    } catch {
       setCryptoStale(true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fetch platform stats from Supabase ────────────────────────
   const fetchPlatformStats = useCallback(async () => {
     try {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
       const [walletCountRes, xevSumRes, epTodayRes, volumeRes] = await Promise.allSettled([
-        // Active wallets
-        supabase
-          .from("wallets")
-          .select("*", { count: "exact", head: true }),
-
-        // XEV circulating — sum of grova_tokens
-        supabase
-          .from("wallets")
-          .select("grova_tokens"),
-
-        // EP minted today — credits in wallet_history
-        supabase
-          .from("wallet_history")
+        supabase.from("wallets").select("*", { count: "exact", head: true }),
+        supabase.from("wallets").select("grova_tokens"),
+        supabase.from("wallet_history")
           .select("amount, metadata")
           .eq("change_type", "credit")
           .gte("created_at", todayStart.toISOString()),
-
-        // 24h transaction volume (all debits in last 24h)
-        supabase
-          .from("wallet_history")
+        supabase.from("wallet_history")
           .select("amount, metadata")
           .eq("change_type", "debit")
           .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
       ]);
 
-      // Active wallets
-      const walletCount =
-        walletCountRes.status === "fulfilled"
-          ? walletCountRes.value.count ?? 0
-          : 0;
+      const walletCount = walletCountRes.status === "fulfilled"
+        ? walletCountRes.value.count ?? 0 : 0;
 
-      // XEV circulating
-      const xevCirculating =
-        xevSumRes.status === "fulfilled"
-          ? (xevSumRes.value.data ?? []).reduce(
-              (sum, r) => sum + (r.grova_tokens || 0),
-              0
-            )
-          : 0;
+      const xevCirculating = xevSumRes.status === "fulfilled"
+        ? (xevSumRes.value.data ?? []).reduce((s, r) => s + (r.grova_tokens || 0), 0) : 0;
 
-      // EP minted today — filter for EP-type credits
-      const epToday =
-        epTodayRes.status === "fulfilled"
-          ? (epTodayRes.value.data ?? [])
-              .filter((r) => {
-                const m = r.metadata || {};
-                return (
-                  m.currency === "EP" ||
-                  m.currency_type === "EP" ||
-                  m.type === "EP" ||
-                  m.displayCurrency === "EP"
-                );
-              })
-              .reduce((sum, r) => sum + (r.amount || 0), 0)
-          : 0;
+      const epToday = epTodayRes.status === "fulfilled"
+        ? (epTodayRes.value.data ?? [])
+            .filter(r => {
+              const m = r.metadata || {};
+              return m.currency === "EP" || m.currency_type === "EP" ||
+                     m.type === "EP" || m.displayCurrency === "EP";
+            })
+            .reduce((s, r) => s + (r.amount || 0), 0)
+        : 0;
 
-      // 24h volume — XEV debits only (rough volume proxy)
-      const volume24h =
-        volumeRes.status === "fulfilled"
-          ? (volumeRes.value.data ?? [])
-              .filter((r) => {
-                const m = r.metadata || {};
-                return m.currency === "XEV" || m.currency_type === "XEV";
-              })
-              .reduce((sum, r) => sum + (r.amount || 0), 0)
-          : 0;
+      const volume24h = volumeRes.status === "fulfilled"
+        ? (volumeRes.value.data ?? [])
+            .filter(r => {
+              const m = r.metadata || {};
+              return m.currency === "XEV" || m.currency_type === "XEV";
+            })
+            .reduce((s, r) => s + (r.amount || 0), 0)
+        : 0;
 
       const fmtStat = (n) =>
         n > 0 ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0";
@@ -413,18 +321,13 @@ function WalletSidebar() {
         { label: "XEV Circulating", val: fmtStat(xevCirculating), color: "#a3e635" },
         { label: "EP Minted Today", val: fmtStat(epToday),         color: "#22d3ee" },
         { label: "Active Wallets",  val: fmtStat(walletCount),     color: "rgba(255,255,255,0.75)" },
-        {
-          label: "24h Volume",
-          val: volume24h > 0 ? `$${fmtStat(volume24h * 0.0016)}` : "$0",
-          color: "#d4a847",
-        },
+        { label: "24h Volume",      val: volume24h > 0 ? `$${fmtStat(volume24h * 0.0016)}` : "$0", color: "#d4a847" },
       ]);
     } catch (err) {
       console.warn("[WalletSidebar] platform stats error:", err);
     }
   }, []);
 
-  // ── Mount + 60-second crypto refresh ────────────────────────
   useEffect(() => {
     fetchCrypto();
     fetchPlatformStats();
@@ -435,48 +338,33 @@ function WalletSidebar() {
   return (
     <>
       <div className="wvs-launch">
-        🚀{" "}
-        <strong style={{ color: "rgba(163,230,53,0.7)" }}>Xeevia is live.</strong>
-        <br />
-        Market data populates as the platform grows.
-        <br />
-        <span style={{ color: "rgba(255,255,255,0.18)" }}>Token sale coming soon.</span>
+        🚀 <strong style={{ color: "rgba(163,230,53,0.7)" }}>Xeevia is live.</strong>
+        <br />Market data populates as the platform grows.
+        <br /><span style={{ color: "rgba(255,255,255,0.18)" }}>Token sale coming soon.</span>
       </div>
 
-      {/* ── Crypto Markets ── */}
       <div className="wvs-card lime">
         <div className="wvs-title lime">
           <div className="wvs-pulse" />
           Crypto Markets
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 9,
-              fontFamily: "monospace",
-              color: cryptoStale ? "rgba(248,113,113,0.5)" : "rgba(132,204,22,0.55)",
-              letterSpacing: "0.1em",
-            }}
-          >
+          <span style={{
+            marginLeft: "auto", fontSize: 9, fontFamily: "monospace",
+            color: cryptoStale ? "rgba(248,113,113,0.5)" : "rgba(132,204,22,0.55)",
+            letterSpacing: "0.1em",
+          }}>
             {cryptoStale ? "STALE" : "LIVE"}
           </span>
         </div>
-
         {markets.map((m) => (
           <div key={m.sym} className="wvs-row">
             <span className="wvs-sym">{m.sym}</span>
             <div style={{ textAlign: "right" }}>
-              <div
-                className={`wvs-price ${m.val == null ? "wvs-loading" : ""}`}
-                style={{ color: m.sym === "$XEV" ? "#a3e635" : "rgba(255,255,255,0.82)" }}
-              >
+              <div className={`wvs-price ${m.val == null ? "wvs-loading" : ""}`}
+                style={{ color: m.sym === "$XEV" ? "#a3e635" : "rgba(255,255,255,0.82)" }}>
                 {m.val ?? "···"}
               </div>
               {m.chg != null && (
-                <div
-                  className={`wvs-chg ${
-                    m.chg === "Launching" ? "flat" : m.up ? "up" : "down"
-                  }`}
-                >
+                <div className={`wvs-chg ${m.chg === "Launching" ? "flat" : m.up ? "up" : "down"}`}>
                   {m.chg}
                 </div>
               )}
@@ -485,42 +373,26 @@ function WalletSidebar() {
         ))}
       </div>
 
-      {/* ── Platform Stats ── */}
       <div className="wvs-card gold">
         <div className="wvs-title gold">
           <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4l3 3" />
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
           </svg>
           Platform Stats
         </div>
-
         {platformStats.map((s) => (
           <div key={s.label} className="wvs-row">
             <span className="wvs-stat-label">{s.label}</span>
-            <span
-              className={`wvs-stat-val ${s.val == null ? "wvs-loading" : ""}`}
-              style={{ color: s.color }}
-            >
+            <span className={`wvs-stat-val ${s.val == null ? "wvs-loading" : ""}`} style={{ color: s.color }}>
               {s.val ?? "···"}
             </span>
           </div>
         ))}
-
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 10,
-            color: "rgba(255,255,255,0.2)",
-            textAlign: "center",
-            lineHeight: 1.6,
-          }}
-        >
+        <div style={{ marginTop: 8, fontSize: 10, color: "rgba(255,255,255,0.2)", textAlign: "center", lineHeight: 1.6 }}>
           Refreshes with every page load
         </div>
       </div>
 
-      {/* ── Earn EP ── */}
       <div className="wvs-card cyan">
         <div className="wvs-title cyan">
           <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -528,32 +400,22 @@ function WalletSidebar() {
           </svg>
           Earn EP
         </div>
-
         {EP_EARN.map((e) => (
           <div key={e.label} className="wvs-row">
             <span className="wvs-earn-label">{e.label}</span>
             <span className="wvs-earn-val">{e.val}</span>
           </div>
         ))}
-
-        <div
-          style={{
-            marginTop: 10,
-            padding: "8px 10px",
-            background: "rgba(34,211,238,0.06)",
-            borderRadius: 8,
-            fontSize: 10.5,
-            color: "rgba(255,255,255,0.28)",
-            lineHeight: 1.65,
-          }}
-        >
-          EP is{" "}
-          <strong style={{ color: "rgba(34,211,238,0.6)" }}>earned, not bought.</strong>{" "}
+        <div style={{
+          marginTop: 10, padding: "8px 10px",
+          background: "rgba(34,211,238,0.06)", borderRadius: 8,
+          fontSize: 10.5, color: "rgba(255,255,255,0.28)", lineHeight: 1.65,
+        }}>
+          EP is <strong style={{ color: "rgba(34,211,238,0.6)" }}>earned, not bought.</strong>{" "}
           Swap to $XEV or send via PayWave.
         </div>
       </div>
 
-      {/* ── EP Burn on Send ── */}
       <div className="wvs-card">
         <div className="wvs-title">
           <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth={2.5}>
@@ -561,7 +423,6 @@ function WalletSidebar() {
           </svg>
           EP Burn on Send
         </div>
-
         {EP_BURN_TABLE.map((r) => (
           <div key={r.range} className="wvs-row">
             <span className="wvs-burn-range">{r.range}</span>
@@ -570,19 +431,12 @@ function WalletSidebar() {
         ))}
       </div>
 
-      <div
-        style={{
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: "1px dashed rgba(255,255,255,0.07)",
-          fontSize: 11,
-          lineHeight: 1.7,
-          color: "rgba(255,255,255,0.22)",
-          marginBottom: 16,
-          flexShrink: 0,
-          textAlign: "center",
-        }}
-      >
+      <div style={{
+        padding: "10px 12px", borderRadius: 10,
+        border: "1px dashed rgba(255,255,255,0.07)",
+        fontSize: 11, lineHeight: 1.7, color: "rgba(255,255,255,0.22)",
+        marginBottom: 16, flexShrink: 0, textAlign: "center",
+      }}>
         🌐 <strong style={{ color: "rgba(132,204,22,0.5)" }}>Xeevia</strong> — where social
         meets finance. Every like, share and comment builds your wealth.
       </div>
@@ -590,7 +444,9 @@ function WalletSidebar() {
   );
 }
 
-// ── WalletView ────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// WalletView
+// ════════════════════════════════════════════════════════════════
 const WalletView = ({
   userBalance: initialBalance,
   setUserBalance,
@@ -601,56 +457,120 @@ const WalletView = ({
   const { profile } = useAuth();
   const showPayWave = isNigerianUser(profile);
 
-  const [activeTab, setActiveTab] = useState("overview");
-  const [showPayWaveV, setShowPayWaveV] = useState(false);
-  const [balance, setBalance] = useState(
+  const [activeTab,      setActiveTab]      = useState("overview");
+  const [showPayWaveV,   setShowPayWaveV]   = useState(false);
+  const [balance,        setBalance]        = useState(
     initialBalance || { tokens: 0, points: 0 }
   );
-  const [loading, setLoading] = useState(false);
-  const [transactions, setTransactions] = useState([]);
+  const [loading,        setLoading]        = useState(false);
+  const [transactions,   setTransactions]   = useState([]);
+
+  // ── Stable setter: ONLY accept updates that belong to this user ──
+  // This is the critical guard that prevents other users' EP from
+  // bleeding into this wallet's state via realtime or prop changes.
+  const safeSetBalance = useCallback((nb, sourceUserId) => {
+    // If caller passes a sourceUserId, verify it matches before updating
+    if (sourceUserId && sourceUserId !== userId) {
+      console.warn("[WalletView] Rejected balance update from wrong userId:", sourceUserId);
+      return;
+    }
+    // Validate shape — must have numeric tokens and points
+    if (typeof nb?.tokens !== "number" || typeof nb?.points !== "number") {
+      console.warn("[WalletView] Rejected malformed balance payload:", nb);
+      return;
+    }
+    setBalance(nb);
+    if (setUserBalance) setUserBalance(nb);
+  }, [userId, setUserBalance]);
 
   // ── Load wallet + transactions ────────────────────────────────
   const loadWallet = useCallback(async () => {
     if (!userId) return;
     try {
       setLoading(true);
-      const [walletData, txData] = await Promise.all([
-        walletService.getWallet(userId),
+
+      // Fetch wallet directly from Supabase with explicit user_id filter
+      // — never trust walletService alone; double-check the row belongs to us
+      const [walletRes, txData] = await Promise.all([
+        supabase
+          .from("wallets")
+          .select("user_id, grova_tokens, engagement_points, paywave_balance")
+          .eq("user_id", userId)   // ← hard filter: THIS user only
+          .single(),
         walletService.getRecentTransactions(userId, 25),
       ]);
-      if (walletData) {
-        const nb = {
-          tokens:  walletData.grova_tokens      ?? 0,
-          points:  walletData.engagement_points ?? 0,
-          paywave: walletData.paywave_balance   ?? 0,
-        };
-        setBalance(nb);
-        if (setUserBalance) setUserBalance(nb);
+
+      if (walletRes.data) {
+        const row = walletRes.data;
+        // Paranoia check: confirm the row really is ours
+        if (row.user_id !== userId) {
+          console.error("[WalletView] wallet row user_id mismatch — ignoring");
+        } else {
+          safeSetBalance({
+            tokens:  Number(row.grova_tokens)      || 0,
+            points:  Math.floor(Number(row.engagement_points) || 0),
+            paywave: Number(row.paywave_balance)   || 0,
+          });
+        }
       }
+
       if (txData) setTransactions(txData);
     } catch (err) {
       console.error("[WalletView] load error:", err);
     } finally {
       setLoading(false);
     }
-  }, [userId, setUserBalance]);
+  }, [userId, safeSetBalance]);
 
   useEffect(() => { loadWallet(); }, [loadWallet, refreshTrigger]);
 
-  // ── Real-time balance ────────────────────────────────────────
+  // ── Real-time balance — scoped to THIS user's wallet row ─────
   useEffect(() => {
     if (!userId) return;
-    const unsub = walletService.subscribeToBalance(userId, (nb) => {
-      setBalance(nb);
-      if (setUserBalance) setUserBalance(nb);
-    });
-    return () => unsub?.();
-  }, [userId, setUserBalance]);
 
-  // ── Real-time transactions ───────────────────────────────────
+    // Subscribe at the Supabase channel level with a user_id filter
+    // so the server never sends other users' rows to this client.
+    const channel = supabase
+      .channel(`wallet:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event:  "*",
+          schema: "public",
+          table:  "wallets",
+          filter: `user_id=eq.${userId}`,   // ← server-side filter
+        },
+        (payload) => {
+          const row = payload.new;
+          if (!row) return;
+
+          // Client-side guard — double-check even though server filtered
+          if (row.user_id !== userId) {
+            console.warn("[WalletView] RT: unexpected user_id in payload, ignoring");
+            return;
+          }
+
+          safeSetBalance({
+            tokens:  Number(row.grova_tokens)      || 0,
+            points:  Math.floor(Number(row.engagement_points) || 0),
+            paywave: Number(row.paywave_balance)   || 0,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, safeSetBalance]);
+
+  // ── Real-time transactions — scoped to this user ─────────────
   useEffect(() => {
     if (!userId) return;
     const unsub = walletService.subscribeToTransactions(userId, (enrichedTx) => {
+      // Guard: only accept transactions that belong to this user
+      if (enrichedTx.user_id && enrichedTx.user_id !== userId) return;
+
       setTransactions((prev) => {
         const filtered = prev.filter(
           (tx) =>
@@ -680,11 +600,12 @@ const WalletView = ({
     setActiveTab: handleTabChange,
     userId,
     balance,
-    onRefresh: loadWallet,
+    onRefresh:       loadWallet,
     transactions,
     setTransactions,
-    username: profile?.username,
+    username:        profile?.username,
     showPayWave,
+    currentUser:     profile,
   };
 
   if (showPayWaveV) {

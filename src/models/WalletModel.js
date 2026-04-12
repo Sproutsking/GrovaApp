@@ -1,83 +1,120 @@
 // src/models/WalletModel.js
 // ════════════════════════════════════════════════════════════════
 // Wallet Domain Models — $XEV + EP dual currency
+//
+// CANONICAL EXCHANGE RATES (source of truth):
+//   1 USD  = 100 EP
+//   1 $XEV = 10 EP
+//   1 $XEV = $0.10 USD
+//
+// Derived:
+//   EP  → USD : epAmount / 100
+//   EP  → XEV : epAmount / 10
+//   XEV → USD : xevAmount * 0.10
+//   XEV → EP  : xevAmount * 10
+//   USD → EP  : usdAmount * 100
+//   USD → XEV : usdAmount / 0.10  (= usdAmount * 10)
 // ════════════════════════════════════════════════════════════════
 
-export const XEV_TO_NGN = 2.5;
-export const EP_TO_NGN = 1; // 1 EP = ₦1 in PayWave
+// ── Canonical rates ───────────────────────────────────────────────
+export const EP_PER_USD  = 100;   // 1 USD  = 100 EP
+export const EP_PER_XEV  = 10;    // 1 XEV  = 10 EP
+export const USD_PER_XEV = 0.10;  // 1 XEV  = $0.10 USD
+
+// Legacy aliases (keep for backward compat — do NOT use for new code)
+/** @deprecated use USD_PER_XEV */
+export const XEV_TO_USD  = USD_PER_XEV;   // 0.10
+/** @deprecated use EP_PER_USD */
+export const EP_TO_NGN   = 1; // EP ↔ NGN peg is separate from USD rate; keep 1 EP = ₦1
+
+// ── Conversion helpers ────────────────────────────────────────────
+export const convert = {
+  epToUsd:  (ep)  => ep  / EP_PER_USD,           // EP  → USD
+  epToXev:  (ep)  => ep  / EP_PER_XEV,            // EP  → XEV
+  xevToUsd: (xev) => xev * USD_PER_XEV,           // XEV → USD
+  xevToEp:  (xev) => xev * EP_PER_XEV,            // XEV → EP
+  usdToEp:  (usd) => usd * EP_PER_USD,            // USD → EP
+  usdToXev: (usd) => usd / USD_PER_XEV,           // USD → XEV
+};
 
 export const CURRENCIES = {
   XEV: {
-    symbol: "$XEV",
-    name: "XEV Token",
-    color: "#f59e0b",
+    symbol:       "$XEV",
+    name:         "XEV Token",
+    color:        "#f59e0b",
     transferable: true,
-    onChain: true,
-    description: "Transferable token, converts to NGN",
+    onChain:      true,
+    description:  "Transferable token · 1 $XEV = $0.10 USD = 10 EP",
+    usdRate:      USD_PER_XEV,    // 0.10
+    epRate:       EP_PER_XEV,     // 10
   },
   EP: {
-    symbol: "EP",
-    name: "Engagement Points",
-    color: "#22d3ee",
+    symbol:       "EP",
+    name:         "Engagement Points",
+    color:        "#22d3ee",
     transferable: true, // internal only
-    onChain: false,
-    description: "Internal platform currency, cannot leave",
+    onChain:      false,
+    description:  "Internal platform currency · 100 EP = $1 USD",
+    usdRate:      1 / EP_PER_USD, // 0.01
+    epRate:       1,
   },
 };
 
 export const TX_TYPES = {
-  SEND: "send",
+  SEND:    "send",
   RECEIVE: "receive",
   DEPOSIT: "deposit",
-  SWAP: "swap",
-  BURN: "burn",
-  CREDIT: "credit", // EP engagement credit
-  PAYWAVE: "paywave", // PayWave internal transfer
+  SWAP:    "swap",
+  BURN:    "burn",
+  CREDIT:  "credit",   // EP engagement credit
+  PAYWAVE: "paywave",  // PayWave internal transfer
 };
 
 export const DEPOSIT_METHODS = {
-  CRYPTO: "crypto",
+  CRYPTO:        "crypto",
   BANK_TRANSFER: "transfer",
-  ATM: "atm",
+  ATM:           "atm",
 };
 
-// EP burn amounts by transaction weight
+// ── EP burn table for wallet sends ───────────────────────────────
+// Tiers are denominated in XEV (not NGN) to stay currency-agnostic.
+// 1 XEV = $0.10, so tiers in approximate USD value:
+//   tier 1: < 1 XEV   (~< $0.10)   → 0.5 EP
+//   tier 2: < 5 XEV   (~< $0.50)   → 2 EP
+//   tier 3: < 20 XEV  (~< $2.00)   → 5 EP
+//   tier 4: 20+ XEV   (~$2.00+)    → 10 EP
+export const EP_BURN_TABLE = [
+  { maxXev: 1,        burn: 0.5 },
+  { maxXev: 5,        burn: 2   },
+  { maxXev: 20,       burn: 5   },
+  { maxXev: Infinity, burn: 10  },
+];
+
 export const EP_BURN = {
-  // Transfers by value tier
-  transfer_tier_1: 1, // < ₦250
-  transfer_tier_2: 2, // ₦250–₦999
-  transfer_tier_3: 4, // ₦1000–₦4999
-  transfer_tier_4: 7, // ₦5000–₦24999
-  transfer_tier_5: 10, // ₦25000+
-  // Other actions
-  swap: 5,
-  conversion: 3,
-  paywave_internal: 0, // PayWave internal: free
-  paywave_opay: 0, // PayWave OPay: ₦5 fee (no EP burn)
+  swap:             5,
+  conversion:       3,
+  paywave_internal: 0,
+  paywave_opay:     0,
 };
 
 /**
- * Get EP burn for a transaction
+ * Compute EP burn for a send transaction.
  * @param {string} txType - TX_TYPES value
  * @param {number} xevAmount - Amount in XEV
  * @returns {number} EP to burn
  */
 export function getEPBurn(txType, xevAmount = 0) {
   if (txType === TX_TYPES.DEPOSIT || txType === TX_TYPES.RECEIVE) return 0;
-  if (txType === TX_TYPES.SWAP) return EP_BURN.swap;
+  if (txType === TX_TYPES.SWAP)    return EP_BURN.swap;
   if (txType === TX_TYPES.PAYWAVE) return 0;
 
-  const ngnValue = xevAmount * XEV_TO_NGN;
-  if (ngnValue < 250) return EP_BURN.transfer_tier_1;
-  if (ngnValue < 1000) return EP_BURN.transfer_tier_2;
-  if (ngnValue < 5000) return EP_BURN.transfer_tier_3;
-  if (ngnValue < 25000) return EP_BURN.transfer_tier_4;
-  return EP_BURN.transfer_tier_5;
+  for (const row of EP_BURN_TABLE) {
+    if (xevAmount < row.maxXev) return row.burn;
+  }
+  return 10;
 }
 
-/**
- * Model a transaction object
- */
+// ── Transaction model ─────────────────────────────────────────────
 export class Transaction {
   constructor({
     id,
@@ -85,40 +122,46 @@ export class Transaction {
     type,
     currency,
     amount,
-    fee = 0,
-    epBurn = 0,
+    fee      = 0,
+    epBurn   = 0,
     toUserId,
     fromUserId,
     description,
-    status = "pending",
+    status   = "pending",
     metadata = {},
     createdAt = new Date().toISOString(),
   }) {
-    this.id = id;
-    this.userId = userId;
-    this.type = type;
-    this.currency = currency;
-    this.amount = parseFloat(amount);
-    this.fee = parseFloat(fee);
-    this.epBurn = parseInt(epBurn);
-    this.toUserId = toUserId;
-    this.fromUserId = fromUserId;
+    this.id          = id;
+    this.userId      = userId;
+    this.type        = type;
+    this.currency    = currency;
+    this.amount      = parseFloat(amount);
+    this.fee         = parseFloat(fee);
+    this.epBurn      = parseFloat(epBurn);
+    this.toUserId    = toUserId;
+    this.fromUserId  = fromUserId;
     this.description = description;
-    this.status = status;
-    this.metadata = metadata;
-    this.createdAt = createdAt;
+    this.status      = status;
+    this.metadata    = metadata;
+    this.createdAt   = createdAt;
   }
 
-  get ngnValue() {
-    if (this.currency === "XEV") return this.amount * XEV_TO_NGN;
-    if (this.currency === "EP") return this.amount * EP_TO_NGN;
+  /** USD equivalent of this transaction */
+  get usdValue() {
+    if (this.currency === "XEV") return convert.xevToUsd(this.amount);
+    if (this.currency === "EP")  return convert.epToUsd(this.amount);
     return this.amount;
   }
 
+  /** EP equivalent of this transaction */
+  get epValue() {
+    if (this.currency === "XEV") return convert.xevToEp(this.amount);
+    if (this.currency === "EP")  return this.amount;
+    return convert.usdToEp(this.amount);
+  }
+
   get isCredit() {
-    return [TX_TYPES.RECEIVE, TX_TYPES.DEPOSIT, TX_TYPES.CREDIT].includes(
-      this.type,
-    );
+    return [TX_TYPES.RECEIVE, TX_TYPES.DEPOSIT, TX_TYPES.CREDIT].includes(this.type);
   }
 
   get isDebit() {
@@ -126,24 +169,36 @@ export class Transaction {
   }
 }
 
-/**
- * Model a wallet object
- */
+// ── Wallet model ──────────────────────────────────────────────────
 export class Wallet {
-  constructor({ userId, xevTokens = 0, engagementPoints = 0 }) {
-    this.userId = userId;
-    this.xevTokens = parseFloat(xevTokens);
+  constructor({ userId, xevTokens = 0, engagementPoints = 0, paywaveBalance = 0 }) {
+    this.userId           = userId;
+    this.xevTokens        = parseFloat(xevTokens);
     this.engagementPoints = parseFloat(engagementPoints);
+    this.paywaveBalance   = parseFloat(paywaveBalance);
   }
 
-  get totalNGNValue() {
-    return this.xevTokens * XEV_TO_NGN;
+  /** Total wallet value in USD (XEV only — EP is internal) */
+  get totalUsdValue() {
+    return convert.xevToUsd(this.xevTokens);
   }
 
-  get payWaveBalance() {
-    return this.engagementPoints * EP_TO_NGN; // NGN equivalent
+  /** EP equivalent of XEV holdings */
+  get xevAsEp() {
+    return convert.xevToEp(this.xevTokens);
   }
 
+  /** PayWave balance: 1 EP = ₦1 NGN (separate from USD rate) */
+  get paywaveNGN() {
+    return this.engagementPoints * EP_TO_NGN;
+  }
+
+  /**
+   * Check if the wallet can afford an action.
+   * @param {"XEV"|"EP"} currency
+   * @param {number} amount
+   * @param {number} epBurn - additional EP fee to burn
+   */
   canAfford(currency, amount, epBurn = 0) {
     if (currency === "XEV") {
       return this.xevTokens >= amount && this.engagementPoints >= epBurn;
@@ -155,27 +210,46 @@ export class Wallet {
   }
 }
 
-/**
- * Deposit model
- */
+// ── Deposit model ─────────────────────────────────────────────────
 export class Deposit {
   constructor({ method, amount, currency, txReference, userId }) {
-    this.method = method;
-    this.amount = parseFloat(amount);
-    this.currency = currency;
+    this.method      = method;
+    this.amount      = parseFloat(amount);
+    this.currency    = currency;
     this.txReference = txReference;
-    this.userId = userId;
+    this.userId      = userId;
   }
 
+  /**
+   * How many XEV to credit for this deposit.
+   * - NGN deposit  : ₦1 → 1 EP minted (not XEV); XEV requires explicit buy
+   * - USD deposit  : $1 → 10 XEV  (1 XEV = $0.10)
+   * - USDT deposit : 1 USDT → 10 XEV
+   * - Crypto (XEV) : 1:1
+   */
   get xevToCredit() {
-    if (this.currency === "NGN") {
-      return this.amount / XEV_TO_NGN;
+    switch (this.currency) {
+      case "USD":
+      case "USDT": return convert.usdToXev(this.amount); // amount / 0.10
+      case "XEV":  return this.amount;
+      case "NGN":  return 0; // NGN deposits mint EP, not XEV
+      default:     return this.amount;
     }
-    // USDT at 1:1 to XEV (rate adjustable)
-    return this.amount;
   }
 
+  /**
+   * How many EP to mint for this deposit.
+   * - NGN : 1 EP per ₦1
+   * - USD / USDT : 100 EP per $1
+   * - XEV : 10 EP per 1 XEV
+   */
   get epToMint() {
-    return Math.floor(this.xevToCredit); // 1 EP per 1 XEV
+    switch (this.currency) {
+      case "NGN":  return Math.floor(this.amount * EP_TO_NGN);
+      case "USD":
+      case "USDT": return Math.floor(convert.usdToEp(this.amount));
+      case "XEV":  return Math.floor(convert.xevToEp(this.amount));
+      default:     return 0;
+    }
   }
 }

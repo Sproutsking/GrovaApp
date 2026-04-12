@@ -274,7 +274,7 @@
 @media (max-width: 768px) {
   .community-view {
     /* Override desktop positioning */
-    top: 56px;        /* below mobile header */
+    top: 47px;        /* below mobile header */
     left: 0;
     right: 0;
     bottom: 56px;     /* above mobile bottom nav */

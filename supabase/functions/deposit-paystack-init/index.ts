@@ -1,36 +1,52 @@
 // supabase/functions/deposit-paystack-init/index.ts
 // ════════════════════════════════════════════════════════════════════════════
-//  WALLET DEPOSIT — Paystack Init & Confirm
+//  WALLET DEPOSIT — Paystack Intent Registration
 //
-//  PURPOSE:  Handles Paystack transactions for XEV Wallet deposits ONLY.
-//            This function is 100% separate from paystack-create-transaction
-//            which handles the platform paywall/subscription.
-//
-//  ISOLATION TAG: metadata.source = "wallet_deposit"
-//                 deposit-paystack-webhook checks this tag to avoid cross-fire
-//                 with the main paystack-webhook handler.
-//
-//  ACTIONS:
-//    init    — register deposit intent (idempotency key)
-//    confirm — called client-side after Paystack callback to belt-and-suspenders
-//              credit the wallet (webhook is authoritative, this is backup)
+//  SINGLE RESPONSIBILITY: Register a pending deposit intent. Never credits.
 //
 //  ECONOMY:
-//    EP  : 1 NGN = 1 EP  (minted at deposit, burned at use)
-//    XEV : 1 XEV = ₦2.50 NGN  (internal, no on-chain mint yet)
+//    1 USD = 100 EP
+//    1 XEV = 10 EP  →  1 XEV = $0.10 USD
+//    EP per NGN  = 100 / USD_NGN_RATE
+//    XEV per NGN = EP_per_NGN / 10
+//
+//  FLOW:
+//    1. Auth check
+//    2. Validate nairaAmount >= 100
+//    3. Fetch live NGN rate from platform_settings (fallback 1366)
+//    4. Verify wallet exists for user
+//    5. Write pending transaction row with all metadata
+//    6. Return { reference, creditAmount, currency, amountKobo }
+//
+//  The client opens Paystack with the returned reference.
+//  deposit-paystack-webhook is the sole crediting authority.
 // ════════════════════════════════════════════════════════════════════════════
 
 import {
-  corsHeaders, errorResponse, jsonResponse,
-  requireAuth, supabaseAdmin, validateEnv,
+  corsHeaders,
+  errorResponse,
+  jsonResponse,
+  requireAuth,
+  supabaseAdmin,
+  validateEnv,
 } from "../_shared/payments.ts";
 
-const XEV_RATE   = 2.5;   // NGN per 1 XEV
-const EP_PER_NGN = 1;     // 1 NGN = 1 EP
+const MIN_DEPOSIT_NGN   = 100;
+const EP_PER_USD        = 100;   // 1 USD = 100 EP
+const XEV_PER_EP        = 0.1;   // 1 XEV = 10 EP
+const FALLBACK_NGN_RATE = 1366;
 
-function calcCredit(naira: number, currency: "EP" | "XEV") {
-  if (currency === "XEV") return parseFloat((naira / XEV_RATE).toFixed(4));
-  return Math.floor(naira * EP_PER_NGN);
+function calcCreditPreview(naira: number, currency: "EP" | "XEV", ngnRate: number): number {
+  const epPerNGN = EP_PER_USD / ngnRate;
+  if (currency === "XEV") return parseFloat((naira * epPerNGN * XEV_PER_EP).toFixed(4));
+  return Math.floor(naira * epPerNGN);
+}
+
+function generateReference(userId: string): string {
+  const ts   = Date.now().toString(36);
+  const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const uid  = userId.replace(/-/g, "").slice(0, 8);
+  return `wd_${uid}_${ts}_${rand}`;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -38,208 +54,116 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST")
     return errorResponse("Method not allowed", 405, "METHOD_NOT_ALLOWED");
 
-  // Validate required secrets
   const envErr = validateEnv(["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]);
   if (envErr) return envErr;
 
-  // Auth
   let userId: string;
-  try { ({ userId } = await requireAuth(req)); }
-  catch (e: unknown) {
+  try {
+    ({ userId } = await requireAuth(req));
+  } catch (e: unknown) {
     return errorResponse((e as Error).message, 401, "UNAUTHORIZED");
   }
 
   let body: {
-    action?: string;
-    userId?: string;
-    nairaAmount?: number;
-    currency?: "EP" | "XEV";
-    channel?: "card" | "bank_transfer";
-    reference?: string;
-    source?: string;
+    nairaAmount?:      number;
+    currency?:         string;
+    channel?:          string;
+    from_wallet?:      string;
+    wallet_address?:   string;
+    wallet_signature?: string;
+    import_ref?:       string;
   };
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return errorResponse("Invalid JSON", 400, "BAD_REQUEST");
   }
 
   const {
-    action     = "init",
-    nairaAmount = 0,
-    currency    = "EP",
-    channel     = "card",
-    reference   = "",
-    source      = "wallet_deposit",
+    nairaAmount      = 0,
+    currency         = "EP",
+    channel          = "card",
+    from_wallet,
+    wallet_address,
+    wallet_signature,
+    import_ref,
   } = body;
 
-  // Safety: reject if source tag is wrong
-  if (source !== "wallet_deposit") {
-    return errorResponse("Invalid source for this endpoint", 400, "WRONG_SOURCE");
+  if (!nairaAmount || typeof nairaAmount !== "number" || nairaAmount < MIN_DEPOSIT_NGN) {
+    return errorResponse(`Minimum deposit is ₦${MIN_DEPOSIT_NGN}`, 400, "BELOW_MIN");
+  }
+  if (currency !== "EP" && currency !== "XEV") {
+    return errorResponse("currency must be EP or XEV", 400, "INVALID_CURRENCY");
   }
 
   const db = supabaseAdmin();
 
-  // ── INIT — register intent ─────────────────────────────────────────────────
-  if (action === "init") {
-    if (!nairaAmount || nairaAmount < 100) {
-      return errorResponse("Minimum deposit is ₦100", 400, "BELOW_MIN");
-    }
-    if (!reference) {
-      return errorResponse("reference is required", 400, "MISSING_REF");
-    }
-
-    const creditAmount = calcCredit(nairaAmount, currency as "EP" | "XEV");
-
-    // Idempotency — check if we've seen this reference
-    const { data: existing } = await db
-      .from("transactions")
-      .select("id, status")
-      .eq("metadata->>reference", reference)
-      .eq("from_user_id", userId)
+  // ── Fetch live NGN rate ───────────────────────────────────────────────────
+  let ngnRate = FALLBACK_NGN_RATE;
+  try {
+    const { data: rateRow } = await db
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "paywall_config")
       .maybeSingle();
+    const stored = Number(rateRow?.value?.ngn_rate ?? 0);
+    if (stored >= 100) ngnRate = stored;
+  } catch { /* use fallback */ }
 
-    if (existing?.status === "completed") {
-      return jsonResponse({ ok: true, already_completed: true, reference });
-    }
+  const creditAmount = calcCreditPreview(nairaAmount, currency as "EP" | "XEV", ngnRate);
+  const amountKobo   = Math.round(nairaAmount * 100);
+  const reference    = generateReference(userId);
 
-    if (!existing) {
-      // Register pending intent
-      await db.from("transactions").insert({
-        from_user_id: userId,
-        to_user_id:   userId,
-        amount:       creditAmount,
-        type:         "deposit",
-        status:       "pending",
-        metadata: {
-          method:           "paystack",
-          channel,
-          deposit_currency: currency,
-          naira_amount:     nairaAmount,
-          credit_amount:    creditAmount,
-          reference,
-          source:           "wallet_deposit",
-        },
-      }).catch(() => {}); // non-fatal
-    }
+  // ── Verify wallet exists ──────────────────────────────────────────────────
+  const { data: wallet, error: walletErr } = await db
+    .from("wallets")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-    console.log(`[deposit-ps-init] INIT user=${userId} ₦${nairaAmount} → ${creditAmount} ${currency} ref=${reference}`);
-    return jsonResponse({ ok: true, reference, creditAmount, currency });
+  if (walletErr || !wallet) {
+    console.error(`[deposit-ps-init] No wallet user=${userId}:`, walletErr?.message);
+    return errorResponse("Wallet not found. Contact support.", 400, "WALLET_NOT_FOUND");
   }
 
-  // ── CONFIRM — called after Paystack callback ───────────────────────────────
-  if (action === "confirm") {
-    if (!reference) return errorResponse("reference required", 400, "MISSING_REF");
+  // ── Write pending intent ──────────────────────────────────────────────────
+  const intentMeta: Record<string, unknown> = {
+    method:           "paystack",
+    channel,
+    deposit_currency: currency,
+    naira_amount:     nairaAmount,
+    amount_kobo:      amountKobo,
+    credit_amount:    creditAmount,
+    paystack_ref:     reference,
+    source:           "wallet_deposit",
+    wallet_id:        wallet.id,
+    ngn_rate:         ngnRate,
+  };
 
-    // Check if already credited (webhook may have beaten us)
-    const { data: tx } = await db
-      .from("transactions")
-      .select("id, status, metadata")
-      .eq("metadata->>reference", reference)
-      .eq("from_user_id", userId)
-      .maybeSingle();
+  // Import flow: store wallet proof fields (webhook can log/verify them)
+  if (from_wallet)      intentMeta.from_wallet      = from_wallet;
+  if (wallet_address)   intentMeta.wallet_address   = wallet_address;
+  if (wallet_signature) intentMeta.wallet_signature = wallet_signature;
+  if (import_ref)       intentMeta.import_ref       = import_ref;
 
-    if (tx?.status === "completed") {
-      console.log(`[deposit-ps-init] CONFIRM already done ref=${reference}`);
-      return jsonResponse({ ok: true, already_credited: true });
-    }
+  const { error: txErr } = await db.from("transactions").insert({
+    from_user_id: userId,
+    to_user_id:   userId,
+    amount:       creditAmount,
+    type:         "deposit",
+    status:       "pending",
+    metadata:     intentMeta,
+  });
 
-    // Verify with Paystack directly
-    const PAYSTACK_SK = Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (!PAYSTACK_SK) {
-      // Cannot verify — defer to webhook
-      return jsonResponse({ ok: true, deferred_to_webhook: true });
-    }
-
-    let psOk = false;
-    let psAmount = 0;
-    try {
-      const psRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: { Authorization: `Bearer ${PAYSTACK_SK}` },
-      });
-      if (psRes.ok) {
-        const psData = await psRes.json() as {
-          status: boolean;
-          data?: { status: string; amount: number; metadata?: Record<string,unknown> };
-        };
-        psOk     = psData.status && psData.data?.status === "success";
-        psAmount = (psData.data?.amount ?? 0) / 100; // kobo → NGN
-        // Extra safety: confirm source tag
-        const psMeta = psData.data?.metadata as Record<string,unknown> | undefined;
-        if (psMeta?.source !== "wallet_deposit") {
-          console.warn(`[deposit-ps-init] CONFIRM wrong source on PS metadata ref=${reference}`);
-          return errorResponse("Source mismatch", 400, "WRONG_SOURCE");
-        }
-      }
-    } catch (e) {
-      console.warn(`[deposit-ps-init] PS verify error ref=${reference}:`, e);
-    }
-
-    if (!psOk) {
-      // Paystack hasn't confirmed yet — webhook will handle it
-      return jsonResponse({ ok: true, pending: true, message: "Awaiting Paystack confirmation" });
-    }
-
-    // Credit the wallet
-    const creditCurrency = (tx?.metadata as Record<string,unknown>)?.deposit_currency as "EP"|"XEV" || currency as "EP"|"XEV";
-    const creditAmount   = calcCredit(psAmount, creditCurrency);
-
-    await _creditWallet(db, userId, creditCurrency, creditAmount, reference, tx?.id || null, "paystack_confirm");
-
-    console.log(`[deposit-ps-init] CONFIRM credited ${creditAmount} ${creditCurrency} ref=${reference}`);
-    return jsonResponse({ ok: true, credited: true, amount: creditAmount, currency: creditCurrency });
+  if (txErr) {
+    console.error(`[deposit-ps-init] Intent write failed user=${userId}:`, txErr.message);
+    return errorResponse("Could not register deposit. Please try again.", 500, "INTENT_WRITE_FAILED");
   }
 
-  return errorResponse("Unknown action", 400, "UNKNOWN_ACTION");
+  console.log(
+    `[deposit-ps-init] Registered user=${userId} ` +
+    `₦${nairaAmount} @ ₦${ngnRate}/USD → ${creditAmount} ${currency} ref=${reference}`,
+  );
+
+  return jsonResponse({ ok: true, reference, creditAmount, currency, amountKobo });
 });
-
-// ─── internal credit function ─────────────────────────────────────────────────
-async function _creditWallet(
-  db: ReturnType<typeof supabaseAdmin>,
-  userId: string,
-  currency: "EP" | "XEV",
-  amount: number,
-  ref: string,
-  txId: string | null,
-  method: string,
-) {
-  const field = currency === "XEV" ? "grova_tokens" : "engagement_points";
-
-  const { data: w, error: wErr } = await db
-    .from("wallets").select(`id,${field}`).eq("user_id", userId).single();
-  if (wErr || !w) throw new Error("Wallet not found for user: " + userId);
-
-  const before = parseFloat((w as Record<string,number>)[field]) || 0;
-  const after  = parseFloat((before + amount).toFixed(4));
-
-  await db.from("wallets").update({
-    [field]: after,
-    updated_at: new Date().toISOString(),
-  }).eq("user_id", userId);
-
-  await db.from("wallet_history").insert({
-    wallet_id: (w as Record<string,string>).id,
-    user_id:   userId,
-    change_type: "credit",
-    amount,
-    balance_before: before,
-    balance_after:  after,
-    reason: `deposit:${method}`,
-    ...(txId ? { transaction_id: txId } : {}),
-    metadata: { currency, method, reference: ref, source: "wallet_deposit" },
-  }).catch(() => {});
-
-  if (currency === "EP") {
-    await db.from("ep_transactions").insert({
-      user_id: userId, amount, balance_after: after,
-      type: "purchase_grant",
-      reason: `EP minted — paystack deposit | ref:${ref}`,
-      metadata: { deposit_ref: ref, method, source: "wallet_deposit" },
-    }).catch(() => {});
-  }
-
-  if (txId) {
-    await db.from("transactions").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-    }).eq("id", txId).catch(() => {});
-  }
-}

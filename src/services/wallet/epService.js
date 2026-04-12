@@ -2,16 +2,23 @@
 // ════════════════════════════════════════════════════════════════
 // Engagement Points (EP) Service — COMPLETE IMPLEMENTATION
 //
+// CANONICAL EXCHANGE RATES:
+//   1 USD  = 100 EP
+//   1 $XEV = 10 EP
+//   1 $XEV = $0.10 USD
+//
 // EP IS THE INTERNAL ECONOMY CURRENCY:
-//   - EP is minted on deposit (1 EP per ₦1) and on engagement
+//   - EP is minted on NGN deposit  (1 EP per ₦1)
+//   - EP is minted on USD deposit  (100 EP per $1)
+//   - EP is minted on XEV purchase (10 EP per 1 XEV)
 //   - EP is burned on every send transaction (burn table)
 //   - EP is transferred on social actions (3-way split):
-//       Liker  → pays EP cost
+//       Actor  → pays EP cost
 //       Author → receives EP reward
-//       Platform wallet → receives protocol fee
+//       Platform wallet → receives protocol fee (10%)
 //   - EP cannot be withdrawn externally
 //   - EP is used in PayWave (1 EP = ₦1 internally)
-//   - EP is swappable to $XEV at platform rate
+//   - EP is swappable to $XEV at platform rate (10 EP = 1 XEV)
 //
 // SOCIAL ACTION FLOW (ATOMIC via RPC):
 //   User A likes User B's post →
@@ -20,23 +27,15 @@
 //     credit Platform:      0.1 EP (protocol fee — 10%)
 //   All three happen in ONE database transaction.
 //   If User A has < 1.1 EP the action is blocked.
-//
-// PLATFORM WALLET:
-//   Set PLATFORM_WALLET_USER_ID to your platform's admin/treasury
-//   user UUID in platform_settings or as an env constant below.
-//   The wallet must exist in the `wallets` table.
 // ════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
+import { EP_PER_USD, EP_PER_XEV, USD_PER_XEV } from "../../models/WalletModel";
 
 // ── Platform treasury wallet user ID ─────────────────────────────
-// This is the UUID of your platform's treasury profile in `profiles`.
-// Set this to your actual platform admin UUID.
-// You can also fetch it dynamically from platform_settings:
-//   SELECT value->>'platform_wallet_user_id' FROM platform_settings WHERE key = 'treasury'
 const PLATFORM_WALLET_USER_ID =
   process.env.REACT_APP_PLATFORM_WALLET_USER_ID ||
-  "00000000-0000-0000-0000-000000000001"; // replace with real UUID
+  "00000000-0000-0000-0000-000000000001";
 
 // ── Protocol fee rate (10% of EP transferred) ────────────────────
 const PROTOCOL_FEE_RATE = 0.1;
@@ -57,38 +56,78 @@ export const EP_AWARDS = {
   gift_received_medium:      25,
   gift_received_large:       50,
   follow_received:           2,
-  deposit_per_ngn:           1,   // 1 EP per ₦1 deposited
+  // ── Deposit minting rates (CORRECTED) ──────────────────────────
+  // 1 USD  = 100 EP  →  per-unit rates:
+  deposit_per_ngn:           1,    // 1 EP per ₦1   (NGN peg: 1 EP = ₦1)
+  deposit_per_usd:           EP_PER_USD,   // 100 EP per $1
+  deposit_per_xev:           EP_PER_XEV,   // 10 EP per 1 XEV
+  // ── Platform-funded ────────────────────────────────────────────
   daily_login:               5,
   referral:                  20,
 };
 
-// ── EP burn table (for XEV sends — NOT social actions) ───────────
-// Social actions have their own fixed protocol fee (10%).
-// This burn table applies only to wallet send operations.
+// ── EP burn table for wallet SEND operations ─────────────────────
+// Denominated in XEV amount being sent.
+// Social actions use a flat 10% protocol fee instead.
 export const EP_BURN_TABLE = [
-  { max: 100,   burn: 0.5 },
-  { max: 500,   burn: 2   },
-  { max: 2000,  burn: 5   },
-  { max: Infinity, burn: 10 },
+  { maxXev: 1,        burn: 0.5 },
+  { maxXev: 5,        burn: 2   },
+  { maxXev: 20,       burn: 5   },
+  { maxXev: Infinity, burn: 10  },
 ];
 
-export function computeEPBurn(epAmount) {
-  const a = parseFloat(epAmount) || 0;
+/**
+ * Compute EP burn for a XEV send.
+ * @param {number} xevAmount - Amount being sent in XEV
+ * @returns {number} EP to burn
+ */
+export function computeEPBurn(xevAmount) {
+  const x = parseFloat(xevAmount) || 0;
   for (const row of EP_BURN_TABLE) {
-    if (a < row.max) return row.burn;
+    if (x < row.maxXev) return row.burn;
   }
   return 10;
 }
 
+// ── Swap rate ─────────────────────────────────────────────────────
+/**
+ * EP ↔ XEV swap at canonical rate.
+ * @param {"ep_to_xev"|"xev_to_ep"} direction
+ * @param {number} amount
+ * @returns {number}
+ */
+export function computeSwapAmount(direction, amount) {
+  const a = parseFloat(amount) || 0;
+  if (direction === "ep_to_xev") return a / EP_PER_XEV;  // 10 EP → 1 XEV
+  if (direction === "xev_to_ep") return a * EP_PER_XEV;  // 1 XEV → 10 EP
+  return 0;
+}
+
+// ── EP mint amounts for deposits ──────────────────────────────────
+/**
+ * How many EP to mint for a deposit.
+ * @param {"NGN"|"USD"|"USDT"|"XEV"} currency
+ * @param {number} amount
+ * @returns {number}
+ */
+export function computeEPMint(currency, amount) {
+  const a = parseFloat(amount) || 0;
+  switch (currency) {
+    case "NGN":  return Math.floor(a * EP_AWARDS.deposit_per_ngn);  // 1 EP/₦1
+    case "USD":
+    case "USDT": return Math.floor(a * EP_AWARDS.deposit_per_usd);  // 100 EP/$1
+    case "XEV":  return Math.floor(a * EP_AWARDS.deposit_per_xev);  // 10 EP/XEV
+    default:     return 0;
+  }
+}
+
+// ── USD display value of EP ───────────────────────────────────────
+export function epToUsd(ep)  { return parseFloat(ep) / EP_PER_USD; }
+export function epToXev(ep)  { return parseFloat(ep) / EP_PER_XEV; }
+export function xevToUsd(xev){ return parseFloat(xev) * USD_PER_XEV; }
+
 // ─────────────────────────────────────────────────────────────────
 // CORE: 3-WAY EP TRANSFER (social action economics)
-// Calls the `transfer_ep_with_fee` Postgres RPC which does this
-// ATOMICALLY in a single transaction:
-//   1. Debit fromUserId  (engagement cost + protocol fee)
-//   2. Credit toUserId   (content reward)
-//   3. Credit platform   (protocol fee)
-//   4. Write wallet_history for all three parties
-//   5. Write ep_transactions for both users
 // ─────────────────────────────────────────────────────────────────
 async function _transferEPWithFee({
   fromUserId,
@@ -98,18 +137,18 @@ async function _transferEPWithFee({
   metadata = {},
 }) {
   if (!fromUserId || !toUserId) return { success: false, error: "Missing user IDs" };
-  if (fromUserId === toUserId) return { success: false, error: "Cannot transfer to self" };
+  if (fromUserId === toUserId)  return { success: false, error: "Cannot transfer to self" };
 
   const fee = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
 
   const { data, error } = await supabase.rpc("transfer_ep_with_fee", {
-    p_from_user_id:      fromUserId,
-    p_to_user_id:        toUserId,
-    p_platform_user_id:  PLATFORM_WALLET_USER_ID,
-    p_amount:            epAmount,
-    p_fee:               fee,
-    p_reason:            reason,
-    p_metadata:          JSON.stringify(metadata),
+    p_from_user_id:     fromUserId,
+    p_to_user_id:       toUserId,
+    p_platform_user_id: PLATFORM_WALLET_USER_ID,
+    p_amount:           epAmount,
+    p_fee:              fee,
+    p_reason:           reason,
+    p_metadata:         JSON.stringify(metadata),
   });
 
   if (error) {
@@ -123,7 +162,7 @@ async function _transferEPWithFee({
 // ─────────────────────────────────────────────────────────────────
 export const epService = {
 
-  // ── Get EP balance ───────────────────────────────────────────────
+  // ── Get EP balance ────────────────────────────────────────────
   async getBalance(userId) {
     const { data, error } = await supabase
       .from("wallets")
@@ -134,7 +173,7 @@ export const epService = {
     return data?.engagement_points || 0;
   },
 
-  // ── Get EP dashboard ─────────────────────────────────────────────
+  // ── Get EP dashboard ──────────────────────────────────────────
   async getDashboard(userId) {
     const { data, error } = await supabase
       .from("ep_dashboard")
@@ -145,7 +184,7 @@ export const epService = {
     return data;
   },
 
-  // ── Get EP transaction history ───────────────────────────────────
+  // ── Get EP transaction history ────────────────────────────────
   async getHistory(userId, limit = 30) {
     const { data, error } = await supabase
       .from("ep_transactions")
@@ -157,112 +196,88 @@ export const epService = {
     return data || [];
   },
 
-  // ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // SOCIAL ACTION TRANSFERS
-  // Each method debits the ACTOR and credits the CONTENT OWNER.
-  // The platform fee is collected automatically inside the RPC.
-  // fromUserId = the person performing the action (liker, commenter…)
-  // contentOwnerId = the person who created the content
-  // ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
-  // ── Like ─────────────────────────────────────────────────────────
   async awardForLike(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_like_received`] ?? 1;
     return _transferEPWithFee({
-      fromUserId,
-      toUserId: contentOwnerId,
-      epAmount,
+      fromUserId, toUserId: contentOwnerId, epAmount,
       reason: `${contentType}_like`,
       metadata: { content_type: contentType, content_id: contentId, action: "like" },
     });
   },
 
-  // ── Comment ──────────────────────────────────────────────────────
   async awardForComment(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_comment_received`] ?? 2;
     return _transferEPWithFee({
-      fromUserId,
-      toUserId: contentOwnerId,
-      epAmount,
+      fromUserId, toUserId: contentOwnerId, epAmount,
       reason: `${contentType}_comment`,
       metadata: { content_type: contentType, content_id: contentId, action: "comment" },
     });
   },
 
-  // ── Share ────────────────────────────────────────────────────────
   async awardForShare(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_share_received`] ?? 3;
     return _transferEPWithFee({
-      fromUserId,
-      toUserId: contentOwnerId,
-      epAmount,
+      fromUserId, toUserId: contentOwnerId, epAmount,
       reason: `${contentType}_share`,
       metadata: { content_type: contentType, content_id: contentId, action: "share" },
     });
   },
 
-  // ── Story unlock ─────────────────────────────────────────────────
-  // The unlocker pays; the story author receives minus platform fee.
   async awardForStoryUnlock(fromUserId, storyOwnerId, storyId = null, unlockCost = null) {
     const epAmount = unlockCost ?? EP_AWARDS.story_unlock;
     return _transferEPWithFee({
-      fromUserId,
-      toUserId: storyOwnerId,
-      epAmount,
+      fromUserId, toUserId: storyOwnerId, epAmount,
       reason: "story_unlock",
       metadata: { story_id: storyId, action: "unlock" },
     });
   },
 
-  // ── Gift (one-directional — no debit from sender here,
-  //    gifts are funded separately via XEV purchase flow)
-  //    This just credits the recipient EP after gift purchase.
+  // Gifts: direct credit to recipient only (XEV purchase funds the cost)
   async awardForGift(recipientId, giftTier = "small", senderId = null) {
     const epAmount = EP_AWARDS[`gift_received_${giftTier}`] ?? 10;
-    // Gifts credit the recipient only — the cost is already
-    // handled by the XEV purchase; we do a direct credit here.
     return this._directCreditEP(recipientId, epAmount, `gift_received_${giftTier}`, {
-      sender_id: senderId,
-      gift_tier: giftTier,
+      sender_id: senderId, gift_tier: giftTier,
     });
   },
 
-  // ── Follow ───────────────────────────────────────────────────────
-  // Follow is free for the follower — the platform grants EP to
-  // the followed user (platform-funded, not user-funded).
+  // Follow: platform-funded
   async awardForFollow(followedUserId, followerId = null) {
-    const epAmount = EP_AWARDS.follow_received;
-    return this._directCreditEP(followedUserId, epAmount, "follow_received", {
+    return this._directCreditEP(followedUserId, EP_AWARDS.follow_received, "follow_received", {
       follower_id: followerId,
     });
   },
 
-  // ── Daily login ──────────────────────────────────────────────────
-  // Platform-funded. Direct credit from platform treasury.
   async awardDailyLogin(userId) {
     return this._directCreditEP(userId, EP_AWARDS.daily_login, "daily_login", {});
   },
 
-  // ── Referral bonus ───────────────────────────────────────────────
   async awardReferral(userId, referredUserId = null) {
     return this._directCreditEP(userId, EP_AWARDS.referral, "referral", {
       referred_user_id: referredUserId,
     });
   },
 
-  // ── Mint EP on NGN deposit ────────────────────────────────────────
-  // 1 EP per ₦1 deposited. Platform-funded credit.
-  async mintOnDeposit(userId, ngnAmount) {
-    const epToMint = Math.floor(ngnAmount * EP_AWARDS.deposit_per_ngn);
+  // ── Mint EP on deposit ────────────────────────────────────────
+  // Correctly uses currency-aware minting rates.
+  async mintOnDeposit(userId, amount, currency = "NGN") {
+    const epToMint = computeEPMint(currency, amount);
     if (epToMint <= 0) return null;
     return this._directCreditEP(userId, epToMint, "deposit_mint", {
-      ngn_amount: ngnAmount,
+      amount, currency,
+      // Log the rates used for auditability
+      rate_used: currency === "NGN"
+        ? "1 EP/₦1"
+        : currency === "XEV"
+        ? `${EP_PER_XEV} EP/XEV`
+        : `${EP_PER_USD} EP/$1`,
     });
   },
 
-  // ── Burn EP for wallet send transaction ───────────────────────────
-  // Called by walletService when sending XEV or EP.
-  // Burns go to the platform treasury wallet.
+  // ── Burn EP for wallet send ───────────────────────────────────
   async burnForTransaction(userId, burnAmount, reason = "tx_burn") {
     if (burnAmount <= 0) return { success: true, burned: 0 };
 
@@ -281,15 +296,12 @@ export const epService = {
     return { success: true, burned: burnAmount, data };
   },
 
-  // ─────────────────────────────────────────────────────────────────
-  // INTERNAL: Direct credit (platform-funded, no sender debit)
-  // Used for follows, logins, referrals, gifts
-  // ─────────────────────────────────────────────────────────────────
+  // ── Direct credit (platform-funded) ──────────────────────────
   async _directCreditEP(userId, epAmount, reason, metadata = {}) {
     const { data, error } = await supabase.rpc("credit_ep", {
-      p_user_id: userId,
-      p_amount:  epAmount,
-      p_reason:  reason,
+      p_user_id:  userId,
+      p_amount:   epAmount,
+      p_reason:   reason,
       p_metadata: JSON.stringify(metadata),
     });
 
@@ -301,32 +313,21 @@ export const epService = {
     return { success: true, awarded: epAmount, total: data };
   },
 
-  // ── Check if user can afford a social action ──────────────────────
-  // Returns { canAfford: bool, required: number, available: number }
+  // ── Affordability check ───────────────────────────────────────
   async checkCanAfford(userId, epAmount) {
-    const fee = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
+    const fee      = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
     const required = epAmount + fee;
     const available = await this.getBalance(userId);
-    return {
-      canAfford: available >= required,
-      required,
-      available,
-      fee,
-    };
+    return { canAfford: available >= required, required, available, fee };
   },
 
-  // ── Real-time EP subscription ─────────────────────────────────────
+  // ── Real-time EP subscription ─────────────────────────────────
   subscribeToEP(userId, callback) {
     const channel = supabase
       .channel(`ep:${userId}`)
       .on(
         "postgres_changes",
-        {
-          event:  "*",
-          schema: "public",
-          table:  "wallets",
-          filter: `user_id=eq.${userId}`,
-        },
+        { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${userId}` },
         (payload) => {
           if (payload.new?.engagement_points !== undefined) {
             callback(payload.new.engagement_points);
@@ -334,18 +335,25 @@ export const epService = {
         },
       )
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   },
 
-  // ── Protocol fee rate accessor ────────────────────────────────────
-  getProtocolFeeRate() {
-    return PROTOCOL_FEE_RATE;
-  },
-
+  // ── Rate accessors ────────────────────────────────────────────
+  getProtocolFeeRate() { return PROTOCOL_FEE_RATE; },
   getProtocolFee(epAmount) {
     return parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
   },
+
+  // ── Conversion helpers (re-exported for convenience) ──────────
+  epToUsd,
+  epToXev,
+  xevToUsd,
+  computeEPBurn,
+  computeEPMint,
+  computeSwapAmount,
+  EP_PER_USD,
+  EP_PER_XEV,
+  USD_PER_XEV,
 };
 
 export default epService;

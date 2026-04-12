@@ -14,6 +14,16 @@
 //     pseudo-element clipped by overflow:hidden on the ring container.
 //     The avatar sits above it via z-index and has zero animation.
 //   - Card max width 60px (was 76px home / 64px sidebar — too large).
+//
+// REALTIME FIX:
+//   - Removed `filter: "status=eq.live"` from postgres_changes listener.
+//     Supabase realtime filters on the NEW row value for INSERT but on the
+//     OLD value for UPDATE in many versions — so a stream that inserts as
+//     "pending" then updates to "live" would never trigger the listener.
+//     Now we listen to ALL changes on live_sessions and re-fetch (the fetch
+//     itself still filters for status=live), so the strip updates instantly
+//     when any stream goes live, ends, or changes viewer counts.
+//   - Added 15-second polling interval as belt-and-suspenders fallback.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -136,7 +146,7 @@ const StreamerCard = ({ session, variant, onClick }) => {
       title={`${profile.full_name || "Streamer"} — ${session.title}`}
     >
       {/* ── Ring + avatar ──────────────────────────────────────────────────
-          .lsr-ring is a 54px circle with overflow:hidden + dark background.
+          .lsr-ring is a circle with overflow:hidden + dark background.
           Its ::before pseudo spins (conic gradient) — clipped to circle shape.
           .lsr-avatar-wrap sits above ::before via z-index:1, inset:3px.
           It has ZERO animation — avatar never rotates.
@@ -180,6 +190,7 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
 
   const rowRef = useRef(null);
   const rtRef = useRef(null);
+  const pollRef = useRef(null);
   const isSidebar = variant === "sidebar";
 
   // ── Load + realtime ────────────────────────────────────────────────────────
@@ -199,11 +210,23 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
 
     load();
 
+    // ── REALTIME FIX ──────────────────────────────────────────────────────
+    // Do NOT use filter: "status=eq.live" here.
+    // Supabase realtime postgres_changes with a column filter can miss events
+    // where the row transitions TO that value (the filter checks the NEW value
+    // for INSERT but behavior for UPDATE varies by server version).
+    // Instead: listen to ALL changes on live_sessions and re-fetch — the fetch
+    // itself correctly filters for status=live rows.
     const channel = supabase
-      .channel("lsr_live_sessions")
+      .channel("lsr_live_sessions_v2")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "live_sessions" },
+        {
+          event: "*",        // INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "live_sessions",
+          // NO filter here — we catch every change and re-fetch
+        },
         async () => {
           try {
             const data = await fetchLiveSessions();
@@ -216,9 +239,21 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
       .subscribe();
 
     rtRef.current = () => supabase.removeChannel(channel);
+
+    // ── Belt-and-suspenders: 15s poll so we never stay stale ─────────────
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await fetchLiveSessions();
+        if (mounted) setSessions(data);
+      } catch {
+        /* silent */
+      }
+    }, 15_000);
+
     return () => {
       mounted = false;
       rtRef.current?.();
+      clearInterval(pollRef.current);
     };
   }, []);
 
@@ -533,8 +568,8 @@ const LiveStreamersRow = ({ variant = "home", onJoin, currentUser }) => {
                   key={i}
                   className="lsr-shimmer"
                   style={{
-                    width: isSidebar ? 54 : 54,
-                    height: isSidebar ? 54 : 54,
+                    width: 54,
+                    height: 54,
                     animationDelay: `${i * 0.15}s`,
                   }}
                 />

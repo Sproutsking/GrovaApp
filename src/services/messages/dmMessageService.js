@@ -1,21 +1,15 @@
 // ============================================================================
-// src/services/messages/dmMessageService.js — v5 BULLETPROOF PUSH
+// src/services/messages/dmMessageService.js — v6 REPLY + PUSH FIXES
 // ============================================================================
 //
-// FIXES vs v4:
-//   [DM-1]  _triggerDmPush now uses conversationState.getConversation(id)
-//           (singular) which now exists — previously crashed silently with
-//           TypeError, killing all DM push notifications.
-//   [DM-2]  broadcast config: self:false (was self:true). Sender no longer
-//           receives their own new_message echo, eliminating the need for
-//           the sender-id guard on broadcast receive.
-//   [DM-3]  _triggerDmPush is the SINGLE place push is triggered. The
-//           MessageNotificationService.triggerDmPush duplicate path is gone.
-//           Push fires once per sent message, period.
-//   [DM-4]  _seenBroadcastIds dedup extended to 30s (was 15s) to safely
-//           cover slow networks.
-//   [DM-5]  conversationState.getConversation() is used correctly with the
-//           now-fixed singular method.
+// CHANGES vs v5:
+//   [DM-REPLY-1] sendMessage() accepts optional replyToId parameter.
+//                Stored in reply_to_id column. Optimistic message includes it.
+//   [DM-REPLY-2] loadMessages() selects reply_to_id so quoted messages render.
+//   [DM-1]  _triggerDmPush uses getConversation(id) — singular — still correct.
+//   [DM-2]  broadcast config: self:false.
+//   [DM-3]  Push fires once per sent message.
+//   [DM-4]  _seenBroadcastIds dedup 30s.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -128,7 +122,7 @@ class DMMessageService {
     try {
       const { data, error } = await supabase
         .from("messages")
-        .select("*")
+        .select("*, reply_to_id") // [DM-REPLY-2]
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -140,13 +134,14 @@ class DMMessageService {
     }
   }
 
-  // ── SEND ──────────────────────────────────────────────────────────────────
-  async sendMessage(conversationId, content, senderId) {
+  // ── SEND ─────────────────────────────────────────────────────────────────
+  // [DM-REPLY-1] replyToId is the message id being replied to
+  async sendMessage(conversationId, content, senderId, replyToId = null) {
     if (!content?.trim() || !conversationId || !senderId) return null;
 
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // 1. Optimistic UI — ✓ sent
+    // 1. Optimistic UI
     const optimisticMessage = {
       id:              tempId,
       _tempId:         tempId,
@@ -154,6 +149,7 @@ class DMMessageService {
       conversation_id: conversationId,
       sender_id:       senderId,
       content:         content.trim(),
+      reply_to_id:     replyToId || null, // [DM-REPLY-1]
       created_at:      new Date().toISOString(),
       read:            false,
       delivered:       false,
@@ -161,9 +157,9 @@ class DMMessageService {
     conversationState.addMessage(conversationId, optimisticMessage);
     this.pendingMessages.set(tempId, optimisticMessage);
     this._seenBroadcastIds.add(tempId);
-    setTimeout(() => this._seenBroadcastIds.delete(tempId), 30_000); // [DM-4]
+    setTimeout(() => this._seenBroadcastIds.delete(tempId), 30_000);
 
-    // 2. Broadcast to recipient (instant delivery attempt)
+    // 2. Broadcast to recipient
     const channel = this.conversationChannels.get(`conversation:${conversationId}`);
     if (channel) {
       channel.send({
@@ -174,6 +170,7 @@ class DMMessageService {
           conversation_id: conversationId,
           sender_id:       senderId,
           content:         content.trim(),
+          reply_to_id:     replyToId || null,
           created_at:      optimisticMessage.created_at,
         },
       });
@@ -181,15 +178,18 @@ class DMMessageService {
 
     try {
       // 3. Persist to DB
+      const insertData = {
+        conversation_id: conversationId,
+        sender_id:       senderId,
+        content:         content.trim(),
+        delivered:       false,
+        read:            false,
+      };
+      if (replyToId) insertData.reply_to_id = replyToId; // [DM-REPLY-1]
+
       const { data, error } = await supabase
         .from("messages")
-        .insert({
-          conversation_id: conversationId,
-          sender_id:       senderId,
-          content:         content.trim(),
-          delivered:       false,
-          read:            false,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -213,7 +213,7 @@ class DMMessageService {
         .eq("id", conversationId)
         .then();
 
-      // Broadcast real id so recipient replaces their temp entry
+      // Broadcast real id
       if (channel) {
         channel.send({
           type:    "broadcast",
@@ -222,7 +222,7 @@ class DMMessageService {
         });
       }
 
-      // [DM-3] Single push trigger — only here, not in MessageNotificationService
+      // [DM-3] Single push trigger
       this._triggerDmPush(conversationId, senderId, content.trim());
 
       return data;
@@ -278,25 +278,19 @@ class DMMessageService {
   }
 
   // =========================================================================
-  // PUSH NOTIFICATION — [DM-1] Fixed: uses getConversation() (singular)
+  // PUSH NOTIFICATION
   // =========================================================================
 
   async _triggerDmPush(conversationId, senderId, content) {
     try {
-      // [DM-1] getConversation(id) now exists on ConversationStateManager
       const conv = conversationState.getConversation(conversationId);
       if (!conv) return;
 
       const recipientId = conv.user1_id === senderId ? conv.user2_id : conv.user1_id;
       if (!recipientId || recipientId === senderId) return;
 
-      // Build sender display name from state
-      const senderConvUser =
-        conv.user1_id === senderId ? conv.user1 : conv.user2;
-      const senderName =
-        senderConvUser?.full_name ||
-        senderConvUser?.username  ||
-        "Someone";
+      const senderConvUser = conv.user1_id === senderId ? conv.user1 : conv.user2;
+      const senderName = senderConvUser?.full_name || senderConvUser?.username || "Someone";
 
       await supabase.functions.invoke("send-push", {
         body: {
@@ -319,13 +313,12 @@ class DMMessageService {
         },
       });
     } catch (err) {
-      // Non-fatal — message was still delivered via broadcast
       console.warn("[DM] Push trigger failed:", err);
     }
   }
 
   // =========================================================================
-  // REALTIME — CONVERSATION CHANNEL
+  // REALTIME
   // =========================================================================
 
   subscribeToConversation(conversationId, callbacks = {}) {
@@ -334,19 +327,9 @@ class DMMessageService {
 
     const channel = supabase
       .channel(channelKey, {
-        config: {
-          broadcast: {
-            // [DM-2] self:false — sender does NOT receive their own broadcasts.
-            // Eliminates the need for sender-id guards on receive.
-            self: false,
-          },
-        },
+        config: { broadcast: { self: false } }, // [DM-2]
       })
-
-      // ── New message broadcast ─────────────────────────────────────────────
       .on("broadcast", { event: "new_message" }, ({ payload }) => {
-        // Guard: skip if we've seen this tempId (shouldn't happen with self:false
-        // but kept as a safety net for edge cases)
         if (this._seenBroadcastIds.has(payload.tempId)) return;
         this._seenBroadcastIds.add(payload.tempId);
         setTimeout(() => this._seenBroadcastIds.delete(payload.tempId), 30_000);
@@ -356,6 +339,7 @@ class DMMessageService {
           conversation_id: payload.conversation_id,
           sender_id:       payload.sender_id,
           content:         payload.content,
+          reply_to_id:     payload.reply_to_id || null,
           created_at:      payload.created_at,
           delivered:       false,
           read:            false,
@@ -370,7 +354,6 @@ class DMMessageService {
           conversationState.incrementUnread(conversationId, payload.sender_id);
         }
 
-        // Delivered ACK: recipient is online, tell the sender
         if (payload.sender_id !== this.userId && payload.tempId) {
           channel.send({
             type:    "broadcast",
@@ -385,8 +368,6 @@ class DMMessageService {
 
         callbacks.onMessage?.(message);
       })
-
-      // ── Message confirmed (tempId → real UUID) ────────────────────────────
       .on("broadcast", { event: "message_confirmed" }, ({ payload }) => {
         const current = conversationState.getMessages(conversationId);
         const updated = current.map((m) =>
@@ -397,38 +378,27 @@ class DMMessageService {
         conversationState.state.messagesByConversation.set(conversationId, updated);
         conversationState.emit();
       })
-
-      // ── Delivered ACK received by sender — flip to ✓✓ grey ───────────────
       .on("broadcast", { event: "message_delivered" }, ({ payload }) => {
-        if (payload.recipient_id === this.userId) return; // ignore our own echo
-
+        if (payload.recipient_id === this.userId) return;
         const msgs = conversationState.getMessages(conversationId);
-        const msg  = msgs.find(
-          (m) => m.id === payload.tempId || m._tempId === payload.tempId
-        );
+        const msg  = msgs.find(m => m.id === payload.tempId || m._tempId === payload.tempId);
         if (msg?.id && !msg._tempId) {
           this.markDelivered(msg.id);
           conversationState.state.messageStatusById?.set(msg.id, "delivered");
         }
-
         callbacks.onDelivered?.(payload.tempId);
       })
-
-      // ── Read receipt ──────────────────────────────────────────────────────
       .on("broadcast", { event: "message_read" }, ({ payload }) => {
         if (payload.user_id !== this.userId) {
           conversationState.markAllRead(conversationId);
           callbacks.onRead?.(payload.user_id);
         }
       })
-
-      // ── Typing ────────────────────────────────────────────────────────────
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload.userId !== this.userId) {
           callbacks.onTyping?.(payload.userId, payload.isTyping, payload.userName);
         }
       })
-
       .subscribe((status) => {
         console.log(`🔌 [DM] ${channelKey}:`, status);
       });
@@ -440,50 +410,19 @@ class DMMessageService {
     };
   }
 
-  // =========================================================================
-  // REALTIME — CONVERSATION LIST
-  // =========================================================================
-
   subscribeToConversationList() {
     if (this.listChannel) return () => {};
 
     this.listChannel = supabase
       .channel(`conversation_list:${this.userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event:  "UPDATE",
-          schema: "public",
-          table:  "conversations",
-          filter: `user1_id=eq.${this.userId}`,
-        },
-        (payload) => {
-          conversationState.updateConversation(payload.new.id, {
-            last_message_at: payload.new.last_message_at,
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event:  "UPDATE",
-          schema: "public",
-          table:  "conversations",
-          filter: `user2_id=eq.${this.userId}`,
-        },
-        (payload) => {
-          conversationState.updateConversation(payload.new.id, {
-            last_message_at: payload.new.last_message_at,
-          });
-        }
-      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations", filter: `user1_id=eq.${this.userId}` },
+        (payload) => { conversationState.updateConversation(payload.new.id, { last_message_at: payload.new.last_message_at }); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations", filter: `user2_id=eq.${this.userId}` },
+        (payload) => { conversationState.updateConversation(payload.new.id, { last_message_at: payload.new.last_message_at }); })
       .subscribe();
 
     return () => {
-      if (this.listChannel) {
-        supabase.removeChannel(this.listChannel);
-        this.listChannel = null;
-      }
+      if (this.listChannel) { supabase.removeChannel(this.listChannel); this.listChannel = null; }
     };
   }
 
@@ -502,10 +441,6 @@ class DMMessageService {
     }
   }
 
-  subscribeTyping(conversationId, callback) {
-    return () => {};
-  }
-
   // =========================================================================
   // CLEANUP
   // =========================================================================
@@ -513,10 +448,7 @@ class DMMessageService {
   cleanup() {
     this.conversationChannels.forEach((ch) => supabase.removeChannel(ch));
     this.conversationChannels.clear();
-    if (this.listChannel) {
-      supabase.removeChannel(this.listChannel);
-      this.listChannel = null;
-    }
+    if (this.listChannel) { supabase.removeChannel(this.listChannel); this.listChannel = null; }
     this.pendingMessages.clear();
     this._seenBroadcastIds.clear();
   }

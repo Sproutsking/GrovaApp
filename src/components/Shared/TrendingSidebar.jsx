@@ -6,6 +6,14 @@
 //   [TAG] Trending Tags — drill-down per row
 //   [CRE] Top Creators — profile modal on click
 //   Clicking any streamer row opens StreamerDetailModal
+//
+// REALTIME FIX:
+//   - Removed filter:"status=eq.live" from postgres_changes listener.
+//     The fix is identical to LiveStreamersRow: listen to ALL changes on
+//     live_sessions and re-fetch. The fetch itself filters for status=live.
+//     This ensures streams that insert as "pending" then update to "live"
+//     are caught immediately.
+//   - Added 15s polling interval as belt-and-suspenders fallback.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -305,7 +313,8 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
   const [error,           setError]           = useState(null);
   const [refreshing,      setRefreshing]      = useState(false);
 
-  const streamersCache = useRef([]);
+  const streamersCache  = useRef([]);
+  const livePollRef     = useRef(null);
 
   const [streamersPanel,  setStreamersPanel]  = useState(false);
   const [tagsPanel,       setTagsPanel]       = useState(false);
@@ -319,20 +328,54 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
   const [selectedCreator, setSelectedCreator] = useState(null);
   const [streamerDetail,  setStreamerDetail]  = useState(null);
 
-  // ── Live realtime ─────────────────────────────────────────────────────────
+  // ── Live realtime — FIXED ─────────────────────────────────────────────────
   useEffect(() => {
     let alive = true;
-    const go = async () => {
-      try { const d = await fetchLiveSessions(); if (alive) setLiveSessions(d); }
-      catch { /* silent */ }
+
+    const loadLive = async () => {
+      try {
+        const d = await fetchLiveSessions();
+        if (alive) setLiveSessions(d);
+      } catch { /* silent */ }
       finally { if (alive) setLiveLoading(false); }
     };
-    go();
-    const ch = supabase.channel("ts_live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_sessions" }, async () => {
-        try { const d = await fetchLiveSessions(); if (alive) setLiveSessions(d); } catch {}
-      }).subscribe();
-    return () => { alive = false; supabase.removeChannel(ch); };
+
+    loadLive();
+
+    // ── REALTIME FIX ──────────────────────────────────────────────────────
+    // No filter: "status=eq.live" — listen to ALL live_sessions changes and
+    // re-fetch. This catches the UPDATE from "pending" → "live" reliably.
+    const ch = supabase
+      .channel("ts_live_v2")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",   // INSERT, UPDATE, DELETE — no column filter
+          schema: "public",
+          table: "live_sessions",
+        },
+        async () => {
+          try {
+            const d = await fetchLiveSessions();
+            if (alive) setLiveSessions(d);
+          } catch { /* silent */ }
+        },
+      )
+      .subscribe();
+
+    // ── 15s poll — belt-and-suspenders so live strip never stays stale ────
+    livePollRef.current = setInterval(async () => {
+      try {
+        const d = await fetchLiveSessions();
+        if (alive) setLiveSessions(d);
+      } catch { /* silent */ }
+    }, 15_000);
+
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+      clearInterval(livePollRef.current);
+    };
   }, []);
 
   // ── All other data ────────────────────────────────────────────────────────
@@ -508,10 +551,8 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {!isMobile && (
         <div style={{
           position: "sticky", top: 0, zIndex: 5,
-          /* FIX: was #080808 — same as page bg. Now #111 for visible surface. */
           background: "#111",
           padding: "10px 12px",
-          /* FIX: was rgba(132,204,22,0.08) — invisible. Now 0.18. */
           borderBottom: "1px solid rgba(132,204,22,0.18)",
           display: "flex", alignItems: "center", gap: 8,
         }}>
@@ -536,7 +577,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         /* ── DESKTOP STICKY RIGHT COLUMN ── */
         .trending-sidebar::-webkit-scrollbar       { width:3px; }
         .trending-sidebar::-webkit-scrollbar-track { background:transparent; }
-        /* FIX: was rgba(132,204,22,.18) — barely visible. Now .35. */
         .trending-sidebar::-webkit-scrollbar-thumb { background:rgba(132,204,22,.35); border-radius:2px; }
         @media(max-width:1100px){ .trending-sidebar { width:256px; min-width:256px; } }
         @media(max-width:768px) { .trending-sidebar:not(.trending-mobile-fullscreen){ display:none !important; } }
@@ -546,9 +586,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         /* ── MOBILE HEADER ── */
         .mob-hdr {
           position:sticky; top:0; z-index:10;
-          /* FIX: was #000 — same as bg. Now #111. */
           background:#111;
-          /* FIX: was rgba(132,204,22,.15) — invisible. Now .28. */
           border-bottom:1px solid rgba(132,204,22,.28);
           padding:12px 16px; display:flex; align-items:center; justify-content:space-between;
         }
@@ -556,7 +594,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .mob-hdr-title svg { color:#84cc16; }
         .mob-close {
           width:34px; height:34px; border-radius:50%;
-          /* FIX: was rgba(255,255,255,.05) — invisible. Now .1. */
           background:rgba(255,255,255,.1);
           border:1px solid rgba(255,255,255,.15);
           color:#c0c0c0; display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -574,9 +611,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-icon-pill.gold { background:rgba(251,191,36,.12); border-color:rgba(251,191,36,.3); }
 
         .ts-title-block { display:flex; flex-direction:column; gap:1px; }
-        /* FIX: was #e5e5e5 — fine; bumped to #f0f0f0 for crispness */
         .ts-title    { font-size:11px; font-weight:800; color:#f0f0f0; letter-spacing:.5px; text-transform:uppercase; line-height:1; }
-        /* FIX: was #484848 — invisible. Now #6b7280, clearly readable. */
         .ts-subtitle { font-size:10px; color:#6b7280; font-weight:500; line-height:1; margin-top:2px; }
 
         .ts-live-count { display:flex; align-items:center; gap:3px; padding:2px 7px; border-radius:5px; background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.3); font-size:9px; font-weight:800; color:#ef4444; }
@@ -592,9 +627,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .streamer-list { display:flex; flex-direction:column; gap:5px; }
         .streamer-row {
           display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
-          /* FIX: was rgba(255,255,255,.025) — invisible card. Now .06. */
           background:rgba(255,255,255,.06);
-          /* FIX: was rgba(255,255,255,.05) — invisible border. Now .12. */
           border:1px solid rgba(255,255,255,.12);
           cursor:pointer; transition:all .2s;
         }
@@ -603,18 +636,14 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .streamer-avatar { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#525252,#2a2a2a); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:12px; overflow:hidden; border:1.5px solid rgba(255,255,255,.18); }
         .streamer-avatar img { width:100%; height:100%; object-fit:cover; }
         .streamer-info { flex:1; min-width:0; }
-        /* FIX: was #d4d4d4 — bumped to #e8e8e8 */
         .streamer-name { font-size:12px; font-weight:700; color:#e8e8e8; display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; margin-bottom:2px; }
         .streamer-row:hover .streamer-name { color:#fff; }
-        /* FIX: was #454545 — invisible. Now #7a7a7a. */
         .streamer-meta { display:flex; align-items:center; gap:4px; font-size:10px; color:#7a7a7a; white-space:nowrap; overflow:hidden; }
         .streamer-meta svg { opacity:.8; flex-shrink:0; }
-        /* FIX: was #2a2a2a — invisible arrow. Now #555. */
         .streamer-arrow { color:#555; flex-shrink:0; transition:all .2s; }
         .streamer-row:hover .streamer-arrow { color:#ef4444; transform:translateX(2px); }
 
         /* ── LIVE NOW STRIP ── */
-        /* FIX: was rgba(239,68,68,.03) — invisible section bg. Now .07. */
         .ts-live-strip { background:rgba(239,68,68,.07); border:1px solid rgba(239,68,68,.16); border-radius:11px; padding:9px 9px 3px; }
         .sc-scroll { display:flex; flex-direction:row; gap:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; padding:2px 0 8px; }
         .sc-scroll::-webkit-scrollbar { display:none; }
@@ -622,7 +651,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .sc-card:hover { transform:translateY(-2px); } .sc-card:active { transform:scale(.93); }
         .sc-card.sc-own { opacity:.45; cursor:default; pointer-events:none; }
         .sc-ring-wrap { position:relative; width:50px; height:50px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        /* FIX: was #0a0a0a — same as dark bg. Now #1a1a1a. */
         .sc-ring { position:absolute; inset:0; border-radius:50%; overflow:hidden; background:#1a1a1a; }
         .sc-spin { position:absolute; top:50%; left:50%; width:200%; height:200%; margin:-100% 0 0 -100%; background:conic-gradient(#ef4444 0deg,#fb7185 40%,#ef4444 360deg); animation:scSpin 4s linear infinite; z-index:0; }
         @keyframes scSpin { to{transform:rotate(360deg)} }
@@ -632,15 +660,11 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .sc-avatar-inner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; z-index:1; transition:opacity .2s; }
         .sc-pulse { position:absolute; inset:0; border-radius:50%; border:2px solid rgba(239,68,68,.4); animation:scPulse 2s ease-out infinite; pointer-events:none; z-index:0; }
         @keyframes scPulse { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.55);opacity:0} }
-        /* FIX: was #0a0a0a border — invisible. Now #1a1a1a. */
         .sc-dot { position:absolute; bottom:1px; right:1px; width:10px; height:10px; border-radius:50%; background:#ef4444; border:2px solid #1a1a1a; animation:scBlink 1.4s ease-in-out infinite; z-index:2; }
         @keyframes scBlink { 0%,100%{opacity:1} 50%{opacity:.4} }
-        /* FIX: was rgba(0,0,0,.88) bg — invisible. Now rgba(20,20,20,.92). */
         .sc-chip { position:absolute; top:-3px; right:-5px; display:flex; align-items:center; gap:2px; padding:2px 4px; border-radius:4px; background:rgba(20,20,20,.92); border:1px solid rgba(255,255,255,.18); font-size:7.5px; font-weight:800; color:#c4c4c4; z-index:3; white-space:nowrap; }
-        /* FIX: was #c4c4c4 — ok; sc-name bumped to #d0d0d0 */
         .sc-name { font-size:10px; font-weight:700; color:#d0d0d0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px; text-align:center; line-height:1.3; transition:color .15s; }
         .sc-card:hover .sc-name { color:#fff; }
-        /* FIX: was #363636 — invisible. Now #5a5a5a. */
         .sc-cat { font-size:8px; font-weight:500; color:#5a5a5a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54px; text-align:center; }
 
         /* ── TAG ROWS ── */
@@ -652,19 +676,15 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           cursor:pointer; transition:all .2s;
         }
         .tag-row:hover { background:rgba(132,204,22,.1); border-color:rgba(132,204,22,.3); transform:translateX(2px); }
-        /* FIX: was rgba(255,255,255,.05) bg — invisible. Now .09. */
         .tag-num { width:24px; height:24px; border-radius:7px; background:rgba(255,255,255,.09); color:#888; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .tag-num.hot { background:rgba(239,68,68,.18); color:#ef4444; }
         .tag-body { flex:1; min-width:0; }
         .tag-name { font-size:12px; font-weight:700; color:#e8e8e8; display:block; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
         .tag-row:hover .tag-name { color:#fff; }
-        /* FIX: was #454545 — invisible. Now #7a7a7a. */
         .tag-meta { display:flex; align-items:center; gap:5px; font-size:10px; color:#7a7a7a; flex-wrap:wrap; }
         .tag-meta svg { opacity:.7; }
         .hot-chip { font-size:9px; font-weight:800; padding:1px 5px; background:rgba(239,68,68,.18); color:#ef4444; border-radius:4px; }
-        /* FIX: was #2e2e2e — invisible dot. Now #555. */
         .dot { color:#555; }
-        /* FIX: was rgba(255,255,255,.04) bg, rgba(255,255,255,.07) border — invisible. */
         .tag-drill-btn { width:26px; height:26px; border-radius:7px; flex-shrink:0; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); color:#888; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
         .tag-row:hover .tag-drill-btn { background:rgba(132,204,22,.14); border-color:rgba(132,204,22,.35); color:#84cc16; }
 
@@ -689,15 +709,12 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .creator-name { font-size:12px; font-weight:700; color:#e8e8e8; display:flex; align-items:center; gap:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .2s; }
         .creator-row:hover .creator-name { color:#fff; }
         .v-badge { width:14px; height:14px; background:#84cc16; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        /* FIX: was #404040 — invisible. Now #7a7a7a. */
         .creator-meta { display:flex; align-items:center; gap:4px; font-size:10px; color:#7a7a7a; margin-top:2px; white-space:nowrap; overflow:hidden; }
         .accent { color:#84cc16; font-weight:700; }
-        /* FIX: was #2a2a2a — invisible arrow. Now #555. */
         .creator-arrow { color:#555; flex-shrink:0; transition:all .2s; }
         .creator-row:hover .creator-arrow { color:#84cc16; transform:translateX(2px); }
 
         /* ── VIEW MORE BUTTONS ── */
-        /* FIX: was rgba(132,204,22,.05) bg, rgba(132,204,22,.2) border — barely visible. */
         .view-more-btn { width:100%; margin-top:7px; padding:8px 12px; background:rgba(132,204,22,.08); border:1px dashed rgba(132,204,22,.3); border-radius:9px; color:#84cc16; font-size:11px; font-weight:700; cursor:pointer; transition:all .22s; display:flex; align-items:center; justify-content:center; gap:6px; }
         .view-more-btn:hover { background:rgba(132,204,22,.14); border-color:#84cc16; border-style:solid; transform:translateY(-1px); box-shadow:0 4px 14px rgba(132,204,22,.15); }
         .view-more-btn.red { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.3); color:#ef4444; }
@@ -706,7 +723,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         /* ── EMPTY STATES ── */
         .empty-state { text-align:center; padding:20px; color:#555; }
         .empty-icon  { font-size:28px; margin-bottom:6px; opacity:.5; }
-        /* FIX: was #333 — invisible. Now #888. */
         .empty-text  { font-size:12px; font-weight:600; color:#888; }
 
         /* ── SLIDING PANEL ── */
@@ -714,7 +730,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         .sp-panel {
           position:fixed; right:0; bottom:0; width:min(440px,92vw);
-          /* FIX: was #0b0b0b — same as dark bg. Now #141414. */
           background:#141414;
           border-left:1px solid rgba(132,204,22,.22);
           border-top:1px solid rgba(255,255,255,.08);
@@ -726,14 +741,12 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .sp-hdr-left { display:flex; align-items:center; gap:10px; }
         .sp-icon { width:28px; height:28px; border-radius:8px; border:1px solid; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .sp-title    { font-size:13px; font-weight:800; color:#f0f0f0; }
-        /* FIX: was #484848 — invisible. Now #6b7280. */
         .sp-subtitle { font-size:10px; color:#6b7280; font-weight:500; margin-top:1px; }
         .sp-close { width:27px; height:27px; border-radius:8px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#888; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .18s; }
         .sp-close:hover { background:rgba(255,255,255,.14); color:#f0f0f0; transform:rotate(90deg); }
         .sp-body { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:5px; }
         .sp-body::-webkit-scrollbar { width:3px; }
         .sp-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,.3); border-radius:2px; }
-        /* FIX: was rgba(255,255,255,.03) bg, rgba(255,255,255,.06) border — invisible. */
         .sp-back { display:flex; align-items:center; gap:7px; padding:7px 10px; margin-bottom:4px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:9px; color:#888; font-size:11px; font-weight:700; cursor:pointer; transition:all .18s; width:100%; }
         .sp-back:hover { background:rgba(132,204,22,.1); border-color:rgba(132,204,22,.28); color:#84cc16; }
         .nav-hint { display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:4px; background:rgba(132,204,22,.07); border:1px solid rgba(132,204,22,.2); border-radius:9px; font-size:10.5px; color:#84cc16; font-weight:600; }
@@ -750,18 +763,12 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .pp-avatar { width:20px; height:20px; border-radius:50%; background:rgba(132,204,22,.25); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#84cc16; }
         .pp-avatar img { width:100%; height:100%; object-fit:cover; }
         .pp-author-info { flex:1; min-width:0; }
-        /* FIX: was #d4d4d4 — bumped to #e8e8e8 */
         .pp-author-name   { font-size:11px; font-weight:700; color:#e8e8e8; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        /* FIX: was #484848 — invisible. Now #7a7a7a. */
         .pp-author-handle { font-size:9.5px; color:#7a7a7a; }
-        /* FIX: was rgba(255,255,255,.06) bg, #525252 text — murky. Now .1 bg, #888 text. */
         .pp-type-badge { display:flex; align-items:center; gap:3px; padding:2px 5px; background:rgba(255,255,255,.1); border-radius:5px; font-size:9px; font-weight:700; color:#888; flex-shrink:0; text-transform:capitalize; }
-        /* FIX: was #606060 — low contrast. Now #7a7a7a. */
         .pp-caption { font-size:11px; color:#7a7a7a; margin:0 0 4px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-        /* FIX: was #404040 — invisible. Now #666. */
         .pp-stats { display:flex; gap:10px; font-size:10px; color:#666; }
         .pp-stats span { display:flex; align-items:center; gap:3px; }
-        /* FIX: was #2a2a2a — invisible arrow. Now #555. */
         .pp-arrow { color:#555; flex-shrink:0; transition:all .2s; }
         .pp-card:hover .pp-arrow { color:#84cc16; transform:translateX(2px); }
       `}</style>
@@ -773,11 +780,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         {!isMobile && (
           <div style={{
             position: "sticky", top: 0, zIndex: 5,
-            /* FIX: was #080808 — same as page. Now #111 for visible surface. */
             background: "#111",
             padding: "10px 12px 10px 12px",
             marginBottom: 0,
-            /* FIX: was rgba(132,204,22,0.08) — invisible. Now .2. */
             borderBottom: "1px solid rgba(132,204,22,0.2)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
@@ -785,7 +790,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
               <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.15)", border: "1px solid rgba(132,204,22,.32)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <TrendingUp size={13} color="#84cc16" />
               </div>
-              {/* FIX: was #d4d4d4 — bumped to #f0f0f0 */}
               <span style={{ fontSize: 12, fontWeight: 800, color: "#f0f0f0", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
             </div>
             <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh">
@@ -834,8 +838,8 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
             )}
           </div>
 
-          {/* ── LIVE NOW ── */}
-          {!liveLoading && liveSessions.length > 0 && (
+          {/* ── LIVE NOW — always rendered when sessions exist, loading handled gracefully ── */}
+          {liveSessions.length > 0 && (
             <div className="ts-section ts-live-strip" style={{ "--ha": "#ef4444" }}>
               <div className="ts-header">
                 <div className="ts-header-left">

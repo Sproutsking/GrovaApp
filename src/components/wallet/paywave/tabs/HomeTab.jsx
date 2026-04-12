@@ -1,140 +1,81 @@
-// paywave/tabs/HomeTab.jsx
-// ─────────────────────────────────────────────────────────────
-// PURE ₦ NAIRA. No EP. No XEV.
-//
-// REDESIGN v2 — Premium fintech aesthetic:
-//   • Sculptural balance hero card with animated glow and texture
-//   • Lime accent strip + status indicators
-//   • Premium quick-action grid with color-glowing icons
-//   • Polished "free transfer" announcement bar
-//   • Distinctive recent-activity section header
-//   • Improved transaction row typography
-// ─────────────────────────────────────────────────────────────
+// paywave/tabs/HomeTab.jsx  ── v3 REFINED EDITION
+// Obsidian hero card. Surgical spacing. Lime signal.
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Bell,
-  Eye,
-  EyeOff,
-  Send,
-  Download,
-  Smartphone,
-  Wifi,
-  Tv,
-  Zap,
-  FileText,
-  ChevronRight,
-  ArrowLeft,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Wallet,
+  Bell, Eye, EyeOff, Send, Download,
+  Smartphone, Wifi, Tv, Zap, FileText,
+  ChevronRight, ArrowLeft, RefreshCw,
+  ArrowUpRight, ArrowDownLeft, Wallet,
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import { useAuth } from "../../../../components/Auth/AuthContext";
 
 const fmtNGN = (n) =>
-  Number(n || 0).toLocaleString("en-NG", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  Number(n||0).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});
 
-const iconFor = (reason = "") => {
+const iconFor = (reason="") => {
   const r = reason.toLowerCase();
-  if (r.includes("airtime")) return Smartphone;
-  if (r.includes("data")) return Wifi;
-  if (r.includes("tv") || r.includes("cable")) return Tv;
-  if (r.includes("electric") || r.includes("bill")) return FileText;
-  if (r.includes("received") || r.includes("credit")) return ArrowDownLeft;
+  if (r.includes("airtime"))                          return Smartphone;
+  if (r.includes("data"))                             return Wifi;
+  if (r.includes("tv")||r.includes("cable"))          return Tv;
+  if (r.includes("electric")||r.includes("bill"))     return FileText;
+  if (r.includes("received")||r.includes("credit"))   return ArrowDownLeft;
   return ArrowUpRight;
 };
 
-// ── Keyframe CSS injected once ────────────────────────────────
-const HOMETAB_CSS = `
-  @keyframes ht-pulse {
-    0%,100% { opacity: .6; transform: scale(1); }
-    50%     { opacity: 1;  transform: scale(1.04); }
-  }
-  @keyframes ht-glow {
-    0%,100% { box-shadow: 0 0 32px rgba(163,230,53,0.06), 0 24px 60px rgba(0,0,0,0.55); }
-    50%     { box-shadow: 0 0 56px rgba(163,230,53,0.14), 0 24px 60px rgba(0,0,0,0.55); }
-  }
-  @keyframes ht-orb {
-    0%,100% { transform: translateY(0) scale(1); }
-    50%     { transform: translateY(-12px) scale(1.06); }
-  }
-  @keyframes ht-shimmer {
-    0%   { left: -100%; }
-    100% { left: 160%; }
-  }
-  @keyframes ht-fadein {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .ht-card-wrap { animation: ht-glow 4s ease-in-out infinite; }
+const CSS = `
+  @keyframes ht-live { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:1;transform:scale(1.18)} }
+  @keyframes ht-glow { 0%,100%{box-shadow:0 0 28px rgba(163,230,53,0.05),0 20px 50px rgba(0,0,0,0.5)} 50%{box-shadow:0 0 48px rgba(163,230,53,0.12),0 20px 50px rgba(0,0,0,0.5)} }
+  @keyframes ht-orb  { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-10px) scale(1.05)} }
+  @keyframes ht-sweep { 0%{left:-100%} 100%{left:160%} }
+  @keyframes ht-up   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .ht-card { animation: ht-glow 4.5s ease-in-out infinite; }
   .ht-orb1 { animation: ht-orb 7s ease-in-out infinite; }
-  .ht-orb2 { animation: ht-orb 9s ease-in-out 1.5s infinite reverse; }
-  .ht-row  { animation: ht-fadein .3s ease both; }
-  .ht-shimmer-line {
-    position: absolute; top: 0; left: -100%; width: 55%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.035), transparent);
-    transform: skewX(-18deg);
-    animation: ht-shimmer 5s ease-in-out 2s infinite;
-    pointer-events: none;
+  .ht-orb2 { animation: ht-orb 9s ease-in-out 1.8s infinite reverse; }
+  .ht-row  { animation: ht-up .28s ease both; }
+  .ht-sweep {
+    position:absolute; top:0; left:-100%; width:50%; height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.028),transparent);
+    transform:skewX(-18deg);
+    animation: ht-sweep 6s ease-in-out 2.5s infinite;
+    pointer-events:none;
   }
 `;
 
 export default function HomeTab({
-  pwBalance,
-  showBalance,
-  setShowBalance,
-  notifications,
-  setPage,
-  onBack,
-  onRefresh,
+  pwBalance, showBalance, setShowBalance,
+  notifications, setPage, onBack, onRefresh,
 }) {
   const { profile } = useAuth();
-  const [recentTxs, setRecentTxs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [recentTxs, setRecentTxs]   = useState([]);
+  const [loading, setLoading]        = useState(true);
+  const [refreshing, setRefreshing]  = useState(false);
+  const [unreadCount, setUnreadCount]= useState(0);
 
   const fetchUnread = useCallback(async () => {
     if (!profile?.id) return;
     try {
       const { count } = await supabase
         .from("notifications")
-        .select("id", { count: "exact", head: true })
+        .select("id",{count:"exact",head:true})
         .eq("recipient_user_id", profile.id)
         .eq("is_read", false)
-        .contains("metadata", { category: "paywave" });
+        .contains("metadata",{category:"paywave"});
       setUnreadCount(count ?? 0);
     } catch {
-      setUnreadCount((notifications || []).filter((n) => !n.read).length);
+      setUnreadCount((notifications||[]).filter(n=>!n.read).length);
     }
   }, [profile?.id, notifications]);
 
-  useEffect(() => {
-    fetchUnread();
-  }, [fetchUnread]);
+  useEffect(() => { fetchUnread(); }, [fetchUnread]);
 
   useEffect(() => {
     if (!profile?.id) return;
-    const channel = supabase
-      .channel(`hw_unread:${profile.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient_user_id=eq.${profile.id}`,
-        },
-        () => {
-          fetchUnread();
-        },
-      )
+    const ch = supabase.channel(`hw_unread:${profile.id}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"notifications",
+        filter:`recipient_user_id=eq.${profile.id}`}, () => fetchUnread())
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => supabase.removeChannel(ch);
   }, [profile?.id, fetchUnread]);
 
   const fetchRecent = useCallback(async () => {
@@ -142,37 +83,23 @@ export default function HomeTab({
     try {
       const { data } = await supabase
         .from("wallet_history")
-        .select("id, change_type, reason, amount, created_at, wallet_type")
+        .select("id,change_type,reason,amount,created_at,wallet_type")
         .eq("user_id", profile.id)
-        .in("wallet_type", ["paywave", "naira", null])
-        .order("created_at", { ascending: false })
+        .in("wallet_type",["paywave","naira",null])
+        .order("created_at",{ascending:false})
         .limit(5);
-
-      setRecentTxs(
-        (data || []).map((tx) => ({
-          id: tx.id,
-          type: tx.change_type,
-          title:
-            tx.reason ||
-            (tx.change_type === "credit" ? "Received ₦" : "Sent ₦"),
-          amount: Number(tx.amount),
-          date: new Date(tx.created_at).toLocaleDateString("en-NG", {
-            month: "short",
-            day: "numeric",
-          }),
-        })),
-      );
-    } catch (err) {
-      console.error("HomeTab recent tx:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      setRecentTxs((data||[]).map(tx=>({
+        id:    tx.id,
+        type:  tx.change_type,
+        title: tx.reason||(tx.change_type==="credit"?"Received ₦":"Sent ₦"),
+        amount:Number(tx.amount),
+        date:  new Date(tx.created_at).toLocaleDateString("en-NG",{month:"short",day:"numeric"}),
+      })));
+    } catch {}
+    finally { setLoading(false); setRefreshing(false); }
   }, [profile?.id]);
 
-  useEffect(() => {
-    fetchRecent();
-  }, [fetchRecent]);
+  useEffect(() => { fetchRecent(); }, [fetchRecent]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -182,656 +109,298 @@ export default function HomeTab({
   };
 
   const displayName = profile?.full_name || profile?.username || "User";
-  const initials = displayName
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials    = displayName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+  const QUICK = [
+    { icon:Smartphone, label:"Airtime",  page:"airtime",     grad:"linear-gradient(145deg,#9333ea,#6d28d9)", glow:"rgba(147,51,234,0.4)"  },
+    { icon:Wifi,        label:"Data",     page:"data",        grad:"linear-gradient(145deg,#2563eb,#1d4ed8)", glow:"rgba(37,99,235,0.4)"   },
+    { icon:Tv,          label:"TV",       page:"tv",          grad:"linear-gradient(145deg,#ea580c,#c2410c)", glow:"rgba(234,88,12,0.4)"   },
+    { icon:FileText,    label:"Bills",    page:"bills",       grad:"linear-gradient(145deg,#d4a847,#b45309)", glow:"rgba(212,168,71,0.4)"  },
+  ];
 
   return (
     <div className="pw-scroll-px">
-      <style>{HOMETAB_CSS}</style>
+      <style>{CSS}</style>
 
-      {/* ───────────────────────────────────────────────────────
-          TOP BAR: [← Back]  [PayWave brand]  [refresh][bell]
-      ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          paddingTop: 16,
-          paddingBottom: 14,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        {/* Back */}
-        <button className="pw-back" onClick={onBack} title="Back">
-          <ArrowLeft size={14} />
+      {/* ── TOP BAR ── */}
+      <div style={{
+        paddingTop:12, paddingBottom:10,
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+      }}>
+        <button className="pw-back-btn" onClick={onBack} title="Back">
+          <ArrowLeft size={12} />
         </button>
 
-        {/* Brand wordmark — centered */}
-        <div style={{ flex: 1, textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-            <div
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 7,
-                background: "linear-gradient(135deg, #a3e635, #65a30d)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 12px rgba(163,230,53,0.35)",
-                flexShrink: 0,
-              }}
-            >
-              <Zap size={12} color="#080e03" strokeWidth={2.5} />
+        {/* Brand */}
+        <div style={{ flex:1, textAlign:"center" }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+            <div style={{
+              width:22, height:22, borderRadius:6,
+              background:"linear-gradient(135deg,#a3e635,#65a30d)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              boxShadow:"0 3px 10px rgba(163,230,53,0.3)", flexShrink:0,
+            }}>
+              <Zap size={11} color="#060e02" strokeWidth={2.5} />
             </div>
-            <span
-              style={{
-                fontFamily: "var(--font-d)",
-                fontSize: 17,
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                background:
-                  "linear-gradient(135deg, #bef264 0%, #a3e635 50%, #65a30d 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              PayWave
-            </span>
+            <span style={{
+              fontFamily:"var(--fd)", fontSize:15, fontWeight:800, letterSpacing:"-0.04em",
+              background:"linear-gradient(135deg,#c8f564 0%,#a3e635 50%,#65a30d 100%)",
+              WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
+            }}>PayWave</span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <button
-            className="xpw__ic-chip"
-            onClick={handleRefresh}
-            title="Refresh"
-            style={{ opacity: refreshing ? 0.5 : 1 }}
-          >
-            <RefreshCw
-              size={12}
-              style={{
-                animation: refreshing ? "pw-spin 0.8s linear infinite" : "none",
-              }}
-            />
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <button className="ic-chip" onClick={handleRefresh} title="Refresh"
+            style={{ opacity:refreshing ? 0.45 : 1 }}>
+            <RefreshCw size={11} style={{ animation:refreshing?"pw-spin 0.8s linear infinite":"none" }} />
           </button>
-          <button className="xpw__ic-chip" onClick={() => setPage("notifications")}>
-            <Bell size={13} />
-            {unreadCount > 0 && (
-              <div className="xpw__notif-pip">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </div>
-            )}
+          <button className="ic-chip" onClick={() => setPage("notifications")}>
+            <Bell size={12} />
+            {unreadCount > 0 && <div className="notif-pip">{unreadCount > 9 ? "9+" : unreadCount}</div>}
           </button>
         </div>
       </div>
 
-      {/* ───────────────────────────────────────────────────────
-          BALANCE HERO CARD — sculptural premium design
-      ─────────────────────────────────────────────────────── */}
-      <div
-        className="ht-card-wrap"
-        style={{
-          borderRadius: 22,
-          marginBottom: 16,
-          position: "relative",
-          overflow: "hidden",
-          background:
-            "linear-gradient(155deg, #0e1a0a 0%, #0b1309 40%, #070d05 100%)",
-          border: "1px solid rgba(163,230,53,0.18)",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
-        }}
-      >
-        {/* Lime top accent strip */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background:
-              "linear-gradient(90deg, transparent 0%, #84cc16 20%, #a3e635 50%, #65a30d 80%, transparent 100%)",
-          }}
-        />
+      {/* ── HERO BALANCE CARD ── */}
+      <div className="ht-card" style={{
+        borderRadius:20, marginBottom:12, position:"relative",
+        overflow:"hidden",
+        background:"linear-gradient(158deg,#0e1c0a 0%,#0b1509 40%,#060d05 100%)",
+        border:"1px solid rgba(163,230,53,0.17)",
+      }}>
+        {/* Lime top strip */}
+        <div style={{
+          position:"absolute", top:0, left:0, right:0, height:2,
+          background:"linear-gradient(90deg,transparent,#84cc16 25%,#a3e635 50%,#65a30d 80%,transparent)",
+        }} />
+        {/* Orbs */}
+        <div className="ht-orb1" style={{
+          position:"absolute", top:-45, right:-35, width:170, height:170,
+          borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(163,230,53,0.07) 0%,transparent 70%)",
+          filter:"blur(24px)", pointerEvents:"none",
+        }} />
+        <div className="ht-orb2" style={{
+          position:"absolute", bottom:-35, left:5, width:130, height:130,
+          borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(212,168,71,0.06) 0%,transparent 70%)",
+          filter:"blur(20px)", pointerEvents:"none",
+        }} />
+        <div className="ht-sweep" />
 
-        {/* Decorative background orbs */}
-        <div
-          className="ht-orb1"
-          style={{
-            position: "absolute",
-            top: -50,
-            right: -30,
-            width: 200,
-            height: 200,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(163,230,53,0.07) 0%, transparent 70%)",
-            filter: "blur(30px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          className="ht-orb2"
-          style={{
-            position: "absolute",
-            bottom: -40,
-            left: 10,
-            width: 160,
-            height: 160,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(212,168,71,0.06) 0%, transparent 70%)",
-            filter: "blur(24px)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Subtle shimmer sweep */}
-        <div className="ht-shimmer-line" />
-
-        {/* Card content */}
-        <div style={{ position: "relative", padding: "20px 20px 18px" }}>
-          {/* Top row: label + eye toggle */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 14,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Avatar chip */}
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
-                  background: "linear-gradient(135deg, #a3e635, #65a30d)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "var(--font-d)",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: "#080e03",
-                  flexShrink: 0,
-                  boxShadow: "0 4px 12px rgba(163,230,53,0.3)",
-                }}
-              >
-                {initials[0] || "U"}
-              </div>
+        <div style={{ position:"relative", padding:"16px 16px 14px" }}>
+          {/* Meta row */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+              <div style={{
+                width:28, height:28, borderRadius:7,
+                background:"linear-gradient(135deg,#a3e635,#65a30d)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontFamily:"var(--fd)", fontSize:10, fontWeight:800, color:"#060e02",
+                flexShrink:0, boxShadow:"0 3px 9px rgba(163,230,53,0.28)",
+              }}>{initials[0]||"U"}</div>
               <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(163,230,53,0.6)",
-                    fontFamily: "var(--font-d)",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Naira Balance
-                </div>
-                <div
-                  style={{
-                    fontSize: 9.5,
-                    color: "rgba(255,255,255,0.3)",
-                    fontFamily: "var(--font-b)",
-                    marginTop: 1,
-                  }}
-                >
+                <span style={{
+                  fontSize:"9px", color:"rgba(163,230,53,0.6)",
+                  fontFamily:"var(--fd)", fontWeight:700,
+                  letterSpacing:"0.07em", textTransform:"uppercase", display:"block",
+                }}>Naira Balance</span>
+                <span style={{ fontSize:"8.5px", color:"var(--t3)", display:"block", marginTop:"1px" }}>
                   {displayName}
-                </div>
+                </span>
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {/* Live indicator */}
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: "50%",
-                    background: "#a3e635",
-                    boxShadow: "0 0 6px rgba(163,230,53,0.9)",
-                    animation: "ht-pulse 2.5s ease-in-out infinite",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: "rgba(163,230,53,0.55)",
-                    fontFamily: "var(--font-d)",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                  }}
-                >
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                <div style={{
+                  width:5, height:5, borderRadius:"50%",
+                  background:"#a3e635",
+                  boxShadow:"0 0 5px rgba(163,230,53,0.9)",
+                  animation:"ht-live 2.5s ease-in-out infinite",
+                }} />
+                <span style={{ fontSize:"8.5px", color:"rgba(163,230,53,0.5)",
+                  fontFamily:"var(--fd)", fontWeight:700, letterSpacing:"0.07em" }}>
                   LIVE
                 </span>
               </div>
-
               {/* Eye toggle */}
-              <button
-                onClick={() => setShowBalance(!showBalance)}
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 7,
-                  width: 28,
-                  height: 28,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "rgba(255,255,255,0.4)",
-                  transition: "all .15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(163,230,53,0.1)";
-                  e.currentTarget.style.color = "#a3e635";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.4)";
-                }}
-              >
-                {showBalance ? <Eye size={12} /> : <EyeOff size={12} />}
+              <button onClick={() => setShowBalance(!showBalance)} style={{
+                background:"rgba(255,255,255,0.045)",
+                border:"1px solid rgba(255,255,255,0.09)",
+                borderRadius:6, width:25, height:25,
+                cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                color:"var(--t3)", transition:"all .14s",
+              }}>
+                {showBalance ? <Eye size={10} /> : <EyeOff size={10} />}
               </button>
             </div>
           </div>
 
-          {/* Balance number */}
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontFamily: "var(--font-d)",
-                fontSize: 42,
-                fontWeight: 800,
-                letterSpacing: "-0.05em",
-                lineHeight: 1,
-                color: showBalance ? "#ffffff" : "rgba(255,255,255,0)",
-                textShadow: showBalance
-                  ? "0 2px 16px rgba(255,255,255,0.08)"
-                  : "none",
-                WebkitTextStroke: showBalance
-                  ? "0px"
-                  : "2px rgba(255,255,255,0.12)",
-                transition: "all .3s",
-              }}
-            >
+          {/* Balance */}
+          <div style={{ marginBottom:12 }}>
+            <div style={{
+              fontFamily:"var(--fd)", fontSize:36, fontWeight:800,
+              letterSpacing:"-0.05em", lineHeight:1, color:"#fff",
+              textShadow:showBalance?"0 2px 12px rgba(255,255,255,0.06)":"none",
+              WebkitTextStroke:showBalance?"0px":"2px rgba(255,255,255,0.1)",
+              transition:"all .28s",
+            }}>
               {showBalance ? `₦${fmtNGN(pwBalance)}` : "₦ ••••••"}
             </div>
-
-            {/* Sub-labels row */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginTop: 8,
-              }}
-            >
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "3px 9px",
-                  borderRadius: 20,
-                  background: "rgba(163,230,53,0.1)",
-                  border: "1px solid rgba(163,230,53,0.2)",
-                }}
-              >
-                <Zap size={9} color="#a3e635" />
-                <span
-                  style={{
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    color: "rgba(163,230,53,0.8)",
-                    letterSpacing: "0.05em",
-                    fontFamily: "var(--font-d)",
-                  }}
-                >
-                  ZERO FEES
-                </span>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:7 }}>
+              <div style={{
+                display:"inline-flex", alignItems:"center", gap:3,
+                padding:"2px 8px", borderRadius:20,
+                background:"rgba(163,230,53,0.09)", border:"1px solid rgba(163,230,53,0.18)",
+              }}>
+                <Zap size={8} color="#a3e635" />
+                <span style={{ fontSize:"8.5px", fontWeight:700, color:"rgba(163,230,53,0.75)",
+                  letterSpacing:"0.05em", fontFamily:"var(--fd)" }}>ZERO FEES</span>
               </div>
-              <button
-                onClick={() => setPage("transactions")}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "rgba(255,255,255,0.3)",
-                  fontSize: 11,
-                  fontFamily: "var(--font-b)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  padding: 0,
-                  transition: "color .15s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = "rgba(163,230,53,0.7)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "rgba(255,255,255,0.3)")
-                }
-              >
-                View History <ChevronRight size={11} />
+              <button onClick={() => setPage("transactions")} style={{
+                background:"transparent", border:"none", cursor:"pointer",
+                color:"var(--t3)", fontSize:"10.5px", fontFamily:"var(--fb)",
+                display:"flex", alignItems:"center", gap:2, padding:0, transition:"color .14s",
+              }}>
+                View history <ChevronRight size={10} />
               </button>
             </div>
           </div>
 
-          {/* Action buttons — .xpw__btn-pair ensures identical height, .xpw__btn-dark matches .xpw__btn-primary height exactly */}
-          <div className="xpw__btn-pair">
-            <button
-              className="xpw__btn-primary"
-              onClick={() => setPage("send")}
-            >
-              <Send size={14} /> Send ₦
+          {/* Action buttons */}
+          <div className="btn-pair">
+            <button className="btn-p" onClick={() => setPage("send")}>
+              <Send size={12} /> Send ₦
             </button>
-            <button
-              className="xpw__btn-dark"
-              onClick={() => setPage("receive")}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-              }}
-            >
-              <Download size={14} /> Receive
+            <button className="btn-dk" onClick={() => setPage("receive")}>
+              <Download size={12} /> Receive
             </button>
           </div>
         </div>
       </div>
 
-      {/* ───────────────────────────────────────────────────────
-          FREE TRANSFER ANNOUNCEMENT STRIP
-      ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
-          padding: "9px 13px",
-          borderRadius: 12,
-          background: "rgba(163,230,53,0.04)",
-          border: "1px solid rgba(163,230,53,0.1)",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 7,
-            flexShrink: 0,
-            background: "rgba(163,230,53,0.12)",
-            border: "1px solid rgba(163,230,53,0.2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Zap size={12} color="#a3e635" />
+      {/* ── ANNOUNCE STRIP ── */}
+      <div style={{
+        display:"flex", alignItems:"center", gap:8,
+        padding:"8px 11px", borderRadius:10,
+        background:"rgba(163,230,53,0.04)",
+        border:"1px solid rgba(163,230,53,0.09)",
+        marginBottom:16,
+      }}>
+        <div style={{
+          width:22, height:22, borderRadius:6, flexShrink:0,
+          background:"rgba(163,230,53,0.11)", border:"1px solid rgba(163,230,53,0.18)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+        }}>
+          <Zap size={10} color="#a3e635" />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              fontSize: 11.5,
-              color: "rgba(255,255,255,0.55)",
-              fontFamily: "var(--font-b)",
-              lineHeight: 1.5,
-            }}
-          >
-            Send ₦ to any Xeevia user —{" "}
-            <strong style={{ color: "var(--lime)" }}>completely free</strong>.
-            Only OPay external sends carry a fee.
-          </span>
-        </div>
+        <span style={{ fontSize:"10.5px", color:"var(--t2)", fontFamily:"var(--fb)", lineHeight:1.5 }}>
+          Send ₦ to any Xeevia user —{" "}
+          <strong style={{ color:"var(--lime)" }}>completely free</strong>.
+          Only OPay external sends carry a fee.
+        </span>
       </div>
 
-      {/* ───────────────────────────────────────────────────────
-          QUICK ACTIONS — FIX: Bills → "bills" page, FileText icon
-      ─────────────────────────────────────────────────────── */}
-      <div className="xpw__quick-grid">
-        {[
-          {
-            icon: Smartphone,
-            label: "Airtime",
-            page: "airtime",
-            grad: "linear-gradient(145deg,#9333ea,#6d28d9)",
-            glow: "rgba(147,51,234,0.45)",
-          },
-          {
-            icon: Wifi,
-            label: "Data",
-            page: "data",
-            grad: "linear-gradient(145deg,#2563eb,#1d4ed8)",
-            glow: "rgba(37,99,235,0.45)",
-          },
-          {
-            icon: Tv,
-            label: "TV",
-            page: "tv",
-            grad: "linear-gradient(145deg,#ea580c,#c2410c)",
-            glow: "rgba(234,88,12,0.45)",
-          },
-          {
-            icon: FileText,
-            label: "Bills",
-            page: "bills",
-            grad: "linear-gradient(145deg,#d4a847,#b45309)",
-            glow: "rgba(212,168,71,0.45)",
-          },
-        ].map((item, i) => (
-          <button
-            key={i}
-            className="xpw__quick-btn"
-            onClick={() => setPage(item.page)}
-          >
-            <div
-              className="xpw__quick-icon"
-              style={{
-                background: item.grad,
-                width: 58,
-                height: 58,
-                boxShadow: `0 8px 24px ${item.glow}, 0 4px 8px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.15)`,
-              }}
-            >
-              <item.icon size={24} color="#fff" strokeWidth={1.8} />
+      {/* ── QUICK ACTIONS ── */}
+      <div className="quick-grid">
+        {QUICK.map((item,i) => (
+          <button key={i} className="quick-btn" onClick={() => setPage(item.page)}>
+            <div className="quick-icon" style={{
+              background:item.grad, width:50, height:50,
+              boxShadow:`0 7px 20px ${item.glow},0 3px 7px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.14)`,
+            }}>
+              <item.icon size={21} color="#fff" strokeWidth={1.8} />
             </div>
-            <span
-              className="xpw__quick-label"
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.55)",
-              }}
-            >
-              {item.label}
-            </span>
+            <span className="quick-lbl">{item.label}</span>
           </button>
         ))}
       </div>
 
-      {/* ───────────────────────────────────────────────────────
-          RECENT ACTIVITY — distinctive header + polished list
-      ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          background: "rgba(255,255,255,0.018)",
-          border: "1px solid rgba(255,255,255,0.058)",
-          borderRadius: 18,
-          overflow: "hidden",
-          marginBottom: 8,
-        }}
-      >
-        {/* Section header bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "14px 16px 12px",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            {/* Accent pill */}
-            <div
-              style={{
-                width: 4,
-                height: 16,
-                borderRadius: 2,
-                background: "linear-gradient(180deg, #a3e635, #65a30d)",
-                boxShadow: "0 0 8px rgba(163,230,53,0.5)",
-              }}
-            />
-            <span
-              style={{
-                fontFamily: "var(--font-d)",
-                fontSize: 14,
-                fontWeight: 800,
-                letterSpacing: "-0.01em",
-                color: "var(--text)",
-              }}
-            >
-              Recent Activity
-            </span>
-          </div>
-          <button
-            className="xpw__sec-link"
-            style={{ display: "flex", alignItems: "center", gap: 3 }}
-            onClick={() => setPage("transactions")}
-          >
-            View all <ChevronRight size={11} style={{ display: "inline" }} />
+      {/* ── RECENT ACTIVITY ── */}
+      <div style={{
+        background:"rgba(255,255,255,0.016)",
+        border:"1px solid rgba(255,255,255,0.052)",
+        borderRadius:16, overflow:"hidden", marginBottom:6,
+      }}>
+        {/* Header */}
+        <div style={{
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"11px 13px 10px",
+          borderBottom:"1px solid rgba(255,255,255,0.048)",
+        }}>
+          <div className="xsec-t">Recent Activity</div>
+          <button className="xsec-link" onClick={() => setPage("transactions")}>
+            View all
           </button>
         </div>
 
-        {/* Content area — FIX: 12px top padding so list breathes below header */}
-        <div style={{ padding: "12px 14px 14px" }}>
-          {/* Loading skeletons */}
+        <div style={{ padding:"9px 11px 11px" }}>
+          {/* Loading */}
           {loading && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: 58,
-                    borderRadius: 12,
-                    background: "rgba(255,255,255,0.03)",
-                    animation: "pw-shimmer 1.5s ease-in-out infinite",
-                    animationDelay: `${i * 0.1}s`,
-                  }}
-                />
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {[1,2,3].map(i => (
+                <div key={i} style={{
+                  height:50, borderRadius:10,
+                  background:"rgba(255,255,255,0.025)",
+                  animation:`pw-shimmer 1.4s ease-in-out ${i*0.08}s infinite`,
+                }} />
               ))}
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty */}
           {!loading && recentTxs.length === 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-                padding: "28px 0",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "50%",
-                  background: "rgba(163,230,53,0.06)",
-                  border: "1px solid rgba(163,230,53,0.1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Wallet size={18} color="rgba(163,230,53,0.45)" />
+            <div style={{
+              display:"flex", flexDirection:"column", alignItems:"center",
+              justifyContent:"center", gap:9, padding:"24px 0", textAlign:"center",
+            }}>
+              <div style={{
+                width:40, height:40, borderRadius:"50%",
+                background:"rgba(163,230,53,0.05)",
+                border:"1px solid rgba(163,230,53,0.1)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>
+                <Wallet size={15} color="rgba(163,230,53,0.4)" />
               </div>
               <div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-d)",
-                    fontWeight: 700,
-                    fontSize: 13.5,
-                    color: "rgba(255,255,255,0.35)",
-                    marginBottom: 3,
-                  }}
-                >
-                  No transactions yet
-                </div>
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    color: "rgba(255,255,255,0.2)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Send or receive ₦ to see your activity here
+                <div style={{ fontFamily:"var(--fd)", fontWeight:700, fontSize:12.5,
+                  color:"var(--t3)", marginBottom:2 }}>No transactions yet</div>
+                <div style={{ fontSize:11, color:"var(--t4)", lineHeight:1.5 }}>
+                  Send or receive ₦ to see activity
                 </div>
               </div>
             </div>
           )}
 
-          {/* Transaction list */}
+          {/* List */}
           {!loading && recentTxs.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
               {recentTxs.map((tx, idx) => {
-                const Icon = iconFor(tx.title);
+                const Icon    = iconFor(tx.title);
                 const isCredit = tx.type === "credit";
                 return (
-                  <div
-                    key={tx.id}
-                    className="ht-row xpw__glass xpw__click"
-                    style={{
-                      padding: "11px 13px",
-                      animationDelay: `${idx * 0.04}s`,
-                    }}
-                  >
-                    <div className="xpw__tx-row">
-                      <div className="xpw__tx-left">
-                        <div className={`xpw__tx-icon ${isCredit ? "xpw__credit" : ""}`}>
-                          <Icon
-                            size={13}
-                            color={
-                              isCredit
-                                ? "var(--lime)"
-                                : "rgba(255,255,255,0.38)"
-                            }
-                            strokeWidth={2.2}
-                          />
+                  <div key={tx.id} className="ht-row xg xg-click"
+                    style={{ padding:"9px 11px", animationDelay:`${idx*0.04}s` }}>
+                    <div className="tx-row">
+                      <div className="tx-left">
+                        <div className={`tx-ic ${isCredit ? "cr" : ""}`}>
+                          <Icon size={12}
+                            color={isCredit ? "var(--lime)" : "rgba(255,255,255,0.36)"}
+                            strokeWidth={2.2} />
                         </div>
                         <div>
-                          <div className="xpw__tx-title">{tx.title}</div>
-                          <div className="xpw__tx-date">{tx.date}</div>
+                          <div className="tx-name">{tx.title}</div>
+                          <div className="tx-date">{tx.date}</div>
                         </div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div className={`xpw__tx-amt ${isCredit ? "xpw__credit" : ""}`}>
+                      <div style={{ textAlign:"right" }}>
+                        <div className={`tx-amt ${isCredit ? "cr" : ""}`}>
                           {isCredit ? "+" : "−"}₦{fmtNGN(tx.amount)}
                         </div>
-                        <div className="xpw__tx-status">Completed</div>
+                        <div className="tx-stat">DONE</div>
                       </div>
                     </div>
                   </div>
@@ -842,8 +411,7 @@ export default function HomeTab({
         </div>
       </div>
 
-      {/* Bottom spacer */}
-      <div style={{ height: 8 }} />
+      <div style={{ height:6 }} />
     </div>
   );
 }

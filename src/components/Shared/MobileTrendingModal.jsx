@@ -8,6 +8,12 @@
 //   - Refresh interval 10 min (stable data doesn't need rapid polling)
 //   - Per-user avatar fallback gradients (no hardcoded red)
 //   - StreamerDetailModal rendered via ReactDOM.createPortal on document.body
+//
+// REALTIME FIX:
+//   - Removed filter:"status=eq.live" from postgres_changes listener.
+//     Listen to ALL live_sessions changes and re-fetch. This catches the
+//     "pending" → "live" UPDATE that the filtered listener would miss.
+//   - Added 15s polling interval as belt-and-suspenders fallback.
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -81,9 +87,6 @@ const fetchTopStreamers = async () => {
   let ranked = [];
 
   try {
-    // PRIMARY: RPC with SECURITY DEFINER bypasses RLS so ALL users are ranked,
-    // not just the logged-in user's own sessions.
-    // Deploy get_top_streamers.sql in Supabase SQL Editor to enable this.
     const { data: rpcData, error: rpcError } = await supabase
       .rpc("get_top_streamers");
 
@@ -96,7 +99,6 @@ const fetchTopStreamers = async () => {
         score:       row.score         || 0,
       }));
     } else {
-      // FALLBACK: direct query (shows only logged-in user's sessions due to RLS)
       const { data, error } = await supabase
         .from("live_sessions")
         .select("user_id, peak_viewers, total_likes")
@@ -174,7 +176,6 @@ const StreamerRow = ({ streamer, onClick }) => {
       <div style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, background: rc.bg, color: rc.color, fontSize: 10, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {streamer.rank}
       </div>
-      {/* Avatar — per-user gradient fallback, no hardcoded red */}
       <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: avatarUrl ? "transparent" : fallback, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 12, border: "1.5px solid rgba(255,255,255,.1)" }}>
         {avatarUrl
           ? <img src={avatarUrl} alt="" onError={() => setImgErr(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -374,6 +375,8 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
   const [refreshing,      setRefreshing]      = useState(false);
 
   const streamersCache = useRef([]);
+  const livePollRef    = useRef(null);
+  const liveRef        = useRef(null);
 
   const [panel,           setPanel]           = useState(null);
   const [activeTag,       setActiveTag]       = useState(null);
@@ -383,8 +386,6 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
   const [creatorModal,    setCreatorModal]    = useState(false);
   const [selectedCreator, setSelectedCreator] = useState(null);
   const [streamerDetail,  setStreamerDetail]  = useState(null);
-
-  const liveRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -397,17 +398,50 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
   useEffect(() => {
     if (!isOpen) return;
     let alive = true;
-    const ch = supabase.channel("mt_live_v3")
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_sessions" }, async () => {
-        try { const d = await fetchLiveSessions(); if (alive) setLiveSessions(d); } catch {}
-      }).subscribe();
+
+    // ── REALTIME FIX ──────────────────────────────────────────────────────
+    // No column filter — listen to ALL live_sessions changes and re-fetch.
+    // This catches "pending" → "live" UPDATEs that a filtered listener misses.
+    const ch = supabase
+      .channel("mt_live_v4")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",   // INSERT, UPDATE, DELETE — no filter
+          schema: "public",
+          table: "live_sessions",
+        },
+        async () => {
+          try {
+            const d = await fetchLiveSessions();
+            if (alive) setLiveSessions(d);
+          } catch { /* silent */ }
+        },
+      )
+      .subscribe();
+
     liveRef.current = ch;
-    return () => { alive = false; supabase.removeChannel(ch); };
+
+    // ── 15s poll fallback ─────────────────────────────────────────────────
+    livePollRef.current = setInterval(async () => {
+      try {
+        const d = await fetchLiveSessions();
+        if (alive) setLiveSessions(d);
+      } catch { /* silent */ }
+    }, 15_000);
+
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+      clearInterval(livePollRef.current);
+    };
   }, [isOpen]);
 
   const loadLive = async () => {
-    try { const d = await fetchLiveSessions(); setLiveSessions(d); }
-    catch { /* silent */ }
+    try {
+      const d = await fetchLiveSessions();
+      setLiveSessions(d);
+    } catch { /* silent */ }
     finally { setLiveLoading(false); }
   };
 
@@ -584,8 +618,8 @@ const MobileTrendingModal = ({ isOpen, onClose, currentUser, onJoinStream, setAc
                 )}
               </div>
 
-              {/* ══ LIVE NOW ══ */}
-              {!liveLoading && liveSessions.length > 0 && (
+              {/* ══ LIVE NOW — shown as soon as sessions exist, no liveLoading gate ══ */}
+              {liveSessions.length > 0 && (
                 <div style={{ marginBottom: 22, background: "rgba(239,68,68,.03)", border: "1px solid rgba(239,68,68,.08)", borderRadius: 13, padding: "12px 12px 6px" }}>
                   <SectionHeader icon={Radio} iconColor="#ef4444" iconBg="rgba(239,68,68,.1)" iconBorder="rgba(239,68,68,.22)" title="Live Now" subtitle="Tap a circle to join"
                     right={<div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", fontSize: 10, fontWeight: 800, color: "#ef4444" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "mtBlink 1.6s infinite" }} />{liveSessions.length}</div>} />

@@ -1,18 +1,7 @@
-// src/components/Header/DesktopHeader.jsx
 // ============================================================================
-// BRIGHT MODEL + REDESIGNED CENTRE NAV TABS
-// [FIX-RT]     Real-time badge is now INSTANT and RELIABLE:
-//              • Membership map is pre-built at init and kept in a ref so the
-//                realtime INSERT handler never needs an async DB round-trip.
-//              • No more race between async membership check and badge increment
-//                — if conversation_id is in our convSet, we increment immediately
-//                (optimistic UI, same pattern as message send on sender side).
-//              • Full DB re-query still runs every 15 s as safety net but is
-//                NOT on the hot path for badge updates.
-// [FIX-MSG]    Unread count queries via conversations membership (no receiver_id).
-// [FIX-BADGE]  Badge colors redesigned — both badges use vivid iOS-red (#ff3b30)
-//              with white text for maximum urgency and visual consistency,
-//              matching the design intent in the screenshot.
+// src/components/Header/DesktopHeader.jsx
+// [4-TAB] Added "news" tab — Posts | Reels | Stories | News
+// All other logic (real-time badges, typing animation, messages) unchanged.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -95,42 +84,54 @@ const StoriesIcon = ({ active }) => (
   </svg>
 );
 
+// ── [4-TAB] News icon — newspaper / article design ───────────────────────────
+const NewsIcon = ({ active }) => (
+  <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+    <rect x="1" y="2.5" width="15" height="12" rx="1.8"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor" strokeWidth="1.4"/>
+    {/* Header bar */}
+    <rect x="3" y="5" width="11" height="2"
+      rx="0.6"
+      fill={active ? "rgba(0,0,0,0.55)" : "currentColor"}/>
+    {/* Body lines */}
+    <line x1="3" y1="9"  x2="10" y2="9"  stroke={active ? "rgba(0,0,0,0.45)" : "currentColor"} strokeWidth="1.1" strokeLinecap="round"/>
+    <line x1="3" y1="11.5" x2="10" y2="11.5" stroke={active ? "rgba(0,0,0,0.45)" : "currentColor"} strokeWidth="1.1" strokeLinecap="round"/>
+    {/* Right image placeholder */}
+    <rect x="11.2" y="8.5" width="3.3" height="3.8" rx="0.7"
+      fill={active ? "rgba(0,0,0,0.35)" : "none"}
+      stroke={active ? "none" : "currentColor"}
+      strokeWidth="1.1"/>
+  </svg>
+);
+
+// ── [4-TAB] Nav tabs array ────────────────────────────────────────────────────
 const NAV_TABS = [
   { id: "posts",   Icon: PostsIcon,   label: "Posts"   },
   { id: "reels",   Icon: ReelsIcon,   label: "Reels"   },
   { id: "stories", Icon: StoriesIcon, label: "Stories" },
+  { id: "news",    Icon: NewsIcon,    label: "News"    },
 ];
 
-// ── Fetch unread count + build membership map in one query ────────────────────
-// Returns { count, convSet } where convSet is a Set of conversation_id strings
-// that this user is a member of. The convSet is used by the realtime handler
-// to instantly decide whether an incoming INSERT belongs to this user without
-// making another async DB call.
+// ── Fetch unread data ─────────────────────────────────────────────────────────
 const fetchUnreadData = async (userId) => {
   try {
     const { data: convs, error: convErr } = await supabase
       .from("conversations")
       .select("id")
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
-
     if (convErr || !convs?.length) return { count: 0, convSet: new Set() };
-
     const convSet = new Set(convs.map((c) => c.id));
     const convIds = Array.from(convSet);
-
     const { count, error } = await supabase
       .from("messages")
       .select("id", { count: "exact", head: true })
       .in("conversation_id", convIds)
       .neq("sender_id", userId)
       .eq("read", false);
-
     return { count: error ? 0 : (count ?? 0), convSet };
-  } catch (_) {
-    return {
-      count: conversationState.getTotalUnreadCount() ?? 0,
-      convSet: new Set(),
-    };
+  } catch {
+    return { count: conversationState.getTotalUnreadCount() ?? 0, convSet: new Set() };
   }
 };
 
@@ -164,14 +165,11 @@ const DesktopHeader = ({
   const timerRef        = useRef(null);
   const typeIntervalRef = useRef(null);
   const showMessagesRef = useRef(false);
-  // [FIX-RT] Membership set kept in a ref so the realtime handler always has
-  // the latest data without being re-subscribed on every render.
   const myConvSetRef    = useRef(new Set());
   const pollRef         = useRef(null);
 
   useEffect(() => { showMessagesRef.current = showMessages; }, [showMessages]);
 
-  // ── Avatar ─────────────────────────────────────────────────────────────────
   let avatarUrl = profile?.avatar;
   if (avatarUrl && typeof avatarUrl === "string") {
     const cleanUrl = avatarUrl.split("?")[0];
@@ -188,13 +186,10 @@ const DesktopHeader = ({
   const hasBoosted    = ["silver", "gold", "diamond"].includes(tier);
   const greetingColor = getGreetingColor(profile);
 
-  // ── Badge sync ─────────────────────────────────────────────────────────────
   const syncBadge = useCallback(() => {
     setBadgeCount(notificationService.getHeaderBadgeCountSync());
   }, []);
 
-  // [FIX-RT] refreshUnread fetches count AND rebuilds the membership map so
-  // subsequent realtime events can be decided synchronously.
   const refreshUnread = useCallback(async () => {
     if (showMessagesRef.current) return;
     const { count, convSet } = await fetchUnreadData(userId);
@@ -204,66 +199,31 @@ const DesktopHeader = ({
 
   useEffect(() => {
     if (!userId) return;
-
     notificationService.getHeaderBadgeCount(userId).then(setBadgeCount).catch(() => {});
     refreshUnread();
-
     const unsubNotif = notificationService.subscribe(syncBadge);
     const unsubConv  = conversationState.subscribe(() => { refreshUnread(); });
-
-    // ── [FIX-RT] Realtime: new messages ──────────────────────────────────────
-    // The membership check is now SYNCHRONOUS using the pre-built convSet ref.
-    // No async DB round-trip on the hot path → badge increments instantly,
-    // just like the optimistic message send on the sender side.
     const msgChannel = supabase
       .channel(`dh-msgs-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const row = payload.new ?? {};
-
-          // Skip our own sent messages and suppress while panel is open.
-          if (row.sender_id === userId || showMessagesRef.current) return;
-
-          // [FIX-RT] Synchronous membership check — no await, no race.
-          if (myConvSetRef.current.has(row.conversation_id)) {
-            setUnreadMessages((prev) => prev + 1);
-          } else {
-            // convSet may be stale if a brand-new conversation was just created.
-            // Fall back to a full refresh which also rebuilds the map.
-            refreshUnread();
-          }
-        }
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const row = payload.new ?? {};
+        if (row.sender_id === userId || showMessagesRef.current) return;
+        if (myConvSetRef.current.has(row.conversation_id)) setUnreadMessages((prev) => prev + 1);
+        else refreshUnread();
+      })
       .subscribe();
-
-    // Realtime: new notifications
     const notifChannel = supabase
       .channel(`dh-notifs-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications" },
-        (payload) => {
-          const row = payload.new ?? {};
-          const isForMe =
-            row.recipient_user_id === userId ||
-            row.user_id           === userId ||
-            row.recipient_id      === userId;
-          if (isForMe) setBadgeCount((p) => p + 1);
-        }
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
+        const row = payload.new ?? {};
+        const isForMe = row.recipient_user_id === userId || row.user_id === userId || row.recipient_id === userId;
+        if (isForMe) setBadgeCount((p) => p + 1);
+      })
       .subscribe();
-
-    // Polling fallback every 15 s — keeps count accurate without being the
-    // primary mechanism. Also refreshes the membership map.
     pollRef.current = setInterval(refreshUnread, 15_000);
-
     onlineStatusService.start(userId);
-
     return () => {
-      unsubNotif();
-      unsubConv();
+      unsubNotif(); unsubConv();
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(notifChannel);
       clearInterval(pollRef.current);
@@ -283,20 +243,15 @@ const DesktopHeader = ({
     onNotificationClick?.();
   }, [onNotificationClick]);
 
-  // Reset unread to 0 while panel is open, refresh when it closes
   useEffect(() => {
-    if (showMessages) {
-      setUnreadMessages(0);
-    } else {
-      refreshUnread();
-    }
+    if (showMessages) setUnreadMessages(0);
+    else              refreshUnread();
   }, [showMessages, refreshUnread]);
 
-  // ── Typing animation ───────────────────────────────────────────────────────
+  // Typing animation
   useEffect(() => {
     const fullText = `${greetingText}, ${currentUser?.name || currentUser?.fullName || "User"}`;
     let cancelled  = false;
-
     const typeText = (text, cb) => {
       setIsTyping(true); let i = 0;
       const tick = () => {
@@ -307,7 +262,6 @@ const DesktopHeader = ({
       };
       tick();
     };
-
     const unTypeText = (text, cb) => {
       setIsTyping(true); let i = text.length;
       const tick = () => {
@@ -318,34 +272,25 @@ const DesktopHeader = ({
       };
       tick();
     };
-
     const cycle = () => {
       typeText(fullText, () => {
         timerRef.current = setTimeout(() => {
-          unTypeText(fullText, () => {
-            timerRef.current = setTimeout(cycle, 60_000);
-          });
+          unTypeText(fullText, () => { timerRef.current = setTimeout(cycle, 60_000); });
         }, 240_000);
       });
     };
-
     const greetingInterval = setInterval(() => {
       const ng = getGreeting();
       if (ng !== greetingText) setGreetingText(ng);
     }, 60_000);
-
     const startDelay = setTimeout(cycle, 500);
-
     return () => {
       cancelled = true;
-      clearTimeout(startDelay);
-      clearTimeout(timerRef.current);
-      clearTimeout(typeIntervalRef.current);
-      clearInterval(greetingInterval);
+      clearTimeout(startDelay); clearTimeout(timerRef.current);
+      clearTimeout(typeIntervalRef.current); clearInterval(greetingInterval);
     };
   }, [greetingText, currentUser?.name, currentUser?.fullName, getGreeting]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{desktopHeaderStyles(isTyping, displayedText, greetingColor, hasBoosted)}</style>
@@ -372,7 +317,7 @@ const DesktopHeader = ({
             </div>
           </div>
 
-          {/* CENTRE tabs */}
+          {/* CENTRE — [4-TAB] now 4 tabs */}
           <nav className="dh-nav-strip" aria-label="Feed navigation">
             {NAV_TABS.map(({ id, Icon, label }) => {
               const isActive = activeHomeTab === id;
@@ -402,7 +347,6 @@ const DesktopHeader = ({
                 </span>
               )}
             </button>
-
             <button className="dh-action-btn notification" onClick={handleNotificationClick} aria-label="Notifications">
               <Bell size={15} />
               <span>Alerts</span>
@@ -412,7 +356,6 @@ const DesktopHeader = ({
                 </span>
               )}
             </button>
-
             <button className="dh-action-btn support" onClick={onSupportClick} aria-label="Support">
               <HelpCircle size={15} />
               <span>Support</span>
@@ -439,7 +382,7 @@ const DesktopHeader = ({
   );
 };
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Styles — nav strip slightly wider to fit 4 tabs ───────────────────────────
 const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted) => `
   .dh-header {
     height: 58px;
@@ -486,6 +429,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
   }
   @keyframes dhBlink { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
 
+  /* [4-TAB] Nav strip — wider to fit 4 tabs comfortably */
   .dh-nav-strip {
     position: absolute; left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 2px;
@@ -496,11 +440,11 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
   }
   .dh-nav-tab {
     position: relative;
-    display: flex; align-items: center; gap: 7px;
-    padding: 0 15px; height: 32px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 12px; height: 32px;
     border-radius: 9px; border: 1px solid transparent;
     background: transparent; color: rgba(255,255,255,0.38);
-    font-size: 12px; font-weight: 700; letter-spacing: 0.01em;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em;
     cursor: pointer;
     transition: color 0.18s, background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s;
     white-space: nowrap; font-family: inherit; user-select: none;
@@ -514,10 +458,14 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     box-shadow: 0 0 12px rgba(132,204,22,0.12), inset 0 1px 0 rgba(132,204,22,0.15);
     transform: translateY(-0.5px);
   }
-  .dh-nav-tab--active:hover {
-    background: rgba(132,204,22,0.18); border-color: rgba(132,204,22,0.45);
-    box-shadow: 0 0 18px rgba(132,204,22,0.2), inset 0 1px 0 rgba(132,204,22,0.2);
+  /* News tab active — uses blue accent */
+  .dh-nav-tab[aria-label="News"].dh-nav-tab--active {
+    color: #60a5fa;
+    background: rgba(59,130,246,0.13);
+    border-color: rgba(59,130,246,0.32);
+    box-shadow: 0 0 12px rgba(59,130,246,0.12), inset 0 1px 0 rgba(59,130,246,0.15);
   }
+  .dh-nav-tab--active:hover { background: rgba(132,204,22,0.18); border-color: rgba(132,204,22,0.45); }
   .dh-tab-icon { display: flex; align-items: center; flex-shrink: 0; }
   .dh-tab-label { line-height: 1; }
 
@@ -540,13 +488,6 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
   .dh-action-btn.support:hover      { background: rgba(96,165,250,0.08);  border-color: rgba(96,165,250,0.25); transform: translateY(-1px); }
   .dh-action-btn:active { transform: scale(0.97); }
 
-  /* ── Badges ──────────────────────────────────────────────────────────────
-     Both badges use the same vivid iOS-red (#ff3b30) for maximum urgency
-     and visual consistency — this matches the design intent in the screenshot
-     where the red count pops clearly against the dark header background.
-     Outer box-shadow ring + thick #000 border ensure both badges always
-     read clearly regardless of any icon colour sitting underneath them.
-  ── */
   .dh-badge {
     position: absolute; top: -8px; right: -8px;
     min-width: 19px; height: 19px; padding: 0 5px;
@@ -557,25 +498,17 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     animation: dhBadgePop 0.35s cubic-bezier(.34,1.56,.64,1),
                dhBadgePulse 2.8s ease-in-out 0.35s infinite;
   }
-
-  /* Messages — vivid iOS-red with white text.
-     Identical visual treatment to the notification badge so both carry the
-     same urgency weight and look cohesive in the header. */
-  .dh-badge--msg {
-    background: #ff3b30;
-    color: #ffffff;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6);
-  }
-
-  /* Notifications — same vivid iOS red, white number */
-  .dh-badge--notif {
-    background: #ff3b30;
-    color: #ffffff;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6);
-  }
+  .dh-badge--msg   { background: #ff3b30; color: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6); }
+  .dh-badge--notif { background: #ff3b30; color: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6); }
 
   @keyframes dhBadgePop   { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
   @keyframes dhBadgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.14)} }
+
+  /* Responsive: collapse labels on narrow desktop */
+  @media (max-width: 1100px) {
+    .dh-tab-label { display: none; }
+    .dh-nav-tab { padding: 0 10px; }
+  }
 `;
 
 export default DesktopHeader;

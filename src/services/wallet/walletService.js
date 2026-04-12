@@ -2,6 +2,11 @@
 // ════════════════════════════════════════════════════════════════
 // Xeevia Wallet Service — $XEV (grova_tokens) + EP dual currency
 //
+// CANONICAL EXCHANGE RATES:
+//   1 USD  = 100 EP
+//   1 $XEV = 10 EP
+//   1 $XEV = $0.10 USD
+//
 // ON-CHAIN WALLET ADDRESSES:
 //   Real wallet addresses are stored in the `wallet_addresses` table.
 //   On first load, if no address exists for a user, we generate one
@@ -17,43 +22,33 @@
 //   walletService handles only direct wallet-to-wallet XEV/EP sends.
 // ════════════════════════════════════════════════════════════════
 
-import { supabase } from "../config/supabase";
-import { epService, computeEPBurn } from "./epService";
-
-const XEV_TO_NGN = 2.5;
+import { supabase }                     from "../config/supabase";
+import { epService, computeEPBurn }     from "./epService";
+import { EP_PER_USD, EP_PER_XEV, USD_PER_XEV } from "../../models/WalletModel";
 
 // ── Supported chains ──────────────────────────────────────────────
 export const CHAINS = {
-  evm:     { name: "Ethereum / EVM",  symbol: "ETH",  prefix: "0x" },
-  cardano: { name: "Cardano",         symbol: "ADA",  prefix: "addr" },
-  solana:  { name: "Solana",          symbol: "SOL",  prefix: ""    },
-  tron:    { name: "Tron",            symbol: "TRX",  prefix: "T"   },
+  evm:     { name: "Ethereum / EVM", symbol: "ETH",  prefix: "0x"   },
+  cardano: { name: "Cardano",        symbol: "ADA",  prefix: "addr" },
+  solana:  { name: "Solana",         symbol: "SOL",  prefix: ""     },
+  tron:    { name: "Tron",           symbol: "TRX",  prefix: "T"    },
 };
 
 // ── Address derivation ────────────────────────────────────────────
 // NOTE: In production, address generation MUST happen in a Supabase
-// Edge Function to keep the derivation seed secret.
-// This frontend fallback generates a deterministic address from
-// the userId — suitable for testnet/demo purposes only.
-// Real production flow: call edge function `generate-wallet-address`.
+// Edge Function. This frontend fallback is for testnet/demo only.
 
 function deriveEVMAddress(userId) {
-  // Derive a deterministic EVM-style address from userId.
-  // This is NOT cryptographically secure for mainnet.
-  // Replace with: POST /functions/v1/generate-wallet-address
   const hex = userId.replace(/-/g, "").slice(0, 40).toLowerCase();
   return `0x${hex}`;
 }
 
 function deriveCardanoAddress(userId) {
-  // Bech32 Cardano mainnet address (addr1 prefix).
-  // Replace with real CSL derivation in edge function.
   const hex = userId.replace(/-/g, "").slice(0, 58);
   return `addr1q${hex}`;
 }
 
 function deriveSolanaAddress(userId) {
-  // Base58-like Solana address derived from userId.
   const base58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   let addr = "";
   const clean = userId.replace(/-/g, "");
@@ -69,7 +64,7 @@ function deriveTronAddress(userId) {
   return `T${hex}`;
 }
 
-// ── Avatar URL from supabase client ──────────────────────────────
+// ── Avatar URL ────────────────────────────────────────────────────
 function getAvatarUrl(avatarId) {
   if (!avatarId) return null;
   try {
@@ -88,22 +83,15 @@ const CACHE_TTL = 60_000;
 async function resolveRecipient(identifier) {
   if (!identifier) return { error: "Invalid recipient" };
 
-  // On-chain EVM address
-  if (/^0x[a-fA-F0-9]{40,}$/.test(identifier.trim())) {
+  if (/^0x[a-fA-F0-9]{40,}$/.test(identifier.trim()))
     return { id: null, address: identifier.trim(), isOnChain: true, chain: "evm" };
-  }
 
-  // Cardano address
-  if (identifier.startsWith("addr1")) {
+  if (identifier.startsWith("addr1"))
     return { id: null, address: identifier.trim(), isOnChain: true, chain: "cardano" };
-  }
 
-  // Solana address (base58, 32-44 chars)
-  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(identifier.trim()) && !identifier.startsWith("@")) {
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(identifier.trim()) && !identifier.startsWith("@"))
     return { id: null, address: identifier.trim(), isOnChain: true, chain: "solana" };
-  }
 
-  // Platform @username
   const username = identifier.replace(/^@/, "").trim().toLowerCase();
   if (!username) return { error: "Invalid recipient" };
 
@@ -136,7 +124,7 @@ async function resolveRecipient(identifier) {
 // ─────────────────────────────────────────────────────────────────
 export const walletService = {
 
-  // ── Get wallet ─────────────────────────────────────────────────
+  // ── Get wallet ────────────────────────────────────────────────
   async getWallet(userId) {
     const { data, error } = await supabase
       .from("wallets")
@@ -147,7 +135,7 @@ export const walletService = {
     return data;
   },
 
-  // ── Ensure wallet exists ───────────────────────────────────────
+  // ── Ensure wallet exists ──────────────────────────────────────
   async ensureWallet(userId) {
     let w = await this.getWallet(userId);
     if (!w) {
@@ -167,11 +155,8 @@ export const walletService = {
     return w;
   },
 
-  // ── Get or generate on-chain address for a user + chain ────────
-  // Returns the public address string.
-  // On first call, generates and persists it.
+  // ── On-chain address management ───────────────────────────────
   async getOrCreateAddress(userId, chain = "evm") {
-    // 1. Check stored address
     const { data: existing } = await supabase
       .from("wallet_addresses")
       .select("address")
@@ -181,8 +166,6 @@ export const walletService = {
 
     if (existing?.address) return existing.address;
 
-    // 2. Generate address (frontend fallback — replace with edge function call in prod)
-    // Production: const { data } = await supabase.functions.invoke("generate-wallet-address", { body: { userId, chain } });
     let address;
     switch (chain) {
       case "cardano": address = deriveCardanoAddress(userId); break;
@@ -192,33 +175,27 @@ export const walletService = {
       default:        address = deriveEVMAddress(userId);     break;
     }
 
-    // 3. Persist public address
     const { error: insertErr } = await supabase
       .from("wallet_addresses")
       .upsert({ user_id: userId, chain, address }, { onConflict: "user_id,chain" });
 
-    if (insertErr) {
-      console.warn("[walletService] Failed to persist address:", insertErr.message);
-    }
+    if (insertErr) console.warn("[walletService] Failed to persist address:", insertErr.message);
 
     return address;
   },
 
-  // ── Get all addresses for a user ───────────────────────────────
   async getAllAddresses(userId) {
     const { data, error } = await supabase
       .from("wallet_addresses")
       .select("chain,address,created_at")
       .eq("user_id", userId);
-
     if (error) return {};
-
     const map = {};
     (data || []).forEach((row) => { map[row.chain] = row.address; });
     return map;
   },
 
-  // ── Real-time balance subscription ─────────────────────────────
+  // ── Real-time balance subscription ────────────────────────────
   subscribeToBalance(userId, callback) {
     const ch = supabase
       .channel(`wallet_balance:${userId}`)
@@ -227,10 +204,17 @@ export const walletService = {
         { event: "UPDATE", schema: "public", table: "wallets", filter: `user_id=eq.${userId}` },
         (payload) => {
           if (payload.new) {
+            const xev = payload.new.grova_tokens      ?? 0;
+            const ep  = payload.new.engagement_points ?? 0;
             callback({
-              tokens:  payload.new.grova_tokens      ?? 0,
-              points:  payload.new.engagement_points ?? 0,
-              paywave: payload.new.paywave_balance   ?? 0,
+              tokens:   xev,
+              points:   ep,
+              paywave:  payload.new.paywave_balance   ?? 0,
+              // Pre-computed display values
+              xevUsd:   xev * USD_PER_XEV,          // XEV → USD
+              epUsd:    ep  / EP_PER_USD,            // EP  → USD
+              xevAsEp:  xev * EP_PER_XEV,            // XEV → EP
+              epAsXev:  ep  / EP_PER_XEV,            // EP  → XEV
             });
           }
         }
@@ -278,23 +262,19 @@ export const walletService = {
     return enriched;
   },
 
-  // ── Send tokens (internal platform transfer) ───────────────────
-  // Handles XEV and EP sends between platform users.
-  // For on-chain sends, records intent — actual broadcast is server-side.
+  // ── Send tokens ───────────────────────────────────────────────
   async sendTokens({ fromUserId, toIdentifier, amount, currency, note, epBurn }) {
     const recipient = await resolveRecipient(toIdentifier);
     if (recipient.error) return { success: false, error: recipient.error };
-    if (!recipient.isOnChain && recipient.id === fromUserId) {
+    if (!recipient.isOnChain && recipient.id === fromUserId)
       return { success: false, error: "You cannot send to yourself." };
-    }
 
-    const burn = epBurn ?? computeEPBurn(parseFloat(amount));
+    // For XEV sends, compute EP burn from XEV amount
+    const burn = epBurn ?? (currency === "XEV" ? computeEPBurn(parseFloat(amount)) : 0);
 
-    // On-chain address send — record intent, flag for backend broadcast
     if (recipient.isOnChain) {
-      if (currency !== "XEV") {
+      if (currency !== "XEV")
         return { success: false, error: "On-chain sends only support $XEV." };
-      }
       return this._recordOnChainSendIntent({
         fromUserId,
         toAddress: recipient.address,
@@ -305,7 +285,6 @@ export const walletService = {
       });
     }
 
-    // Internal platform send via RPC
     const { data, error } = await supabase.rpc("transfer_tokens", {
       p_from_user_id: fromUserId,
       p_to_user_id:   recipient.id,
@@ -316,9 +295,8 @@ export const walletService = {
     });
 
     if (error) return { success: false, error: error.message || "Transaction failed" };
-    if (!data || data.success === false) {
+    if (!data || data.success === false)
       return { success: false, error: data?.error || "Transaction rejected" };
-    }
 
     return {
       success:        true,
@@ -330,18 +308,13 @@ export const walletService = {
     };
   },
 
-  // ── Record on-chain send intent ────────────────────────────────
-  // Debits the user's internal XEV balance, creates a pending
-  // transaction record. A backend worker/edge function monitors
-  // pending on-chain sends and broadcasts the actual transaction.
+  // ── On-chain send intent ──────────────────────────────────────
   async _recordOnChainSendIntent({ fromUserId, toAddress, chain, amount, epBurn, note }) {
-    // 1. Check balance
     const wallet = await this.getWallet(fromUserId);
-    if (!wallet) return { success: false, error: "Wallet not found" };
-    if (wallet.grova_tokens < amount) return { success: false, error: "Insufficient XEV balance" };
+    if (!wallet)                          return { success: false, error: "Wallet not found" };
+    if (wallet.grova_tokens < amount)     return { success: false, error: "Insufficient XEV balance" };
     if (wallet.engagement_points < epBurn) return { success: false, error: "Insufficient EP for fee" };
 
-    // 2. Debit internal XEV + EP burn
     const { error: debitErr } = await supabase
       .from("wallets")
       .update({
@@ -353,30 +326,23 @@ export const walletService = {
 
     if (debitErr) return { success: false, error: "Failed to debit wallet: " + debitErr.message };
 
-    // 3. Record pending on-chain transaction
     const { data: tx, error: txErr } = await supabase
       .from("transactions")
       .insert({
         from_user_id: fromUserId,
-        to_user_id:   null, // external address
+        to_user_id:   null,
         amount,
         type:   "withdrawal",
         status: "pending",
         metadata: {
-          on_chain:        true,
-          chain,
-          to_address:      toAddress,
-          ep_burn:         epBurn,
-          note,
-          currency:        "XEV",
-          broadcast_ready: true, // flag for backend worker
+          on_chain: true, chain, to_address: toAddress,
+          ep_burn: epBurn, note, currency: "XEV", broadcast_ready: true,
         },
       })
       .select()
       .single();
 
     if (txErr) {
-      // Rollback the debit
       await supabase.from("wallets").update({
         grova_tokens:      wallet.grova_tokens,
         engagement_points: wallet.engagement_points,
@@ -385,7 +351,6 @@ export const walletService = {
       return { success: false, error: "Failed to record transaction" };
     }
 
-    // 4. Write wallet history
     await supabase.from("wallet_history").insert({
       wallet_id:      wallet.id,
       user_id:        fromUserId,
@@ -396,13 +361,8 @@ export const walletService = {
       reason:         `on_chain_send:${chain}`,
       transaction_id: tx.id,
       metadata: {
-        currency:    "XEV",
-        currency_type: "XEV",
-        on_chain:    true,
-        chain,
-        to_address:  toAddress,
-        ep_burn:     epBurn,
-        note,
+        currency: "XEV", currency_type: "XEV",
+        on_chain: true, chain, to_address: toAddress, ep_burn: epBurn, note,
       },
     });
 
@@ -420,7 +380,7 @@ export const walletService = {
     };
   },
 
-  // ── Search users for send UI ───────────────────────────────────
+  // ── User search ───────────────────────────────────────────────
   async searchUsers(query, currentUserId, limit = 7) {
     if (!query || query.length < 2) return [];
     const q = query.replace(/^@/, "").trim();
@@ -431,21 +391,20 @@ export const walletService = {
       .ilike("username", `${q}%`)
       .neq("id", currentUserId)
       .limit(limit);
-
     if (!data) return [];
-    return data.map((u) => ({
-      ...u,
-      avatarUrl: getAvatarUrl(u.avatar_id),
-    }));
+    return data.map((u) => ({ ...u, avatarUrl: getAvatarUrl(u.avatar_id) }));
   },
 
-  // ── Swap EP ↔ XEV ─────────────────────────────────────────────
+  // ── Swap EP ↔ XEV ──────────────────────────────────────────────
+  // Rate: 10 EP = 1 XEV (EP_PER_XEV)
   async swapTokens({ userId, direction, amount, epBurn = 5 }) {
     const { data, error } = await supabase.rpc("swap_tokens", {
       p_user_id:   userId,
-      p_direction: direction,
+      p_direction: direction,           // "ep_to_xev" | "xev_to_ep"
       p_amount:    parseFloat(amount),
       p_ep_burn:   epBurn,
+      // Pass canonical rate so the RPC can validate
+      p_ep_per_xev: EP_PER_XEV,
     });
     if (error) return { success: false, error: error.message };
     return { success: true, data };
@@ -487,38 +446,35 @@ export const walletService = {
     return { success: true, data };
   },
 
+  // PayWave balance: EP is pegged 1:1 to NGN
   async getPayWaveBalance(userId) {
     const wallet = await this.getWallet(userId);
     return {
       ep:  wallet?.engagement_points ?? 0,
-      ngn: wallet?.engagement_points ?? 0,
+      ngn: wallet?.engagement_points ?? 0,  // 1 EP = ₦1
     };
   },
 
-  // ── Credit EP (delegated to epService) ────────────────────────
+  // ── Credit EP (delegated to epService) ───────────────────────
   async creditEngagementEP(userId, epAmount, reason) {
     return epService._directCreditEP(userId, epAmount, reason, {});
   },
 
-  // ── EP social transfer wrappers ────────────────────────────────
-  // These are called by the social interaction layer (PostCard, etc.)
+  // ── Social transfer wrappers ──────────────────────────────────
   async handleLike(fromUserId, contentOwnerId, contentType, contentId) {
     return epService.awardForLike(fromUserId, contentOwnerId, contentType, contentId);
   },
-
   async handleComment(fromUserId, contentOwnerId, contentType, contentId) {
     return epService.awardForComment(fromUserId, contentOwnerId, contentType, contentId);
   },
-
   async handleShare(fromUserId, contentOwnerId, contentType, contentId) {
     return epService.awardForShare(fromUserId, contentOwnerId, contentType, contentId);
   },
-
   async handleStoryUnlock(fromUserId, storyOwnerId, storyId, unlockCost) {
     return epService.awardForStoryUnlock(fromUserId, storyOwnerId, storyId, unlockCost);
   },
 
-  // ── Internal enrichment helpers ────────────────────────────────
+  // ── Internal enrichment ───────────────────────────────────────
   async _enrichCounterparty(row) {
     const cpUsername = row.metadata?.counterparty_username;
     if (!cpUsername) return null;
@@ -543,15 +499,23 @@ export const walletService = {
   },
 
   _normaliseRow(row, counterparty) {
-    const isSent   = row.change_type === "debit";
-    const currency = row.metadata?.currency || row.metadata?.currency_type || "EP";
+    const isSent    = row.change_type === "debit";
+    const currency  = row.metadata?.currency || row.metadata?.currency_type || "EP";
     const isOnChain = row.metadata?.on_chain === true;
+    const amount    = parseFloat(row.amount) || 0;
+
+    // USD equivalent for display
+    const usdValue = currency === "XEV"
+      ? amount * USD_PER_XEV
+      : amount / EP_PER_USD;
+
     return {
       ...row,
       displayLabel:    isSent ? "Sent" : "Received",
       displaySign:     isSent ? "-" : "+",
       displayColor:    isSent ? "#f87171" : "#a3e635",
       displayCurrency: currency,
+      usdValue,
       isOnChain,
       chain:           row.metadata?.chain || null,
       counterparty,
@@ -563,4 +527,9 @@ export const walletService = {
   getAvatarUrl,
   getEPBurn: computeEPBurn,
   CHAINS,
+
+  // ── Rate constants (for UI components) ────────────────────────
+  EP_PER_USD,   // 100
+  EP_PER_XEV,   // 10
+  USD_PER_XEV,  // 0.10
 };

@@ -1,37 +1,23 @@
 // ============================================================================
-// src/App.jsx — v20 BULLETPROOF PUSH
+// src/App.jsx — v22 CALL + DM FIXES
 // ============================================================================
 //
-// BASE: v19 LIVE_STREAMING — every line preserved verbatim.
+// CHANGES vs v21:
+//   [APP-CALL-1] callService.init() called on login so the persistent
+//                "user_calls:{userId}" channel is open immediately.
+//                Previously callService was never initialized — it only got
+//                initialized lazily in ActiveCall.jsx when a call was made,
+//                meaning callees had no channel open to receive invites.
 //
-// ADDITIONS vs v19:
-//   [APP-1]  MessageNotificationService imported and initialized with a
-//            toastCallback that pipes DM toasts into InAppNotificationToast.
-//            This service was imported but never initialized before — it was
-//            completely dead. Now DM in-app toasts work when app is active.
-//   [APP-2]  handleNotificationNavigate now handles "/messages" path so
-//            tapping a DM toast (or OS notification) navigates correctly.
-//            Previously the /messages path fell through to nothing.
-//   [APP-3]  pushService.on("sw_updated") listener replaces the no-op
-//            sw_update_available handler. The SW now posts SW_UPDATED on
-//            activate — this listener receives it and can prompt reload.
-//   [APP-4]  InAppNotificationToast receives an addToast ref via a callback
-//            ref pattern so MessageNotificationService can feed toasts into
-//            it without prop-drilling or re-renders.
-//   [APP-5]  MessageNotificationService.cleanup() called on sign-out.
-//   [APP-6]  DMMessagesView state added — showMessages + dmTargetUserId —
-//            so /messages navigation from toast actually opens the DM panel.
+//   [APP-CALL-2] window "nova:accept_call" listener opens ActiveCall for the
+//                callee who accepted from IncomingCallToast while outside DM.
 //
-// ADDITIONS vs v20:
-//   [SYNC-1] activeHomeTab + setActiveHomeTab state lifted up from HomeView
-//            into App.jsx so DesktopHeader, MobileHeader, and HomeView all
-//            share a single source of truth. Header tabs and feed are now
-//            perfectly in sync.
+//   [APP-CALL-3] IncomingCallToast rendered at App level with proper onAccept
+//                so accepting opens the call overlay correctly.
 //
-// ADDITIONS vs v21:
-//   [SYNC-2] activeTab passed to MobileHeader so it can conditionally render
-//            the Posts/Reels/Stories home tabs only when the user is on the
-//            home section — tabs were incorrectly visible on every section.
+//   [APP-CALL-4] showActiveCall + acceptedCallData state for callee path.
+//
+//   [SYNC-1/2]   All prior sync changes preserved verbatim.
 // ============================================================================
 
 import React, {
@@ -54,14 +40,15 @@ import "./styles/StoryCard.css";
 import "./styles/ProfileModal.css";
 import "./styles/Draft.css";
 
-import { supabase }              from "./services/config/supabase";
-import mediaUrlService           from "./services/shared/mediaUrlService";
-import { pushService }           from "./services/notifications/pushService";
-import notificationService       from "./services/notifications/notificationService";
-import MessageNotificationService from "./services/messages/MessageNotificationService"; // [APP-1]
-import { useNavigation }         from "./hooks/useNavigation";
-import { useBackButton }         from "./hooks/useBackButton";
-import { usePullToRefresh }      from "./hooks/usePullToRefresh";
+import { supabase }               from "./services/config/supabase";
+import mediaUrlService             from "./services/shared/mediaUrlService";
+import { pushService }             from "./services/notifications/pushService";
+import notificationService         from "./services/notifications/notificationService";
+import MessageNotificationService  from "./services/messages/MessageNotificationService";
+import callService                 from "./services/messages/callService"; // [APP-CALL-1]
+import { useNavigation }           from "./hooks/useNavigation";
+import { useBackButton }           from "./hooks/useBackButton";
+import { usePullToRefresh }        from "./hooks/usePullToRefresh";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
@@ -82,6 +69,7 @@ import NotificationSidebar     from "./components/Shared/NotificationSidebar";
 import InAppNotificationToast  from "./components/Shared/InAppNotificationToast";
 import PullToRefreshIndicator  from "./components/Shared/PullToRefreshIndicator";
 import NetworkError            from "./components/Shared/NetworkError";
+import IncomingCallToast       from "./components/Messages/IncomingCallToast"; // [APP-CALL-3]
 
 // Admin dashboard
 import AdminDashboard from "./components/Admin/AdminDashboard";
@@ -101,7 +89,8 @@ const UpgradeView    = lazy(() => import("./components/Upgrade/UpgradeView"));
 const RewardsView    = lazy(() => import("./components/Rewards/RewardsView"));
 const StreamView     = lazy(() => import("./components/Stream/StreamView"));
 const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView"));
-const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView")); // [APP-6]
+const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView"));
+const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall")); // [APP-CALL-4]
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set(["analytics", "upgrade", "rewards", "stream", "giftcards"]);
@@ -222,28 +211,26 @@ const MainApp = memo(() => {
   const [mountedTabs,        setMountedTabs]        = useState(new Set(["home"]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
 
-  // [APP-6] DM panel state
+  // DM panel state
   const [showMessages,   setShowMessages]   = useState(false);
   const [dmTargetUserId, setDmTargetUserId] = useState(null);
 
-  // [LS-1] Feed filter for tag/post drill-down from TrendingSidebar
+  // [APP-CALL-4] Active call overlay for callee accepting from toast
+  const [showActiveCall,   setShowActiveCall]   = useState(false);
+  const [acceptedCallData, setAcceptedCallData] = useState(null);
+
+  // Feed / stream state
   const [feedFilter,    setFeedFilter]    = useState(null);
-  // [LS-2] Live stream session
   const [streamSession, setStreamSession] = useState(null);
 
-  // [SYNC-1] Home feed tab — owned here so DesktopHeader, MobileHeader, and
-  //          HomeView all share a single source of truth. HomeView no longer
-  //          owns its own activeTab state; the header tabs and feed are now
-  //          perfectly in sync.
+  // [SYNC-1] Home feed tab
   const [activeHomeTab, setActiveHomeTab] = useState("posts");
 
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
   const netCheckRef    = useRef(null);
   const initDone       = useRef(false);
-
-  // [APP-4] Ref so MessageNotificationService can call addToast without re-renders
-  const addToastRef = useRef(null);
+  const addToastRef    = useRef(null);
 
   const { isAtRoot } = useNavigation(
     activeTab, homeSection, accountSection,
@@ -281,11 +268,10 @@ const MainApp = memo(() => {
     };
   }, [isOnline]);
 
-  // ── [APP-2] Notification deep-link navigate ──────────────────────────────
+  // Notification deep-link navigate
   const handleNotificationNavigate = useCallback((path) => {
     if (!path || path === "/") return;
 
-    // [APP-2] Handle DM navigation — open the messages panel
     if (path === "/messages" || path.startsWith("/messages")) {
       setShowMessages(true);
       setDmTargetUserId(null);
@@ -298,18 +284,15 @@ const MainApp = memo(() => {
     const profileMatch = path.match(/^\/profile\/(.+)$/);
 
     if (postMatch) {
-      setActiveTab("home");
-      setHomeSection("newsfeed");
+      setActiveTab("home"); setHomeSection("newsfeed");
       setDeepLinkTarget({ type: "post", id: postMatch[1] });
       setMountedTabs((p) => new Set([...p, "home"]));
     } else if (reelMatch) {
-      setActiveTab("home");
-      setHomeSection("reels");
+      setActiveTab("home"); setHomeSection("reels");
       setDeepLinkTarget({ type: "reel", id: reelMatch[1] });
       setMountedTabs((p) => new Set([...p, "home"]));
     } else if (storyMatch) {
-      setActiveTab("home");
-      setHomeSection("stories");
+      setActiveTab("home"); setHomeSection("stories");
       setDeepLinkTarget({ type: "story", id: storyMatch[1] });
       setMountedTabs((p) => new Set([...p, "home"]));
     } else if (profileMatch) {
@@ -333,19 +316,26 @@ const MainApp = memo(() => {
 
   // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (initDone.current || !user?.id) return;
+    if (initDone.current || !user?.id || !profile) return;
     initDone.current = true;
+
+    // [APP-CALL-1] Initialize callService IMMEDIATELY so the persistent
+    // "user_calls:{userId}" channel is open and ready to receive invites.
+    callService.init(
+      user.id,
+      profile.full_name || "User",
+      profile.avatar_id || null,
+    );
 
     // Init notification service
     notificationService.init(user.id).catch(() => {});
 
-    // [APP-1] Init DM notification service with toast callback
-    // The toastCallback calls addToastRef.current (set by InAppNotificationToast)
+    // Init DM notification service
     MessageNotificationService.init(user.id, (toast) => {
       addToastRef.current?.(toast);
     });
 
-    // Start push service (SW registration + subscription)
+    // Start push service
     if (navigator.onLine) {
       setTimeout(() => pushService.start(user.id).catch(() => {}), 2000);
     }
@@ -353,7 +343,7 @@ const MainApp = memo(() => {
     loadWalletAndAvatar(user.id, profile).catch(() => {});
     preloadTabs();
 
-    // [FIX-1] Kill any stale live sessions from a previous login/crash
+    // Kill stale live sessions
     setTimeout(() => {
       try {
         supabase
@@ -364,21 +354,35 @@ const MainApp = memo(() => {
     }, 3000);
 
     return () => clearTimeout(refreshTimeout.current);
-  }, [user?.id]); // eslint-disable-line
+  }, [user?.id, profile]); // eslint-disable-line
+
+  // [APP-CALL-2] Listen for callee accepting a call from toast (outside DM)
+  useEffect(() => {
+    const handler = (e) => {
+      const callData = e.detail;
+      if (!callData) return;
+      // Set up the call overlay for the callee
+      setAcceptedCallData({
+        ...callData,
+        outgoing: false, // callee side
+      });
+      setShowActiveCall(true);
+      setShowMessages(false);
+    };
+    window.addEventListener("nova:accept_call", handler);
+    return () => window.removeEventListener("nova:accept_call", handler);
+  }, []);
 
   // ── Push listeners ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
 
-    // OS notification tapped → navigate in-app
     const unsubClick = pushService.on("notification_clicked", ({ url }) => {
       if (url) handleNotificationNavigate(url);
     });
 
-    // [APP-3] SW updated — could prompt user to refresh
     const unsubUpdate = pushService.on("sw_updated", ({ version }) => {
       console.log("[App] SW updated to", version);
-      // Optionally show a "New version available, refresh?" banner here
     });
 
     return () => { unsubClick(); unsubUpdate(); };
@@ -451,6 +455,8 @@ const MainApp = memo(() => {
           avatar:   avatarUrl || p.full_name?.charAt(0)?.toUpperCase() || "X",
           verified: p.verified || false,
           fullName: p.full_name || "User",
+          avatarId: p.avatar_id || null,
+          avatar_id: p.avatar_id || null,
         };
         setCurrentUser(userObj);
         setProfileData({
@@ -462,6 +468,9 @@ const MainApp = memo(() => {
           isPro:    p.is_pro,
         });
         setIsSubscribed(p.is_pro || false);
+
+        // [APP-CALL-1b] Update callService with latest profile data
+        callService.init(userId, p.full_name, p.avatar_id);
       }
     } catch { /* Silent */ }
   };
@@ -495,7 +504,8 @@ const MainApp = memo(() => {
       if (user?.id) {
         await pushService.unsubscribe(user.id).catch(() => {});
         notificationService.destroy();
-        MessageNotificationService.cleanup(); // [APP-5]
+        MessageNotificationService.cleanup();
+        callService.cleanup(); // [APP-CALL-1c]
       }
     } catch {}
     await signOut();
@@ -508,7 +518,6 @@ const MainApp = memo(() => {
     return "Good Evening";
   }, []);
 
-  // [LS-3] Join a live stream as viewer
   const handleJoinStream = useCallback((session) => {
     setStreamSession(session);
     setOverlayTab("stream");
@@ -518,7 +527,7 @@ const MainApp = memo(() => {
   const handleTabChange = useCallback((newTab) => {
     if (newTab === "support")       { setShowSupport(true);       return; }
     if (newTab === "notifications") { setShowNotifications(true); return; }
-    if (newTab === "messages")      { setShowMessages(true);      return; } // [APP-6]
+    if (newTab === "messages")      { setShowMessages(true);      return; }
     if (newTab === "trending") {
       if (isMobile) {
         setActiveTab("search");
@@ -543,7 +552,6 @@ const MainApp = memo(() => {
     setMountedTabs((p) => { if (p.has(newTab)) return p; return new Set([...p, newTab]); });
   }, [isAdmin, isMobile]);
 
-  // [LS-7] Overlay close helpers
   const closeOverlayToAccount = useCallback(() => {
     setOverlayTab(null);
     setStreamSession(null);
@@ -576,8 +584,8 @@ const MainApp = memo(() => {
                 feedFilter={feedFilter}
                 onClearFilter={() => setFeedFilter(null)}
                 onJoinStream={handleJoinStream}
-                activeHomeTab={activeHomeTab}        // [SYNC-1]
-                setActiveHomeTab={setActiveHomeTab}  // [SYNC-1]
+                activeHomeTab={activeHomeTab}
+                setActiveHomeTab={setActiveHomeTab}
               />
             </div>
           </Suspense>
@@ -727,6 +735,18 @@ const MainApp = memo(() => {
     );
   };
 
+  // Normalised currentUser for call/DM components
+  const currentUserNorm = {
+    id:        currentUser.id,
+    name:      currentUser.fullName || currentUser.name || "User",
+    fullName:  currentUser.fullName || currentUser.name || "User",
+    username:  currentUser.username || "user",
+    avatar:    currentUser.avatar,
+    avatarId:  currentUser.avatarId || currentUser.avatar_id,
+    avatar_id: currentUser.avatar_id || currentUser.avatarId,
+    verified:  currentUser.verified || false,
+  };
+
   return (
     <div className="app-container">
       <OfflineBanner visible={showOfflineBanner} />
@@ -757,8 +777,8 @@ const MainApp = memo(() => {
             profile={profileData}
             userId={user?.id}
             onSignOut={handleSignOut}
-            activeHomeTab={activeHomeTab}        // [SYNC-1]
-            setActiveHomeTab={setActiveHomeTab}  // [SYNC-1]
+            activeHomeTab={activeHomeTab}
+            setActiveHomeTab={setActiveHomeTab}
           />
         )}
         {isMobile && (
@@ -772,9 +792,9 @@ const MainApp = memo(() => {
             userId={user?.id}
             currentUser={currentUser}
             onSignOut={handleSignOut}
-            activeTab={activeTab}                // [SYNC-2] so MobileHeader hides home tabs when not on home
-            activeHomeTab={activeHomeTab}        // [SYNC-1]
-            setActiveHomeTab={setActiveHomeTab}  // [SYNC-1]
+            activeTab={activeTab}
+            activeHomeTab={activeHomeTab}
+            setActiveHomeTab={setActiveHomeTab}
           />
         )}
 
@@ -854,19 +874,42 @@ const MainApp = memo(() => {
         isMobile={isMobile}
       />
 
-      {/* [APP-6] DM panel — shown from toast tap or nav */}
+      {/* DM panel */}
       {showMessages && (
         <Suspense fallback={null}>
           <DMMessagesView
-            currentUser={currentUser}
+            currentUser={currentUserNorm}
             onClose={() => { setShowMessages(false); setDmTargetUserId(null); }}
             initialOtherUserId={dmTargetUserId}
           />
         </Suspense>
       )}
 
-      {/* [APP-4] addToastRef is set inside InAppNotificationToast so
-          MessageNotificationService can call it without prop drilling */}
+      {/* [APP-CALL-4] Callee active call overlay — shown when accepting from toast */}
+      {showActiveCall && acceptedCallData && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100001, background: "#000" }}>
+          <Suspense fallback={null}>
+            <ActiveCall
+              call={acceptedCallData}
+              onEnd={() => { setShowActiveCall(false); setAcceptedCallData(null); }}
+              currentUser={currentUserNorm}
+            />
+          </Suspense>
+        </div>
+      )}
+
+      {/* [APP-CALL-3] IncomingCallToast at app root — always visible */}
+      <IncomingCallToast
+        onAccept={(callData) => {
+          // Callee accepted: open ActiveCall overlay
+          setAcceptedCallData({ ...callData, outgoing: false });
+          setShowActiveCall(true);
+        }}
+        onDecline={(callId) => {
+          callService.declineCall(callId);
+        }}
+      />
+
       <InAppNotificationToast
         navigate={handleNotificationNavigate}
         addToastRef={addToastRef}
@@ -886,27 +929,8 @@ const MainApp = memo(() => {
           from { transform: translateX(-50%) translateY(20px); opacity: 0; }
           to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
         }
-
-        /* ── GLOBAL Z-INDEX HIERARCHY ─────────────────────────────────────────
-           Stack (low to high):
-             .sidebar / .xv-sidebar : 10    (layout only)
-             DM panel               : 9990–9999
-             Notification sidebar   : 9999–10001
-             Stream overlay         : 10001
-             InAppToast             : 99999
-             .sdm-portal            : 10050
-             Offline banner         : 99998
-        ──────────────────────────────────────────────────────────────────── */
-        .sidebar,
-        .xv-sidebar {
-          z-index: 10 !important;
-        }
-
-        .sdm-portal {
-          position: fixed !important;
-          inset: 0 !important;
-          z-index: 10050 !important;
-        }
+        .sidebar, .xv-sidebar { z-index: 10 !important; }
+        .sdm-portal { position: fixed !important; inset: 0 !important; z-index: 10050 !important; }
       `}</style>
     </div>
   );
@@ -937,7 +961,7 @@ function AppRouter() {
   useEffect(() => {
     if (!user || profile) return;
     const timer = setTimeout(() => {
-      console.warn("[AppRouter] Profile load timeout (15s) — rendering with available state");
+      console.warn("[AppRouter] Profile load timeout (15s)");
       setProfileTimedOut(true);
     }, 15_000);
     return () => clearTimeout(timer);

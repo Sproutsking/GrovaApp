@@ -2,7 +2,16 @@
 import React from 'react';
 import { Coins, Zap } from 'lucide-react';
 
-const AssetsList = ({ userBalance }) => {
+const AssetsList = ({ userBalance, loading, hideBalance }) => {
+  // Mirror BalanceCard: only show real values once loading is done
+  const tokens = !loading ? (userBalance?.tokens ?? 0) : null;
+  const points = !loading ? (userBalance?.points ?? 0) : null;
+
+  const fmt = (n) => n.toLocaleString('en');
+  const epDisplay = points !== null
+    ? (points >= 1000 ? `${(points / 1000).toFixed(1)}K` : fmt(points))
+    : '—';
+
   return (
     <div className="assets-section">
       <h3 className="section-title">Your Assets</h3>
@@ -18,7 +27,9 @@ const AssetsList = ({ userBalance }) => {
           <p className="asset-symbol">$XEV · Xeevia</p>
         </div>
         <div className="asset-balance">
-          <span className="asset-amount">{(userBalance?.tokens ?? 0).toLocaleString()}</span>
+          <span className="asset-amount">
+            {hideBalance ? '••••••' : (tokens !== null ? fmt(tokens) : '—')}
+          </span>
           <span className="asset-change positive">+12.5%</span>
         </div>
       </div>
@@ -33,7 +44,9 @@ const AssetsList = ({ userBalance }) => {
           <p className="asset-symbol">EP · Non-withdrawable</p>
         </div>
         <div className="asset-balance">
-          <span className="asset-amount">{(userBalance?.points ?? 0).toLocaleString()}</span>
+          <span className="asset-amount">
+            {hideBalance ? '••••' : epDisplay}
+          </span>
         </div>
       </div>
     </div>

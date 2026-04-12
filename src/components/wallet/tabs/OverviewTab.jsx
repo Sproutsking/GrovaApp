@@ -6,6 +6,8 @@
 //   • In/Out arrows: beautiful directional chips on each tx row
 //   • Animated number counter on balance change
 //   • All avatar references use XevAvatar with proper data passing
+//   • EP AssetCard now uses Math.floor + isInteger to match BalanceCard
+//     exactly — no more mid-tween decimals like 30.8539 or 282.5
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -20,28 +22,21 @@ import ProfilePreview from "../../Shared/ProfilePreview";
 import { supabase } from "../../../services/config/supabase";
 
 // ── TxAvatar — fetches the real profile for a transaction counterparty ───────
-// tx.counterparty often only has { username } — no avatar data.
-// This component fetches the full profile from Supabase by username,
-// then passes it to ProfilePreview so the real image always shows.
-const profileCache = {};  // module-level cache — survives re-renders
+const profileCache = {};
 
 function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
   const [profile, setProfile] = useState(() => {
-    // Use cached profile if we already fetched it this session
     const cached = cp?.username ? profileCache[cp.username] : null;
     return cached || cp || null;
   });
 
   useEffect(() => {
     if (!cp?.username) return;
-    // Already has avatar data — no fetch needed
     if (cp.avatar_id || cp.avatar_metadata || cp.avatar) return;
-    // Already cached
     if (profileCache[cp.username]) {
       setProfile(profileCache[cp.username]);
       return;
     }
-    // Fetch full profile
     supabase
       .from("profiles")
       .select("id,username,full_name,avatar_id,avatar_metadata,verified")
@@ -74,7 +69,6 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
         size="small"
         showUsername={false}
       />
-      {/* Direction badge overlaid on avatar */}
       <div className={`ov-tx-dir-badge ${dirClass}`}>
         {isPending ? (
           <Clock size={7} color="#000" />
@@ -111,10 +105,10 @@ function useAnimatedNumber(target, duration = 700) {
 
     rafRef.current = requestAnimationFrame(function tick(ts) {
       if (!startRef.current) startRef.current = ts;
-      const elapsed = ts - startRef.current;
+      const elapsed  = ts - startRef.current;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = ease(progress);
-      const current = from + (to - from) * eased;
+      const eased    = ease(progress);
+      const current  = from + (to - from) * eased;
       setDisplay(current);
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(tick);
@@ -165,7 +159,7 @@ function DeltaFlash({ delta, currency }) {
       animation: "ovDeltaIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards",
       whiteSpace: "nowrap",
     }}>
-      {isPos ? "+" : ""}{val > 0 ? "+" : ""}{Math.abs(val).toLocaleString()} {currency}
+      {isPos ? "+" : ""}{Math.abs(val).toLocaleString()} {currency}
     </div>
   );
 }
@@ -191,7 +185,6 @@ function TxDirectionChip({ isIn, isPending }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       position: "relative",
     }}>
-      {/* Arrow SVG — custom animated */}
       <svg
         width="16" height="16" viewBox="0 0 16 16" fill="none"
         style={{
@@ -210,7 +203,7 @@ function TxDirectionChip({ isIn, isPending }) {
 }
 
 const CSS = `
-  /* ── Section heading — centred with gradient lines ── */
+  /* ── Section heading ── */
   .ov-section-head {
     display:flex;align-items:center;gap:10px;
     margin:24px 0 14px;justify-content:center;
@@ -324,14 +317,12 @@ const CSS = `
   .ov-tx-row.pending{opacity:0.65;border-style:dashed;}
   @keyframes txIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-  /* Avatar + direction composite */
   .ov-tx-avatar-wrap {
     position: relative;
     flex-shrink: 0;
     width: 40px;
     height: 40px;
   }
-  /* Direction badge on avatar */
   .ov-tx-dir-badge {
     position: absolute;
     bottom: -3px;
@@ -362,7 +353,6 @@ const CSS = `
   .ov-tx-amount.in{color:#a3e635;}
   .ov-tx-amount.out{color:#f87171;}
 
-  /* Direction pill next to amount */
   .ov-tx-dir-pill {
     display: inline-flex; align-items: center; gap: 3px;
     padding: 2px 7px; border-radius: 100px;
@@ -400,17 +390,24 @@ const CSS = `
 `;
 
 // ── Animated balance number ──────────────────────────────────────
-function AnimatedBalance({ value, loading, className, style }) {
+// isInteger=true → Math.round at every frame so EP never shows decimals.
+// This matches BalanceCard which always renders whole numbers via fmt().
+function AnimatedBalance({ value, loading, className, style, isInteger = false }) {
   const animated = useAnimatedNumber(loading ? 0 : (value || 0), 650);
+
+  const display = isInteger
+    ? Math.round(animated).toLocaleString()
+    : animated.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
   return (
     <div className={className} style={style}>
-      {loading ? "—" : animated.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+      {loading ? "—" : display}
     </div>
   );
 }
 
 // ── Asset card with flash on change ─────────────────────────────
-function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, delta, currency }) {
+function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, delta, currency, isInteger }) {
   const [flashClass, setFlashClass] = useState("");
   const prevVal = useRef(value);
 
@@ -432,12 +429,12 @@ function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, del
         <div className="ov-asset-desc">{desc}</div>
       </div>
       <div className="ov-asset-right">
-        {/* Delta flash badge */}
         <DeltaFlash delta={delta} currency={currency} />
         <AnimatedBalance
           value={value}
           loading={loading}
           className={`ov-asset-amount ${type}`}
+          isInteger={isInteger}
         />
         {fiatLine && <div className="ov-asset-fiat">{fiatLine}</div>}
         {chip && <div className="ov-asset-chip">{chip}</div>}
@@ -456,7 +453,9 @@ export default function OverviewTab({
   const { format } = useCurrency();
 
   const xev = balance?.tokens ?? 0;
-  const ep  = balance?.points ?? 0;
+  // ─── FIX: Math.floor so EP is always a whole integer,
+  //          matching exactly what BalanceCard renders.
+  const ep  = Math.floor(balance?.points ?? 0);
 
   // Track deltas for flash indicators
   const prevXEV = useRef(xev);
@@ -531,6 +530,7 @@ export default function OverviewTab({
         <div className="ov-section-line" />
       </div>
 
+      {/* XEV — floats are fine, no isInteger needed */}
       <AssetCard
         type="xev"
         icon={<Coins size={20} />}
@@ -543,6 +543,7 @@ export default function OverviewTab({
         currency="$XEV"
       />
 
+      {/* EP — isInteger=true keeps this in sync with BalanceCard at all times */}
       <AssetCard
         type="ep"
         icon={<Zap size={20} />}
@@ -553,6 +554,7 @@ export default function OverviewTab({
         loading={loading}
         delta={epDelta}
         currency="EP"
+        isInteger={true}
       />
 
       {/* ══ PAYWAVE (region-gated) ══ */}
@@ -610,7 +612,6 @@ export default function OverviewTab({
                 })
               : "Just now";
 
-            // Direction classes
             const dirClass = isPending ? "pending-badge" : isReceived ? "in" : "out";
             const amtClass = isReceived ? "in" : "out";
 
@@ -620,7 +621,6 @@ export default function OverviewTab({
                 className={`ov-tx-row${isPending ? " pending" : ""}`}
                 style={{ animationDelay: `${idx * 30}ms` }}
               >
-                {/* ── Avatar with direction badge — TxAvatar fetches full profile if needed ── */}
                 {cp ? (
                   <TxAvatar
                     cp={cp}
@@ -635,7 +635,6 @@ export default function OverviewTab({
                   </div>
                 )}
 
-                {/* ── Text content ── */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="ov-tx-label">
                     {label}
@@ -654,7 +653,6 @@ export default function OverviewTab({
                   <div className="ov-tx-sub">{isPending ? "Processing…" : dateStr}</div>
                 </div>
 
-                {/* ── Amount + direction pill ── */}
                 <div className="ov-tx-right">
                   <div className={`ov-tx-amount ${amtClass}`}>
                     {isReceived ? "+" : "−"}{(tx.amount || 0).toLocaleString()}{" "}

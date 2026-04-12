@@ -377,7 +377,7 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
-.offer-price-section { text-align: right; flex-shrink: 0; margin-right: 6px; }
+.offer-price-section { text-align: right; display: flex; gap: 10px; flex-shrink: 0; margin-right: 6px; }
 
 .offer-price {
   font-size: 14px;
@@ -396,7 +396,7 @@
 
 .offer-body { padding: 9px 12px 12px; border-top: 1px solid #111; }
 
-.offer-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.offer-details { display: flex; justify-content: space-between; gap: 8px; }
 
 .offer-detail { display: flex; flex-direction: column; gap: 2px; }
 
@@ -425,7 +425,7 @@
 .btn-buy {
   display: flex; align-items: center; justify-content: center; gap: 4px;
   background: #22c55e; color: #000; border: none;
-  border-radius: 9px; padding: 8px 14px;
+  border-radius: 9px; padding: 5px 10px;
   font-size: 11px; font-weight: 800; cursor: pointer;
   transition: background 0.18s, transform 0.1s;
   white-space: nowrap; font-family: 'Syne', sans-serif;
@@ -438,7 +438,7 @@
 .btn-sell {
   display: flex; align-items: center; justify-content: center; gap: 4px;
   background: #ef4444; color: #fff; border: none;
-  border-radius: 9px; padding: 8px 14px;
+  border-radius: 9px; padding: 5px 10px;
   font-size: 11px; font-weight: 800; cursor: pointer;
   transition: background 0.18s, transform 0.1s;
   white-space: nowrap; font-family: 'Syne', sans-serif;
@@ -578,9 +578,9 @@
 /* =============================================
    FORMS
    ============================================= */
-.trade-form { display: flex; flex-direction: column; gap: 11px; }
+.trade-form { display: flex; flex-direction: row; gap: 11px; }
 
-.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group { display: flex; flex-direction: row; gap: 5px; }
 
 .form-label {
   font-size: 10px; font-weight: 700; color: #383838;
