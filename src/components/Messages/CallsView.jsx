@@ -1,812 +1,806 @@
-// components/Messages/ChatView.jsx — NOVA CHAT v4 FULL REPLY SYSTEM
+// components/Messages/CallsView.jsx
 // ============================================================================
-// NEW FEATURES vs v3:
-//  [REPLY-1] Swipe left/right on message (mobile) → reply mode. Visual rubber-
-//            band effect with reply indicator that follows the drag.
-//  [REPLY-2] Long press on message (mobile) → smart context menu dropdown.
-//            Dropdown avoids screen edges — flips direction based on message
-//            position. Fully animated slide-in.
-//  [REPLY-3] Desktop: hover on message → reply button appears at the correct
-//            side of the bubble (right side for left messages, left for right).
-//  [REPLY-4] Desktop: right-click on message → same context menu as long-press.
-//  [REPLY-5] Reply bar in MessageInput area — shows preview of replied-to
-//            message with animated slide-in, X to cancel.
-//  [REPLY-6] Replied-to messages rendered as quoted previews inside bubbles.
-//  [REPLY-7] Tapping a quoted reply scrolls to original message.
-//  [COPY]    Context menu "Copy" action works correctly.
-//  [DELETE]  Context menu "Delete" removes own messages.
+// GROVA CALLS — PRODUCTION v7  (cleaned — zero duplication)
+// ============================================================================
+// Data sources (all real, zero mocks):
+//   • Contacts  → conversations table (people you've DM'd)
+//   • Call log  → call_logs table (auto-created on first call, stored in DB)
+//   • Presence  → onlineStatusService (already live)
+//
+// SQL to run once in Supabase (safe to re-run):
+// ─────────────────────────────────────────────
+// create table if not exists public.call_logs (
+//   id            uuid primary key default gen_random_uuid(),
+//   caller_id     uuid not null references profiles(id),
+//   callee_id     uuid not null references profiles(id),
+//   type          text not null check (type in ('audio','video','group')),
+//   status        text not null check (status in ('missed','answered','declined')),
+//   duration_secs int  default 0,
+//   quality       text,
+//   created_at    timestamptz not null default now()
+// );
+// alter table public.call_logs enable row level security;
+// create policy "users see own call_logs" on public.call_logs
+//   for select using (caller_id = auth.uid() or callee_id = auth.uid());
+// create policy "users insert call_logs" on public.call_logs
+//   for insert with check (caller_id = auth.uid());
 // ============================================================================
 
-import React, {
-  useState, useEffect, useRef, useCallback, useMemo
-} from "react";
-import { supabase }          from "../../services/config/supabase";
-import dmMessageService      from "../../services/messages/dmMessageService";
-import onlineStatusService   from "../../services/messages/onlineStatusService";
-import conversationState     from "../../services/messages/ConversationStateManager";
-import backgroundService, { DOT_OVERLAY_CSS } from "../../services/messages/BackgroundService";
-import mediaUrlService       from "../../services/shared/mediaUrlService";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { supabase } from "../../services/config/supabase";
+import onlineStatusService from "../../services/messages/onlineStatusService";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 /* ─── ICONS ─── */
 const Ic = {
-  Back:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
-  More:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>,
-  Phone:   () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
-  Video:   () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
-  Reply:   () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg>,
-  Copy:    () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
-  Delete:  () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>,
-  Palette: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>,
-  Down:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-  Close:   () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  Forward: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 014-4h12"/></svg>,
-  Info:    () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+  Phone:     () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+  Video:     () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
+  Users:     () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+  Incoming:  () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 19 19 12"/></svg>,
+  Outgoing:  () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#84cc16" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 5 5 12"/></svg>,
+  Missed:    () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 19 19 12"/></svg>,
+  Close:     () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Check:     () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  ChevRight: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>,
+  ChevDown:  () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  Back:      () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  Search:    () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  Info:      () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
 };
 
-const RANK = { sent: 0, delivered: 1, read: 2 };
+/* ─── QUALITY PRESETS ─── */
+const QUALITY_PRESETS = [
+  { id: "whisper", label: "Whisper", icon: "🍃", color: "#22c55e", audio: { sampleRate: 8000,  bitrate: 6_000,       dtx: true,  fec: true }, video: null, est: "~45 KB/min",  desc: "Voice-only · Opus 6 kbps · DTX · FEC",              badge: "95% less data" },
+  { id: "crystal", label: "Crystal", icon: "💎", color: "#84cc16", audio: { sampleRate: 24000, bitrate: 24_000,      dtx: true,  fec: true }, video: null, est: "~180 KB/min", desc: "HD voice · Opus 24 kbps · wideband · FEC",            badge: "Best voice"    },
+  { id: "vision",  label: "Vision",  icon: "👁️", color: "#60a5fa", audio: { sampleRate: 48000, bitrate: 32_000,      dtx: true,  fec: true }, video: { width: 640,  height: 360, fps: 15, bitrate: 200_000,   codec: "VP9", svc: true }, est: "~1.4 MB/min", desc: "360p · VP9 SVC · RED+FEC · adaptive layers", badge: "Smart video"  },
+  { id: "vivid",   label: "Vivid",   icon: "✨", color: "#c084fc", audio: { sampleRate: 48000, bitrate: 48_000,      dtx: false, fec: true }, video: { width: 1280, height: 720, fps: 30, bitrate: 1_000_000, codec: "VP9", svc: true }, est: "~3.2 MB/min", desc: "720p 30fps · VP9 SVC · full fidelity",       badge: "Pro quality"  },
+];
 
-// ── Context Menu ─────────────────────────────────────────────────────────────
-const ContextMenu = ({ msg, pos, isMe, onReply, onCopy, onDelete, onInfo, onClose }) => {
-  const menuRef = useRef(null);
-  const [style, setStyle] = useState({ opacity: 0 });
+/* ─── HELPERS ─── */
+const fmtDuration = (secs) => {
+  if (!secs) return null;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+};
 
-  useEffect(() => {
-    const el = menuRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let { x, y } = pos;
-    // Adjust so menu doesn't overflow screen
-    if (x + rect.width > vw - 12) x = vw - rect.width - 12;
-    if (x < 12) x = 12;
-    if (y + rect.height > vh - 12) y = y - rect.height - 8;
-    if (y < 12) y = 12;
-    setStyle({ left: x, top: y, opacity: 1 });
-  }, [pos]);
+const fmtTime = (iso) => {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const now  = new Date();
+  const diff = now - date;
+  if (diff < 86400000)  return `Today, ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  if (diff < 172800000) return `Yesterday, ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  return date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+};
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (!menuRef.current?.contains(e.target)) onClose();
-    };
-    setTimeout(() => {
-      document.addEventListener("mousedown", handler);
-      document.addEventListener("touchstart", handler);
-    }, 50);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, [onClose]);
+const getInitial = (name) => (name || "?").charAt(0).toUpperCase();
 
-  const items = [
-    { label: "Reply", icon: <Ic.Reply/>, action: onReply, color: "#84cc16" },
-    { label: "Copy", icon: <Ic.Copy/>, action: onCopy, color: "#ccc" },
-    isMe && { label: "Info", icon: <Ic.Info/>, action: onInfo, color: "#60a5fa" },
-    isMe && { label: "Delete", icon: <Ic.Delete/>, action: onDelete, color: "#ef4444" },
-  ].filter(Boolean);
-
+/* ─── AVATAR ─── */
+const Avatar = ({ user, size = 44, online = false, ringColor = null }) => {
+  const url     = user?.avatar_id ? mediaUrlService.getAvatarUrl(user.avatar_id, 200) : null;
+  const dotSize = Math.max(10, Math.round(size * 0.26));
   return (
-    <div className="ctx-overlay" onMouseDown={e => { e.stopPropagation(); onClose(); }} onTouchStart={e => { e.stopPropagation(); onClose(); }}>
-      <div
-        ref={menuRef}
-        className="ctx-menu"
-        style={style}
-        onMouseDown={e => e.stopPropagation()}
-        onTouchStart={e => e.stopPropagation()}
-      >
-        {items.map(({ label, icon, action, color }) => (
-          <button key={label} className="ctx-item" style={{ color }}
-            onClick={(e) => { e.stopPropagation(); action?.(); onClose(); }}>
-            <span className="ctx-icon">{icon}</span>
-            <span>{label}</span>
-          </button>
-        ))}
+    <div className="cv-av-wrap" style={{ width: size, height: size, flexShrink: 0, position: "relative", display: "inline-flex" }}>
+      <div className="cv-av" style={{ width: size, height: size, fontSize: size * 0.38, borderColor: ringColor || undefined }}>
+        {url
+          ? <img src={url} alt={user?.full_name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+          : getInitial(user?.full_name)
+        }
       </div>
-    </div>
-  );
-};
-
-// ── Reply Preview ────────────────────────────────────────────────────────────
-const ReplyQuote = ({ replyTo, messages, onScrollTo }) => {
-  if (!replyTo) return null;
-  const original = messages.find(m => m.id === replyTo);
-  if (!original) return null;
-  const text = original.content?.slice(0, 80) || "";
-
-  return (
-    <div className="rq-wrap" onClick={() => onScrollTo?.(replyTo)}>
-      <div className="rq-bar"/>
-      <div className="rq-text">{text}</div>
-    </div>
-  );
-};
-
-// ── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = ({
-  msg, isMe, showAv, avatarUrl, otherName, currentUserId,
-  messages, onReply, onDelete, onScrollTo, getTickStatus, fmtTime
-}) => {
-  const [swipeX,    setSwipeX]    = useState(0);
-  const [swiping,   setSwiping]   = useState(false);
-  const [showMenu,  setShowMenu]  = useState(false);
-  const [menuPos,   setMenuPos]   = useState({ x: 0, y: 0 });
-  const [hovered,   setHovered]   = useState(false);
-  const [replyAnim, setReplyAnim] = useState(false);
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
-  const longPressTimer = useRef(null);
-  const SWIPE_THRESHOLD = 60;
-  const msgRef = useRef(null);
-
-  const openMenu = (x, y) => {
-    setMenuPos({ x, y });
-    setShowMenu(true);
-  };
-
-  // Long press
-  const onTouchStart = (e) => {
-    const t = e.touches[0];
-    touchStartX.current = t.clientX;
-    touchStartY.current = t.clientY;
-    longPressTimer.current = setTimeout(() => {
-      const rect = msgRef.current?.getBoundingClientRect() || {};
-      openMenu(rect.left + rect.width / 2 - 80, rect.top - 8);
-    }, 500);
-  };
-
-  const onTouchMove = (e) => {
-    const t = e.touches[0];
-    const dx = t.clientX - (touchStartX.current || 0);
-    const dy = Math.abs(t.clientY - (touchStartY.current || 0));
-    if (dy > 10) { clearTimeout(longPressTimer.current); return; }
-    if (Math.abs(dx) > 8) {
-      clearTimeout(longPressTimer.current);
-      setSwiping(true);
-      const clamped = Math.max(-90, Math.min(90, dx));
-      setSwipeX(clamped);
-    }
-  };
-
-  const onTouchEnd = () => {
-    clearTimeout(longPressTimer.current);
-    if (swiping) {
-      if (Math.abs(swipeX) >= SWIPE_THRESHOLD) {
-        setReplyAnim(true);
-        setTimeout(() => setReplyAnim(false), 400);
-        onReply?.(msg);
-      }
-      setSwiping(false);
-      setSwipeX(0);
-    }
-  };
-
-  // Right click (desktop)
-  const onContextMenu = (e) => {
-    e.preventDefault();
-    openMenu(e.clientX, e.clientY);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(msg.content || "").catch(() => {});
-  };
-
-  const handleDelete = async () => {
-    if (!isMe) return;
-    try {
-      await supabase.from("messages").delete().eq("id", msg.id);
-    } catch(err) { console.warn("delete msg:", err); }
-  };
-
-  // Render reply quote
-  const renderContent = (c) => {
-    if (!c || typeof c !== "string" ||
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
-      return <span className="cv-bad">[message unavailable]</span>;
-    return c;
-  };
-
-  const hasReply = !!msg.reply_to_id;
-
-  return (
-    <div
-      ref={msgRef}
-      className={[
-        "cv-msg", isMe ? "cv-me" : "cv-them",
-        msg._optimistic ? "cv-opt" : "",
-        msg._failed ? "cv-fail" : "",
-        replyAnim ? "cv-reply-pulse" : "",
-      ].filter(Boolean).join(" ")}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onContextMenu={onContextMenu}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      data-msg-id={msg.id}
-    >
-      {/* Swipe indicator */}
-      {swiping && (
-        <div className="swipe-indicator" style={{
-          opacity: Math.min(1, Math.abs(swipeX) / SWIPE_THRESHOLD),
-          transform: `scale(${0.6 + 0.4 * Math.min(1, Math.abs(swipeX) / SWIPE_THRESHOLD)})`,
-          [isMe ? "right" : "left"]: "calc(100% + 8px)",
-        }}>
-          <Ic.Reply/>
-        </div>
-      )}
-
-      {/* Desktop reply button — correct side of bubble */}
-      {hovered && !swiping && (
-        <button
-          className={`desktop-reply-btn${isMe ? " desktop-reply-left" : " desktop-reply-right"}`}
-          onClick={() => onReply?.(msg)}
-          title="Reply"
-        >
-          <Ic.Reply/>
-        </button>
-      )}
-
-      {!isMe ? (
-        showAv
-          ? <div className="cv-avatar">{avatarUrl ? <img src={avatarUrl} alt={otherName}/> : (otherName || "U").charAt(0)}</div>
-          : <div className="cv-avatar-sp"/>
-      ) : null}
-
-      <div
-        className={["cv-bubble", isMe ? "cv-bme" : "cv-bthem", showAv ? "cv-tail" : ""].filter(Boolean).join(" ")}
+      <span
+        className={`cv-online-dot${online ? " cv-online-dot--on" : ""}`}
         style={{
-          transform: swiping ? `translateX(${swipeX * 0.5}px)` : "translateX(0)",
-          transition: swiping ? "none" : "transform 0.25s cubic-bezier(.34,1.56,.64,1)",
+          width:       dotSize,
+          height:      dotSize,
+          bottom:      Math.round(dotSize * 0.05),
+          right:       Math.round(dotSize * 0.05),
+          borderWidth: Math.max(2, Math.round(dotSize * 0.22)),
         }}
-      >
-        {/* Reply quote */}
-        {hasReply && (
-          <ReplyQuote replyTo={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>
-        )}
-        <div className="cv-content">{renderContent(msg.content)}</div>
-        <div className={`cv-meta${isMe ? " cv-meta-me" : ""}`}>
-          <span className="cv-time">{fmtTime(msg.created_at)}</span>
-          {isMe && <span className="cv-st">{getTickStatus(msg)}</span>}
+      />
+    </div>
+  );
+};
+
+/* ─── CALL TYPE CHOOSER ─── */
+const CallTypeChooser = ({ target, onChoose, onClose }) => {
+  const types = [
+    { id: "audio", icon: "🎙️", label: "Voice Call",      desc: "Crystal-clear · starts in Crystal mode", color: "#84cc16" },
+    { id: "video", icon: "📹", label: "Video Call",       desc: "Smart video · VP9 adaptive · low data",  color: "#60a5fa" },
+    { id: "group", icon: "👥", label: "Start Group Call", desc: "Add more people · audio or video",        color: "#c084fc" },
+  ];
+  return (
+    <div className="chooser-overlay" onClick={onClose}>
+      <div className="chooser-sheet" onClick={e => e.stopPropagation()}>
+        <div className="chooser-drag" />
+        <div className="chooser-head">
+          <div className="chooser-target-row">
+            <Avatar user={target} size={42} online={target?._online} />
+            <div>
+              <div className="chooser-target-name">{target?.full_name || "Unknown"}</div>
+              <div className="chooser-target-sub">Select call type</div>
+            </div>
+          </div>
+          <button className="chooser-close" onClick={onClose}><Ic.Close /></button>
+        </div>
+        <div className="chooser-types">
+          {types.map(t => (
+            <button key={t.id} className="ct-btn" onClick={() => onChoose(t.id)}>
+              <span className="ct-icon">{t.icon}</span>
+              <div className="ct-info">
+                <span className="ct-label" style={{ color: t.color }}>{t.label}</span>
+                <span className="ct-desc">{t.desc}</span>
+              </div>
+              <Ic.ChevRight />
+            </button>
+          ))}
+        </div>
+        <div className="chooser-data-row">
+          <span className="chooser-data-label">⚡ Up to 95% less data than WhatsApp, Instagram & Facebook</span>
+          <div className="chooser-data-pills">
+            {QUALITY_PRESETS.map(p => (
+              <span key={p.id} className="chooser-data-pill" style={{ borderColor: p.color + "44", color: p.color }}>
+                {p.icon} {p.est}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-
-      {isMe && showAv ? <div className="cv-avatar-sp"/> : null}
-
-      {/* Context menu */}
-      {showMenu && (
-        <ContextMenu
-          msg={msg}
-          pos={menuPos}
-          isMe={isMe}
-          onReply={() => onReply?.(msg)}
-          onCopy={handleCopy}
-          onDelete={handleDelete}
-          onInfo={() => {}}
-          onClose={() => setShowMenu(false)}
-        />
-      )}
     </div>
   );
 };
 
-// ── Reply Bar ────────────────────────────────────────────────────────────────
-const ReplyBar = ({ replyTo, onCancel }) => {
-  if (!replyTo) return null;
-  return (
-    <div className="reply-bar">
-      <div className="reply-bar-line"/>
-      <div className="reply-bar-content">
-        <div className="reply-bar-label">Replying to</div>
-        <div className="reply-bar-text">{replyTo.content?.slice(0, 80) || "..."}</div>
-      </div>
-      <button className="reply-bar-x" onClick={onCancel}><Ic.Close/></button>
-    </div>
-  );
-};
+/* ─── NEW CALL MODAL ─── */
+const NewCallModal = ({ contacts, onCall, onClose }) => {
+  const [query,     setQuery]     = useState("");
+  const [searching, setSearching] = useState(false);
+  const [results,   setResults]   = useState([]);
+  const inputRef = useRef(null);
 
-// ── Message Input ────────────────────────────────────────────────────────────
-const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply }) => {
-  const [val, setVal] = useState("");
-  const textareaRef = useRef(null);
-  const typingTimeout = useRef(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   useEffect(() => {
-    if (replyTo) textareaRef.current?.focus();
-  }, [replyTo]);
+    if (!query.trim()) { setResults(contacts); return; }
+    const q = query.toLowerCase();
+    setResults(contacts.filter(c =>
+      (c.full_name || "").toLowerCase().includes(q) || (c.username || "").toLowerCase().includes(q)
+    ));
+  }, [query, contacts]);
 
-  const handleChange = (e) => {
-    setVal(e.target.value);
-    clearTimeout(typingTimeout.current);
-    onTyping?.();
-    typingTimeout.current = setTimeout(() => {}, 2000);
-    // Auto-grow
-    const ta = textareaRef.current;
-    if (ta) { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; }
-  };
-
-  const submit = () => {
-    const t = val.trim();
-    if (!t) return;
-    onSend(t, replyTo?.id || null);
-    setVal("");
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-    onCancelReply?.();
-  };
-
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
-  };
+  useEffect(() => {
+    if (!query.trim() || query.length < 2) return;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, full_name, username, avatar_id, verified")
+          .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
+          .limit(20);
+        if (data) {
+          const localIds = new Set(contacts.map(c => c.id));
+          const extras   = data.filter(u => !localIds.has(u.id));
+          setResults(prev => {
+            const existing = prev.filter(c => contacts.some(lc => lc.id === c.id));
+            return [...existing, ...extras];
+          });
+        }
+      } catch (_) {}
+      finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, contacts]);
 
   return (
-    <div className="mi-root">
-      <ReplyBar replyTo={replyTo} onCancel={onCancelReply}/>
-      <div className="mi-bar">
-        <textarea
-          ref={textareaRef}
-          className="mi-input"
-          value={val}
-          onChange={handleChange}
-          onKeyDown={handleKey}
-          placeholder="Message…"
-          rows={1}
-          maxLength={4000}
-        />
-        <button
-          className="mi-send"
-          onClick={submit}
-          disabled={!val.trim()}
-          aria-label="Send"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-        </button>
+    <div className="chooser-overlay" onClick={onClose}>
+      <div className="chooser-sheet chooser-sheet-tall" onClick={e => e.stopPropagation()}>
+        <div className="chooser-drag" />
+        <div className="chooser-head">
+          <h3 className="chooser-target-name" style={{ flex: 1, textAlign: "center" }}>New Call</h3>
+          <button className="chooser-close" onClick={onClose}><Ic.Close /></button>
+        </div>
+        <div className="nc-search">
+          <Ic.Search />
+          <input
+            ref={inputRef}
+            className="nc-search-input"
+            placeholder="Search by name or username…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {searching && <div className="nc-search-spin" />}
+          {query && !searching && (
+            <button className="nc-search-clear" onClick={() => setQuery("")}><Ic.Close /></button>
+          )}
+        </div>
+        <div className="nc-list">
+          {results.length === 0 && (
+            <div className="cv-empty">
+              <div className="cv-empty-icon">🔍</div>
+              <p>{query ? "No users found" : "No contacts yet"}</p>
+              <span>{query ? "Try a different name" : "Start messaging someone first"}</span>
+            </div>
+          )}
+          {results.map(user => (
+            <div key={user.id} className="nc-user-row" onClick={() => onCall(user)}>
+              <Avatar user={user} size={46} online={user._online} />
+              <div className="nc-user-info">
+                <span className="nc-user-name">{user.full_name}</span>
+                <span className="nc-user-sub">
+                  {user._online ? <><span className="nc-online-dot" />Online</> : `@${user.username}`}
+                </span>
+              </div>
+              <div className="nc-user-actions" onClick={e => e.stopPropagation()}>
+                <button className="nc-call-btn nc-voice" title="Voice call" onClick={() => onCall(user, "audio")}><Ic.Phone /></button>
+                <button className="nc-call-btn nc-video" title="Video call" onClick={() => onCall(user, "video")}><Ic.Video /></button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-// ══════════════════════════════════════════════════════
-// MAIN ChatView
-// ══════════════════════════════════════════════════════
-const ChatView = ({ conversation, currentUser, onBack, onStartCall }) => {
-  const [messages,     setMessages]     = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [status,       setStatus]       = useState({ online: false, lastSeenText: "Offline" });
-  const [typing,       setTyping]       = useState({ isTyping: false, userName: "" });
-  const [showMenu,     setShowMenu]     = useState(false);
-  const [showBgPicker, setShowBgPicker] = useState(false);
-  const [showJump,     setShowJump]     = useState(false);
-  const [selectedBg,   setSelectedBg]   = useState(backgroundService.getConversationBackground(conversation.id));
-  const [readStatus,   setReadStatus]   = useState({});
-  const [replyTo,      setReplyTo]      = useState(null); // [REPLY-5]
+/* ─── GROUP PICKER ─── */
+const GroupPicker = ({ contacts, onStart, onBack }) => {
+  const [selected, setSelected] = useState([]);
+  const [query,    setQuery]    = useState("");
+  const MAX = 7;
 
-  const endRef        = useRef(null);
-  const containerRef  = useRef(null);
-  const typingTimeout = useRef(null);
-  const isAtBottom    = useRef(true);
-  const unsubCh       = useRef(null);
-  const unsubDB       = useRef(null);
-  const msgsRef       = useRef([]);
-  useEffect(() => { msgsRef.current = messages; }, [messages]);
-
-  const convId    = conversation.id;
-  const otherUser = conversation.otherUser;
-  const bgs       = backgroundService.getBackgrounds();
-  const activeBg  = bgs[selectedBg];
-  const bgStyle   = backgroundService.getBgStyle(selectedBg);
-  const isDefault = activeBg?.isDefault === true;
-
-  const scrollToBottom = (b = "smooth") => endRef.current?.scrollIntoView({ behavior: b });
-
-  const handleScroll = () => {
-    if (!containerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    isAtBottom.current = scrollHeight - scrollTop - clientHeight < 80;
-    setShowJump(!isAtBottom.current && msgsRef.current.length >= 2);
-  };
-
-  const patchStatus = useCallback((ids, ns) => {
-    if (!ids?.length) return;
-    setReadStatus(prev => {
-      const next = { ...prev };
-      ids.forEach(id => {
-        if (!id) return;
-        if ((RANK[ns] ?? -1) > (RANK[prev[id]] ?? -1)) next[id] = ns;
-      });
-      return next;
-    });
+  const toggle = useCallback((id) => {
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= MAX ? prev : [...prev, id]
+    );
   }, []);
 
-  const seedFromMessages = useCallback((msgs) => {
-    setReadStatus(prev => {
-      const next = { ...prev };
-      msgs.forEach(m => {
-        if (!m.id) return;
-        const db = m.read ? "read" : m.delivered ? "delivered" : "sent";
-        if (m.sender_id !== currentUser.id) { if (RANK["read"] > (RANK[prev[m.id]] ?? -1)) next[m.id] = "read"; }
-        else { if ((RANK[db] ?? 0) > (RANK[prev[m.id]] ?? -1)) next[m.id] = db; }
-      });
-      return next;
-    });
-  }, [currentUser.id]);
+  const filtered = contacts.filter(c => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (c.full_name || "").toLowerCase().includes(q) || (c.username || "").toLowerCase().includes(q);
+  });
 
-  const markOurRead = useCallback(() => {
-    const ids = msgsRef.current.filter(m => m.sender_id === currentUser.id && m.id).map(m => m.id);
-    patchStatus(ids, "read");
-  }, [currentUser.id, patchStatus]);
+  const selectedContacts = contacts.filter(c => selected.includes(c.id));
 
+  const buildInfo = (type) => ({
+    name: selectedContacts.length === 1
+      ? selectedContacts[0]?.full_name || "Group"
+      : `Group · ${selectedContacts.length + 1} people`,
+    initial: "G",
+    type,
+    outgoing: true,
+    participants: selectedContacts.map(c => ({
+      id:      c.id,
+      name:    c.full_name,
+      initial: getInitial(c.full_name),
+      muted:   false,
+    })),
+  });
+
+  return (
+    <div className="chooser-overlay" onClick={onBack}>
+      <div className="chooser-sheet chooser-sheet-tall" onClick={e => e.stopPropagation()}>
+        <div className="chooser-drag" />
+        <div className="chooser-head">
+          <button className="chooser-back" onClick={onBack}><Ic.Back /></button>
+          <div style={{ flex: 1, textAlign: "center" }}>
+            <div className="chooser-target-name">Add Participants</div>
+            <div className="chooser-target-sub">{selected.length}/{MAX} selected</div>
+          </div>
+          <div style={{ width: 34 }} />
+        </div>
+
+        <div className="nc-search" style={{ margin: "8px 16px" }}>
+          <Ic.Search />
+          <input
+            className="nc-search-input"
+            placeholder="Search contacts…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {query && <button className="nc-search-clear" onClick={() => setQuery("")}><Ic.Close /></button>}
+        </div>
+
+        {selectedContacts.length > 0 && (
+          <div className="gp-chips">
+            {selectedContacts.map(c => (
+              <div key={c.id} className="gp-chip" onClick={() => toggle(c.id)}>
+                <span className="gp-chip-av">{getInitial(c.full_name)}</span>
+                <span>{(c.full_name || "").split(" ")[0]}</span>
+                <span className="gp-chip-x">×</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="gp-list">
+          {filtered.length === 0 && <div className="cv-empty-small">No contacts found</div>}
+          {filtered.map(c => {
+            const sel = selected.includes(c.id);
+            return (
+              <div key={c.id} className={`gp-row${sel ? " gp-sel" : ""}`} onClick={() => toggle(c.id)}>
+                <Avatar user={c} size={42} online={c._online} />
+                <div className="gp-info">
+                  <span className="gp-name">{c.full_name}</span>
+                  <span className="gp-status">{c._online ? "Online" : `@${c.username || ""}`}</span>
+                </div>
+                <div className={`gp-check${sel ? " gp-check-on" : ""}`}>{sel && <Ic.Check />}</div>
+              </div>
+            );
+          })}
+          {contacts.length === 0 && (
+            <div className="cv-empty-small">Start a conversation first to add participants</div>
+          )}
+        </div>
+
+        {selected.length > 0 && (
+          <div className="gp-actions">
+            <button className="gp-start gp-audio" onClick={() => onStart(buildInfo("group"))}><Ic.Phone /> Group Voice</button>
+            <button className="gp-start gp-video" onClick={() => onStart(buildInfo("group-video"))}><Ic.Video /> Group Video</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ─── DATA INFO PANEL ─── */
+const DataInfoPanel = () => (
+  <div className="cv-data-panel">
+    <div className="cv-data-panel-title">Audio call data comparison</div>
+    <div className="cv-compare-list">
+      {[
+        { name: "Our Whisper",  val: "45 KB/min",   pct: "5%",   color: "#22c55e" },
+        { name: "Telegram",     val: "~350 KB/min",  pct: "25%",  color: "#60a5fa" },
+        { name: "WhatsApp",     val: "~780 KB/min",  pct: "55%",  color: "#f59e0b" },
+        { name: "Instagram",    val: "~1.4 MB/min",  pct: "100%", color: "#ef4444" },
+      ].map(r => (
+        <div key={r.name} className="cv-compare-row">
+          <span className="cv-compare-name">{r.name}</span>
+          <div className="cv-compare-bar-wrap">
+            <div className="cv-compare-bar" style={{ width: r.pct, background: r.color }} />
+          </div>
+          <span className="cv-compare-val" style={{ color: r.color }}>{r.val}</span>
+        </div>
+      ))}
+    </div>
+    <div className="cv-tech-tags">
+      {["Opus DTX", "VP9 SVC", "RED+FEC", "DSCP QoS", "GCC BWE"].map(b => (
+        <span key={b} className="cv-tech-tag">{b}</span>
+      ))}
+    </div>
+  </div>
+);
+
+/* ─── CALLS VIEW ─── */
+const CallsView = ({ onStartCall, currentUser }) => {
+  const [callLog,         setCallLog]         = useState([]);
+  const [contacts,        setContacts]        = useState([]);
+  const [statusMap,       setStatusMap]       = useState(new Map());
+  const [loadingLog,      setLoadingLog]      = useState(true);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [chooserTarget,   setChooserTarget]   = useState(null);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showNewCall,     setShowNewCall]     = useState(false);
+  const [showDataInfo,    setShowDataInfo]    = useState(false);
+  const [tableError,      setTableError]      = useState(false);
+  const mounted = useRef(true);
+
+  /* ── Listen for header "+" button trigger ── */
   useEffect(() => {
-    conversationState.setActive(convId);
-    dmMessageService.markRead(convId, currentUser.id);
-    return () => conversationState.clearActive();
-  }, [convId, currentUser.id]);
+    const handler = () => setShowNewCall(true);
+    document.addEventListener("dm:openNewCall", handler);
+    return () => document.removeEventListener("dm:openNewCall", handler);
+  }, []);
 
+  /* ── Contacts ── */
   useEffect(() => {
-    setLoading(true); setReadStatus({});
-    dmMessageService.loadMessages(convId).then(msgs => {
-      setMessages(msgs); setLoading(false); seedFromMessages(msgs);
-      setTimeout(() => scrollToBottom("auto"), 50);
-    });
-  }, [convId, seedFromMessages]);
+    if (!currentUser?.id) return;
+    mounted.current = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("conversations")
+          .select(`
+            id,
+            user1:profiles!conversations_user1_id_fkey(id, full_name, username, avatar_id, verified),
+            user2:profiles!conversations_user2_id_fkey(id, full_name, username, avatar_id, verified)
+          `)
+          .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
+          .order("last_message_at", { ascending: false });
 
-  useEffect(() => {
-    const unsub = dmMessageService.subscribeToConversation(convId, {
-      onMessage: msg => {
-        if (isAtBottom.current) setTimeout(scrollToBottom, 10);
-        if (msg.sender_id !== currentUser.id && msg.id) {
-          patchStatus([msg.id], "read");
-          dmMessageService.markRead(convId, currentUser.id);
+        if (error) throw error;
+
+        const seen   = new Set();
+        const people = [];
+        (data || []).forEach(conv => {
+          const other = conv.user1?.id === currentUser.id ? conv.user2 : conv.user1;
+          if (other?.id && !seen.has(other.id)) { seen.add(other.id); people.push(other); }
+        });
+
+        if (!mounted.current) return;
+        setContacts(people);
+        setLoadingContacts(false);
+
+        if (people.length > 0) {
+          try {
+            const statusResults = await onlineStatusService.fetchStatuses?.(people.map(p => p.id)) || new Map();
+            if (mounted.current) setStatusMap(statusResults);
+          } catch (_) {}
         }
-      },
-      onDelivered: tempId => {
-        const m = msgsRef.current.find(x => x.id === tempId || x._tempId === tempId);
-        if (m?.id && !m.id.startsWith("temp_")) patchStatus([m.id], "delivered");
-        patchStatus([tempId], "delivered");
-      },
-      onRead: uid => { if (uid !== currentUser.id) markOurRead(); },
-      onTyping: (uid, isTy, uname) => {
-        if (uid === otherUser?.id) {
-          setTyping({ isTyping: isTy, userName: uname || otherUser?.full_name || "User" });
-          if (isTy && isAtBottom.current) setTimeout(scrollToBottom, 100);
-        }
-      },
+      } catch (err) {
+        console.error("[CallsView] contacts:", err);
+        if (mounted.current) setLoadingContacts(false);
+      }
+    })();
+
+    const unsub = onlineStatusService.subscribe?.((uid, st) => {
+      if (!mounted.current) return;
+      setStatusMap(prev => { const n = new Map(prev); n.set(uid, st); return n; });
     });
-    unsubCh.current = unsub;
-    return () => { if (unsubCh.current) unsubCh.current(); };
-  }, [convId, otherUser?.id, otherUser?.full_name, currentUser.id, patchStatus, markOurRead]);
 
+    return () => { mounted.current = false; unsub?.(); };
+  }, [currentUser?.id]);
+
+  /* ── Call log ── */
   useEffect(() => {
-    const ch = supabase.channel(`msg-watch:${convId}:${currentUser.id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
-        ({ new: u }) => {
-          if (!u?.id || u.sender_id !== currentUser.id) return;
-          if (u.read)           patchStatus([u.id], "read");
-          else if (u.delivered) patchStatus([u.id], "delivered");
-        }).subscribe();
-    unsubDB.current = ch;
-    return () => { if (unsubDB.current) { supabase.removeChannel(unsubDB.current); unsubDB.current = null; } };
-  }, [convId, currentUser.id, patchStatus]);
+    if (!currentUser?.id) return;
+    mounted.current = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("call_logs")
+          .select(`
+            id, type, status, duration_secs, quality, created_at,
+            caller:profiles!call_logs_caller_id_fkey(id, full_name, username, avatar_id, verified),
+            callee:profiles!call_logs_callee_id_fkey(id, full_name, username, avatar_id, verified)
+          `)
+          .or(`caller_id.eq.${currentUser.id},callee_id.eq.${currentUser.id}`)
+          .order("created_at", { ascending: false })
+          .limit(60);
 
-  useEffect(() => {
-    const update = () => {
-      const msgs = [...conversationState.getMessages(convId)];
-      setMessages(msgs); seedFromMessages(msgs);
-    };
-    const unsub = conversationState.subscribe(update);
-    update();
-    return unsub;
-  }, [convId, seedFromMessages]);
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) setTableError(true);
+          else throw error;
+        } else {
+          if (mounted.current) setCallLog(data || []);
+        }
+      } catch (err) {
+        console.error("[CallsView] call log:", err);
+      } finally {
+        if (mounted.current) setLoadingLog(false);
+      }
+    })();
+  }, [currentUser?.id]);
 
-  useEffect(() => {
-    onlineStatusService.fetchStatus(otherUser?.id).then(setStatus);
-    const unsub = onlineStatusService.subscribe((uid, st) => { if (uid === otherUser?.id) setStatus(st); });
-    return unsub;
-  }, [otherUser?.id]);
-
-  const handleTypingLocal = () => {
-    dmMessageService.sendTyping(convId, true, currentUser.fullName || currentUser.full_name || currentUser.name);
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => dmMessageService.sendTyping(convId, false), 2500);
-  };
-
-  const handleSend = async (text, replyToId = null) => {
-    if (!text?.trim()) return;
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-    dmMessageService.sendTyping(convId, false);
-    setReplyTo(null);
+  /* ── Log call ── */
+  const logCall = useCallback(async (calleeId, type, status) => {
+    if (!currentUser?.id || !calleeId || tableError) return;
     try {
-      const sent = await dmMessageService.sendMessage(convId, text, currentUser.id, replyToId);
-      if (sent?.id) patchStatus([sent.id], "sent");
-      setTimeout(scrollToBottom, 10);
-    } catch (e) { console.error("❌ send:", e); }
-  };
+      const { data, error } = await supabase
+        .from("call_logs")
+        .insert({ caller_id: currentUser.id, callee_id: calleeId, type, status, duration_secs: 0 })
+        .select()
+        .single();
+      if (!error && data && mounted.current) {
+        setCallLog(prev => [data, ...prev].slice(0, 60));
+      }
+    } catch (err) { console.warn("[CallsView] logCall:", err); }
+  }, [currentUser?.id, tableError]);
 
-  // [REPLY-7] Scroll to message by id
-  const scrollToMessage = useCallback((msgId) => {
-    const el = containerRef.current?.querySelector(`[data-msg-id="${msgId}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("cv-highlight");
-      setTimeout(() => el.classList.remove("cv-highlight"), 1500);
+  /* ── Start call ── */
+  const startCall = useCallback((user, type = null) => {
+    if (!type) {
+      setChooserTarget({ ...user, _online: statusMap.get(user.id)?.online || false });
+      setShowNewCall(false);
+      return;
     }
-  }, []);
+    setShowNewCall(false);
+    onStartCall({
+      name:     user.full_name || "Unknown",
+      initial:  getInitial(user.full_name),
+      type,
+      outgoing: true,
+      calleeId: user.id,
+      user,
+    });
+    if (user.id) logCall(user.id, type, "answered");
+  }, [statusMap, onStartCall, logCall]);
 
-  const getTickStatus = (msg) => {
-    if (msg._optimistic) return <span className="tk tk-sent">✓</span>;
-    if (msg._failed)     return <span className="tk tk-red">✗</span>;
-    const local  = readStatus[msg.id];
-    const db     = msg.read ? "read" : msg.delivered ? "delivered" : "sent";
-    const res    = (RANK[local] ?? -1) >= (RANK[db] ?? -1) ? (local || db) : db;
-    if (res === "read")      return <span className="tk tk-read">✓✓</span>;
-    if (res === "delivered") return <span className="tk tk-dlvr">✓✓</span>;
-    return <span className="tk tk-sent">✓</span>;
-  };
+  const handleTypeChosen = useCallback((type) => {
+    if (type === "group") { setChooserTarget(null); setShowGroupPicker(true); return; }
+    if (chooserTarget) startCall(chooserTarget, type);
+  }, [chooserTarget, startCall]);
 
-  const fmtTime = d => {
-    if (!d) return "";
-    const dt = new Date(d);
-    const h  = dt.getHours() % 12 || 12;
-    const m  = dt.getMinutes().toString().padStart(2, "0");
-    return `${h}:${m} ${dt.getHours() >= 12 ? "PM" : "AM"}`;
-  };
+  const handleGroupStart = useCallback((info) => {
+    setShowGroupPicker(false);
+    onStartCall(info);
+  }, [onStartCall]);
 
-  const avatarUrl = otherUser?.avatar_id ? mediaUrlService.getAvatarUrl(otherUser.avatar_id, 200) : null;
+  const enriched = contacts.map(c => ({ ...c, _online: statusMap.get(c.id)?.online || false }));
 
   return (
     <div className="cv-root">
-      {/* ── HEADER ── */}
-      <div className="cv-head">
-        <button className="cv-back" onClick={onBack}><Ic.Back/></button>
-        <div className="cv-head-info">
-          <div className="cv-head-av-wrap">
-            <div className="cv-head-av">
-              {avatarUrl ? <img src={avatarUrl} alt={otherUser?.full_name}/> : (otherUser?.full_name || "U").charAt(0).toUpperCase()}
-            </div>
-            <div className={`cv-head-dot${status.online ? " cv-dot-on" : ""}`}/>
-          </div>
-          <div className="cv-head-text">
-            <div className="cv-head-name">{otherUser?.full_name || "Unknown"}</div>
-            <div className={`cv-head-status${status.online ? " cv-st-on" : ""}`}>
-              {typing.isTyping ? <span className="cv-typing">typing…</span> : status.lastSeenText}
-            </div>
+
+      {/* ── QUICK LAUNCH ── */}
+      <div className="cv-quick">
+        <button className="cv-qbtn cv-qbtn-voice" onClick={() => setShowNewCall(true)}>
+          <Ic.Phone /><span>Voice</span>
+        </button>
+        <button className="cv-qbtn cv-qbtn-video" onClick={() => setShowNewCall(true)}>
+          <Ic.Video /><span>Video</span>
+        </button>
+        <button className="cv-qbtn cv-qbtn-group" onClick={() => setShowGroupPicker(true)}>
+          <Ic.Users /><span>Group</span>
+        </button>
+      </div>
+
+      {/* ── DATA BANNER ── */}
+      <button className="cv-data-banner" onClick={() => setShowDataInfo(p => !p)}>
+        <div className="cv-data-banner-left">
+          <span className="cv-data-banner-icon">⚡</span>
+          <div>
+            <div className="cv-data-banner-title">Data-Efficient Calls</div>
+            <div className="cv-data-banner-sub">Up to 95% less data than competitors</div>
           </div>
         </div>
-        <div className="cv-head-right">
-          {onStartCall && <>
-            <button className="cv-call-btn cv-call-audio" onClick={() => onStartCall("audio")}><Ic.Phone/></button>
-            <button className="cv-call-btn cv-call-video" onClick={() => onStartCall("video")}><Ic.Video/></button>
-          </>}
-          <button className="cv-more" onClick={() => setShowMenu(m => !m)}><Ic.More/></button>
+        <div className="cv-data-banner-arrow" style={{ transform: showDataInfo ? "rotate(180deg)" : "none" }}>
+          <Ic.ChevDown />
         </div>
+      </button>
 
-        {showMenu && <>
-          <div className="cv-overlay" onClick={() => setShowMenu(false)}/>
-          <div className="cv-menu">
-            <button onClick={() => { setShowBgPicker(true); setShowMenu(false); }}>
-              <Ic.Palette/> Change Background
-            </button>
-          </div>
-        </>}
+      {showDataInfo && <DataInfoPanel />}
 
-        {showBgPicker && <>
-          <div className="cv-overlay" onClick={() => setShowBgPicker(false)}/>
-          <div className="cv-bgpicker">
-            {bgs.map((b, i) => (
-              <button key={i} className={`cv-bgopt${selectedBg === i ? " cv-bgopt-on" : ""}`}
-                onClick={() => { backgroundService.setConversationBackground(convId, i); setSelectedBg(i); setShowBgPicker(false); }}>
-                {b.isDefault
-                  ? <div className="cv-bgprev cv-bgprev-grid"/>
-                  : b.image ? <img src={b.image} alt={b.name}/>
-                  : <div className="cv-bgprev" style={{ background: b.value }}/>
-                }
-                <span>{b.name}</span>
-              </button>
+      {/* ── CONTACTS STRIP ── */}
+      {!loadingContacts && enriched.length > 0 && (
+        <>
+          <div className="cv-section-label">Contacts</div>
+          <div className="cv-contacts-scroll">
+            {enriched.map(c => (
+              <div key={c.id} className="cv-contact-item" onClick={() => startCall(c)}>
+                <Avatar user={c} size={50} online={c._online} />
+                <span className="cv-contact-name">{(c.full_name || "").split(" ")[0]}</span>
+              </div>
             ))}
           </div>
-        </>}
+        </>
+      )}
+
+      {/* ── RECENT CALLS ── */}
+      <div className="cv-section-label">
+        Recent
+        {tableError && <span className="cv-section-hint"> · Run setup.sql to track history</span>}
       </div>
 
-      {/* ── MESSAGES ── */}
-      <div className={`cv-msgs${isDefault ? " cv-msgs-default" : ""}`} style={bgStyle}
-        ref={containerRef} onScroll={handleScroll}>
-        <div className="cv-msgs-overlay"/>
-        <div className="cv-msgs-content">
-          {loading && <div className="cv-loading"><div className="cv-spinner"/></div>}
+      {loadingLog && (
+        <div className="cv-skeletons">
+          {[0, 1, 2, 3].map(i => <div key={i} className="cv-skel" style={{ animationDelay: `${i * 0.1}s` }} />)}
+        </div>
+      )}
 
-          {!loading && messages.map((msg, idx) => {
-            const isMe   = msg.sender_id === currentUser.id;
-            const prev   = messages[idx - 1];
-            const tail   = !prev || prev.sender_id !== msg.sender_id;
-            return (
-              <MessageRow
-                key={msg.id || msg._tempId}
-                msg={msg}
-                isMe={isMe}
-                showAv={!isMe && tail}
-                avatarUrl={avatarUrl}
-                otherName={otherUser?.full_name}
-                currentUserId={currentUser.id}
-                messages={messages}
-                onReply={setReplyTo}
-                onDelete={async () => {
-                  try { await supabase.from("messages").delete().eq("id", msg.id); }
-                  catch(e) { console.warn("del:", e); }
-                }}
-                onScrollTo={scrollToMessage}
-                getTickStatus={getTickStatus}
-                fmtTime={fmtTime}
-              />
-            );
-          })}
+      {!loadingLog && (tableError || callLog.length === 0) && (
+        <div className="cv-empty">
+          <div className="cv-empty-icon">📞</div>
+          <p>{tableError ? "Call history coming soon" : "No calls yet"}</p>
+          <span>{tableError ? "Your log will appear once set up" : "Start a call from contacts above"}</span>
+          <button className="cv-new-call-cta" onClick={() => setShowNewCall(true)}>
+            Start a Call
+          </button>
+        </div>
+      )}
 
-          {typing.isTyping && (
-            <div className="cv-msg cv-them">
-              <div className="cv-avatar">{avatarUrl ? <img src={avatarUrl} alt={otherUser?.full_name}/> : (otherUser?.full_name || "U").charAt(0)}</div>
-              <div className="cv-bubble cv-bthem cv-tail cv-typing-bubble">
-                <div className="cv-dots"><span/><span/><span/></div>
+      {!loadingLog && !tableError && callLog.map(call => {
+        const isOut  = call.caller?.id === currentUser?.id;
+        const other  = isOut ? call.callee : call.caller;
+        const preset = QUALITY_PRESETS.find(p => p.id === call.quality);
+        const online = statusMap.get(other?.id)?.online || false;
+        return (
+          <div key={call.id} className="cv-call-row">
+            <Avatar user={other} size={46} online={online} />
+            <div className="cv-call-body">
+              <div className="cv-call-top">
+                <span className={`cv-call-name${call.status === "missed" ? " cv-missed" : ""}`}>
+                  {other?.full_name || "Unknown"}
+                </span>
+                {preset && (
+                  <span className="cv-quality-pill" style={{ color: preset.color, borderColor: preset.color + "44" }}>
+                    {preset.icon} {preset.label}
+                  </span>
+                )}
+              </div>
+              <div className="cv-call-meta">
+                {call.status === "missed" ? <Ic.Missed /> : isOut ? <Ic.Outgoing /> : <Ic.Incoming />}
+                <span>
+                  {call.status === "missed" ? "Missed · " : isOut ? "Outgoing · " : "Incoming · "}
+                  {fmtTime(call.created_at)}
+                </span>
+                {fmtDuration(call.duration_secs) && <span>· {fmtDuration(call.duration_secs)}</span>}
+                {call.type === "video" && <span>· 📹</span>}
+                {(call.type === "group" || call.type === "group-video") && <span>· 👥</span>}
               </div>
             </div>
-          )}
-          <div ref={endRef}/>
-        </div>
+            <div className="cv-call-btns">
+              <button className="cv-call-btn cv-btn-voice"    title="Voice call" onClick={() => other && startCall(other, "audio")}><Ic.Phone /></button>
+              <button className="cv-call-btn cv-btn-video-sm" title="Video call" onClick={() => other && startCall(other, "video")}><Ic.Video /></button>
+            </div>
+          </div>
+        );
+      })}
 
-        {showJump && (
-          <button className="cv-jump" onClick={() => scrollToBottom()}><Ic.Down/></button>
-        )}
-      </div>
+      {/* ── MODALS ── */}
+      {showNewCall && (
+        <NewCallModal
+          contacts={enriched}
+          onCall={(user, type) => type ? startCall(user, type) : startCall(user)}
+          onClose={() => setShowNewCall(false)}
+        />
+      )}
 
-      <MessageInput
-        onSend={handleSend}
-        onTyping={handleTypingLocal}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-      />
+      {chooserTarget && (
+        <CallTypeChooser
+          target={chooserTarget}
+          onChoose={handleTypeChosen}
+          onClose={() => setChooserTarget(null)}
+        />
+      )}
 
-      <style>{CV_CSS}</style>
+      {showGroupPicker && (
+        <GroupPicker
+          contacts={enriched}
+          onStart={handleGroupStart}
+          onBack={() => setShowGroupPicker(false)}
+        />
+      )}
+
+      <style>{cvStyles}</style>
     </div>
   );
 };
 
-const CV_CSS = `
-/* ─── Base ─── */
-.cv-root { display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden; }
-.cv-head {
-  display:flex;align-items:center;gap:10px;
-  padding:calc(env(safe-area-inset-top,0px)+10px) 12px 10px;
-  background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.12);
-  position:relative;z-index:10;flex-shrink:0;min-height:56px;
-}
-.cv-back { width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s; }
-.cv-back:hover { background:rgba(132,204,22,.1); }
-.cv-head-info { display:flex;align-items:center;gap:10px;flex:1;min-width:0; }
-.cv-head-av-wrap { position:relative;flex-shrink:0;width:38px;height:38px; }
-.cv-head-av { width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.25);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#84cc16;overflow:hidden; }
-.cv-head-av img { width:100%;height:100%;object-fit:cover; }
-.cv-head-dot { position:absolute;bottom:-1px;right:-1px;width:11px;height:11px;border-radius:50%;border:2.5px solid #000;background:#333;z-index:2; }
-.cv-head-dot.cv-dot-on { background:#22c55e; }
-.cv-head-text { flex:1;min-width:0; }
-.cv-head-name { font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.cv-head-status { font-size:11px;color:#555;transition:color .3s; }
-.cv-head-status.cv-st-on { color:#22c55e; }
-.cv-typing { color:#84cc16;font-style:italic; }
-.cv-head-right { display:flex;align-items:center;gap:5px;flex-shrink:0; }
-.cv-call-btn { width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s; }
-.cv-call-audio { background:rgba(132,204,22,.08);border:1px solid rgba(132,204,22,.2);color:#84cc16; }
-.cv-call-audio:hover { background:rgba(132,204,22,.16); }
-.cv-call-video { background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);color:#60a5fa; }
-.cv-call-video:hover { background:rgba(96,165,250,.16); }
-.cv-more { width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer; }
-.cv-overlay { position:fixed;inset:0;z-index:20; }
-.cv-menu { position:absolute;top:56px;right:12px;background:#111;border:1px solid rgba(132,204,22,.2);border-radius:12px;padding:6px;z-index:30;min-width:160px; }
-.cv-menu button { display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;background:transparent;border:none;border-radius:8px;color:#ccc;font-size:13px;cursor:pointer; }
-.cv-menu button:hover { background:rgba(255,255,255,.05); }
-.cv-bgpicker { position:absolute;top:56px;right:12px;background:#111;border:1px solid rgba(132,204,22,.2);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:4px;z-index:30;max-height:70vh;overflow-y:auto;width:200px; }
-.cv-bgpicker::-webkit-scrollbar{width:3px;}.cv-bgpicker::-webkit-scrollbar-thumb{background:rgba(132,204,22,.2);border-radius:2px;}
-.cv-bgopt { display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;color:#ccc;font-size:13px;cursor:pointer;text-align:left;transition:background .15s; }
-.cv-bgopt:hover{background:rgba(255,255,255,.06);}
-.cv-bgopt.cv-bgopt-on{background:rgba(132,204,22,.12);border-color:rgba(132,204,22,.35);color:#84cc16;}
-.cv-bgopt img{width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0;}
-.cv-bgprev{width:32px;height:32px;border-radius:6px;flex-shrink:0;}
-.cv-bgprev-grid{background:repeating-linear-gradient(90deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),repeating-linear-gradient(0deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),#000;border:1px solid rgba(132,204,22,.3);}
+/* ─── STYLES ─── */
+const cvStyles = `
+  .cv-root { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #000; padding-bottom: 20px; }
+  .cv-root::-webkit-scrollbar { width: 3px; }
+  .cv-root::-webkit-scrollbar-thumb { background: rgba(132,204,22,0.15); border-radius: 2px; }
 
-/* ─── Messages ─── */
-.cv-msgs { flex:1;overflow-y:auto;position:relative;-webkit-overflow-scrolling:touch; }
-.cv-msgs::-webkit-scrollbar{width:3px;}.cv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
-${DOT_OVERLAY_CSS || ""}
-.cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.22);pointer-events:none;z-index:0;}
-.cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.05);}
-.cv-msgs-content{position:relative;z-index:1;padding:10px 14px 16px;display:flex;flex-direction:column;gap:2px;}
-.cv-loading{display:flex;justify-content:center;padding:40px;}
-.cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}
-@keyframes cvSpin{to{transform:rotate(360deg)}}
-.cv-jump{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);}
+  .cv-av-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+  .cv-av { border-radius: 50%; background: linear-gradient(135deg, #141414, #1e1e1e); border: 2.5px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #84cc16; overflow: hidden; box-sizing: border-box; }
+  .cv-online-dot { position: absolute; bottom: 0; right: 0; border-radius: 50%; border-style: solid; border-color: #000; background: #333; box-sizing: border-box; pointer-events: none; transition: background 0.3s; z-index: 2; }
+  .cv-online-dot--on { background: #22c55e; }
 
-/* ─── Message rows ─── */
-.cv-msg{display:flex;align-items:flex-end;gap:8px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;}
-.cv-me{flex-direction:row-reverse;}
-.cv-opt{opacity:.65;}.cv-fail{opacity:.45;}
-@keyframes cvMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.cv-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;}
-.cv-avatar img{width:100%;height:100%;object-fit:cover;}.cv-avatar-sp{width:34px;flex-shrink:0;}
-.cv-bubble{max-width:72%;padding:8px 12px;border-radius:16px;word-break:break-word;will-change:transform;}
-.cv-bthem{background:rgba(18,18,18,.97);border:1px solid rgba(255,255,255,.07);}
-.cv-bme{background:linear-gradient(135deg,rgba(132,204,22,.2),rgba(101,163,13,.14));border:1px solid rgba(132,204,22,.25);}
-.cv-tail.cv-bthem{border-bottom-left-radius:4px;}.cv-tail.cv-bme{border-bottom-right-radius:4px;}
-.cv-content{font-size:14px;color:#f0f0f0;line-height:1.5;}.cv-bad{font-size:12px;color:#444;font-style:italic;}
-.cv-meta{display:flex;align-items:center;gap:4px;margin-top:3px;}.cv-meta-me{justify-content:flex-end;}
-.cv-time{font-size:10px;color:#555;}
-.tk{font-size:11px;font-weight:700;display:inline-block;transition:color .25s;}
-.tk-sent{color:#444;}.tk-dlvr{color:#888;}.tk-read{color:#22c55e;}.tk-red{color:#ef4444;}
-.cv-typing-bubble{padding:10px 14px;}
-.cv-dots{display:flex;gap:4px;}
-.cv-dots span{width:6px;height:6px;border-radius:50%;background:#555;animation:cvDot 1.2s ease infinite;}
-.cv-dots span:nth-child(2){animation-delay:.15s;}.cv-dots span:nth-child(3){animation-delay:.3s;}
-@keyframes cvDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+  .cv-quick { display: flex; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .cv-qbtn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 13px 4px; border-radius: 14px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; border: 1px solid; }
+  .cv-qbtn-voice { background: rgba(132,204,22,0.09); border-color: rgba(132,204,22,0.25); color: #84cc16; }
+  .cv-qbtn-voice:hover { background: rgba(132,204,22,0.17); }
+  .cv-qbtn-video { background: rgba(96,165,250,0.09); border-color: rgba(96,165,250,0.25); color: #60a5fa; }
+  .cv-qbtn-video:hover { background: rgba(96,165,250,0.17); }
+  .cv-qbtn-group { background: rgba(192,132,252,0.09); border-color: rgba(192,132,252,0.25); color: #c084fc; }
+  .cv-qbtn-group:hover { background: rgba(192,132,252,0.17); }
 
-/* ─── Reply system ─── */
-.swipe-indicator{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:rgba(132,204,22,.15);border:1.5px solid rgba(132,204,22,.5);display:flex;align-items:center;justify-content:center;color:#84cc16;pointer-events:none;z-index:5;}
-.cv-reply-pulse .cv-bubble{animation:replyPulse .3s ease-out;}
-@keyframes replyPulse{0%{transform:scale(1)}50%{transform:scale(.97)}100%{transform:scale(1)}}
+  .cv-data-banner { display: flex; align-items: center; justify-content: space-between; margin: 10px 16px; padding: 13px 14px; background: rgba(132,204,22,0.04); border: 1px solid rgba(132,204,22,0.14); border-radius: 16px; cursor: pointer; text-align: left; width: calc(100% - 32px); transition: background 0.15s; }
+  .cv-data-banner:hover { background: rgba(132,204,22,0.08); }
+  .cv-data-banner-left { display: flex; align-items: center; gap: 10px; }
+  .cv-data-banner-icon { font-size: 22px; }
+  .cv-data-banner-title { font-size: 13px; font-weight: 700; color: #84cc16; }
+  .cv-data-banner-sub { font-size: 11px; color: #555; margin-top: 1px; }
+  .cv-data-banner-arrow { color: #84cc16; transition: transform 0.2s; flex-shrink: 0; }
 
-/* Desktop reply button — shows on hover at message side toward center */
-.desktop-reply-btn {
-  position:absolute;
-  top:50%;
-  transform:translateY(-50%);
-  width:30px;height:30px;border-radius:50%;
-  background:rgba(18,18,18,.95);border:1px solid rgba(132,204,22,.3);
-  display:flex;align-items:center;justify-content:center;
-  color:#84cc16;cursor:pointer;z-index:5;
-  opacity:0;animation:drbIn .15s ease-out forwards;
-  transition:background .15s,transform .15s;
-  box-shadow:0 2px 8px rgba(0,0,0,.4);
-}
-.desktop-reply-btn:hover { background:rgba(132,204,22,.12);transform:translateY(-50%) scale(1.1); }
-@keyframes drbIn { from{opacity:0;scale:.7} to{opacity:1;scale:1} }
-/* For "them" messages (left bubbles) — button on RIGHT side of bubble (toward center) */
-.desktop-reply-right { right:-38px; }
-/* For "me" messages (right bubbles) — button on LEFT side of bubble (toward center) */
-.desktop-reply-left { left:-38px; }
+  .cv-data-panel { margin: 0 16px 10px; padding: 13px; background: rgba(0,0,0,0.5); border: 1px solid rgba(132,204,22,0.1); border-top: none; border-radius: 0 0 16px 16px; animation: cvPanelIn 0.18s ease-out; }
+  @keyframes cvPanelIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+  .cv-data-panel-title { font-size: 10px; font-weight: 700; color: #333; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 10px; }
+  .cv-compare-list { display: flex; flex-direction: column; gap: 8px; }
+  .cv-compare-row { display: flex; align-items: center; gap: 8px; }
+  .cv-compare-name { font-size: 11px; color: #555; width: 100px; flex-shrink: 0; }
+  .cv-compare-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+  .cv-compare-bar { height: 100%; border-radius: 3px; }
+  .cv-compare-val { font-size: 11px; font-weight: 700; width: 76px; text-align: right; flex-shrink: 0; }
+  .cv-tech-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .cv-tech-tag { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; background: rgba(132,204,22,0.08); border: 1px solid rgba(132,204,22,0.2); color: #84cc16; }
 
-/* Reply quote inside bubble */
-.rq-wrap{display:flex;align-items:stretch;gap:6px;padding:6px 8px;margin-bottom:6px;background:rgba(0,0,0,.25);border-radius:8px;cursor:pointer;transition:background .15s;}
-.rq-wrap:hover{background:rgba(132,204,22,.08);}
-.rq-bar{width:3px;border-radius:2px;background:#84cc16;flex-shrink:0;}
-.rq-text{font-size:12px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+  .cv-contacts-scroll { display: flex; gap: 16px; padding: 10px 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .cv-contacts-scroll::-webkit-scrollbar { display: none; }
+  .cv-contact-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex-shrink: 0; transition: transform 0.15s; }
+  .cv-contact-item:hover { transform: translateY(-1px); }
+  .cv-contact-item:active { transform: scale(0.94); }
+  .cv-contact-name { font-size: 10px; color: #777; max-width: 56px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Message highlight (scroll-to) */
-.cv-highlight .cv-bubble{animation:hlPulse .8s ease-out;}
-@keyframes hlPulse{0%,100%{filter:brightness(1)}40%{filter:brightness(1.4)}}
+  .cv-section-label { padding: 10px 16px 4px; font-size: 10px; font-weight: 700; color: #333; text-transform: uppercase; letter-spacing: 0.7px; }
+  .cv-section-hint { font-size: 9px; color: #222; text-transform: none; letter-spacing: 0; }
 
-/* ─── Context menu ─── */
-.ctx-overlay{position:fixed;inset:0;z-index:99980;background:transparent;}
-.ctx-menu{position:fixed;background:rgba(10,10,10,.97);border:1px solid rgba(132,204,22,.2);border-radius:14px;padding:6px;min-width:160px;box-shadow:0 16px 48px rgba(0,0,0,.8);animation:ctxIn .18s cubic-bezier(.34,1.56,.64,1);z-index:99981;backdrop-filter:blur(16px);}
-@keyframes ctxIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
-.ctx-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;background:transparent;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:background .12s;text-align:left;color:#ccc;}
-.ctx-item:hover{background:rgba(255,255,255,.07);}
-.ctx-icon{display:flex;align-items:center;justify-content:center;width:18px;flex-shrink:0;}
+  .cv-skeletons { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+  .cv-skel { height: 62px; border-radius: 12px; background: rgba(255,255,255,0.03); animation: cvSkelPulse 1.4s ease-in-out infinite; }
+  @keyframes cvSkelPulse { 0%,100%{opacity:.5} 50%{opacity:.15} }
 
-/* ─── Reply bar ─── */
-.reply-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(8,8,8,.98);border-top:1px solid rgba(132,204,22,.15);animation:rbIn .2s ease-out;flex-shrink:0;}
-@keyframes rbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.reply-bar-line{width:3px;height:36px;border-radius:2px;background:#84cc16;flex-shrink:0;}
-.reply-bar-content{flex:1;min-width:0;}
-.reply-bar-label{font-size:10px;font-weight:700;color:#84cc16;margin-bottom:2px;}
-.reply-bar-text{font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.reply-bar-x{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#666;flex-shrink:0;}
+  .cv-empty { display: flex; flex-direction: column; align-items: center; padding: 44px 20px; gap: 9px; text-align: center; }
+  .cv-empty-icon { font-size: 40px; }
+  .cv-empty p { margin: 0; font-size: 14px; font-weight: 700; color: #555; }
+  .cv-empty span { font-size: 12px; color: #333; }
+  .cv-empty-small { padding: 20px; text-align: center; font-size: 13px; color: #444; }
+  .cv-new-call-cta { display: flex; align-items: center; gap: 7px; margin-top: 8px; padding: 10px 20px; border-radius: 22px; background: rgba(132,204,22,0.1); border: 1px solid rgba(132,204,22,0.3); color: #84cc16; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+  .cv-new-call-cta:hover { background: rgba(132,204,22,0.18); }
 
-/* ─── Message input ─── */
-.mi-root{flex-shrink:0;background:rgba(0,0,0,.98);border-top:1px solid rgba(255,255,255,.06);}
-.mi-bar{display:flex;align-items:flex-end;gap:8px;padding:10px 14px calc(env(safe-area-inset-bottom,0px)+10px);}
-.mi-input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:22px;color:#fff;font-size:14px;padding:10px 16px;outline:none;caret-color:#84cc16;font-family:inherit;resize:none;overflow:hidden;line-height:1.4;min-height:40px;max-height:120px;transition:border-color .2s;}
-.mi-input:focus{border-color:rgba(132,204,22,.35);}
-.mi-input::placeholder{color:#333;}
-.mi-send{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,rgba(132,204,22,.25),rgba(101,163,13,.2));border:1.5px solid rgba(132,204,22,.45);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;}
-.mi-send:disabled{opacity:.3;cursor:not-allowed;}
-.mi-send:not(:disabled):hover{background:linear-gradient(135deg,rgba(132,204,22,.35),rgba(101,163,13,.3));}
+  .cv-call-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.15s; }
+  .cv-call-row:hover { background: rgba(255,255,255,0.02); }
+  .cv-call-body { flex: 1; min-width: 0; }
+  .cv-call-top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .cv-call-name { font-size: 14px; font-weight: 700; color: #fff; }
+  .cv-missed { color: #ef4444 !important; }
+  .cv-quality-pill { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; border: 1px solid; flex-shrink: 0; }
+  .cv-call-meta { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #444; }
+  .cv-call-btns { display: flex; gap: 8px; }
+  .cv-call-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; flex-shrink: 0; }
+  .cv-btn-voice { background: rgba(132,204,22,0.07); border: 1px solid rgba(132,204,22,0.18); color: #84cc16; }
+  .cv-btn-voice:hover { background: rgba(132,204,22,0.16); }
+  .cv-btn-video-sm { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.18); color: #60a5fa; }
+  .cv-btn-video-sm:hover { background: rgba(96,165,250,0.16); }
+
+  .chooser-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.65); z-index: 50; display: flex; align-items: flex-end; animation: cvBackdropIn 0.2s ease; }
+  @keyframes cvBackdropIn { from{opacity:0} to{opacity:1} }
+  .chooser-sheet { background: #080808; border: 1px solid rgba(132,204,22,0.14); border-radius: 22px 22px 0 0; padding: 0 0 calc(env(safe-area-inset-bottom,0px) + 20px); width: 100%; animation: cvSheetUp 0.26s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes cvSheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .chooser-sheet-tall { max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; }
+  .chooser-drag { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); margin: 12px auto 0; flex-shrink: 0; }
+  .chooser-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+  .chooser-target-row { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .chooser-target-name { font-size: 15px; font-weight: 800; color: #fff; }
+  .chooser-target-sub { font-size: 12px; color: #444; margin-top: 1px; }
+  .chooser-close, .chooser-back { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; color: #555; cursor: pointer; flex-shrink: 0; }
+  .chooser-types { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .ct-btn { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: #ccc; cursor: pointer; text-align: left; width: 100%; transition: all 0.15s; }
+  .ct-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); transform: translateX(2px); }
+  .ct-icon { font-size: 24px; flex-shrink: 0; }
+  .ct-info { flex: 1; }
+  .ct-label { display: block; font-size: 14px; font-weight: 700; }
+  .ct-desc { display: block; font-size: 11px; color: #555; margin-top: 2px; }
+  .chooser-data-row { margin: 8px 16px 4px; padding: 11px 13px; border-radius: 12px; background: rgba(132,204,22,0.04); border: 1px solid rgba(132,204,22,0.1); flex-shrink: 0; }
+  .chooser-data-label { font-size: 11px; color: #555; display: block; margin-bottom: 8px; }
+  .chooser-data-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chooser-data-pill { padding: 3px 8px; border-radius: 8px; border: 1px solid; font-size: 10px; font-weight: 700; }
+
+  .nc-search { display: flex; align-items: center; gap: 8px; margin: 8px 16px; padding: 10px 13px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; flex-shrink: 0; }
+  .nc-search svg { color: #555; flex-shrink: 0; }
+  .nc-search-input { flex: 1; background: transparent; border: none; color: #fff; font-size: 14px; outline: none; caret-color: #84cc16; }
+  .nc-search-input::placeholder { color: #444; }
+  .nc-search-clear { background: none; border: none; color: #555; cursor: pointer; display: flex; align-items: center; padding: 0; }
+  .nc-search-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(132,204,22,0.2); border-top-color: #84cc16; animation: ncSpin 0.6s linear infinite; flex-shrink: 0; }
+  @keyframes ncSpin { to { transform: rotate(360deg); } }
+  .nc-list { flex: 1; overflow-y: auto; }
+  .nc-list::-webkit-scrollbar { width: 3px; }
+  .nc-list::-webkit-scrollbar-thumb { background: rgba(132,204,22,0.15); }
+  .nc-user-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; transition: background 0.15s; }
+  .nc-user-row:hover { background: rgba(255,255,255,0.03); }
+  .nc-user-info { flex: 1; min-width: 0; }
+  .nc-user-name { display: block; font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nc-user-sub { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; margin-top: 2px; }
+  .nc-online-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; display: inline-block; }
+  .nc-user-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .nc-call-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; border: 1px solid; flex-shrink: 0; }
+  .nc-voice { background: rgba(132,204,22,0.08); border-color: rgba(132,204,22,0.2); color: #84cc16; }
+  .nc-voice:hover { background: rgba(132,204,22,0.18); }
+  .nc-video { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.2); color: #60a5fa; }
+  .nc-video:hover { background: rgba(96,165,250,0.18); }
+
+  .gp-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+  .gp-chip { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 20px; background: rgba(132,204,22,0.1); border: 1px solid rgba(132,204,22,0.25); cursor: pointer; font-size: 12px; font-weight: 600; color: #84cc16; }
+  .gp-chip-av { width: 18px; height: 18px; border-radius: 50%; background: rgba(132,204,22,0.2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+  .gp-chip-x { font-size: 14px; opacity: 0.6; }
+  .gp-list { flex: 1; overflow-y: auto; }
+  .gp-list::-webkit-scrollbar { width: 3px; }
+  .gp-list::-webkit-scrollbar-thumb { background: rgba(132,204,22,0.15); }
+  .gp-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; transition: background 0.15s; }
+  .gp-row:hover { background: rgba(255,255,255,0.03); }
+  .gp-sel { background: rgba(132,204,22,0.05); }
+  .gp-info { flex: 1; }
+  .gp-name { display: block; font-size: 14px; font-weight: 700; color: #fff; }
+  .gp-status { display: block; font-size: 11px; color: #444; margin-top: 1px; }
+  .gp-check { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: transparent; flex-shrink: 0; }
+  .gp-check-on { background: #84cc16; border-color: #84cc16; color: #000; }
+  .gp-actions { padding: 12px 16px calc(env(safe-area-inset-bottom,0px) + 12px); display: flex; gap: 10px; border-top: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+  .gp-start { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+  .gp-audio { background: rgba(132,204,22,0.1); border: 1px solid rgba(132,204,22,0.3); color: #84cc16; }
+  .gp-audio:hover { background: rgba(132,204,22,0.18); }
+  .gp-video { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); color: #60a5fa; }
+  .gp-video:hover { background: rgba(96,165,250,0.18); }
 `;
 
-export default ChatView;
+export default CallsView;

@@ -1,511 +1,276 @@
 // ============================================================================
-// services/messages/callService.js — NOVA CALL SERVICE v3 FIXED
+// services/messages/callService.js — NOVA CALL SERVICE v3 COMPLETE
 // ============================================================================
-// ROOT CAUSE FIX v3:
-//   The "user_calls:{calleeId}_from_{callerId}" topic NEVER matches the callee's
-//   subscription on "user_calls:{calleeId}". Supabase broadcast is topic-scoped:
-//   sender and receiver MUST subscribe to the IDENTICAL topic string.
-//
-// SOLUTION: Caller subscribes to "user_calls:{calleeId}" (same topic as callee).
-//   Both sides share the topic. The callee is already subscribed from init().
-//   Caller subscribes on the same topic and broadcasts — callee receives it.
-//
-// ALSO FIXED:
-//   - callService.on("incoming_call") now dispatches window event immediately
-//   - declineCall uses shared signal channel (call:{callId}) not the invite channel
-//   - cleanup properly removes all sender channels
-//   - init() is idempotent and updates name/avatar safely
+// WHAT THIS DOES:
+//  - Caller: inserts into active_calls table, waits for callee to answer
+//  - Callee: subscribes to active_calls for their id → shows incoming call popup
+//  - Both: real-time via Supabase postgres_changes + broadcast channel
+//  - Timeout: after 45s with no answer → status = "missed", emit missed_call
+//  - Logs: every completed/missed/declined call goes into call_logs table
+//  - EventEmitter: callService.on("missed_call", cb), .on("incoming_call", cb)
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 
-class CallBus {
-  constructor() {
-    this._m = new Map();
-  }
-  on(evt, fn) {
-    if (!this._m.has(evt)) this._m.set(evt, new Set());
-    this._m.get(evt).add(fn);
-    return () => this._m.get(evt)?.delete(fn);
-  }
-  emit(evt, data) {
-    this._m.get(evt)?.forEach((fn) => {
-      try {
-        fn(data);
-      } catch (e) {
-        console.error("[CallSvc]", e);
-      }
-    });
-  }
-}
+const isAbort = e => e?.name === "AbortError" || e?.message?.includes("abort") || e?.message?.includes("AbortError");
 
 class CallService {
   constructor() {
-    this._userId = null;
-    this._callerName = null;
-    this._callerAvatarId = null;
-    this._bus = new CallBus();
-    this._myIncomingChannel = null;
-    this._signalChannels = new Map();
-    // Sender channels keyed by calleeId — subscribed to SAME topic as callee
-    this._senderChannels = new Map();
-    this._initialized = false;
-    this._seenCallIds = new Set();
+    this._userId          = null;
+    this._userName        = null;
+    this._userAvId        = null;
+    this._listeners       = new Map();
+    this._incomingChannel = null;
+    this._activeCallId    = null;
+    this._ringTimeout     = null;
+    this._initialized     = false;
   }
 
-  init(userId, displayName, avatarId) {
-    if (this._initialized && this._userId === userId) {
-      this._callerName = displayName || this._callerName;
-      this._callerAvatarId =
-        avatarId !== undefined ? avatarId : this._callerAvatarId;
-      return;
-    }
-    if (this._initialized) this.cleanup();
-    this._userId = userId;
-    this._callerName = displayName || "User";
-    this._callerAvatarId = avatarId || null;
+  // ── EventEmitter ──────────────────────────────────────────────────────────
+  on(event, cb) {
+    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+    this._listeners.get(event).add(cb);
+    return () => this._listeners.get(event)?.delete(cb);
+  }
+
+  emit(event, data) {
+    this._listeners.get(event)?.forEach(cb => { try { cb(data); } catch (_) {} });
+  }
+
+  // ── INIT — subscribe to incoming calls ────────────────────────────────────
+  init(userId, userName, userAvId) {
+    if (this._initialized && this._userId === userId) return;
+    this._userId   = userId;
+    this._userName = userName;
+    this._userAvId = userAvId;
     this._initialized = true;
-    this._openMyIncomingChannel();
-    console.log("[CallSvc] v3 init:", userId, "name:", displayName);
+    this._subscribeIncoming();
+    console.log("[CallService] v3 init:", userId);
   }
 
-  on(evt, fn) {
-    return this._bus.on(evt, fn);
-  }
-  off(evt, fn) {
-    this._bus._m.get(evt)?.delete(fn);
-  }
-
-  // ── Persistent incoming channel — stays open all session ────────────────
-  _openMyIncomingChannel() {
+  _subscribeIncoming() {
     if (!this._userId) return;
-    if (this._myIncomingChannel) {
-      try {
-        supabase.removeChannel(this._myIncomingChannel);
-      } catch (_) {}
+    if (this._incomingChannel) {
+      try { supabase.removeChannel(this._incomingChannel); } catch (_) {}
     }
 
-    const topic = `user_calls:${this._userId}`;
-    this._myIncomingChannel = supabase
-      .channel(topic, { config: { broadcast: { self: false, ack: false } } })
-      .on("broadcast", { event: "call_invite" }, ({ payload }) => {
+    // Listen for active_calls where this user is in callee_ids and status = "ringing"
+    this._incomingChannel = supabase
+      .channel(`incoming_calls:${this._userId}`)
+      // DB changes — new call inserted
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table:  "active_calls",
+      }, payload => {
+        const row = payload.new;
+        if (!row?.id) return;
+        const calleeIds = Array.isArray(row.callee_ids) ? row.callee_ids : [];
+        if (!calleeIds.includes(this._userId)) return;
+        if (row.status !== "ringing") return;
+        if (row.caller_id === this._userId) return; // ignore own calls
+        this._handleIncomingCall(row);
+      })
+      // DB changes — call status updated (answered/declined/ended)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table:  "active_calls",
+      }, payload => {
+        const row = payload.new;
+        if (!row?.id) return;
+        const calleeIds = Array.isArray(row.callee_ids) ? row.callee_ids : [];
+        if (!calleeIds.includes(this._userId) && row.caller_id !== this._userId) return;
+        this._handleCallUpdate(row);
+      })
+      // Broadcast channel — direct ring signal (faster than DB)
+      .on("broadcast", { event: "ring" }, ({ payload }) => {
         if (!payload?.callId) return;
-        // Filter: only accept if this is the intended callee (or group invite)
-        if (payload.calleeId && payload.calleeId !== this._userId) return;
-        if (this._seenCallIds.has(payload.callId)) return;
-        this._seenCallIds.add(payload.callId);
-        setTimeout(() => this._seenCallIds.delete(payload.callId), 120_000);
-
-        console.log(
-          "[CallSvc] ✅ Incoming call received:",
-          payload.callId,
-          "from:",
-          payload.callerName,
-        );
-
-        const callInfo = {
-          id: payload.callId,
-          callId: payload.callId,
-          calleeId: payload.calleeId || this._userId,
-          callerId: payload.callerId,
-          callerName: payload.callerName || "Someone",
-          callerAvatarId: payload.callerAvatarId || null,
-          type: payload.callType || "audio",
-          callType: payload.callType || "audio",
-          groupName: payload.groupName || null,
-          participantCount: payload.participantCount || 0,
-          participants: payload.participants || [],
-          outgoing: false,
-          name: payload.callerName || "Someone",
-          user: {
-            id: payload.callerId,
-            full_name: payload.callerName || "Someone",
-            avatar_id: payload.callerAvatarId || null,
-            name: payload.callerName || "Someone",
-          },
-        };
-
-        this._bus.emit("incoming_call", callInfo);
-        try {
-          window.dispatchEvent(
-            new CustomEvent("nova:incoming_call", { detail: callInfo }),
-          );
-        } catch (_) {}
-      })
-      .subscribe((status, err) => {
-        console.log(
-          `[CallSvc] My incoming channel (${topic}): ${status}`,
-          err || "",
-        );
-        if (status === "CHANNEL_ERROR") {
-          // Retry after delay
-          setTimeout(() => this._openMyIncomingChannel(), 5000);
-        }
-      });
-  }
-
-  // ════════════════════════════════════════════════════════════════════════
-  // INITIATE CALL
-  // ════════════════════════════════════════════════════════════════════════
-  async initiateCall({
-    calleeIds,
-    callType = "audio",
-    groupName = null,
-    participants = [],
-  }) {
-    if (!this._userId || !calleeIds?.length)
-      throw new Error("Not initialized or no callees");
-
-    const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    console.log(
-      "[CallSvc] Initiating call:",
-      callId,
-      "to:",
-      calleeIds,
-      "type:",
-      callType,
-    );
-
-    // Persist to DB (graceful fallback)
-    supabase
-      .from("active_calls")
-      .insert({
-        id: callId,
-        caller_id: this._userId,
-        callee_ids: calleeIds,
-        call_type: callType,
-        group_name: groupName,
-        status: "ringing",
-      })
-      .then(({ error }) => {
-        if (error && !error.message?.includes("does not exist")) {
-          console.warn("[CallSvc] DB persist:", error.message);
-        }
-      });
-
-    // Send invite to each callee's persistent channel
-    const results = await Promise.allSettled(
-      calleeIds.map((calleeId) =>
-        this._sendInviteToCallee({
-          callId,
-          calleeId,
-          callType,
-          groupName,
-          participantCount: participants.length || calleeIds.length,
-          participants,
-        }),
-      ),
-    );
-
-    const sent = results.filter(
-      (r) => r.status === "fulfilled" && r.value,
-    ).length;
-    console.log(`[CallSvc] Invites sent: ${sent}/${calleeIds.length}`);
-
-    return { callId, sent };
-  }
-
-  // ── KEY FIX: Subscribe to SAME topic as callee ─────────────────────────
-  // The callee subscribes to "user_calls:{calleeId}"
-  // We MUST subscribe to exactly the same topic string to broadcast to them.
-  async _sendInviteToCallee({
-    callId,
-    calleeId,
-    callType,
-    groupName,
-    participantCount,
-    participants,
-  }) {
-    // The topic the callee is listening on
-    const topic = `user_calls:${calleeId}`;
-
-    return new Promise((resolve) => {
-      const TIMEOUT = 12_000;
-      let done = false;
-      const finish = (ok) => {
-        if (!done) {
-          done = true;
-          resolve(ok);
-        }
-      };
-      const timer = setTimeout(() => finish(false), TIMEOUT);
-
-      const sendPayload = (ch) => {
-        const payload = {
-          callId,
-          calleeId,
-          callerId: this._userId,
-          callerName: this._callerName || "Someone",
-          callerAvatarId: this._callerAvatarId || null,
-          callType: callType || "audio",
-          groupName: groupName || null,
-          participantCount: participantCount || 0,
-          participants: participants || [],
-          calledAt: new Date().toISOString(),
-        };
-
-        ch.send({
-          type: "broadcast",
-          event: "call_invite",
-          payload,
-        })
-          .then(() => {
-            console.log(
-              "[CallSvc] ✅ Invite sent to:",
-              calleeId,
-              "on topic:",
-              topic,
-            );
-            clearTimeout(timer);
-            finish(true);
-          })
-          .catch((err) => {
-            console.warn("[CallSvc] Send failed:", err?.message || err);
-            clearTimeout(timer);
-            finish(false);
-          });
-      };
-
-      const existing = this._senderChannels.get(calleeId);
-
-      if (existing?.ready && existing?.channel) {
-        sendPayload(existing.channel);
-        return;
-      }
-
-      if (existing && !existing.ready) {
-        existing.queue.push(sendPayload);
-        return;
-      }
-
-      // Create a NEW channel subscription on the SAME topic as callee
-      const entry = { channel: null, ready: false, queue: [sendPayload] };
-      this._senderChannels.set(calleeId, entry);
-
-      // CRITICAL: Use exact same topic string — no suffix!
-      const ch = supabase
-        .channel(topic, { config: { broadcast: { self: false, ack: false } } })
-        .subscribe((status, err) => {
-          console.log(
-            `[CallSvc] sender→${calleeId} status:`,
-            status,
-            err || "",
-          );
-          if (status === "SUBSCRIBED") {
-            entry.ready = true;
-            entry.channel = ch;
-            const q = [...entry.queue];
-            entry.queue = [];
-            q.forEach((fn) => fn(ch));
-          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            this._senderChannels.delete(calleeId);
-            clearTimeout(timer);
-            finish(false);
-          }
+        const calleeIds = Array.isArray(payload.calleeIds) ? payload.calleeIds : [];
+        if (!calleeIds.includes(this._userId)) return;
+        if (payload.callerId === this._userId) return;
+        this._handleIncomingCall({
+          id:         payload.callId,
+          caller_id:  payload.callerId,
+          callee_ids: payload.calleeIds,
+          call_type:  payload.callType || "audio",
+          status:     "ringing",
+          group_name: payload.groupName || null,
+          caller:     payload.caller || null,
         });
+      })
+      .subscribe(status => { console.log("[CallService] incoming channel:", status); });
+  }
 
-      entry.channel = ch;
+  _handleIncomingCall(row) {
+    console.log("[CallService] ← incoming call:", row.id);
+    this.emit("incoming_call", {
+      callId:    row.id,
+      callerId:  row.caller_id,
+      type:      row.call_type || "audio",
+      groupName: row.group_name || null,
+      caller:    row.caller    || null,
+      isVideo:   (row.call_type || "").includes("video"),
     });
   }
 
-  // ── Internal method used by MessageNotificationService ─────────────────
-  async _sendInviteToPersistentChannel(params) {
-    return this._sendInviteToCallee(params);
-  }
-
-  // ════════════════════════════════════════════════════════════════════════
-  // CALL RESPONSES
-  // ════════════════════════════════════════════════════════════════════════
-  acceptCall(callId) {
-    const ch = this.joinSignalChannel(callId);
-    ch.send({
-      type: "broadcast",
-      event: "call_accepted",
-      payload: { userId: this._userId, acceptedAt: new Date().toISOString() },
-    });
-    return ch;
-  }
-
-  declineCall(callId, reason = "declined") {
-    // Join signal channel to notify caller
-    const ch = this.joinSignalChannel(callId);
-    ch.send({
-      type: "broadcast",
-      event: "call_declined",
-      payload: { userId: this._userId, reason },
-    });
-    setTimeout(() => this.leaveSignalChannel(callId), 3000);
-  }
-
-  endCall(callId) {
-    const ch = this._signalChannels.get(callId);
-    if (ch) {
-      ch.send({
-        type: "broadcast",
-        event: "call_ended",
-        payload: { userId: this._userId, endedAt: new Date().toISOString() },
-      });
+  _handleCallUpdate(row) {
+    if (row.status === "answered") {
+      this.emit("call_answered", { callId: row.id });
+    } else if (row.status === "ended" || row.status === "declined") {
+      if (row.caller_id !== this._userId) {
+        // Callee side: caller ended/cancelled
+        this.emit("call_ended", { callId: row.id, reason: row.status });
+      }
+    } else if (row.status === "missed") {
+      this.emit("missed_call", { callId: row.id });
     }
-    this.leaveSignalChannel(callId);
-    supabase
-      .from("active_calls")
-      .update({ status: "ended", ended_at: new Date().toISOString() })
-      .eq("id", callId)
-      .then(() => {});
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  // SIGNAL CHANNEL (shared call:{callId} for WebRTC)
-  // ════════════════════════════════════════════════════════════════════════
-  joinSignalChannel(callId, callbacks = {}) {
-    if (this._signalChannels.has(callId)) {
-      return this._signalChannels.get(callId);
-    }
+  // ── START CALL (caller side) ──────────────────────────────────────────────
+  async startCall({ callId, calleeId, calleeName, calleeAvId, callType = "audio", callerProfile }) {
+    if (!this._userId || !calleeId) throw new Error("Invalid call parameters");
 
-    const ch = supabase
-      .channel(`call:${callId}`, {
-        config: { broadcast: { self: false, ack: false } },
-      })
-      .on("broadcast", { event: "call_accepted" }, ({ payload }) => {
-        this._bus.emit("call_accepted", { callId, ...payload });
-        callbacks.onAccepted?.(payload);
-      })
-      .on("broadcast", { event: "call_declined" }, ({ payload }) => {
-        this._bus.emit("call_declined", { callId, ...payload });
-        callbacks.onDeclined?.(payload);
-      })
-      .on("broadcast", { event: "call_ended" }, ({ payload }) => {
-        this._bus.emit("call_ended", { callId, ...payload });
-        callbacks.onEnded?.(payload);
-      })
-      .on("broadcast", { event: "offer" }, ({ payload }) => {
-        this._bus.emit("call_offer", { callId, ...payload });
-        callbacks.onOffer?.(payload);
-      })
-      .on("broadcast", { event: "answer" }, ({ payload }) => {
-        this._bus.emit("call_answer", { callId, ...payload });
-        callbacks.onAnswer?.(payload);
-      })
-      .on("broadcast", { event: "ice_candidate" }, ({ payload }) => {
-        this._bus.emit("call_ice", { callId, ...payload });
-        callbacks.onICE?.(payload);
-      })
-      .on("broadcast", { event: "participant_state" }, ({ payload }) => {
-        this._bus.emit("participant_state", { callId, ...payload });
-        callbacks.onParticipantState?.(payload);
-      })
-      .subscribe((status) => {
-        console.log("[CallSvc] signal channel", callId, status);
+    const id = callId || `call_${this._userId}_${calleeId}_${Date.now()}`;
+    this._activeCallId = id;
+
+    const callRecord = {
+      id,
+      caller_id:  this._userId,
+      callee_ids: [calleeId],
+      call_type:  callType,
+      status:     "ringing",
+    };
+
+    // 1. Insert into active_calls
+    try {
+      const { error } = await supabase.from("active_calls").insert(callRecord);
+      if (error && !error.message?.includes("does not exist")) console.warn("[CallService] insert:", error.message);
+    } catch (e) { if (!isAbort(e)) console.warn("[CallService] startCall:", e.message); }
+
+    // 2. Broadcast ring signal directly (faster delivery)
+    try {
+      const ch = supabase.channel(`incoming_calls:${calleeId}`);
+      ch.subscribe(status => {
         if (status === "SUBSCRIBED") {
-          this._bus.emit("signal_ready", { callId });
+          ch.send({
+            type:    "broadcast",
+            event:   "ring",
+            payload: {
+              callId,
+              callerId:   this._userId,
+              calleeIds:  [calleeId],
+              callType,
+              caller: {
+                id:        this._userId,
+                full_name: callerProfile?.fullName || callerProfile?.full_name || this._userName || "Unknown",
+                avatar_id: callerProfile?.avatarId || callerProfile?.avatar_id || this._userAvId,
+              },
+            },
+          });
+          setTimeout(() => { try { supabase.removeChannel(ch); } catch (_) {} }, 3000);
         }
       });
+    } catch (e) { console.warn("[CallService] broadcast ring:", e.message); }
 
-    this._signalChannels.set(callId, ch);
-    return ch;
+    // 3. Set ring timeout — 45s → auto-miss
+    this._startRingTimeout(id, calleeId, callType);
+
+    return { callId: id };
   }
 
-  leaveSignalChannel(callId) {
-    const ch = this._signalChannels.get(callId);
-    if (ch) {
+  _startRingTimeout(callId, calleeId, callType) {
+    this._clearRingTimeout();
+    this._ringTimeout = setTimeout(async () => {
+      console.log("[CallService] ring timeout →", callId);
       try {
-        supabase.removeChannel(ch);
-      } catch (_) {}
-      this._signalChannels.delete(callId);
-    }
+        await supabase.from("active_calls").update({ status: "missed", ended_at: new Date().toISOString() }).eq("id", callId);
+        await this._logCall({ callId, calleeId, callType, status: "missed", durationSecs: 0 });
+      } catch (e) { if (!isAbort(e)) console.warn("[CallService] timeout update:", e.message); }
+      this._activeCallId = null;
+      this.emit("missed_call", { callId, calleeId });
+      this.emit("call_ended", { callId, reason: "timeout" });
+    }, 45000);
   }
 
-  sendOffer(callId, sdp) {
-    this._signalChannels
-      .get(callId)
-      ?.send({ type: "broadcast", event: "offer", payload: { sdp } });
-  }
-  sendAnswer(callId, sdp) {
-    this._signalChannels
-      .get(callId)
-      ?.send({ type: "broadcast", event: "answer", payload: { sdp } });
-  }
-  sendICE(callId, candidate) {
-    this._signalChannels
-      .get(callId)
-      ?.send({
-        type: "broadcast",
-        event: "ice_candidate",
-        payload: { candidate: candidate.toJSON() },
-      });
-  }
-  sendParticipantState(callId, state) {
-    this._signalChannels
-      .get(callId)
-      ?.send({
-        type: "broadcast",
-        event: "participant_state",
-        payload: { userId: this._userId, ...state },
-      });
+  _clearRingTimeout() {
+    if (this._ringTimeout) { clearTimeout(this._ringTimeout); this._ringTimeout = null; }
   }
 
-  async sendCallPushNotification({
-    calleeId,
-    callType = "audio",
-    groupName = null,
-    callId,
-  }) {
-    if (!calleeId || !this._userId) return;
+  // ── ANSWER CALL (callee side) ─────────────────────────────────────────────
+  async answerCall(callId) {
+    if (!callId) return;
+    this._clearRingTimeout();
     try {
-      await supabase.functions.invoke("send-push", {
-        body: {
-          recipient_user_id: calleeId,
-          actor_user_id: this._userId,
-          type: "incoming_call",
-          title: `📞 ${this._callerName || "Someone"} is calling`,
-          message: groupName
-            ? `Group ${callType === "video" ? "video" : "voice"} call in ${groupName}`
-            : `Incoming ${callType === "video" ? "video" : "voice"} call`,
-          entity_id: calleeId,
-          metadata: {
-            call_type: callType,
-            caller_name: this._callerName,
-            caller_avatar: this._callerAvatarId,
-            group_name: groupName,
-            call_id: callId,
-          },
-          data: {
-            url: "/messages",
-            type: "incoming_call",
-            call_type: callType,
-            call_id: callId,
-            group_name: groupName,
-          },
-        },
+      await supabase.from("active_calls").update({ status: "answered" }).eq("id", callId);
+    } catch (e) { if (!isAbort(e)) console.warn("[CallService] answerCall:", e.message); }
+    this.emit("call_answered", { callId });
+  }
+
+  // ── DECLINE CALL (callee side) ────────────────────────────────────────────
+  async declineCall(callId, callerId, callType) {
+    if (!callId) return;
+    this._clearRingTimeout();
+    try {
+      await supabase.from("active_calls").update({ status: "declined", ended_at: new Date().toISOString() }).eq("id", callId);
+      await this._logCall({ callId, calleeId: this._userId, callerId, callType: callType || "audio", status: "declined", durationSecs: 0 });
+    } catch (e) { if (!isAbort(e)) console.warn("[CallService] declineCall:", e.message); }
+    this.emit("call_ended", { callId, reason: "declined" });
+  }
+
+  // ── END CALL (both sides) ─────────────────────────────────────────────────
+  async endCall(callId, calleeId, callType, durationSecs = 0) {
+    if (!callId) return;
+    this._clearRingTimeout();
+    this._activeCallId = null;
+    try {
+      await supabase.from("active_calls").update({ status: "ended", ended_at: new Date().toISOString() }).eq("id", callId);
+      const status = durationSecs > 0 ? "answered" : "missed";
+      await this._logCall({ callId, calleeId: calleeId || this._userId, callType: callType || "audio", status, durationSecs });
+    } catch (e) { if (!isAbort(e)) console.warn("[CallService] endCall:", e.message); }
+    this.emit("call_ended", { callId, reason: "ended" });
+  }
+
+  // ── LOG to call_logs ──────────────────────────────────────────────────────
+  async _logCall({ callId, calleeId, callerId, callType, status, durationSecs }) {
+    if (!this._userId) return;
+    try {
+      await supabase.from("call_logs").insert({
+        caller_id:     callerId || this._userId,
+        callee_id:     calleeId || this._userId,
+        type:          callType || "audio",
+        status:        status   || "missed",
+        duration_secs: durationSecs || 0,
       });
-    } catch (e) {
-      console.warn("[CallSvc] push notification failed:", e.message);
-    }
+    } catch (e) { if (!isAbort(e)) console.warn("[CallService] log:", e.message); }
+  }
+
+  // ── Listen for active call updates (to know if callee answered) ───────────
+  subscribeToCall(callId, callbacks = {}) {
+    const ch = supabase
+      .channel(`call_state:${callId}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "active_calls",
+        filter: `id=eq.${callId}`,
+      }, payload => {
+        const row = payload.new;
+        if (row.status === "answered")  callbacks.onAnswered?.();
+        if (row.status === "declined")  callbacks.onDeclined?.();
+        if (row.status === "ended")     callbacks.onEnded?.();
+        if (row.status === "missed")    callbacks.onMissed?.();
+      })
+      .subscribe();
+    return () => { try { supabase.removeChannel(ch); } catch (_) {} };
   }
 
   cleanup() {
-    if (this._myIncomingChannel) {
-      try {
-        supabase.removeChannel(this._myIncomingChannel);
-      } catch (_) {}
-      this._myIncomingChannel = null;
+    this._clearRingTimeout();
+    if (this._incomingChannel) {
+      try { supabase.removeChannel(this._incomingChannel); } catch (_) {}
+      this._incomingChannel = null;
     }
-    this._signalChannels.forEach((ch) => {
-      try {
-        supabase.removeChannel(ch);
-      } catch (_) {}
-    });
-    this._signalChannels.clear();
-    this._senderChannels.forEach(({ channel }) => {
-      if (channel) {
-        try {
-          supabase.removeChannel(channel);
-        } catch (_) {}
-      }
-    });
-    this._senderChannels.clear();
-    this._seenCallIds.clear();
-    this._userId = null;
+    this._listeners.clear();
+    this._userId      = null;
     this._initialized = false;
   }
 }

@@ -1,1280 +1,516 @@
-// ============================================================================
-// components/Messages/GroupChatView.jsx — NOVA GROUP CHAT v6 UNIFIED
-// ============================================================================
-// FULLY UNIFIED with ChatView design — identical bubbles, input, reply system,
-// context menu, swipe gestures, background support.
-// Only difference: sender names shown above bubbles, group header with members.
-// ============================================================================
+// components/Messages/GroupChatView.jsx — NOVA GROUP CHAT v3 COMPLETE
+// Features: real-time chat, emoji picker, GIF (Tenor+fallback), group edit,
+// icon upload, beautiful reply design, reactions, members list.
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  memo,
-} from "react";
-import groupDMService from "../../services/messages/groupDMService";
-import callService from "../../services/messages/callService";
+import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+import groupDMService  from "../../services/messages/groupDMService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
-import { supabase } from "../../services/config/supabase";
-import backgroundService from "../../services/messages/BackgroundService";
-import { CV_CSS } from "./ChatView"; // Reuse exact same CSS
 
-/* ─── ICONS ─── */
-const Ic = {
-  Back: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="19" y1="12" x2="5" y2="12" />
-      <polyline points="12 19 5 12 12 5" />
-    </svg>
-  ),
-  Phone: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-    </svg>
-  ),
-  Video: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polygon points="23 7 16 12 23 17 23 7" />
-      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-    </svg>
-  ),
-  Users: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 00-3-3.87" />
-      <path d="M16 3.13a4 4 0 010 7.75" />
-    </svg>
-  ),
-  Close: () => (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  ),
-  Down: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  ),
-  Reply: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="9 17 4 12 9 7" />
-      <path d="M20 18v-2a4 4 0 00-4-4H4" />
-    </svg>
-  ),
-  Copy: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-    </svg>
-  ),
-  Delete: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#ef4444"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14H6L5 6" />
-      <path d="M9 6V4h6v2" />
-    </svg>
-  ),
-  Send: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  ),
-  Palette: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="13.5" cy="6.5" r=".5" />
-      <circle cx="17.5" cy="10.5" r=".5" />
-      <circle cx="8.5" cy="7.5" r=".5" />
-      <circle cx="6.5" cy="12.5" r=".5" />
-      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-    </svg>
-  ),
-  Edit: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  ),
+// ── Tenor GIF search with fallback ───────────────────────────────────────────
+const FALLBACK_GIFS = [
+  { id:"f1", url:"https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif", preview:"https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/200.gif", title:"Hi", tags:["hi","hello","hey","wave"] },
+  { id:"f2", url:"https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif", preview:"https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/200.gif", title:"LOL", tags:["lol","laugh","funny","haha"] },
+  { id:"f3", url:"https://media.giphy.com/media/d2Z9QYzA2aidiWn6/giphy.gif", preview:"https://media.giphy.com/media/d2Z9QYzA2aidiWn6/200.gif", title:"Fire", tags:["fire","hot","amazing","wow"] },
+  { id:"f4", url:"https://media.giphy.com/media/xT9IgG50Lg7russbD6/giphy.gif", preview:"https://media.giphy.com/media/xT9IgG50Lg7russbD6/200.gif", title:"Clap", tags:["clap","great","nice","good"] },
+  { id:"f5", url:"https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif", preview:"https://media.giphy.com/media/l3q2K5jinAlChoCLS/200.gif", title:"OK", tags:["ok","fine","sure","alright"] },
+  { id:"f6", url:"https://media.giphy.com/media/fUSp9NJCKqHpBfxKvN/giphy.gif", preview:"https://media.giphy.com/media/fUSp9NJCKqHpBfxKvN/200.gif", title:"Sad", tags:["sad","cry","no","miss"] },
+  { id:"f7", url:"https://media.giphy.com/media/l46CsHbZDSZKjsGNO/giphy.gif", preview:"https://media.giphy.com/media/l46CsHbZDSZKjsGNO/200.gif", title:"Yes!", tags:["yes","win","celebrate","yeah"] },
+  { id:"f8", url:"https://media.giphy.com/media/ZqlvCTNHpqrio/giphy.gif", preview:"https://media.giphy.com/media/ZqlvCTNHpqrio/200.gif", title:"Love", tags:["love","heart","cute","sweet"] },
+  { id:"f9", url:"https://media.giphy.com/media/oGO1MPNUVbbk4/giphy.gif", preview:"https://media.giphy.com/media/oGO1MPNUVbbk4/200.gif", title:"Thinking", tags:["think","hmm","idk","wait"] },
+  { id:"f10", url:"https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif", preview:"https://media.giphy.com/media/11sBLVxNs7v6WA/200.gif", title:"Deal", tags:["deal","ok","agree","yes","deal"] },
+  { id:"f11", url:"https://media.giphy.com/media/ukMiDpZpm6B8/giphy.gif", preview:"https://media.giphy.com/media/ukMiDpZpm6B8/200.gif", title:"Party", tags:["party","celebrate","fun","woo"] },
+  { id:"f12", url:"https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif", preview:"https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/200.gif", title:"NoNoNo", tags:["no","stop","nope","bad"] },
+];
+
+const searchGifs = async (query, limit = 12) => {
+  try {
+    const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=AIzaSyC6bfxFR63-j8KFoiVHF4K5GKPZ5QLRHQE&limit=${limit}&media_filter=gif`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("tenor");
+    const data = await res.json();
+    return (data.results||[]).map(r=>({
+      id: r.id,
+      url: r.media_formats?.gif?.url || r.media_formats?.tinygif?.url || "",
+      preview: r.media_formats?.tinygif?.url || r.media_formats?.nanogif?.url || "",
+      title: r.title || query,
+    })).filter(g => g.url);
+  } catch {
+    const q = query.toLowerCase();
+    const filtered = FALLBACK_GIFS.filter(g => g.tags.some(t => q.includes(t) || t.includes(q)));
+    return (filtered.length ? filtered : FALLBACK_GIFS).slice(0, limit);
+  }
 };
 
-const MEMBER_COLORS = [
-  "#84cc16",
-  "#22c55e",
-  "#60a5fa",
-  "#c084fc",
-  "#f59e0b",
-  "#fb7185",
-  "#34d399",
-  "#a78bfa",
-  "#f97316",
-  "#06b6d4",
-];
-function memberColor(id) {
-  if (!id) return MEMBER_COLORS[0];
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
-  return MEMBER_COLORS[Math.abs(h) % MEMBER_COLORS.length];
-}
+// ── Icons ─────────────────────────────────────────────────────────────────────
+const Ic = {
+  Back:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  Send:   () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  Smile:  () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
+  Gif:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 12h4M10 10v4"/><path d="M14 10h2a2 2 0 010 4h-2"/></svg>,
+  Edit:   () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  Close:  () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Reply:  () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg>,
+  Users:  () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+  Camera: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+  Search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  DblChk: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#84cc16" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 11 9 5 5"/><polyline points="20 8 14 16 8 12"/></svg>,
+};
 
-/* ─── Avatar ─── */
-const UAv = memo(({ user, size = 34 }) => {
+const timeStr = ts => ts ? new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}) : "";
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+const Av = memo(({ user, size=32 }) => {
   const [err, setErr] = useState(false);
-  const id = user?.avatar_id || user?.avatarId;
+  const id  = user?.avatar_id || user?.avatarId;
   const url = !err && id ? mediaUrlService.getAvatarUrl(id, 200) : null;
   const ini = (user?.full_name || user?.name || "?").charAt(0).toUpperCase();
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg,#1a1a1a,#222)",
-        border: "2px solid rgba(132,204,22,.18)",
-        flexShrink: 0,
-        fontSize: size * 0.38,
-        fontWeight: 700,
-        color: "#84cc16",
-      }}
-    >
-      {url ? (
-        <img
-          src={url}
-          alt={user?.full_name || "?"}
-          onError={() => setErr(true)}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : (
-        <span>{ini}</span>
-      )}
+    <div style={{width:size,height:size,borderRadius:"50%",background:"linear-gradient(135deg,#0d1a00,#1a3300)",border:"1.5px solid rgba(132,204,22,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.38,fontWeight:700,color:"#84cc16",overflow:"hidden",flexShrink:0}}>
+      {url ? <img src={url} alt={ini} onError={()=>setErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : ini}
     </div>
   );
 });
-UAv.displayName = "UAv";
+Av.displayName = "Av";
 
-/* ─── Group Icon ─── */
-const GroupIcon = memo(({ group, size = 40 }) => {
-  const members = (group?.members || []).filter(Boolean).slice(0, 4);
-  if (!members.length) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          background: "linear-gradient(135deg,#0d1a00,#1a3300)",
-          border: "2px solid rgba(132,204,22,.2)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: size * 0.45,
-          flexShrink: 0,
-        }}
-      >
-        {group?.icon || "👥"}
-      </div>
-    );
-  }
-  const q = Math.floor(size / 2) - 2;
+// ── Emoji categories ──────────────────────────────────────────────────────────
+const EMOJI_CATS = {
+  "⭐": ["😂","🔥","❤️","👍","💀","🎉","😭","🤣","✨","💯","🫡","🙏","💪","🥹","😤","🫠","🤡","😎","🤯","🫶"],
+  "😀": ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃","😉","😊","😇","🥰","😍","🤩","😘","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔","😐","😑","😶","😏","😒","🙄","😬","🤥","😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🤧","🥵","🥶","😵","🤯","🤠","🥳","😎","🤓","🧐","😕","😟","🙁","😮","😯","😲","😳","🥺","😦","😧","😨","😰","😥","😢","😭","😱","😖","😣","😞","😓","😩","😫","🥱","😤","😡","😠","🤬","👿","💀","💩","🤡","👻","👽","🤖"],
+  "👋": ["👋","🤚","🖐","✋","🖖","👌","🤌","🤏","✌","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","💪","🦾"],
+  "❤️": ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❤️‍🔥","💕","💞","💓","💗","💖","💘","💝","💟","♥️","❣️"],
+  "🔥": ["🔥","💫","⭐","🌟","✨","💥","❄️","🌈","☀️","🌊","🌙","⚡","💧","🌸","🌺","🍀","🎉","🎊","🎈","🎁","🏆","🥇","💎","🚀","🛸","🌍","🎯","💯","🔮","🌀"],
+  "🍕": ["🍕","🍔","🌮","🌯","🍜","🍣","🍰","🎂","🧁","🍩","🍦","☕","🧋","🍺","🥂","🍷","🥃","🍸","🍹","🧉","🍾","🥤","🧃","🫖","🍫","🍬","🍭","🍿","🥜","🫘"],
+  "✈️": ["✈️","🚀","🛸","🚗","🚕","🏎","🏍","🛵","🚲","🛴","🚁","⛵","🚢","🏖","🏝","🏔","🗺","🌋","🏕","🏠","🏯","🗼","🎡","🎢"],
+  "📱": ["📱","💻","⌨️","🖥","🖨","🖱","📷","📸","🎥","📺","📻","🎙","⌚","🔋","🔌","💡","🔦","🕯","💸","💳","💰","💎","⚖️","🔧","🔨","⚙️","🔑","🗝","🔐","🔒","🚪"],
+};
+
+// ── EmojiPicker ───────────────────────────────────────────────────────────────
+const EmojiPicker = memo(({ onSelect, onClose }) => {
+  const [cat,setcat] = useState("⭐");
+  const [search,setSrch] = useState("");
+  const ref = useRef(null);
+  const inputRef = useRef(null);
+  useEffect(()=>{inputRef.current?.focus();},[]);
+  useEffect(()=>{
+    const h = e=>{if(!ref.current?.contains(e.target))onClose();};
+    const t = setTimeout(()=>document.addEventListener("pointerdown",h),100);
+    return()=>{clearTimeout(t);document.removeEventListener("pointerdown",h);};
+  },[onClose]);
+  const emojis = search
+    ? Object.values(EMOJI_CATS).flat().filter((e,i,a)=>a.indexOf(e)===i)
+    : (EMOJI_CATS[cat]||[]);
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        overflow: "hidden",
-        background: "linear-gradient(135deg,#0d1a00,#1a3300)",
-        border: "2px solid rgba(132,204,22,.2)",
-        flexShrink: 0,
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gridTemplateRows: "1fr 1fr",
-        gap: "1px",
-        padding: "2px",
-      }}
-    >
-      {members.slice(0, 4).map((m, i) => (
-        <div
-          key={m?.id || i}
-          style={{ borderRadius: "2px", overflow: "hidden" }}
-        >
-          <UAv user={m} size={q} />
-        </div>
-      ))}
-    </div>
-  );
-});
-GroupIcon.displayName = "GroupIcon";
-
-/* ─── Context Menu ─── */
-const ContextMenu = memo(
-  ({ pos, isMe, onReply, onCopy, onDelete, onClose }) => {
-    const menuRef = useRef(null);
-    const [style, setStyle] = useState({ opacity: 0, left: pos.x, top: pos.y });
-
-    useEffect(() => {
-      const el = menuRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      let { x, y } = pos;
-      if (x + rect.width > window.innerWidth - 16)
-        x = window.innerWidth - rect.width - 16;
-      if (x < 16) x = 16;
-      if (y + rect.height > window.innerHeight - 16) y = y - rect.height - 8;
-      if (y < 16) y = 16;
-      setStyle({ left: x, top: y, opacity: 1 });
-    }, [pos]);
-
-    useEffect(() => {
-      const h = (e) => {
-        if (!menuRef.current?.contains(e.target)) onClose();
-      };
-      const tid = setTimeout(() => {
-        document.addEventListener("pointerdown", h);
-      }, 50);
-      return () => {
-        clearTimeout(tid);
-        document.removeEventListener("pointerdown", h);
-      };
-    }, [onClose]);
-
-    return (
-      <div
-        className="cv-ctx-overlay"
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-      >
-        <div
-          ref={menuRef}
-          className="cv-ctx-menu"
-          style={style}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <button
-            className="cv-ctx-item"
-            style={{ color: "#84cc16" }}
-            onClick={() => {
-              onReply?.();
-              onClose();
-            }}
-          >
-            <span className="cv-ctx-icon">
-              <Ic.Reply />
-            </span>
-            <span>Reply</span>
+    <div ref={ref} style={{position:"absolute",bottom:"calc(100% + 8px)",left:0,width:320,background:"#111",border:"1px solid rgba(132,204,22,.25)",borderRadius:14,overflow:"hidden",boxShadow:"0 16px 48px rgba(0,0,0,.8)",zIndex:100}} onPointerDown={e=>e.stopPropagation()}>
+      <div style={{display:"flex",alignItems:"center",gap:7,padding:"9px 11px",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+        <Ic.Search/>
+        <input ref={inputRef} value={search} onChange={e=>setSrch(e.target.value)} placeholder="Search emoji…" style={{flex:1,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:7,color:"#fff",fontSize:12,padding:"5px 9px",outline:"none"}}/>
+      </div>
+      {!search&&<div style={{display:"flex",gap:2,padding:"6px 9px",borderBottom:"1px solid rgba(255,255,255,.06)",overflowX:"auto",scrollbarWidth:"none"}}>
+        {Object.keys(EMOJI_CATS).map(k=>(
+          <button key={k} onClick={()=>setcat(k)} style={{flexShrink:0,width:32,height:30,borderRadius:7,background:cat===k?"rgba(132,204,22,.15)":"transparent",border:`1px solid ${cat===k?"rgba(132,204,22,.4)":"transparent"}`,fontSize:17,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{k}</button>
+        ))}
+      </div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:2,padding:8,maxHeight:240,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"rgba(132,204,22,.3) transparent"}}>
+        {emojis.map((e,i)=>(
+          <button key={i} onClick={()=>onSelect(e)} style={{aspectRatio:"1",background:"transparent",border:"none",borderRadius:6,fontSize:21,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .1s,transform .1s"}}
+            onMouseEnter={ev=>{ev.currentTarget.style.background="rgba(132,204,22,.15)";ev.currentTarget.style.transform="scale(1.2)";}}
+            onMouseLeave={ev=>{ev.currentTarget.style.background="transparent";ev.currentTarget.style.transform="scale(1)";}}>
+            {e}
           </button>
-          <button
-            className="cv-ctx-item"
-            style={{ color: "#ccc" }}
-            onClick={() => {
-              onCopy?.();
-              onClose();
-            }}
-          >
-            <span className="cv-ctx-icon">
-              <Ic.Copy />
-            </span>
-            <span>Copy</span>
-          </button>
-          {isMe && (
-            <button
-              className="cv-ctx-item"
-              style={{ color: "#ef4444" }}
-              onClick={() => {
-                onDelete?.();
-                onClose();
-              }}
-            >
-              <span className="cv-ctx-icon">
-                <Ic.Delete />
-              </span>
-              <span>Delete</span>
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  },
-);
-ContextMenu.displayName = "ContextMenu";
-
-/* ─── Reply Quote ─── */
-const ReplyQuote = memo(({ replyToId, messages, onScrollTo }) => {
-  const original = messages.find((m) => m.id === replyToId);
-  if (!original) return null;
-  return (
-    <div className="cv-rq" onClick={() => onScrollTo?.(replyToId)}>
-      <div className="cv-rq-bar" />
-      <div className="cv-rq-text">
-        {original.content?.slice(0, 80) || "Message"}
-      </div>
-    </div>
-  );
-});
-ReplyQuote.displayName = "ReplyQuote";
-
-/* ─── Message Row — identical to ChatView but with sender name ─── */
-const MsgRow = memo(
-  ({
-    msg,
-    isMe,
-    showHeader,
-    allMembers,
-    messages,
-    onReply,
-    onScrollTo,
-    currentUserId,
-  }) => {
-    const [swipeX, setSwipeX] = useState(0);
-    const [swiping, setSwiping] = useState(false);
-    const [ctxOpen, setCtxOpen] = useState(false);
-    const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
-    const [hovered, setHovered] = useState(false);
-    const touchX = useRef(null);
-    const touchY = useRef(null);
-    const lpTimer = useRef(null);
-    const rowRef = useRef(null);
-    const SWIPE_TH = 60;
-
-    const sender = allMembers.find(
-      (m) => m?.id === (msg.user_id || msg.sender_id),
-    );
-    const avatarUrl = useMemo(() => {
-      const id = sender?.avatar_id || sender?.avatarId;
-      return id ? mediaUrlService.getAvatarUrl(id, 200) : null;
-    }, [sender?.avatar_id, sender?.avatarId]);
-
-    const onTouchStart = (e) => {
-      touchX.current = e.touches[0].clientX;
-      touchY.current = e.touches[0].clientY;
-      lpTimer.current = setTimeout(() => {
-        const rect = rowRef.current?.getBoundingClientRect() || {};
-        setCtxPos({ x: rect.left + rect.width / 2 - 90, y: rect.top - 8 });
-        setCtxOpen(true);
-      }, 500);
-    };
-    const onTouchMove = (e) => {
-      const dx = e.touches[0].clientX - (touchX.current || 0);
-      const dy = Math.abs(e.touches[0].clientY - (touchY.current || 0));
-      if (dy > 12) {
-        clearTimeout(lpTimer.current);
-        return;
-      }
-      if (Math.abs(dx) > 8) {
-        clearTimeout(lpTimer.current);
-        setSwiping(true);
-        setSwipeX(Math.max(-90, Math.min(90, dx)));
-      }
-    };
-    const onTouchEnd = () => {
-      clearTimeout(lpTimer.current);
-      if (swiping && Math.abs(swipeX) >= SWIPE_TH) onReply?.(msg);
-      setSwiping(false);
-      setSwipeX(0);
-    };
-    const onContextMenu = (e) => {
-      e.preventDefault();
-      setCtxPos({ x: e.clientX, y: e.clientY });
-      setCtxOpen(true);
-    };
-
-    const fmtTime = (d) => {
-      if (!d) return "";
-      const dt = new Date(d);
-      return `${dt.getHours() % 12 || 12}:${dt.getMinutes().toString().padStart(2, "0")} ${dt.getHours() >= 12 ? "PM" : "AM"}`;
-    };
-
-    return (
-      <div
-        ref={rowRef}
-        className={`cv-msg${isMe ? " cv-me" : " cv-them"}${msg._optimistic ? " cv-opt" : ""}${msg._failed ? " cv-fail" : ""}`}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onContextMenu={onContextMenu}
-        data-msg-id={msg.id}
-      >
-        {swiping && (
-          <div
-            className="cv-swipe-ind"
-            style={{
-              opacity: Math.min(1, Math.abs(swipeX) / SWIPE_TH),
-              [isMe ? "right" : "left"]: "calc(100% + 10px)",
-            }}
-          >
-            <Ic.Reply />
-          </div>
-        )}
-
-        {hovered && !swiping && !ctxOpen && (
-          <button
-            className={`cv-desktop-reply${isMe ? " cv-dr-left" : " cv-dr-right"}`}
-            onClick={() => onReply?.(msg)}
-          >
-            <Ic.Reply />
-          </button>
-        )}
-
-        {!isMe &&
-          (showHeader ? (
-            <div className="cv-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={sender?.full_name || "?"} />
-              ) : (
-                (sender?.full_name || "?").charAt(0)
-              )}
-            </div>
-          ) : (
-            <div className="cv-avatar-sp" />
-          ))}
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            maxWidth: "72%",
-            gap: "1px",
-            alignItems: isMe ? "flex-end" : "flex-start",
-          }}
-        >
-          {!isMe && showHeader && (
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: memberColor(sender?.id),
-                paddingLeft: 2,
-                marginBottom: 1,
-              }}
-            >
-              {sender?.full_name || sender?.name || "Unknown"}
-            </div>
-          )}
-          <div
-            className={`cv-bubble ${isMe ? "cv-bme cv-tail-r" : "cv-bthem cv-tail-l"}`}
-            style={{
-              transform: swiping
-                ? `translateX(${swipeX * 0.5}px)`
-                : "translateX(0)",
-              transition: swiping
-                ? "none"
-                : "transform 0.25s cubic-bezier(.34,1.56,.64,1)",
-            }}
-          >
-            {msg.reply_to_id && (
-              <ReplyQuote
-                replyToId={msg.reply_to_id}
-                messages={messages}
-                onScrollTo={onScrollTo}
-              />
-            )}
-            <div className="cv-content">{msg.content}</div>
-            <div className={`cv-meta${isMe ? " cv-meta-me" : ""}`}>
-              <span className="cv-time">{fmtTime(msg.created_at)}</span>
-              {isMe && (
-                <span className="cv-tk cv-tk-read">
-                  {msg._optimistic ? "✓" : "✓✓"}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {ctxOpen && (
-          <ContextMenu
-            pos={ctxPos}
-            isMe={isMe}
-            onReply={() => onReply?.(msg)}
-            onCopy={() =>
-              navigator.clipboard?.writeText(msg.content || "").catch(() => {})
-            }
-            onDelete={async () => {
-              if (!isMe) return;
-              try {
-                await supabase
-                  .from("community_messages")
-                  .delete()
-                  .eq("id", msg.id)
-                  .eq("user_id", currentUserId);
-              } catch (e) {
-                console.warn(e);
-              }
-            }}
-            onClose={() => setCtxOpen(false)}
-          />
-        )}
-      </div>
-    );
-  },
-);
-MsgRow.displayName = "MsgRow";
-
-/* ─── Reply Bar ─── */
-const ReplyBar = memo(({ replyTo, onCancel }) => {
-  if (!replyTo) return null;
-  return (
-    <div className="cv-reply-bar">
-      <div className="cv-rb-line" />
-      <div className="cv-rb-content">
-        <div className="cv-rb-label">Replying</div>
-        <div className="cv-rb-text">
-          {replyTo.content?.slice(0, 80) || "..."}
-        </div>
-      </div>
-      <button className="cv-rb-x" onClick={onCancel}>
-        <Ic.Close />
-      </button>
-    </div>
-  );
-});
-
-/* ─── Input ─── */
-const GCInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
-  const [val, setVal] = useState("");
-  const taRef = useRef(null);
-  useEffect(() => {
-    if (replyTo) taRef.current?.focus();
-  }, [replyTo]);
-  const onChange = (e) => {
-    setVal(e.target.value);
-    onTyping?.();
-    const ta = taRef.current;
-    if (ta) {
-      ta.style.height = "auto";
-      ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
-    }
-  };
-  const submit = () => {
-    const t = val.trim();
-    if (!t) return;
-    onSend(t, replyTo?.id || null);
-    setVal("");
-    if (taRef.current) taRef.current.style.height = "auto";
-    onCancelReply?.();
-  };
-  return (
-    <div className="cv-input-root">
-      <ReplyBar replyTo={replyTo} onCancel={onCancelReply} />
-      <div className="cv-input-bar">
-        <textarea
-          ref={taRef}
-          className="cv-input-ta"
-          value={val}
-          onChange={onChange}
-          onKeyDown={(e) =>
-            e.key === "Enter" && !e.shiftKey && (e.preventDefault(), submit())
-          }
-          placeholder="Message group…"
-          rows={1}
-          maxLength={2000}
-        />
-        <button className="cv-send-btn" onClick={submit} disabled={!val.trim()}>
-          <Ic.Send />
-        </button>
-      </div>
-    </div>
-  );
-});
-
-/* ─── Members Sidebar ─── */
-const MembersPanel = ({ members, group, currentUserId, onClose }) => (
-  <div
-    style={{
-      position: "absolute",
-      inset: 0,
-      background: "rgba(0,0,0,.65)",
-      zIndex: 20,
-      display: "flex",
-      justifyContent: "flex-end",
-      backdropFilter: "blur(4px)",
-    }}
-    onClick={onClose}
-  >
-    <div
-      style={{
-        width: 280,
-        height: "100%",
-        background: "#070707",
-        borderLeft: "1px solid rgba(132,204,22,.15)",
-        display: "flex",
-        flexDirection: "column",
-        animation: "gcvSlideR .25s ease-out",
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 20px",
-          borderBottom: "1px solid rgba(255,255,255,.06)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
-          {group?.icon || "👥"} {group?.name}{" "}
-          <span style={{ color: "#555", fontSize: 12 }}>
-            · {members.length}
-          </span>
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: "rgba(255,255,255,.04)",
-            border: "1px solid rgba(255,255,255,.07)",
-            color: "#555",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-          }}
-        >
-          <Ic.Close />
-        </button>
-      </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-        {members.map((m) => (
-          <div
-            key={m?.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 20px",
-              borderBottom: "1px solid rgba(255,255,255,.03)",
-            }}
-          >
-            <UAv user={m} size={42} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
-                {m?.full_name || "Unknown"}
-                {m?.id === currentUserId ? " (You)" : ""}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: m?.is_admin ? "#84cc16" : "#555",
-                  marginTop: 1,
-                }}
-              >
-                {m?.is_admin ? "👑 Admin" : "Member"}
-              </div>
-            </div>
-          </div>
         ))}
       </div>
     </div>
-    <style>{`@keyframes gcvSlideR{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
-  </div>
-);
-
-// ════════════════════════════════════════════════════════════════════════════
-// MAIN GROUP CHAT VIEW
-// ════════════════════════════════════════════════════════════════════════════
-const GroupChatView = ({
-  group: initialGroup,
-  currentUser,
-  onBack,
-  onStartCall,
-}) => {
-  const [group, setGroup] = useState(initialGroup || {});
-  const [messages, setMessages] = useState([]);
-  const [members, setMembers] = useState(
-    Array.isArray(initialGroup?.members) ? initialGroup.members : [],
   );
-  const [loading, setLoading] = useState(true);
-  const [typing, setTyping] = useState([]);
-  const [showMembers, setShowMembers] = useState(false);
-  const [showJump, setShowJump] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showBgPicker, setShowBgPicker] = useState(false);
-  const [selectedBg, setSelectedBg] = useState(
-    backgroundService.getConversationBackground(group?.id || ""),
-  );
-  const [replyTo, setReplyTo] = useState(null);
+});
+EmojiPicker.displayName = "EmojiPicker";
 
-  const endRef = useRef(null);
-  const containerRef = useRef(null);
-  const isAtBottom = useRef(true);
-  const typingMap = useRef(new Map());
-  const typingTOs = useRef({});
-  const mountedRef = useRef(true);
-  const unsubRef = useRef(null);
-
-  const groupId = group?.id || initialGroup?.id;
-  const bgs = backgroundService.getBackgrounds();
-  const bgStyle = backgroundService.getBgStyle(selectedBg);
-  const isDefault = bgs[selectedBg]?.isDefault === true;
-
-  const scrollToBottom = (beh = "smooth") =>
-    endRef.current?.scrollIntoView({ behavior: beh });
-
-  const handleScroll = () => {
-    if (!containerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    isAtBottom.current = scrollHeight - scrollTop - clientHeight < 80;
-    setShowJump(!isAtBottom.current);
-  };
-
-  const scrollToMessage = useCallback((msgId) => {
-    const el = containerRef.current?.querySelector(`[data-msg-id="${msgId}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("cv-highlight");
-      setTimeout(() => el.classList.remove("cv-highlight"), 1500);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!groupId) {
+// ── GifPicker ─────────────────────────────────────────────────────────────────
+const GifPicker = memo(({ onSelect, onClose }) => {
+  const [query,setQ] = useState("");
+  const [gifs,setGifs] = useState(FALLBACK_GIFS.slice(0,8));
+  const [loading,setLoading] = useState(false);
+  const ref = useRef(null);
+  const inputRef = useRef(null);
+  const timer = useRef(null);
+  useEffect(()=>{inputRef.current?.focus();},[]);
+  useEffect(()=>{
+    const h = e=>{if(!ref.current?.contains(e.target))onClose();};
+    const t = setTimeout(()=>document.addEventListener("pointerdown",h),100);
+    return()=>{clearTimeout(t);document.removeEventListener("pointerdown",h);};
+  },[onClose]);
+  useEffect(()=>{
+    if(query.length<2){setGifs(FALLBACK_GIFS.slice(0,12));return;}
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async()=>{
+      setLoading(true);
+      const r = await searchGifs(query);
+      setGifs(r);
       setLoading(false);
-      return;
-    }
-    mountedRef.current = true;
-    (async () => {
-      try {
-        const msgs = await groupDMService.loadMessages(groupId);
-        if (mountedRef.current) {
-          setMessages(msgs);
-          setLoading(false);
-          setTimeout(() => scrollToBottom("auto"), 60);
-        }
-        if (!members.length) {
-          const g = await groupDMService.getGroup(groupId);
-          if (g && mountedRef.current) {
-            setGroup(g);
-            setMembers(Array.isArray(g.members) ? g.members : []);
-          }
-        }
-      } catch (e) {
-        console.error("[GCV] load:", e);
-        if (mountedRef.current) setLoading(false);
-      }
-    })();
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [groupId]);
-
-  useEffect(() => {
-    if (!groupId) return;
-    unsubRef.current = groupDMService.subscribeToMessages(groupId, {
-      onMessage: (msg) => {
-        if (!mountedRef.current) return;
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, { ...msg, sender_id: msg.user_id || msg.sender_id }];
-        });
-        if (isAtBottom.current) setTimeout(scrollToBottom, 10);
-      },
-      onTyping: ({ userId, userName, typing: isTy }) => {
-        if (!mountedRef.current || userId === currentUser?.id) return;
-        if (isTy) {
-          typingMap.current.set(userId, userName || "Someone");
-          setTyping(Array.from(typingMap.current.values()));
-          clearTimeout(typingTOs.current[userId]);
-          typingTOs.current[userId] = setTimeout(() => {
-            typingMap.current.delete(userId);
-            if (mountedRef.current)
-              setTyping(Array.from(typingMap.current.values()));
-          }, 3000);
-        } else {
-          typingMap.current.delete(userId);
-          setTyping(Array.from(typingMap.current.values()));
-        }
-      },
-    });
-
-    const unsubLocal = groupDMService.on(
-      `msgs:${groupId}`,
-      ({ type, message, tempId }) => {
-        if (!mountedRef.current) return;
-        if (type === "optimistic") {
-          setMessages((prev) => [...prev, message]);
-          setTimeout(scrollToBottom, 10);
-        } else if (type === "confirmed")
-          setMessages((prev) =>
-            prev.map((m) => (m._tempId === tempId ? message : m)),
-          );
-        else if (type === "failed")
-          setMessages((prev) =>
-            prev.map((m) =>
-              m._tempId === tempId ? { ...m, _failed: true } : m,
-            ),
-          );
-      },
-    );
-
-    return () => {
-      unsubRef.current?.();
-      unsubLocal();
-    };
-  }, [groupId, currentUser?.id]);
-
-  useEffect(() => {
-    if (!groupId) return;
-    const unsub = groupDMService.on(`group_updated:${groupId}`, (updated) => {
-      if (mountedRef.current) {
-        setGroup(updated);
-        if (Array.isArray(updated.members)) setMembers(updated.members);
-      }
-    });
-    return unsub;
-  }, [groupId]);
-
-  const handleSend = useCallback(
-    async (text, replyToId = null) => {
-      if (!text?.trim() || !currentUser?.id || !groupId) return;
-      setReplyTo(null);
-      await groupDMService.sendMessage(
-        groupId,
-        text,
-        {
-          id: currentUser.id,
-          full_name: currentUser.fullName || currentUser.full_name || "You",
-          avatar_id: currentUser.avatarId || currentUser.avatar_id,
-        },
-        replyToId,
-      );
-    },
-    [groupId, currentUser],
-  );
-
-  const handleTyping = useCallback(() => {
-    groupDMService.sendTyping(
-      groupId,
-      true,
-      currentUser?.fullName || currentUser?.full_name || "Someone",
-    );
-  }, [groupId, currentUser]);
-
-  const handleStartCall = useCallback(
-    async (callType) => {
-      const calleeIds = members
-        .filter((m) => m?.id && m.id !== currentUser?.id)
-        .map((m) => m.id);
-      if (!calleeIds.length) return;
-      try {
-        const { callId } = await callService.initiateCall({
-          calleeIds,
-          callType,
-          groupName: group.name,
-          participants: members,
-        });
-        for (const calleeId of calleeIds) {
-          callService.sendCallPushNotification({
-            calleeId,
-            callType,
-            groupName: group.name,
-            callId,
-          });
-        }
-        onStartCall?.({
-          callId,
-          name: group.name || "Group Call",
-          type: callType,
-          outgoing: true,
-          participants: members
-            .filter((m) => m?.id !== currentUser?.id)
-            .map((m) => ({
-              id: m.id,
-              full_name: m.full_name || m.name,
-              avatar_id: m.avatar_id,
-              name: m.full_name || m.name,
-              muted: false,
-              camOff: false,
-            })),
-        });
-      } catch (e) {
-        console.error("[GCV] startCall:", e);
-      }
-    },
-    [group, members, currentUser, onStartCall],
-  );
-
-  if (!groupId) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          background: "#000",
-        }}
-      >
-        <p style={{ color: "#555" }}>Group not found.</p>
-        <button
-          onClick={onBack}
-          style={{
-            color: "#84cc16",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Go back
-        </button>
-      </div>
-    );
-  }
-
+    },400);
+    return()=>clearTimeout(timer.current);
+  },[query]);
+  const QUICK = ["hi","lol","fire","love","yes","no","wow","party","thanks","ok","cool","sad"];
   return (
-    <div className="cv-root" style={{ position: "relative" }}>
-      {/* HEADER — same structure as ChatView */}
-      <div className="cv-head">
-        <button className="cv-back-btn" onClick={onBack}>
-          <Ic.Back />
-        </button>
-        <div
-          className="cv-head-info"
-          style={{ cursor: "pointer" }}
-          onClick={() => setShowMembers(true)}
-        >
-          <GroupIcon group={group} size={38} />
-          <div className="cv-head-text">
-            <div className="cv-head-name">{group.name || "Group Chat"}</div>
-            <div
-              className="cv-head-status"
-              style={{ color: typing.length > 0 ? "#84cc16" : "#555" }}
-            >
-              {typing.length > 0
-                ? `${typing[0]}${typing.length > 1 ? ` +${typing.length - 1}` : ""} typing…`
-                : `${members.length} member${members.length !== 1 ? "s" : ""}`}
-            </div>
-          </div>
+    <div ref={ref} style={{position:"absolute",bottom:"calc(100% + 8px)",left:0,width:340,background:"#111",border:"1px solid rgba(132,204,22,.25)",borderRadius:14,overflow:"hidden",boxShadow:"0 16px 48px rgba(0,0,0,.8)",zIndex:100}} onPointerDown={e=>e.stopPropagation()}>
+      <div style={{padding:"9px 11px 7px",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:7}}>
+          <Ic.Search/>
+          <input ref={inputRef} value={query} onChange={e=>setQ(e.target.value)} placeholder="Search GIFs…" style={{flex:1,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:7,color:"#fff",fontSize:12,padding:"5px 9px",outline:"none"}}/>
         </div>
-        <div className="cv-head-right">
-          <button
-            className="cv-call-btn cv-call-audio"
-            onClick={() => handleStartCall("group")}
-            title="Voice call"
-          >
-            <Ic.Phone />
-          </button>
-          <button
-            className="cv-call-btn cv-call-video"
-            onClick={() => handleStartCall("group-video")}
-            title="Video call"
-          >
-            <Ic.Video />
-          </button>
-          <button
-            className="cv-call-btn"
-            onClick={() => setShowMembers(true)}
-            title="Members"
-            style={{ color: "#84cc16" }}
-          >
-            <Ic.Users />
-          </button>
-          <button
-            className="cv-more-btn"
-            onClick={() => setShowMenu((m) => !m)}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="5" r="1.2" />
-              <circle cx="12" cy="12" r="1.2" />
-              <circle cx="12" cy="19" r="1.2" />
-            </svg>
-          </button>
+        <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none"}}>
+          {QUICK.map(q=><button key={q} onClick={()=>setQ(q)} style={{flexShrink:0,padding:"3px 9px",borderRadius:12,background:query===q?"rgba(132,204,22,.15)":"rgba(255,255,255,.05)",border:`1px solid ${query===q?"rgba(132,204,22,.35)":"rgba(255,255,255,.07)"}`,color:query===q?"#84cc16":"#777",fontSize:11,fontWeight:600,cursor:"pointer"}}>{q}</button>)}
         </div>
-        {showMenu && (
-          <>
-            <div className="cv-overlay" onClick={() => setShowMenu(false)} />
-            <div className="cv-menu">
-              <button
-                onClick={() => {
-                  setShowBgPicker(true);
-                  setShowMenu(false);
-                }}
-              >
-                <Ic.Palette />
-                <span>Change Background</span>
-              </button>
-            </div>
-          </>
-        )}
-        {showBgPicker && (
-          <>
-            <div
-              className="cv-overlay"
-              onClick={() => setShowBgPicker(false)}
-            />
-            <div className="cv-bgpicker">
-              {bgs.map((b, i) => (
-                <button
-                  key={i}
-                  className={`cv-bgopt${selectedBg === i ? " cv-bgopt-on" : ""}`}
-                  onClick={() => {
-                    backgroundService.setConversationBackground(groupId, i);
-                    setSelectedBg(i);
-                    setShowBgPicker(false);
-                  }}
-                >
-                  {b.isDefault ? (
-                    <div className="cv-bgprev cv-bgprev-grid" />
-                  ) : b.image ? (
-                    <img src={b.image} alt={b.name} />
-                  ) : (
-                    <div
-                      className="cv-bgprev"
-                      style={{ background: b.value }}
-                    />
-                  )}
-                  <span>{b.name}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
       </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3,padding:8,maxHeight:240,overflowY:"auto",scrollbarWidth:"thin"}}>
+        {loading&&<div style={{gridColumn:"1/-1",display:"flex",justifyContent:"center",padding:20}}><div style={{width:20,height:20,border:"2px solid rgba(132,204,22,.15)",borderTopColor:"#84cc16",borderRadius:"50%",animation:"gcSpin .7s linear infinite"}}/></div>}
+        {!loading&&gifs.map(g=>(
+          <button key={g.id} onClick={()=>onSelect(g.url,g.title)} style={{border:"none",background:"transparent",padding:0,cursor:"pointer",borderRadius:8,overflow:"hidden",aspectRatio:"4/3"}}>
+            <img src={g.preview||g.url} alt={g.title} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:8,transition:"transform .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.04)"}
+              onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}/>
+          </button>
+        ))}
+      </div>
+      <div style={{padding:"3px 11px 7px",fontSize:9,color:"#333",textAlign:"right"}}>Tenor · Giphy fallback</div>
+    </div>
+  );
+});
+GifPicker.displayName = "GifPicker";
 
-      {/* MESSAGES — same as ChatView */}
-      <div
-        className={`cv-msgs${isDefault ? " cv-msgs-default" : ""}`}
-        style={bgStyle}
-        ref={containerRef}
-        onScroll={handleScroll}
-      >
-        <div className="cv-msgs-overlay" />
-        <div className="cv-msgs-content">
-          {/* Group banner */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-              padding: "24px 16px 20px",
-              borderBottom: "1px solid rgba(255,255,255,.04)",
-              marginBottom: 8,
-            }}
-          >
-            <GroupIcon group={group} size={72} />
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>
-              {group.icon || "👥"} {group.name}
-            </div>
-            <div style={{ fontSize: 12, color: "#555" }}>
-              {members.length} members
-            </div>
-            <button
-              onClick={() => setShowMembers(true)}
-              style={{
-                padding: "7px 20px",
-                borderRadius: 20,
-                background: "rgba(132,204,22,.1)",
-                border: "1px solid rgba(132,204,22,.25)",
-                color: "#84cc16",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              View members
-            </button>
-          </div>
-
-          {loading && (
-            <div className="cv-loading">
-              <div className="cv-spinner" />
-            </div>
-          )}
-
-          {!loading &&
-            messages.map((msg, idx) => {
-              const isMe =
-                msg.user_id === currentUser?.id ||
-                msg.sender_id === currentUser?.id;
-              const prev = messages[idx - 1];
-              const showHeader =
-                !isMe && (!prev || prev.user_id !== msg.user_id);
-              return (
-                <MsgRow
-                  key={msg.id || msg._tempId || idx}
-                  msg={msg}
-                  isMe={isMe}
-                  showHeader={showHeader}
-                  allMembers={members}
-                  messages={messages}
-                  onReply={setReplyTo}
-                  onScrollTo={scrollToMessage}
-                  currentUserId={currentUser?.id}
-                />
-              );
-            })}
-
-          {typing.length > 0 && (
-            <div className="cv-msg cv-them">
-              <div className="cv-avatar-sp" />
-              <div className="cv-bubble cv-bthem cv-typing-bubble">
-                <div className="cv-dots">
-                  <span />
-                  <span />
-                  <span />
-                </div>
+// ── Group Edit Modal ──────────────────────────────────────────────────────────
+const GroupEditModal = ({ group, onSave, onClose }) => {
+  const [name,setName]   = useState(group?.name||"");
+  const [icon,setIcon]   = useState(group?.icon||"👥");
+  const [imgSrc,setImg]  = useState(group?.icon_url||null);
+  const [saving,setSaving]= useState(false);
+  const fileRef = useRef(null);
+  const ICONS = ["👥","🎮","📚","🏀","🎵","💼","🎨","🚀","⚡","🔥","🌍","🧠","💎","🎯","🏆","🌟","🎭","🎪","🛡","⚔️","🎋","🌺","🎀","🎊","🎉"];
+  const handleImg = f => {
+    if (!f||!f.type.startsWith("image/")) return;
+    const r = new FileReader();
+    r.onload = e => { setImg(e.target.result); setIcon(""); };
+    r.readAsDataURL(f);
+  };
+  const handleSave = async () => {
+    if (!name.trim()||saving) return;
+    setSaving(true);
+    try {
+      const updates = { name:name.trim(), icon:imgSrc?null:icon };
+      if (imgSrc) updates.icon_url = imgSrc;
+      await groupDMService.updateGroup(group.id, updates);
+      onSave({...group,...updates}); onClose();
+    } catch(e){console.warn("[GroupEdit]",e);}
+    finally{setSaving(false);}
+  };
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:99996,background:"rgba(0,0,0,.8)",display:"flex",alignItems:"flex-end",backdropFilter:"blur(8px)"}}>
+      <div style={{width:"100%",maxHeight:"88vh",background:"#090909",border:"1px solid rgba(132,204,22,.15)",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column",overflow:"hidden",animation:"geUp .32s cubic-bezier(.34,1.4,.64,1)"}}>
+        <style>{`@keyframes geUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px 11px",borderBottom:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#ef4444",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+          <span style={{fontSize:15,fontWeight:800,color:"#fff"}}>Edit Group</span>
+          <button onClick={handleSave} disabled={!name.trim()||saving} style={{padding:"7px 16px",borderRadius:20,background:"rgba(132,204,22,.2)",border:"1px solid rgba(132,204,22,.4)",color:"#84cc16",fontSize:13,fontWeight:700,cursor:"pointer",opacity:!name.trim()||saving?.4:1}}>
+            {saving?"Saving…":"Save"}
+          </button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"12px 18px 24px"}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginBottom:18}}>
+            <div style={{position:"relative",cursor:"pointer"}} onClick={()=>fileRef.current?.click()}>
+              <div style={{width:88,height:88,borderRadius:"50%",background:"rgba(132,204,22,.1)",border:"2px dashed rgba(132,204,22,.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:imgSrc?0:44,overflow:"hidden"}}>
+                {imgSrc?<img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:icon}
+              </div>
+              <div style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:"#84cc16",border:"2px solid #090909",display:"flex",alignItems:"center",justifyContent:"center",color:"#000"}}>
+                <Ic.Camera/>
               </div>
             </div>
-          )}
-          <div ref={endRef} />
+            <span style={{fontSize:11,color:"#555"}}>Tap to upload photo or pick emoji below</span>
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleImg(e.target.files?.[0])}/>
+          </div>
+          <p style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".7px",margin:"0 0 7px"}}>Group Name</p>
+          <input value={name} onChange={e=>setName(e.target.value)} maxLength={60} style={{width:"100%",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,color:"#fff",fontSize:15,padding:"11px 13px",outline:"none",boxSizing:"border-box",fontWeight:600,caretColor:"#84cc16",marginBottom:16}}/>
+          {!imgSrc&&<>
+            <p style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".7px",margin:"0 0 8px"}}>Group Icon</p>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+              {ICONS.map(ic=><button key={ic} onClick={()=>{setIcon(ic);setImg(null);}} style={{fontSize:26,padding:8,borderRadius:12,background:icon===ic?"rgba(132,204,22,.12)":"rgba(255,255,255,.03)",border:`1px solid ${icon===ic?"rgba(132,204,22,.4)":"rgba(255,255,255,.06)"}`,cursor:"pointer",transition:"all .12s"}}>{ic}</button>)}
+            </div>
+          </>}
+          {imgSrc&&<button onClick={()=>setImg(null)} style={{padding:"7px 14px",borderRadius:10,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer"}}>Remove photo → use emoji</button>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Message Bubble ────────────────────────────────────────────────────────────
+const MsgBubble = memo(({ msg, isMe, prevSame, nextSame, members, onReply, onReact }) => {
+  const [showActions, setShowActions] = useState(false);
+  const longRef = useRef(null);
+  const isGif = msg.content?.startsWith("__GIF__:");
+  const user = !isMe ? (members?.find(m=>m?.id===(msg.user_id||msg.sender_id))||msg.user) : null;
+  const replyMsg = msg._replyMsg;
+  const reacs = msg.reactions && typeof msg.reactions==="object"
+    ? Object.entries(msg.reactions).filter(([k,v])=>k!=="_users"&&Number(v)>0)
+    : [];
+
+  return (
+    <div style={{display:"flex",flexDirection:isMe?"row-reverse":"row",alignItems:"flex-end",gap:7,marginBottom:nextSame?2:10,padding:"0 10px"}}
+      onContextMenu={e=>{e.preventDefault();setShowActions(a=>!a);}}
+      onTouchStart={()=>{longRef.current=setTimeout(()=>setShowActions(true),500);}}
+      onTouchEnd={()=>clearTimeout(longRef.current)}>
+      {!isMe&&<div style={{width:28,flexShrink:0,marginBottom:2}}>{!nextSame&&user&&<Av user={user} size={28}/>}</div>}
+      <div style={{maxWidth:"73%",display:"flex",flexDirection:"column",alignItems:isMe?"flex-end":"flex-start",position:"relative"}}>
+        {!isMe&&!prevSame&&user&&<span style={{fontSize:11,fontWeight:700,color:"#84cc16",marginBottom:3,marginLeft:2}}>{user?.full_name||user?.name||"Member"}</span>}
+        
+        {/* Reply quote — stunning design */}
+        {replyMsg&&(
+          <div style={{display:"flex",alignItems:"stretch",marginBottom:4,borderRadius:isMe?"10px 10px 10px 4px":"10px 10px 4px 10px",overflow:"hidden",maxWidth:"100%",cursor:"pointer"}} onClick={()=>{}}>
+            <div style={{width:3,background:isMe?"rgba(255,255,255,.3)":"#84cc16",flexShrink:0}}/>
+            <div style={{padding:"5px 10px",background:isMe?"rgba(255,255,255,.06)":"rgba(132,204,22,.06)",minWidth:0,flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,fontWeight:700,color:isMe?"rgba(255,255,255,.5)":"#84cc16",marginBottom:2}}>
+                <Ic.Reply/>
+                {replyMsg.user?.full_name||replyMsg.user?.name||"User"}
+              </div>
+              <div style={{fontSize:11,color:isMe?"rgba(255,255,255,.45)":"#888",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {replyMsg.content?.startsWith("__GIF__:") ? "🎞 GIF" : replyMsg.content?.slice(0,60)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main bubble */}
+        <div style={{padding:isGif?0:"9px 13px",background:isGif?"transparent":(isMe?"linear-gradient(135deg,#84cc16,#65a30d)":"rgba(255,255,255,.07)"),borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px",border:isGif?"none":(isMe?"none":"1px solid rgba(255,255,255,.07)"),maxWidth:"100%",wordBreak:"break-word"}}>
+          {isGif
+            ? <img src={msg.content.replace("__GIF__:","")} alt="GIF" style={{maxWidth:220,maxHeight:170,borderRadius:10,display:"block",objectFit:"cover"}}/>
+            : <span style={{fontSize:14,color:isMe?"#000":"#f0f0f0",lineHeight:1.5}}>{msg.content}</span>
+          }
         </div>
 
-        {showJump && (
-          <button className="cv-jump-btn" onClick={() => scrollToBottom()}>
-            <Ic.Down />
-          </button>
+        {/* Reactions */}
+        {reacs.length>0&&(
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4,justifyContent:isMe?"flex-end":"flex-start"}}>
+            {reacs.map(([emoji,count])=>(
+              <div key={emoji} style={{display:"flex",alignItems:"center",gap:2,padding:"2px 7px",borderRadius:12,background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.09)",fontSize:13}}>
+                {emoji}<span style={{fontSize:10,fontWeight:700,color:"#888"}}>{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{display:"flex",alignItems:"center",gap:3,marginTop:2,justifyContent:isMe?"flex-end":"flex-start"}}>
+          <span style={{fontSize:10,color:"#444"}}>{timeStr(msg.created_at)}</span>
+          {isMe&&<Ic.DblChk/>}
+        </div>
+
+        {/* Quick react panel */}
+        {showActions&&(
+          <div style={{position:"absolute",top:-44,[isMe?"right":"left"]:0,display:"flex",gap:4,background:"rgba(14,14,14,.98)",border:"1px solid rgba(255,255,255,.1)",borderRadius:28,padding:"6px 8px",boxShadow:"0 8px 24px rgba(0,0,0,.7)",zIndex:10,animation:"rxIn .15s ease-out",whiteSpace:"nowrap"}}>
+            {["😂","❤️","🔥","👍","😭","😮"].map(e=>(
+              <button key={e} onClick={()=>{onReact?.(msg.id||msg._tempId,e);setShowActions(false);}} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",borderRadius:8,padding:"2px 3px",transition:"transform .1s"}}
+                onMouseEnter={ev=>ev.currentTarget.style.transform="scale(1.3)"}
+                onMouseLeave={ev=>ev.currentTarget.style.transform="scale(1)"}>
+                {e}
+              </button>
+            ))}
+            <button onClick={()=>{onReply?.(msg);setShowActions(false);}} style={{background:"rgba(132,204,22,.1)",border:"1px solid rgba(132,204,22,.25)",borderRadius:12,padding:"5px 10px",color:"#84cc16",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11,fontWeight:700}}>
+              <Ic.Reply/> Reply
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+MsgBubble.displayName = "MsgBubble";
+
+// ════════════════════════════════════════════════════════════════════════════
+// MAIN GroupChatView
+// ════════════════════════════════════════════════════════════════════════════
+const GroupChatView = ({ group:groupProp, currentUser, onBack, onStartCall }) => {
+  const [group,       setGroup]       = useState(groupProp);
+  const [messages,    setMessages]    = useState([]);
+  const [input,       setInput]       = useState("");
+  const [replyTo,     setReplyTo]     = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [showEmoji,   setShowEmoji]   = useState(false);
+  const [showGif,     setShowGif]     = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [showEdit,    setShowEdit]    = useState(false);
+  const [typing,      setTyping]      = useState([]);
+  const [sending,     setSending]     = useState(false);
+  const endRef    = useRef(null);
+  const inputRef  = useRef(null);
+  const typTimer  = useRef(null);
+
+  const uid     = currentUser?.id || "";
+  const isAdmin = group?.members?.some(m=>m?.id===uid&&m?.is_admin) || group?.created_by===uid;
+  const members = Array.isArray(group?.members)?group.members:[];
+
+  useEffect(()=>{
+    if (!group?.id) return;
+    setLoading(true);
+    groupDMService.loadMessages(group.id).then(msgs=>{
+      setMessages(msgs||[]);
+      setLoading(false);
+      setTimeout(()=>endRef.current?.scrollIntoView({behavior:"instant"}),80);
+    }).catch(()=>setLoading(false));
+  },[group?.id]);
+
+  useEffect(()=>{
+    if (!group?.id) return;
+    const unsub = groupDMService.subscribeToMessages(group.id,{
+      onMessage: msg=>{
+        if (!msg?.id) return;
+        setMessages(prev=>{
+          if (prev.some(m=>m.id===msg.id||m._tempId===msg.id)) return prev;
+          return [...prev,msg];
+        });
+        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),80);
+      },
+      onTyping: ({userId,userName,typing:isTyping})=>{
+        if (userId===uid) return;
+        setTyping(prev=>isTyping?[...prev.filter(n=>n!==userName),userName]:prev.filter(n=>n!==userName));
+        if (isTyping) setTimeout(()=>setTyping(p=>p.filter(n=>n!==userName)),4000);
+      },
+    });
+    const unsubUpdate = groupDMService.on(`group_updated:${group.id}`, upd=>{ if(upd?.id) setGroup(g=>({...g,...upd})); });
+    return ()=>{ unsub(); unsubUpdate(); };
+  },[group?.id,uid]);
+
+  const handleTyping = () => {
+    clearTimeout(typTimer.current);
+    groupDMService.sendTyping(group.id, true, currentUser?.fullName||currentUser?.full_name||"Someone");
+    typTimer.current = setTimeout(()=>groupDMService.sendTyping(group.id,false,currentUser?.fullName||"Someone"),2000);
+  };
+
+  const send = async (text=input.trim()) => {
+    if (!text||sending||!group?.id) return;
+    setInput(""); setReplyTo(null); setSending(true);
+    try {
+      const norm = {id:uid, full_name:currentUser?.fullName||currentUser?.full_name||"You", avatar_id:currentUser?.avatarId||currentUser?.avatar_id};
+      const msg = await groupDMService.sendMessage(group.id, text, norm, replyTo?.id||null);
+      if (msg) {
+        setMessages(prev=>{
+          const without = prev.filter(m=>!m._optimistic||m.content!==text);
+          return without.some(m=>m.id===msg.id)?without:[...without,msg];
+        });
+        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),80);
+      }
+    } catch(e){ console.warn("[GroupChat] send:",e.message); }
+    finally{ setSending(false); }
+  };
+
+  const handleReact = (msgId, emoji) => {
+    setMessages(prev=>prev.map(m=>{
+      if(m.id!==msgId&&m._tempId!==msgId) return m;
+      const r={...(m.reactions||{})};
+      const users={...(r._users||{})};
+      const prev_=users[uid];
+      if(prev_===emoji){delete users[uid];r[emoji]=Math.max(0,(r[emoji]||1)-1);if(!r[emoji])delete r[emoji];}
+      else{if(prev_){r[prev_]=Math.max(0,(r[prev_]||1)-1);if(!r[prev_])delete r[prev_];}r[emoji]=(r[emoji]||0)+1;users[uid]=emoji;}
+      return{...m,reactions:{...r,_users:users}};
+    }));
+  };
+
+  const iconDisplay = group?.icon_url
+    ? <img src={group.icon_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+    : <span style={{fontSize:20}}>{group?.icon||"👥"}</span>;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#000",overflow:"hidden"}}>
+      <style>{`@keyframes rxIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}@keyframes gcSpin{to{transform:rotate(360deg)}}`}</style>
+
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"calc(env(safe-area-inset-top,0px)+10px) 13px 10px",background:"rgba(0,0,0,.98)",borderBottom:"1px solid rgba(132,204,22,.1)",flexShrink:0}}>
+        <button onClick={onBack} style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",color:"#84cc16",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}><Ic.Back/></button>
+        <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(132,204,22,.1)",border:"1.5px solid rgba(132,204,22,.25)",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{iconDisplay}</div>
+        <div style={{flex:1,minWidth:0,cursor:isAdmin?"pointer":"default"}} onClick={()=>isAdmin&&setShowEdit(true)}>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <span style={{fontSize:14,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{group?.name}</span>
+            {isAdmin&&<span style={{color:"#84cc16",opacity:.6}}><Ic.Edit/></span>}
+          </div>
+          <span style={{fontSize:11,color:typing.length>0?"#84cc16":"#555",fontStyle:typing.length>0?"italic":"normal"}}>
+            {typing.length>0?`${typing[0]} is typing…`:`${members.length} members`}
+          </span>
+        </div>
+        <button onClick={()=>setShowMembers(s=>!s)} style={{width:34,height:34,borderRadius:10,background:showMembers?"rgba(132,204,22,.12)":"rgba(255,255,255,.04)",border:`1px solid ${showMembers?"rgba(132,204,22,.3)":"rgba(255,255,255,.07)"}`,color:showMembers?"#84cc16":"#666",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic.Users/></button>
+      </div>
+
+      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+        {/* Messages */}
+        <div style={{flex:1,overflowY:"auto",padding:"12px 0 8px",display:"flex",flexDirection:"column"}}>
+          {loading&&<div style={{display:"flex",justifyContent:"center",padding:40}}><div style={{width:22,height:22,border:"2px solid rgba(132,204,22,.15)",borderTopColor:"#84cc16",borderRadius:"50%",animation:"gcSpin .7s linear infinite"}}/></div>}
+          {!loading&&messages.length===0&&(
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,color:"#444"}}>
+              <div style={{fontSize:48,marginBottom:12}}>{group?.icon||"👥"}</div>
+              <div style={{fontSize:15,fontWeight:700,color:"#555",marginBottom:4}}>Start the conversation</div>
+              <div style={{fontSize:12,color:"#3a3a3a"}}>Say hi to the group!</div>
+            </div>
+          )}
+          {messages.map((msg,i)=>{
+            const prev = messages[i-1];
+            const next = messages[i+1];
+            const isMe = msg.user_id===uid||msg.sender_id===uid;
+            const prevSame = prev&&(prev.user_id===msg.user_id||prev.sender_id===msg.sender_id);
+            const nextSame = next&&(next.user_id===msg.user_id||next.sender_id===msg.sender_id);
+            let m2 = msg;
+            if (msg.reply_to_id&&!msg._replyMsg) {
+              const found = messages.find(x=>x.id===msg.reply_to_id);
+              if (found) m2 = {...msg,_replyMsg:found};
+            }
+            return <MsgBubble key={msg._tempId||msg.id} msg={m2} isMe={isMe} prevSame={prevSame} nextSame={nextSame} members={members} onReply={setReplyTo} onReact={handleReact}/>;
+          })}
+          <div ref={endRef}/>
+        </div>
+
+        {/* Members panel */}
+        {showMembers&&(
+          <div style={{width:180,background:"rgba(8,8,8,.97)",borderLeft:"1px solid rgba(255,255,255,.06)",overflowY:"auto",flexShrink:0}}>
+            <div style={{padding:"12px 12px 8px",borderBottom:"1px solid rgba(255,255,255,.05)"}}><span style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:".6px"}}>Members · {members.length}</span></div>
+            {members.map(m=>m&&(
+              <div key={m.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px"}}>
+                <Av user={m} size={26}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.full_name||m.name||"?"}</div>
+                  {m.is_admin&&<div style={{fontSize:9,fontWeight:700,color:"#84cc16"}}>ADMIN</div>}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      <GCInput
-        onSend={handleSend}
-        onTyping={handleTyping}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-      />
-
-      {showMembers && (
-        <MembersPanel
-          members={members}
-          group={group}
-          currentUserId={currentUser?.id}
-          onClose={() => setShowMembers(false)}
-        />
+      {/* Reply preview */}
+      {replyTo&&(
+        <div style={{display:"flex",alignItems:"center",gap:9,padding:"8px 13px",background:"rgba(132,204,22,.05)",borderTop:"1px solid rgba(132,204,22,.15)",borderLeft:"3px solid #84cc16",animation:"rxIn .2s ease-out",flexShrink:0}}>
+          <Ic.Reply/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#84cc16",marginBottom:1}}>{replyTo.user?.full_name||replyTo.user?.name||"User"}</div>
+            <div style={{fontSize:12,color:"#777",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{replyTo.content?.startsWith("__GIF__:")?"🎞 GIF":replyTo.content?.slice(0,70)}</div>
+          </div>
+          <button onClick={()=>setReplyTo(null)} style={{color:"#555",background:"none",border:"none",cursor:"pointer",padding:2}}><Ic.Close/></button>
+        </div>
       )}
 
-      <style>{CV_CSS}</style>
+      {/* Input */}
+      <div style={{background:"rgba(0,0,0,.98)",borderTop:"1px solid rgba(255,255,255,.06)",padding:"9px 12px calc(env(safe-area-inset-bottom,0px)+9px)",position:"relative",flexShrink:0}}>
+        {showEmoji&&<EmojiPicker onSelect={e=>{setInput(i=>i+e);setShowEmoji(false);inputRef.current?.focus();}} onClose={()=>setShowEmoji(false)}/>}
+        {showGif&&<GifPicker onSelect={(url)=>{send(`__GIF__:${url}`);setShowGif(false);}} onClose={()=>setShowGif(false)}/>}
+        <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={()=>{setShowEmoji(s=>!s);setShowGif(false);}} style={{width:34,height:34,borderRadius:"50%",background:showEmoji?"rgba(132,204,22,.12)":"rgba(255,255,255,.04)",border:`1px solid ${showEmoji?"rgba(132,204,22,.3)":"rgba(255,255,255,.07)"}`,color:showEmoji?"#84cc16":"#666",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic.Smile/></button>
+            <button onClick={()=>{setShowGif(s=>!s);setShowEmoji(false);}} style={{width:34,height:34,borderRadius:"50%",background:showGif?"rgba(96,165,250,.12)":"rgba(255,255,255,.04)",border:`1px solid ${showGif?"rgba(96,165,250,.3)":"rgba(255,255,255,.07)"}`,color:showGif?"#60a5fa":"#666",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><Ic.Gif/></button>
+          </div>
+          <textarea ref={inputRef} value={input} onChange={e=>{setInput(e.target.value);handleTyping();}} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}} rows={1} placeholder="Message the group…"
+            style={{flex:1,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.09)",borderRadius:20,color:"#fff",fontSize:14,padding:"9px 15px",outline:"none",resize:"none",fontFamily:"inherit",caretColor:"#84cc16",lineHeight:1.45,maxHeight:120,overflowY:"auto",transition:"border-color .15s"}}
+            onFocus={e=>e.target.style.borderColor="rgba(132,204,22,.4)"}
+            onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.09)"}/>
+          <button onClick={()=>send()} disabled={!input.trim()||sending} style={{width:40,height:40,borderRadius:"50%",background:input.trim()?"linear-gradient(135deg,rgba(132,204,22,.25),rgba(101,163,13,.2))":"rgba(255,255,255,.04)",border:`1.5px solid ${input.trim()?"rgba(132,204,22,.5)":"rgba(255,255,255,.07)"}`,color:input.trim()?"#84cc16":"#333",display:"flex",alignItems:"center",justifyContent:"center",cursor:input.trim()?"pointer":"default",transition:"all .15s",flexShrink:0}}>
+            <Ic.Send/>
+          </button>
+        </div>
+      </div>
+
+      {showEdit&&<GroupEditModal group={group} onSave={setGroup} onClose={()=>setShowEdit(false)}/>}
     </div>
   );
 };

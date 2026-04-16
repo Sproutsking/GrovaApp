@@ -1,19 +1,19 @@
 // ============================================================================
-// services/messages/groupDMService.js — NOVA GROUP DM SERVICE v3 FIXED
+// services/messages/groupDMService.js — NOVA GROUP DM SERVICE v4 FIXED
 // ============================================================================
 // KEY FIXES:
-//  [G1] createGroup() broadcasts to "user_calls:{memberId}" using the CORRECT
-//       topic — same as callService persistent channel so members receive it
-//  [G2] subscribeToMessages() uses correct group channel topic
+//  [G1] createGroup() broadcasts to EVERY member's personal gc_notify:{memberId}
+//       channel so ALL members instantly see the group in their list
+//  [G2] subscribeToMessages() correct topic gc_msgs:{groupId}
 //  [G3] sendMessage() persists in community_messages with channel_id=groupId
 //  [G4] loadGroups() works with text[] member_ids using .contains()
-//  [G5] Group conversations appear in ConversationList via conversationState
+//  [G5] All members see group via postgres_changes + broadcast fallback
 //  [G6] getGroup() properly retrieves from Supabase with fallback to cache
-//  [G7] All members see group in conversationState after creation
+//  [G7] _notifyMember() actually waits for SUBSCRIBED before sending
+//  [G8] EventEmitter pattern so callers can subscribe to events
 // ============================================================================
 
 import { supabase } from "../config/supabase";
-import conversationState from "./ConversationStateManager";
 
 class GroupDMService {
   constructor() {
@@ -32,7 +32,7 @@ class GroupDMService {
     this._userId = userId;
     this._initialized = true;
     this._subscribeToGroupList();
-    console.log("[GroupDM] v3 init:", userId);
+    console.log("[GroupDM] v4 init:", userId);
   }
 
   on(key, fn) {
@@ -89,7 +89,6 @@ class GroupDMService {
       members: membersJson,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      // Virtual conversation fields for ConversationList compatibility
       isGroup: true,
       lastMessage: null,
       unreadCount: 0,
@@ -112,9 +111,8 @@ class GroupDMService {
         .single();
 
       if (error) {
-        if (!error.message?.includes("does not exist")) {
+        if (!error.message?.includes("does not exist"))
           console.warn("[GroupDM] DB insert:", error.message);
-        }
       } else {
         dbGroup = data;
         console.log("[GroupDM] Group saved to DB:", groupId);
@@ -132,7 +130,7 @@ class GroupDMService {
       unreadCount: 0,
     };
 
-    // 2. Cache locally
+    // 2. Cache locally for creator
     this._groups.set(groupId, finalGroup);
     try {
       localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(finalGroup));
@@ -141,43 +139,81 @@ class GroupDMService {
     this._emit("group_list", Array.from(this._groups.values()));
     this._emit("new_group", finalGroup);
 
-    // 3. Notify other members via their personal channels
-    for (const memberId of memberIds) {
-      if (memberId === this._userId) continue;
-      this._notifyMember(memberId, finalGroup);
-    }
+    // 3. Notify ALL other members via their personal gc_notify channels
+    // We use Promise.allSettled so one failure doesn't block others
+    const notifyPromises = memberIds
+      .filter((mid) => mid !== this._userId)
+      .map((memberId) => this._notifyMember(memberId, finalGroup));
+
+    await Promise.allSettled(notifyPromises);
 
     return finalGroup;
   }
 
   // ── Notify member via their personal gc_notify channel ─────────────────
-  async _notifyMember(memberId, group) {
-    const topic = `gc_notify:${memberId}`;
-    try {
-      const ch = supabase.channel(topic).subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          ch.send({
-            type: "broadcast",
-            event: "gc_new_group",
-            payload: group,
-          })
-            .then(() => {
-              setTimeout(() => {
+  // [G7] FIX: Properly wait for SUBSCRIBED before sending, with retry logic
+  _notifyMember(memberId, group) {
+    return new Promise((resolve) => {
+      const topic = `gc_notify:${memberId}`;
+      let sent = false;
+      let retries = 0;
+      const MAX_RETRIES = 3;
+
+      const attemptSend = () => {
+        const ch = supabase.channel(topic).subscribe((status) => {
+          if (status === "SUBSCRIBED" && !sent) {
+            sent = true;
+            ch.send({
+              type: "broadcast",
+              event: "gc_new_group",
+              payload: { ...group, isGroup: true },
+            })
+              .then(() => {
+                setTimeout(() => {
+                  try {
+                    supabase.removeChannel(ch);
+                  } catch (_) {}
+                }, 2000);
+                resolve(true);
+              })
+              .catch((err) => {
+                console.warn("[GroupDM] notify send failed:", err);
                 try {
                   supabase.removeChannel(ch);
                 } catch (_) {}
-              }, 3000);
-            })
-            .catch(() => {
-              try {
-                supabase.removeChannel(ch);
-              } catch (_) {}
-            });
-        }
-      });
-    } catch (e) {
-      console.warn("[GroupDM] notify member failed:", e.message);
-    }
+                if (retries < MAX_RETRIES) {
+                  retries++;
+                  setTimeout(attemptSend, 500 * retries);
+                } else {
+                  resolve(false);
+                }
+              });
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            try {
+              supabase.removeChannel(ch);
+            } catch (_) {}
+            if (!sent && retries < MAX_RETRIES) {
+              retries++;
+              setTimeout(attemptSend, 500 * retries);
+            } else {
+              resolve(false);
+            }
+          }
+        });
+
+        // Safety timeout
+        setTimeout(() => {
+          if (!sent) {
+            try {
+              supabase.removeChannel(ch);
+            } catch (_) {}
+            resolve(false);
+          }
+        }, 5000);
+      };
+
+      attemptSend();
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -206,9 +242,7 @@ class GroupDMService {
       }
     } catch (_) {}
 
-    if (fromLS.length) {
-      fromLS.forEach((g) => this._groups.set(g.id, g));
-    }
+    if (fromLS.length) fromLS.forEach((g) => this._groups.set(g.id, g));
 
     // Then load from Supabase
     try {
@@ -223,9 +257,7 @@ class GroupDMService {
           error.code === "42P01" ||
           error.message?.includes("does not exist")
         ) {
-          console.warn(
-            "[GroupDM] group_chats table not found — create it in Supabase",
-          );
+          console.warn("[GroupDM] group_chats table not found");
           return fromLS;
         }
         throw error;
@@ -240,7 +272,6 @@ class GroupDMService {
         unreadCount: 0,
       }));
 
-      // Merge DB + localStorage
       const map = new Map(fromLS.map((g) => [g.id, g]));
       dbGroups.forEach((g) => {
         map.set(g.id, g);
@@ -262,7 +293,6 @@ class GroupDMService {
   async getGroup(groupId) {
     if (this._groups.has(groupId)) return this._groups.get(groupId);
     try {
-      // Try localStorage
       const ls = localStorage.getItem(`gc_meta_${groupId}`);
       if (ls) {
         const g = JSON.parse(ls);
@@ -321,12 +351,10 @@ class GroupDMService {
         .is("deleted_at", null)
         .order("created_at", { ascending: true })
         .limit(limit);
-
       if (error) {
         if (error.code === "42P01") return [];
         throw error;
       }
-
       return (data || []).map((m) => ({ ...m, sender_id: m.user_id }));
     } catch (e) {
       console.error("[GroupDM] loadMessages:", e);
@@ -354,7 +382,7 @@ class GroupDMService {
     this._pendingMessages.set(tempId, optimistic);
     this._emit(`msgs:${groupId}`, { type: "optimistic", message: optimistic });
 
-    // Broadcast to group channel
+    // Broadcast to group channel for real-time delivery to all members
     const ch = this._msgChannels.get(groupId);
     if (ch) {
       ch.send({
@@ -379,7 +407,6 @@ class GroupDMService {
           "id, channel_id, user_id, content, reply_to_id, created_at, reactions",
         )
         .single();
-
       if (error) throw error;
 
       const real = { ...data, sender_id: data.user_id, user: currentUser };
@@ -397,7 +424,6 @@ class GroupDMService {
         .eq("id", groupId)
         .then(() => {});
 
-      // Update cached group lastMessage
       const g = this._groups.get(groupId);
       if (g) {
         const updated = { ...g, lastMessage: real };
@@ -427,7 +453,7 @@ class GroupDMService {
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  // REALTIME — group list via postgres_changes
+  // REALTIME — group list subscriptions
   // ════════════════════════════════════════════════════════════════════════
   _subscribeToGroupList() {
     if (!this._userId) return;
@@ -485,6 +511,7 @@ class GroupDMService {
           }
         },
       )
+      // [G8] Also listen for broadcast notifications (real-time fallback when DB fails)
       .on("broadcast", { event: "gc_new_group" }, ({ payload }) => {
         if (!payload?.id || !Array.isArray(payload?.members)) return;
         if (!payload.members.some((m) => m?.id === this._userId)) return;
@@ -512,9 +539,8 @@ class GroupDMService {
   // REALTIME — messages in a group
   // ════════════════════════════════════════════════════════════════════════
   subscribeToMessages(groupId, callbacks = {}) {
-    if (this._msgChannels.has(groupId)) {
+    if (this._msgChannels.has(groupId))
       return () => this.unsubscribeMessages(groupId);
-    }
 
     const ch = supabase
       .channel(`gc_msgs:${groupId}`, { config: { broadcast: { self: false } } })

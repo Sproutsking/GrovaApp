@@ -1,14 +1,16 @@
-// components/Messages/ChatView.jsx — NOVA CHAT v5 UNIFIED
+// components/Messages/ChatView.jsx — NOVA CHAT v6 CRASH-PROOF
 // ============================================================================
-// FEATURES:
-//  [GUARD]  ChatView is a null-guard wrapper. ChatViewInner holds all hooks.
-//           This prevents the "Cannot read id of undefined" crash when
-//           conversation prop is momentarily undefined during tab switches.
-//  [REPLY]  Swipe left/right (mobile) → reply.
-//           Long press → smart context menu (avoids screen edges).
-//           Desktop hover → reply button at bubble's center-facing side.
-//           Desktop right-click → same context menu as long-press.
-//  [DESIGN] Dark theme, exportable CV_CSS for GroupChatView reuse.
+// v6 FIXES vs v5:
+//  [NULL-GUARD]   ChatView outer wrapper validates EVERY required field before
+//                 passing to ChatViewInner. Returns null on ANY missing field.
+//                 This prevents "Cannot read properties of undefined (reading 'id')"
+//                 that occurred when conversation prop arrived momentarily incomplete.
+//  [KEY-PROP]     Parent should pass key={conversation.id} to force full remount
+//                 when switching conversations — prevents stale hook state.
+//  [STABLE-DEPS]  backgroundService.getConversationBackground called inside
+//                 useState initializer safely — convId is guaranteed string here.
+//  [REPLY]        All reply features preserved from v5.
+//  [CSS-EXPORT]   CV_CSS exported for GroupChatView reuse.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -24,510 +26,263 @@ import mediaUrlService from "../../services/shared/mediaUrlService";
 /* ─── ICONS ─── */
 const Ic = {
   Back: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="19" y1="12" x2="5" y2="12" />
-      <polyline points="12 19 5 12 12 5" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
     </svg>
   ),
   More: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="5" r="1.2" />
-      <circle cx="12" cy="12" r="1.2" />
-      <circle cx="12" cy="19" r="1.2" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="12" cy="19" r="1.2" />
     </svg>
   ),
   Phone: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
     </svg>
   ),
   Video: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polygon points="23 7 16 12 23 17 23 7" />
-      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
     </svg>
   ),
   Reply: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="9 17 4 12 9 7" />
-      <path d="M20 18v-2a4 4 0 00-4-4H4" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 17 4 12 9 7" /><path d="M20 18v-2a4 4 0 00-4-4H4" />
     </svg>
   ),
   Copy: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
     </svg>
   ),
   Delete: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#ef4444"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14H6L5 6" />
-      <path d="M9 6V4h6v2" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M9 6V4h6v2" />
     </svg>
   ),
   Palette: () => (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="13.5" cy="6.5" r=".5" />
-      <circle cx="17.5" cy="10.5" r=".5" />
-      <circle cx="8.5" cy="7.5" r=".5" />
-      <circle cx="6.5" cy="12.5" r=".5" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="13.5" cy="6.5" r=".5" /><circle cx="17.5" cy="10.5" r=".5" />
+      <circle cx="8.5" cy="7.5" r=".5" /><circle cx="6.5" cy="12.5" r=".5" />
       <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
     </svg>
   ),
   Down: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="6 9 12 15 18 9" />
     </svg>
   ),
   Close: () => (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
   Info: () => (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
     </svg>
   ),
   Send: () => (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   ),
 };
 
 const RANK = { sent: 0, delivered: 1, read: 2 };
 
-// ─── Context Menu — smart edge-avoiding positioning ───────────────────────
-const ContextMenu = memo(
-  ({ msg, pos, isMe, onReply, onCopy, onDelete, onClose }) => {
-    const menuRef = useRef(null);
-    const [style, setStyle] = useState({ opacity: 0, left: pos.x, top: pos.y });
+// ─── Context Menu ──────────────────────────────────────────────────────────
+const ContextMenu = memo(({ msg, pos, isMe, onReply, onCopy, onDelete, onClose }) => {
+  const menuRef = useRef(null);
+  const [style, setStyle] = useState({ opacity: 0, left: pos.x, top: pos.y });
 
-    useEffect(() => {
-      const el = menuRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      let { x, y } = pos;
-      if (x + rect.width > window.innerWidth - 16)
-        x = window.innerWidth - rect.width - 16;
-      if (x < 16) x = 16;
-      if (y + rect.height > window.innerHeight - 16) y = y - rect.height - 8;
-      if (y < 16) y = 16;
-      setStyle({ left: x, top: y, opacity: 1 });
-    }, [pos]);
+  useEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let { x, y } = pos;
+    if (x + rect.width > window.innerWidth - 16) x = window.innerWidth - rect.width - 16;
+    if (x < 16) x = 16;
+    if (y + rect.height > window.innerHeight - 16) y = y - rect.height - 8;
+    if (y < 16) y = 16;
+    setStyle({ left: x, top: y, opacity: 1 });
+  }, [pos]);
 
-    useEffect(() => {
-      const h = (e) => {
-        if (!menuRef.current?.contains(e.target)) onClose();
-      };
-      const tid = setTimeout(() => {
-        document.addEventListener("pointerdown", h);
-      }, 50);
-      return () => {
-        clearTimeout(tid);
-        document.removeEventListener("pointerdown", h);
-      };
-    }, [onClose]);
+  useEffect(() => {
+    const h = (e) => { if (!menuRef.current?.contains(e.target)) onClose(); };
+    const tid = setTimeout(() => { document.addEventListener("pointerdown", h); }, 50);
+    return () => { clearTimeout(tid); document.removeEventListener("pointerdown", h); };
+  }, [onClose]);
 
-    const items = [
-      { label: "Reply", icon: <Ic.Reply />, action: onReply, color: "#84cc16" },
-      { label: "Copy", icon: <Ic.Copy />, action: onCopy, color: "#ccc" },
-      isMe && {
-        label: "Info",
-        icon: <Ic.Info />,
-        action: () => {},
-        color: "#60a5fa",
-      },
-      isMe && {
-        label: "Delete",
-        icon: <Ic.Delete />,
-        action: onDelete,
-        color: "#ef4444",
-      },
-    ].filter(Boolean);
+  const items = [
+    { label: "Reply",  icon: <Ic.Reply />,  action: onReply,  color: "#84cc16" },
+    { label: "Copy",   icon: <Ic.Copy />,   action: onCopy,   color: "#ccc" },
+    isMe && { label: "Info",   icon: <Ic.Info />,   action: () => {}, color: "#60a5fa" },
+    isMe && { label: "Delete", icon: <Ic.Delete />, action: onDelete, color: "#ef4444" },
+  ].filter(Boolean);
 
-    return (
-      <div
-        className="cv-ctx-overlay"
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-      >
-        <div
-          ref={menuRef}
-          className="cv-ctx-menu"
-          style={style}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {items.map(({ label, icon, action, color }) => (
-            <button
-              key={label}
-              className="cv-ctx-item"
-              style={{ color }}
-              onClick={(e) => {
-                e.stopPropagation();
-                action?.();
-                onClose();
-              }}
-            >
-              <span className="cv-ctx-icon">{icon}</span>
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
+  return (
+    <div className="cv-ctx-overlay" onPointerDown={(e) => { e.stopPropagation(); onClose(); }}>
+      <div ref={menuRef} className="cv-ctx-menu" style={style} onPointerDown={(e) => e.stopPropagation()}>
+        {items.map(({ label, icon, action, color }) => (
+          <button key={label} className="cv-ctx-item" style={{ color }}
+            onClick={(e) => { e.stopPropagation(); action?.(); onClose(); }}>
+            <span className="cv-ctx-icon">{icon}</span>
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
-    );
-  },
-);
+    </div>
+  );
+});
 ContextMenu.displayName = "ContextMenu";
 
-// ─── Reply Quote — inside bubble ──────────────────────────────────────────
+// ─── Reply Quote ────────────────────────────────────────────────────────────
 const ReplyQuote = memo(({ replyToId, messages, onScrollTo }) => {
   const original = messages.find((m) => m.id === replyToId);
   if (!original) return null;
   return (
     <div className="cv-rq" onClick={() => onScrollTo?.(replyToId)}>
       <div className="cv-rq-bar" />
-      <div className="cv-rq-text">
-        {original.content?.slice(0, 80) || "Message"}
-      </div>
+      <div className="cv-rq-text">{original.content?.slice(0, 80) || "Message"}</div>
     </div>
   );
 });
 ReplyQuote.displayName = "ReplyQuote";
 
-// ─── Message Row ──────────────────────────────────────────────────────────
-const MessageRow = memo(
-  ({
-    msg,
-    isMe,
-    showAv,
-    avatarUrl,
-    otherName,
-    messages,
-    onReply,
-    onScrollTo,
-    getTickStatus,
-    fmtTime,
-    currentUserId,
-  }) => {
-    const [swipeX, setSwipeX] = useState(0);
-    const [swiping, setSwiping] = useState(false);
-    const [ctxOpen, setCtxOpen] = useState(false);
-    const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
-    const [hovered, setHovered] = useState(false);
-    const [rAnim, setRAnim] = useState(false);
-    const touchX = useRef(null);
-    const touchY = useRef(null);
-    const lpTimer = useRef(null);
-    const rowRef = useRef(null);
-    const TH = 60;
+// ─── Message Row ─────────────────────────────────────────────────────────────
+const MessageRow = memo(({
+  msg, isMe, showAv, avatarUrl, otherName, messages,
+  onReply, onScrollTo, getTickStatus, fmtTime, currentUserId,
+}) => {
+  const [swipeX,  setSwipeX]  = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const [ctxOpen, setCtxOpen] = useState(false);
+  const [ctxPos,  setCtxPos]  = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
+  const [rAnim,   setRAnim]   = useState(false);
+  const touchX  = useRef(null);
+  const touchY  = useRef(null);
+  const lpTimer = useRef(null);
+  const rowRef  = useRef(null);
+  const TH = 60;
 
-    const openCtx = (x, y) => {
-      setCtxPos({ x, y });
-      setCtxOpen(true);
-    };
+  const openCtx = (x, y) => { setCtxPos({ x, y }); setCtxOpen(true); };
 
-    const onTouchStart = (e) => {
-      touchX.current = e.touches[0].clientX;
-      touchY.current = e.touches[0].clientY;
-      lpTimer.current = setTimeout(() => {
-        const r = rowRef.current?.getBoundingClientRect() || {};
-        openCtx(r.left + r.width / 2 - 90, r.top - 8);
-      }, 500);
-    };
-    const onTouchMove = (e) => {
-      const dx = e.touches[0].clientX - (touchX.current || 0);
-      const dy = Math.abs(e.touches[0].clientY - (touchY.current || 0));
-      if (dy > 12) {
-        clearTimeout(lpTimer.current);
-        return;
-      }
-      if (Math.abs(dx) > 8) {
-        clearTimeout(lpTimer.current);
-        setSwiping(true);
-        setSwipeX(Math.max(-90, Math.min(90, dx)));
-      }
-    };
-    const onTouchEnd = () => {
+  const onTouchStart = (e) => {
+    touchX.current = e.touches[0].clientX;
+    touchY.current = e.touches[0].clientY;
+    lpTimer.current = setTimeout(() => {
+      const r = rowRef.current?.getBoundingClientRect() || {};
+      openCtx(r.left + r.width / 2 - 90, r.top - 8);
+    }, 500);
+  };
+  const onTouchMove = (e) => {
+    const dx = e.touches[0].clientX - (touchX.current || 0);
+    const dy = Math.abs(e.touches[0].clientY - (touchY.current || 0));
+    if (dy > 12) { clearTimeout(lpTimer.current); return; }
+    if (Math.abs(dx) > 8) {
       clearTimeout(lpTimer.current);
-      if (swiping) {
-        if (Math.abs(swipeX) >= TH) {
-          setRAnim(true);
-          setTimeout(() => setRAnim(false), 400);
-          onReply?.(msg);
-        }
-        setSwiping(false);
-        setSwipeX(0);
-      }
-    };
-    const onContextMenu = (e) => {
-      e.preventDefault();
-      openCtx(e.clientX, e.clientY);
-    };
-    const handleCopy = () =>
-      navigator.clipboard?.writeText(msg.content || "").catch(() => {});
-    const handleDelete = async () => {
-      if (!isMe) return;
-      try {
-        await supabase.from("messages").delete().eq("id", msg.id);
-      } catch (e) {
-        console.warn(e);
-      }
-    };
+      setSwiping(true);
+      setSwipeX(Math.max(-90, Math.min(90, dx)));
+    }
+  };
+  const onTouchEnd = () => {
+    clearTimeout(lpTimer.current);
+    if (swiping) {
+      if (Math.abs(swipeX) >= TH) { setRAnim(true); setTimeout(() => setRAnim(false), 400); onReply?.(msg); }
+      setSwiping(false); setSwipeX(0);
+    }
+  };
+  const onContextMenu = (e) => { e.preventDefault(); openCtx(e.clientX, e.clientY); };
+  const handleCopy   = () => navigator.clipboard?.writeText(msg.content || "").catch(() => {});
+  const handleDelete = async () => {
+    if (!isMe) return;
+    try { await supabase.from("messages").delete().eq("id", msg.id); } catch (e) { console.warn(e); }
+  };
 
-    const renderContent = (c) => {
-      if (
-        !c ||
-        typeof c !== "string" ||
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          c.trim(),
-        )
-      )
-        return <span className="cv-bad">[message unavailable]</span>;
-      if (c.startsWith("↩ Replying to status:")) {
-        const match = c.match(/↩ Replying to status: "(.+)"/);
-        return (
-          <span>
-            <span
-              style={{
-                color: "#84cc16",
-                fontSize: 11,
-                display: "block",
-                marginBottom: 3,
-              }}
-            >
-              ↩ Status reply
-            </span>
-            {match ? <em style={{ opacity: 0.7 }}>"{match[1]}"</em> : c}
-          </span>
-        );
-      }
-      return c;
-    };
+  const renderContent = (c) => {
+    if (!c || typeof c !== "string" ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
+      return <span className="cv-bad">[message unavailable]</span>;
+    if (c.startsWith("↩ Replying to status:")) {
+      const match = c.match(/↩ Replying to status: "(.+)"/);
+      return (
+        <span>
+          <span style={{ color: "#84cc16", fontSize: 11, display: "block", marginBottom: 3 }}>↩ Status reply</span>
+          {match ? <em style={{ opacity: 0.7 }}>"{match[1]}"</em> : c}
+        </span>
+      );
+    }
+    return c;
+  };
 
-    return (
-      <div
-        ref={rowRef}
-        className={[
-          "cv-msg",
-          isMe ? "cv-me" : "cv-them",
-          msg._optimistic ? "cv-opt" : "",
-          msg._failed ? "cv-fail" : "",
-          rAnim ? "cv-rpulse" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onContextMenu={onContextMenu}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        data-msg-id={msg.id}
-      >
-        {swiping && (
-          <div
-            className="cv-swipe-ind"
-            style={{
-              opacity: Math.min(1, Math.abs(swipeX) / TH),
-              transform: `scale(${0.6 + 0.4 * Math.min(1, Math.abs(swipeX) / TH)})`,
-              [isMe ? "right" : "left"]: "calc(100% + 10px)",
-            }}
-          >
-            <Ic.Reply />
-          </div>
-        )}
+  return (
+    <div
+      ref={rowRef}
+      className={["cv-msg", isMe ? "cv-me" : "cv-them", msg._optimistic ? "cv-opt" : "", msg._failed ? "cv-fail" : "", rAnim ? "cv-rpulse" : ""].filter(Boolean).join(" ")}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onContextMenu={onContextMenu}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      data-msg-id={msg.id}
+    >
+      {swiping && (
+        <div className="cv-swipe-ind" style={{
+          opacity: Math.min(1, Math.abs(swipeX) / TH),
+          transform: `scale(${0.6 + 0.4 * Math.min(1, Math.abs(swipeX) / TH)})`,
+          [isMe ? "right" : "left"]: "calc(100% + 10px)",
+        }}><Ic.Reply /></div>
+      )}
 
-        {/* Desktop reply hover button — always at bubble's CENTER side */}
-        {hovered && !swiping && !ctxOpen && (
-          <button
-            className={`cv-desktop-reply${isMe ? " cv-dr-left" : " cv-dr-right"}`}
-            onClick={() => onReply?.(msg)}
-            title="Reply"
-          >
-            <Ic.Reply />
-          </button>
-        )}
+      {hovered && !swiping && !ctxOpen && (
+        <button
+          className={`cv-desktop-reply${isMe ? " cv-dr-left" : " cv-dr-right"}`}
+          onClick={() => onReply?.(msg)} title="Reply">
+          <Ic.Reply />
+        </button>
+      )}
 
-        {!isMe &&
-          (showAv ? (
-            <div className="cv-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={otherName} />
-              ) : (
-                (otherName || "U").charAt(0)
-              )}
-            </div>
-          ) : (
-            <div className="cv-avatar-sp" />
-          ))}
-
-        <div
-          className={[
-            "cv-bubble",
-            isMe ? "cv-bme" : "cv-bthem",
-            showAv && !isMe ? "cv-tail-l" : "",
-            showAv && isMe ? "cv-tail-r" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          style={{
-            transform: swiping
-              ? `translateX(${swipeX * 0.5}px)`
-              : "translateX(0)",
-            transition: swiping
-              ? "none"
-              : "transform 0.25s cubic-bezier(.34,1.56,.64,1)",
-          }}
-        >
-          {msg.reply_to_id && (
-            <ReplyQuote
-              replyToId={msg.reply_to_id}
-              messages={messages}
-              onScrollTo={onScrollTo}
-            />
-          )}
-          <div className="cv-content">{renderContent(msg.content)}</div>
-          <div className={`cv-meta${isMe ? " cv-meta-me" : ""}`}>
-            <span className="cv-time">{fmtTime(msg.created_at)}</span>
-            {isMe && <span className="cv-st">{getTickStatus(msg)}</span>}
-          </div>
+      {!isMe && (showAv ? (
+        <div className="cv-avatar">
+          {avatarUrl ? <img src={avatarUrl} alt={otherName} /> : (otherName || "U").charAt(0)}
         </div>
+      ) : <div className="cv-avatar-sp" />)}
 
-        {ctxOpen && (
-          <ContextMenu
-            msg={msg}
-            pos={ctxPos}
-            isMe={isMe}
-            onReply={() => onReply?.(msg)}
-            onCopy={handleCopy}
-            onDelete={handleDelete}
-            onClose={() => setCtxOpen(false)}
-          />
+      <div
+        className={["cv-bubble", isMe ? "cv-bme" : "cv-bthem", showAv && !isMe ? "cv-tail-l" : "", showAv && isMe ? "cv-tail-r" : ""].filter(Boolean).join(" ")}
+        style={{
+          transform: swiping ? `translateX(${swipeX * 0.5}px)` : "translateX(0)",
+          transition: swiping ? "none" : "transform 0.25s cubic-bezier(.34,1.56,.64,1)",
+        }}
+      >
+        {msg.reply_to_id && (
+          <ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo} />
         )}
+        <div className="cv-content">{renderContent(msg.content)}</div>
+        <div className={`cv-meta${isMe ? " cv-meta-me" : ""}`}>
+          <span className="cv-time">{fmtTime(msg.created_at)}</span>
+          {isMe && <span className="cv-st">{getTickStatus(msg)}</span>}
+        </div>
       </div>
-    );
-  },
-);
+
+      {ctxOpen && (
+        <ContextMenu
+          msg={msg} pos={ctxPos} isMe={isMe}
+          onReply={() => onReply?.(msg)}
+          onCopy={handleCopy}
+          onDelete={handleDelete}
+          onClose={() => setCtxOpen(false)}
+        />
+      )}
+    </div>
+  );
+});
 MessageRow.displayName = "MessageRow";
 
-// ─── Reply Bar ────────────────────────────────────────────────────────────
+// ─── Reply Bar ────────────────────────────────────────────────────────────────
 const ReplyBar = memo(({ replyTo, onCancel }) => {
   if (!replyTo) return null;
   return (
@@ -535,27 +290,21 @@ const ReplyBar = memo(({ replyTo, onCancel }) => {
       <div className="cv-rb-line" />
       <div className="cv-rb-content">
         <div className="cv-rb-label">Replying to</div>
-        <div className="cv-rb-text">
-          {replyTo.content?.slice(0, 80) || "..."}
-        </div>
+        <div className="cv-rb-text">{replyTo.content?.slice(0, 80) || "..."}</div>
       </div>
-      <button className="cv-rb-x" onClick={onCancel}>
-        <Ic.Close />
-      </button>
+      <button className="cv-rb-x" onClick={onCancel}><Ic.Close /></button>
     </div>
   );
 });
 ReplyBar.displayName = "ReplyBar";
 
-// ─── Message Input ────────────────────────────────────────────────────────
+// ─── Message Input ────────────────────────────────────────────────────────────
 const MessageInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
   const [val, setVal] = useState("");
   const taRef = useRef(null);
-  const tyTO = useRef(null);
+  const tyTO  = useRef(null);
 
-  useEffect(() => {
-    if (replyTo) taRef.current?.focus();
-  }, [replyTo]);
+  useEffect(() => { if (replyTo) taRef.current?.focus(); }, [replyTo]);
 
   const onChange = (e) => {
     setVal(e.target.value);
@@ -563,10 +312,7 @@ const MessageInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
     onTyping?.();
     tyTO.current = setTimeout(() => {}, 2500);
     const ta = taRef.current;
-    if (ta) {
-      ta.style.height = "auto";
-      ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
-    }
+    if (ta) { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; }
   };
 
   const submit = () => {
@@ -583,23 +329,11 @@ const MessageInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
       <ReplyBar replyTo={replyTo} onCancel={onCancelReply} />
       <div className="cv-input-bar">
         <textarea
-          ref={taRef}
-          className="cv-input-ta"
-          value={val}
-          onChange={onChange}
-          onKeyDown={(e) =>
-            e.key === "Enter" && !e.shiftKey && (e.preventDefault(), submit())
-          }
-          placeholder="Message…"
-          rows={1}
-          maxLength={4000}
+          ref={taRef} className="cv-input-ta" value={val} onChange={onChange}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), submit())}
+          placeholder="Message…" rows={1} maxLength={4000}
         />
-        <button
-          className="cv-send-btn"
-          onClick={submit}
-          disabled={!val.trim()}
-          aria-label="Send"
-        >
+        <button className="cv-send-btn" onClick={submit} disabled={!val.trim()} aria-label="Send">
           <Ic.Send />
         </button>
       </div>
@@ -609,12 +343,23 @@ const MessageInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
 MessageInput.displayName = "MessageInput";
 
 // ════════════════════════════════════════════════════════════════════════════
-// ChatView — SAFE WRAPPER (no hooks here — just a null guard)
-// ChatViewInner holds all hooks and renders only when conversation is valid.
-// This pattern is required because hooks cannot be called conditionally.
+// ChatView — OUTER WRAPPER (null guard only — NO hooks here)
+//
+// This is the component exported and used by DMMessagesView.
+// It validates every required field before rendering ChatViewInner.
+// React hooks cannot be called conditionally, so the guard MUST live here
+// in a separate component with no hooks of its own.
 // ════════════════════════════════════════════════════════════════════════════
 const ChatView = ({ conversation, currentUser, onBack, onStartCall }) => {
-  if (!conversation?.id) return null;
+  // Full validation — every field that ChatViewInner accesses must be present
+  if (!conversation) return null;
+  if (typeof conversation !== "object") return null;
+  if (typeof conversation.id !== "string" || conversation.id.length === 0) return null;
+  if (!conversation.otherUser) return null;
+  if (typeof conversation.otherUser !== "object") return null;
+  if (typeof conversation.otherUser.id !== "string" || conversation.otherUser.id.length === 0) return null;
+  if (!currentUser?.id) return null;
+
   return (
     <ChatViewInner
       conversation={conversation}
@@ -625,43 +370,38 @@ const ChatView = ({ conversation, currentUser, onBack, onStartCall }) => {
   );
 };
 
+// ─── ChatViewInner — all hooks live here ─────────────────────────────────────
 const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState({
-    online: false,
-    lastSeenText: "Offline",
-  });
-  const [typing, setTyping] = useState({ isTyping: false, userName: "" });
-  const [showMenu, setShowMenu] = useState(false);
+  const [messages,     setMessages]     = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [status,       setStatus]       = useState({ online: false, lastSeenText: "Offline" });
+  const [typing,       setTyping]       = useState({ isTyping: false, userName: "" });
+  const [showMenu,     setShowMenu]     = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
-  const [showJump, setShowJump] = useState(false);
-  const [selectedBg, setSelectedBg] = useState(() =>
-    backgroundService.getConversationBackground(conversation.id),
+  const [showJump,     setShowJump]     = useState(false);
+  const [selectedBg,   setSelectedBg]   = useState(() =>
+    backgroundService.getConversationBackground(conversation.id)
   );
-  const [readStatus, setReadStatus] = useState({});
-  const [replyTo, setReplyTo] = useState(null);
+  const [readStatus,   setReadStatus]   = useState({});
+  const [replyTo,      setReplyTo]      = useState(null);
 
-  const endRef = useRef(null);
+  const endRef       = useRef(null);
   const containerRef = useRef(null);
-  const tyTO = useRef(null);
-  const isAtBottom = useRef(true);
-  const unsubCh = useRef(null);
-  const unsubDB = useRef(null);
-  const msgsRef = useRef([]);
-  useEffect(() => {
-    msgsRef.current = messages;
-  }, [messages]);
+  const tyTO         = useRef(null);
+  const isAtBottom   = useRef(true);
+  const unsubCh      = useRef(null);
+  const unsubDB      = useRef(null);
+  const msgsRef      = useRef([]);
+  useEffect(() => { msgsRef.current = messages; }, [messages]);
 
-  const convId = conversation.id;
+  const convId    = conversation.id;
   const otherUser = conversation.otherUser;
-  const bgs = backgroundService.getBackgrounds();
-  const activeBg = bgs[selectedBg];
-  const bgStyle = backgroundService.getBgStyle(selectedBg);
+  const bgs       = backgroundService.getBackgrounds();
+  const activeBg  = bgs[selectedBg];
+  const bgStyle   = backgroundService.getBgStyle(selectedBg);
   const isDefault = activeBg?.isDefault === true;
 
-  const scrollToBottom = (b = "smooth") =>
-    endRef.current?.scrollIntoView({ behavior: b });
+  const scrollToBottom = (b = "smooth") => endRef.current?.scrollIntoView({ behavior: b });
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -672,39 +412,28 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
 
   const patchStatus = useCallback((ids, ns) => {
     if (!ids?.length) return;
-    setReadStatus((prev) => {
+    setReadStatus(prev => {
       const next = { ...prev };
-      ids.forEach((id) => {
-        if (!id) return;
-        if ((RANK[ns] ?? -1) > (RANK[prev[id]] ?? -1)) next[id] = ns;
-      });
+      ids.forEach(id => { if (!id) return; if ((RANK[ns] ?? -1) > (RANK[prev[id]] ?? -1)) next[id] = ns; });
       return next;
     });
   }, []);
 
-  const seedFromMessages = useCallback(
-    (msgs) => {
-      setReadStatus((prev) => {
-        const next = { ...prev };
-        msgs.forEach((m) => {
-          if (!m.id) return;
-          const db = m.read ? "read" : m.delivered ? "delivered" : "sent";
-          if (m.sender_id !== currentUser.id) {
-            if (RANK["read"] > (RANK[prev[m.id]] ?? -1)) next[m.id] = "read";
-          } else {
-            if ((RANK[db] ?? 0) > (RANK[prev[m.id]] ?? -1)) next[m.id] = db;
-          }
-        });
-        return next;
+  const seedFromMessages = useCallback((msgs) => {
+    setReadStatus(prev => {
+      const next = { ...prev };
+      msgs.forEach(m => {
+        if (!m.id) return;
+        const db = m.read ? "read" : m.delivered ? "delivered" : "sent";
+        if (m.sender_id !== currentUser.id) { if (RANK["read"] > (RANK[prev[m.id]] ?? -1)) next[m.id] = "read"; }
+        else { if ((RANK[db] ?? 0) > (RANK[prev[m.id]] ?? -1)) next[m.id] = db; }
       });
-    },
-    [currentUser.id],
-  );
+      return next;
+    });
+  }, [currentUser.id]);
 
   const markOurRead = useCallback(() => {
-    const ids = msgsRef.current
-      .filter((m) => m.sender_id === currentUser.id && m.id)
-      .map((m) => m.id);
+    const ids = msgsRef.current.filter(m => m.sender_id === currentUser.id && m.id).map(m => m.id);
     patchStatus(ids, "read");
   }, [currentUser.id, patchStatus]);
 
@@ -715,12 +444,9 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
   }, [convId, currentUser.id]);
 
   useEffect(() => {
-    setLoading(true);
-    setReadStatus({});
-    dmMessageService.loadMessages(convId).then((msgs) => {
-      setMessages(msgs);
-      setLoading(false);
-      seedFromMessages(msgs);
+    setLoading(true); setReadStatus({});
+    dmMessageService.loadMessages(convId).then(msgs => {
+      setMessages(msgs); setLoading(false); seedFromMessages(msgs);
       setTimeout(() => scrollToBottom("auto"), 50);
     });
   }, [convId, seedFromMessages]);
@@ -735,71 +461,40 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
         }
       },
       onDelivered: (tempId) => {
-        const m = msgsRef.current.find(
-          (x) => x.id === tempId || x._tempId === tempId,
-        );
-        if (m?.id && !m.id.startsWith("temp_"))
-          patchStatus([m.id], "delivered");
+        const m = msgsRef.current.find(x => x.id === tempId || x._tempId === tempId);
+        if (m?.id && !m.id.startsWith("temp_")) patchStatus([m.id], "delivered");
         patchStatus([tempId], "delivered");
       },
-      onRead: (uid) => {
-        if (uid !== currentUser.id) markOurRead();
-      },
+      onRead: (uid) => { if (uid !== currentUser.id) markOurRead(); },
       onTyping: (uid, isTy, uname) => {
         if (uid === otherUser?.id) {
-          setTyping({
-            isTyping: isTy,
-            userName: uname || otherUser?.full_name || "User",
-          });
+          setTyping({ isTyping: isTy, userName: uname || otherUser?.full_name || "User" });
           if (isTy && isAtBottom.current) setTimeout(scrollToBottom, 100);
         }
       },
     });
     unsubCh.current = unsub;
-    return () => {
-      if (unsubCh.current) unsubCh.current();
-    };
-  }, [
-    convId,
-    otherUser?.id,
-    otherUser?.full_name,
-    currentUser.id,
-    patchStatus,
-    markOurRead,
-  ]);
+    return () => { if (unsubCh.current) unsubCh.current(); };
+  }, [convId, otherUser?.id, otherUser?.full_name, currentUser.id, patchStatus, markOurRead]);
 
   useEffect(() => {
-    const ch = supabase
-      .channel(`msg-watch:${convId}:${currentUser.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${convId}`,
-        },
-        ({ new: u }) => {
-          if (!u?.id || u.sender_id !== currentUser.id) return;
-          if (u.read) patchStatus([u.id], "read");
-          else if (u.delivered) patchStatus([u.id], "delivered");
-        },
-      )
-      .subscribe();
+    const ch = supabase.channel(`msg-watch:${convId}:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "messages",
+        filter: `conversation_id=eq.${convId}`,
+      }, ({ new: u }) => {
+        if (!u?.id || u.sender_id !== currentUser.id) return;
+        if (u.read) patchStatus([u.id], "read");
+        else if (u.delivered) patchStatus([u.id], "delivered");
+      }).subscribe();
     unsubDB.current = ch;
-    return () => {
-      if (unsubDB.current) {
-        supabase.removeChannel(unsubDB.current);
-        unsubDB.current = null;
-      }
-    };
+    return () => { if (unsubDB.current) { supabase.removeChannel(unsubDB.current); unsubDB.current = null; } };
   }, [convId, currentUser.id, patchStatus]);
 
   useEffect(() => {
     const update = () => {
       const msgs = [...conversationState.getMessages(convId)];
-      setMessages(msgs);
-      seedFromMessages(msgs);
+      setMessages(msgs); seedFromMessages(msgs);
     };
     const unsub = conversationState.subscribe(update);
     update();
@@ -808,23 +503,14 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
 
   useEffect(() => {
     onlineStatusService.fetchStatus(otherUser?.id).then(setStatus);
-    const unsub = onlineStatusService.subscribe((uid, st) => {
-      if (uid === otherUser?.id) setStatus(st);
-    });
+    const unsub = onlineStatusService.subscribe((uid, st) => { if (uid === otherUser?.id) setStatus(st); });
     return unsub;
   }, [otherUser?.id]);
 
   const handleTypingLocal = () => {
-    dmMessageService.sendTyping(
-      convId,
-      true,
-      currentUser.fullName || currentUser.full_name || currentUser.name,
-    );
+    dmMessageService.sendTyping(convId, true, currentUser.fullName || currentUser.full_name || currentUser.name);
     clearTimeout(tyTO.current);
-    tyTO.current = setTimeout(
-      () => dmMessageService.sendTyping(convId, false),
-      2500,
-    );
+    tyTO.current = setTimeout(() => dmMessageService.sendTyping(convId, false), 2500);
   };
 
   const handleSend = async (text, replyToId = null) => {
@@ -833,17 +519,10 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
     dmMessageService.sendTyping(convId, false);
     setReplyTo(null);
     try {
-      const sent = await dmMessageService.sendMessage(
-        convId,
-        text,
-        currentUser.id,
-        replyToId,
-      );
+      const sent = await dmMessageService.sendMessage(convId, text, currentUser.id, replyToId);
       if (sent?.id) patchStatus([sent.id], "sent");
       setTimeout(scrollToBottom, 10);
-    } catch (e) {
-      console.error("send:", e);
-    }
+    } catch (e) { console.error("send:", e); }
   };
 
   const scrollToMessage = useCallback((msgId) => {
@@ -857,132 +536,78 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
 
   const getTickStatus = (msg) => {
     if (msg._optimistic) return <span className="cv-tk cv-tk-sent">✓</span>;
-    if (msg._failed) return <span className="cv-tk cv-tk-red">✗</span>;
+    if (msg._failed)     return <span className="cv-tk cv-tk-red">✗</span>;
     const local = readStatus[msg.id];
-    const db = msg.read ? "read" : msg.delivered ? "delivered" : "sent";
-    const res = (RANK[local] ?? -1) >= (RANK[db] ?? -1) ? local || db : db;
-    if (res === "read") return <span className="cv-tk cv-tk-read">✓✓</span>;
-    if (res === "delivered")
-      return <span className="cv-tk cv-tk-dlvr">✓✓</span>;
+    const db    = msg.read ? "read" : msg.delivered ? "delivered" : "sent";
+    const res   = (RANK[local] ?? -1) >= (RANK[db] ?? -1) ? (local || db) : db;
+    if (res === "read")      return <span className="cv-tk cv-tk-read">✓✓</span>;
+    if (res === "delivered") return <span className="cv-tk cv-tk-dlvr">✓✓</span>;
     return <span className="cv-tk cv-tk-sent">✓</span>;
   };
 
   const fmtTime = (d) => {
     if (!d) return "";
     const dt = new Date(d);
-    const h = dt.getHours() % 12 || 12;
-    const m = dt.getMinutes().toString().padStart(2, "0");
+    const h  = dt.getHours() % 12 || 12;
+    const m  = dt.getMinutes().toString().padStart(2, "0");
     return `${h}:${m} ${dt.getHours() >= 12 ? "PM" : "AM"}`;
   };
 
   const avatarUrl = otherUser?.avatar_id
-    ? mediaUrlService.getAvatarUrl(otherUser.avatar_id, 200)
-    : null;
+    ? mediaUrlService.getAvatarUrl(otherUser.avatar_id, 200) : null;
 
   return (
     <div className="cv-root">
       {/* ── HEADER ── */}
       <div className="cv-head">
-        <button className="cv-back-btn" onClick={onBack}>
-          <Ic.Back />
-        </button>
+        <button className="cv-back-btn" onClick={onBack}><Ic.Back /></button>
         <div className="cv-head-info">
           <div className="cv-head-av-wrap">
             <div className="cv-head-av">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={otherUser?.full_name} />
-              ) : (
-                (otherUser?.full_name || "U").charAt(0).toUpperCase()
-              )}
+              {avatarUrl
+                ? <img src={avatarUrl} alt={otherUser?.full_name} />
+                : (otherUser?.full_name || "U").charAt(0).toUpperCase()}
             </div>
-            <div
-              className={`cv-head-dot${status.online ? " cv-dot-on" : ""}`}
-            />
+            <div className={`cv-head-dot${status.online ? " cv-dot-on" : ""}`} />
           </div>
           <div className="cv-head-text">
-            <div className="cv-head-name">
-              {otherUser?.full_name || "Unknown"}
-            </div>
-            <div
-              className={`cv-head-status${status.online ? " cv-st-on" : ""}`}
-            >
-              {typing.isTyping ? (
-                <span className="cv-typing-lbl">typing…</span>
-              ) : (
-                status.lastSeenText
-              )}
+            <div className="cv-head-name">{otherUser?.full_name || "Unknown"}</div>
+            <div className={`cv-head-status${status.online ? " cv-st-on" : ""}`}>
+              {typing.isTyping
+                ? <span className="cv-typing-lbl">typing…</span>
+                : status.lastSeenText}
             </div>
           </div>
         </div>
         <div className="cv-head-right">
           {onStartCall && (
             <>
-              <button
-                className="cv-call-btn cv-call-audio"
-                onClick={() => onStartCall("audio")}
-                title="Voice call"
-              >
-                <Ic.Phone />
-              </button>
-              <button
-                className="cv-call-btn cv-call-video"
-                onClick={() => onStartCall("video")}
-                title="Video call"
-              >
-                <Ic.Video />
-              </button>
+              <button className="cv-call-btn cv-call-audio" onClick={() => onStartCall("audio")} title="Voice call"><Ic.Phone /></button>
+              <button className="cv-call-btn cv-call-video" onClick={() => onStartCall("video")} title="Video call"><Ic.Video /></button>
             </>
           )}
-          <button
-            className="cv-more-btn"
-            onClick={() => setShowMenu((m) => !m)}
-          >
-            <Ic.More />
-          </button>
+          <button className="cv-more-btn" onClick={() => setShowMenu(m => !m)}><Ic.More /></button>
         </div>
         {showMenu && (
           <>
             <div className="cv-overlay" onClick={() => setShowMenu(false)} />
             <div className="cv-menu">
-              <button
-                onClick={() => {
-                  setShowBgPicker(true);
-                  setShowMenu(false);
-                }}
-              >
-                <Ic.Palette />
-                <span>Change Background</span>
+              <button onClick={() => { setShowBgPicker(true); setShowMenu(false); }}>
+                <Ic.Palette /><span>Change Background</span>
               </button>
             </div>
           </>
         )}
         {showBgPicker && (
           <>
-            <div
-              className="cv-overlay"
-              onClick={() => setShowBgPicker(false)}
-            />
+            <div className="cv-overlay" onClick={() => setShowBgPicker(false)} />
             <div className="cv-bgpicker">
               {bgs.map((b, i) => (
-                <button
-                  key={i}
-                  className={`cv-bgopt${selectedBg === i ? " cv-bgopt-on" : ""}`}
-                  onClick={() => {
-                    backgroundService.setConversationBackground(convId, i);
-                    setSelectedBg(i);
-                    setShowBgPicker(false);
-                  }}
-                >
-                  {b.isDefault ? (
-                    <div className="cv-bgprev cv-bgprev-grid" />
-                  ) : b.image ? (
-                    <img src={b.image} alt={b.name} />
-                  ) : (
-                    <div
-                      className="cv-bgprev"
-                      style={{ background: b.value }}
-                    />
-                  )}
+                <button key={i} className={`cv-bgopt${selectedBg === i ? " cv-bgopt-on" : ""}`}
+                  onClick={() => { backgroundService.setConversationBackground(convId, i); setSelectedBg(i); setShowBgPicker(false); }}>
+                  {b.isDefault ? <div className="cv-bgprev cv-bgprev-grid" />
+                    : b.image ? <img src={b.image} alt={b.name} />
+                    : <div className="cv-bgprev" style={{ background: b.value }} />}
                   <span>{b.name}</span>
                 </button>
               ))}
@@ -994,71 +619,46 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
       {/* ── MESSAGES ── */}
       <div
         className={`cv-msgs${isDefault ? " cv-msgs-default" : ""}`}
-        style={bgStyle}
-        ref={containerRef}
-        onScroll={handleScroll}
+        style={bgStyle} ref={containerRef} onScroll={handleScroll}
       >
         <div className="cv-msgs-overlay" />
         <div className="cv-msgs-content">
-          {loading && (
-            <div className="cv-loading">
-              <div className="cv-spinner" />
-            </div>
-          )}
-          {!loading &&
-            messages.map((msg, idx) => {
-              const isMe = msg.sender_id === currentUser.id;
-              const prev = messages[idx - 1];
-              const tail = !prev || prev.sender_id !== msg.sender_id;
-              return (
-                <MessageRow
-                  key={msg.id || msg._tempId}
-                  msg={msg}
-                  isMe={isMe}
-                  showAv={!isMe && tail}
-                  avatarUrl={avatarUrl}
-                  otherName={otherUser?.full_name}
-                  currentUserId={currentUser.id}
-                  messages={messages}
-                  onReply={setReplyTo}
-                  onScrollTo={scrollToMessage}
-                  getTickStatus={getTickStatus}
-                  fmtTime={fmtTime}
-                />
-              );
-            })}
+          {loading && <div className="cv-loading"><div className="cv-spinner" /></div>}
+          {!loading && messages.map((msg, idx) => {
+            const isMe = msg.sender_id === currentUser.id;
+            const prev = messages[idx - 1];
+            const tail = !prev || prev.sender_id !== msg.sender_id;
+            return (
+              <MessageRow
+                key={msg.id || msg._tempId}
+                msg={msg} isMe={isMe} showAv={!isMe && tail}
+                avatarUrl={avatarUrl} otherName={otherUser?.full_name}
+                currentUserId={currentUser.id} messages={messages}
+                onReply={setReplyTo} onScrollTo={scrollToMessage}
+                getTickStatus={getTickStatus} fmtTime={fmtTime}
+              />
+            );
+          })}
           {typing.isTyping && (
             <div className="cv-msg cv-them">
               <div className="cv-avatar">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt={otherUser?.full_name} />
-                ) : (
-                  (otherUser?.full_name || "U").charAt(0)
-                )}
+                {avatarUrl ? <img src={avatarUrl} alt={otherUser?.full_name} /> : (otherUser?.full_name || "U").charAt(0)}
               </div>
               <div className="cv-bubble cv-bthem cv-tail-l cv-typing-bubble">
-                <div className="cv-dots">
-                  <span />
-                  <span />
-                  <span />
-                </div>
+                <div className="cv-dots"><span /><span /><span /></div>
               </div>
             </div>
           )}
           <div ref={endRef} />
         </div>
         {showJump && (
-          <button className="cv-jump-btn" onClick={() => scrollToBottom()}>
-            <Ic.Down />
-          </button>
+          <button className="cv-jump-btn" onClick={() => scrollToBottom()}><Ic.Down /></button>
         )}
       </div>
 
       <MessageInput
-        onSend={handleSend}
-        onTyping={handleTypingLocal}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
+        onSend={handleSend} onTyping={handleTypingLocal}
+        replyTo={replyTo} onCancelReply={() => setReplyTo(null)}
       />
       <style>{CV_CSS}</style>
     </div>

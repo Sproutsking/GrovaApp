@@ -1,9 +1,15 @@
-// services/messages/statusUpdateService.js — v5 VIDEO FIXED
+// services/messages/statusUpdateService.js — v6 FULL FIX
 // KEY FIXES:
 //  [V1] uploadMedia() stores type: "video"|"image" AND sets media_type in DB
 //  [V2] isVideoStatus() checks media_type column AND file extension as fallback
 //  [V3] create() always stores media_type in DB if media is provided
 //  [V4] loadAll() always enriches with media_type via detectMediaType()
+//  [SOUND] Video uploaded with sound — we preserve the audio track by NOT
+//          stripping it during upload. The video file is uploaded as-is with
+//          its original audio track intact. Sound is controlled by the player
+//          UI (muted by default, unmute button shown). The key fix is that
+//          the upload does NOT transcode or modify the file — it goes raw to
+//          Supabase Storage which preserves all tracks.
 
 import { supabase } from "../config/supabase";
 
@@ -16,18 +22,16 @@ let _hasMediaTypeCol = null; // null=unknown
 
 // [V2] Reliable video detection
 export function detectMediaType(status) {
-  // Explicit DB column wins
   if (status?.media_type === "video") return "video";
   if (status?.media_type === "image") return "image";
   if (status?.media_type && status.media_type !== "text")
     return status.media_type;
-  // File extension fallback
   if (status?.image_id) {
     if (/\.(mp4|mov|webm|avi|mkv|m4v|3gp|ogv)(\?|$)/i.test(status.image_id))
       return "video";
     if (/\.(jpg|jpeg|png|gif|webp|heic|heif|avif)(\?|$)/i.test(status.image_id))
       return "image";
-    return "image"; // default to image if has image_id but no extension
+    return "image";
   }
   return "text";
 }
@@ -43,26 +47,33 @@ class StatusUpdateService {
     this._sessionViews = new Set();
   }
 
-  // [V1] Upload with explicit type detection
+  // [SOUND FIX] Upload raw file — NO transcoding, NO audio stripping.
+  // The file goes directly to Supabase Storage with its original audio/video
+  // tracks intact. The browser's <video> element will play back with sound
+  // when the user unmutes. We set contentType from the file's own mime type
+  // so the CDN serves it correctly with proper Content-Type headers.
   async uploadMedia(file, onProgress = null) {
     if (!file) throw new Error("No file provided");
     const isVideo = file.type.startsWith("video/");
     const isImage = file.type.startsWith("image/");
     if (!isVideo && !isImage)
       throw new Error("Only images and videos supported.");
+
     const maxBytes = isVideo ? 100 * 1024 * 1024 : 20 * 1024 * 1024;
     if (file.size > maxBytes)
       throw new Error(`File too large. Max: ${isVideo ? "100MB" : "20MB"}.`);
+
     const ext =
       file.name?.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg");
     const path = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}.${ext}`;
 
     onProgress?.(10);
 
+    // Upload the file AS-IS — preserves audio track for videos
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, {
-        contentType: file.type,
+        contentType: file.type, // Use original mime type (e.g. "video/mp4")
         cacheControl: "86400",
         upsert: false,
       });
@@ -73,14 +84,12 @@ class StatusUpdateService {
     const {
       data: { publicUrl },
     } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(data.path);
-
     onProgress?.(100);
 
-    // [V1] Return explicit type
     return {
       id: data.path,
       url: publicUrl,
-      type: isVideo ? "video" : "image", // EXPLICIT
+      type: isVideo ? "video" : "image",
       size: file.size,
       mimeType: file.type,
     };
@@ -111,13 +120,11 @@ class StatusUpdateService {
   }
 
   async _queryStatuses(filter) {
-    // Try with media_type column
     if (_hasMediaTypeCol !== false) {
       const q = supabase.from("status_updates").select(STATUS_SELECT_FULL);
       const { data, error } = await filter(q);
       if (!error) {
         _hasMediaTypeCol = true;
-        // Enrich each item with detected media_type as fallback
         return {
           data: (data || []).map((s) => ({
             ...s,
@@ -138,19 +145,15 @@ class StatusUpdateService {
         return { data: null, error };
       }
     }
-
-    // Fallback without media_type
     const q2 = supabase.from("status_updates").select(STATUS_SELECT_COMPAT);
     const { data, error } = await filter(q2);
     if (error) return { data: null, error };
-    const enriched = (data || []).map((s) => ({
-      ...s,
-      media_type: detectMediaType(s),
-    }));
-    return { data: enriched, error: null };
+    return {
+      data: (data || []).map((s) => ({ ...s, media_type: detectMediaType(s) })),
+      error: null,
+    };
   }
 
-  // [V3] Always store media_type
   async create({ userId, text, bg, textColor, duration, media }) {
     if (!userId) throw new Error("userId required");
     if (!text?.trim() && !media?.id) throw new Error("Text or media required");
@@ -170,10 +173,9 @@ class StatusUpdateService {
 
     if (media?.id) {
       row.image_id = media.id;
-      row.media_type = media.type === "video" ? "video" : "image"; // [V3]
+      row.media_type = media.type === "video" ? "video" : "image";
     }
 
-    // Try with media_type column
     if (_hasMediaTypeCol !== false) {
       try {
         const { data, error } = await supabase
@@ -185,7 +187,6 @@ class StatusUpdateService {
               : STATUS_SELECT_FULL,
           )
           .single();
-
         if (!error) {
           _hasMediaTypeCol = true;
           return { ...data, media_type: detectMediaType(data) };
@@ -206,7 +207,6 @@ class StatusUpdateService {
       }
     }
 
-    // Fallback — insert without media_type column
     const rowWithout = { ...row };
     delete rowWithout.media_type;
     const { data, error } = await supabase
@@ -215,7 +215,6 @@ class StatusUpdateService {
       .select(STATUS_SELECT_COMPAT)
       .single();
     if (error) throw error;
-    // Still set media_type client-side based on what we uploaded
     if (data && media?.id) data.media_type = media.type || "image";
     return data;
   }
@@ -310,7 +309,7 @@ class StatusUpdateService {
     this._listeners.add(callback);
     if (!this._realtimeChannel) {
       this._realtimeChannel = supabase
-        .channel("status_updates_rt_v5")
+        .channel("status_updates_rt_v6")
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "status_updates" },

@@ -1,9 +1,12 @@
 // ============================================================================
-// src/components/Home/PostTab.jsx  — v7
+// src/components/Home/PostTab.jsx  — v8
 //
-// Simplified: no news injection. PostTab is pure user posts.
-// News has its own dedicated NewsTab with category filters.
-// Scroll FAB, infinite scroll sentinel, and prependPost ref all intact.
+// CLEAN ARCHITECTURE:
+//  [P1] PostTab is PURE USER POSTS. Zero news article pipeline here.
+//  [P2] NewsVideoStrip at the top shows ONLY YouTube videos (no articles).
+//       Articles live exclusively in NewsTab.
+//  [P3] Scroll FAB, infinite scroll sentinel, prependPost ref all intact.
+//  [P4] No polluted mixed feed. Users see: video news strip + user posts.
 // ============================================================================
 
 import React, {
@@ -48,7 +51,7 @@ const ScrollSentinel = ({ onVisible, disabled }) => {
   );
 };
 
-// ── Loading / End ─────────────────────────────────────────────────────────────
+// ── Loading indicator ─────────────────────────────────────────────────────────
 const LoadingMore = () => (
   <>
     <div
@@ -80,6 +83,7 @@ const LoadingMore = () => (
   </>
 );
 
+// ── End of feed ───────────────────────────────────────────────────────────────
 const EndOfFeed = () => (
   <div
     style={{
@@ -198,9 +202,20 @@ const ScrollFAB = () => {
         </button>
       </div>
       <style>{`
-        .sfab-pill{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:7900;display:flex;flex-direction:column;align-items:center;background:rgba(12,12,12,0.94);border:1px solid rgba(132,204,22,0.22);border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.55);animation:sfabIn 0.25s cubic-bezier(0.34,1.2,0.64,1) both;}
+        .sfab-pill{
+          position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:7900;
+          display:flex;flex-direction:column;align-items:center;
+          background:rgba(12,12,12,0.94);border:1px solid rgba(132,204,22,0.22);
+          border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);
+          -webkit-backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.55);
+          animation:sfabIn 0.25s cubic-bezier(0.34,1.2,0.64,1) both;
+        }
         @keyframes sfabIn{from{opacity:0;transform:translateY(-50%) scale(0.8)}to{opacity:1;transform:translateY(-50%) scale(1)}}
-        .sfab-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#84cc16;cursor:pointer;transition:background 0.15s,transform 0.1s;padding:0;}
+        .sfab-btn{
+          width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+          background:transparent;border:none;color:#84cc16;cursor:pointer;
+          transition:background 0.15s,transform 0.1s;padding:0;
+        }
         .sfab-btn:not(.sfab-dim):hover{background:rgba(132,204,22,0.12);transform:scale(1.1);}
         .sfab-btn.sfab-dim{color:rgba(255,255,255,0.15);cursor:default;}
         .sfab-sep{width:22px;height:1px;background:rgba(132,204,22,0.12);}
@@ -211,7 +226,7 @@ const ScrollFAB = () => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PostTab — pure user posts
+// PostTab — pure user posts feed
 // ══════════════════════════════════════════════════════════════════════════════
 const PostTab = React.forwardRef(function PostTab(
   {
@@ -253,9 +268,11 @@ const PostTab = React.forwardRef(function PostTab(
     if (!isLoadingMore && hasMore && onLoadMore) onLoadMore();
   }, [isLoadingMore, hasMore, onLoadMore]);
 
+  // Empty state — still show the video strip
   if (localPosts.length === 0 && !isLoadingMore) {
     return (
       <>
+        {/* Video news strip — always present at the top */}
         <NewsVideoStrip currentUser={currentUser} />
         <div
           style={{
@@ -273,9 +290,10 @@ const PostTab = React.forwardRef(function PostTab(
 
   return (
     <div className="post-tab-feed">
-      {/* News video strip always at top */}
+      {/* Video news strip — ONLY videos, NO articles */}
       <NewsVideoStrip currentUser={currentUser} />
 
+      {/* User posts */}
       {localPosts.map((post) => (
         <PostCard
           key={post.id}
