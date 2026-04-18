@@ -1,18 +1,19 @@
 // ============================================================================
-// src/components/Home/NewsTab.jsx  — v10  LIVE-FIRST ARCHITECTURE
+// src/components/Home/NewsTab.jsx  — v11  LIVE-FIRST + SMART TIMESTAMPS
 //
-// STRUCTURE:
-//  [L1] LIVE SECTION — articles published < 20 min ago, sorted A-Z by
-//       source_name. Shown as prominent breaking-news cards at the top.
-//       Ticks every 15s — when an article ages out of 20-min window it
-//       automatically slides down to the LATEST section on next tick.
-//  [L2] LATEST SECTION — all articles older than 20 min + all videos,
-//       sorted purely by published_at DESC (newest first).
-//  [L3] Category filter applies to BOTH sections simultaneously.
-//  [L4] Polling every 30s. Realtime INSERT subscription. Visibility refetch.
-//  [L5] clearAllCooldowns() on mount + force-fetch. DB pre-load first.
-//  [L6] New article banner with count.
-//  [L7] useRelTime in live cards ticks every 15s — no immortal timestamps.
+// NEW IN v11:
+//  [V1] Smart relative timestamps — never immortal. Ticks every 30s.
+//       < 60s  → "just now"  (but only while truly < 60s, then advances)
+//       1–59m  → "Xm ago"   updates live
+//       1–23h  → "Xh ago"
+//       ≥ 24h  → "Apr 17"
+//  [V2] LIVE badge is REAL: only articles published < 90s ago show "LIVE NOW".
+//       1–20 min shows exact relative time, not the LIVE label.
+//  [V3] VideoPlayerModal — inline video player with HTML5 <video> scrub bar
+//       for recorded videos. Live stream URLs (m3u8 / livestream keyword)
+//       disable scrubbing and show a real "🔴 LIVE" badge instead.
+//  [V4] Mobile horizontal ◀ / ▶ pagination FAB (replaces up/down on mobile).
+//       Desktop keeps up/down scroll pill.
 // ============================================================================
 
 import React, {
@@ -37,9 +38,198 @@ import {
   loadArticlesFromDB,
   clearAllCooldowns,
 } from "../../services/news/clientNewsFetcher";
-import { useRelTime, isLiveArticle } from "./NewsCard";
 import NewsCard from "./NewsCard";
 import VideoCard from "./VideoCard";
+
+// ── [V1] Smart relative timestamp — never immortal, ticks every 30s ──────────
+function smartRelTime(published_at) {
+  const ms = Date.now() - new Date(published_at).getTime();
+  if (ms < 0) return "just now";
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(published_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function useSmartRelTime(published_at) {
+  const [label, setLabel] = useState(() => smartRelTime(published_at));
+  useEffect(() => {
+    setLabel(smartRelTime(published_at));
+    const id = setInterval(() => setLabel(smartRelTime(published_at)), 30_000);
+    return () => clearInterval(id);
+  }, [published_at]);
+  return label;
+}
+
+// [V2] REAL live: only < 90 seconds old is truly "broadcasting right now"
+const REAL_LIVE_MS = 90_000;
+function isReallyLive(published_at) {
+  return Date.now() - new Date(published_at).getTime() < REAL_LIVE_MS;
+}
+
+// ── [V3] VideoPlayerModal — inline player with scrub bar ─────────────────────
+function isLiveStream(url = "") {
+  const u = url.toLowerCase();
+  return u.includes(".m3u8") || u.includes("livestream") || u.includes("/live/") || u.includes("live.youtube");
+}
+
+const VideoPlayerModal = ({ video, onClose }) => {
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const progressRef = useRef(null);
+
+  // Decide if this is a recorded YT video or a live stream
+  const ytId = video.videoId || video.video_id || null;
+  const streamUrl = video.stream_url || video.article_url || "";
+  const live = isLiveStream(streamUrl) || (video.is_live === true);
+
+  // For YouTube we use an iframe (no scrubbing for live, enabled for VOD)
+  const useIframe = !!ytId;
+
+  const formatTime = (sec) => {
+    if (!isFinite(sec) || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current || dragging) return;
+    setProgress(videoRef.current.currentTime);
+    setDuration(videoRef.current.duration || 0);
+  };
+
+  const seekTo = (clientX) => {
+    if (!progressRef.current || !videoRef.current || live) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const newTime = pct * (videoRef.current.duration || 0);
+    videoRef.current.currentTime = newTime;
+    setProgress(newTime);
+  };
+
+  // Prevent body scroll while modal open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="vpm-overlay" onClick={onClose}>
+      <div className="vpm-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Close */}
+        <button className="vpm-close" onClick={onClose}>✕</button>
+
+        {/* Live badge */}
+        {live && (
+          <div className="vpm-live-badge">
+            <span className="vpm-live-dot" />
+            LIVE
+          </div>
+        )}
+
+        {/* Player */}
+        <div className="vpm-player-wrap">
+          {useIframe ? (
+            <iframe
+              className="vpm-iframe"
+              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0${live ? "&livemonitor=1" : ""}`}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              title={video.title}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              className="vpm-video"
+              src={streamUrl}
+              autoPlay
+              controls={false}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleTimeUpdate}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+            />
+          )}
+        </div>
+
+        {/* Custom controls — only for non-iframe non-live */}
+        {!useIframe && (
+          <div className="vpm-controls">
+            <button
+              className="vpm-playbtn"
+              onClick={() => {
+                if (!videoRef.current) return;
+                playing ? videoRef.current.pause() : videoRef.current.play();
+              }}
+            >
+              {playing ? "⏸" : "▶"}
+            </button>
+
+            {/* Scrub bar — disabled for live */}
+            <div
+              ref={progressRef}
+              className={`vpm-bar${live ? " vpm-bar--live" : ""}`}
+              onMouseDown={(e) => { if (live) return; setDragging(true); seekTo(e.clientX); }}
+              onMouseMove={(e) => { if (dragging && !live) seekTo(e.clientX); }}
+              onMouseUp={() => setDragging(false)}
+              onMouseLeave={() => setDragging(false)}
+              onTouchStart={(e) => { if (live) return; setDragging(true); seekTo(e.touches[0].clientX); }}
+              onTouchMove={(e) => { if (dragging && !live) seekTo(e.touches[0].clientX); }}
+              onTouchEnd={() => setDragging(false)}
+            >
+              <div
+                className="vpm-fill"
+                style={{ width: live ? "100%" : duration ? `${(progress / duration) * 100}%` : "0%" }}
+              />
+              {!live && <div
+                className="vpm-thumb"
+                style={{ left: duration ? `${(progress / duration) * 100}%` : "0%" }}
+              />}
+            </div>
+
+            <span className="vpm-time">
+              {live ? "🔴 LIVE" : `${formatTime(progress)} / ${formatTime(duration)}`}
+            </span>
+          </div>
+        )}
+
+        {/* Title */}
+        <div className="vpm-title">{video.title}</div>
+        <div className="vpm-source">{video.channelName || video.source_name}</div>
+      </div>
+
+      <style>{`
+        .vpm-overlay{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;animation:vpmFadeIn .2s ease;}
+        @keyframes vpmFadeIn{from{opacity:0}to{opacity:1}}
+        .vpm-modal{position:relative;width:100%;max-width:640px;background:#0a0a0a;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 80px rgba(0,0,0,0.8);}
+        .vpm-close{position:absolute;top:10px;right:12px;z-index:10;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:16px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+        .vpm-live-badge{position:absolute;top:10px;left:12px;z-index:10;display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(239,68,68,0.9);border-radius:999px;font-size:11px;font-weight:900;color:#fff;letter-spacing:.06em;}
+        .vpm-live-dot{width:7px;height:7px;border-radius:50%;background:#fff;animation:ncPulse 1.4s ease-in-out infinite;}
+        .vpm-player-wrap{position:relative;width:100%;padding-bottom:56.25%;background:#000;}
+        .vpm-iframe,.vpm-video{position:absolute;inset:0;width:100%;height:100%;border:none;}
+        .vpm-controls{display:flex;align-items:center;gap:10px;padding:10px 14px 4px;}
+        .vpm-playbtn{background:rgba(255,255,255,0.08);border:none;color:#fff;font-size:16px;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .vpm-bar{flex:1;height:5px;border-radius:999px;background:rgba(255,255,255,0.12);position:relative;cursor:pointer;}
+        .vpm-bar--live{cursor:default;}
+        .vpm-fill{height:100%;border-radius:999px;background:#ef4444;pointer-events:none;transition:width .1s linear;}
+        .vpm-bar:not(.vpm-bar--live) .vpm-fill{background:#60a5fa;}
+        .vpm-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;background:#fff;pointer-events:none;}
+        .vpm-time{font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0;}
+        .vpm-title{padding:8px 14px 2px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.88);line-height:1.4;}
+        .vpm-source{padding:0 14px 12px;font-size:11px;color:rgba(255,255,255,0.35);font-weight:600;}
+      `}</style>
+    </div>
+  );
+};
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -202,8 +392,8 @@ function buildLatestFeed(articles, videos, category, liveIds) {
 
 // ── Live card component (compact, for LIVE section) ──────────────────────────
 const LiveNewsCard = ({ article, onClick }) => {
-  const ts = useRelTime(article.published_at);
-  const live = isLiveArticle(article.published_at);
+  const ts = useSmartRelTime(article.published_at);
+  const live = isReallyLive(article.published_at);
 
   // Favicon
   const [favOk, setFavOk] = useState(true);
@@ -234,7 +424,10 @@ const LiveNewsCard = ({ article, onClick }) => {
             </span>
           )}
           <span className="lnc-source">{article.source_name}</span>
-          {ts && <span className="lnc-ts">{ts}</span>}
+          {live
+            ? <span className="lnc-ts lnc-ts-live">🔴 LIVE NOW</span>
+            : ts && <span className="lnc-ts">{ts}</span>
+          }
         </div>
         <p className="lnc-title">{article.title}</p>
       </div>
@@ -444,7 +637,8 @@ const NewBanner = ({ count, onShow }) => {
   );
 };
 
-const ScrollFAB = () => {
+// ── [NAV] Prev / Next page FAB — horizontal on mobile, vertical on desktop ────
+const ScrollFAB = ({ feed, activeIdx, onNav }) => {
   const [show, setShow] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const [atBot, setAtBot] = useState(false);
@@ -463,7 +657,7 @@ const ScrollFAB = () => {
       const ch = el ? el.clientHeight : window.innerHeight;
       setAtTop(top < 120);
       setAtBot(top + ch >= sh - 120);
-      setShow(top > 300);
+      setShow(top > 200);
     };
     const s = getS();
     if (s) s.addEventListener("scroll", upd, { passive: true });
@@ -474,61 +668,66 @@ const ScrollFAB = () => {
       if (s2) s2.removeEventListener("scroll", upd);
       else window.removeEventListener("scroll", upd);
     };
-  }, []); // eslint-disable-line
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const go = (dir) => {
     const el = getS(),
-      t =
-        dir === "top"
-          ? 0
-          : el
-            ? el.scrollHeight
-            : document.documentElement.scrollHeight;
+      t = dir === "top" ? 0 : el ? el.scrollHeight : document.documentElement.scrollHeight;
     if (el) el.scrollTo({ top: t, behavior: "smooth" });
     else window.scrollTo({ top: t, behavior: "smooth" });
   };
+
+  const total = feed ? feed.length : 0;
+  const hasPrev = activeIdx > 0;
+  const hasNext = activeIdx < total - 1;
+
   if (!show) return null;
   return (
     <>
-      <div className="sfab-pill">
-        <button
-          className={`sfab-btn${atTop ? " sfab-dim" : ""}`}
-          onClick={() => !atTop && go("top")}
-          disabled={atTop}
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
+      {/* ── Desktop: vertical pill (up/down scroll) ─────────────────────────── */}
+      <div className="sfab-pill sfab-desktop">
+        <button className={`sfab-btn${atTop ? " sfab-dim" : ""}`} onClick={() => !atTop && go("top")} disabled={atTop}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
         </button>
         <div className="sfab-sep" />
-        <button
-          className={`sfab-btn${atBot ? " sfab-dim" : ""}`}
-          onClick={() => !atBot && go("bottom")}
-          disabled={atBot}
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+        <button className={`sfab-btn${atBot ? " sfab-dim" : ""}`} onClick={() => !atBot && go("bottom")} disabled={atBot}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
         </button>
       </div>
-      <style>{`.sfab-pill{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:7900;display:flex;flex-direction:column;align-items:center;background:rgba(12,12,12,0.94);border:1px solid rgba(132,204,22,0.22);border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.55);animation:sfabIn .25s cubic-bezier(0.34,1.2,0.64,1) both;}@keyframes sfabIn{from{opacity:0;transform:translateY(-50%) scale(0.8)}to{opacity:1;transform:translateY(-50%) scale(1)}}.sfab-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#84cc16;cursor:pointer;transition:background .15s,transform .1s;padding:0;}.sfab-btn:not(.sfab-dim):hover{background:rgba(132,204,22,0.12);transform:scale(1.1);}.sfab-btn.sfab-dim{color:rgba(255,255,255,0.15);cursor:default;}.sfab-sep{width:22px;height:1px;background:rgba(132,204,22,0.12);}@media(max-width:768px){.sfab-pill{right:10px;}}`}</style>
+
+      {/* ── Mobile: horizontal prev/next pill ───────────────────────────────── */}
+      {onNav && total > 1 && (
+        <div className="sfab-pill sfab-mobile sfab-horiz">
+          <button className={`sfab-btn${!hasPrev ? " sfab-dim" : ""}`} onClick={() => hasPrev && onNav(activeIdx - 1)} disabled={!hasPrev} title="Previous">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+          <div className="sfab-sep sfab-sep-v" />
+          <span className="sfab-count">{activeIdx + 1}/{total}</span>
+          <div className="sfab-sep sfab-sep-v" />
+          <button className={`sfab-btn${!hasNext ? " sfab-dim" : ""}`} onClick={() => hasNext && onNav(activeIdx + 1)} disabled={!hasNext} title="Next">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        .sfab-pill{position:fixed;z-index:7900;display:flex;align-items:center;background:rgba(12,12,12,0.94);border:1px solid rgba(132,204,22,0.22);border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.55);animation:sfabIn .25s cubic-bezier(0.34,1.2,0.64,1) both;}
+        @keyframes sfabIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+        .sfab-desktop{right:18px;top:50%;transform:translateY(-50%);flex-direction:column;}
+        .sfab-mobile{display:none;}
+        .sfab-horiz{flex-direction:row;bottom:80px;left:50%;transform:translateX(-50%);}
+        .sfab-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#84cc16;cursor:pointer;transition:background .15s,transform .1s;padding:0;flex-shrink:0;}
+        .sfab-btn:not(.sfab-dim):hover{background:rgba(132,204,22,0.12);transform:scale(1.1);}
+        .sfab-btn.sfab-dim{color:rgba(255,255,255,0.15);cursor:default;}
+        .sfab-sep{background:rgba(132,204,22,0.12);}
+        .sfab-desktop .sfab-sep{width:22px;height:1px;}
+        .sfab-sep-v{width:1px;height:22px;}
+        .sfab-count{font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);padding:0 6px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+        @media(max-width:768px){
+          .sfab-desktop{display:none;}
+          .sfab-mobile{display:flex;}
+        }
+      `}</style>
     </>
   );
 };
@@ -556,6 +755,8 @@ const NewsTab = React.forwardRef(function NewsTab(
   const [fetching, setFetching] = useState(false);
   const [initialDone, setInitialDone] = useState(initialNews.length > 0);
   const [fullscreenArticle, setFullscreenArticle] = useState(null);
+  const [activeVideoModal, setActiveVideoModal] = useState(null);
+  const [activeVideoIdx, setActiveVideoIdx] = useState(0);
 
   // [L1] Force live section to re-evaluate every 15s
   const [liveTick, setLiveTick] = useState(0);
@@ -620,7 +821,7 @@ const NewsTab = React.forwardRef(function NewsTab(
     fetchAllVideos(true)
       .then(setVideos)
       .catch(() => {});
-  }, []); // eslint-disable-line — once on mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── [L4] Poll every 30s ────────────────────────────────────────────────────
   useEffect(() => {
@@ -738,7 +939,7 @@ const NewsTab = React.forwardRef(function NewsTab(
 
   // ── [L1] Build feeds (re-runs every liveTick) ─────────────────────────────
   const liveFeed = buildLiveFeed(articles, activeFilter);
-  const liveIds = new Set(liveFeed.map((a) => a.id)); // eslint-disable-line
+  const liveIds = new Set(liveFeed.map((a) => a.id)); // eslint-disable-line react-hooks/exhaustive-deps
   const latestFeed = buildLatestFeed(articles, videos, activeFilter, liveIds);
 
   return (
@@ -792,14 +993,15 @@ const NewsTab = React.forwardRef(function NewsTab(
           )}
 
           {/* ── [L2] LATEST FEED — articles + videos chronological ────────── */}
-          {latestFeed.map((item) => {
+          {latestFeed.map((item, idx) => {
             const isNew = freshIds.has(item.id);
             if (item._type === "video") {
               return (
                 <div
                   key={item.id || item.videoId}
                   className={isNew ? "nt-item-new" : undefined}
-                  style={{ padding: "0 0 2px" }}
+                  style={{ padding: "0 0 2px", cursor: "pointer" }}
+                  onClick={() => { setActiveVideoModal(item); setActiveVideoIdx(idx); }}
                 >
                   <VideoCard video={item} />
                 </div>
@@ -864,7 +1066,16 @@ const NewsTab = React.forwardRef(function NewsTab(
       />
       {isLoadingMore && <LoadingMore />}
       {!hasMore && latestFeed.length > 0 && <EndOfFeed />}
-      <ScrollFAB />
+      <ScrollFAB
+        feed={latestFeed}
+        activeIdx={activeVideoIdx}
+        onNav={(idx) => {
+          setActiveVideoIdx(idx);
+          const item = latestFeed[idx];
+          if (item?._type === "video") setActiveVideoModal(item);
+          else setActiveVideoModal(null);
+        }}
+      />
 
       {/* ── Fullscreen reader from live card click ─────────────────────────── */}
       {fullscreenArticle && (
@@ -873,6 +1084,14 @@ const NewsTab = React.forwardRef(function NewsTab(
           currentUser={currentUser}
           _forceOpen
           onClose={() => setFullscreenArticle(null)}
+        />
+      )}
+
+      {/* ── [V3] Video player modal ────────────────────────────────────────── */}
+      {activeVideoModal && (
+        <VideoPlayerModal
+          video={activeVideoModal}
+          onClose={() => setActiveVideoModal(null)}
         />
       )}
 
@@ -930,6 +1149,7 @@ const LNC_CSS = `
 .lnc-fav-fallback{width:16px;height:16px;border-radius:4px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#60a5fa;flex-shrink:0;}
 .lnc-source{font-size:11px;font-weight:700;color:rgba(255,255,255,0.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
 .lnc-ts{font-size:10px;color:rgba(255,255,255,0.22);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0;}
+.lnc-ts-live{font-size:10px;font-weight:900;color:#fca5a5;margin-left:auto;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;}
 .lnc-title{font-size:13px;font-weight:700;color:rgba(255,255,255,0.82);line-height:1.45;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
 .lnc-dot-wrap{width:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 .lnc-indicator{width:7px;height:7px;border-radius:50%;background:rgba(239,68,68,0.25);border:1px solid rgba(239,68,68,0.3);display:block;}
