@@ -7,26 +7,22 @@
 //   1 $XEV = 10 EP
 //   1 $XEV = $0.10 USD
 //
-// EP IS THE INTERNAL ECONOMY CURRENCY:
-//   - EP is minted on NGN deposit  (1 EP per ₦1)
-//   - EP is minted on USD deposit  (100 EP per $1)
-//   - EP is minted on XEV purchase (10 EP per 1 XEV)
-//   - EP is burned on every send transaction (burn table)
-//   - EP is transferred on social actions (3-way split):
-//       Actor  → pays EP cost
-//       Author → receives EP reward
-//       Platform wallet → receives protocol fee (10%)
-//   - EP cannot be withdrawn externally
-//   - EP is used in PayWave (1 EP = ₦1 internally)
-//   - EP is swappable to $XEV at platform rate (10 EP = 1 XEV)
+// EP MINT FIX (critical):
+//   Previously: NGN deposits minted 1 EP per ₦1, so a $4 payment
+//   processed as ₦5,380 would mint 5,380 EP — wildly wrong.
 //
-// SOCIAL ACTION FLOW (ATOMIC via RPC):
-//   User A likes User B's post →
-//     debit  User A:        1 EP  (cost to engage)
-//     credit User B:        1 EP  (content reward)
-//     credit Platform:      0.1 EP (protocol fee — 10%)
-//   All three happen in ONE database transaction.
-//   If User A has < 1.1 EP the action is blocked.
+//   Correct logic: NGN is just the local payment vehicle for a
+//   USD-denominated product. We always mint EP based on the USD
+//   value of the purchase:
+//     $4 USD × 100 EP/USD = 400 EP  ✓
+//
+//   computeEPMint("NGN", ngnAmount) now converts NGN → USD using
+//   the live/cached rate first, then applies EP_PER_USD.
+//   The cached rate from depositFundService is used; if unavailable
+//   it falls back to a safe 1500 NGN/USD default (conservative, not
+//   inflationary). The webhook/edge function should pass the
+//   actual USD amount directly when possible — use "USD" currency
+//   tag for that path so no conversion is needed.
 // ════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
@@ -41,8 +37,6 @@ const PLATFORM_WALLET_USER_ID =
 const PROTOCOL_FEE_RATE = 0.1;
 
 // ── EP award amounts by engagement type ──────────────────────────
-// These are what the CONTENT OWNER receives.
-// The LIKER/COMMENTER/SHARER pays this amount + protocol fee.
 export const EP_AWARDS = {
   post_like_received:        1,
   post_comment_received:     2,
@@ -56,19 +50,20 @@ export const EP_AWARDS = {
   gift_received_medium:      25,
   gift_received_large:       50,
   follow_received:           2,
-  // ── Deposit minting rates (CORRECTED) ──────────────────────────
-  // 1 USD  = 100 EP  →  per-unit rates:
-  deposit_per_ngn:           1,    // 1 EP per ₦1   (NGN peg: 1 EP = ₦1)
-  deposit_per_usd:           EP_PER_USD,   // 100 EP per $1
-  deposit_per_xev:           EP_PER_XEV,   // 10 EP per 1 XEV
-  // ── Platform-funded ────────────────────────────────────────────
-  daily_login:               5,
-  referral:                  20,
+
+  // ── Deposit minting rates ────────────────────────────────────
+  // IMPORTANT: NGN is NOT minted at 1 EP/₦1.
+  // NGN deposits must be converted to USD first (see computeEPMint).
+  // These rates apply to their named currency directly:
+  deposit_per_usd:  EP_PER_USD,   // 100 EP per $1 USD
+  deposit_per_xev:  EP_PER_XEV,   //  10 EP per 1 XEV
+
+  // daily / referral
+  daily_login:  5,
+  referral:    20,
 };
 
 // ── EP burn table for wallet SEND operations ─────────────────────
-// Denominated in XEV amount being sent.
-// Social actions use a flat 10% protocol fee instead.
 export const EP_BURN_TABLE = [
   { maxXev: 1,        burn: 0.5 },
   { maxXev: 5,        burn: 2   },
@@ -76,11 +71,6 @@ export const EP_BURN_TABLE = [
   { maxXev: Infinity, burn: 10  },
 ];
 
-/**
- * Compute EP burn for a XEV send.
- * @param {number} xevAmount - Amount being sent in XEV
- * @returns {number} EP to burn
- */
 export function computeEPBurn(xevAmount) {
   const x = parseFloat(xevAmount) || 0;
   for (const row of EP_BURN_TABLE) {
@@ -90,52 +80,81 @@ export function computeEPBurn(xevAmount) {
 }
 
 // ── Swap rate ─────────────────────────────────────────────────────
-/**
- * EP ↔ XEV swap at canonical rate.
- * @param {"ep_to_xev"|"xev_to_ep"} direction
- * @param {number} amount
- * @returns {number}
- */
 export function computeSwapAmount(direction, amount) {
   const a = parseFloat(amount) || 0;
-  if (direction === "ep_to_xev") return a / EP_PER_XEV;  // 10 EP → 1 XEV
-  if (direction === "xev_to_ep") return a * EP_PER_XEV;  // 1 XEV → 10 EP
+  if (direction === "ep_to_xev") return a / EP_PER_XEV;
+  if (direction === "xev_to_ep") return a * EP_PER_XEV;
   return 0;
 }
 
 // ── EP mint amounts for deposits ──────────────────────────────────
-/**
- * How many EP to mint for a deposit.
- * @param {"NGN"|"USD"|"USDT"|"XEV"} currency
- * @param {number} amount
- * @returns {number}
- */
-export function computeEPMint(currency, amount) {
-  const a = parseFloat(amount) || 0;
+//
+// KEY FIX: NGN is the *payment vehicle*, not the *unit of value*.
+// A user paying $4 via Paystack is charged ₦5,380 (at ~1345 NGN/USD).
+// We must mint EP based on the USD value ($4), not the NGN amount (₦5,380).
+//
+// Rule:
+//   "USD" | "USDT" → amount × 100 EP/USD              (direct)
+//   "XEV"          → amount × 10 EP/XEV               (direct)
+//   "NGN"          → (amount / usdNgnRate) × 100 EP/USD (convert first)
+//
+// The usdNgnRate defaults to 1500 as a safe conservative fallback.
+// In production the webhook should pass "USD" + the verified USD amount
+// so no conversion is required at all.
+//
+export function computeEPMint(currency, amount, usdNgnRate = null) {
+  const a    = parseFloat(amount) || 0;
+  const rate = usdNgnRate || _getStoredUSDNGN();
+
   switch (currency) {
-    case "NGN":  return Math.floor(a * EP_AWARDS.deposit_per_ngn);  // 1 EP/₦1
     case "USD":
-    case "USDT": return Math.floor(a * EP_AWARDS.deposit_per_usd);  // 100 EP/$1
-    case "XEV":  return Math.floor(a * EP_AWARDS.deposit_per_xev);  // 10 EP/XEV
-    default:     return 0;
+    case "USDT":
+      // Direct: $1 = 100 EP
+      return Math.floor(a * EP_PER_USD);
+
+    case "XEV":
+      // Direct: 1 XEV = 10 EP
+      return Math.floor(a * EP_PER_XEV);
+
+    case "NGN": {
+      // Convert NGN → USD first, then apply USD rate
+      // e.g. ₦5,380 ÷ 1345 = $4.00 → $4 × 100 = 400 EP  ✓
+      const usdEquiv = a / rate;
+      return Math.floor(usdEquiv * EP_PER_USD);
+    }
+
+    default:
+      return 0;
+  }
+}
+
+// ── Retrieve cached NGN/USD rate ──────────────────────────────────
+// depositFundService keeps a live rate. We read it from there if we
+// can, otherwise fall back to a safe conservative default.
+// 1500 is intentionally conservative (slightly below market) to avoid
+// over-minting EP if the rate cache is stale.
+function _getStoredUSDNGN() {
+  try {
+    // depositFundService exports getCachedUSDNGN — import lazily to
+    // avoid circular dep at module load time.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getCachedUSDNGN } = require("../wallet/depositFundService");
+    const r = getCachedUSDNGN();
+    return r && r > 100 ? r : 1500;
+  } catch {
+    return 1500; // safe fallback: conservative, never over-mints
   }
 }
 
 // ── USD display value of EP ───────────────────────────────────────
-export function epToUsd(ep)  { return parseFloat(ep) / EP_PER_USD; }
-export function epToXev(ep)  { return parseFloat(ep) / EP_PER_XEV; }
-export function xevToUsd(xev){ return parseFloat(xev) * USD_PER_XEV; }
+export function epToUsd(ep)   { return parseFloat(ep) / EP_PER_USD; }
+export function epToXev(ep)   { return parseFloat(ep) / EP_PER_XEV; }
+export function xevToUsd(xev) { return parseFloat(xev) * USD_PER_XEV; }
 
 // ─────────────────────────────────────────────────────────────────
 // CORE: 3-WAY EP TRANSFER (social action economics)
 // ─────────────────────────────────────────────────────────────────
-async function _transferEPWithFee({
-  fromUserId,
-  toUserId,
-  epAmount,
-  reason,
-  metadata = {},
-}) {
+async function _transferEPWithFee({ fromUserId, toUserId, epAmount, reason, metadata = {} }) {
   if (!fromUserId || !toUserId) return { success: false, error: "Missing user IDs" };
   if (fromUserId === toUserId)  return { success: false, error: "Cannot transfer to self" };
 
@@ -162,7 +181,6 @@ async function _transferEPWithFee({
 // ─────────────────────────────────────────────────────────────────
 export const epService = {
 
-  // ── Get EP balance ────────────────────────────────────────────
   async getBalance(userId) {
     const { data, error } = await supabase
       .from("wallets")
@@ -173,7 +191,6 @@ export const epService = {
     return data?.engagement_points || 0;
   },
 
-  // ── Get EP dashboard ──────────────────────────────────────────
   async getDashboard(userId) {
     const { data, error } = await supabase
       .from("ep_dashboard")
@@ -184,7 +201,6 @@ export const epService = {
     return data;
   },
 
-  // ── Get EP transaction history ────────────────────────────────
   async getHistory(userId, limit = 30) {
     const { data, error } = await supabase
       .from("ep_transactions")
@@ -196,10 +212,7 @@ export const epService = {
     return data || [];
   },
 
-  // ─────────────────────────────────────────────────────────────
-  // SOCIAL ACTION TRANSFERS
-  // ─────────────────────────────────────────────────────────────
-
+  // ── Social action transfers ────────────────────────────────────
   async awardForLike(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_like_received`] ?? 1;
     return _transferEPWithFee({
@@ -236,7 +249,6 @@ export const epService = {
     });
   },
 
-  // Gifts: direct credit to recipient only (XEV purchase funds the cost)
   async awardForGift(recipientId, giftTier = "small", senderId = null) {
     const epAmount = EP_AWARDS[`gift_received_${giftTier}`] ?? 10;
     return this._directCreditEP(recipientId, epAmount, `gift_received_${giftTier}`, {
@@ -244,7 +256,6 @@ export const epService = {
     });
   },
 
-  // Follow: platform-funded
   async awardForFollow(followedUserId, followerId = null) {
     return this._directCreditEP(followedUserId, EP_AWARDS.follow_received, "follow_received", {
       follower_id: followerId,
@@ -261,42 +272,48 @@ export const epService = {
     });
   },
 
-  // ── Mint EP on deposit ────────────────────────────────────────
-  // Correctly uses currency-aware minting rates.
-  async mintOnDeposit(userId, amount, currency = "NGN") {
-    const epToMint = computeEPMint(currency, amount);
+  // ── Mint EP on deposit ─────────────────────────────────────────
+  // ALWAYS pass usdAmount when available (from webhook/server).
+  // If only NGN is available (legacy path), pass currency="NGN" and
+  // the function will convert using the cached rate.
+  //
+  // Preferred call from webhook: mintOnDeposit(userId, usdAmount, "USD")
+  // Legacy call:                 mintOnDeposit(userId, ngnAmount, "NGN")
+  async mintOnDeposit(userId, amount, currency = "NGN", usdNgnRate = null) {
+    const epToMint = computeEPMint(currency, amount, usdNgnRate);
     if (epToMint <= 0) return null;
+
+    const rateUsed = currency === "NGN"
+      ? `(₦${amount} ÷ ${usdNgnRate || _getStoredUSDNGN()} = $${(amount / (usdNgnRate || _getStoredUSDNGN())).toFixed(4)}) × ${EP_PER_USD} EP/USD`
+      : currency === "XEV"
+      ? `${EP_PER_XEV} EP/XEV`
+      : `${EP_PER_USD} EP/$1`;
+
     return this._directCreditEP(userId, epToMint, "deposit_mint", {
-      amount, currency,
-      // Log the rates used for auditability
-      rate_used: currency === "NGN"
-        ? "1 EP/₦1"
-        : currency === "XEV"
-        ? `${EP_PER_XEV} EP/XEV`
-        : `${EP_PER_USD} EP/$1`,
+      amount,
+      currency,
+      ep_minted:  epToMint,
+      rate_used:  rateUsed,
     });
   },
 
-  // ── Burn EP for wallet send ───────────────────────────────────
+  // ── Burn EP for wallet send ────────────────────────────────────
   async burnForTransaction(userId, burnAmount, reason = "tx_burn") {
     if (burnAmount <= 0) return { success: true, burned: 0 };
-
     const { data, error } = await supabase.rpc("burn_ep", {
       p_user_id:          userId,
       p_amount:           burnAmount,
       p_platform_user_id: PLATFORM_WALLET_USER_ID,
       p_reason:           reason,
     });
-
     if (error) {
       console.error("[epService] burn_ep error:", error);
       return { success: false, error: error.message };
     }
-
     return { success: true, burned: burnAmount, data };
   },
 
-  // ── Direct credit (platform-funded) ──────────────────────────
+  // ── Direct credit (platform-funded) ───────────────────────────
   async _directCreditEP(userId, epAmount, reason, metadata = {}) {
     const { data, error } = await supabase.rpc("credit_ep", {
       p_user_id:  userId,
@@ -304,19 +321,17 @@ export const epService = {
       p_reason:   reason,
       p_metadata: JSON.stringify(metadata),
     });
-
     if (error) {
       console.error("[epService] credit_ep error:", error);
       return { success: false, error: error.message };
     }
-
     return { success: true, awarded: epAmount, total: data };
   },
 
   // ── Affordability check ───────────────────────────────────────
   async checkCanAfford(userId, epAmount) {
-    const fee      = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
-    const required = epAmount + fee;
+    const fee       = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
+    const required  = epAmount + fee;
     const available = await this.getBalance(userId);
     return { canAfford: available >= required, required, available, fee };
   },
@@ -344,7 +359,7 @@ export const epService = {
     return parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
   },
 
-  // ── Conversion helpers (re-exported for convenience) ──────────
+  // ── Conversion helpers ────────────────────────────────────────
   epToUsd,
   epToXev,
   xevToUsd,

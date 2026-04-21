@@ -1,15 +1,14 @@
+// src/components/Support/HelpTab.jsx
+// ============================================================================
+// TIER LANGUAGE UPDATED:
+//   Subscription tiers: free | silver | gold | diamond
+//   Reward levels: none | silver | gold | diamond (earned, not bought)
+//   Withdrawal limits: L1=$100 L2=$250 L3=$500 L4=$2,000 L5=$10,000
+//   Removed: whitelist, standard, vip, pro, is_pro references
+//   Deposit limits table updated to reflect actual tier structure
+// ============================================================================
 import React, { useState } from "react";
 import { ChevronRight, Clock, Book, Search, ArrowLeft, Sparkles } from "lucide-react";
-
-// ─── HELP TOPICS DATA ────────────────────────────────────────────────────────
-// Key facts:
-// - Publishing posts/reels/stories is FREE
-// - EP is spent on interactions: like = 2 EP, comment = 4 EP
-// - Subscription tiers: free | whitelist | standard | vip | silver | gold | diamond
-// - Reward levels: none | silver | gold | diamond (earned by activity score)
-// - Profile boost tiers: silver | gold | diamond
-// - Security level 1–5 controls withdrawal limits
-// - Stream tier controls minutes/month, can_record, max_quality
 
 const HELP_TOPICS = [
   {
@@ -95,11 +94,12 @@ The minimum deposit is **$1.00**, which gives you **100 EP**.
 All payments are processed through PCI-DSS compliant payment processors. Xeevia never stores your card details.
 
 ### Deposit Limits
-| Account Type | Daily Limit |
-|-------------|------------|
-| Standard | $500/day |
-| Verified | Higher limits available |
-| VIP | Custom limits |
+| Subscription | Daily Deposit Limit |
+|-------------|---------------------|
+| Free | $500/day |
+| Silver | $1,000/day |
+| Gold | $5,000/day |
+| Diamond | Unlimited |
 
 ### What Happens to Your Money
 Your deposit converts to EP at the fixed rate of $1 = 100 EP. A 2% protocol fee applies on EP transactions within the ecosystem.`,
@@ -116,24 +116,20 @@ Every EP you earn as a creator is real money. Here's how to withdraw it.
 You can withdraw when you have at least **1,000 EP** in earned (not purchased) EP.
 
 ### Setting Up Your Withdrawal PIN
-Before your first withdrawal, set a 6-digit PIN:
-1. Go to **Wallet → Security Settings**
-2. Tap **Set Withdrawal PIN**
-3. Enter and confirm your 6-digit PIN
-4. PIN is now required for every withdrawal
+Before your first withdrawal, set a PIN in Account → Security → Set Transaction PIN. Your PIN is required for every withdrawal.
 
 ### Withdrawal Limits by Security Level
 Your security level (1–5) determines your daily withdrawal cap:
 
-| Security Level | Daily Limit |
-|---------------|------------|
-| Level 1 | $100 |
-| Level 2 | $250 |
-| Level 3 | $500 |
-| Level 4 | $2,000 |
-| Level 5 | $10,000 |
+| Security Level | Daily Limit | How to Reach It |
+|---------------|------------|-----------------|
+| Level 1 | $100 | Default |
+| Level 2 | $250 | Verify phone number |
+| Level 3 | $500 | Enable 2FA |
+| Level 4 | $2,000 | Set transaction PIN |
+| Level 5 | $10,000 | All steps complete |
 
-Raise your level by verifying your phone, enabling 2FA, binding trusted devices, and maintaining a clean security history.
+Raise your level by verifying your phone, enabling 2FA, and setting a transaction PIN.
 
 ### Withdrawal Methods
 - **Bank Transfer** — 1–3 business days
@@ -154,19 +150,19 @@ Convert XEV to EP at the current exchange rate first, then withdraw EP normally.
 
 When someone engages with your content, they spend EP — and you receive a share of it.
 
-### Creator Revenue Share by Tier
+### Creator Revenue Share by Subscription
 
-| Tier | Creator Share |
+| Subscription | Creator Share |
 |------|--------------|
 | Free | 80% |
-| Standard | 80%+ |
-| VIP | Higher |
-| Silver / Gold / Diamond Boost | Up to 84%+ |
+| Silver | 82% |
+| Gold | 83% |
+| Diamond | 84%+ |
 
 The platform takes a 2% protocol fee on all transactions. The remainder goes to ecosystem rewards, treasury, and operations.
 
 ### Example
-Someone pays **4 EP** to comment on your story (Free tier):
+Someone pays **4 EP** to comment on your story (Free subscription):
 - You receive: ~**3.2 EP** (80%)
 - Protocol fee: **0.08 EP** (2%)
 - Remainder: ecosystem/treasury
@@ -492,7 +488,7 @@ Entertainment, Education, Lifestyle, Business, Technology, Sports & Fitness, Com
     icon:        "📡",
     title:       "Live Streaming",
     description: "Go live, grow your audience, earn EP",
-    color:       "#ef4444",
+    color:       "#f97316",
     articles: [
       {
         id:       "stream-1",
@@ -503,30 +499,23 @@ Entertainment, Education, Lifestyle, Business, Technology, Sports & Fitness, Com
 Live streaming is a powerful way to grow your audience and earn EP in real time.
 
 ### Stream Modes
-You can go live in two modes:
 - **Video** — full camera broadcast
 - **Audio** — audio-only, like a podcast or radio show
 
 ### Public vs. Private Streams
-- **Public streams** are visible to everyone and appear in the Live Now section of the trending panel
-- **Private streams** are invite-only — they don't appear publicly
+- **Public** — visible to everyone, appears in Live Now section
+- **Private** — invite-only, doesn't appear publicly
 
-### Stream Tier Limits
-Your account's stream tier controls three things:
-
-| Setting | What it controls |
-|---------|-----------------|
-| Minutes per month | How long you can stream total each month |
-| Can record | Whether your session can be saved for replay |
-| Max quality | The resolution/quality ceiling of your stream |
-
-Higher subscription tiers grant more streaming time, recording capability, and higher quality caps.
-
-### What Viewers See
-When you're live, your session appears in the Live Now circles strip on the home feed and in the Trending sidebar. Viewers see your peak viewer count, duration, and category.
+### Stream Limits by Subscription
+| Subscription | Minutes/Month | Recording | Max Quality |
+|---------|--------------|-----------|-------------|
+| Free | 60 min | No | 720p |
+| Silver | 300 min | No | 1080p |
+| Gold | 1,000 min | Yes | 1080p |
+| Diamond | Unlimited | Yes | 4K |
 
 ### Earning from Streams
-Viewers can like your stream in real time. Each like costs them 2 EP. You receive your creator share (80–84% depending on your tier) of every interaction during your stream.`,
+Viewers can like your stream in real time. Each like costs them 2 EP. You receive your creator share (80–84% depending on your subscription) of every interaction during your stream.`,
       },
       {
         id:       "stream-2",
@@ -534,18 +523,16 @@ Viewers can like your stream in real time. Each like costs them 2 EP. You receiv
         readTime: "3 min",
         content: `## Recording Your Live Sessions
 
-Whether your session gets recorded depends on your stream tier.
+Whether your session gets recorded depends on your subscription.
 
 ### How Recording Works
-If your tier includes recording:
+If your subscription includes recording (Gold or Diamond):
 - Your stream is saved automatically when you end it
 - Viewers can replay it from your profile
-- The recording appears as an audio or video player depending on your stream mode
+- The recording appears as an audio or video player
 
 ### If Recording Is Not Available
-When a session was not recorded (either because your tier doesn't include it, or you opted out), viewers who visit your past session will see a **"Session not recorded"** card.
-
-This card still shows:
+Viewers who visit your past session will see a **"Session not recorded"** card showing:
 - Peak viewers from your live session
 - Total likes received during the stream
 - Duration of the stream
@@ -553,11 +540,8 @@ This card still shows:
 
 Your stats are always preserved — even without a recording.
 
-### Upgrading for Recording
-To unlock recording capability, upgrade your stream tier through your account settings. Recording is available on mid-tier and higher plans.
-
 ### Session History
-All your past sessions — recorded or not — appear in your public streamer profile under Stream History. Each session shows its date, title, category, mode, and live stats.`,
+All your past sessions appear in your public streamer profile. Each session shows its date, title, category, mode, and live stats.`,
       },
       {
         id:       "stream-3",
@@ -569,7 +553,7 @@ All your past sessions — recorded or not — appear in your public streamer pr
 - **Set a strong title** — 1–120 characters, makes you discoverable
 - **Choose the right category** — this determines who sees you in discovery
 - **Test your audio/camera** first on a private stream
-- **Announce in advance** — post a teaser before you go live so followers know to tune in
+- **Announce in advance** — post a teaser before you go live
 
 ### During the Stream
 - Acknowledge new viewers by name when possible
@@ -577,18 +561,8 @@ All your past sessions — recorded or not — appear in your public streamer pr
 - React visibly to likes — viewers can see you reacting, which encourages more
 - Keep streams focused — a clear topic outperforms a vague session every time
 
-### After the Stream
-Your session stats lock in once you end — peak viewers, total likes, and duration. These contribute permanently to your Top Streamer ranking on the platform.
-
-If your tier includes recording, your replay will be available within minutes of ending the stream.
-
 ### Audio vs. Video
-Audio streams work extremely well for:
-- Interviews and conversations
-- Storytelling and narration
-- Music and ambient content
-
-They require less bandwidth and are easier to produce consistently.`,
+Audio streams work extremely well for interviews, storytelling, and music. They require less bandwidth and are easier to produce consistently.`,
       },
     ],
   },
@@ -608,30 +582,29 @@ They require less bandwidth and are easier to produce consistently.`,
 Your Xeevia account holds real money and real content. Protecting it requires multiple layers.
 
 ### Security Level System (1–5)
-Your security level controls your withdrawal limits and platform trust. It increases as you complete these steps:
+Your security level controls withdrawal limits. It increases as you complete these steps:
 
-| Step | Raises Level |
-|------|-------------|
-| Verify phone number | Yes |
-| Enable 2FA | Yes |
-| Set withdrawal PIN | Yes |
-| Bind trusted devices | Yes |
-| Clean security history | Maintained |
-
-Higher security levels unlock higher daily withdrawal limits — up to $10,000/day at Level 5.
+| Step | Effect |
+|------|--------|
+| Default (account created) | Level 1 — $100/day |
+| Verify phone number | Reach Level 2 — $250/day |
+| Enable 2FA | +2 levels (biggest boost) |
+| Set withdrawal PIN | Reach Level 4 — $2,000/day |
+| All steps complete | Level 5 — $10,000/day |
 
 ### Your Withdrawal PIN
-A separate 6-digit code required for all financial transactions. Even if someone accesses your account, they cannot withdraw your funds without this PIN.
+A separate PIN required for all financial transactions. Even if someone accesses your account, they cannot withdraw funds without this PIN.
 
 **Rules:**
 - Don't use sequential numbers (123456)
 - Don't use your birth year
 - Don't share with anyone — Xeevia support will **never** ask for your PIN
 
-### Trusted Devices
-Xeevia tracks your login devices. You can view and manage trusted devices in: **Account → Security → Trusted Devices**
+### Two-Factor Authentication (2FA)
+2FA is the single biggest security upgrade you can make. It adds a time-based code from your authenticator app (Google Authenticator, Authy) that is required on every login. Enable it in **Account → Security → Two-Factor Auth**.
 
-Remove any device you don't recognize immediately.
+### Trusted Devices
+Manage trusted devices in **Account → Security → Trusted Devices**. Remove any device you don't recognize immediately.
 
 ### Suspicious Activity
 Signs your account may be compromised:
@@ -639,7 +612,7 @@ Signs your account may be compromised:
 - Content posted that you didn't create
 - Wallet transactions you didn't authorize
 
-**Immediate action:** Go to **Account → Security → Active Sessions → End All Sessions**. Then change your connected provider's password.`,
+**Immediate action:** Go to **Account → Security → Active Sessions → End All Sessions**, then change your password.`,
       },
       {
         id:       "sec-2",
@@ -654,23 +627,16 @@ Signs your account may be compromised:
 To switch: **Account → Privacy → Profile Visibility**
 
 ### Account Status
-Your account can be in one of three states:
 - **Active** — normal access, full platform features
-- **Deactivated** — you temporarily disabled your account; you can reactivate at any time
-- **Suspended** — the platform restricted your account due to a policy violation; you'll see the reason and can appeal through support
+- **Deactivated** — temporarily disabled by you; reactivate any time
+- **Suspended** — restricted by platform due to policy violation; appeal through support
 
 ### What Xeevia Collects
 - Account information: email, name, username
 - Content you create
-- Engagement activity (likes, comments, unlocks you perform)
+- Engagement activity (likes, comments, unlocks)
 - Device information for security (browser, device, IP)
 - Financial: transaction history only (never card numbers)
-
-### What Xeevia Does NOT Collect
-- Your contact lists
-- Location (unless you share it in content)
-- Microphone or camera when not actively streaming
-- Browsing history outside of Xeevia
 
 ### Data Export & Deletion
 Request your data: **Account → Privacy → Export My Data**
@@ -685,17 +651,14 @@ On deletion: content removed within 30 days, financial records retained 7 years 
 
 ### Common Scam Types
 
-**The "Boost Your Views" Scam**
-Fake services promise to buy EP engagement cheaply. These steal your money, your credentials, or deliver fake engagement that gets your account penalized.
-
 **The "Investment" Scam**
-Someone offers to multiply your XEV through an "exclusive staking pool" outside the platform. XEV can only be staked through the official Xeevia wallet.
+Someone offers to multiply your XEV through an external pool. XEV can only be staked through the official Xeevia wallet.
 
 **The "Verification" Scam**
 A message claiming to be from Xeevia support asking for your withdrawal PIN or password. Xeevia will **never** ask for these. Ever.
 
 **Phishing**
-Fake Xeevia websites designed to steal your login. Always verify the URL: it must be **app.xeevia.com** or a subdomain of **xeevia.com**.
+Fake Xeevia websites designed to steal your login. Always verify the URL: it must be **app.xeevia.xyz** or a subdomain of **xeevia.xyz**.
 
 ### Red Flags
 🚩 Anyone asking for your withdrawal PIN
@@ -760,7 +723,6 @@ Filter by date, type, and amount. Export as CSV.`,
         content: `## Handling Transaction Issues
 
 ### Unauthorized Transaction
-If you see a transaction you didn't make:
 1. Check if someone else has access to your account
 2. End all active sessions: **Account → Security → End All Sessions**
 3. Submit a support ticket immediately with the transaction ID
@@ -872,7 +834,6 @@ function renderMarkdown(text) {
 }
 
 // ─── ARTICLE VIEW ─────────────────────────────────────────────────────────────
-
 function ArticleView({ article, topic, onBack, onContact }) {
   return (
     <div>
@@ -906,7 +867,6 @@ function ArticleView({ article, topic, onBack, onContact }) {
 }
 
 // ─── TOPIC VIEW ───────────────────────────────────────────────────────────────
-
 function TopicView({ topic, onSelectArticle, onBack }) {
   return (
     <div>
@@ -952,7 +912,6 @@ function TopicView({ topic, onSelectArticle, onBack }) {
 }
 
 // ─── MAIN HELP TAB ────────────────────────────────────────────────────────────
-
 export default function HelpTab({ onNavigateToContact, onViewChange }) {
   const [view,          setView]          = useState("topics");
   const [activeTopic,   setActiveTopic]   = useState(null);

@@ -9,6 +9,10 @@
 //
 // Visual updates are CSS-transitioned so boost activations / cancellations
 // feel fluid rather than jarring.
+//
+// KEY: currentUser must be passed in from the parent so UserProfileModal can
+// render the follow button correctly. PostCard (and all other callers) must
+// forward their currentUser prop here.
 // ============================================================================
 
 import React, { useState } from "react";
@@ -20,7 +24,7 @@ import { getTierBadge }     from "../../services/account/profileTierService";
 import BoostAvatarRing      from "./BoostAvatarRing";
 import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 
-// ── Tier colour helpers ───────────────────────────────────────────────────
+// ── Tier colour helpers ───────────────────────────────────────────────────────
 
 const TIER_NAME_COLORS = {
   silver:  "#d4d4d4",
@@ -40,13 +44,12 @@ const DIAMOND_THEME_COLORS = {
 
 const getNameColor = (tier, themeId) => {
   if (!tier || !TIER_NAME_COLORS[tier]) return null;
-  if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId]) {
+  if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
     return DIAMOND_THEME_COLORS[themeId];
-  }
   return TIER_NAME_COLORS[tier];
 };
 
-// ── Tier badge emoji pill ─────────────────────────────────────────────────
+// ── Tier badge emoji pill ─────────────────────────────────────────────────────
 
 const TierBadge = ({ tier, paymentStatus }) => {
   const badge = getTierBadge(tier, paymentStatus);
@@ -69,21 +72,22 @@ const TierBadge = ({ tier, paymentStatus }) => {
   );
 };
 
-// ── Main component ────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 
 const ProfilePreview = ({
   profile,
-  currentUser,
+  currentUser,           // REQUIRED for follow button in UserProfileModal
   size         = "medium",
   layout       = "horizontal",
   showUsername = true,
   className    = "",
+  onClick,               // optional external click override
 }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // ── Resolve static data from props ───────────────────────────────────
+  // ── Resolve static data from props ───────────────────────────────────────
   const resolveUserData = () => {
-    // Flat shape (from post author objects, DMs, etc.)
+    // Flat shape (from post author objects, DMs, notifications, etc.)
     if (profile.userId || profile.author) {
       return {
         userId:            profile.userId || profile.user_id || profile.id,
@@ -91,13 +95,11 @@ const ProfilePreview = ({
         username:          profile.username || "unknown",
         avatar:            profile.avatar,
         verified:          profile.verified || false,
-        propTier:
-          profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
-        propPaymentStatus:
-          profile.payment_status ?? profile.paymentStatus ?? "pending",
+        propTier:          profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
+        propPaymentStatus: profile.payment_status ?? profile.paymentStatus ?? "pending",
         propThemeId:
           profile.boost_selections?.themeId ??
-          profile.boostSelections?.themeId ??
+          profile.boostSelections?.themeId  ??
           null,
       };
     }
@@ -126,16 +128,13 @@ const ProfilePreview = ({
       author,
       username,
       avatar,
-      verified:
-        profileData.verified || profile.verified || false,
-      propTier:
-        profileData.subscription_tier ?? profile.subscription_tier ?? "standard",
-      propPaymentStatus:
-        profileData.payment_status ?? profile.payment_status ?? "pending",
+      verified:          profileData.verified || profile.verified || false,
+      propTier:          profileData.subscription_tier ?? profile.subscription_tier ?? "standard",
+      propPaymentStatus: profileData.payment_status   ?? profile.payment_status    ?? "pending",
       propThemeId:
         profileData.boost_selections?.themeId ??
-        profile.boost_selections?.themeId ??
-        profile.boostSelections?.themeId ??
+        profile.boost_selections?.themeId     ??
+        profile.boostSelections?.themeId      ??
         null,
     };
   };
@@ -151,17 +150,16 @@ const ProfilePreview = ({
     propThemeId,
   } = resolveUserData();
 
-  // ── Live boost tier — the authoritative source ────────────────────────
+  // ── Live boost tier — the authoritative source ────────────────────────────
   const {
     tier:    liveTier,
     themeId: liveThemeId,
     loading: boostLoading,
   } = useUserBoostTier(userId);
 
-  // While the hook's first fetch is in-flight, use the prop values so
-  // the card doesn't flash unstyled. After that, live data always wins.
-  const tier          = boostLoading ? propTier          : (liveTier    ?? null);
-  const themeId       = boostLoading ? propThemeId       : (liveThemeId ?? null);
+  // While the hook's first fetch is in-flight, use prop values to prevent flash
+  const tier          = boostLoading ? propTier    : (liveTier    ?? null);
+  const themeId       = boostLoading ? propThemeId : (liveThemeId ?? null);
   const paymentStatus = propPaymentStatus;
 
   const hasBoostedTier   = ["silver", "gold", "diamond"].includes(tier);
@@ -169,7 +167,7 @@ const ProfilePreview = ({
   const displayNameColor = nameColor ?? "#ffffff";
   const displayUserColor = nameColor ? `${nameColor}90` : "rgba(255,255,255,0.65)";
 
-  // ── Avatar size table ─────────────────────────────────────────────────
+  // ── Avatar size table ─────────────────────────────────────────────────────
   const sizes = {
     small:  { avatar: 32, name: 13, username: 11 },
     medium: { avatar: 42, name: 14, username: 12 },
@@ -177,7 +175,7 @@ const ProfilePreview = ({
   };
   const sz = sizes[size] ?? sizes.medium;
 
-  // ── Enhance avatar URL for full resolution ────────────────────────────
+  // ── Enhance avatar URL ────────────────────────────────────────────────────
   let enhancedAvatar = avatar;
   if (avatar && typeof avatar === "string") {
     const cleanUrl = avatar.split("?")[0];
@@ -197,7 +195,26 @@ const ProfilePreview = ({
 
   const handleClick = (e) => {
     e.stopPropagation();
+    // If caller provided their own onClick, call it too (but don't block modal)
+    if (typeof onClick === "function") onClick(e);
     setShowProfileModal(true);
+  };
+
+  // Build the user object passed to UserProfileModal.
+  // Provide EVERY possible ID key so resolveTargetId() always finds it,
+  // regardless of which shape the modal's resolver checks first.
+  const modalUser = {
+    id:                userId,
+    user_id:           userId,
+    userId:            userId,
+    name:              author,
+    author,
+    username,
+    avatar:            isValidUrl ? enhancedAvatar : avatar,
+    verified,
+    subscription_tier: tier,
+    payment_status:    paymentStatus,
+    boost_selections:  { themeId },
   };
 
   return (
@@ -229,19 +246,19 @@ const ProfilePreview = ({
           {/* Name — live tier colour, smooth transition */}
           <div
             style={{
-              fontSize:      `${sz.name}px`,
-              fontWeight:    700,
-              color:         displayNameColor,
-              display:       "flex",
-              alignItems:    "center",
-              gap:           5,
-              textShadow:    hasBoostedTier
+              fontSize:     `${sz.name}px`,
+              fontWeight:   700,
+              color:        displayNameColor,
+              display:      "flex",
+              alignItems:   "center",
+              gap:          5,
+              textShadow:   hasBoostedTier
                 ? `0 0 14px ${displayNameColor}50`
                 : "0 2px 6px rgba(0,0,0,0.9)",
-              whiteSpace:    "nowrap",
-              overflow:      "hidden",
-              textOverflow:  "ellipsis",
-              transition:    "color 0.4s ease, text-shadow 0.4s ease",
+              whiteSpace:   "nowrap",
+              overflow:     "hidden",
+              textOverflow: "ellipsis",
+              transition:   "color 0.4s ease, text-shadow 0.4s ease",
             }}
           >
             <span>{author}</span>
@@ -290,23 +307,11 @@ const ProfilePreview = ({
         </div>
       </div>
 
-      {/* Profile modal — opened with live tier + themeId already resolved */}
+      {/* Profile modal — portal so it escapes any overflow:hidden ancestor */}
       {showProfileModal &&
         ReactDOM.createPortal(
           <UserProfileModal
-            user={{
-              id:                userId,
-              user_id:           userId,
-              userId,
-              name:              author,
-              author,
-              username,
-              avatar,
-              verified,
-              subscription_tier: tier,
-              payment_status:    paymentStatus,
-              boost_selections:  { themeId },
-            }}
+            user={modalUser}
             currentUser={currentUser}
             onClose={() => setShowProfileModal(false)}
           />,

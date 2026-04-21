@@ -1,16 +1,16 @@
-// ============================================================================
 // src/components/Home/PostCard.jsx
 //
-// NEW in this version:
-//  [DT1] Double-tap to like — tap anywhere on media/body area twice within
-//        350ms triggers a heart burst animation at the tap position and fires
-//        the like action. Works on image, video, and text-only posts.
-//  [DT2] Love burst — floating ❤️ emoji explodes from the tap point,
-//        scales up then fades away. Pure CSS animation via injected keyframes.
-//  [VID] Video pipeline — GlobalVideoState shared across ALL tabs
-//        (Posts, Reels, Stories, News) via a singleton exported from this file.
-//        Any tab can import and control global play/mute state.
-// ============================================================================
+// [DT1] Double-tap to like — tap anywhere on media/body area twice within
+//       350ms triggers a heart burst animation at the tap position and fires
+//       the like action. Works on image, video, and text-only posts.
+// [DT2] Love burst — floating ❤️ emoji explodes from the tap point,
+//       scales up then fades away. Pure CSS animation via injected keyframes.
+// [VID] Video pipeline — GlobalVideoState shared across ALL tabs
+//       (Posts, Reels, Stories, News) via a singleton exported from this file.
+//       Any tab can import and control global play/mute state.
+//
+// KEY FIX: ProfilePreview now receives currentUser so that UserProfileModal
+// (opened by ProfilePreview on author click) can render the follow button.
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
@@ -24,17 +24,17 @@ import {
   UserPlus,
   UserCheck,
 } from "lucide-react";
-import ProfilePreview from "../Shared/ProfilePreview";
-import ReactionPanel from "../Shared/ReactionPanel";
-import ActionMenu from "../Shared/ActionMenu";
-import ParsedText from "../Shared/ParsedText";
-import EditPostModal from "../Modals/EditPostModal";
-import ShareModal from "../Modals/ShareModal";
-import CardPostDisplay from "../MediaUploader/CardPostDisplay";
-import mediaUrlService from "../../services/shared/mediaUrlService";
-import postService from "../../services/home/postService";
+import ProfilePreview     from "../Shared/ProfilePreview";
+import ReactionPanel      from "../Shared/ReactionPanel";
+import ActionMenu         from "../Shared/ActionMenu";
+import ParsedText         from "../Shared/ParsedText";
+import EditPostModal      from "../Modals/EditPostModal";
+import ShareModal         from "../Modals/ShareModal";
+import CardPostDisplay    from "../MediaUploader/CardPostDisplay";
+import mediaUrlService    from "../../services/shared/mediaUrlService";
+import postService        from "../../services/home/postService";
 import FullScreenPostView from "./FullScreenPostView";
-import followService from "../../services/social/followService";
+import followService      from "../../services/social/followService";
 
 // ── Relative timestamp ────────────────────────────────────────────────────────
 const relTime = (dateStr) => {
@@ -188,54 +188,63 @@ const PostCard = ({
   onPostUpdate,
   onPostDelete,
 }) => {
-  const [post, setPost] = useState(initialPost);
-  const [visible, setVisible] = useState(true);
-  const [mediaErrors, setMediaErrors] = useState({});
-  const [activeMedia, setActiveMedia] = useState(0);
+  const [post,               setPost]               = useState(initialPost);
+  const [visible,            setVisible]            = useState(true);
+  const [mediaErrors,        setMediaErrors]        = useState({});
+  const [activeMedia,        setActiveMedia]        = useState(0);
   const [videoPlayingStates, setVideoPlayingStates] = useState({});
-  const [muted, setMuted] = useState(GlobalVideoState.getGlobalMuteState());
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const [captionExpanded, setCaptionExpanded] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState(null);
-  const [showActionMenu, setShowActionMenu] = useState(false);
-  const [actionMenuPos, setActionMenuPos] = useState({ x: 0, y: 0 });
-  const [showFullPost, setShowFullPost] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [textNeedsExpand, setTextNeedsExpand] = useState(false);
-  const [captionNeedsClamp, setCaptionNeedsClamp] = useState(false);
+  const [muted,              setMuted]              = useState(GlobalVideoState.getGlobalMuteState());
+  const [touchStart,         setTouchStart]         = useState(null);
+  const [touchEnd,           setTouchEnd]           = useState(null);
+  const [captionExpanded,    setCaptionExpanded]    = useState(false);
+  const [lightboxImage,      setLightboxImage]      = useState(null);
+  const [showActionMenu,     setShowActionMenu]     = useState(false);
+  const [actionMenuPos,      setActionMenuPos]      = useState({ x: 0, y: 0 });
+  const [showFullPost,       setShowFullPost]       = useState(false);
+  const [showEditModal,      setShowEditModal]      = useState(false);
+  const [showShareModal,     setShowShareModal]     = useState(false);
+  const [isFollowing,        setIsFollowing]        = useState(false);
+  const [textNeedsExpand,    setTextNeedsExpand]    = useState(false);
+  const [captionNeedsClamp,  setCaptionNeedsClamp]  = useState(false);
 
   // [DT2] Love burst state
   const [loveBurst, setLoveBurst] = useState(null);
 
-  const videoRefs = useRef({});
+  const videoRefs    = useRef({});
   const containerRef = useRef(null);
-  const textRef = useRef(null);
-  const captionRef = useRef(null);
-  const deletedRef = useRef(null);
+  const textRef      = useRef(null);
+  const captionRef   = useRef(null);
+  const deletedRef   = useRef(null);
 
   useEffect(() => {
     if (visible) setPost(initialPost);
   }, [initialPost]); // eslint-disable-line
 
   const isOwnPost =
-    post.user_id === currentUser?.id || post.user_id === currentUser?.uid;
+    post.user_id === currentUser?.id  ||
+    post.user_id === currentUser?.uid ||
+    post.user_id === currentUser?.userId;
+
   const isTextCard = Boolean(
     post.is_text_card === true ||
     post.is_text_card === "true" ||
     post.is_text_card === 1,
   );
 
+  // Profile object — provide BOTH `id` and `userId` so UserProfileModal's
+  // resolveTargetId() always finds the correct UUID regardless of which
+  // key it checks first. This matters when ProfilePreview forwards this
+  // object straight into the modal's `user` prop.
   const profile = {
-    userId: post.user_id,
-    author: post.profiles?.full_name || post.author || "Unknown",
-    username: post.profiles?.username || post.username || "unknown",
-    avatar: post.profiles?.avatar_id
+    id:       post.user_id,
+    userId:   post.user_id,
+    user_id:  post.user_id,
+    author:   post.profiles?.full_name || post.author   || "Unknown",
+    username: post.profiles?.username  || post.username || "unknown",
+    avatar:   post.profiles?.avatar_id
       ? mediaUrlService.getAvatarUrl(post.profiles.avatar_id, 200)
       : post.avatar || null,
-    verified: post.profiles?.verified || post.verified || false,
+    verified: post.profiles?.verified  || post.verified || false,
   };
 
   // ── Follow state ──────────────────────────────────────────────────────────
@@ -304,9 +313,9 @@ const PostCard = ({
     return items;
   };
 
-  const mediaItems = getMediaItems();
+  const mediaItems       = getMediaItems();
   const hasMultipleMedia = mediaItems.length > 1;
-  const hasMedia = mediaItems.length > 0;
+  const hasMedia         = mediaItems.length > 0;
 
   // ── Text-only overflow ────────────────────────────────────────────────────
   useEffect(() => {
@@ -377,7 +386,7 @@ const PostCard = ({
     };
   }, [activeMedia, mediaItems]); // eslint-disable-line
 
-  // ── [DT1] Double-tap handler — declared before early return ───────────────
+  // ── [DT1] Double-tap handler ──────────────────────────────────────────────
   const fireLoveBurst = useCallback(
     ({ x, y }) => {
       setLoveBurst({ x, y, id: Date.now() });
@@ -385,9 +394,9 @@ const PostCard = ({
         window.dispatchEvent(
           new CustomEvent("grova:quicklike", {
             detail: {
-              contentId: post.id,
+              contentId:   post.id,
               contentType: "post",
-              userId: currentUser.id,
+              userId:      currentUser.id,
             },
           }),
         );
@@ -407,12 +416,11 @@ const PostCard = ({
     setTouchStart(e.targetTouches[0].clientX);
   };
   const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
-  const onTouchEnd = () => {
+  const onTouchEnd  = () => {
     if (!touchStart || !touchEnd) return;
     const d = touchStart - touchEnd;
-    if (d > 50 && activeMedia < mediaItems.length - 1)
-      goToMedia(activeMedia + 1);
-    if (d < -50 && activeMedia > 0) goToMedia(activeMedia - 1);
+    if (d > 50  && activeMedia < mediaItems.length - 1) goToMedia(activeMedia + 1);
+    if (d < -50 && activeMedia > 0)                     goToMedia(activeMedia - 1);
   };
 
   const toggleVideoPlay = (index) => {
@@ -477,9 +485,21 @@ const PostCard = ({
   return (
     <>
       <div className="content-card post-card" ref={containerRef}>
-        {/* ── HEADER ──────────────────────────────────────────────────── */}
+        {/* ── HEADER ── */}
         <div className="pc-header">
-          <ProfilePreview profile={profile} onClick={() => {}} size="small" />
+          {/*
+            ProfilePreview receives currentUser so that when it opens
+            UserProfileModal on author click, the modal has access to the
+            viewer's ID and can render the follow button correctly.
+            onClick is omitted intentionally — ProfilePreview handles its
+            own click to open the modal; no override needed here.
+          */}
+          <ProfilePreview
+            profile={profile}
+            currentUser={currentUser}
+            size="small"
+          />
+
           {post.created_at && (
             <span className="pc-timestamp">{relTime(post.created_at)}</span>
           )}
@@ -491,15 +511,9 @@ const PostCard = ({
               onClick={handleFollowToggle}
             >
               {isFollowing ? (
-                <>
-                  <UserCheck size={13} />
-                  <span>Following</span>
-                </>
+                <><UserCheck size={13} /><span>Following</span></>
               ) : (
-                <>
-                  <UserPlus size={13} />
-                  <span>Follow</span>
-                </>
+                <><UserPlus  size={13} /><span>Follow</span></>
               )}
             </button>
           )}
@@ -510,14 +524,14 @@ const PostCard = ({
             aria-label="More options"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="5"  r="2" />
               <circle cx="12" cy="12" r="2" />
               <circle cx="12" cy="19" r="2" />
             </svg>
           </button>
         </div>
 
-        {/* ── BODY — double-tap zone ───────────────────────────────────── */}
+        {/* ── BODY — double-tap zone ── */}
         <div
           className="pc-body"
           onTouchEnd={doubleTapHandler}
@@ -642,11 +656,7 @@ const PostCard = ({
                             className="pc-video-mute-btn"
                             onClick={(e) => toggleVideoMute(index, e)}
                           >
-                            {muted ? (
-                              <VolumeX size={20} />
-                            ) : (
-                              <Volume2 size={20} />
-                            )}
+                            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                           </button>
                           {item.duration && (
                             <span className="pc-video-duration">
@@ -794,7 +804,7 @@ const PostCard = ({
 };
 
 const PC_CSS = `
-/* ── Love burst ─────────────────────────────────────────────────────────────── */
+/* ── Love burst ── */
 @keyframes lvBig {
   0%   { opacity:0; transform:translate(-50%,-50%) scale(0.2); }
   40%  { opacity:1; transform:translate(-50%,-50%) scale(1.4); }
@@ -822,71 +832,71 @@ const PC_CSS = `
   transform:translate(-50%,-50%);
 }
 
-/* ── Card ───────────────────────────────────────────────────────────────────── */
+/* ── Card ── */
 .post-card { contain:layout style; }
 
 /* Header */
 .pc-header { display:flex; align-items:center; gap:8px; padding:10px 14px 4px; }
 .pc-header-spacer { flex:1; }
 .pc-timestamp { font-size:11px; color:rgba(255,255,255,0.35); font-weight:500; white-space:nowrap; flex-shrink:0; }
-.pc-follow-btn { display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;font-size:11.5px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap;font-family:inherit;background:transparent;border:1px solid rgba(132,204,22,0.45);color:#84cc16;transition:background 0.2s,border-color 0.2s,color 0.2s; }
+.pc-follow-btn { display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:999px; font-size:11.5px; font-weight:700; cursor:pointer; flex-shrink:0; white-space:nowrap; font-family:inherit; background:transparent; border:1px solid rgba(132,204,22,0.45); color:#84cc16; transition:background 0.2s,border-color 0.2s,color 0.2s; }
 .pc-follow-btn:hover { background:rgba(132,204,22,0.1); }
-.pc-follow-btn.following { background:rgba(132,204,22,0.08);border-color:rgba(132,204,22,0.22);color:rgba(132,204,22,0.75); }
-.pc-follow-btn.following:hover { background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3);color:#ef4444; }
-.pc-menu-btn { width:32px;height:32px;border-radius:8px;flex-shrink:0;background:transparent;border:none;color:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s,color 0.15s; }
-.pc-menu-btn:hover { background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7); }
+.pc-follow-btn.following { background:rgba(132,204,22,0.08); border-color:rgba(132,204,22,0.22); color:rgba(132,204,22,0.75); }
+.pc-follow-btn.following:hover { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.3); color:#ef4444; }
+.pc-menu-btn { width:32px; height:32px; border-radius:8px; flex-shrink:0; background:transparent; border:none; color:rgba(255,255,255,0.3); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.15s,color 0.15s; }
+.pc-menu-btn:hover { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.7); }
 
 /* Body */
 .pc-body { padding-top:0; margin-top:0; }
 .pc-text-card-section { }
-.pc-text { padding:0 14px;color:#f0f0f0;font-size:15px;line-height:1.75;margin-top:4px;margin-bottom:0;word-break:break-word;white-space:pre-wrap; }
+.pc-text { padding:0 14px; color:#f0f0f0; font-size:15px; line-height:1.75; margin-top:4px; margin-bottom:0; word-break:break-word; white-space:pre-wrap; }
 .pc-text-only.pc-text-fade { position:relative; }
-.pc-text-only.pc-text-fade::after { content:"";position:absolute;bottom:0;left:0;right:0;height:56px;background:linear-gradient(to bottom,transparent,var(--card-bg,#111));pointer-events:none; }
+.pc-text-only.pc-text-fade::after { content:""; position:absolute; bottom:0; left:0; right:0; height:56px; background:linear-gradient(to bottom,transparent,var(--card-bg,#111)); pointer-events:none; }
 .pc-caption { margin-bottom:0; }
-.pc-caption.pc-caption-clamped { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
-.pc-expand-btn { display:inline-block;background:none;border:none;padding:3px 14px 0;color:#6b7280;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:color 0.15s;margin-bottom:4px;line-height:1.6; }
+.pc-caption.pc-caption-clamped { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.pc-expand-btn { display:inline-block; background:none; border:none; padding:3px 14px 0; color:#6b7280; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:color 0.15s; margin-bottom:4px; line-height:1.6; }
 .pc-expand-btn:hover { color:#84cc16; }
-.pc-expand-inline { padding:1px 14px 4px;font-size:13px; }
+.pc-expand-inline { padding:1px 14px 4px; font-size:13px; }
 
 /* Media */
-.pc-media-container { position:relative;margin-top:6px;overflow:hidden; }
-.pc-media-viewer { position:relative;width:100%; }
-.pc-media-slide { display:none;width:100%; }
+.pc-media-container { position:relative; margin-top:6px; overflow:hidden; }
+.pc-media-viewer { position:relative; width:100%; }
+.pc-media-slide { display:none; width:100%; }
 .pc-media-slide.active { display:block; }
-.pc-media-content { display:block;width:100%;height:auto;max-height:60vh;object-fit:contain;background:#000; }
+.pc-media-content { display:block; width:100%; height:auto; max-height:60vh; object-fit:contain; background:#000; }
 .pc-media-image { cursor:zoom-in; }
-.pc-video-container { position:relative;width:100%; }
+.pc-video-container { position:relative; width:100%; }
 .pc-media-video { cursor:pointer; }
-.pc-video-play-overlay { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.25);cursor:pointer; }
-.pc-video-play-btn { width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,0.55);border:2px solid rgba(255,255,255,0.8);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.15s; }
+.pc-video-play-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.25); cursor:pointer; }
+.pc-video-play-btn { width:64px; height:64px; border-radius:50%; background:rgba(0,0,0,0.55); border:2px solid rgba(255,255,255,0.8); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.15s; }
 .pc-video-play-btn:hover { transform:scale(1.08); }
-.pc-video-mute-btn { position:absolute;bottom:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.2);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2; }
-.pc-video-duration { position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,0.65);color:#fff;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2; }
-.pc-media-indicators { display:flex;justify-content:center;gap:5px;padding:8px 0 4px; }
-.pc-media-dot { width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.25);border:none;cursor:pointer;padding:0;transition:background 0.15s,transform 0.15s; }
-.pc-media-dot.active { background:#84cc16;transform:scale(1.3); }
-.pc-media-nav { position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;transition:background 0.15s; }
+.pc-video-mute-btn { position:absolute; bottom:10px; right:10px; width:32px; height:32px; border-radius:50%; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; }
+.pc-video-duration { position:absolute; bottom:10px; left:10px; background:rgba(0,0,0,0.65); color:#fff; font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px; z-index:2; }
+.pc-media-indicators { display:flex; justify-content:center; gap:5px; padding:8px 0 4px; }
+.pc-media-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.25); border:none; cursor:pointer; padding:0; transition:background 0.15s,transform 0.15s; }
+.pc-media-dot.active { background:#84cc16; transform:scale(1.3); }
+.pc-media-nav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:50%; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.15); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; transition:background 0.15s; }
 .pc-media-nav:hover { background:rgba(0,0,0,0.8); }
 .pc-media-nav--prev { left:10px; }
 .pc-media-nav--next { right:10px; }
-.pc-media-counter { position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;z-index:2; }
-.pc-media-error { height:160px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.3);font-size:13px; }
+.pc-media-counter { position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:99px; z-index:2; }
+.pc-media-error { height:160px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.3); font-size:13px; }
 
 /* Category tag */
-.pc-category-tag { display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border-radius:999px;background:rgba(132,204,22,0.07);border:1px solid rgba(132,204,22,0.18);margin:6px 14px 6px;width:fit-content; }
-.pc-category-dot { width:5px;height:5px;border-radius:50%;background:#84cc16;flex-shrink:0; }
-.pc-category-tag span:last-child { font-size:10.5px;font-weight:700;color:rgba(132,204,22,0.8);letter-spacing:0.04em;text-transform:uppercase;line-height:1; }
+.pc-category-tag { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 8px; border-radius:999px; background:rgba(132,204,22,0.07); border:1px solid rgba(132,204,22,0.18); margin:6px 14px 6px; width:fit-content; }
+.pc-category-dot { width:5px; height:5px; border-radius:50%; background:#84cc16; flex-shrink:0; }
+.pc-category-tag span:last-child { font-size:10.5px; font-weight:700; color:rgba(132,204,22,0.8); letter-spacing:0.04em; text-transform:uppercase; line-height:1; }
 
 /* Footer */
-.pc-footer { padding:10px 14px 12px;border-top:1px solid rgba(132,204,22,0.08); }
+.pc-footer { padding:10px 14px 12px; border-top:1px solid rgba(132,204,22,0.08); }
 
-/* Share portal / Lightbox */
-.pc-share-portal { position:fixed;inset:0;z-index:9001; }
-.pc-lightbox-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9500;display:flex;align-items:center;justify-content:center; }
-.pc-lightbox-content { position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;justify-content:center; }
-.pc-lightbox-close { position:absolute;top:-44px;right:0;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s; }
+/* Portals */
+.pc-share-portal { position:fixed; inset:0; z-index:9001; }
+.pc-lightbox-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.94); z-index:9500; display:flex; align-items:center; justify-content:center; }
+.pc-lightbox-content { position:relative; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center; }
+.pc-lightbox-close { position:absolute; top:-44px; right:0; width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.15s; }
 .pc-lightbox-close:hover { background:rgba(255,255,255,0.2); }
-.pc-lightbox-img { max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px; }
+.pc-lightbox-img { max-width:90vw; max-height:90vh; object-fit:contain; border-radius:8px; }
 `;
 
 export default PostCard;

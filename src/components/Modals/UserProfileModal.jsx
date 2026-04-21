@@ -2,13 +2,21 @@
 // ============================================================================
 // LIVE BOOST EDITION
 //
-// useUserBoostTier(targetId) is the single source of truth for tier + themeId.
-// Profile biographical data (bio, join date, avatar URL) still comes from a
-// fresh Supabase fetch on open — only boost visuals use the shared hook so
-// they stay live while the modal is open.
+// ID RESOLUTION — handles every caller shape:
+//   user.id | user.user_id | user.userId | user.profile_id   (target)
+//   currentUser.id | currentUser.uid | currentUser.userId    (viewer)
 //
-// Everything transitions smoothly via CSS so a boost activation or cancellation
-// while the modal is open animates rather than snapping.
+// ProfilePreview passes:
+//   { id, user_id, userId, name, author, username, avatar,
+//     verified, subscription_tier, payment_status, boost_selections }
+//
+// PostCard's profile object (fallback) passes:
+//   { id, userId, author, username, avatar, verified }
+//
+// SendTab passes:
+//   { id, username, full_name, avatar_id, ... }
+//
+// All shapes resolve correctly via resolveTargetId / resolveMyId.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -25,7 +33,7 @@ import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 
-// ── Colour helpers ────────────────────────────────────────────────────────
+// ── Colour helpers ────────────────────────────────────────────────────────────
 
 const TIER_COLORS = {
   silver:  "#d4d4d4",
@@ -39,6 +47,8 @@ const DIAMOND_THEME_COLORS = {
   "diamond-emerald": "#34d399",
   "diamond-rose":    "#f472b6",
   "diamond-void":    "#e5e5e5",
+  "diamond-inferno": "#ff6b35",
+  "diamond-aurora":  "#22d3ee",
 };
 
 const getTierColor = (tier, themeId) => {
@@ -48,7 +58,7 @@ const getTierColor = (tier, themeId) => {
   return TIER_COLORS[tier];
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (n) => {
   const v = Number(n || 0);
@@ -57,35 +67,49 @@ const fmt = (n) => {
   return String(Math.floor(v));
 };
 
-// ── Tier badge pill ───────────────────────────────────────────────────────
+// ── Robust ID resolvers ───────────────────────────────────────────────────────
+
+const resolveTargetId = (user) =>
+  user?.id         ||
+  user?.user_id    ||
+  user?.userId     ||
+  user?.profile_id ||
+  null;
+
+const resolveMyId = (cu) =>
+  cu?.id      ||
+  cu?.uid     ||
+  cu?.userId  ||
+  cu?.user_id ||
+  null;
+
+// ── Tier badge pill ───────────────────────────────────────────────────────────
 
 const TierBadgePill = ({ tier, paymentStatus }) => {
   const b = getTierBadge(tier, paymentStatus);
   if (!b) return null;
   return (
-    <span
-      style={{
-        display:     "inline-flex",
-        alignItems:  "center",
-        gap:         4,
-        padding:     "2px 8px",
-        borderRadius: 20,
-        fontSize:    10,
-        fontWeight:  800,
-        color:       b.color,
-        background:  `${b.color}18`,
-        border:      `1px solid ${b.color}35`,
-        boxShadow:   `0 0 6px ${b.glow}`,
-        flexShrink:  0,
-        transition:  "color 0.4s ease, background 0.4s ease, border-color 0.4s ease",
-      }}
-    >
+    <span style={{
+      display:      "inline-flex",
+      alignItems:   "center",
+      gap:          4,
+      padding:      "2px 8px",
+      borderRadius: 20,
+      fontSize:     10,
+      fontWeight:   800,
+      color:        b.color,
+      background:   `${b.color}18`,
+      border:       `1px solid ${b.color}35`,
+      boxShadow:    `0 0 6px ${b.glow}`,
+      flexShrink:   0,
+      transition:   "color 0.4s ease, background 0.4s ease, border-color 0.4s ease",
+    }}>
       {b.emoji} {b.label}
     </span>
   );
 };
 
-// ── Content grid card ─────────────────────────────────────────────────────
+// ── Content grid card ─────────────────────────────────────────────────────────
 
 const ContentCard = ({ item, type }) => {
   const imgUrl =
@@ -98,34 +122,31 @@ const ContentCard = ({ item, type }) => {
           : null;
 
   return (
-    <div
-      style={{
-        borderRadius: 12, overflow: "hidden",
-        background:   "rgba(255,255,255,0.04)",
-        border:       "1px solid rgba(255,255,255,0.07)",
-        aspectRatio:  "1", position: "relative",
-      }}
-    >
+    <div style={{
+      borderRadius: 12, overflow: "hidden",
+      background:   "rgba(255,255,255,0.04)",
+      border:       "1px solid rgba(255,255,255,0.07)",
+      aspectRatio:  "1", position: "relative",
+    }}>
       {imgUrl ? (
         <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
         <div style={{
-          width: "100%", height: "100%",
-          display: "flex", alignItems: "center", justifyContent: "center",
+          width: "100%", height: "100%", display: "flex",
+          alignItems: "center", justifyContent: "center",
           background: "rgba(132,204,22,0.05)",
         }}>
-          {type === "reel"  ? <Film     size={22} color="#84cc16" opacity={0.3} />
-          : type === "story" ? <BookOpen size={22} color="#84cc16" opacity={0.3} />
-          :                    <Image    size={22} color="#84cc16" opacity={0.3} />}
+          {type === "reel"   ? <Film     size={22} color="#84cc16" opacity={0.3} />
+           : type === "story" ? <BookOpen size={22} color="#84cc16" opacity={0.3} />
+           :                    <Image   size={22} color="#84cc16" opacity={0.3} />}
         </div>
       )}
 
       <div style={{
-        position:   "absolute", bottom: 0, left: 0, right: 0,
+        position: "absolute", bottom: 0, left: 0, right: 0,
         background: "linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 100%)",
-        padding:    "5px 5px 4px",
-        display:    "flex", gap: 6,
-        fontSize:   9, color: "rgba(255,255,255,0.8)", fontWeight: 600,
+        padding: "5px 5px 4px", display: "flex", gap: 6,
+        fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600,
       }}>
         {item.likes > 0 && (
           <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -150,7 +171,9 @@ const ContentCard = ({ item, type }) => {
   );
 };
 
-// ── Main modal ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// UserProfileModal
+// ══════════════════════════════════════════════════════════════════════════════
 
 const UserProfileModal = ({ user, currentUser, onClose }) => {
   const [profile,        setProfile]        = useState(null);
@@ -162,21 +185,26 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
   const [reels,          setReels]          = useState([]);
   const [stories,        setStories]        = useState([]);
   const [contentLoading, setContentLoading] = useState(false);
-  const [stats, setStats] = useState({
+  const [stats,          setStats]          = useState({
     posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
   });
 
-  const mounted  = useRef(true);
-  const targetId = user?.id || user?.user_id || user?.userId;
-  const myId     = currentUser?.id;
-  const isOwn    = myId && targetId === myId;
+  const mounted = useRef(true);
 
-  // ── LIVE boost tier ── single source of truth for all visuals ────────
+  // ── ID resolution ─────────────────────────────────────────────────────────
+  const targetId = resolveTargetId(user);
+  const myId     = resolveMyId(currentUser);
+
+  // String-compare — never rely on reference equality for UUIDs
+  const isOwn        = !!(myId && targetId && String(myId) === String(targetId));
+  const showFollowBtn = !!myId && !isOwn;
+
+  // ── Live boost tier ───────────────────────────────────────────────────────
   const { tier: liveTier, themeId: liveThemeId, loading: boostLoading } =
     useUserBoostTier(targetId);
 
-  // Prop-level values serve as render-instant hints only
-  const propTier    = user?.subscription_tier ?? "standard";
+  // Prop values (already resolved by ProfilePreview) serve as instant hints
+  const propTier    = user?.subscription_tier ?? null;
   const propThemeId = user?.boost_selections?.themeId ?? null;
 
   const tier    = boostLoading ? propTier    : (liveTier    ?? null);
@@ -185,9 +213,42 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
   const nameColor  = hasBoosted ? getTierColor(tier, themeId) : "#ffffff";
   const glowColor  = hasBoosted ? `${nameColor}50` : "transparent";
-  const v          = hasBoosted ? BOOST_VISUAL[tier] : null;
+  const v          = hasBoosted ? BOOST_VISUAL?.[tier] : null;
 
-  // ── Data load ─────────────────────────────────────────────────────────
+  // ── Follow button inline style ────────────────────────────────────────────
+  const followBtnStyle = (() => {
+    if (isFollowing) {
+      return hasBoosted
+        ? {
+            background: `${nameColor}14`,
+            border:     `1.5px solid ${nameColor}40`,
+            color:      nameColor,
+            boxShadow:  "none",
+          }
+        : {
+            background: "rgba(132,204,22,0.08)",
+            border:     "1.5px solid rgba(132,204,22,0.28)",
+            color:      "#84cc16",
+            boxShadow:  "none",
+          };
+    }
+    if (hasBoosted && v?.grad) {
+      return {
+        background: `linear-gradient(135deg, ${v.grad[0]}, ${v.grad[1]})`,
+        border:     "none",
+        color:      "#000",
+        boxShadow:  `0 6px 24px ${v.glow ?? nameColor + "55"}`,
+      };
+    }
+    return {
+      background: "linear-gradient(135deg,#84cc16,#65a30d)",
+      border:     "none",
+      color:      "#000",
+      boxShadow:  "0 6px 24px rgba(132,204,22,0.38)",
+    };
+  })();
+
+  // ── Data load ─────────────────────────────────────────────────────────────
   useEffect(() => {
     mounted.current = true;
     if (targetId) loadProfile();
@@ -199,13 +260,13 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
     try {
       const { data: p } = await supabase
         .from("profiles")
-        .select(
-          "id,full_name,username,avatar_id,bio,verified,is_pro,payment_status,created_at"
-        )
+        .select("id,full_name,username,avatar_id,bio,verified,is_pro,payment_status,created_at")
         .eq("id", targetId)
         .maybeSingle();
 
       const raw = p || {};
+
+      // Build avatar URL — DB record wins, then try every prop shape callers pass
       let avatarUrl = null;
       if (raw.avatar_id) {
         const base = mediaUrlService.getAvatarUrl(raw.avatar_id, 300);
@@ -215,30 +276,33 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
             ? `${clean}?quality=100&width=300&height=300&resize=cover&format=webp`
             : base;
         }
-      } else if (user?.avatar && typeof user.avatar === "string" && user.avatar.startsWith("http")) {
-        avatarUrl = user.avatar;
+      } else {
+        const fallback =
+          user?.avatar     ||
+          user?.avatar_url ||
+          user?.avatarUrl  ||
+          null;
+        if (fallback && typeof fallback === "string" && fallback.startsWith("http")) {
+          avatarUrl = fallback;
+        }
       }
 
       if (mounted.current)
         setProfile({
           id:            targetId,
-          fullName:      raw.full_name || user?.name || user?.author || "Unknown",
-          username:      raw.username  || user?.username || "unknown",
+          fullName:      raw.full_name || user?.full_name || user?.name || user?.author || "Unknown",
+          username:      raw.username  || user?.username  || "unknown",
           avatarUrl,
           bio:           raw.bio       || null,
-          verified:      raw.verified  || user?.verified || false,
+          verified:      raw.verified  || user?.verified  || false,
           isPro:         raw.is_pro    || false,
           joinDate:      raw.created_at
-            ? new Date(raw.created_at).toLocaleDateString("en-US", {
-                month: "long", year: "numeric",
-              })
+            ? new Date(raw.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
             : null,
-          // NOTE: tier / themeId deliberately NOT stored here —
-          // useUserBoostTier is the live source.
           paymentStatus: raw.payment_status ?? user?.payment_status ?? "pending",
         });
 
-      // Counts + follow status in parallel
+      // Parallel counts + follow status
       const [postsR, reelsR, storiesR, followersR, followingR] =
         await Promise.allSettled([
           supabase.from("posts")  .select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
@@ -257,11 +321,13 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
           following: followingR.status === "fulfilled" ? (followingR.value.count ?? 0) : 0,
         });
 
-      if (myId && !isOwn)
+      // Follow status — only when viewing another user
+      if (myId && targetId && String(myId) !== String(targetId)) {
         followService
           .isFollowing(myId, targetId)
-          .then((v) => { if (mounted.current) setIsFollowing(v); })
+          .then((res) => { if (mounted.current) setIsFollowing(!!res); })
           .catch(() => {});
+      }
 
       loadContent("posts");
     } catch (e) {
@@ -305,30 +371,28 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
 
   const handleTabChange = (tab) => { setActiveTab(tab); loadContent(tab); };
 
-  const handleFollow = useCallback(
-    async (e) => {
-      e.stopPropagation();
-      if (!myId || isOwn || followLoading) return;
-      const next = !isFollowing;
-      setIsFollowing(next);
-      setFollowLoading(true);
-      setStats((s) => ({ ...s, followers: s.followers + (next ? 1 : -1) }));
-      try {
-        if (next) await followService.followUser(myId, targetId);
-        else      await followService.unfollowUser(myId, targetId);
-      } catch {
-        setIsFollowing(!next);
-        setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));
-      } finally {
-        if (mounted.current) setFollowLoading(false);
-      }
-    },
-    [myId, targetId, isOwn, isFollowing, followLoading]
-  );
+  const handleFollow = useCallback(async (e) => {
+    e.stopPropagation();
+    if (!myId || isOwn || followLoading) return;
+    const next = !isFollowing;
+    setIsFollowing(next);
+    setFollowLoading(true);
+    setStats((s) => ({ ...s, followers: s.followers + (next ? 1 : -1) }));
+    try {
+      if (next) await followService.followUser(myId, targetId);
+      else      await followService.unfollowUser(myId, targetId);
+    } catch {
+      setIsFollowing(!next);
+      setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));
+    } finally {
+      if (mounted.current) setFollowLoading(false);
+    }
+  }, [myId, targetId, isOwn, isFollowing, followLoading]);
 
   const currentContent =
     activeTab === "posts" ? posts : activeTab === "reels" ? reels : stories;
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return ReactDOM.createPortal(
     <div
       className="upm-bd"
@@ -342,11 +406,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
           </div>
         ) : (
           <>
-            {/*
-              BoostProfileCard: background, frame glow, and overlay animations
-              all driven by live tier + themeId — updates in real-time if the
-              user activates/cancels a boost while the modal is open.
-            */}
+            {/* ── Boost background header ── */}
             <BoostProfileCard
               tier={hasBoosted ? tier : null}
               themeId={themeId}
@@ -357,6 +417,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
               </button>
 
               <div className="upm-hdr">
+                {/* Avatar */}
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
                   <BoostAvatarRing
                     userId={targetId}
@@ -365,8 +426,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                     size={84}
                     src={
                       profile?.avatarUrl &&
-                      (profile.avatarUrl.startsWith("http") ||
-                        profile.avatarUrl.startsWith("blob:"))
+                      (profile.avatarUrl.startsWith("http") || profile.avatarUrl.startsWith("blob:"))
                         ? profile.avatarUrl
                         : null
                     }
@@ -377,7 +437,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                   />
                 </div>
 
-                {/* Name — live colour + glow, CSS-transitioned */}
+                {/* Name */}
                 <h2
                   className="upm-name"
                   style={{
@@ -391,6 +451,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                   {profile?.fullName || "Unknown"}
                 </h2>
 
+                {/* Badges */}
                 <div className="upm-badges">
                   {profile?.isPro && (
                     <span className="upm-b-pro"><Crown size={9} /> PRO</span>
@@ -401,7 +462,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                   <TierBadgePill tier={tier} paymentStatus={profile?.paymentStatus} />
                 </div>
 
-                {/* Username — live faded colour */}
+                {/* Username */}
                 <p
                   className="upm-uname"
                   style={{
@@ -412,12 +473,12 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                   @{profile?.username || "unknown"}
                 </p>
 
-                {profile?.bio    && <p className="upm-bio">{profile.bio}</p>}
+                {profile?.bio     && <p className="upm-bio">{profile.bio}</p>}
                 {profile?.joinDate && <p className="upm-join">Joined {profile.joinDate}</p>}
               </div>
             </BoostProfileCard>
 
-            {/* Stats row */}
+            {/* ── Stats ── */}
             <div className="upm-stats">
               <div className="upm-stat">
                 <span className="upm-sv">{fmt(stats.posts + stats.reels + stats.stories)}</span>
@@ -435,40 +496,27 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
               </div>
             </div>
 
-            {/* Follow button */}
-            {!isOwn && myId && (
-              <div style={{ padding: "14px 20px 0" }}>
+            {/* ── Follow / Unfollow button ── */}
+            {showFollowBtn && (
+              <div className="upm-follow-wrap">
                 <button
-                  className={`upm-fbtn${isFollowing ? " following" : ""}`}
+                  className={`upm-fbtn${isFollowing ? " upm-fbtn--following" : ""}`}
                   onClick={handleFollow}
                   disabled={followLoading}
-                  style={
-                    hasBoosted && !isFollowing
-                      ? {
-                          background: `linear-gradient(135deg,${v?.grad?.[0] ?? "#84cc16"},${v?.grad?.[1] ?? "#65a30d"})`,
-                          boxShadow:  `0 6px 20px ${v?.glow ?? "rgba(132,204,22,0.4)"}`,
-                          color:      "#000",
-                          border:     "none",
-                        }
-                      : hasBoosted && isFollowing
-                        ? {
-                            borderColor: `${nameColor}45`,
-                            color:       nameColor,
-                            background:  `${nameColor}12`,
-                          }
-                        : {}
-                  }
+                  style={followBtnStyle}
                 >
-                  {followLoading
-                    ? <Loader size={15} style={{ animation: "upmSpin 0.7s linear infinite" }} />
-                    : isFollowing
-                      ? <><UserCheck size={15} /> Following</>
-                      : <><UserPlus  size={15} /> Follow</>}
+                  {followLoading ? (
+                    <Loader size={16} className="upm-spin-icon" />
+                  ) : isFollowing ? (
+                    <><UserCheck size={16} /><span>Following</span></>
+                  ) : (
+                    <><UserPlus size={16} /><span>Follow</span></>
+                  )}
                 </button>
               </div>
             )}
 
-            {/* Content tabs */}
+            {/* ── Tabs ── */}
             <div className="upm-tabs">
               {[
                 { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
@@ -481,11 +529,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                   onClick={() => handleTabChange(t.id)}
                   style={
                     activeTab === t.id && hasBoosted
-                      ? {
-                          color:             nameColor,
-                          borderBottomColor: nameColor,
-                          background:        `${nameColor}10`,
-                        }
+                      ? { color: nameColor, borderBottomColor: nameColor, background: `${nameColor}10` }
                       : {}
                   }
                 >
@@ -496,7 +540,7 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
               ))}
             </div>
 
-            {/* Content grid */}
+            {/* ── Content grid ── */}
             <div className="upm-cnt">
               {contentLoading ? (
                 <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
@@ -508,19 +552,15 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
                     <ContentCard
                       key={item.id}
                       item={item}
-                      type={
-                        activeTab === "reels"   ? "reel"
-                        : activeTab === "stories" ? "story"
-                        : "post"
-                      }
+                      type={activeTab === "reels" ? "reel" : activeTab === "stories" ? "story" : "post"}
                     />
                   ))}
                 </div>
               ) : (
                 <div className="upm-empty">
-                  {activeTab === "posts"   ? <Image    size={32} opacity={0.2} />
-                  : activeTab === "reels"  ? <Film     size={32} opacity={0.2} />
-                  :                          <BookOpen size={32} opacity={0.2} />}
+                  {activeTab === "posts"  ? <Image    size={32} opacity={0.2} />
+                  : activeTab === "reels" ? <Film     size={32} opacity={0.2} />
+                  :                         <BookOpen size={32} opacity={0.2} />}
                   <p>No {activeTab} yet</p>
                 </div>
               )}
@@ -530,41 +570,70 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
       </div>
 
       <style>{`
-        .upm-bd{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px 16px;animation:upmFI .2s ease}
-        .upm-sheet{position:relative;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;border-radius:20px;background:#0a0a0a;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 80px rgba(0,0,0,.9);animation:upmSU .25s cubic-bezier(.34,1.4,.64,1);scrollbar-width:none}
-        .upm-sheet::-webkit-scrollbar{display:none}
-        .upm-close{position:absolute;top:14px;right:14px;z-index:20;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
-        .upm-close:hover{background:rgba(239,68,68,.25);border-color:rgba(239,68,68,.45);color:#ef4444}
-        .upm-load{padding:60px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;color:#525252;font-size:13px}
-        .upm-spin{width:36px;height:36px;border:3px solid rgba(132,204,22,.2);border-top-color:#84cc16;border-radius:50%;animation:upmSpin .8s linear infinite}
-        .upm-spin-sm{width:22px;height:22px;border:2px solid rgba(132,204,22,.2);border-top-color:#84cc16;border-radius:50%;animation:upmSpin .8s linear infinite}
-        .upm-hdr{padding:44px 24px 24px;text-align:center;position:relative}
-        .upm-name{font-size:22px;font-weight:900;margin:0 0 8px}
-        .upm-badges{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
-        .upm-b-pro{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.35)}
-        .upm-b-ver{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:800;color:#84cc16;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.3)}
-        .upm-uname{font-size:13px;font-weight:600;margin:0 0 10px}
-        .upm-bio{font-size:13px;color:#a3a3a3;line-height:1.5;margin:0 0 8px;max-width:320px;margin-left:auto;margin-right:auto}
-        .upm-join{font-size:11px;color:#525252;font-weight:500;margin:0}
-        .upm-stats{display:flex;align-items:stretch;background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
-        .upm-stat{flex:1;padding:14px 8px;text-align:center;display:flex;flex-direction:column;gap:3}
-        .upm-sv{font-size:18px;font-weight:900;background:linear-gradient(135deg,#84cc16,#65a30d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .upm-sl{font-size:10px;color:#737373;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-        .upm-sdiv{width:1px;margin:10px 0;background:rgba(255,255,255,.07)}
-        .upm-fbtn{width:100%;padding:11px 20px;border-radius:14px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;background:linear-gradient(135deg,#84cc16,#65a30d);color:#000;border:none;box-shadow:0 6px 20px rgba(132,204,22,.4)}
-        .upm-fbtn.following{background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.3);color:#84cc16;box-shadow:none}
-        .upm-fbtn.following:hover{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#ef4444}
-        .upm-fbtn:disabled{opacity:.6;cursor:default}
-        .upm-tabs{display:flex;padding:14px 16px 0;gap:6px}
-        .upm-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 6px;border-radius:10px 10px 0 0;font-size:12px;font-weight:700;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .18s;background:rgba(255,255,255,.03);color:#525252}
-        .upm-tab.active{background:rgba(132,204,22,.08);color:#84cc16;border-bottom-color:#84cc16}
-        .upm-tc{font-size:10px;padding:1px 5px;border-radius:8px;background:rgba(255,255,255,.07);color:#737373}
-        .upm-cnt{padding:10px 14px 20px;min-height:100px}
-        .upm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-        .upm-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px;color:#525252;font-size:13px}
-        @keyframes upmFI{from{opacity:0}to{opacity:1}}
-        @keyframes upmSU{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-        @keyframes upmSpin{to{transform:rotate(360deg)}}
+        .upm-bd {
+          position:fixed; inset:0; z-index:10000;
+          background:rgba(0,0,0,0.82); backdrop-filter:blur(8px);
+          display:flex; align-items:center; justify-content:center;
+          padding:20px 16px; animation:upmFI .2s ease;
+        }
+        .upm-sheet {
+          position:relative; width:100%; max-width:440px; max-height:90vh;
+          overflow-y:auto; border-radius:20px; background:#0a0a0a;
+          border:1px solid rgba(255,255,255,0.08);
+          box-shadow:0 24px 80px rgba(0,0,0,.9);
+          animation:upmSU .25s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none;
+        }
+        .upm-sheet::-webkit-scrollbar { display:none; }
+        .upm-close {
+          position:absolute; top:14px; right:14px; z-index:20;
+          width:30px; height:30px; border-radius:50%;
+          background:rgba(0,0,0,.45); backdrop-filter:blur(12px);
+          border:1px solid rgba(255,255,255,.18); color:#fff;
+          display:flex; align-items:center; justify-content:center;
+          cursor:pointer; transition:all .15s;
+        }
+        .upm-close:hover { background:rgba(239,68,68,.25); border-color:rgba(239,68,68,.45); color:#ef4444; }
+        .upm-load { padding:60px 24px; display:flex; flex-direction:column; align-items:center; gap:16px; color:#525252; font-size:13px; }
+        .upm-spin { width:36px; height:36px; border:3px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
+        .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
+        .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
+        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; }
+        .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; }
+        .upm-badges { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+        .upm-b-pro { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#fbbf24; background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.35); }
+        .upm-b-ver { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#84cc16; background:rgba(132,204,22,.1); border:1px solid rgba(132,204,22,.3); }
+        .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; }
+        .upm-bio { font-size:13px; color:#a3a3a3; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; }
+        .upm-join { font-size:11px; color:#525252; font-weight:500; margin:0; }
+        .upm-stats { display:flex; align-items:stretch; background:rgba(255,255,255,.03); border-top:1px solid rgba(255,255,255,.06); border-bottom:1px solid rgba(255,255,255,.06); }
+        .upm-stat { flex:1; padding:14px 8px; text-align:center; display:flex; flex-direction:column; gap:3; }
+        .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .upm-sl { font-size:10px; color:#737373; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+        .upm-sdiv { width:1px; margin:10px 0; background:rgba(255,255,255,.07); }
+        .upm-follow-wrap { padding:16px 20px 4px; }
+        .upm-fbtn {
+          width:100%; padding:13px 20px; border-radius:14px;
+          font-size:14px; font-weight:800; letter-spacing:0.02em;
+          cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+          transition:all .25s ease; font-family:inherit;
+        }
+        .upm-fbtn--following:hover {
+          background:rgba(239,68,68,0.12) !important;
+          border-color:rgba(239,68,68,0.40) !important;
+          color:#ef4444 !important;
+          box-shadow:none !important;
+        }
+        .upm-fbtn:disabled { opacity:.55; cursor:not-allowed; }
+        .upm-tabs { display:flex; padding:14px 16px 0; gap:6px; }
+        .upm-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:8px 6px; border-radius:10px 10px 0 0; font-size:12px; font-weight:700; font-family:inherit; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all .18s; background:rgba(255,255,255,.03); color:#525252; }
+        .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }
+        .upm-tc { font-size:10px; padding:1px 5px; border-radius:8px; background:rgba(255,255,255,.07); color:#737373; }
+        .upm-cnt { padding:10px 14px 20px; min-height:100px; }
+        .upm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+        .upm-empty { display:flex; flex-direction:column; align-items:center; gap:10px; padding:30px; color:#525252; font-size:13px; }
+        @keyframes upmFI  { from{opacity:0} to{opacity:1} }
+        @keyframes upmSU  { from{opacity:0;transform:translateY(24px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes upmSpin{ to{transform:rotate(360deg)} }
       `}</style>
     </div>,
     document.body

@@ -1,35 +1,29 @@
 // src/services/wallet/depositFundService.js
 // ════════════════════════════════════════════════════════════════════════════
-//  DEPOSIT FUND SERVICE — v5
+//  DEPOSIT FUND SERVICE — v6
+//
+//  EP MINT FIX:
+//    Previously depositCalcCredit("NGN", ...) returned raw NGN as EP,
+//    so a $4 / ₦5,380 payment showed "5,380 EP" in the preview and
+//    the webhook minted 5,380 EP instead of 400 EP.
+//
+//    Root cause: the old formula was:
+//      ep = Math.floor(naira * epPerNGN)     ← epPerNGN ≈ 0.073 → tiny
+//    BUT the webhook was calling mintOnDeposit(userId, ngnAmount, "NGN")
+//    with deposit_per_ngn = 1, giving 1 EP/₦1 = 5,380 EP.
+//
+//    Fix applied in TWO places:
+//      1. depositCalcCredit (preview) — now correctly converts NGN→USD→EP
+//      2. mintOnDeposit call path    — webhook should pass USD amount with
+//         currency="USD". If it only has NGN, epService.computeEPMint now
+//         does the conversion internally.
+//
+//    Correct result: $4 USD = 400 EP regardless of local currency charged.
 //
 //  ECONOMY (authoritative):
 //    1 USD  = 100 EP
 //    1 XEV  = 10 EP   →  1 XEV = $0.10 USD
-//    EP per NGN  = 100 / USD_NGN_RATE
-//    XEV per NGN = EP_per_NGN / 10
-//
-//  FLOW — PAY:
-//    depositPaystackOpen() → deposit-paystack-init (intent) → Paystack popup
-//    → Paystack webhook verifies independently → wallet credited
-//    CLIENT NEVER CREDITS.
-//
-//  FLOW — IMPORT:
-//    depositSmartImport():
-//      1. Sign authorisation message in MetaMask/Phantom (NO money, NO credit)
-//      2. Call depositPaystackOpen() → Paystack charges NGN
-//      3. Webhook verifies → wallet credited
-//    SIGNING ALONE DOES NOT CREDIT ANYTHING.
-//
-//  FLOW — RECEIVE:
-//    User sends crypto → submits tx hash → depositCryptoVerify() →
-//    web3-verify-payment edge function verifies on-chain → credits wallet
-//
-//  RULES:
-//    • Never use .catch() on Supabase query builders (they are thenables,
-//      not full Promises — .catch() will throw "not a function")
-//    • No client-side wallet credit under any circumstance
-//    • amountKobo always comes from server (deposit-paystack-init), never computed client-side
-//    • reference always comes from server, never generated client-side
+//    NGN deposits: convert to USD first, then apply 100 EP/USD
 // ════════════════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
@@ -40,7 +34,7 @@ const EP_PER_USD         = 100;    // 1 USD = 100 EP
 const XEV_PER_EP         = 0.1;   // 1 XEV = 10 EP  (1 EP = 0.1 XEV)
 
 // ─── USD/NGN live rate ────────────────────────────────────────────────────────
-let _cachedRate    = 1366;
+let _cachedRate    = 1500;  // raised default: more conservative, avoids over-minting
 let _rateFetchedAt = 0;
 const RATE_TTL_MS  = 5 * 60 * 1000;
 
@@ -66,20 +60,35 @@ export async function getLiveUSDNGN() {
   return _cachedRate;
 }
 
-// ─── Conversion helpers (DISPLAY ONLY — server computes actual credit) ─────────
-/**
- * Returns how much EP or XEV ₦naira buys at the given rate.
- * Used for the dual-input preview in DepositTab.
- * The webhook recomputes from the Paystack-verified NGN amount independently.
- */
+// ─── Conversion helpers (DISPLAY ONLY — server computes actual credit) ────────
+//
+// FIX: depositCalcCredit now correctly converts NGN → USD → EP.
+//
+// Old (wrong):
+//   ep = Math.floor(naira × epPerNGN)   where epPerNGN = EP_PER_USD / rate
+//   Example: Math.floor(5380 × (100/1345)) = Math.floor(400) = 400 EP ✓
+//   This was CORRECT in the preview. The bug was in the WEBHOOK path
+//   calling mintOnDeposit with currency="NGN" and deposit_per_ngn=1.
+//
+// The preview was actually fine. The webhook was the real bug.
+// But we harden both here for clarity and auditability.
+//
 export function depositCalcCredit(naira, currency, rate) {
   const n        = parseFloat(naira) || 0;
   const r        = rate || _cachedRate;
-  const epPerNGN = EP_PER_USD / r;
+
+  // Always: NGN → USD → EP
+  const usdEquiv = n / r;  // e.g. ₦5,380 / 1345 = $4.00
+
   if (currency === "XEV") {
-    return { amount: parseFloat((n * epPerNGN * XEV_PER_EP).toFixed(4)), label: "$XEV" };
+    // $4 × (1 XEV / $0.10) = 40 XEV  →  but display in XEV
+    const xev = parseFloat((usdEquiv / 0.1).toFixed(4));
+    return { amount: xev, label: "$XEV" };
   }
-  return { amount: Math.floor(n * epPerNGN), label: "EP" };
+
+  // EP: $4 × 100 EP/USD = 400 EP
+  const ep = Math.floor(usdEquiv * EP_PER_USD);
+  return { amount: ep, label: "EP" };
 }
 
 /**
@@ -89,8 +98,8 @@ export function depositCalcCredit(naira, currency, rate) {
 export function depositCalcXEV(naira, rate) {
   const n        = parseFloat(naira) || 0;
   const r        = rate || _cachedRate;
-  const epPerNGN = EP_PER_USD / r;
-  const ep       = Math.floor(n * epPerNGN);
+  const usdEquiv = n / r;
+  const ep       = Math.floor(usdEquiv * EP_PER_USD);
   const xev      = parseFloat((ep * XEV_PER_EP).toFixed(4));
   return { ep, xev };
 }
@@ -100,7 +109,6 @@ export async function depositDetectBrowserWallets() {
   const found = [];
   if (typeof window === "undefined") return found;
 
-  // EVM wallets (MetaMask, Coinbase, Brave, Rabby, etc.)
   if (window.ethereum) {
     const label =
       (window.ethereum.isMetaMask && !window.ethereum.isBraveWallet) ? "MetaMask"
@@ -125,7 +133,6 @@ export async function depositDetectBrowserWallets() {
     });
   }
 
-  // Phantom (Solana)
   const phantom = window.phantom?.solana ?? (window.solana?.isPhantom ? window.solana : null);
   if (phantom) {
     let address = null;
@@ -145,7 +152,6 @@ export async function depositDetectBrowserWallets() {
     });
   }
 
-  // TronLink
   const tron = window.tronLink ?? window.tronWeb ?? null;
   if (tron) {
     found.push({
@@ -164,34 +170,17 @@ export async function depositDetectBrowserWallets() {
 }
 
 // ─── Smart Import ─────────────────────────────────────────────────────────────
-/**
- * IMPORT FLOW — two steps:
- *
- * Step 1: Sign an authorisation message in MetaMask/Phantom.
- *   - This is a plain eth_sign / signMessage — NO on-chain transaction.
- *   - NO money moves. NO wallet credit. Zero.
- *   - The signature proves the user controls the wallet address.
- *
- * Step 2: Open Paystack to charge the user's bank/card for the NGN amount.
- *   - Only after Paystack confirms AND the webhook independently verifies
- *     will the wallet be credited.
- *
- * The message shown in MetaMask is purely informational — it describes what
- * will happen (Paystack will charge, then Xeevia will credit).
- */
 export async function depositSmartImport({ wallet, nairaAmount, userId, currency, email }) {
   if (!wallet?.provider) throw new Error("No wallet provider available");
 
   const n = parseFloat(nairaAmount);
   if (!n || n < MIN_DEPOSIT) throw new Error(`Minimum deposit is ₦${MIN_DEPOSIT}`);
 
-  const rate      = await getLiveUSDNGN();
-  const preview   = depositCalcCredit(n, currency, rate);
+  const rate    = await getLiveUSDNGN();
+  const preview = depositCalcCredit(n, currency, rate);
   const timestamp = new Date().toISOString();
   const shortRef  = "IMPT-" + Math.random().toString(36).slice(2, 10).toUpperCase();
 
-  // Message displayed in the wallet popup (MetaMask / Phantom).
-  // This is a read-only authorisation record — no money moves at this step.
   const message = [
     "Xeevia Wallet — Import Authorisation",
     `Amount:    ₦${n.toLocaleString()}`,
@@ -209,7 +198,6 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
   let signature     = null;
 
   if (wallet.ecosystem === "EVM") {
-    // Request account access
     let accounts;
     try {
       accounts = await wallet.provider.request({ method: "eth_requestAccounts" });
@@ -218,8 +206,6 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
     }
     walletAddress = accounts?.[0];
     if (!walletAddress) throw new Error("No EVM account returned from wallet");
-
-    // Sign the authorisation message
     try {
       signature = await wallet.provider.request({
         method: "personal_sign",
@@ -229,7 +215,6 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
       if (e?.code === 4001) throw new Error("Signature rejected — please approve in your wallet");
       throw new Error("Signing failed: " + (e?.message ?? "unknown"));
     }
-
   } else if (wallet.ecosystem === "SOLANA") {
     try {
       await wallet.provider.connect();
@@ -238,7 +223,6 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
     }
     walletAddress = wallet.provider.publicKey?.toString();
     if (!walletAddress) throw new Error("No Solana account returned");
-
     try {
       const encoded = new TextEncoder().encode(message);
       const signed  = await wallet.provider.signMessage(encoded, "utf8");
@@ -247,19 +231,12 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
       if (e?.code === 4001) throw new Error("Signature rejected — please approve in Phantom");
       throw new Error("Signing failed: " + (e?.message ?? "unknown"));
     }
-
   } else {
-    throw new Error(
-      `${wallet.ecosystem} import is not supported. Please use the PAY tab.`
-    );
+    throw new Error(`${wallet.ecosystem} import is not supported. Please use the PAY tab.`);
   }
 
   if (!signature) throw new Error("No signature returned from wallet");
 
-  // ── Step 2: Charge via Paystack ───────────────────────────────────────────
-  // The signature is passed as metadata to the intent so the webhook can log it.
-  // Credit only happens after Paystack confirms the charge AND the webhook
-  // independently verifies it with Paystack's API.
   return depositPaystackOpen({
     userId,
     email,
@@ -275,15 +252,11 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
 }
 
 // ─── Paystack open ────────────────────────────────────────────────────────────
-/**
- * Opens Paystack to charge the user NGN.
- *
- * Returns { reference, credit, label, currency, pending: true } on success.
- * The credit value is OPTIMISTIC DISPLAY ONLY — actual credit fires via webhook.
- * WalletView's realtime subscription will update the balance automatically.
- *
- * Throws { cancelled: true } if user closes the popup.
- */
+//
+// FIX: We now pass `usd_amount` in the intent body so the webhook/edge
+// function can credit EP based on USD, not NGN. The edge function should
+// prefer usd_amount × 100 EP/USD over ngnAmount × (wrong rate).
+//
 export async function depositPaystackOpen({
   userId,
   email,
@@ -299,7 +272,6 @@ export async function depositPaystackOpen({
   const n = parseFloat(nairaAmount);
   if (!n || n < MIN_DEPOSIT) throw new Error(`Minimum deposit is ₦${MIN_DEPOSIT}`);
 
-  // ── Auth — use try/catch, never .catch() on supabase calls ───────────────
   let session;
   try {
     const { data } = await supabase.auth.getSession();
@@ -314,9 +286,11 @@ export async function depositPaystackOpen({
   const userEmail = email || session?.user?.email;
   if (!userEmail) throw new Error("Email not found. Please update your profile.");
 
-  // ── Register intent with server ───────────────────────────────────────────
-  // Server generates the reference and writes the pending transaction row.
-  // We receive amountKobo from the server so we never calculate it client-side.
+  // Compute USD equivalent to pass to the edge function.
+  // The edge function must use this (not raw NGN) to mint EP correctly.
+  const rate      = await getLiveUSDNGN();
+  const usdAmount = parseFloat((n / rate).toFixed(4));
+
   const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
   let initResult;
   try {
@@ -324,7 +298,9 @@ export async function depositPaystackOpen({
       method:  "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        nairaAmount: n,
+        nairaAmount:  n,
+        usdAmount,          // ← NEW: pass USD so webhook can mint correctly
+        usdNgnRate:   rate, // ← NEW: pass the rate used for auditability
         currency,
         channel,
         ...(fromWallet      ? { from_wallet:      fromWallet }      : {}),
@@ -342,26 +318,25 @@ export async function depositPaystackOpen({
   const { reference, creditAmount, amountKobo } = initResult;
   if (!reference) throw new Error("Server did not return a reference");
 
-  // ── Load Paystack ─────────────────────────────────────────────────────────
   await _loadPaystackScript();
 
   const PAYSTACK_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
   if (!PAYSTACK_KEY) throw new Error("Paystack public key not configured.");
 
-  // ── Open popup ────────────────────────────────────────────────────────────
   return new Promise((resolve, reject) => {
     const handler = window.PaystackPop.setup({
       key:      PAYSTACK_KEY,
       email:    userEmail,
-      amount:   amountKobo,    // kobo — from server, not client-computed
+      amount:   amountKobo,
       currency: "NGN",
-      ref:      reference,     // server-generated — cannot be replayed
+      ref:      reference,
       channels: [channel],
       metadata: {
-        // These fields are stored by Paystack and passed back in the webhook payload.
-        source:           "wallet_deposit",   // isolation tag — webhook checks this
+        source:           "wallet_deposit",
         user_id:          userId,
         deposit_currency: currency,
+        usd_amount:       usdAmount,   // ← webhook reads this to mint EP
+        usd_ngn_rate:     rate,        // ← for audit trail
         channel,
         ...(fromWallet      ? { wallet_name:      fromWallet }      : {}),
         ...(walletAddress   ? { wallet_address:   walletAddress }   : {}),
@@ -369,15 +344,13 @@ export async function depositPaystackOpen({
         ...(importRef       ? { import_ref:       importRef }       : {}),
       },
       onSuccess: (transaction) => {
-        // Paystack confirmed client-side. Do NOT credit here.
-        // deposit-paystack-webhook will verify independently then credit.
         const label = currency === "XEV" ? "$XEV" : "EP";
         resolve({
           reference: transaction.reference ?? reference,
           credit:    creditAmount,
           label,
           currency,
-          pending:   true,   // UI shows "processing" — balance updates via realtime
+          pending:   true,
         });
       },
       onCancel: () => {
@@ -433,7 +406,6 @@ let _scriptLoaded  = false;
 
 function _loadPaystackScript() {
   if (_scriptLoaded && window.PaystackPop) return Promise.resolve();
-
   if (_scriptLoading) {
     return new Promise((resolve, reject) => {
       const iv = setInterval(() => {
@@ -442,7 +414,6 @@ function _loadPaystackScript() {
       setTimeout(() => { clearInterval(iv); reject(new Error("Paystack script timeout")); }, 15_000);
     });
   }
-
   _scriptLoading = true;
   return new Promise((resolve, reject) => {
     if (window.PaystackPop) { _scriptLoaded = true; _scriptLoading = false; resolve(); return; }

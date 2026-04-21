@@ -1,31 +1,22 @@
 // ============================================================================
-// src/services/notifications/pushService.js — v4 BULLETPROOF
+// src/services/notifications/pushService.js — v6 CRA-FIXED
 // ============================================================================
+// CHANGE v6:
+//  Removed import.meta.env.VITE_* (that's Vite-only).
+//  Uses process.env.REACT_APP_VAPID_PUBLIC_KEY instead (CRA convention).
+//  Add this to your .env file (NOT .env.local):
+//    REACT_APP_VAPID_PUBLIC_KEY=<your full VAPID_PUBLIC_KEY from Supabase secrets>
 //
-// FIXES vs v3:
-//   [P-1]  _bridgeSWMessages() called IMMEDIATELY at module load (not inside
-//          start()) so the SW message listener is always ready, even before
-//          start() fires. Eliminates the 2-second window where PUSH_RECEIVED
-//          was silently lost.
-//   [P-2]  SW_UPDATED is now actually posted by the SW on activate, and this
-//          listener correctly emits "sw_updated" typed event.
-//   [P-3]  SW_POISON_PILL_RELOAD handled — forces page reload when SW detects
-//          a stale cache and nukes it.
-//   [P-4]  Subscription retry: if savePushSubscription fails, retries once
-//          after 5s.
-//   [P-5]  GET_PENDING_PAYLOADS sent on start() to reconcile any notifications
-//          that arrived while the app was closed or offline.
-//   [P-6]  PENDING_PAYLOADS response emits "push_received" for each payload
-//          so InAppNotificationToast can show missed notifications.
-//   [P-7]  start() guards against double-registration (idempotent).
-//   [P-8]  "push_received" and "new_notification" are explicitly separate
-//          event names — dedup is handled in InAppNotificationToast.
+//  All existing P-1 through P-8 fixes preserved exactly.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 
+// ✅ CRA uses process.env.REACT_APP_* — add to your .env file
+// REACT_APP_VAPID_PUBLIC_KEY=<paste your full key from Supabase secrets here>
 const VAPID_PUBLIC_KEY =
-  "BDJaPrUsqOthnp1Fvl2UdaEnU7ZhK-Fok-M2s4QH-sGdlnfwG5NaYFxVMplz93uQQ2pXhn1RYfMqLVVfCnA0Z5o";
+  process.env.REACT_APP_VAPID_PUBLIC_KEY ||
+  ""; // ← If blank, paste your full key directly here as a string fallback
 
 // ── Typed event bus ────────────────────────────────────────────────────────────
 class EventBus {
@@ -36,7 +27,9 @@ class EventBus {
     return () => this._map.get(event)?.delete(fn);
   }
   emit(event, data) {
-    this._map.get(event)?.forEach((fn) => { try { fn(data); } catch (e) { console.error("[PushService] Event handler error:", e); } });
+    this._map.get(event)?.forEach(fn => {
+      try { fn(data); } catch (e) { console.error("[PushService] handler error:", e); }
+    });
   }
 }
 
@@ -49,54 +42,38 @@ function urlBase64ToUint8Array(base64String) {
   return output;
 }
 
-const _bus       = new EventBus();
-let   _reg       = null;
-let   _started   = false;
-let   _userId    = null;
+const _bus     = new EventBus();
+let   _reg     = null;
+let   _started = false;
+let   _userId  = null;
 
-// [P-1] Bridge is set up immediately at module evaluation time —
-// before start() is ever called. This ensures no PUSH_RECEIVED is
-// ever lost in the startup window.
+// [P-1] Bridge set up at module evaluation — before start() is ever called
 _setupSWBridge();
 
 function _setupSWBridge() {
   if (!("serviceWorker" in navigator)) return;
-
   navigator.serviceWorker.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg?.type) return;
-
     switch (msg.type) {
-      // [P-2] SW posts this on activate
       case "SW_UPDATED":
         _bus.emit("sw_updated", { version: msg.version });
         break;
-
-      // [P-3] SW detected old cache and nuked it — force a clean reload
       case "SW_POISON_PILL_RELOAD":
-        console.warn("[Push] SW poison pill — reloading for clean state");
+        console.warn("[Push] SW poison pill — reloading");
         window.location.reload();
         break;
-
-      // App was visible when push arrived — SW sent it here instead of OS popup
       case "PUSH_RECEIVED":
         _bus.emit("push_received", msg.payload);
         break;
-
-      // OS notification tapped while app was backgrounded
       case "NOTIFICATION_CLICKED":
         _bus.emit("notification_clicked", { url: msg.url, data: msg.data });
         break;
-
-      // [P-6] Payloads that arrived while app was closed / offline
       case "PENDING_PAYLOADS":
         if (Array.isArray(msg.payloads) && msg.payloads.length > 0) {
-          msg.payloads.forEach((payload) => {
-            _bus.emit("push_received", payload);
-          });
+          msg.payloads.forEach(payload => { _bus.emit("push_received", payload); });
         }
         break;
-
       default:
         break;
     }
@@ -107,16 +84,8 @@ export const pushService = {
   on(event, fn)      { return _bus.on(event, fn); },
   _emit(event, data) { _bus.emit(event, data); },
 
-  // =========================================================================
-  // CAPABILITY CHECKS
-  // =========================================================================
-
   isSupported() {
-    return (
-      "Notification" in window &&
-      "serviceWorker" in navigator &&
-      "PushManager" in window
-    );
+    return "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
   },
 
   getPermission() {
@@ -129,31 +98,26 @@ export const pushService = {
       if (!this.isSupported()) return false;
       const permission = await Notification.requestPermission();
       return permission === "granted";
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   },
-
-  // =========================================================================
-  // SUBSCRIPTION
-  // =========================================================================
 
   async subscribe(userId) {
     try {
       if (!userId || !this.isSupported()) return null;
+      if (!VAPID_PUBLIC_KEY) {
+        console.warn("[Push] VAPID_PUBLIC_KEY not set. Add REACT_APP_VAPID_PUBLIC_KEY to your .env file.");
+        return null;
+      }
       const registration = _reg || (await navigator.serviceWorker.ready);
       let subscription   = await registration.pushManager.getSubscription();
-
       if (subscription) {
         await this._saveWithRetry(userId, subscription);
         return subscription;
       }
-
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly:      true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
-
       await this._saveWithRetry(userId, subscription);
       console.log("[Push] ✅ Subscription created");
       return subscription;
@@ -163,17 +127,16 @@ export const pushService = {
     }
   },
 
-  // [P-4] Save with one automatic retry on failure
   async _saveWithRetry(userId, subscription, attempt = 0) {
     try {
       await this.savePushSubscription(userId, subscription);
     } catch (err) {
       if (attempt === 0) {
         console.warn("[Push] Save failed, retrying in 5s...", err);
-        await new Promise((r) => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 5000));
         return this._saveWithRetry(userId, subscription, 1);
       }
-      console.error("[Push] ❌ Save subscription permanently failed:", err);
+      console.error("[Push] ❌ Save permanently failed:", err);
     }
   },
 
@@ -202,16 +165,13 @@ export const pushService = {
       if (subscription) {
         await subscription.unsubscribe();
         if (userId) {
-          await supabase
-            .from("push_subscriptions")
+          await supabase.from("push_subscriptions")
             .update({ is_active: false })
             .eq("user_id", userId)
             .eq("endpoint", subscription.endpoint);
         }
       }
-    } catch (error) {
-      console.error("[Push] ❌ Unsubscribe error:", error);
-    }
+    } catch (error) { console.error("[Push] ❌ Unsubscribe error:", error); }
   },
 
   async testNotification() {
@@ -219,71 +179,45 @@ export const pushService = {
       if (!this.isSupported() || Notification.permission !== "granted") return;
       const registration = _reg || (await navigator.serviceWorker.ready);
       await registration.showNotification("Test Notification", {
-        body:    "This is a test notification from Xeevia",
-        icon:    "/logo192.png",
-        badge:   "/logo192.png",
-        tag:     `test_${Date.now()}`,
-        vibrate: [200, 100, 200],
+        body: "This is a test notification from Xeevia",
+        icon: "/logo192.png", badge: "/logo192.png",
+        tag: `test_${Date.now()}`, vibrate: [200, 100, 200],
       });
-    } catch (error) {
-      console.error("[Push] ❌ Test notification failed:", error);
-    }
+    } catch (error) { console.error("[Push] ❌ Test notification failed:", error); }
   },
 
-  // =========================================================================
-  // FULL INITIALIZATION — called once from App.jsx after auth
-  // =========================================================================
-
-  // [P-7] Idempotent — safe to call multiple times
   async start(userId) {
     if (!this.isSupported()) return;
     if (_started && _userId === userId) return;
     _started = true;
     _userId  = userId;
-
     try {
       _reg = await navigator.serviceWorker.register("/service-worker.js", {
-        scope:          "/",
-        updateViaCache: "none",
+        scope: "/", updateViaCache: "none",
       });
       console.log("[Push] SW registered:", _reg.scope);
-
       this._watchForUpdates(_reg);
-
-      // [P-5] Request any payloads that arrived while the app was closed
-      // The bridge (set up at module load) will handle PENDING_PAYLOADS response
       setTimeout(() => {
         navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
       }, 1500);
-
       const perm = this.getPermission();
       if (perm === "granted") {
         await this.subscribe(userId);
       } else if (perm === "default") {
-        // Delay the permission prompt to after user has interacted
         setTimeout(async () => {
           const granted = await this.requestPermission();
           if (granted) await this.subscribe(userId);
         }, 8_000);
       }
-    } catch (err) {
-      console.error("[Push] start error:", err);
-    }
+    } catch (err) { console.error("[Push] start error:", err); }
   },
 
-  // Tell SW to clear the Android app-icon badge
   clearBadge() {
     navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_BADGE" });
   },
 
-  // =========================================================================
-  // INTERNAL — SW update watcher
-  // =========================================================================
-
   _watchForUpdates(reg) {
     if (!reg) return;
-    // SW_UPDATED is now emitted directly from the SW on activate (SW-3),
-    // so we only need to handle the updatefound flow for the installing worker.
     reg.addEventListener("updatefound", () => {
       const newWorker = reg.installing;
       if (!newWorker) return;
@@ -293,7 +227,6 @@ export const pushService = {
         }
       });
     });
-
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (refreshing) return;

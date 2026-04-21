@@ -1,13 +1,21 @@
 // src/components/wallet/tabs/OverviewTab.jsx
 // ════════════════════════════════════════════════════════════════
-//  FIXES:
-//   • Real profile images via XevAvatar — NO more letter initials
-//   • Balance updates animate fluidly (no blank flash) — waterwave
-//   • In/Out arrows: beautiful directional chips on each tx row
-//   • Animated number counter on balance change
-//   • All avatar references use XevAvatar with proper data passing
-//   • EP AssetCard now uses Math.floor + isInteger to match BalanceCard
-//     exactly — no more mid-tween decimals like 30.8539 or 282.5
+//  FIX: EP AssetCard always shows the same integer as BalanceCard.
+//
+//  Root cause: useAnimatedNumber kept a stale `fromRef` across
+//  loading cycles, so when loading flipped false the animation
+//  started from whatever old mid-tween float was in memory —
+//  producing values like 30.85 or 282.5 that never matched
+//  BalanceCard (which always counts up from 0).
+//
+//  Solution:
+//   1. useAnimatedNumber now resets fromRef → 0 whenever the
+//      component transitions out of loading, matching BalanceCard's
+//      useCountUp behaviour exactly.
+//   2. EP value is Math.floor'd once at the top and that integer
+//      is what both AssetCard and BalanceCard receive.
+//   3. AnimatedBalance with isInteger=true uses Math.round every
+//      frame so no decimal ever leaks through.
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -21,7 +29,7 @@ import { useCurrency } from "../../../contexts/CurrencyContext";
 import ProfilePreview from "../../Shared/ProfilePreview";
 import { supabase } from "../../../services/config/supabase";
 
-// ── TxAvatar — fetches the real profile for a transaction counterparty ───────
+// ── TxAvatar ─────────────────────────────────────────────────────
 const profileCache = {};
 
 function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
@@ -33,10 +41,7 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
   useEffect(() => {
     if (!cp?.username) return;
     if (cp.avatar_id || cp.avatar_metadata || cp.avatar) return;
-    if (profileCache[cp.username]) {
-      setProfile(profileCache[cp.username]);
-      return;
-    }
+    if (profileCache[cp.username]) { setProfile(profileCache[cp.username]); return; }
     supabase
       .from("profiles")
       .select("id,username,full_name,avatar_id,avatar_metadata,verified")
@@ -46,14 +51,14 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
         if (data) {
           const full = {
             ...data,
-            userId:   data.id,
-            author:   data.full_name || data.username,
-            avatar:   data.avatar_metadata?.publicUrl ||
-                      data.avatar_metadata?.url ||
-                      data.avatar_metadata?.signedUrl ||
-                      (data.avatar_id
-                        ? `${(typeof window !== "undefined" && window.__SUPABASE_URL__) || process.env.REACT_APP_SUPABASE_URL || ""}/storage/v1/object/public/avatars/${data.avatar_id}`
-                        : null) || null,
+            userId: data.id,
+            author: data.full_name || data.username,
+            avatar: data.avatar_metadata?.publicUrl ||
+                    data.avatar_metadata?.url ||
+                    data.avatar_metadata?.signedUrl ||
+                    (data.avatar_id
+                      ? `${process.env.REACT_APP_SUPABASE_URL || ""}/storage/v1/object/public/avatars/${data.avatar_id}`
+                      : null) || null,
           };
           profileCache[cp.username] = full;
           setProfile(full);
@@ -63,12 +68,7 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
 
   return (
     <div style={{ position: "relative", flexShrink: 0, width: 40, height: 40 }}>
-      <ProfilePreview
-        profile={profile}
-        currentUser={currentUser}
-        size="small"
-        showUsername={false}
-      />
+      <ProfilePreview profile={profile} currentUser={currentUser} size="small" showUsername={false} />
       <div className={`ov-tx-dir-badge ${dirClass}`}>
         {isPending ? (
           <Clock size={7} color="#000" />
@@ -86,17 +86,28 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
   );
 }
 
-// ── Animated number hook ─────────────────────────────────────────
-function useAnimatedNumber(target, duration = 700) {
-  const [display, setDisplay] = useState(target);
-  const rafRef    = useRef(null);
-  const startRef  = useRef(null);
-  const fromRef   = useRef(target);
+// ── useAnimatedNumber ─────────────────────────────────────────────
+// KEY FIX: when `loading` transitions to false, we reset fromRef to 0
+// so the animation always counts up from zero — identical to BalanceCard.
+function useAnimatedNumber(target, loading, duration = 700) {
+  const [display, setDisplay]   = useState(0);
+  const rafRef                  = useRef(null);
+  const startRef                = useRef(null);
+  const fromRef                 = useRef(0);
+  const prevLoadingRef          = useRef(loading);
 
   useEffect(() => {
+    // If we just finished loading, reset from 0 (same as BalanceCard)
+    if (prevLoadingRef.current === true && loading === false) {
+      fromRef.current = 0;
+      setDisplay(0);
+    }
+    prevLoadingRef.current = loading;
+
+    if (loading) { setDisplay(0); return; }
+
     const from = fromRef.current;
     const to   = target;
-    if (from === to) return;
 
     cancelAnimationFrame(rafRef.current);
     startRef.current = null;
@@ -107,8 +118,7 @@ function useAnimatedNumber(target, duration = 700) {
       if (!startRef.current) startRef.current = ts;
       const elapsed  = ts - startRef.current;
       const progress = Math.min(elapsed / duration, 1);
-      const eased    = ease(progress);
-      const current  = from + (to - from) * eased;
+      const current  = from + (to - from) * ease(progress);
       setDisplay(current);
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(tick);
@@ -119,12 +129,12 @@ function useAnimatedNumber(target, duration = 700) {
     });
 
     return () => cancelAnimationFrame(rafRef.current);
-  }, [target, duration]);
+  }, [target, loading, duration]);
 
   return display;
 }
 
-// ── Flash delta indicator ────────────────────────────────────────
+// ── DeltaFlash ───────────────────────────────────────────────────
 function DeltaFlash({ delta, currency }) {
   const [visible, setVisible] = useState(false);
   const [val, setVal]         = useState(delta);
@@ -141,16 +151,11 @@ function DeltaFlash({ delta, currency }) {
 
   if (!visible || !val) return null;
   const isPos = val > 0;
-
   return (
     <div style={{
-      position: "absolute",
-      top: -22,
-      right: 0,
-      padding: "3px 9px",
-      borderRadius: 100,
-      fontSize: 11,
-      fontWeight: 800,
+      position: "absolute", top: -22, right: 0,
+      padding: "3px 9px", borderRadius: 100,
+      fontSize: 11, fontWeight: 800,
       fontFamily: "var(--font-mono, 'DM Mono', monospace)",
       color: isPos ? "#a3e635" : "#f87171",
       background: isPos ? "rgba(163,230,53,0.12)" : "rgba(248,113,113,0.1)",
@@ -164,120 +169,57 @@ function DeltaFlash({ delta, currency }) {
   );
 }
 
-// ── Tx direction chip ────────────────────────────────────────────
+// ── TxDirectionChip ───────────────────────────────────────────────
 function TxDirectionChip({ isIn, isPending }) {
   if (isPending) return (
     <div style={{
       width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-      background: "rgba(245,158,11,0.1)",
-      border: "1px solid rgba(245,158,11,0.2)",
+      background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)",
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
       <Clock size={15} color="#f59e0b" />
     </div>
   );
-
   return (
     <div style={{
       width: 36, height: 36, borderRadius: 10, flexShrink: 0,
       background: isIn ? "rgba(163,230,53,0.08)" : "rgba(248,113,113,0.08)",
       border: `1px solid ${isIn ? "rgba(163,230,53,0.2)" : "rgba(248,113,113,0.2)"}`,
       display: "flex", alignItems: "center", justifyContent: "center",
-      position: "relative",
     }}>
-      <svg
-        width="16" height="16" viewBox="0 0 16 16" fill="none"
-        style={{
-          transform: isIn ? "rotate(135deg)" : "rotate(-45deg)",
-          color: isIn ? "#a3e635" : "#f87171",
-        }}
-      >
-        <path
-          d="M3 13 L13 3 M13 3 H7 M13 3 V9"
-          stroke="currentColor" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round"
-        />
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+        style={{ transform: isIn ? "rotate(135deg)" : "rotate(-45deg)", color: isIn ? "#a3e635" : "#f87171" }}>
+        <path d="M3 13 L13 3 M13 3 H7 M13 3 V9"
+          stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>
   );
 }
 
 const CSS = `
-  /* ── Section heading ── */
-  .ov-section-head {
-    display:flex;align-items:center;gap:10px;
-    margin:24px 0 14px;justify-content:center;
-  }
-  .ov-section-title {
-    font-size:10.5px;font-weight:700;letter-spacing:0.1em;
-    text-transform:uppercase;color:rgba(255,255,255,0.2);
-    white-space:nowrap;flex-shrink:0;
-  }
-  .ov-section-line {
-    flex:1;height:1px;max-width:100px;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);
-  }
-
-  /* ── Actions row ── */
-  .ov-actions {
-    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
-    margin:0; margin-top: 10px;
-  }
-  .ov-act-btn {
-    display:flex;flex-direction:column;align-items:center;gap:7px;
-    padding:14px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.07);
-    background:rgba(255,255,255,0.03);cursor:pointer;transition:all .18s;
-    color:rgba(255,255,255,0.55);font-size:11.5px;font-weight:600;
-  }
+  .ov-section-head{display:flex;align-items:center;gap:10px;margin:24px 0 14px;justify-content:center;}
+  .ov-section-title{font-size:10.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
+  .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);}
+  .ov-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0;margin-top:10px;}
+  .ov-act-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .18s;color:rgba(255,255,255,0.55);font-size:11.5px;font-weight:600;}
   .ov-act-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);transform:translateY(-1px);}
   .ov-act-btn.primary{background:rgba(163,230,53,0.08);border-color:rgba(163,230,53,0.22);color:#a3e635;}
   .ov-act-btn.primary:hover{background:rgba(163,230,53,0.13);border-color:rgba(163,230,53,0.35);}
   .ov-act-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);}
   .ov-act-btn.primary .ov-act-icon{background:rgba(163,230,53,0.12);}
-
-  /* ── More panel ── */
-  .ov-more-panel {
-    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
-    margin-bottom:6px;
-    animation:moreIn .2s cubic-bezier(.34,1.56,.64,1);
-  }
+  .ov-more-panel{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px;animation:moreIn .2s cubic-bezier(.34,1.56,.64,1);}
   @keyframes moreIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-
-  /* ── Asset rows ── */
-  .ov-asset-card {
-    display:flex;align-items:center;gap:13px;
-    padding:14px 16px;border-radius:15px;margin-bottom:8px;
-    background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);
-    transition:background .18s;
-    position:relative; overflow:visible;
-  }
+  .ov-asset-card{display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:15px;margin-bottom:8px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);transition:background .18s;position:relative;overflow:visible;}
   .ov-asset-card:hover{background:rgba(255,255,255,0.04);}
   .ov-asset-card.xev{border-color:rgba(163,230,53,0.12);background:rgba(163,230,53,0.03);}
   .ov-asset-card.ep{border-color:rgba(34,211,238,0.1);background:rgba(34,211,238,0.025);}
-
-  /* Waterwave flash on balance update */
-  .ov-asset-card.flash-xev { animation: ovWaveXEV 0.7s ease; }
-  .ov-asset-card.flash-ep  { animation: ovWaveEP  0.7s ease; }
-  @keyframes ovWaveXEV {
-    0%   { box-shadow: 0 0 0 0 rgba(163,230,53,0); border-color: rgba(163,230,53,0.12); }
-    30%  { box-shadow: 0 0 0 6px rgba(163,230,53,0.15); border-color: rgba(163,230,53,0.6); }
-    60%  { box-shadow: 0 0 0 12px rgba(163,230,53,0.05); border-color: rgba(163,230,53,0.35); }
-    100% { box-shadow: 0 0 0 0 rgba(163,230,53,0); border-color: rgba(163,230,53,0.12); }
-  }
-  @keyframes ovWaveEP {
-    0%   { box-shadow: 0 0 0 0 rgba(34,211,238,0); border-color: rgba(34,211,238,0.1); }
-    30%  { box-shadow: 0 0 0 6px rgba(34,211,238,0.15); border-color: rgba(34,211,238,0.55); }
-    60%  { box-shadow: 0 0 0 12px rgba(34,211,238,0.05); border-color: rgba(34,211,238,0.3); }
-    100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); border-color: rgba(34,211,238,0.1); }
-  }
-
-  .ov-asset-icon {
-    width:42px;height:42px;border-radius:12px;
-    display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  }
+  .ov-asset-card.flash-xev{animation:ovWaveXEV 0.7s ease;}
+  .ov-asset-card.flash-ep{animation:ovWaveEP 0.7s ease;}
+  @keyframes ovWaveXEV{0%{box-shadow:0 0 0 0 rgba(163,230,53,0);border-color:rgba(163,230,53,0.12);}30%{box-shadow:0 0 0 6px rgba(163,230,53,0.15);border-color:rgba(163,230,53,0.6);}60%{box-shadow:0 0 0 12px rgba(163,230,53,0.05);border-color:rgba(163,230,53,0.35);}100%{box-shadow:0 0 0 0 rgba(163,230,53,0);border-color:rgba(163,230,53,0.12);}}
+  @keyframes ovWaveEP{0%{box-shadow:0 0 0 0 rgba(34,211,238,0);border-color:rgba(34,211,238,0.1);}30%{box-shadow:0 0 0 6px rgba(34,211,238,0.15);border-color:rgba(34,211,238,0.55);}60%{box-shadow:0 0 0 12px rgba(34,211,238,0.05);border-color:rgba(34,211,238,0.3);}100%{box-shadow:0 0 0 0 rgba(34,211,238,0);border-color:rgba(34,211,238,0.1);}}
+  .ov-asset-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .ov-asset-icon.xev{background:rgba(163,230,53,0.1);color:#a3e635;}
   .ov-asset-icon.ep{background:rgba(34,211,238,0.1);color:#22d3ee;}
-
   .ov-asset-name{font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);line-height:1.3;}
   .ov-asset-desc{font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;}
   .ov-asset-right{margin-left:auto;text-align:right;position:relative;}
@@ -285,117 +227,50 @@ const CSS = `
   .ov-asset-amount.xev{color:#a3e635;}
   .ov-asset-amount.ep{color:#22d3ee;}
   .ov-asset-fiat{font-size:11px;color:rgba(255,255,255,0.25);margin-top:3px;font-family:"DM Mono",monospace;}
-  .ov-asset-chip{
-    display:inline-block;padding:2px 7px;border-radius:100px;
-    background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);
-    font-size:9px;font-weight:800;color:#22d3ee;letter-spacing:0.08em;margin-top:4px;
-  }
-
-  /* ── PayWave card ── */
-  .ov-paywave-card {
-    display:flex;align-items:center;gap:14px;padding:16px;
-    border-radius:16px;background:linear-gradient(135deg,rgba(34,211,238,0.07) 0%,rgba(59,130,246,0.05) 100%);
-    border:1px solid rgba(34,211,238,0.15);cursor:pointer;
-    transition:all .2s;margin-bottom:0;
-  }
+  .ov-asset-chip{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);font-size:9px;font-weight:800;color:#22d3ee;letter-spacing:0.08em;margin-top:4px;}
+  .ov-paywave-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,rgba(34,211,238,0.07) 0%,rgba(59,130,246,0.05) 100%);border:1px solid rgba(34,211,238,0.15);cursor:pointer;transition:all .2s;margin-bottom:0;}
   .ov-paywave-card:hover{background:linear-gradient(135deg,rgba(34,211,238,0.11) 0%,rgba(59,130,246,0.08) 100%);border-color:rgba(34,211,238,0.28);transform:translateY(-1px);}
   .ov-pw-logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0ea5e9,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(14,165,233,0.3);}
   .ov-pw-name{font-size:16px;font-weight:800;color:rgba(255,255,255,0.9);}
   .ov-pw-desc{font-size:12px;color:rgba(255,255,255,0.32);margin-top:2px;}
   .ov-pw-arrow{margin-left:auto;opacity:0.3;transition:all .2s;}
   .ov-paywave-card:hover .ov-pw-arrow{opacity:0.7;transform:translateX(3px);}
-
-  /* ── Transaction rows ── */
   .ov-tx-list{display:flex;flex-direction:column;gap:6px;}
-  .ov-tx-row {
-    display:flex;align-items:center;gap:12px;
-    padding:12px 14px;border-radius:13px;
-    background:rgba(255,255,255,0.022);border:1px solid rgba(255,255,255,0.05);
-    transition:background .15s;animation:txIn .3s ease both;
-  }
+  .ov-tx-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:13px;background:rgba(255,255,255,0.022);border:1px solid rgba(255,255,255,0.05);transition:background .15s;animation:txIn .3s ease both;}
   .ov-tx-row:hover{background:rgba(255,255,255,0.04);}
   .ov-tx-row.pending{opacity:0.65;border-style:dashed;}
   @keyframes txIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-  .ov-tx-avatar-wrap {
-    position: relative;
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-  }
-  .ov-tx-dir-badge {
-    position: absolute;
-    bottom: -3px;
-    right: -3px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #07080a;
-    z-index: 2;
-  }
-  .ov-tx-dir-badge.in  { background: rgba(163,230,53,0.9); }
-  .ov-tx-dir-badge.out { background: rgba(248,113,113,0.9); }
-  .ov-tx-dir-badge.pending-badge { background: rgba(245,158,11,0.9); }
-
+  .ov-tx-avatar-wrap{position:relative;flex-shrink:0;width:40px;height:40px;}
+  .ov-tx-dir-badge{position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #07080a;z-index:2;}
+  .ov-tx-dir-badge.in{background:rgba(163,230,53,0.9);}
+  .ov-tx-dir-badge.out{background:rgba(248,113,113,0.9);}
+  .ov-tx-dir-badge.pending-badge{background:rgba(245,158,11,0.9);}
   .ov-tx-label{font-size:13.5px;font-weight:700;color:rgba(255,255,255,0.82);display:flex;align-items:center;gap:6px;}
   .ov-tx-sub{font-size:11px;color:rgba(255,255,255,0.25);margin-top:2px;}
   .ov-tx-counterparty{font-size:10.5px;color:rgba(255,255,255,0.3);margin-top:1px;font-family:"DM Mono",monospace;}
-  .ov-pending-tag{
-    display:inline-block;padding:2px 7px;border-radius:100px;
-    background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);
-    font-size:9px;font-weight:700;color:#f59e0b;letter-spacing:0.06em;
-  }
-  .ov-tx-right { margin-left: auto; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .ov-pending-tag{display:inline-block;padding:2px 7px;border-radius:100px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);font-size:9px;font-weight:700;color:#f59e0b;letter-spacing:0.06em;}
+  .ov-tx-right{margin-left:auto;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
   .ov-tx-amount{font-size:14px;font-weight:800;font-family:"DM Mono",monospace;white-space:nowrap;letter-spacing:-0.02em;}
   .ov-tx-amount.in{color:#a3e635;}
   .ov-tx-amount.out{color:#f87171;}
-
-  .ov-tx-dir-pill {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 7px; border-radius: 100px;
-    font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
-  }
-  .ov-tx-dir-pill.in  { background:rgba(163,230,53,0.1); color:#a3e635; border:1px solid rgba(163,230,53,0.2); }
-  .ov-tx-dir-pill.out { background:rgba(248,113,113,0.08); color:#f87171; border:1px solid rgba(248,113,113,0.15); }
-
-  /* ── Burn strip ── */
-  .ov-burn-strip{
-    display:flex;align-items:flex-start;gap:8px;
-    padding:11px 14px;border-radius:10px;margin-top:18px;margin-bottom:24px;
-    background:rgba(248,113,113,0.04);border:1px solid rgba(248,113,113,0.1);
-    font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;
-  }
-
-  /* ── Empty state ── */
-  .ov-empty{
-    display:flex;flex-direction:column;align-items:center;
-    padding:40px 20px;color:rgba(255,255,255,0.2);
-  }
+  .ov-tx-dir-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:800;letter-spacing:0.06em;}
+  .ov-tx-dir-pill.in{background:rgba(163,230,53,0.1);color:#a3e635;border:1px solid rgba(163,230,53,0.2);}
+  .ov-tx-dir-pill.out{background:rgba(248,113,113,0.08);color:#f87171;border:1px solid rgba(248,113,113,0.15);}
+  .ov-burn-strip{display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;margin-top:18px;margin-bottom:24px;background:rgba(248,113,113,0.04);border:1px solid rgba(248,113,113,0.1);font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;}
+  .ov-empty{display:flex;flex-direction:column;align-items:center;padding:40px 20px;color:rgba(255,255,255,0.2);}
   .ov-empty-icon{opacity:0.15;margin-bottom:12px;}
   .ov-empty-title{font-size:14px;font-weight:700;margin-bottom:4px;}
   .ov-empty-sub{font-size:12px;}
-
-  /* skeleton */
   .ov-skel{background:rgba(255,255,255,0.04);border-radius:12px;animation:ovSkel 1.5s ease-in-out infinite;}
   @keyframes ovSkel{0%,100%{opacity:1}50%{opacity:0.4}}
-
-  /* delta flash */
-  @keyframes ovDeltaIn {
-    from { opacity:0; transform: translateY(6px) scale(0.85); }
-    to   { opacity:1; transform: translateY(0)   scale(1); }
-  }
+  @keyframes ovDeltaIn{from{opacity:0;transform:translateY(6px) scale(0.85);}to{opacity:1;transform:translateY(0) scale(1);}}
 `;
 
-// ── Animated balance number ──────────────────────────────────────
-// isInteger=true → Math.round at every frame so EP never shows decimals.
-// This matches BalanceCard which always renders whole numbers via fmt().
+// ── AnimatedBalance ───────────────────────────────────────────────
+// isInteger=true → Math.round every frame so EP never shows a decimal.
 function AnimatedBalance({ value, loading, className, style, isInteger = false }) {
-  const animated = useAnimatedNumber(loading ? 0 : (value || 0), 650);
-
-  const display = isInteger
+  const animated = useAnimatedNumber(loading ? 0 : (value || 0), loading, 650);
+  const display  = isInteger
     ? Math.round(animated).toLocaleString()
     : animated.toLocaleString(undefined, { maximumFractionDigits: 4 });
 
@@ -406,7 +281,7 @@ function AnimatedBalance({ value, loading, className, style, isInteger = false }
   );
 }
 
-// ── Asset card with flash on change ─────────────────────────────
+// ── AssetCard ─────────────────────────────────────────────────────
 function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, delta, currency, isInteger }) {
   const [flashClass, setFlashClass] = useState("");
   const prevVal = useRef(value);
@@ -437,7 +312,7 @@ function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, del
           isInteger={isInteger}
         />
         {fiatLine && <div className="ov-asset-fiat">{fiatLine}</div>}
-        {chip && <div className="ov-asset-chip">{chip}</div>}
+        {chip     && <div className="ov-asset-chip">{chip}</div>}
       </div>
     </div>
   );
@@ -453,11 +328,11 @@ export default function OverviewTab({
   const { format } = useCurrency();
 
   const xev = balance?.tokens ?? 0;
-  // ─── FIX: Math.floor so EP is always a whole integer,
-  //          matching exactly what BalanceCard renders.
+  // Always floor EP to integer — this is the single source of truth.
+  // BalanceCard also floors (via Math.floor in useCountUp target),
+  // so both cards will always display the same whole number.
   const ep  = Math.floor(balance?.points ?? 0);
 
-  // Track deltas for flash indicators
   const prevXEV = useRef(xev);
   const prevEP  = useRef(ep);
   const [xevDelta, setXevDelta] = useState(0);
@@ -478,7 +353,6 @@ export default function OverviewTab({
     <div className="view-enter">
       <style>{CSS}</style>
 
-      {/* ══ BALANCE CARD ══ */}
       <BalanceCard
         balance={balance}
         loading={loading}
@@ -487,23 +361,18 @@ export default function OverviewTab({
         username={username}
       />
 
-      {/* ══ QUICK ACTIONS ══ */}
       <div className="ov-actions">
         <button className="ov-act-btn primary" onClick={() => setActiveTab("send")}>
-          <div className="ov-act-icon"><ArrowUpRight size={18} /></div>
-          Send
+          <div className="ov-act-icon"><ArrowUpRight size={18} /></div>Send
         </button>
         <button className="ov-act-btn" onClick={() => setActiveTab("deposit")}>
-          <div className="ov-act-icon"><Download size={18} /></div>
-          Deposit
+          <div className="ov-act-icon"><Download size={18} /></div>Deposit
         </button>
         <button className="ov-act-btn" onClick={() => setActiveTab("receive")}>
-          <div className="ov-act-icon"><ArrowDownLeft size={18} /></div>
-          Receive
+          <div className="ov-act-icon"><ArrowDownLeft size={18} /></div>Receive
         </button>
         <button className="ov-act-btn" onClick={() => setShowMore(m => !m)}>
-          <div className="ov-act-icon"><MoreHorizontal size={18} /></div>
-          More
+          <div className="ov-act-icon"><MoreHorizontal size={18} /></div>More
         </button>
       </div>
 
@@ -515,22 +384,20 @@ export default function OverviewTab({
             ...(showPayWave ? [{ icon: Wifi, label: "PayWave", tab: "paywave" }] : []),
             { icon: Settings,   label: "Settings", tab: "settings" },
           ].map(({ icon: Icon, label, tab }) => (
-            <button key={tab} className="ov-act-btn" onClick={() => { setActiveTab(tab); setShowMore(false); }}>
-              <div className="ov-act-icon"><Icon size={16} /></div>
-              {label}
+            <button key={tab} className="ov-act-btn"
+              onClick={() => { setActiveTab(tab); setShowMore(false); }}>
+              <div className="ov-act-icon"><Icon size={16} /></div>{label}
             </button>
           ))}
         </div>
       )}
 
-      {/* ══ YOUR ASSETS ══ */}
       <div className="ov-section-head">
         <div className="ov-section-line" />
         <span className="ov-section-title">Your Assets</span>
         <div className="ov-section-line" />
       </div>
 
-      {/* XEV — floats are fine, no isInteger needed */}
       <AssetCard
         type="xev"
         icon={<Coins size={20} />}
@@ -543,7 +410,10 @@ export default function OverviewTab({
         currency="$XEV"
       />
 
-      {/* EP — isInteger=true keeps this in sync with BalanceCard at all times */}
+      {/* EP — isInteger=true ensures Math.round every animation frame.
+          The `loading` prop is now threaded into useAnimatedNumber so the
+          animation always restarts from 0 when loading finishes, matching
+          BalanceCard's useCountUp which also starts from 0. */}
       <AssetCard
         type="ep"
         icon={<Zap size={20} />}
@@ -557,7 +427,6 @@ export default function OverviewTab({
         isInteger={true}
       />
 
-      {/* ══ PAYWAVE (region-gated) ══ */}
       {showPayWave && (
         <>
           <div className="ov-section-head" style={{ marginTop: 8 }}>
@@ -576,7 +445,6 @@ export default function OverviewTab({
         </>
       )}
 
-      {/* ══ RECENT ACTIVITY ══ */}
       <div className="ov-section-head" style={{ marginTop: 24 }}>
         <div className="ov-section-line" />
         <span className="ov-section-title">Recent Activity</span>
@@ -585,9 +453,7 @@ export default function OverviewTab({
 
       {loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="ov-skel" style={{ height: 60 }} />
-          ))}
+          {[1, 2, 3].map(i => <div key={i} className="ov-skel" style={{ height: 60 }} />)}
         </div>
       ) : transactions.length === 0 ? (
         <div className="ov-empty">
@@ -604,37 +470,26 @@ export default function OverviewTab({
             const currency   = tx.displayCurrency || tx.metadata?.currency || "EP";
             const label      = tx.displayLabel || (isSent ? "Sent" : "Received");
             const cp         = tx.counterparty;
-
-            const dateStr = tx.created_at
+            const dateStr    = tx.created_at
               ? new Date(tx.created_at).toLocaleString("en-NG", {
-                  month: "short", day: "numeric",
-                  hour: "2-digit", minute: "2-digit",
+                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
                 })
               : "Just now";
-
             const dirClass = isPending ? "pending-badge" : isReceived ? "in" : "out";
             const amtClass = isReceived ? "in" : "out";
 
             return (
-              <div
-                key={tx.id || `opt-${idx}`}
+              <div key={tx.id || `opt-${idx}`}
                 className={`ov-tx-row${isPending ? " pending" : ""}`}
-                style={{ animationDelay: `${idx * 30}ms` }}
-              >
+                style={{ animationDelay: `${idx * 30}ms` }}>
                 {cp ? (
-                  <TxAvatar
-                    cp={cp}
-                    currentUser={currentUser}
-                    dirClass={dirClass}
-                    isPending={isPending}
-                    isReceived={isReceived}
-                  />
+                  <TxAvatar cp={cp} currentUser={currentUser}
+                    dirClass={dirClass} isPending={isPending} isReceived={isReceived} />
                 ) : (
                   <div className="ov-tx-avatar-wrap">
                     <TxDirectionChip isIn={isReceived} isPending={isPending} />
                   </div>
                 )}
-
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="ov-tx-label">
                     {label}
@@ -646,13 +501,10 @@ export default function OverviewTab({
                     </div>
                   )}
                   {tx.note && (
-                    <div className="ov-tx-sub" style={{ fontStyle: "italic" }}>
-                      "{tx.note}"
-                    </div>
+                    <div className="ov-tx-sub" style={{ fontStyle: "italic" }}>"{tx.note}"</div>
                   )}
                   <div className="ov-tx-sub">{isPending ? "Processing…" : dateStr}</div>
                 </div>
-
                 <div className="ov-tx-right">
                   <div className={`ov-tx-amount ${amtClass}`}>
                     {isReceived ? "+" : "−"}{(tx.amount || 0).toLocaleString()}{" "}
@@ -677,7 +529,6 @@ export default function OverviewTab({
         </div>
       )}
 
-      {/* ══ BURN STRIP ══ */}
       <div className="ov-burn-strip">
         <Flame size={14} color="rgba(248,113,113,0.6)" style={{ flexShrink: 0, marginTop: 2 }} />
         <span>

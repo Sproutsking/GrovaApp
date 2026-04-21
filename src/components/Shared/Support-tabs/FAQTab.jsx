@@ -1,11 +1,14 @@
+// src/components/Support/FAQTab.jsx
+// ============================================================================
+// TIER LANGUAGE UPDATED to match clean architecture:
+//   Subscription tiers: free | silver | gold | diamond
+//   Reward levels:      none | silver | gold | diamond (earned, not bought)
+//   Profile boosts:     silver | gold | diamond (cosmetic/EP bonus upgrades)
+//   Gift cards:         value denominations only — NOT tiers
+//   Removed all references to: is_pro, whitelist, standard, pro, vip
+// ============================================================================
 import React, { useState } from "react";
 import { Search, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
-
-// ─── FAQ DATA ─────────────────────────────────────────────────────────────────
-// Subscription tiers (from schema): free | whitelist | standard | vip | silver | gold | diamond
-// Reward levels (from schema):      none | silver | gold | diamond
-// Boost tiers (from schema):        silver | gold | diamond
-// Publishing content (posts/reels/stories) is FREE — EP is only spent on interactions
 
 const FAQ_DATA = [
   {
@@ -14,23 +17,23 @@ const FAQ_DATA = [
     questions: [
       {
         q: "How do I create a Xeevia account?",
-        a: "Sign up using Google, X (Twitter), Facebook, or Discord. Click \"Sign In\" and choose your provider. After connecting, you'll be prompted to choose a username and complete your profile. You'll need to pay a one-time $1 activation fee (= 100 EP) to unlock full platform access.",
+        a: "Sign up using Google, X (Twitter), Facebook, or Discord. Click \"Sign In\" and choose your provider. After connecting, you'll choose a username and complete your profile. A one-time $1 activation fee (= 100 EP) unlocks full platform access.",
       },
       {
         q: "What is the $1 activation fee?",
-        a: "The $1 activation fee converts to 100 EP and activates your account. This fee exists to prevent spam accounts and ensure every user has a stake in the platform. It's a one-time payment — you never pay it again.",
+        a: "The $1 activation fee converts to 100 EP and activates your account. It prevents spam and ensures every user has a stake in the platform. It's a one-time payment — you never pay it again.",
       },
       {
         q: "What do I get with a free Xeevia account?",
-        a: "A free Xeevia account lets you publish posts, reels, and stories at no cost, follow creators, earn EP from engagement, and access your full wallet. Your creator revenue share is 80% on tips received. You can upgrade to Standard, VIP, or Diamond tiers for higher creator shares, increased withdrawal limits, and additional perks.",
+        a: "A free account lets you publish posts, reels, and stories at no cost, follow creators, earn EP from engagement, and access your full wallet. Your creator revenue share starts at 80%. You can upgrade to Silver, Gold, or Diamond for higher creator shares, EP bonuses, increased withdrawal limits, and exclusive profile themes.",
       },
       {
         q: "Is Xeevia available in my country?",
-        a: "Xeevia is globally accessible. Payment methods vary by region. Nigerian users have full Paystack support (NGN deposits and withdrawals). International users can use cards and crypto. We're continuously expanding local payment options.",
+        a: "Xeevia is globally accessible. Nigerian users have full Paystack support (NGN deposits and withdrawals). International users can use cards and crypto. We're continuously expanding local payment options.",
       },
       {
         q: "How do I choose my username?",
-        a: "Choose a username between 3–30 characters using letters, numbers, and underscores. Your username appears in your profile URL and is how people @ mention you. Choose carefully — username changes are limited to once every 60 days.",
+        a: "Choose a username between 3–30 characters using letters, numbers, and underscores. Username changes are limited to once every 60 days.",
       },
     ],
   },
@@ -40,7 +43,7 @@ const FAQ_DATA = [
     questions: [
       {
         q: "How do I earn EP?",
-        a: "You earn EP when others engage with your content. Every like they give costs them 2 EP — you receive your share of that. Every comment costs 4 EP — again, you receive your creator share. Story unlocks are priced by you. The more quality content you create, the more EP flows to you.",
+        a: "You earn EP when others engage with your content. Every like costs the liker 2 EP — you receive your creator share. Every comment costs 4 EP. Story unlocks are priced by you. The more quality content you create, the more EP flows to you.",
       },
       {
         q: "Does publishing content cost EP?",
@@ -48,23 +51,19 @@ const FAQ_DATA = [
       },
       {
         q: "What is the difference between EP and XEV?",
-        a: "EP (Engagement Points) is your day-to-day currency — you earn it, spend it on interactions, and can withdraw it. XEV is your ownership stake in the network. It has a fixed supply of 1 trillion, appreciates with platform growth, and gives you governance rights. 40% of your monthly earned EP automatically converts to XEV.",
+        a: "EP (Engagement Points) is your day-to-day currency — earn it, spend it on interactions, withdraw it. XEV is your ownership stake in the network with a fixed supply of 1 trillion. It appreciates with platform growth and gives governance rights. 40% of your monthly earned EP automatically converts to XEV.",
       },
       {
         q: "When does the EP to XEV conversion happen?",
-        a: "At the end of every calendar month (last day, 11:59 PM UTC), 40% of your earned EP from that month converts to XEV at the current exchange rate. This is automatic — you don't need to do anything.",
+        a: "At the end of every calendar month, 40% of your earned EP converts to XEV at the current exchange rate. This is automatic — you don't need to do anything.",
       },
       {
         q: "Can I convert XEV back to EP?",
-        a: "Yes, you can convert XEV back to EP at the current exchange rate through your wallet. The rate updates monthly. Converting XEV to EP makes it available for immediate use or withdrawal.",
-      },
-      {
-        q: "How much can I realistically earn?",
-        a: "Earnings vary based on content quality, consistency, and audience size. Early creators who publish consistently report earning anywhere from a few hundred to several thousand EP per month within their first 6 months. Top creators earn tens of thousands of EP monthly. There is no cap.",
+        a: "Yes, you can convert XEV back to EP at the current exchange rate through your wallet. Converting makes it available for immediate use or withdrawal.",
       },
       {
         q: "Do my EP earnings expire?",
-        a: "Purchased EP (EP you bought with real money) expires after 12 months of account inactivity. Earned EP (from content engagement) never expires as long as your account remains active.",
+        a: "Purchased EP expires after 12 months of account inactivity. Earned EP (from content engagement) never expires as long as your account remains active.",
       },
     ],
   },
@@ -74,23 +73,27 @@ const FAQ_DATA = [
     questions: [
       {
         q: "What subscription tiers does Xeevia have?",
-        a: "Xeevia has six tiers: Free, Whitelist, Standard, VIP, and the Boost tiers Silver, Gold, and Diamond. Each higher tier increases your creator revenue share, unlocks higher withdrawal limits, and grants additional platform privileges. You start on Free and upgrade at your own pace.",
+        a: "Xeevia has four subscription tiers: Free, Silver, Gold, and Diamond. Each higher tier increases your creator revenue share, unlocks EP earning bonuses, gives you exclusive profile themes and animated avatar rings, and raises your withdrawal limits.",
       },
       {
-        q: "What is the Whitelist tier?",
-        a: "Whitelist is an early-access tier granted through invite codes. It gives you a head start on the platform with elevated access compared to standard Free accounts — useful for early adopters and community builders.",
+        q: "What is my 'reward level' and how is it different from my subscription tier?",
+        a: "These are two separate things. Your subscription tier (Free, Silver, Gold, Diamond) is what you purchase — it determines your creator share and perks. Your reward level (also None, Silver, Gold, Diamond) is earned through activity score and platform engagement — it determines your share of the weekly revenue pool. You can have a Free subscription but earn a Gold reward level through consistent activity.",
       },
       {
-        q: "What do VIP and Standard tiers unlock?",
-        a: "Standard and VIP tiers raise your creator revenue share above the 80% baseline. Higher tiers also unlock greater daily withdrawal limits and higher priority in platform discovery. The exact percentage difference is visible in your account upgrade screen.",
+        q: "What does the Silver tier unlock?",
+        a: "Silver gives you an animated silver ring on your avatar, a silver name color across the platform, access to the Moonlit Chrome profile card theme, priority in follower suggestions, and an EP bonus on your earnings.",
       },
       {
-        q: "What are the Silver, Gold, and Diamond boost tiers?",
-        a: "Silver, Gold, and Diamond are Profile Boost tiers — separate from your subscription tier. They offer EP bonus percentages on your earned income, increased platform visibility, and can be billed monthly or yearly. Your reward level (also Silver, Gold, or Diamond) is earned based on your activity score and unlocks a share of the weekly reward pool.",
+        q: "What does the Gold tier unlock?",
+        a: "Gold gives you an animated gold shimmer ring, gold name color, 2 exclusive profile card designs, a +10% EP bonus on all earnings, and priority content ranking in feeds.",
+      },
+      {
+        q: "What does the Diamond tier unlock?",
+        a: "Diamond is the top tier — 5 spectacular animated ring themes (Cosmos, Glacier, Emerald, Rose, Void), theme-colored name across the platform, +25% EP on all earnings, top priority in all platform rankings, and an exclusive diamond badge.",
       },
       {
         q: "How does the weekly reward pool work?",
-        a: "Every week, a portion of platform revenue is split into three pools — Silver, Gold, and Diamond. Users who have reached those reward levels through activity score share proportionally from their respective pool. The more active you are and the higher your level, the larger your share.",
+        a: "Every week, a portion of platform revenue is split into three pools — Silver, Gold, and Diamond. Users who have reached those reward levels through activity score share proportionally from their respective pool. Your reward level is separate from your subscription tier and is earned through consistent engagement.",
       },
     ],
   },
@@ -100,23 +103,23 @@ const FAQ_DATA = [
     questions: [
       {
         q: "What types of content can I create?",
-        a: "You can create Posts (text + images + video), Reels (short-form video), and Stories (long-form text with a paywall). Communities allow you to create channels and engage groups around your content. All of these are free to publish.",
+        a: "You can create Posts (text + images + video), Reels (short-form video), and Stories (long-form text with a paywall). Communities allow group channels. All content types are free to publish.",
       },
       {
         q: "How do I set the price for my story?",
-        a: "When publishing a story, you choose an unlock price between 10 and 500 EP. Consider your content length, quality, and audience. New creators often start at 20–50 EP and increase as they build reputation. The right price is whatever the market will bear — test and adjust.",
+        a: "When publishing a story, choose an unlock price between 10 and 500 EP. New creators often start at 20–50 EP and increase as they build reputation.",
       },
       {
         q: "Can I edit content after publishing?",
-        a: "Posts can be edited after publishing with the edit recorded. Stories can be edited for minor corrections, but major edits to content already unlocked by readers are flagged. Reels cannot be edited after publishing — you can only delete and re-upload.",
+        a: "Posts can be edited after publishing. Stories can be edited for minor corrections. Reels cannot be edited — delete and re-upload.",
       },
       {
         q: "How does the story access limit work?",
-        a: "When publishing a story, you can set a maximum number of people who can unlock it (default: 1,000). Once this limit is reached, the story shows as sold out. You can increase the limit at any time from your content management screen.",
+        a: "When publishing a story, you can set a maximum number of people who can unlock it (default 1,000). Once the limit is reached, the story shows as sold out. You can increase the limit at any time from your content management screen.",
       },
       {
-        q: "What file types are supported for images?",
-        a: "Images: JPG, PNG, WebP, GIF (static). Video in posts: MP4 (H.264). Reels: MP4 (H.264), MOV. Maximum image size: 20MB per image, up to 10 images per post. Maximum reel video size: 500MB.",
+        q: "What file types are supported?",
+        a: "Images: JPG, PNG, WebP, GIF (static), up to 20MB each, max 10 per post. Post video: MP4 (H.264). Reels: MP4, MOV, up to 500MB.",
       },
     ],
   },
@@ -126,19 +129,19 @@ const FAQ_DATA = [
     questions: [
       {
         q: "When can I withdraw my earnings?",
-        a: "You can withdraw when you have a minimum of 1,000 EP in earned (not purchased) EP. Withdrawals are processed within 1–3 business days for bank transfers, same day for Paystack (NGN), and within 30–60 minutes for crypto.",
+        a: "You can withdraw when you have a minimum of 1,000 EP in earned (not purchased) EP. Withdrawals process within 1–3 business days for bank transfers, same day for Paystack (NGN), and within 30–60 minutes for crypto.",
       },
       {
         q: "Is there a fee to withdraw?",
-        a: "Xeevia charges no withdrawal fees. You receive the full EP value as cash. Your bank may charge standard incoming transfer fees, and crypto transactions incur network gas fees — these are not controlled by Xeevia.",
+        a: "Xeevia charges no withdrawal fees. Your bank may charge standard incoming transfer fees, and crypto transactions incur network gas fees — these are not controlled by Xeevia.",
       },
       {
         q: "How do withdrawal limits work?",
-        a: "Your daily withdrawal limit is tied to your security level, which runs from 1 to 5. Level 1: $100/day. Level 3: $500/day. Level 5: $10,000/day. Raise your security level by verifying your phone, enabling 2FA, setting a withdrawal PIN, and maintaining a clean account history. Your subscription tier also affects your daily limit.",
+        a: "Your daily withdrawal limit is tied to your security level (1–5). Level 1: $100/day. Level 2: $250/day. Level 3: $500/day. Level 4: $2,000/day. Level 5: $10,000/day. Raise your level by verifying your phone, enabling 2FA, and setting a withdrawal PIN.",
       },
       {
         q: "What currency do I receive?",
-        a: "EP is priced in USD (100 EP = $1). When withdrawing to NGN bank accounts, Xeevia converts at the current official exchange rate via Paystack. Crypto withdrawals are in USDC or USDT (stablecoins pegged to USD).",
+        a: "EP is priced in USD (100 EP = $1). When withdrawing to NGN bank accounts, Xeevia converts at the current official exchange rate via Paystack. Crypto withdrawals are in USDC or USDT.",
       },
       {
         q: "My payment was successful but I didn't receive EP. What do I do?",
@@ -146,11 +149,11 @@ const FAQ_DATA = [
       },
       {
         q: "Can I get a refund on EP I purchased?",
-        a: "Purchased EP that has not been used can be refunded within 24 hours of purchase. Contact support with your transaction ID. EP that has been spent on interactions is non-refundable. Story unlocks are always non-refundable.",
+        a: "Purchased EP that has not been used can be refunded within 24 hours of purchase. Contact support with your transaction ID. Spent EP and story unlocks are non-refundable.",
       },
       {
-        q: "What are gift cards and what tiers do they come in?",
-        a: "Xeevia gift cards let you send EP value to others for any occasion. They come in six tiers: Silver, Gold, Blue Diamond, Red Diamond, Black Diamond, and Purple Diamond — each representing a different EP value. Gift cards can have a custom message and occasion set by the sender, and are redeemed directly into the recipient's wallet.",
+        q: "What are gift cards?",
+        a: "Xeevia gift cards let you send EP value to others for any occasion. They come in several denominations (Starter, Plus, Premium, Ultra, Max, Elite) representing different EP values. Gift cards can have a custom message and occasion set by the sender, and are redeemed directly into the recipient's wallet.",
       },
     ],
   },
@@ -160,27 +163,23 @@ const FAQ_DATA = [
     questions: [
       {
         q: "What account statuses exist and what do they mean?",
-        a: "Your account can be: Active (normal access), Deactivated (temporarily disabled — you can reactivate), or Suspended (restricted by the platform due to a policy violation). If your account is suspended, you'll see the reason and can appeal through the support ticket system.",
+        a: "Active (normal access), Deactivated (you temporarily disabled it — reactivate any time), or Suspended (restricted by platform due to a policy violation). Suspended accounts can appeal through the support ticket system.",
       },
       {
         q: "How do I change my username?",
-        a: "Go to Account → Edit Profile → Username. You can change your username once every 60 days. Your old username becomes available to others immediately. All your content and followers transfer to your new username automatically.",
-      },
-      {
-        q: "Can I have multiple Xeevia accounts?",
-        a: "You may have one personal and one business account connected to different social providers. Using multiple accounts to manipulate the platform (coordinated engagement, spam) is a violation of our terms and results in a permanent ban of all associated accounts.",
-      },
-      {
-        q: "What happens to my content and earnings if I delete my account?",
-        a: "Before deleting, withdraw all your earnings. Once deletion is confirmed, content is removed within 30 days. Financial records are retained for 7 years per legal requirements. EP and XEV balances not withdrawn before deletion are forfeited.",
+        a: "Go to Account → Edit Profile → Username. You can change your username once every 60 days. Your old username becomes available to others immediately.",
       },
       {
         q: "How do I increase my security level?",
-        a: "Your security level (1–5) determines withdrawal limits and platform trust. Increase it by: verifying your phone number, enabling 2FA, setting a 6-digit withdrawal PIN, binding trusted devices, and maintaining a clean security history. Higher levels are also required to access certain high-value features.",
+        a: "Your security level (1–5) determines withdrawal limits. Increase it by: verifying your phone number (+1), enabling 2FA (+2), and setting a transaction PIN (+1). Level 5 unlocks a $10,000/day withdrawal limit.",
+      },
+      {
+        q: "What happens to my content and earnings if I delete my account?",
+        a: "Before deleting, withdraw all your earnings. Content is removed within 30 days of deletion. Financial records are retained for 7 years per legal requirements. Unspent EP and XEV not withdrawn before deletion are forfeited.",
       },
       {
         q: "Is my private messaging encrypted?",
-        a: "Direct messages on Xeevia are stored encrypted in transit and at rest. However, they are not end-to-end encrypted in the same way as Signal or WhatsApp — Xeevia staff can access messages if required by a valid legal order.",
+        a: "Direct messages are stored encrypted in transit and at rest. They are not end-to-end encrypted in the same way as Signal — Xeevia staff can access messages if required by a valid legal order.",
       },
     ],
   },
@@ -190,15 +189,15 @@ const FAQ_DATA = [
     questions: [
       {
         q: "How do I create a community?",
-        a: "Go to the Community tab → Create Community. Set your community name (3–100 characters), description, icon, and privacy settings. You'll be the owner and can assign roles (admin, moderator, member) to other users.",
+        a: "Go to the Community tab → Create Community. Set your community name (3–100 characters), description, icon, and privacy settings. You'll be the owner and can assign roles to other users.",
       },
       {
         q: "What is the difference between public and private communities?",
-        a: "Public communities are discoverable and anyone can join. Private communities require an invitation or approval from the owner/admin. Premium communities can require an EP payment to join.",
+        a: "Public communities are discoverable and anyone can join. Private communities require an invitation or approval from the owner or admin. Premium communities can require an EP payment to join.",
       },
       {
         q: "How do community roles work?",
-        a: "As community owner, you can create custom roles with specific permissions. Default roles: Owner (all permissions), Admin (manage members and content), Moderator (moderate content), Member (post and interact).",
+        a: "As community owner you can create custom roles. Default roles: Owner (all permissions), Admin (manage members and content), Moderator (moderate content), Member (post and interact).",
       },
       {
         q: "Can I monetize my community?",
@@ -212,15 +211,11 @@ const FAQ_DATA = [
     questions: [
       {
         q: "How does live streaming work on Xeevia?",
-        a: "You can go live in either video or audio mode. Your stream can be public or private. Viewers can interact in real time, and you earn EP from their engagement. Your stream tier determines how many minutes per month you can broadcast, whether you can record sessions, and your maximum stream quality.",
+        a: "You can go live in video or audio mode. Your stream can be public or private. Viewers can interact in real time, and you earn EP from their engagement. Your stream tier (based on subscription) determines monthly broadcast minutes, recording capability, and maximum stream quality.",
       },
       {
         q: "Can I record my live streams?",
-        a: "Recording availability depends on your stream tier. Not all tiers include recording. When a stream is recorded, viewers can replay it later from your profile. Sessions that weren't recorded show a 'Session not recorded' notice with the stream's live stats (peak viewers, likes, duration).",
-      },
-      {
-        q: "What happens to my stream data after I go offline?",
-        a: "Every live session is stored with its peak viewers, total likes, duration, and mode (video or audio). This data is permanent and visible in your streamer profile. It contributes to your Top Streamer ranking on the platform's trending section.",
+        a: "Recording depends on your subscription tier. When a stream is recorded, viewers can replay it from your profile. Sessions without recording show a summary card with your peak viewers, likes, duration, and stream category.",
       },
     ],
   },
@@ -230,30 +225,26 @@ const FAQ_DATA = [
     questions: [
       {
         q: "What is the XRC Protocol?",
-        a: "XRC (Xeevia Record Chain) is our proprietary off-chain verification system. It creates an immutable, cryptographically-linked record of every transaction, engagement, account event, and content action on the platform — providing blockchain-grade transparency without blockchain costs or delays.",
+        a: "XRC (Xeevia Record Chain) is our proprietary off-chain verification system. It creates an immutable, cryptographically-linked record of every transaction, engagement, account event, and content action — providing blockchain-grade transparency without blockchain costs or delays.",
       },
       {
         q: "Is XRC the same as a blockchain?",
-        a: "XRC is inspired by blockchain architecture but operates off-chain. It uses hash-chaining (linking records cryptographically) without requiring distributed consensus or mining. This makes it 100–1000x faster and cheaper to operate while maintaining verifiability.",
-      },
-      {
-        q: 'What does "deterministic" mean in XRC?',
-        a: "Deterministic means every input produces a predictable, verifiable output. In XRC's case, given the same starting state and the same transaction, the record will always be identical — meaning no one can alter records secretly. This is the foundation of trustless transparency.",
+        a: "XRC uses hash-chaining (linking records cryptographically) but operates off-chain without distributed consensus or mining. This makes it 100–1000x faster and cheaper while maintaining verifiability.",
       },
     ],
   },
 ];
 
-// ─── FAQ ITEM ─────────────────────────────────────────────────────────────────
-
+// ── FAQ Item ──────────────────────────────────────────────────────────────────
 function FAQItem({ question, answer, isOpen, onToggle }) {
   return (
     <div style={{
-      background: isOpen ? "rgba(132,204,22,0.04)" : "rgba(255,255,255,0.015)",
-      border: `1px solid ${isOpen ? "rgba(132,204,22,0.22)" : "rgba(255,255,255,0.06)"}`,
-      borderRadius: 13, overflow: "hidden",
-      transition: "border-color .2s, background .2s",
-      boxShadow: isOpen ? "0 4px 20px rgba(132,204,22,.06)" : "none",
+      background:   isOpen ? "rgba(132,204,22,0.04)" : "rgba(255,255,255,0.015)",
+      border:       `1px solid ${isOpen ? "rgba(132,204,22,0.22)" : "rgba(255,255,255,0.06)"}`,
+      borderRadius: 13,
+      overflow:     "hidden",
+      transition:   "border-color .2s, background .2s",
+      boxShadow:    isOpen ? "0 4px 20px rgba(132,204,22,.06)" : "none",
     }}>
       <button onClick={onToggle} style={{
         width: "100%", padding: "14px 16px",
@@ -265,13 +256,14 @@ function FAQItem({ question, answer, isOpen, onToggle }) {
         </span>
         <div style={{
           flexShrink: 0, marginTop: 2, width: 22, height: 22, borderRadius: "50%",
-          background: isOpen ? "rgba(132,204,22,0.18)" : "rgba(255,255,255,0.05)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all .18s",
+          background:  isOpen ? "rgba(132,204,22,0.18)" : "rgba(255,255,255,0.05)",
+          display:     "flex", alignItems: "center", justifyContent: "center",
+          transition:  "all .18s",
         }}>
           {isOpen
             ? <ChevronUp   size={13} style={{ color: "#a3e635" }} />
-            : <ChevronDown size={13} style={{ color: "#525252" }} />}
+            : <ChevronDown size={13} style={{ color: "#525252" }} />
+          }
         </div>
       </button>
       {isOpen && (
@@ -286,8 +278,7 @@ function FAQItem({ question, answer, isOpen, onToggle }) {
   );
 }
 
-// ─── MAIN FAQ TAB ─────────────────────────────────────────────────────────────
-
+// ── Main FAQ Tab ──────────────────────────────────────────────────────────────
 export default function FAQTab({ onNavigateToContact }) {
   const [expandedFaqs, setExpandedFaqs] = useState({});
   const [faqSearch,    setFaqSearch]    = useState("");
@@ -337,13 +328,21 @@ export default function FAQTab({ onNavigateToContact }) {
           onBlurCapture={(e)  => e.currentTarget.style.borderColor = "rgba(255,255,255,.09)"}
         >
           <Search size={15} style={{ color: "#525252", flexShrink: 0 }} />
-          <input value={faqSearch} onChange={(e) => setFaqSearch(e.target.value)} placeholder="Search questions..."
-            style={{ flex: 1, background: "none", border: "none", color: "#fff", fontSize: 13, outline: "none" }} />
+          <input
+            value={faqSearch}
+            onChange={(e) => setFaqSearch(e.target.value)}
+            placeholder="Search questions…"
+            style={{ flex: 1, background: "none", border: "none", color: "#fff", fontSize: 13, outline: "none" }}
+          />
           {faqSearch && (
             <button onClick={() => setFaqSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#525252", padding: 0, fontSize: 18, lineHeight: 1 }}>×</button>
           )}
         </div>
-        {faqSearch && <div style={{ marginTop: 10, fontSize: 12, color: "#484848" }}>{totalResults} result{totalResults !== 1 ? "s" : ""} for "{faqSearch}"</div>}
+        {faqSearch && (
+          <div style={{ marginTop: 10, fontSize: 12, color: "#484848" }}>
+            {totalResults} result{totalResults !== 1 ? "s" : ""} for "{faqSearch}"
+          </div>
+        )}
       </div>
 
       {/* Category pills */}
@@ -392,7 +391,15 @@ export default function FAQTab({ onNavigateToContact }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {cat.questions.map((faq, fi) => {
                     const key = `${ci}-${fi}`;
-                    return <FAQItem key={key} question={faq.q} answer={faq.a} isOpen={!!expandedFaqs[key]} onToggle={() => toggle(key)} />;
+                    return (
+                      <FAQItem
+                        key={key}
+                        question={faq.q}
+                        answer={faq.a}
+                        isOpen={!!expandedFaqs[key]}
+                        onToggle={() => toggle(key)}
+                      />
+                    );
                   })}
                 </div>
               </div>
