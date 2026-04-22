@@ -17,6 +17,9 @@
 //
 //   [APP-CALL-4] showActiveCall + acceptedCallData state for callee path.
 //
+//   [APP-CALL-5] Handle call accepted/declined FROM an OS push notification.
+//                Also handles cold-open via ?accept_call=<callId> URL param.
+//
 //   [SYNC-1/2]   All prior sync changes preserved verbatim.
 // ============================================================================
 
@@ -372,6 +375,57 @@ const MainApp = memo(() => {
     window.addEventListener("nova:accept_call", handler);
     return () => window.removeEventListener("nova:accept_call", handler);
   }, []);
+
+  // [APP-CALL-5] Handle call accepted/declined FROM an OS push notification
+  // This fires when user taps "Accept" or "Decline" on a notification while
+  // the app was backgrounded. pushService bridges these SW messages.
+  useEffect(() => {
+    const unsubAccept = pushService.on("call_accepted_from_notification", (callData) => {
+      if (!callData) return;
+      console.log("[App] Call accepted from OS notification:", callData.call_id);
+      setAcceptedCallData({
+        callId:   callData.call_id   || callData.callId,
+        name:     callData.caller_name || callData.callerName || "Caller",
+        type:     callData.call_type   || callData.callType   || "audio",
+        outgoing: false,
+        user: {
+          id:        callData.caller_id        || null,
+          full_name: callData.caller_name      || "Caller",
+          avatar_id: callData.caller_avatar_id || null,
+        },
+      });
+      setShowActiveCall(true);
+      setShowMessages(false);
+    });
+
+    const unsubDecline = pushService.on("call_declined_from_notification", (callData) => {
+      if (!callData) return;
+      console.log("[App] Call declined from OS notification:", callData.call_id);
+      // Notify callService to send decline signal
+      const callId   = callData.call_id   || callData.callId;
+      const callerId = callData.caller_id || null;
+      if (callId) {
+        import("./services/messages/callService").then(({ default: cs }) => {
+          cs.declineCall(callId, callerId);
+        }).catch(() => {});
+      }
+    });
+
+    // Handle cold open from notification: /messages?accept_call=<callId>
+    const params = new URLSearchParams(window.location.search);
+    const coldAcceptCallId = params.get("accept_call");
+    if (coldAcceptCallId) {
+      console.log("[App] Cold open call accept:", coldAcceptCallId);
+      // Clean the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("accept_call");
+      window.history.replaceState({}, "", url.toString());
+      // Open messages to handle the call
+      setShowMessages(true);
+    }
+
+    return () => { unsubAccept(); unsubDecline(); };
+  }, []); // eslint-disable-line
 
   // ── Push listeners ───────────────────────────────────────────────────────
   useEffect(() => {

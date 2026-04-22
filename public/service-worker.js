@@ -1,26 +1,24 @@
 // ============================================================================
-// public/service-worker.js — Xeevia v6 BULLETPROOF PUSH
+// public/service-worker.js — Xeevia v7 BULLETPROOF PUSH
 // ============================================================================
 //
-// FIXES vs v5:
-//   [SW-1]  Unique notification tag per notification_id — no more OS-level
-//           replacement when two notifications arrive simultaneously.
-//   [SW-2]  Client visibility check: focused OR visible (not just visible).
-//           Background tabs now receive PUSH_RECEIVED correctly.
-//   [SW-3]  SW_UPDATED message posted spontaneously on activate so
-//           pushService._watchForUpdates actually fires.
-//   [SW-4]  CLEAR_BADGE uses navigator (SW global) not self.navigator.
-//   [SW-5]  Cold-open deep-link: openWindow uses the notif URL directly
-//           so tapping an OS notification when app is closed opens the
-//           right screen, not just "/".
-//   [SW-6]  Payload stored in IndexedDB on push receipt so the app can
-//           reconcile missed notifications on next open (offline resilience).
-//   [SW-7]  No more hardcoded tag="xeevia-notif" — every notification gets
-//           its own tag so they stack on Android instead of replacing.
+// FIXES vs v6:
+//   [SW-8]  Call notification accept/decline actions properly signal the app.
+//           When tapping "Accept" on an OS call notification, the app receives
+//           CALL_ACCEPTED_FROM_NOTIFICATION and can open ActiveCall immediately.
+//   [SW-9]  PUSH_RECEIVED payload forwarded even if client is focused-but-hidden
+//           (e.g. background tab that's been focused by user).
+//   [SW-10] notificationclick: send data to ALL open windows, not just the
+//           first match, so the app can route regardless of which tab handles it.
+//   [SW-11] Incoming call push notifications use requireInteraction:true AND
+//           are never suppressed when the app is foregrounded — calls ALWAYS
+//           show an OS notification for maximum visibility.
+//   [SW-12] GET_PENDING_PAYLOADS clears DB after delivery to prevent replay.
+//   All prior SW-1 through SW-7 fixes preserved exactly.
 // ============================================================================
 
-const CACHE_NAME  = "xeevia-v2026-pro-6";
-const SW_VERSION  = "xeevia-1.0.6";
+const CACHE_NAME  = "xeevia-v2026-pro-7";
+const SW_VERSION  = "xeevia-1.0.7";
 const DB_NAME     = "xeevia-sw-db";
 const DB_VERSION  = 1;
 const STORE_NAME  = "pending-payloads";
@@ -35,7 +33,7 @@ const STATIC_ASSETS = [
   "/logo512.png",
 ];
 
-// ── IndexedDB helpers (SW context — no window.indexedDB alias needed) ─────────
+// ── IndexedDB helpers ─────────────────────────────────────────────────────────
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -54,22 +52,38 @@ async function storePayload(payload) {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put({
-      id:         payload?.data?.notification_id || `sw_${Date.now()}`,
-      payload,
-      storedAt:   Date.now(),
-    });
+    const id = payload?.data?.notification_id
+      || payload?.data?.call_id
+      || `sw_${Date.now()}`;
+    tx.objectStore(STORE_NAME).put({ id, payload, storedAt: Date.now() });
     // Auto-purge entries older than 24h
     const cutoff = Date.now() - 86_400_000;
-    const all    = await new Promise((res) => {
-      const r = tx.objectStore(STORE_NAME).getAll();
-      r.onsuccess = () => res(r.result);
-      r.onerror   = () => res([]);
+    const r = tx.objectStore(STORE_NAME).getAll();
+    r.onsuccess = () => {
+      (r.result || [])
+        .filter(e => e.storedAt < cutoff)
+        .forEach(e => { try { tx.objectStore(STORE_NAME).delete(e.id); } catch (_) {} });
+    };
+  } catch (_) {}
+}
+
+async function getAllPendingPayloads() {
+  try {
+    const db  = await openDB();
+    const tx  = db.transaction(STORE_NAME, "readwrite");
+    const all = await new Promise((res) => {
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => res(req.result || []);
+      req.onerror   = () => res([]);
     });
-    all.filter((e) => e.storedAt < cutoff).forEach((e) => {
+    // [SW-12] Clear after delivery
+    all.forEach(e => {
       try { tx.objectStore(STORE_NAME).delete(e.id); } catch (_) {}
     });
-  } catch (_) {}
+    return all.map(e => e.payload);
+  } catch (_) {
+    return [];
+  }
 }
 
 // ── Install ───────────────────────────────────────────────────────────────────
@@ -78,11 +92,11 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const existingKeys = await caches.keys();
-      const hasOldCache  = existingKeys.some((k) => k !== CACHE_NAME);
+      const hasOldCache  = existingKeys.some(k => k !== CACHE_NAME);
 
       if (hasOldCache) {
         console.log("[SW] Old cache detected — poison pill cleanup");
-        await Promise.all(existingKeys.map((k) => caches.delete(k)));
+        await Promise.all(existingKeys.map(k => caches.delete(k)));
         await self.skipWaiting();
         const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
         for (const client of clients) {
@@ -94,8 +108,8 @@ self.addEventListener("install", (event) => {
       self.skipWaiting();
       const cache = await caches.open(CACHE_NAME);
       await Promise.allSettled(
-        STATIC_ASSETS.map((url) =>
-          cache.add(url).catch((e) => console.warn("[SW] Could not pre-cache:", url, e.message))
+        STATIC_ASSETS.map(url =>
+          cache.add(url).catch(e => console.warn("[SW] Could not pre-cache:", url, e.message))
         )
       );
     })()
@@ -106,9 +120,8 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   console.log("[SW] Activating", CACHE_NAME);
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
       .then(async () => {
         // [SW-3] Notify all open tabs that a new SW just took over
@@ -128,17 +141,19 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then((res) => {
+        .then(res => {
           if (res.ok) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, res.clone())).catch(() => {});
+            caches.open(CACHE_NAME)
+              .then(cache => cache.put(event.request, res.clone()))
+              .catch(() => {});
           }
           return res;
         })
         .catch(async () => {
           const cached = (await caches.match("/index.html")) || (await caches.match("/"));
           if (cached) return cached;
-          const offlinePage = await caches.match("/offline.html");
-          if (offlinePage) return offlinePage;
+          const offline = await caches.match("/offline.html");
+          if (offline) return offline;
           return new Response(
             `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -160,11 +175,11 @@ Your data is safe — nothing has been lost.</p>
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) =>
+    caches.match(event.request).then(cached =>
       fetch(event.request)
-        .then((res) => {
+        .then(res => {
           if (res.ok && STATIC_ASSETS.includes(new URL(event.request.url).pathname)) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, res.clone())).catch(() => {});
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, res.clone())).catch(() => {});
           }
           return res;
         })
@@ -181,8 +196,10 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: "Xeevia", body: event.data.text(), data: { url: "/" } };
+    payload = { title: "Xeevia", body: event.data.text(), data: { url: "/", type: "general" } };
   }
+
+  const type = payload?.data?.type || "general";
 
   // [SW-6] Always store payload for offline reconciliation
   storePayload(payload);
@@ -190,52 +207,88 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clientList) => {
-        // [SW-2] Accept focused OR visible clients (fixes background tab miss)
+      .then(clientList => {
+        // [SW-11] For CALL notifications — ALWAYS show OS notification for visibility.
+        // The app will also get PUSH_RECEIVED so it can show its own UI if foregrounded.
+        if (type === "incoming_call") {
+          // Notify any open windows so the in-app toast can also appear
+          clientList.forEach(client => {
+            try { client.postMessage({ type: "PUSH_RECEIVED", payload }); } catch (_) {}
+          });
+          // AND show OS notification (critical for when app is backgrounded)
+          return _showOsNotification(payload);
+        }
+
+        // [SW-2] For other types: only show OS notification if no visible/focused window
         const activeClient = clientList.find(
-          (c) => c.visibilityState === "visible" || c.focused
+          c => c.visibilityState === "visible" || c.focused
         );
 
         if (activeClient) {
-          // App is open and visible — send to app, skip OS notification
-          activeClient.postMessage({ type: "PUSH_RECEIVED", payload });
+          // App is visible — forward to in-app handler
+          try { activeClient.postMessage({ type: "PUSH_RECEIVED", payload }); } catch (_) {}
           return;
         }
 
-        // App is backgrounded or closed — show OS notification
-        // [SW-1] & [SW-7] Unique tag per notification so they stack, not replace
-        const notifId = payload.data?.notification_id
-          || payload.data?.entity_id
-          || `xeevia_${Date.now()}`;
-
-        const tag = payload.data?.type === "dm"
-          ? `dm_${payload.data?.conversation_id || notifId}`
-          : `notif_${notifId}`;
-
-        return self.registration.showNotification(payload.title || "Xeevia", {
-          body:               payload.body              || "",
-          icon:               payload.icon              || "/logo192.png",
-          badge:              payload.badge             || "/logo192.png",
-          tag,
-          renotify:           true,   // vibrate/sound even if same tag is updated
-          vibrate:            payload.vibrate           || [200, 100, 200],
-          requireInteraction: payload.requireInteraction || false,
-          actions: payload.actions || [
-            { action: "view",    title: "View"    },
-            { action: "dismiss", title: "Dismiss" },
-          ],
-          data: {
-            url:             payload.data?.url             || "/",
-            type:            payload.data?.type            || "general",
-            entity_id:       payload.data?.entity_id       || null,
-            notification_id: payload.data?.notification_id || notifId,
-            conversation_id: payload.data?.conversation_id || null,
-            ...(payload.data || {}),
-          },
-        });
+        // App backgrounded or closed — show OS notification
+        return _showOsNotification(payload);
       })
   );
 });
+
+function _showOsNotification(payload) {
+  const type   = payload?.data?.type  || "general";
+  const notifId = payload?.data?.notification_id
+    || payload?.data?.call_id
+    || payload?.data?.entity_id
+    || `xeevia_${Date.now()}`;
+
+  // [SW-1] & [SW-7] Unique tag per notification so they stack on Android
+  let tag;
+  if (type === "incoming_call") {
+    tag = `call_${payload?.data?.call_id || notifId}`;
+  } else if (type === "dm") {
+    tag = `dm_${payload?.data?.conversation_id || notifId}`;
+  } else {
+    tag = `notif_${notifId}`;
+  }
+
+  const isCall = type === "incoming_call";
+
+  return self.registration.showNotification(payload.title || "Xeevia", {
+    body:               payload.body              || "",
+    icon:               payload.icon              || "/logo192.png",
+    badge:              payload.badge             || "/logo192.png",
+    tag,
+    renotify:           true,
+    vibrate:            isCall
+                          ? [500, 100, 500, 100, 500]
+                          : (payload.vibrate || [200, 100, 200]),
+    requireInteraction: isCall || payload.requireInteraction || false,
+    // [SW-8] Call-specific accept/decline actions
+    actions: isCall
+      ? [
+          { action: "accept",  title: "✅ Accept"  },
+          { action: "decline", title: "❌ Decline" },
+        ]
+      : (payload.actions || [
+          { action: "view",    title: "View"    },
+          { action: "dismiss", title: "Dismiss" },
+        ]),
+    data: {
+      url:              payload?.data?.url              || "/",
+      type,
+      entity_id:        payload?.data?.entity_id        || null,
+      notification_id:  notifId,
+      conversation_id:  payload?.data?.conversation_id  || null,
+      call_id:          payload?.data?.call_id          || null,
+      caller_name:      payload?.data?.caller_name       || payload?.data?.callerName || null,
+      call_type:        payload?.data?.call_type         || payload?.data?.callType   || null,
+      caller_avatar_id: payload?.data?.caller_avatar_id  || null,
+      ...(payload?.data || {}),
+    },
+  });
+}
 
 // ── Notification click ────────────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
@@ -243,21 +296,60 @@ self.addEventListener("notificationclick", (event) => {
 
   const action    = event.action;
   const notifData = event.notification.data || {};
-  // [SW-5] Use the actual deep-link URL, not just "/"
-  const targetUrl = notifData.url || "/";
+  const type      = notifData.type || "general";
 
+  // Silence dismiss actions immediately
   if (action === "dismiss") return;
 
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clientList) => {
-        const appClient = clientList.find((c) => c.url.includes(self.location.origin));
-        if (appClient) {
-          appClient.postMessage({ type: "NOTIFICATION_CLICKED", url: targetUrl, data: notifData });
-          return appClient.focus();
+      .then(async clientList => {
+        // ── [SW-8] CALL ACCEPT ─────────────────────────────────────────────
+        if (type === "incoming_call" && action === "accept") {
+          const msg = { type: "CALL_ACCEPTED_FROM_NOTIFICATION", data: notifData };
+          if (clientList.length > 0) {
+            // App is open — tell it to accept the call
+            clientList.forEach(c => {
+              try { c.postMessage(msg); } catch (_) {}
+            });
+            // Focus the first window
+            const win = clientList.find(c => c.url.includes(self.location.origin));
+            if (win && "focus" in win) return win.focus();
+          } else {
+            // App is closed — open it with call accept intent
+            const url = `/messages?accept_call=${notifData.call_id || ""}`;
+            return self.clients.openWindow(url);
+          }
+          return;
         }
-        // [SW-5] Cold open — open the actual deep-link, not root
+
+        // ── [SW-8] CALL DECLINE ───────────────────────────────────────────
+        if (type === "incoming_call" && action === "decline") {
+          const msg = { type: "CALL_DECLINED_FROM_NOTIFICATION", data: notifData };
+          clientList.forEach(c => { try { c.postMessage(msg); } catch (_) {} });
+          // No need to open any window for a decline
+          return;
+        }
+
+        // ── STANDARD NOTIFICATION CLICK ────────────────────────────────────
+        // [SW-5] Use the actual deep-link URL
+        const targetUrl = notifData.url || "/";
+
+        // [SW-10] Notify ALL open windows so any tab can handle routing
+        clientList.forEach(c => {
+          try {
+            c.postMessage({ type: "NOTIFICATION_CLICKED", url: targetUrl, data: notifData });
+          } catch (_) {}
+        });
+
+        const appClient = clientList.find(c => c.url.includes(self.location.origin));
+        if (appClient) {
+          if ("focus" in appClient) appClient.focus();
+          return;
+        }
+
+        // [SW-5] Cold open — open the actual deep-link
         return self.clients.openWindow(targetUrl);
       })
   );
@@ -272,36 +364,26 @@ self.addEventListener("message", (event) => {
     case "SKIP_WAITING":
       self.skipWaiting();
       break;
+
     case "GET_VERSION":
       event.source?.postMessage({ type: "SW_VERSION", version: SW_VERSION });
       break;
+
     case "CLEAR_BADGE":
-      // [SW-4] navigator is the correct global in SW context, not self.navigator
+      // [SW-4] navigator is the correct global in SW context
       if ("clearAppBadge" in navigator) {
         navigator.clearAppBadge().catch(() => {});
       }
       break;
+
     case "GET_PENDING_PAYLOADS":
       // App requests any payloads stored while it was closed/offline
       (async () => {
-        try {
-          const db      = await openDB();
-          const tx      = db.transaction(STORE_NAME, "readwrite");
-          const all     = await new Promise((res) => {
-            const r = tx.objectStore(STORE_NAME).getAll();
-            r.onsuccess = () => res(r.result);
-            r.onerror   = () => res([]);
-          });
-          event.source?.postMessage({ type: "PENDING_PAYLOADS", payloads: all.map((e) => e.payload) });
-          // Clear them now that the app has them
-          all.forEach((e) => {
-            try { tx.objectStore(STORE_NAME).delete(e.id); } catch (_) {}
-          });
-        } catch (_) {
-          event.source?.postMessage({ type: "PENDING_PAYLOADS", payloads: [] });
-        }
+        const payloads = await getAllPendingPayloads();
+        event.source?.postMessage({ type: "PENDING_PAYLOADS", payloads });
       })();
       break;
+
     default:
       break;
   }

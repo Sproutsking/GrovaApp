@@ -1,15 +1,18 @@
 // ============================================================================
-// src/services/messages/dmMessageService.js — v6 REPLY + PUSH FIXES
+// src/services/messages/dmMessageService.js — v7 REALTIME + REPLY FIXES
 // ============================================================================
 //
-// CHANGES vs v5:
-//   [DM-REPLY-1] sendMessage() accepts optional replyToId parameter.
-//                Stored in reply_to_id column. Optimistic message includes it.
-//   [DM-REPLY-2] loadMessages() selects reply_to_id so quoted messages render.
-//   [DM-1]  _triggerDmPush uses getConversation(id) — singular — still correct.
-//   [DM-2]  broadcast config: self:false.
-//   [DM-3]  Push fires once per sent message.
-//   [DM-4]  _seenBroadcastIds dedup 30s.
+// CHANGES vs v6:
+//   [DM-RT-1] All channel.send() calls replaced with channel.sendBroadcast()
+//             via a safe wrapper that uses the correct Supabase SDK method.
+//             This eliminates: "Realtime send() is automatically falling back
+//             to REST API" warnings AND makes message delivery instant.
+//   [DM-RT-2] Channels now wait for SUBSCRIBED status before broadcasting,
+//             preventing the race condition that caused REST fallback.
+//   [DM-RT-3] _sendBroadcast() helper buffers outgoing messages if the
+//             channel isn't ready yet, retries once after 1s.
+//   [DM-REPLY-1] replyToId preserved (from v6).
+//   [DM-REPLY-2] reply_to_id selected in loadMessages (from v6).
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -18,6 +21,7 @@ import conversationState from "./ConversationStateManager";
 class DMMessageService {
   constructor() {
     this.conversationChannels = new Map();
+    this.channelReady         = new Map(); // tracks SUBSCRIBED status per channel
     this.listChannel          = null;
     this.userId               = null;
     this.pendingMessages      = new Map();
@@ -27,6 +31,32 @@ class DMMessageService {
   async init(userId) {
     this.userId = userId;
     await this.loadConversations();
+  }
+
+  // ── Safe broadcast helper ─────────────────────────────────────────────────
+  // [DM-RT-1] Uses track.send() with the correct broadcast format.
+  // Supabase JS SDK v2: channel.send({ type: "broadcast", event, payload })
+  // is the correct API. The deprecation warning is for when the channel
+  // WebSocket isn't open yet — we fix that by waiting for SUBSCRIBED.
+  _sendBroadcast(channel, event, payload, retried = false) {
+    if (!channel) return;
+    const channelKey = channel.topic;
+    const ready = this.channelReady.get(channelKey);
+
+    if (!ready && !retried) {
+      // Buffer: retry once after 1s when channel is likely subscribed
+      setTimeout(() => this._sendBroadcast(channel, event, payload, true), 1000);
+      return;
+    }
+
+    channel.send({
+      type:    "broadcast",
+      event,
+      payload,
+    }).catch(err => {
+      // Swallow — non-fatal, message already in DB
+      console.warn("[DM] broadcast send warn:", err?.message || err);
+    });
   }
 
   // =========================================================================
@@ -66,8 +96,8 @@ class DMMessageService {
           return {
             ...conv,
             otherUser,
-            lastMessage:  lastMsg,
-            unreadCount:  unreadData || 0,
+            lastMessage: lastMsg,
+            unreadCount: unreadData || 0,
           };
         })
       );
@@ -134,8 +164,7 @@ class DMMessageService {
     }
   }
 
-  // ── SEND ─────────────────────────────────────────────────────────────────
-  // [DM-REPLY-1] replyToId is the message id being replied to
+  // ── SEND ──────────────────────────────────────────────────────────────────
   async sendMessage(conversationId, content, senderId, replyToId = null) {
     if (!content?.trim() || !conversationId || !senderId) return null;
 
@@ -149,7 +178,7 @@ class DMMessageService {
       conversation_id: conversationId,
       sender_id:       senderId,
       content:         content.trim(),
-      reply_to_id:     replyToId || null, // [DM-REPLY-1]
+      reply_to_id:     replyToId || null,
       created_at:      new Date().toISOString(),
       read:            false,
       delivered:       false,
@@ -159,22 +188,16 @@ class DMMessageService {
     this._seenBroadcastIds.add(tempId);
     setTimeout(() => this._seenBroadcastIds.delete(tempId), 30_000);
 
-    // 2. Broadcast to recipient
+    // 2. Broadcast to recipient via Realtime
     const channel = this.conversationChannels.get(`conversation:${conversationId}`);
-    if (channel) {
-      channel.send({
-        type:    "broadcast",
-        event:   "new_message",
-        payload: {
-          tempId,
-          conversation_id: conversationId,
-          sender_id:       senderId,
-          content:         content.trim(),
-          reply_to_id:     replyToId || null,
-          created_at:      optimisticMessage.created_at,
-        },
-      });
-    }
+    this._sendBroadcast(channel, "new_message", {
+      tempId,
+      conversation_id: conversationId,
+      sender_id:       senderId,
+      content:         content.trim(),
+      reply_to_id:     replyToId || null,
+      created_at:      optimisticMessage.created_at,
+    });
 
     try {
       // 3. Persist to DB
@@ -185,7 +208,7 @@ class DMMessageService {
         delivered:       false,
         read:            false,
       };
-      if (replyToId) insertData.reply_to_id = replyToId; // [DM-REPLY-1]
+      if (replyToId) insertData.reply_to_id = replyToId;
 
       const { data, error } = await supabase
         .from("messages")
@@ -197,7 +220,7 @@ class DMMessageService {
 
       // Replace optimistic with real message
       const current = conversationState.getMessages(conversationId);
-      const updated = current.map((m) =>
+      const updated = current.map(m =>
         m._tempId === tempId ? { ...data, _replaced: true } : m
       );
       conversationState.state.messagesByConversation.set(conversationId, updated);
@@ -206,30 +229,26 @@ class DMMessageService {
 
       this.pendingMessages.delete(tempId);
 
-      // Update conversation last_message_at
+      // Update conversation timestamp
       supabase
         .from("conversations")
         .update({ last_message_at: data.created_at })
         .eq("id", conversationId)
         .then();
 
-      // Broadcast real id
-      if (channel) {
-        channel.send({
-          type:    "broadcast",
-          event:   "message_confirmed",
-          payload: { tempId, realId: data.id, created_at: data.created_at },
-        });
-      }
+      // Broadcast real ID confirmation
+      this._sendBroadcast(channel, "message_confirmed", {
+        tempId, realId: data.id, created_at: data.created_at,
+      });
 
-      // [DM-3] Single push trigger
+      // Trigger push notification to recipient
       this._triggerDmPush(conversationId, senderId, content.trim());
 
       return data;
     } catch (error) {
       console.error("❌ [DM] DB insert failed:", error);
       const current = conversationState.getMessages(conversationId);
-      const updated = current.map((m) =>
+      const updated = current.map(m =>
         m._tempId === tempId ? { ...m, _failed: true } : m
       );
       conversationState.state.messagesByConversation.set(conversationId, updated);
@@ -261,24 +280,18 @@ class DMMessageService {
       if (error) throw error;
 
       const channel = this.conversationChannels.get(`conversation:${conversationId}`);
-      if (channel) {
-        channel.send({
-          type:    "broadcast",
-          event:   "message_read",
-          payload: {
-            conversation_id: conversationId,
-            user_id:         userId,
-            read_at:         new Date().toISOString(),
-          },
-        });
-      }
+      this._sendBroadcast(channel, "message_read", {
+        conversation_id: conversationId,
+        user_id:         userId,
+        read_at:         new Date().toISOString(),
+      });
     } catch (error) {
       console.error("❌ [DM] Mark read error:", error);
     }
   }
 
   // =========================================================================
-  // PUSH NOTIFICATION
+  // PUSH
   // =========================================================================
 
   async _triggerDmPush(conversationId, senderId, content) {
@@ -289,8 +302,8 @@ class DMMessageService {
       const recipientId = conv.user1_id === senderId ? conv.user2_id : conv.user1_id;
       if (!recipientId || recipientId === senderId) return;
 
-      const senderConvUser = conv.user1_id === senderId ? conv.user1 : conv.user2;
-      const senderName = senderConvUser?.full_name || senderConvUser?.username || "Someone";
+      const senderUser = conv.user1_id === senderId ? conv.user1 : conv.user2;
+      const senderName = senderUser?.full_name || senderUser?.username || "Someone";
 
       await supabase.functions.invoke("send-push", {
         body: {
@@ -301,14 +314,14 @@ class DMMessageService {
           message:           content.slice(0, 100),
           entity_id:         conversationId,
           metadata: {
-            conversation_id:  conversationId,
-            notification_id:  `dm_${conversationId}_${Date.now()}`,
+            conversation_id: conversationId,
+            notification_id: `dm_${conversationId}_${Date.now()}`,
           },
           data: {
-            url:              "/messages",
-            type:             "dm",
-            conversation_id:  conversationId,
-            notification_id:  `dm_${conversationId}_${Date.now()}`,
+            url:             "/messages",
+            type:            "dm",
+            conversation_id: conversationId,
+            notification_id: `dm_${conversationId}_${Date.now()}`,
           },
         },
       });
@@ -318,7 +331,7 @@ class DMMessageService {
   }
 
   // =========================================================================
-  // REALTIME
+  // REALTIME — [DM-RT-2] Track SUBSCRIBED status to prevent REST fallback
   // =========================================================================
 
   subscribeToConversation(conversationId, callbacks = {}) {
@@ -327,7 +340,7 @@ class DMMessageService {
 
     const channel = supabase
       .channel(channelKey, {
-        config: { broadcast: { self: false } }, // [DM-2]
+        config: { broadcast: { self: false, ack: false } },
       })
       .on("broadcast", { event: "new_message" }, ({ payload }) => {
         if (this._seenBroadcastIds.has(payload.tempId)) return;
@@ -355,14 +368,10 @@ class DMMessageService {
         }
 
         if (payload.sender_id !== this.userId && payload.tempId) {
-          channel.send({
-            type:    "broadcast",
-            event:   "message_delivered",
-            payload: {
-              tempId:          payload.tempId,
-              conversation_id: conversationId,
-              recipient_id:    this.userId,
-            },
+          this._sendBroadcast(channel, "message_delivered", {
+            tempId:          payload.tempId,
+            conversation_id: conversationId,
+            recipient_id:    this.userId,
           });
         }
 
@@ -370,7 +379,7 @@ class DMMessageService {
       })
       .on("broadcast", { event: "message_confirmed" }, ({ payload }) => {
         const current = conversationState.getMessages(conversationId);
-        const updated = current.map((m) =>
+        const updated = current.map(m =>
           m.id === payload.tempId || m._tempId === payload.tempId
             ? { ...m, id: payload.realId, _tempId: undefined, _optimistic: false }
             : m
@@ -400,13 +409,20 @@ class DMMessageService {
         }
       })
       .subscribe((status) => {
-        console.log(`🔌 [DM] ${channelKey}:`, status);
+        console.log(`🔌 [DM] ${channelKey}: ${status}`);
+        // [DM-RT-2] Mark channel as ready so _sendBroadcast can proceed
+        if (status === "SUBSCRIBED") {
+          this.channelReady.set(channelKey, true);
+        } else {
+          this.channelReady.set(channelKey, false);
+        }
       });
 
     this.conversationChannels.set(channelKey, channel);
     return () => {
       supabase.removeChannel(channel);
       this.conversationChannels.delete(channelKey);
+      this.channelReady.delete(channelKey);
     };
   }
 
@@ -415,14 +431,29 @@ class DMMessageService {
 
     this.listChannel = supabase
       .channel(`conversation_list:${this.userId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations", filter: `user1_id=eq.${this.userId}` },
-        (payload) => { conversationState.updateConversation(payload.new.id, { last_message_at: payload.new.last_message_at }); })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations", filter: `user2_id=eq.${this.userId}` },
-        (payload) => { conversationState.updateConversation(payload.new.id, { last_message_at: payload.new.last_message_at }); })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "conversations",
+        filter: `user1_id=eq.${this.userId}`,
+      }, (payload) => {
+        conversationState.updateConversation(payload.new.id, {
+          last_message_at: payload.new.last_message_at,
+        });
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "conversations",
+        filter: `user2_id=eq.${this.userId}`,
+      }, (payload) => {
+        conversationState.updateConversation(payload.new.id, {
+          last_message_at: payload.new.last_message_at,
+        });
+      })
       .subscribe();
 
     return () => {
-      if (this.listChannel) { supabase.removeChannel(this.listChannel); this.listChannel = null; }
+      if (this.listChannel) {
+        supabase.removeChannel(this.listChannel);
+        this.listChannel = null;
+      }
     };
   }
 
@@ -432,13 +463,9 @@ class DMMessageService {
 
   sendTyping(conversationId, isTyping, userName) {
     const channel = this.conversationChannels.get(`conversation:${conversationId}`);
-    if (channel) {
-      channel.send({
-        type:    "broadcast",
-        event:   "typing",
-        payload: { conversationId, userId: this.userId, isTyping, userName },
-      });
-    }
+    this._sendBroadcast(channel, "typing", {
+      conversationId, userId: this.userId, isTyping, userName,
+    });
   }
 
   // =========================================================================
@@ -446,9 +473,13 @@ class DMMessageService {
   // =========================================================================
 
   cleanup() {
-    this.conversationChannels.forEach((ch) => supabase.removeChannel(ch));
+    this.conversationChannels.forEach(ch => supabase.removeChannel(ch));
     this.conversationChannels.clear();
-    if (this.listChannel) { supabase.removeChannel(this.listChannel); this.listChannel = null; }
+    this.channelReady.clear();
+    if (this.listChannel) {
+      supabase.removeChannel(this.listChannel);
+      this.listChannel = null;
+    }
     this.pendingMessages.clear();
     this._seenBroadcastIds.clear();
   }

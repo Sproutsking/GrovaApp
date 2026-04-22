@@ -23,49 +23,73 @@ export const SILVER_THEMES = [
     name:    "Moonlit Chrome",
     emoji:   "🌙",
     tagline: "Soft chrome shimmer",
-    preview: "linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 50%,#1a1a1a 100%)",
+    preview: "linear-gradient(135deg,#111114 0%,#2a2a30 40%,#111114 100%)",
 
     // Avatar ring styles
     avatar: {
       border:     "2.5px solid #c0c0c0",
-      boxShadow:  "0 0 0 3px rgba(192,192,192,0.2), 0 0 20px rgba(192,192,192,0.45), 0 0 40px rgba(192,192,192,0.2)",
+      boxShadow:  "0 0 0 3px rgba(192,192,192,0.25), 0 0 24px rgba(210,210,210,0.6), 0 0 48px rgba(192,192,192,0.28)",
       animation:  "silverPulse 3s ease-in-out infinite",
     },
 
-    // Profile card background (injected as inline style on the card wrapper)
+    // Profile card background — rich layered moonlit chrome
     card: {
       background: `
-        radial-gradient(ellipse at 20% 0%,  rgba(255,255,255,0.07) 0%, transparent 55%),
-        radial-gradient(ellipse at 80% 0%,  rgba(192,192,192,0.09) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 100%,rgba(148,148,148,0.06) 0%, transparent 55%),
-        #080808
+        radial-gradient(ellipse 75% 45% at 50% -5%,  rgba(220,220,235,0.14) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 40% at 10% 15%,  rgba(192,192,215,0.11) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 40% at 90% 15%,  rgba(192,192,215,0.11) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 50% 108%, rgba(150,150,175,0.10) 0%, transparent 55%),
+        radial-gradient(ellipse 30% 25% at 22% 52%,  rgba(180,180,205,0.07) 0%, transparent 45%),
+        radial-gradient(ellipse 30% 25% at 78% 52%,  rgba(180,180,205,0.07) 0%, transparent 45%),
+        #07070b
       `.replace(/\s+/g," ").trim(),
     },
 
-    // Card border/frame
+    // Card border/frame — visible chrome glow
     frame: {
-      border:     "1.5px solid rgba(192,192,192,0.4)",
-      boxShadow:  "0 0 0 1px rgba(255,255,255,0.05), inset 0 0 28px rgba(192,192,192,0.06), 0 8px 48px rgba(0,0,0,0.6), 0 0 40px rgba(192,192,192,0.1)",
+      border:     "1.5px solid rgba(200,200,218,0.45)",
+      boxShadow:  "0 0 0 1px rgba(255,255,255,0.07), inset 0 0 44px rgba(192,192,215,0.09), 0 8px 56px rgba(0,0,0,0.75), 0 0 60px rgba(192,192,215,0.20)",
     },
 
-    // Overlay: animated chrome sheen sweeps across
+    // Overlay: animated chrome sheen sweep
     overlay: {
-      type:       "sheen",
-      background: "linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.06) 40%, rgba(212,212,212,0.09) 50%, rgba(255,255,255,0.05) 60%, transparent 75%)",
+      type:           "sheen",
+      background:     "linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.05) 36%, rgba(230,230,248,0.11) 50%, rgba(255,255,255,0.05) 64%, transparent 80%)",
       backgroundSize: "300% 100%",
-      animation:  "silverSheen 5s ease-in-out infinite",
+      animation:      "silverSheen 5s ease-in-out infinite",
     },
 
     keyframes: `
       @keyframes silverPulse {
-        0%,100% { box-shadow: 0 0 0 3px rgba(192,192,192,0.2), 0 0 20px rgba(192,192,192,0.45), 0 0 40px rgba(192,192,192,0.2); }
-        50%     { box-shadow: 0 0 0 4px rgba(255,255,255,0.3),  0 0 32px rgba(212,212,212,0.7),  0 0 64px rgba(192,192,192,0.35); }
+        0%,100% { box-shadow: 0 0 0 3px rgba(192,192,192,0.22), 0 0 24px rgba(210,210,220,0.55), 0 0 48px rgba(192,192,210,0.24); }
+        50%     { box-shadow: 0 0 0 4px rgba(255,255,255,0.36),  0 0 38px rgba(228,228,240,0.82), 0 0 72px rgba(200,200,220,0.42); }
       }
       @keyframes silverSheen {
         0%   { background-position: -200% center; }
         100% { background-position:  300% center; }
       }
+      @keyframes silverGrid {
+        0%,100% { opacity: 0.07; }
+        50%     { opacity: 0.16; }
+      }
+      @keyframes silverStarTwinkle {
+        0%,100% { opacity: var(--op, 0.2); transform: scale(1); }
+        50%     { opacity: calc(var(--op, 0.2) * 2.2); transform: scale(1.4); }
+      }
     `,
+
+    // Floating chrome sparkle shapes
+    floatingShapes: [
+      { char:"✦", size:10, top:"11%",  left:"8%",   opacity:0.24, blur:0,   anim:"silverStarTwinkle", dur:"3.8s", delay:"0s"   },
+      { char:"✦", size:6,  top:"26%",  left:"83%",  opacity:0.18, blur:0,   anim:"silverStarTwinkle", dur:"5.2s", delay:"1.0s" },
+      { char:"✦", size:8,  top:"56%",  left:"13%",  opacity:0.18, blur:0,   anim:"silverStarTwinkle", dur:"4.5s", delay:"2.1s" },
+      { char:"✦", size:5,  top:"73%",  left:"71%",  opacity:0.20, blur:0,   anim:"silverStarTwinkle", dur:"6.0s", delay:"0.6s" },
+      { char:"✦", size:7,  top:"40%",  left:"49%",  opacity:0.13, blur:1,   anim:"silverStarTwinkle", dur:"7.0s", delay:"3.2s" },
+      { char:"✦", size:5,  top:"88%",  left:"55%",  opacity:0.16, blur:0,   anim:"silverStarTwinkle", dur:"4.8s", delay:"1.8s" },
+      { char:"·", size:14, top:"19%",  left:"61%",  opacity:0.32, blur:0,   anim:"drift2",            dur:"4.5s", delay:"1.5s" },
+      { char:"·", size:14, top:"80%",  left:"29%",  opacity:0.26, blur:0,   anim:"drift3",            dur:"5.0s", delay:"2.5s" },
+      { char:"·", size:10, top:"47%",  left:"90%",  opacity:0.20, blur:0,   anim:"drift4",            dur:"6.2s", delay:"0.3s" },
+    ],
   },
 ];
 
@@ -210,10 +234,10 @@ export const DIAMOND_THEMES = [
     `,
 
     floatingShapes: [
-      { char:"♦", size:72, top:"8%",  left:"6%",  opacity:0.12, blur:1.5, anim:"drift1", dur:"7s",   delay:"0s"   },
+      { char:"♦", size:72, top:"8%",  left:"6%",   opacity:0.12, blur:1.5, anim:"drift1", dur:"7s",   delay:"0s"   },
       { char:"♦", size:108,bottom:"10%",right:"5%",opacity:0.07, blur:3,   anim:"drift2", dur:"9s",   delay:"1s"   },
-      { char:"◆", size:32, top:"40%", right:"8%", opacity:0.09, blur:0,   anim:"drift3", dur:"5.5s", delay:"2s"   },
-      { char:"♦", size:18, top:"65%", left:"15%", opacity:0.14, blur:0,   anim:"drift4", dur:"4s",   delay:"0.5s" },
+      { char:"◆", size:32, top:"40%", right:"8%",  opacity:0.09, blur:0,   anim:"drift3", dur:"5.5s", delay:"2s"   },
+      { char:"♦", size:18, top:"65%", left:"15%",  opacity:0.14, blur:0,   anim:"drift4", dur:"4s",   delay:"0.5s" },
     ],
   },
 
@@ -439,6 +463,10 @@ export const SHARED_KEYFRAMES = `
     100% { transform: translateX(230%)  skewX(-18deg); opacity: 0; }
   }
   @keyframes framePulse { 0%,100%{opacity:0.65} 50%{opacity:1} }
+  @keyframes silverStarTwinkle {
+    0%,100% { opacity: var(--op, 0.2); transform: scale(1); }
+    50%     { opacity: calc(var(--op, 0.2) * 2.2); transform: scale(1.4); }
+  }
 `;
 
 // ── Lookups ───────────────────────────────────────────────────────────────

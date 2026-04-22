@@ -215,6 +215,64 @@ const LAYOUT_CSS = `
   .section-head  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; justify-content: center; }
   .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.22); white-space: nowrap; flex-shrink: 0; }
   .section-line  { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); max-width: 120px; }
+
+  /* ============================================================
+   WALLET LAYOUT FIXES — add to WalletStyles.css or inline
+   
+   1. Remove forced left/right padding that was compressing content
+   2. Fix top robbing — give wallet a proper top clearance
+   3. Mobile: clean edge-to-edge layout
+   ============================================================ */
+
+/* Override .wv-shell to remove forced side gaps */
+.wv-shell {
+  /* Keep the top offset for the header (58px) but remove
+     any extra horizontal compression that came from the sidebar calc */
+  padding-left: 0  !important;
+  padding-right: 0 !important;
+}
+
+/* Content pad: reduce horizontal padding on desktop,
+   keep comfortable breathing room without forcing dead space */
+.wv-content-pad {
+  padding: 12px 20px 24px !important;  /* was 16px 4% — 4% adds ~30px dead space */
+}
+
+/* On wide screens, let content breathe but not be squished */
+@media (min-width: 1200px) {
+  .wv-content-pad {
+    padding: 14px 24px 28px !important;
+  }
+}
+
+/* Mobile — full bleed, no side gutters */
+@media (max-width: 767px) {
+  .wv-content-pad {
+    padding: 10px 12px 80px !important;
+  }
+}
+
+/* ── Top clearance fix ── 
+   The wallet was starting right at the header edge (top:58px)
+   with zero visual breathing room. Add 8px top padding to
+   the shell so content doesn't feel "robbed" at the top.
+*/
+.wv-shell {
+  padding-top: 0;  /* shell itself stays flush */
+}
+.wv-center {
+  /* subtle top fade so content doesn't hard-cut against header */
+  padding-top: 0;
+}
+.wv-content-pad {
+  padding-top: 14px !important; /* consistent top breathing room */
+}
+
+/* ── BalanceCard top margin fix ──
+   Card was getting clipped at top on mobile */
+.wv-content-pad > *:first-child {
+  margin-top: 0;
+}
 `;
 
 // ── Right Sidebar ─────────────────────────────────────────────

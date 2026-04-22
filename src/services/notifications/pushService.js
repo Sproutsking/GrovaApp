@@ -1,24 +1,36 @@
 // ============================================================================
-// src/services/notifications/pushService.js — v6 CRA-FIXED
+// src/services/notifications/pushService.js — v7 FINAL
 // ============================================================================
-// CHANGE v6:
-//  Removed import.meta.env.VITE_* (that's Vite-only).
-//  Uses process.env.REACT_APP_VAPID_PUBLIC_KEY instead (CRA convention).
-//  Add this to your .env file (NOT .env.local):
-//    REACT_APP_VAPID_PUBLIC_KEY=<your full VAPID_PUBLIC_KEY from Supabase secrets>
 //
-//  All existing P-1 through P-8 fixes preserved exactly.
+// CHANGES vs v6:
+//   [P-ENV]  Reads REACT_APP_VAPID_PUBLIC_KEY first (CRA env var), falls back
+//            to the raw key. Add to your .env:
+//            REACT_APP_VAPID_PUBLIC_KEY=BIn84fMl6xilxp_r9d_hEUKaZbz_qPbSnPEq2acCJ5X8w469WNF7FleDB_WCMSiAfD2c3zXcpKSFGBFjDdVP57k
+//
+//   [P-SUB]  subscribe() now stores userId in _userId so retry/save still
+//            work after a page refresh without needing start() to re-run.
+//
+//   [P-RETRY] _saveWithRetry uses exponential backoff (5s, 15s, 45s).
+//
+//   [P-GUARD] Blocks subscribe() from running while a prior call is in
+//             progress — prevents duplicate subscriptions on rapid re-mount.
+//
+//   [P-STATE] isSubscribed() returns current subscription status synchronously.
+//
+//   All prior P-1 through P-8 fixes preserved exactly.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 
-// ✅ CRA uses process.env.REACT_APP_* — add to your .env file
-// REACT_APP_VAPID_PUBLIC_KEY=<paste your full key from Supabase secrets here>
+// ── VAPID key ─────────────────────────────────────────────────────────────────
+// 1. CRA exposes REACT_APP_* env vars to the browser.
+// 2. The raw key fallback is always used if the env var is not set.
+//    Both values must match the VAPID_PUBLIC_KEY in your Supabase secrets.
 const VAPID_PUBLIC_KEY =
   process.env.REACT_APP_VAPID_PUBLIC_KEY ||
-  ""; // ← If blank, paste your full key directly here as a string fallback
+  "BIn84fMl6xilxp_r9d_hEUKaZbz_qPbSnPEq2acCJ5X8w469WNF7FleDB_WCMSiAfD2c3zXcpKSFGBFjDdVP57k";
 
-// ── Typed event bus ────────────────────────────────────────────────────────────
+// ── Typed event bus ───────────────────────────────────────────────────────────
 class EventBus {
   constructor() { this._map = new Map(); }
   on(event, fn) {
@@ -33,6 +45,7 @@ class EventBus {
   }
 }
 
+// ── Utility: convert VAPID public key to Uint8Array ───────────────────────────
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64  = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -42,12 +55,14 @@ function urlBase64ToUint8Array(base64String) {
   return output;
 }
 
-const _bus     = new EventBus();
-let   _reg     = null;
-let   _started = false;
-let   _userId  = null;
+// ── Module state ──────────────────────────────────────────────────────────────
+const _bus        = new EventBus();
+let   _reg        = null;
+let   _started    = false;
+let   _userId     = null;
+let   _subscribing = false; // [P-GUARD] prevent concurrent subscribe()
 
-// [P-1] Bridge set up at module evaluation — before start() is ever called
+// ── [P-1] Bridge set up at module evaluation — before start() is called ───────
 _setupSWBridge();
 
 function _setupSWBridge() {
@@ -69,6 +84,12 @@ function _setupSWBridge() {
       case "NOTIFICATION_CLICKED":
         _bus.emit("notification_clicked", { url: msg.url, data: msg.data });
         break;
+      case "CALL_ACCEPTED_FROM_NOTIFICATION":
+        _bus.emit("call_accepted_from_notification", msg.data);
+        break;
+      case "CALL_DECLINED_FROM_NOTIFICATION":
+        _bus.emit("call_declined_from_notification", msg.data);
+        break;
       case "PENDING_PAYLOADS":
         if (Array.isArray(msg.payloads) && msg.payloads.length > 0) {
           msg.payloads.forEach(payload => { _bus.emit("push_received", payload); });
@@ -80,12 +101,17 @@ function _setupSWBridge() {
   });
 }
 
+// ── pushService public API ────────────────────────────────────────────────────
 export const pushService = {
   on(event, fn)      { return _bus.on(event, fn); },
   _emit(event, data) { _bus.emit(event, data); },
 
   isSupported() {
-    return "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+    return (
+      "Notification"     in window &&
+      "serviceWorker"    in navigator &&
+      "PushManager"      in window
+    );
   },
 
   getPermission() {
@@ -93,55 +119,89 @@ export const pushService = {
     return Notification.permission;
   },
 
+  // [P-STATE] Returns true if there's an active push subscription
+  async isSubscribed() {
+    try {
+      if (!this.isSupported()) return false;
+      const registration = _reg || (await navigator.serviceWorker.ready);
+      const sub = await registration.pushManager.getSubscription();
+      return !!sub;
+    } catch {
+      return false;
+    }
+  },
+
   async requestPermission() {
     try {
       if (!this.isSupported()) return false;
       const permission = await Notification.requestPermission();
       return permission === "granted";
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   },
 
   async subscribe(userId) {
+    // [P-GUARD] Prevent concurrent subscribe calls
+    if (_subscribing) return null;
+
     try {
       if (!userId || !this.isSupported()) return null;
       if (!VAPID_PUBLIC_KEY) {
-        console.warn("[Push] VAPID_PUBLIC_KEY not set. Add REACT_APP_VAPID_PUBLIC_KEY to your .env file.");
+        console.warn("[Push] VAPID_PUBLIC_KEY not set");
         return null;
       }
+
+      _subscribing = true;
+
+      // [P-SUB] Store userId for retry/save
+      if (userId) _userId = userId;
+
       const registration = _reg || (await navigator.serviceWorker.ready);
-      let subscription   = await registration.pushManager.getSubscription();
+
+      let subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         await this._saveWithRetry(userId, subscription);
+        console.log("[Push] ✅ Existing subscription saved");
         return subscription;
       }
+
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly:      true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
+
       await this._saveWithRetry(userId, subscription);
-      console.log("[Push] ✅ Subscription created");
+      console.log("[Push] ✅ New subscription created and saved");
       return subscription;
     } catch (error) {
       console.error("[Push] ❌ Subscribe failed:", error);
       return null;
+    } finally {
+      _subscribing = false;
     }
   },
 
+  // [P-RETRY] Exponential backoff: 5s → 15s → 45s
   async _saveWithRetry(userId, subscription, attempt = 0) {
+    const delays = [5000, 15000, 45000];
     try {
       await this.savePushSubscription(userId, subscription);
     } catch (err) {
-      if (attempt === 0) {
-        console.warn("[Push] Save failed, retrying in 5s...", err);
-        await new Promise(r => setTimeout(r, 5000));
-        return this._saveWithRetry(userId, subscription, 1);
+      if (attempt < delays.length) {
+        console.warn(`[Push] Save failed, retrying in ${delays[attempt] / 1000}s…`, err);
+        await new Promise(r => setTimeout(r, delays[attempt]));
+        return this._saveWithRetry(userId, subscription, attempt + 1);
       }
-      console.error("[Push] ❌ Save permanently failed:", err);
+      console.error("[Push] ❌ Save permanently failed after all retries:", err);
     }
   },
 
   async savePushSubscription(userId, subscription) {
     const json = subscription.toJSON();
+    if (!json?.keys?.p256dh || !json?.keys?.auth) {
+      throw new Error("[Push] Subscription missing keys — cannot save");
+    }
     const { error } = await supabase.from("push_subscriptions").upsert(
       {
         user_id:    userId,
@@ -152,7 +212,7 @@ export const pushService = {
         is_active:  true,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id,endpoint", ignoreDuplicates: false }
+      { onConflict: "user_id,endpoint", ignoreDuplicates: false },
     );
     if (error) throw error;
   },
@@ -164,52 +224,77 @@ export const pushService = {
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         await subscription.unsubscribe();
-        if (userId) {
-          await supabase.from("push_subscriptions")
+        const uid = userId || _userId;
+        if (uid) {
+          await supabase
+            .from("push_subscriptions")
             .update({ is_active: false })
-            .eq("user_id", userId)
+            .eq("user_id", uid)
             .eq("endpoint", subscription.endpoint);
         }
+        console.log("[Push] ✅ Unsubscribed");
       }
-    } catch (error) { console.error("[Push] ❌ Unsubscribe error:", error); }
+    } catch (error) {
+      console.error("[Push] ❌ Unsubscribe error:", error);
+    }
   },
 
   async testNotification() {
     try {
       if (!this.isSupported() || Notification.permission !== "granted") return;
       const registration = _reg || (await navigator.serviceWorker.ready);
-      await registration.showNotification("Test Notification", {
-        body: "This is a test notification from Xeevia",
-        icon: "/logo192.png", badge: "/logo192.png",
-        tag: `test_${Date.now()}`, vibrate: [200, 100, 200],
+      await registration.showNotification("✅ Test Notification", {
+        body:    "Push notifications are working correctly on Xeevia!",
+        icon:    "/logo192.png",
+        badge:   "/logo192.png",
+        tag:     `test_${Date.now()}`,
+        vibrate: [200, 100, 200],
+        data:    { url: "/", type: "test" },
       });
-    } catch (error) { console.error("[Push] ❌ Test notification failed:", error); }
+    } catch (error) {
+      console.error("[Push] ❌ Test notification failed:", error);
+    }
   },
 
   async start(userId) {
-    if (!this.isSupported()) return;
+    if (!this.isSupported()) {
+      console.log("[Push] Push not supported on this browser/device");
+      return;
+    }
     if (_started && _userId === userId) return;
+
     _started = true;
     _userId  = userId;
+
     try {
       _reg = await navigator.serviceWorker.register("/service-worker.js", {
-        scope: "/", updateViaCache: "none",
+        scope:          "/",
+        updateViaCache: "none",
       });
-      console.log("[Push] SW registered:", _reg.scope);
+      console.log("[Push] ✅ SW registered:", _reg.scope);
+
       this._watchForUpdates(_reg);
+
+      // Request any pending payloads from the SW (handles missed pushes while app was closed)
       setTimeout(() => {
         navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
       }, 1500);
+
       const perm = this.getPermission();
       if (perm === "granted") {
         await this.subscribe(userId);
       } else if (perm === "default") {
+        // Ask for permission after a brief UX delay
         setTimeout(async () => {
           const granted = await this.requestPermission();
           if (granted) await this.subscribe(userId);
         }, 8_000);
+      } else {
+        console.log("[Push] Permission denied — push notifications disabled");
       }
-    } catch (err) { console.error("[Push] start error:", err); }
+    } catch (err) {
+      console.error("[Push] start error:", err);
+    }
   },
 
   clearBadge() {
@@ -227,6 +312,7 @@ export const pushService = {
         }
       });
     });
+
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (refreshing) return;

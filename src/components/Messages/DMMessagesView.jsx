@@ -238,10 +238,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   }, [uid]);
 
   // Wire updates badge from UpdatesView
+  // [BADGE-FIX] Use setUpdatesBadge(count) directly instead of accumulating
+  // with prev + count — prevents badge inflating on every loadStatuses call.
   useEffect(() => {
     registerUpdatesBadgeSetter(count => {
-      if (tabRef.current !== "updates" && count > 0) {
-        setUpdatesBadge(prev => prev + count);
+      if (tabRef.current !== "updates") {
+        setUpdatesBadge(count);  // ← FIX: set directly, not prev + count
       }
     });
     return () => registerUpdatesBadgeSetter(null);

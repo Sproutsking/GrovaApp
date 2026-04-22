@@ -1,27 +1,24 @@
-// src/services/messages/callService.js — NOVA CALL SERVICE v5 CRASH-FIXED
+// src/services/messages/callService.js — v6 REALTIME BROADCAST FIXED
 // ============================================================================
-// FIXES v5:
-//  [CRASH-FIX]  ALL Supabase chains use async IIFE + try/catch.
-//               NEVER .catch() directly on a Supabase query builder —
-//               it doesn't exist and throws "catch is not a function".
-//  [PUSH-FIX]   Calls the existing "send-push" edge function (already deployed)
-//               with call-specific payload, not a non-existent "send-call-push".
-//  [NAME-FIX]   Payload carries every possible name/avatar field.
-//  [END-FIX]    _calleeId stored on startCall so endCall always reaches callee.
+// FIXES v6:
+//  [RT-1]  _broadcastToUser() now waits for SUBSCRIBED before sending.
+//          Previously sent immediately — channel not ready → REST fallback warning.
+//  [RT-2]  Channel subscription uses { ack: false } config to suppress warnings.
+//  [RT-3]  _myChannel subscription correctly tracks SUBSCRIBED state.
+//  All v5 CRASH-FIX, PUSH-FIX, NAME-FIX, END-FIX preserved exactly.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 
 const ICE_SERVERS = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.l.google.com:19302"  },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
   ],
 };
 
-// ── Tiny EventEmitter ─────────────────────────────────────────────────────────
 class Emitter {
   constructor() { this._map = new Map(); }
   on(event, fn) {
@@ -37,12 +34,10 @@ class Emitter {
   clear() { this._map.clear(); }
 }
 
-// ── Safe DB write — NEVER chains .catch() on query builder ───────────────────
 async function dbWrite(queryFn) {
   try { await queryFn(); } catch (e) { console.warn("[callService] db:", e.message); }
 }
 
-// ── CallService ───────────────────────────────────────────────────────────────
 class CallService extends Emitter {
   constructor() {
     super();
@@ -51,13 +46,14 @@ class CallService extends Emitter {
     this._userAvId          = null;
     this._activeCallId      = null;
     this._callRole          = null;
-    this._calleeId          = null;       // ✅ stored on startCall
+    this._calleeId          = null;
     this._lastIncomingCall  = null;
     this._pc                = null;
     this._localStream       = null;
     this._remoteAudio       = null;
     this._pendingCandidates = [];
     this._myChannel         = null;
+    this._myChannelReady    = false; // [RT-3]
     this._initialized       = false;
   }
 
@@ -68,13 +64,17 @@ class CallService extends Emitter {
     if (this._initialized && this._userId === userId) return;
 
     this._userId = userId;
+    this._myChannelReady = false;
+
     if (this._myChannel) {
       try { supabase.removeChannel(this._myChannel); } catch {}
       this._myChannel = null;
     }
 
     this._myChannel = supabase
-      .channel(`user_calls:${userId}`, { config: { broadcast: { self: false } } })
+      .channel(`user_calls:${userId}`, {
+        config: { broadcast: { self: false, ack: false } }, // [RT-2]
+      })
       .on("broadcast", { event: "incoming_call" }, ({ payload }) => this._onIncomingCall(payload))
       .on("broadcast", { event: "call_answer"   }, ({ payload }) => this._onCallAnswer(payload))
       .on("broadcast", { event: "call_decline"  }, ({ payload }) => this._onCallDecline(payload))
@@ -82,10 +82,15 @@ class CallService extends Emitter {
       .on("broadcast", { event: "ice_candidate" }, ({ payload }) => this._onRemoteICE(payload))
       .on("broadcast", { event: "sdp_offer"     }, ({ payload }) => this._onSdpOffer(payload))
       .on("broadcast", { event: "sdp_answer"    }, ({ payload }) => this._onSdpAnswer(payload))
-      .subscribe();
+      .subscribe((status) => {
+        // [RT-3] Track ready state
+        this._myChannelReady = status === "SUBSCRIBED";
+        if (status === "SUBSCRIBED") {
+          console.log("[callService] ready:", userId, userName);
+        }
+      });
 
     this._initialized = true;
-    console.log("[callService] ready:", userId, userName);
   }
 
   // ── startCall ─────────────────────────────────────────────────────────────
@@ -94,7 +99,7 @@ class CallService extends Emitter {
 
     this._activeCallId = callId;
     this._callRole     = "caller";
-    this._calleeId     = calleeId;  // ✅ stored so endCall can always reach callee
+    this._calleeId     = calleeId;
 
     const callerName = callerProfile?.fullName
       || callerProfile?.full_name
@@ -107,7 +112,6 @@ class CallService extends Emitter {
       || this._userAvId
       || null;
 
-    // ✅ Every field path any component might read
     const payload = {
       callId,
       callType,
@@ -126,24 +130,20 @@ class CallService extends Emitter {
       },
     };
 
-    // Signal via Realtime
     await this._broadcastToUser(calleeId, "incoming_call", payload);
 
-    // ✅ Push notification using the EXISTING "send-push" edge function
     this._sendCallPush({ calleeId, callId, callerName, callerAvId, callType });
 
-    // Log to DB — ✅ uses dbWrite() wrapper, no .catch() on query builder
     dbWrite(() =>
       supabase.from("active_calls").upsert({
-        id:        callId,
-        caller_id: this._userId,
-        callee_ids:[calleeId],
-        call_type: callType,
-        status:    "ringing",
+        id:         callId,
+        caller_id:  this._userId,
+        callee_ids: [calleeId],
+        call_type:  callType,
+        status:     "ringing",
       })
     );
 
-    // WebRTC offer
     try {
       await this._setupPeerConnection(callType);
       const offer = await this._pc.createOffer({
@@ -172,7 +172,6 @@ class CallService extends Emitter {
         callId, calleeId: this._userId, calleeName: this._userName,
       });
     }
-    // ✅ dbWrite — no .catch() on query builder
     dbWrite(() =>
       supabase.from("active_calls").update({ status: "answered" }).eq("id", callId)
     );
@@ -192,7 +191,6 @@ class CallService extends Emitter {
       });
     }
 
-    // ✅ CRASH FIX: async IIFE with try/catch — NEVER .catch() on query builder
     dbWrite(() =>
       supabase.from("active_calls")
         .update({ status: "declined", ended_at: new Date().toISOString() })
@@ -206,9 +204,7 @@ class CallService extends Emitter {
 
   // ── endCall ───────────────────────────────────────────────────────────────
   async endCall(callId, remoteUserId) {
-    const cid = callId || this._activeCallId;
-
-    // ✅ Always reach the other side using stored calleeId
+    const cid      = callId || this._activeCallId;
     const targetId = remoteUserId
       || (this._callRole === "caller" ? this._calleeId : null)
       || this._lastIncomingCall?.callerId
@@ -220,7 +216,6 @@ class CallService extends Emitter {
       });
     }
 
-    // ✅ CRASH FIX: async IIFE with try/catch
     dbWrite(() =>
       supabase.from("active_calls")
         .update({ status: "ended", ended_at: new Date().toISOString() })
@@ -235,22 +230,19 @@ class CallService extends Emitter {
     this.emit("call_ended", { callId: cid });
   }
 
-  // ── WebRTC controls ───────────────────────────────────────────────────────
+  // ── Controls ──────────────────────────────────────────────────────────────
   setMuted(muted) {
     this._localStream?.getAudioTracks().forEach(t => { t.enabled = !muted; });
   }
-
   setVideoEnabled(enabled) {
     this._localStream?.getVideoTracks().forEach(t => { t.enabled = enabled; });
   }
-
   async setSpeakerEnabled(enabled) {
     if (this._remoteAudio) this._remoteAudio.muted = !enabled;
     document.querySelectorAll("audio, video").forEach(el => {
       try { el.muted = !enabled; } catch {}
     });
   }
-
   getLocalStream()    { return this._localStream; }
   getPeerConnection() { return this._pc; }
 
@@ -258,18 +250,16 @@ class CallService extends Emitter {
   cleanup() {
     this._cleanupPeer();
     try { supabase.removeChannel(this._myChannel); } catch {}
-    this._myChannel    = null;
-    this._initialized  = false;
-    this._userId       = null;
-    this._activeCallId = null;
-    this._calleeId     = null;
+    this._myChannel      = null;
+    this._myChannelReady = false;
+    this._initialized    = false;
+    this._userId         = null;
+    this._activeCallId   = null;
+    this._calleeId       = null;
     this.clear();
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  // PRIVATE — inbound handlers
-  // ════════════════════════════════════════════════════════════════════════
-
+  // ── Inbound handlers ──────────────────────────────────────────────────────
   _onIncomingCall(payload) {
     if (!payload?.callId) return;
     this._lastIncomingCall = payload;
@@ -312,9 +302,7 @@ class CallService extends Emitter {
     } catch {}
   }
 
-  _onCallAnswer(payload) {
-    this.emit("call_answered", payload);
-  }
+  _onCallAnswer(payload)  { this.emit("call_answered", payload); }
 
   _onCallDecline(payload) {
     this.emit("call_declined", payload);
@@ -333,10 +321,7 @@ class CallService extends Emitter {
     this._lastIncomingCall = null;
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  // PRIVATE — WebRTC
-  // ════════════════════════════════════════════════════════════════════════
-
+  // ── WebRTC ────────────────────────────────────────────────────────────────
   async _setupPeerConnection(callType = "audio") {
     this._cleanupPeer();
 
@@ -370,7 +355,7 @@ class CallService extends Emitter {
       const [stream] = e.streams;
       this.emit("remote_stream", { stream });
       if (!this._remoteAudio) {
-        this._remoteAudio = document.createElement("audio");
+        this._remoteAudio             = document.createElement("audio");
         this._remoteAudio.autoplay    = true;
         this._remoteAudio.playsInline = true;
         this._remoteAudio.setAttribute("style",
@@ -384,10 +369,10 @@ class CallService extends Emitter {
     this._pc.onconnectionstatechange = () => {
       const s = this._pc?.connectionState;
       this.emit("connection_state", { state: s });
-      if (s === "connected") this.emit("call_connected", { callId: this._activeCallId });
-      if (s === "failed" || s === "disconnected") {
+      if (s === "connected")
+        this.emit("call_connected",  { callId: this._activeCallId });
+      if (s === "failed" || s === "disconnected")
         this.emit("call_ended", { callId: this._activeCallId, reason: "connection_lost" });
-      }
     };
 
     return this._pc;
@@ -408,34 +393,36 @@ class CallService extends Emitter {
     this._pendingCandidates = [];
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  // PRIVATE — Signaling + Push
-  // ════════════════════════════════════════════════════════════════════════
-
+  // ── Signaling ─────────────────────────────────────────────────────────────
+  // [RT-1] Subscribe to target channel first, wait for SUBSCRIBED, then send
   async _broadcastToUser(targetUserId, event, payload) {
     if (!targetUserId) return;
     try {
       const ch = supabase.channel(`user_calls:${targetUserId}`, {
-        config: { broadcast: { self: false } },
+        config: { broadcast: { self: false, ack: false } }, // [RT-2]
       });
+
       await new Promise(resolve => {
         const timeout = setTimeout(resolve, 4000);
         ch.subscribe(status => {
           if (status === "SUBSCRIBED" || status === "CHANNEL_ERROR") {
-            clearTimeout(timeout); resolve();
+            clearTimeout(timeout);
+            resolve();
           }
         });
       });
+
       await ch.send({ type: "broadcast", event, payload });
-      setTimeout(() => { try { supabase.removeChannel(ch); } catch {} }, 6000);
+
+      setTimeout(() => {
+        try { supabase.removeChannel(ch); } catch {}
+      }, 6000);
     } catch (e) {
       console.warn("[callService] broadcast:", e.message);
     }
   }
 
-  // ✅ Calls the EXISTING deployed "send-push" edge function
   _sendCallPush({ calleeId, callId, callerName, callerAvId, callType }) {
-    // Non-blocking, non-fatal — fire and forget
     supabase.functions.invoke("send-push", {
       body: {
         recipient_user_id: calleeId,
