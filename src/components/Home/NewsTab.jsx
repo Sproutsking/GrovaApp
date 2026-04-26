@@ -1,30 +1,64 @@
 // ============================================================================
-// src/components/Home/NewsTab.jsx  — v12  ALL ARTICLES RENDER
+// src/components/Home/NewsTab.jsx  — v15  INSTANT + ACCURATE
 //
-// ROOT CAUSE FIX: mergeArticles keys EXCLUSIVELY on url_hash.
-// Every DB row has url_hash (UNIQUE). Every RSS item has url_hash.
-// Perfect dedup, no loss, all articles render.
+// FIXES:
+//  [T1] INSTANT TAB SWITCH — DB results cached in module-level var.
+//       Second visit to News tab shows content immediately (no spinner).
 //
-// SPACING: 6px marginBottom on every card wrapper.
-// LIVE: detectLiveStatus() — "live" | "ended" | "none".
-// RETENTION: filterByAge() — MAX_AGE_DAYS (3 days) client-side.
-// ScrollFAB: identical to PostTab.
+//  [T2] NO DOUBLE-FIRE — activeFilter effect used to have no guard,
+//       firing on mount AND on change. Now it only fires on change (uses
+//       a mounted ref to skip the initial render).
+//
+//  [T3] ACCURATE PENDING COUNT — after DB load, we call engine.seedInFeed()
+//       so the engine knows which hashes are already visible. Engine then
+//       only counts truly NEW articles in pendingRef, not duplicates.
+//
+//  [T4] ALWAYS SHOWS — initialDone flips true after DB resolves OR after
+//       5s timeout. Feed never stays blank if DB is slow.
+//
+//  [T5] BANNER SAFE POSITION — measures header bottom after mount, updates
+//       on resize. Portal to document.body prevents overflow clipping.
+//
+//  [T6] BREAKING articles go straight into feed (no banner). Non-urgent
+//       queue behind banner. firstBatchRef as useRef (survives re-renders).
 // ============================================================================
 
 import React, {
-  useState, useEffect, useRef, useCallback, useImperativeHandle,
+  useState, useEffect, useRef, useCallback,
+  useImperativeHandle, useMemo,
 } from "react";
+import ReactDOM from "react-dom";
 import {
   Globe, Bitcoin, MapPin, Newspaper, ArrowUp, RefreshCw, Zap,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import {
-  getNewsEngine, LIVE_CHANNELS, TIER, getTier,
+  getNewsEngine, TIER, getTier,
   detectLiveStatus, articleKey, filterByAge,
 } from "../../services/news/newsRealtime";
 import NewsCard from "./NewsCard";
 import VideoCard from "./VideoCard";
 
+// ── [T1] Module-level cache — survives tab switches ───────────────────────────
+let _cachedArticles  = null;
+let _cachedVideos    = [];
+let _cacheTimestamp  = 0;
+const CACHE_TTL_MS   = 5 * 60_000; // 5 minutes
+
+function getCached() {
+  if (_cachedArticles && Date.now() - _cacheTimestamp < CACHE_TTL_MS) {
+    return { articles: _cachedArticles, videos: _cachedVideos };
+  }
+  return null;
+}
+
+function setCache(articles, videos = []) {
+  _cachedArticles  = articles;
+  _cachedVideos    = videos;
+  _cacheTimestamp  = Date.now();
+}
+
+// ── Category config ───────────────────────────────────────────────────────────
 const CATEGORIES = [
   { id: null,     label: "All",    Icon: Newspaper },
   { id: "global", label: "Global", Icon: Globe     },
@@ -32,38 +66,50 @@ const CATEGORIES = [
   { id: "crypto", label: "Crypto", Icon: Bitcoin   },
 ];
 
-// ── Safe DB load — no is_video filter (column doesn't exist in schema) ────────
-async function loadFromDB(category) {
-  try {
-    let q = supabase
-      .from("news_posts")
-      .select("id, title, description, image_url, source_name, source_url, article_url, category, region, asset_tag, url_hash, published_at, is_active")
-      .eq("is_active", true)
-      .order("published_at", { ascending: false })
-      .limit(200);
-    if (category) q = q.eq("category", category);
-    const { data, error } = await q;
-    if (error) { console.warn("[NewsTab] DB:", error.message); return []; }
-    return filterByAge(data || []).map((r) => {
-      const liveStatus = detectLiveStatus(r.title || "", r.published_at || "");
-      return { ...r, liveStatus, tier: liveStatus === "live" ? TIER.LIVE : getTier(r.published_at) };
-    });
-  } catch (e) {
-    console.warn("[NewsTab] loadFromDB:", e);
-    return [];
-  }
+// ── DB query with cancellation ────────────────────────────────────────────────
+function makeDbQuery(category) {
+  let cancelled = false;
+  const promise = (async () => {
+    try {
+      let q = supabase
+        .from("news_posts")
+        .select([
+          "id","title","description","image_url","source_name",
+          "source_url","article_url","category","region","asset_tag",
+          "url_hash","published_at","is_active",
+        ].join(","))
+        .eq("is_active", true)
+        .order("published_at", { ascending: false })
+        .limit(200);
+      if (category) q = q.eq("category", category);
+      const { data, error } = await q;
+      if (cancelled || error) return [];
+      return filterByAge(data || []).map((r) => {
+        const liveStatus = detectLiveStatus(r.title || "", r.published_at || "");
+        return {
+          ...r, liveStatus,
+          tier: liveStatus === "live" ? TIER.LIVE : getTier(r.published_at),
+        };
+      });
+    } catch { return []; }
+  })();
+  return { promise, cancel: () => { cancelled = true; } };
 }
 
-// ── Merge by url_hash — canonical key for both DB rows and RSS items ──────────
+// ── Merge helpers — url_hash as canonical key ─────────────────────────────────
 function mergeArticles(existing, incoming) {
   const map = new Map();
   for (const a of existing) {
-    const k = articleKey(a); if (k) map.set(k, a);
+    const k = articleKey(a);
+    if (k) map.set(k, a);
   }
   for (const a of incoming) {
-    const k = articleKey(a); if (!k) continue;
+    const k = articleKey(a);
+    if (!k) continue;
     const prev = map.get(k);
-    if (!prev || (a.tier ?? TIER.ARCHIVE) <= (prev.tier ?? TIER.ARCHIVE)) map.set(k, a);
+    if (!prev || (a.tier ?? TIER.ARCHIVE) <= (prev.tier ?? TIER.ARCHIVE)) {
+      map.set(k, a);
+    }
   }
   return filterByAge(Array.from(map.values())).sort((a, b) => {
     const ta = a.tier ?? TIER.ARCHIVE, tb = b.tier ?? TIER.ARCHIVE;
@@ -89,18 +135,79 @@ function mergeVideos(existing, incoming) {
     .slice(0, 100);
 }
 
+// ── [T5] New articles banner — portal, measured header position ───────────────
+const NewBanner = ({ count, onShow }) => {
+  const [topPx, setTopPx] = useState(68);
+
+  useEffect(() => {
+    const measure = () => {
+      const selectors = [
+        ".mobile-header", ".desktop-header", "header",
+        ".app-header", ".top-bar", "[class*='Header']", "nav",
+      ];
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const b = el.getBoundingClientRect().bottom;
+          if (b > 0) { setTopPx(Math.round(b) + 8); return; }
+        }
+      }
+      setTopPx(68);
+    };
+    measure();
+    window.addEventListener("resize", measure, { passive: true });
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  if (!count) return null;
+
+  return ReactDOM.createPortal(
+    <>
+      <button className="ntb-pill" style={{ top: topPx }} onClick={onShow}>
+        <ArrowUp size={13} />
+        {count} new article{count !== 1 ? "s" : ""}
+      </button>
+      <style>{`
+        .ntb-pill{
+          position:fixed; left:50%; transform:translateX(-50%);
+          z-index:9999;
+          display:inline-flex; align-items:center; gap:7px;
+          padding:9px 22px; border-radius:999px;
+          background:rgba(37,99,235,0.97);
+          border:1px solid rgba(255,255,255,0.22);
+          color:#fff; font-size:13px; font-weight:700;
+          cursor:pointer; white-space:nowrap; font-family:inherit;
+          box-shadow:0 6px 30px rgba(37,99,235,0.5);
+          backdrop-filter:blur(12px);
+          -webkit-backdrop-filter:blur(12px);
+          animation:ntbIn .35s cubic-bezier(0.34,1.2,0.64,1) both;
+        }
+        .ntb-pill:hover{background:rgba(29,78,216,1);transform:translateX(-50%) scale(1.04);}
+        .ntb-pill:active{transform:translateX(-50%) scale(0.97);}
+        @keyframes ntbIn{
+          from{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.88);}
+          to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+        }
+      `}</style>
+    </>,
+    document.body,
+  );
+};
+
 // ── ScrollFAB ─────────────────────────────────────────────────────────────────
 const ScrollFAB = () => {
-  const [show, setShow]   = useState(false);
+  const [show,  setShow]  = useState(false);
   const [atTop, setAtTop] = useState(true);
   const [atBot, setAtBot] = useState(false);
-  const getS = () => {
+
+  const getS = useCallback(() => {
     for (const sel of [".main-content-desktop", ".main-content-mobile"]) {
       const el = document.querySelector(sel);
       if (el && el.scrollHeight > el.clientHeight) return el;
     }
     return null;
-  };
+  }, []);
+
   useEffect(() => {
     const upd = () => {
       const el = getS(), top = el ? el.scrollTop : window.scrollY;
@@ -108,42 +215,47 @@ const ScrollFAB = () => {
       const ch = el ? el.clientHeight : window.innerHeight;
       setAtTop(top < 120); setAtBot(top + ch >= sh - 120); setShow(top > 300);
     };
-    const s = getS();
-    if (s) s.addEventListener("scroll", upd, { passive: true });
-    else   window.addEventListener("scroll", upd, { passive: true });
+    const target = getS() || window;
+    target.addEventListener("scroll", upd, { passive: true });
     upd();
-    return () => {
-      const s2 = getS();
-      if (s2) s2.removeEventListener("scroll", upd);
-      else    window.removeEventListener("scroll", upd);
-    };
-  }, []);
+    return () => target.removeEventListener("scroll", upd);
+  }, [getS]);
+
   const go = (dir) => {
     const el = getS();
-    const t = dir === "top" ? 0 : el ? el.scrollHeight : document.documentElement.scrollHeight;
+    const t  = dir === "top" ? 0 : el ? el.scrollHeight : document.documentElement.scrollHeight;
     if (el) el.scrollTo({ top: t, behavior: "smooth" });
     else    window.scrollTo({ top: t, behavior: "smooth" });
   };
+
   if (!show) return null;
   return (
     <>
-      <div className="ntsfab-pill">
-        <button className={`ntsfab-btn${atTop ? " ntsfab-dim" : ""}`} onClick={() => !atTop && go("top")} disabled={atTop}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+      <div className="ntfab-pill">
+        <button className={`ntfab-btn${atTop ? " ntfab-dim" : ""}`}
+          onClick={() => !atTop && go("top")} disabled={atTop}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
         </button>
-        <div className="ntsfab-sep" />
-        <button className={`ntsfab-btn${atBot ? " ntsfab-dim" : ""}`} onClick={() => !atBot && go("bottom")} disabled={atBot}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        <div className="ntfab-sep" />
+        <button className={`ntfab-btn${atBot ? " ntfab-dim" : ""}`}
+          onClick={() => !atBot && go("bottom")} disabled={atBot}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </button>
       </div>
       <style>{`
-        .ntsfab-pill{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:7900;display:flex;flex-direction:column;align-items:center;background:rgba(12,12,12,0.94);border:1px solid rgba(59,130,246,0.22);border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.55);animation:ntsfabIn .25s cubic-bezier(0.34,1.2,0.64,1) both;}
-        @keyframes ntsfabIn{from{opacity:0;transform:translateY(-50%) scale(0.8)}to{opacity:1;transform:translateY(-50%) scale(1)}}
-        .ntsfab-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#60a5fa;cursor:pointer;transition:background .15s,transform .1s;padding:0;}
-        .ntsfab-btn:not(.ntsfab-dim):hover{background:rgba(59,130,246,0.12);transform:scale(1.1);}
-        .ntsfab-btn.ntsfab-dim{color:rgba(255,255,255,0.15);cursor:default;}
-        .ntsfab-sep{width:22px;height:1px;background:rgba(59,130,246,0.12);}
-        @media(max-width:768px){.ntsfab-pill{right:10px;}}
+        .ntfab-pill{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:7900;display:flex;flex-direction:column;align-items:center;background:rgba(12,12,12,0.94);border:1px solid rgba(59,130,246,0.22);border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.55);animation:ntfabIn .25s cubic-bezier(0.34,1.2,0.64,1) both;}
+        @keyframes ntfabIn{from{opacity:0;transform:translateY(-50%) scale(0.8)}to{opacity:1;transform:translateY(-50%) scale(1)}}
+        .ntfab-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#60a5fa;cursor:pointer;transition:background .15s,transform .1s;padding:0;}
+        .ntfab-btn:not(.ntfab-dim):hover{background:rgba(59,130,246,0.12);transform:scale(1.1);}
+        .ntfab-btn.ntfab-dim{color:rgba(255,255,255,0.15);cursor:default;}
+        .ntfab-sep{width:22px;height:1px;background:rgba(59,130,246,0.12);}
+        @media(max-width:768px){.ntfab-pill{right:10px;}}
       `}</style>
     </>
   );
@@ -151,7 +263,7 @@ const ScrollFAB = () => {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const ScrollSentinel = ({ onVisible, disabled }) => {
-  const ref = useRef(null); const cool = useRef(false);
+  const ref = useRef(null), cool = useRef(false);
   useEffect(() => {
     if (!ref.current || disabled) return;
     const obs = new IntersectionObserver(([e]) => {
@@ -163,13 +275,14 @@ const ScrollSentinel = ({ onVisible, disabled }) => {
     obs.observe(ref.current);
     return () => obs.disconnect();
   }, [disabled, onVisible]);
-  return <div ref={ref} style={{ height: 4, flexShrink: 0 }} aria-hidden="true" />;
+  return <div ref={ref} style={{ height: 4 }} aria-hidden="true" />;
 };
 
 const LoadingMore = () => (
   <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 16px", color:"rgba(255,255,255,0.32)", fontSize:13, fontWeight:600 }}>
     <div style={{ width:17, height:17, border:"2px solid rgba(59,130,246,0.18)", borderTopColor:"#60a5fa", borderRadius:"50%", animation:"ntSpin .8s linear infinite" }} />
-    Loading more…<style>{`@keyframes ntSpin{to{transform:rotate(360deg)}}`}</style>
+    Loading more…
+    <style>{`@keyframes ntSpin{to{transform:rotate(360deg)}}`}</style>
   </div>
 );
 
@@ -192,26 +305,10 @@ const SkeletonCard = ({ tall }) => (
   </div>
 );
 
-const NewBanner = ({ count, onShow }) => {
-  if (!count) return null;
-  return (
-    <>
-      <button className="nt-banner" onClick={onShow}>
-        <ArrowUp size={12} /> {count} new article{count !== 1 ? "s" : ""}
-      </button>
-      <style>{`
-        .nt-banner{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:8000;display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:999px;background:rgba(59,130,246,0.95);border:1px solid rgba(255,255,255,0.18);color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 4px 24px rgba(59,130,246,0.42);animation:ntBIn .3s cubic-bezier(0.34,1.2,0.64,1) both;font-family:inherit;}
-        .nt-banner:hover{background:rgba(37,99,235,1);transform:translateX(-50%) scale(1.04);}
-        @keyframes ntBIn{from{opacity:0;transform:translateX(-50%) translateY(-14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-      `}</style>
-    </>
-  );
-};
-
 const BreakingWrapper = ({ post, currentUser }) => (
   <div style={{ marginBottom: 6 }}>
     <div className="ntbrk-bar">
-      <Zap size={11} />BREAKING NEWS
+      <Zap size={11} /> BREAKING NEWS
       <span className="ntbrk-src">{post.source_name}</span>
     </div>
     <NewsCard post={post} currentUser={currentUser} />
@@ -229,26 +326,34 @@ const BreakingWrapper = ({ post, currentUser }) => (
 const NewsTab = React.forwardRef(function NewsTab(
   {
     newsPosts: initialNews = [],
-    hasMore = false,
+    hasMore       = false,
     isLoadingMore = false,
     onLoadMore,
     currentUser,
   },
   ref,
 ) {
-  const [articles,     setArticles]     = useState(() =>
-    filterByAge(initialNews.map((a) => ({
+  // [T1] Start from cache if available — instant render on tab switch
+  const cached = getCached();
+  const [articles,     setArticles]     = useState(() => {
+    if (cached) return cached.articles;
+    return filterByAge(initialNews.map((a) => ({
       ...a,
       liveStatus: detectLiveStatus(a.title || "", a.published_at || ""),
       tier: getTier(a.published_at),
-    })))
-  );
-  const [videos,       setVideos]       = useState([]);
+    })));
+  });
+  const [videos,       setVideos]       = useState(() => cached?.videos || []);
   const [activeFilter, setActiveFilter] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
-  const [fetching,     setFetching]     = useState(false);
-  const [initialDone,  setInitialDone]  = useState(initialNews.length > 0);
-  const pendingRef = useRef([]);
+  const [fetching,     setFetching]     = useState(!cached);
+  const [initialDone,  setInitialDone]  = useState(!!cached || initialNews.length > 0);
+
+  // Refs — all survive re-renders
+  const firstBatchRef   = useRef(false);
+  const pendingRef      = useRef([]);    // queued non-urgent articles
+  const cancelDbRef     = useRef(null);
+  const filterMountRef  = useRef(false); // [T2] skip initial filter effect fire
 
   useImperativeHandle(ref, () => ({
     prependNews: (items) =>
@@ -259,54 +364,99 @@ const NewsTab = React.forwardRef(function NewsTab(
       })))),
   }));
 
-  // Cold start
+  // ── [T1] Cold start — DB load, skip if cache is fresh ─────────────────────
   useEffect(() => {
-    (async () => {
-      const data = await loadFromDB(null);
+    if (getCached()) {
+      // Already have fresh data — just start engine, don't re-fetch DB
+      setInitialDone(true);
+      setFetching(false);
+      return;
+    }
+
+    setFetching(true);
+    const { promise, cancel } = makeDbQuery(null);
+    cancelDbRef.current = cancel;
+
+    promise.then((data) => {
+      setFetching(false);
+      setInitialDone(true);
       if (data.length) {
+        const engine = getNewsEngine();
+        engine.seedSeen(data, []);
+        engine.seedInFeed(data);    // [T3] accurate pending count
         setArticles(data);
-        setInitialDone(true);
-        getNewsEngine().seedSeen(data, []);
+        setCache(data, []);
       }
-    })();
+    });
+
+    return () => cancel();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Start engine and wire events
+  // ── Start engine + wire events ───────────────────────────────────────────────
   useEffect(() => {
     const engine = getNewsEngine();
     engine.start();
-    setFetching(true);
-    const initTimer = setTimeout(() => { setInitialDone(true); setFetching(false); }, 4_000);
-    let firstBatch = false;
+
+    // [T4] Safety — show content after 5s even if DB is empty
+    const initTimer = setTimeout(() => setInitialDone(true), 5_000);
 
     const unsubArt = engine.on("newArticles", (items) => {
-      setInitialDone(true); setFetching(false);
+      setInitialDone(true);
+
       const filtered = activeFilter
         ? items.filter((a) => (a.category || "").toLowerCase() === activeFilter)
         : items;
       if (!filtered.length) return;
+
+      // BREAKING + LIVE → always straight into feed
       const urgent    = filtered.filter((a) => (a.tier ?? TIER.RECENT) <= TIER.BREAKING);
       const nonUrgent = filtered.filter((a) => (a.tier ?? TIER.RECENT) > TIER.BREAKING);
-      if (urgent.length) setArticles((prev) => mergeArticles(prev, urgent));
-      if (!firstBatch) {
-        firstBatch = true;
-        setArticles((prev) => mergeArticles(prev, nonUrgent));
+
+      if (urgent.length) {
+        engine.markInFeed(urgent);
+        setArticles((prev) => {
+          const merged = mergeArticles(prev, urgent);
+          setCache(merged, _cachedVideos);
+          return merged;
+        });
+      }
+
+      if (!firstBatchRef.current) {
+        // [T6] First engine batch fills feed directly (no banner)
+        firstBatchRef.current = true;
+        if (nonUrgent.length) {
+          engine.markInFeed(nonUrgent);
+          setArticles((prev) => {
+            const merged = mergeArticles(prev, nonUrgent);
+            setCache(merged, _cachedVideos);
+            return merged;
+          });
+        }
       } else {
-        pendingRef.current = [...nonUrgent, ...pendingRef.current];
-        setPendingCount(pendingRef.current.length);
+        // [T3] Only count articles truly new to the feed
+        const trulyNew = nonUrgent.filter((a) => engine.isNewForFeed(a.url_hash || a.id || ""));
+        if (trulyNew.length) {
+          pendingRef.current = [...trulyNew, ...pendingRef.current];
+          setPendingCount(pendingRef.current.length);
+        }
       }
     });
 
     const unsubVid = engine.on("newVideos", (items) => {
-      setVideos((prev) => mergeVideos(prev, items));
+      setVideos((prev) => {
+        const merged = mergeVideos(prev, items);
+        setCache(_cachedArticles || [], merged);
+        return merged;
+      });
     });
 
     const unsubLive = engine.on("liveDetected", (streams) => {
-      setVideos((prev) => mergeVideos(prev, streams));
+      setVideos((prev) => {
+        const merged = mergeVideos(prev, streams);
+        setCache(_cachedArticles || [], merged);
+        return merged;
+      });
     });
-
-    // Seed live channels — only show after engine fetches real video IDs
-    // No placeholder videos with channel IDs (they produce broken thumbnails)
 
     return () => {
       unsubArt(); unsubVid(); unsubLive();
@@ -314,35 +464,64 @@ const NewsTab = React.forwardRef(function NewsTab(
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reload on filter change
+  // ── [T2] Reload on filter change — skip initial mount fire ────────────────
   useEffect(() => {
-    (async () => {
-      setFetching(true);
-      const data = await loadFromDB(activeFilter);
-      if (data.length) setArticles(data);
+    if (!filterMountRef.current) {
+      filterMountRef.current = true;
+      return;
+    }
+    if (cancelDbRef.current) cancelDbRef.current();
+    setFetching(true);
+    const { promise, cancel } = makeDbQuery(activeFilter);
+    cancelDbRef.current = cancel;
+    promise.then((data) => {
       setFetching(false);
-    })();
+      if (data.length) setArticles(data);
+    });
+    return () => cancel();
   }, [activeFilter]);
 
+  // ── Flush pending ─────────────────────────────────────────────────────────
   const flushPending = useCallback(() => {
     if (!pendingRef.current.length) return;
     const toAdd = pendingRef.current;
-    pendingRef.current = []; setPendingCount(0);
-    setArticles((prev) => mergeArticles(prev, toAdd));
-    const s = document.querySelector(".main-content-desktop") || document.querySelector(".main-content-mobile");
+    pendingRef.current = [];
+    setPendingCount(0);
+    const engine = getNewsEngine();
+    engine.markInFeed(toAdd);
+    setArticles((prev) => {
+      const merged = mergeArticles(prev, toAdd);
+      setCache(merged, _cachedVideos);
+      return merged;
+    });
+    const s = document.querySelector(".main-content-desktop, .main-content-mobile");
     if (s) s.scrollTo({ top: 0, behavior: "smooth" });
-    else window.scrollTo({ top: 0, behavior: "smooth" });
+    else   window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // ── Manual refresh ────────────────────────────────────────────────────────
   const handleRefresh = useCallback(async () => {
     if (fetching) return;
     setFetching(true);
-    pendingRef.current = []; setPendingCount(0);
+    pendingRef.current  = [];
+    setPendingCount(0);
+    firstBatchRef.current = false;
+    _cachedArticles = null; // bust cache
+
+    if (cancelDbRef.current) cancelDbRef.current();
+    const { promise, cancel } = makeDbQuery(activeFilter);
+    cancelDbRef.current = cancel;
+
     const engine = getNewsEngine();
-    engine._fetchAllSources();
-    engine._fetchAllVideos();
-    const data = await loadFromDB(activeFilter);
-    if (data.length) setArticles(data);
+    engine._fetchAllSources?.();
+    engine._fetchAllVideos?.();
+
+    const data = await promise;
+    if (data.length) {
+      engine.seedInFeed(data);
+      setArticles(data);
+      setCache(data, _cachedVideos);
+    }
     setFetching(false);
   }, [fetching, activeFilter]);
 
@@ -350,27 +529,29 @@ const NewsTab = React.forwardRef(function NewsTab(
     if (!isLoadingMore && hasMore && onLoadMore) onLoadMore();
   }, [isLoadingMore, hasMore, onLoadMore]);
 
-  const buildFeed = useCallback(() => {
+  // ── Build tier-ordered feed ───────────────────────────────────────────────
+  const feed = useMemo(() => {
     const cat    = activeFilter;
     const fArt   = cat ? articles.filter((a) => (a.category || "").toLowerCase() === cat) : articles;
     const fVid   = cat ? videos.filter((v) => v.category === cat) : videos;
+
     const liveVid    = fVid.filter((v) => v.isLiveBroadcast || v.tier === TIER.LIVE);
     const regularVid = fVid.filter((v) => !v.isLiveBroadcast && v.tier !== TIER.LIVE);
-    const breaking = fArt.filter((a) => a.tier === TIER.BREAKING);
-    const fresh    = fArt.filter((a) => a.tier === TIER.FRESH);
-    const rest     = fArt.filter((a) => a.tier >= TIER.RECENT);
-    const feed = [...liveVid, ...breaking, ...fresh];
+    const breaking   = fArt.filter((a) => a.tier === TIER.BREAKING);
+    const fresh      = fArt.filter((a) => a.tier === TIER.FRESH);
+    const rest       = fArt.filter((a) => a.tier >= TIER.RECENT);
+
+    const result = [...liveVid, ...breaking, ...fresh];
     let vi = 0;
     for (let i = 0; i < rest.length; i++) {
-      if (i % 4 === 0 && vi < regularVid.length) { feed.push(regularVid[vi]); vi++; }
-      feed.push(rest[i]);
+      if (i % 4 === 0 && vi < regularVid.length) { result.push(regularVid[vi]); vi++; }
+      result.push(rest[i]);
     }
-    while (vi < regularVid.length && vi < 8) { feed.push(regularVid[vi]); vi++; }
-    return feed;
+    while (vi < regularVid.length && vi < 8) { result.push(regularVid[vi]); vi++; }
+    return result;
   }, [articles, videos, activeFilter]);
 
-  const feed          = buildFeed();
-  const allFeedVideos = feed.filter((f) => f._type === "video");
+  const allFeedVideos = useMemo(() => feed.filter((f) => f._type === "video"), [feed]);
 
   return (
     <div className="nt-root">
@@ -414,10 +595,10 @@ const NewsTab = React.forwardRef(function NewsTab(
       {initialDone && feed.length === 0 && (
         <div style={{ padding:"48px 20px", textAlign:"center" }}>
           <Newspaper size={36} style={{ opacity:0.15, marginBottom:12, color:"#fff" }} />
-          <p style={{ fontSize:15, fontWeight:600, color:"rgba(255,255,255,0.3)" }}>
+          <p style={{ fontSize:15, fontWeight:600, color:"rgba(255,255,255,0.3)", margin:"0 0 14px" }}>
             No {activeFilter ? activeFilter + " " : ""}news yet.
           </p>
-          <button onClick={handleRefresh} style={{ marginTop:14, display:"inline-flex", alignItems:"center", gap:6, padding:"8px 18px", borderRadius:999, background:"rgba(59,130,246,0.1)", border:"1px solid rgba(59,130,246,0.25)", color:"#60a5fa", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          <button onClick={handleRefresh} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 18px", borderRadius:999, background:"rgba(59,130,246,0.1)", border:"1px solid rgba(59,130,246,0.25)", color:"#60a5fa", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             <RefreshCw size={12} /> Try again
           </button>
         </div>

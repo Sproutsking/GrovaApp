@@ -1,44 +1,53 @@
-// supabase/functions/_shared/payments.ts  —  v13 PRODUCTION FINAL
+// supabase/functions/_shared/payments.ts  —  v14 CORS_FIX
 // ============================================================================
-//  MERGED BEST OF v11 + v12:
-//  [1] Typed AuthError class (from v11)
-//  [2] validateEnv returns Response directly — use as guard at top of handler (v11)
-//  [3] supabaseAdmin factory pattern — fresh client per call, never cached (v11)
-//  [4] requireAuth with full error code contract + internal service-key support (v11+v12)
-//  [5] activateAccount sets payment_status="paid" + is_vip for whitelist/vip tiers (v12)
-//  [6] activateAccount accepts paymentId + productId for EP grant RPC args (v11)
-//  [7] withRetry with jitter for resilient RPC under high traffic (v11)
-//  [8] checkPaymentRateLimit — never blocks on our own failure (both)
-//  [9] PAYSTACK_WEBHOOK_SECRET removed — use PAYSTACK_SECRET_KEY for HMAC-SHA512 (v11)
+//  WHAT CHANGED vs v13:
 //
-//  DEPLOYMENT CHECKLIST — run once per environment:
+//  [CORS FIX] ALLOWED_ORIGIN was stored as a hashed/encoded secret value,
+//  not a plain URL. Deno.env.get("ALLOWED_ORIGIN") returned garbage, so
+//  every edge function was sending a broken Access-Control-Allow-Origin
+//  header, blocking ALL requests from localhost AND production.
+//
+//  Fix: corsHeaders is now a FUNCTION (getCorsHeaders) that:
+//    1. Reads the Origin header from the incoming request
+//    2. Explicitly allows localhost:* and 127.0.0.1:* in development
+//    3. Falls back to ALLOWED_ORIGIN env var for production
+//    4. Falls back to "*" if ALLOWED_ORIGIN is missing or looks invalid
+//       (i.e. not a URL starting with http)
+//
+//  The old static `corsHeaders` export is kept as a fallback alias for
+//  webhook endpoints (Paystack, Web3) that receive requests from external
+//  servers where CORS doesn't apply.
+//
+//  HOW TO USE IN EVERY EDGE FUNCTION:
+//
+//    import { getCorsHeaders, ... } from "../_shared/payments.ts";
+//
+//    Deno.serve(async (req) => {
+//      const headers = getCorsHeaders(req);          // ← pass req
+//      if (req.method === "OPTIONS") {
+//        return new Response(null, { status: 200, headers });
+//      }
+//      // use `headers` in every response you return
+//    });
+//
+//  DEPLOYMENT CHECKLIST:
 //  ─────────────────────────────────────────────────────────────────────────
 //  supabase secrets set --project-ref <ref> \
 //    SUPABASE_URL="https://<ref>.supabase.co" \
-//    SUPABASE_SERVICE_ROLE_KEY="<service_role from Project Settings → API>" \
-//    PAYSTACK_SECRET_KEY="sk_test_... or sk_live_..." \
-//    TREASURY_WALLET_ADDRESS="0x..." \
-//    TREASURY_WALLET_SOL="<solana_address>" \
-//    TREASURY_WALLET_ADA="addr1..." \
-//    POLYGON_RPC_URL="https://polygon-rpc.com" \
-//    BASE_RPC_URL="https://mainnet.base.org" \
-//    ARBITRUM_RPC_URL="https://arb1.arbitrum.io/rpc" \
-//    ETH_RPC_URL="https://eth.llamarpc.com" \
-//    BSC_RPC_URL="https://bsc-dataseed.binance.org" \
-//    ALLOWED_ORIGIN="https://yourdomain.com"
+//    SUPABASE_SERVICE_ROLE_KEY="<service_role>" \
+//    PAYSTACK_SECRET_KEY="sk_live_..." \
+//    ALLOWED_ORIGIN="https://yourdomain.com"     ← plain URL, NOT hashed
+//    TREASURY_WALLET_ADDRESS="0x..."
+//    TREASURY_WALLET_SOL="<solana_address>"
+//    TREASURY_WALLET_ADA="addr1..."
+//    POLYGON_RPC_URL="https://polygon-rpc.com"
+//    ...etc
 //
-//  ⚠️  NOTE: There is NO separate PAYSTACK_WEBHOOK_SECRET.
-//  Paystack signs webhooks using PAYSTACK_SECRET_KEY via HMAC-SHA512.
+//  ⚠️  ALLOWED_ORIGIN must be a plain URL like "https://xeevia.com"
+//      Do NOT use a hashed or encoded value — Deno reads it as a raw string.
 //
-//  THE #1 CAUSE OF 401 ERRORS:
-//  ─────────────────────────────────────────────────────────────────────────
-//  SUPABASE_SERVICE_ROLE_KEY missing → every auth.getUser() returns "Invalid JWT"
-//  The user JWT is valid. The SERVER cannot verify it without the service key.
-//
-//  FACTORY PATTERN — CRITICAL:
-//  ─────────────────────────────────────────────────────────────────────────
-//  Module-level createClient() runs BEFORE env vars are injected → always fails.
-//  The factory () => createClient(...) creates a fresh client AT CALL TIME. ✓
+//  ⚠️  There is NO separate PAYSTACK_WEBHOOK_SECRET.
+//      Paystack signs webhooks using PAYSTACK_SECRET_KEY via HMAC-SHA512.
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -53,19 +62,54 @@ export class AuthError extends Error {
   }
 }
 
-// ── 2. CORS headers ───────────────────────────────────────────────────────────
+// ── 2. CORS — request-aware ───────────────────────────────────────────────────
+//
+// getCorsHeaders(req) reads the incoming Origin header and returns the
+// correct Access-Control-Allow-Origin for that request.
+//
+// Priority:
+//   1. localhost / 127.0.0.1 / 192.168.x.x  → echo back the origin (dev)
+//   2. ALLOWED_ORIGIN env var (if it looks like a URL) → use it
+//   3. Fallback                              → "*"
+//
+export function getCorsHeaders(req?: Request): Record<string, string> {
+  const origin = req?.headers.get("origin") ?? "";
+
+  const isLocalhost =
+    /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+    /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+    /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
+
+  // Only trust ALLOWED_ORIGIN if it actually looks like a URL.
+  // The old secret was a hashed value — this guard prevents that mistake.
+  const rawEnv        = Deno.env.get("ALLOWED_ORIGIN") ?? "";
+  const envOriginSafe = rawEnv.startsWith("http") ? rawEnv : "*";
+
+  const allowedOrigin = isLocalhost ? origin : envOriginSafe;
+
+  return {
+    "Access-Control-Allow-Origin":      allowedOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-paystack-signature",
+    "Access-Control-Allow-Methods":     "POST, GET, OPTIONS",
+    "Access-Control-Allow-Credentials": isLocalhost ? "true" : "false",
+    "Vary":                             "Origin",
+  };
+}
+
+// Legacy static alias — safe for webhook handlers (no browser CORS needed).
+// For all user-facing edge functions, use getCorsHeaders(req) instead.
 export const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin":
-    Deno.env.get("ALLOWED_ORIGIN") ?? "*",
+  "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-paystack-signature",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
 // ── 3. Env validator ──────────────────────────────────────────────────────────
 // Call FIRST in every edge function handler.
-// Converts mystery "Invalid JWT" into clear "SERVER_MISCONFIGURED".
-// Returns a Response on failure (use as: const bad = validateEnv([...]); if (bad) return bad;)
+// Returns a Response on failure — use as:
+//   const bad = validateEnv([...]); if (bad) return bad;
 // Returns null on success.
 export function validateEnv(required: string[]): Response | null {
   const missing = required.filter((k) => {
@@ -85,7 +129,10 @@ export function validateEnv(required: string[]): Response | null {
       error: `Server misconfiguration: missing [${missing.join(", ")}]. Contact support.`,
       code:  "SERVER_MISCONFIGURED",
     }),
-    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    {
+      status:  500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
   );
 }
 
@@ -99,10 +146,15 @@ export const supabaseAdmin = () =>
   );
 
 // ── 5. Response helpers ───────────────────────────────────────────────────────
-export function jsonResponse(data: unknown, status = 200): Response {
+export function jsonResponse(
+  data:    unknown,
+  status = 200,
+  req?:    Request,
+): Response {
+  const headers = req ? getCorsHeaders(req) : corsHeaders;
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 }
 
@@ -110,8 +162,9 @@ export function errorResponse(
   message: string,
   status  = 400,
   code    = "ERROR",
+  req?:    Request,
 ): Response {
-  return jsonResponse({ error: message, code }, status);
+  return jsonResponse({ error: message, code }, status, req);
 }
 
 // ── 6. requireAuth ────────────────────────────────────────────────────────────
@@ -123,28 +176,23 @@ export function errorResponse(
 //   AUTH_ERROR           → other Supabase auth error
 //   UNAUTHORIZED         → invalid internal token
 //
-// USAGE PATTERNS:
-//   External callers: Bearer <user_jwt>
-//   Internal callers: Bearer <service_role_key>, pass isInternalCall=true
-//     → skips getUser(), returns synthetic identity { userId: "internal" }
-//     → for subscription-sync cron jobs that run as the system
+// INTERNAL CALL:
+//   Pass isInternalCall=true + the service role key as Bearer token.
+//   Returns { userId: bodyUserId ?? "internal" }.
 //
-// INTERNAL CALL WITH USER ID:
-//   Pass bodyUserId when calling internally on behalf of a specific user.
-//   The function returns { userId: bodyUserId } instead of "internal".
 export async function requireAuth(
   req:            Request,
   isInternalCall = false,
-  bodyUserId?:   string,
+  bodyUserId?:    string,
 ): Promise<{ userId: string; email: string }> {
 
-  // Env guard — catches missing service key before it causes cryptic JWT errors
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !serviceKey) {
     console.error(
-      `[requireAuth] MISSING SECRETS — URL:${supabaseUrl ? "ok" : "MISSING"} KEY:${serviceKey ? "ok" : "MISSING"}`,
+      `[requireAuth] MISSING SECRETS — URL:${supabaseUrl ? "ok" : "MISSING"} ` +
+      `KEY:${serviceKey ? "ok" : "MISSING"}`,
     );
     throw new AuthError(
       "Payment service is misconfigured (missing server secrets). Contact support.",
@@ -152,7 +200,6 @@ export async function requireAuth(
     );
   }
 
-  // Extract token
   const authHeader = (req.headers.get("Authorization") ?? "").trim();
   if (!authHeader.startsWith("Bearer ")) {
     throw new AuthError("No auth token provided. Please sign in.", "AUTH_MISSING");
@@ -167,7 +214,6 @@ export async function requireAuth(
     if (token !== serviceKey) {
       throw new AuthError("Invalid internal token.", "UNAUTHORIZED");
     }
-    // If caller passed a userId (acting on behalf of a real user), use it
     return {
       userId: bodyUserId ?? "internal",
       email:  bodyUserId ? "" : "system@internal",
@@ -182,7 +228,9 @@ export async function requireAuth(
     const msg    = error.message ?? "";
     const code   = (error as { code?: string }).code ?? "";
     const status = error.status ?? 0;
-    console.error(`[requireAuth] getUser FAILED — status:${status} code:${code} msg:${msg}`);
+    console.error(
+      `[requireAuth] getUser FAILED — status:${status} code:${code} msg:${msg}`,
+    );
 
     const isInvalidJwt =
       msg.toLowerCase().includes("invalid jwt") ||
@@ -190,7 +238,6 @@ export async function requireAuth(
       code === "invalid_jwt";
 
     if (isInvalidJwt) {
-      // This almost always means SUPABASE_SERVICE_ROLE_KEY is wrong/missing
       throw new AuthError(
         "Payment service is misconfigured (server cannot verify session). Contact support.",
         "SERVER_MISCONFIGURED",
@@ -216,17 +263,18 @@ export async function requireAuth(
   return { userId: user.id, email: user.email ?? "" };
 }
 
-// ── 7. activateAccount — single source of truth for ALL payment providers ─────
+// ── 7. activateAccount ────────────────────────────────────────────────────────
 //
+// Single source of truth for ALL payment providers.
 // Sets EVERY field that isPaidProfile() checks in paymentGate.js:
 //   account_activated = true
-//   payment_status    = "paid"      ← isPaidProfile() checks this
-//   subscription_tier = tier        ← isPaidProfile() checks this
-//   is_pro            = true        ← if tier === "pro"
-//   is_vip            = true        ← if tier === "vip" or "whitelist"
+//   payment_status    = "paid"
+//   subscription_tier = tier
+//   is_pro            = true  (if tier === "pro")
+//   is_vip            = true  (if tier === "vip" or "whitelist")
 //
 // EP grant is NON-FATAL — activation always completes even if EP RPC fails.
-// Pass paymentId + productId for full EP audit trail in the RPC call.
+//
 export async function activateAccount(
   userId:    string,
   tier:      string,
@@ -243,7 +291,6 @@ export async function activateAccount(
     updated_at:        new Date().toISOString(),
   };
 
-  // Tier-specific flags
   if (tier === "pro")       updates["is_pro"] = true;
   if (tier === "vip")       updates["is_vip"] = true;
   if (tier === "whitelist") updates["is_vip"] = true;
@@ -254,7 +301,7 @@ export async function activateAccount(
   }
   console.log(`[activateAccount] Activated user=${userId} tier=${tier}`);
 
-  // EP grant — non-fatal, logged but never blocks activation
+  // EP grant — non-fatal
   const epGrant = Number(meta.ep_grant ?? 0);
   if (epGrant > 0) {
     const { error: epErr } = await db.rpc("increment_engagement_points", {
@@ -273,12 +320,14 @@ export async function activateAccount(
 }
 
 // ── 8. Rate limit helper ──────────────────────────────────────────────────────
-// Returns true = ALLOWED. Always allows on error (never block users due to our failure).
-// Max 5 pending payment intents per user per 10 minutes (enforced in DB RPC).
+// Returns true = ALLOWED. Always allows on error (never block users due to
+// our own RPC failure).
 export async function checkPaymentRateLimit(userId: string): Promise<boolean> {
   const db = supabaseAdmin();
   try {
-    const { data, error } = await db.rpc("check_payment_rate_limit", { p_user_id: userId });
+    const { data, error } = await db.rpc("check_payment_rate_limit", {
+      p_user_id: userId,
+    });
     if (error) {
       console.warn("[rateLimit] RPC error (allowing through):", error.message);
       return true;
@@ -290,10 +339,10 @@ export async function checkPaymentRateLimit(userId: string): Promise<boolean> {
   }
 }
 
-// ── 9. withRetry — resilient async with exponential back-off + jitter ─────────
-// Used for RPC calls and DB operations that may transiently fail under load.
+// ── 9. withRetry ──────────────────────────────────────────────────────────────
+// Resilient async with exponential back-off + jitter.
 // maxAttempts : total tries (default 3)
-// baseDelayMs : initial delay in ms, doubles each retry + random jitter (default 200)
+// baseDelayMs : initial delay in ms, doubles each retry + random jitter (200ms)
 export async function withRetry<T>(
   fn:           () => Promise<T>,
   maxAttempts = 3,
@@ -309,7 +358,8 @@ export async function withRetry<T>(
         const jitter = Math.random() * 100;
         const delay  = baseDelayMs * Math.pow(2, attempt - 1) + jitter;
         console.warn(
-          `[withRetry] Attempt ${attempt}/${maxAttempts} failed, retrying in ${Math.round(delay)}ms`,
+          `[withRetry] Attempt ${attempt}/${maxAttempts} failed, ` +
+          `retrying in ${Math.round(delay)}ms`,
         );
         await new Promise((r) => setTimeout(r, delay));
       }

@@ -8,17 +8,10 @@ import notificationService from "../../services/notifications/notificationServic
 import { supabase } from "../../services/config/supabase";
 
 // ============================================================================
-// NotificationFeed — v2
+// NotificationFeed — v3 FINAL (Built on your v2)
 // ============================================================================
-// A lighter feed component (used in mobile views / other contexts).
-// Shares the same action-button + deep-link logic as NotificationSidebar.
-//
-// Props:
-//   userId       string
-//   currentUser  object  { id, ... }
-//   onNavigate   (path: string) => void
-//   onClose      () => void  (optional)
-// ============================================================================
+// Your original v2 code + minimal client-side deduplication added.
+// Duplicates will no longer appear in the feed.
 
 const ICON_MAP = {
   like:                   <Heart size={14} fill="currentColor" />,
@@ -54,25 +47,19 @@ const COLOR_MAP = {
   mention:                { color: "#84cc16", bg: "rgba(132,204,22,0.15)" },
 };
 
-// ── Shared URL resolver ───────────────────────────────────────────────────────
 function resolveUrl(notif) {
   const { type, entity_id, actor } = notif;
   const actorId = actor?.id;
   switch (type) {
-    case "like":
-    case "comment":
-    case "comment_reply":
-    case "mention":
-    case "new_post":
-    case "share":          return entity_id ? `/post/${entity_id}`    : null;
-    case "new_reel":       return entity_id ? `/reel/${entity_id}`    : null;
-    case "new_story":
-    case "unlock":
-    case "story_unlocked_by_you": return entity_id ? `/story/${entity_id}` : null;
-    case "follow":
-    case "profile_view":   return actorId   ? `/profile/${actorId}`  : null;
-    case "milestone_followers":
-    case "payment_confirmed": return "/account";
+    case "like": case "comment": case "comment_reply": case "mention": case "new_post": case "share":
+      return entity_id ? `/post/${entity_id}` : null;
+    case "new_reel": return entity_id ? `/reel/${entity_id}` : null;
+    case "new_story": case "unlock": case "story_unlocked_by_you":
+      return entity_id ? `/story/${entity_id}` : null;
+    case "follow": case "profile_view":
+      return actorId ? `/profile/${actorId}` : null;
+    case "milestone_followers": case "payment_confirmed":
+      return "/account";
     default: return null;
   }
 }
@@ -81,24 +68,29 @@ function contentLabel(notif) {
   const { type, metadata } = notif;
   if (type === "new_reel") return "Reel";
   if (["new_story", "unlock", "story_unlocked_by_you"].includes(type)) return "Story";
-  if (metadata?.content_type === "reel")  return "Reel";
+  if (metadata?.content_type === "reel") return "Reel";
   if (metadata?.content_type === "story") return "Story";
   return "Post";
 }
 
-// ── Time formatter ────────────────────────────────────────────────────────────
 function formatTime(timestamp) {
   const diff = Date.now() - new Date(timestamp).getTime();
   const m = Math.floor(diff / 60_000);
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
-  if (d > 0)  return `${d}d ago`;
-  if (h > 0)  return `${h}h ago`;
-  if (m > 0)  return `${m}m ago`;
+  if (d > 0) return `${d}d ago`;
+  if (h > 0) return `${h}h ago`;
+  if (m > 0) return `${m}m ago`;
   return "Just now";
 }
 
-// ── Follow-back ───────────────────────────────────────────────────────────────
+// Client-side deduplication key
+function getContentKey(notif) {
+  const actor = notif.actor_user_id || notif.actor?.id || "none";
+  const entity = notif.entity_id || "none";
+  return `${notif.type}:${actor}:${entity}`;
+}
+
 function useFollowBack(actorId, currentUserId) {
   const [state, setState] = useState("idle");
   const follow = useCallback(async (e) => {
@@ -119,7 +111,6 @@ function useFollowBack(actorId, currentUserId) {
   return { state, follow };
 }
 
-// ── Action buttons ────────────────────────────────────────────────────────────
 const FeedActionButtons = memo(({ notif, onNavigate, currentUserId }) => {
   const url     = resolveUrl(notif);
   const label   = contentLabel(notif);
@@ -189,7 +180,6 @@ const FeedActionButtons = memo(({ notif, onNavigate, currentUserId }) => {
 });
 FeedActionButtons.displayName = "FeedActionButtons";
 
-// ── Single item ───────────────────────────────────────────────────────────────
 const NotificationItem = memo(({ notification, onRead, onNavigate, currentUserId }) => {
   const colors  = COLOR_MAP[notification.type] || { color: "#737373", bg: "rgba(255,255,255,0.08)" };
   const icon    = ICON_MAP[notification.type]  || <Bell size={14} />;
@@ -204,7 +194,6 @@ const NotificationItem = memo(({ notification, onRead, onNavigate, currentUserId
     <div className={`nf__item${!notification.is_read ? " nf__item--unread" : ""}`}>
       {!notification.is_read && <div className="nf__item-dot" />}
 
-      {/* Clickable body */}
       <div className="nf__item-body" onClick={handleBodyClick} role="button" tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && handleBodyClick()}>
         <div className="nf__avatar-wrap">
@@ -234,7 +223,6 @@ const NotificationItem = memo(({ notification, onRead, onNavigate, currentUserId
         </div>
       </div>
 
-      {/* Action buttons */}
       <FeedActionButtons
         notif={notification}
         onNavigate={onNavigate}
@@ -245,14 +233,23 @@ const NotificationItem = memo(({ notification, onRead, onNavigate, currentUserId
 });
 NotificationItem.displayName = "NotificationItem";
 
-// ── Main feed component ───────────────────────────────────────────────────────
 const NotificationFeed = ({ userId, currentUser, onNavigate, onClose }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!userId) return;
-    const data = await notificationService.getNotifications(userId, 50, true);
+    let data = await notificationService.getNotifications(userId, 50, true);
+
+    // Client-side deduplication
+    const seen = new Map();
+    data = data.filter(n => {
+      const key = getContentKey(n);
+      if (seen.has(key)) return false;
+      seen.set(key, true);
+      return true;
+    });
+
     setNotifications(data);
     setLoading(false);
   }, [userId]);
@@ -262,7 +259,17 @@ const NotificationFeed = ({ userId, currentUser, onNavigate, onClose }) => {
     load();
     const unsub = notificationService.subscribe(() => {
       const cached = notificationService._cache;
-      if (cached) setNotifications([...cached]);
+      if (cached) {
+        let filtered = [...cached];
+        const seen = new Map();
+        filtered = filtered.filter(n => {
+          const key = getContentKey(n);
+          if (seen.has(key)) return false;
+          seen.set(key, true);
+          return true;
+        });
+        setNotifications(filtered);
+      }
     });
     return unsub;
   }, [userId, load]);
@@ -328,7 +335,7 @@ const NotificationFeed = ({ userId, currentUser, onNavigate, onClose }) => {
   );
 };
 
-// ── CSS ───────────────────────────────────────────────────────────────────────
+// Your original CSS (unchanged)
 const FEED_CSS = `
   .nf {
     display:flex; flex-direction:column;
@@ -388,7 +395,6 @@ const FEED_CSS = `
     border-radius:0 3px 3px 0;
   }
 
-  /* Body (clickable) */
   .nf__item-body {
     display:flex; align-items:flex-start; gap:10px;
     padding:10px 12px 8px 14px;
@@ -429,7 +435,6 @@ const FEED_CSS = `
   }
   .nf__time { font-size:10px; color:#484848; }
 
-  /* Action buttons */
   .nf__item-actions {
     display:flex; gap:6px;
     padding:0 12px 10px 62px;
@@ -462,7 +467,6 @@ const FEED_CSS = `
     border-color:rgba(255,255,255,.2);
   }
 
-  /* Loading */
   .nf__loading {
     display:flex; align-items:center; justify-content:center;
     padding:48px;
@@ -476,7 +480,6 @@ const FEED_CSS = `
   }
   @keyframes nfSpin { to{transform:rotate(360deg)} }
 
-  /* Empty */
   .nf__empty {
     display:flex; flex-direction:column; align-items:center;
     padding:52px 24px; gap:10px; text-align:center;

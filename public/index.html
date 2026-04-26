@@ -40,14 +40,17 @@
       black-translucent: extends iOS viewport under the status bar.
       env(safe-area-inset-top/bottom) return real values only with this.
     -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
 
-    <meta name="description" content="Own your content. Build your network. Earn engagement." />
+    <meta name="description" content="New social experience." />
     <meta property="og:title" content="Xeevia — Own Your Social" />
-    <meta property="og:description" content="Own your content. Build your network. Earn engagement." />
+    <meta property="og:description" content="Own your content. Build your network. Engage to Earn" />
     <meta property="og:type" content="website" />
+    <meta name="application-name" content="Xeevia" />
 
+    <link rel="preload" as="image" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -56,6 +59,11 @@
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+  html, body {
+    background: #000000;
+  }
+</style>
 
     <style>
       *, *::before, *::after {
