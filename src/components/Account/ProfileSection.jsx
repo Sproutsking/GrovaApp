@@ -1,19 +1,19 @@
-// src/components/Account/ProfileSection.jsx — BOOST WIRED
+// src/components/Account/ProfileSection.jsx — BOOST WIRED + AMBASSADOR PROGRAM
 // ============================================================================
-// What changed vs v3 FOUR_STAT_ADAPTIVE:
-//   [B1] BoostProfileCard wraps the profile header card — themed bg + overlays
-//   [B2] BoostAvatarRing replaces the avatar div — animated tier ring
-//   [B3] BoostThemePicker injected below FourStatRow (own profile only)
-//   [B4] themeId extracted from profileData.boost_selections
-//   All modals, hooks, action buttons, tristat row, FourStatRow — UNCHANGED.
-//   "Posts boosted to x% more feeds" removed from benefits in profileTierService
-//   (not shown here — this component doesn't render that text).
+// What changed vs BOOST WIRED:
+//   [AMB-1] Ambassador quick-action button added to actionButtons array
+//   [AMB-2] Accepts `onNavigate` prop — forwards to App.jsx global navigator
+//           so the ambassador button routes to the ambassador view/section
+//   [AMB-3] Ambassador badge shown on profile header if user is an ambassador
+//   [AMB-4] Live ambassador level pulled from ambassador_profiles for badge
+// All other code — BoostProfileCard, BoostAvatarRing, BoostThemePicker,
+// FourStatRow, TriStatPill, modals — completely unchanged.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
-  Bookmark, Users, UserPlus, Hash, Crown, Heart,
+  Bookmark, Users, UserPlus, Hash, Crown, Heart, Star,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
@@ -62,7 +62,12 @@ const fmt = (num) => {
 };
 
 const LiveDot = () => (
-  <span style={{ display:"inline-block", width:6, height:6, borderRadius:"50%", background:"#84cc16", marginLeft:4, flexShrink:0, boxShadow:"0 0 0 0 rgba(132,204,22,0.6)", animation:"livePulse 1.8s ease-out infinite" }} />
+  <span style={{
+    display:"inline-block", width:6, height:6, borderRadius:"50%",
+    background:"#84cc16", marginLeft:4, flexShrink:0,
+    boxShadow:"0 0 0 0 rgba(132,204,22,0.6)",
+    animation:"livePulse 1.8s ease-out infinite",
+  }} />
 );
 
 const TriStatPill = ({ icon: Icon, value, label, accent, glowColor, animTarget }) => {
@@ -70,7 +75,9 @@ const TriStatPill = ({ icon: Icon, value, label, accent, glowColor, animTarget }
   return (
     <div className="tri-stat-pill" style={{ "--accent": accent, "--glow": glowColor }}>
       <div className="tri-stat-inner">
-        <div className="tri-stat-icon-wrap"><Icon size={15} style={{ color: accent }} /></div>
+        <div className="tri-stat-icon-wrap">
+          <Icon size={15} style={{ color: accent }} />
+        </div>
         <div className="tri-stat-text">
           <span className="tri-stat-value">{fmt(displayed)}</span>
           <span className="tri-stat-label">{label}</span>
@@ -83,8 +90,15 @@ const TriStatPill = ({ icon: Icon, value, label, accent, glowColor, animTarget }
 const ConfirmLogout = ({ onConfirm, onCancel }) => (
   <>
     <div onClick={onCancel} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", zIndex:9998 }} />
-    <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", background:"#111", border:"1px solid rgba(239,68,68,0.3)", borderRadius:"20px", padding:"28px 24px", width:"min(300px, calc(100vw - 40px))", zIndex:9999, boxShadow:"0 24px 80px rgba(0,0,0,0.95)" }}>
-      <div style={{ width:44, height:44, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 14px" }}><LogOut size={20} color="#ef4444" /></div>
+    <div style={{
+      position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
+      background:"#111", border:"1px solid rgba(239,68,68,0.3)", borderRadius:"20px",
+      padding:"28px 24px", width:"min(300px, calc(100vw - 40px))", zIndex:9999,
+      boxShadow:"0 24px 80px rgba(0,0,0,0.95)",
+    }}>
+      <div style={{ width:44, height:44, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 14px" }}>
+        <LogOut size={20} color="#ef4444" />
+      </div>
       <p style={{ color:"#f5f5f5", fontSize:"15px", fontWeight:700, textAlign:"center", marginBottom:6 }}>Sign out?</p>
       <p style={{ color:"#737373", fontSize:"13px", textAlign:"center", marginBottom:22 }}>You'll need to sign back in to access your account.</p>
       <div style={{ display:"flex", gap:10 }}>
@@ -99,7 +113,13 @@ const TierBadgePill = ({ tier, paymentStatus }) => {
   const badge = getTierBadge(tier, paymentStatus);
   if (!badge) return null;
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:20, fontSize:10, fontWeight:800, color:badge.color, background:`${badge.color}15`, border:`1px solid ${badge.color}35`, boxShadow:`0 0 8px ${badge.glow}`, flexShrink:0 }}>
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:4,
+      padding:"2px 8px", borderRadius:20, fontSize:10, fontWeight:800,
+      color:badge.color, background:`${badge.color}15`,
+      border:`1px solid ${badge.color}35`,
+      boxShadow:`0 0 8px ${badge.glow}`, flexShrink:0,
+    }}>
       {badge.emoji} {badge.label}
     </span>
   );
@@ -114,8 +134,34 @@ const AccessBadge = ({ accessStatus }) => {
   const cfg = map[accessStatus];
   if (!cfg) return null;
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"1px 7px", borderRadius:12, fontSize:9, fontWeight:800, color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30` }}>
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:4,
+      padding:"1px 7px", borderRadius:12, fontSize:9, fontWeight:800,
+      color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30`,
+    }}>
       ✓ {cfg.label}
+    </span>
+  );
+};
+
+// [AMB-3] Ambassador level badge shown on profile header
+const AmbassadorBadge = ({ level, name }) => {
+  const levelColors = {
+    1: { color:"#6ee7b7", icon:"🌱" },
+    2: { color:"#60a5fa", icon:"⚡" },
+    3: { color:"#f59e0b", icon:"🔥" },
+    4: { color:"#a78bfa", icon:"💎" },
+    5: { color:"#fbbf24", icon:"👑" },
+  };
+  const cfg = levelColors[level] || levelColors[1];
+  return (
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:4,
+      padding:"2px 8px", borderRadius:20, fontSize:10, fontWeight:800,
+      color:cfg.color, background:`${cfg.color}12`,
+      border:`1px solid ${cfg.color}30`, flexShrink:0,
+    }}>
+      {cfg.icon} Ambassador {name && `· ${name}`}
     </span>
   );
 };
@@ -128,15 +174,24 @@ const FourStatRow = ({ stats }) => {
   const fontSz  = { 1:"19px", 2:"15px", 3:"13px", 4:"11px" }[tier];
   const labelSz = tier >= 3 ? "9px" : "10px";
   return (
-    <div style={{ display:"grid", gridTemplateColumns:`repeat(${cols}, 1fr)`, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:16, padding:"14px 8px", gap:4, overflow:"hidden", transition:"grid-template-columns .3s" }}>
+    <div style={{
+      display:"grid", gridTemplateColumns:`repeat(${cols}, 1fr)`,
+      background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)",
+      borderRadius:16, padding:"14px 8px", gap:4, overflow:"hidden",
+      transition:"grid-template-columns .3s",
+    }}>
       {stats.map((s) => (
         <div key={s.label} style={{ textAlign:"center", padding:"10px 4px" }}>
-          <p style={{ fontSize:fontSz, fontWeight:900, background:"linear-gradient(135deg,#84cc16 0%,#65a30d 100%)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", margin:"0 0 3px 0", transition:"font-size .3s", lineHeight:1.1 }}>
-            {s.value}
-          </p>
-          <p style={{ fontSize:labelSz, color:"#737373", margin:0, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:700 }}>
-            {s.label}
-          </p>
+          <p style={{
+            fontSize:fontSz, fontWeight:900,
+            background:"linear-gradient(135deg,#84cc16 0%,#65a30d 100%)",
+            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+            margin:"0 0 3px 0", transition:"font-size .3s", lineHeight:1.1,
+          }}>{s.value}</p>
+          <p style={{
+            fontSize:labelSz, color:"#737373", margin:0,
+            textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:700,
+          }}>{s.label}</p>
         </div>
       ))}
     </div>
@@ -144,7 +199,9 @@ const FourStatRow = ({ stats }) => {
 };
 
 // ── Main component ────────────────────────────────────────────────────────
-const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
+// [AMB-2] Added `onNavigate` prop — routes ambassador button click to the
+//         ambassador view in App.jsx (same pattern as DashboardSection → wallet)
+const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
   const [profile,               setProfile]               = useState(null);
   const [tierInfo,              setTierInfo]              = useState(null);
   const [loading,               setLoading]               = useState(true);
@@ -160,13 +217,30 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
     followers:0, following:0, communities:0,
     grovaTokens:0, engagementPoints:0, totalContent:0,
   });
-  // [B4] active theme id — updated when user picks from BoostThemePicker
+  // [B4] active theme id
   const [activeThemeId, setActiveThemeId] = useState(null);
+  // [AMB-4] Ambassador profile data for badge + action button label
+  const [ambassadorData, setAmbassadorData] = useState(null);
 
   const isMobile = window.innerWidth <= 768;
 
   useEffect(() => {
     if (userId) loadProfileData();
+  }, [userId]);
+
+  // [AMB-4] Fetch ambassador profile separately so it doesn't block main load
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("ambassador_profiles")
+      .select("id, current_level, invite_code, status, lifetime_earned, commission_pct")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setAmbassadorData(data);
+      })
+      .catch(() => {}); // non-fatal
   }, [userId]);
 
   const loadProfileData = async () => {
@@ -182,7 +256,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
       if (profileError) { setError("Could not load profile."); return; }
       if (profileData)  {
         setTierInfo(buildTierInfo(profileData));
-        // [B4] Read saved themeId
         setActiveThemeId(profileData.boost_selections?.themeId ?? null);
       }
 
@@ -252,22 +325,22 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
       const gtBalance = Number(wallet?.grova_tokens ?? 0);
 
       const profileState = {
-        id: profileData?.id,
-        fullName:  profileData?.full_name || "User",
-        username:  profileData?.username  || "user",
-        avatar:    avatarUrl,
-        avatarId:  profileData?.avatar_id,
-        bio:       profileData?.bio,
-        verified:  profileData?.verified  || false,
-        isPro:     profileData?.is_pro    || false,
-        joinDate:  new Date(profileData?.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
-        email:     profileData?.email,
-        phone:     profileData?.phone,
-        phoneVerified:    profileData?.phone_verified  || false,
-        showEmail:        profileData?.show_email      || false,
-        showPhone:        profileData?.show_phone      || false,
+        id:               profileData?.id,
+        fullName:         profileData?.full_name        || "User",
+        username:         profileData?.username         || "user",
+        avatar:           avatarUrl,
+        avatarId:         profileData?.avatar_id,
+        bio:              profileData?.bio,
+        verified:         profileData?.verified         || false,
+        isPro:            profileData?.is_pro           || false,
+        joinDate:         new Date(profileData?.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
+        email:            profileData?.email,
+        phone:            profileData?.phone,
+        phoneVerified:    profileData?.phone_verified   || false,
+        showEmail:        profileData?.show_email       || false,
+        showPhone:        profileData?.show_phone       || false,
         subscriptionTier: profileData?.subscription_tier ?? "standard",
-        paymentStatus:    profileData?.payment_status    ?? "pending",
+        paymentStatus:    profileData?.payment_status   ?? "pending",
         accountActivated: profileData?.account_activated ?? false,
         engagementPoints: epBalance,
         boostSelections:  profileData?.boost_selections ?? null,
@@ -356,23 +429,105 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
     { label:"GT",        value:fmt(liveStats.grovaTokens)      },
   ];
 
+  // [AMB-1] Ambassador button — dynamic label/sub based on whether user is already an ambassador
+  const isAmbassador = !!ambassadorData;
+  const ambassadorLevelNames = { 1:"Scout", 2:"Envoy", 3:"Nexus", 4:"Vanguard", 5:"Legend" };
+  const ambLevelName = ambassadorData ? (ambassadorLevelNames[ambassadorData.current_level] || "Scout") : null;
+  const ambLevelIcon = { 1:"🌱", 2:"⚡", 3:"🔥", 4:"💎", 5:"👑" };
+
   const actionButtons = [
-    { id:"edit",        icon:<Edit size={20}/>,     label:"Edit Profile",  sub:"Update your info",           accent:"#84cc16", bg:"linear-gradient(135deg,rgba(132,204,22,0.15),rgba(101,163,13,0.08))", border:"rgba(132,204,22,0.4)",  onClick:()=>setShowEditModal(true) },
-    { id:"saved",       icon:<Bookmark size={20}/>, label:"Saved",         sub:"Your bookmarks",             accent:"#fbbf24", bg:"linear-gradient(135deg,rgba(251,191,36,0.12),rgba(245,158,11,0.06))", border:"rgba(251,191,36,0.35)", onClick:()=>setShowSavedModal(true) },
-    { id:"followers",   icon:<UserPlus size={20}/>, label:"Followers",     sub:`${fmt(liveStats.followers)} people`,    accent:"#60a5fa", bg:"linear-gradient(135deg,rgba(96,165,250,0.12),rgba(59,130,246,0.06))",  border:"rgba(96,165,250,0.35)",  onClick:()=>{setFollowersTab("followers");setShowFollowersModal(true);} },
-    { id:"following",   icon:<Users size={20}/>,    label:"Following",     sub:`${fmt(liveStats.following)} people`,    accent:"#a78bfa", bg:"linear-gradient(135deg,rgba(167,139,250,0.12),rgba(139,92,246,0.06))", border:"rgba(167,139,250,0.35)", onClick:()=>{setFollowersTab("following");setShowFollowersModal(true);} },
-    { id:"communities", icon:<Hash size={20}/>,     label:"Communities",   sub:`${fmt(liveStats.communities)} joined`,  accent:"#34d399", bg:"linear-gradient(135deg,rgba(52,211,153,0.12),rgba(16,185,129,0.06))",  border:"rgba(52,211,153,0.35)",  onClick:()=>setShowCommunitiesModal(true) },
-    { id:"logout",      icon:<LogOut size={20}/>,   label:"Sign Out",      sub:"Log out of account",          accent:"#ef4444", bg:"linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))",   border:"rgba(239,68,68,0.35)",   onClick:()=>setShowLogoutConfirm(true) },
+    {
+      id:"edit",
+      icon:<Edit size={20}/>,
+      label:"Edit Profile",
+      sub:"Update your info",
+      accent:"#84cc16",
+      bg:"linear-gradient(135deg,rgba(132,204,22,0.15),rgba(101,163,13,0.08))",
+      border:"rgba(132,204,22,0.4)",
+      onClick:()=>setShowEditModal(true),
+    },
+    {
+      id:"saved",
+      icon:<Bookmark size={20}/>,
+      label:"Saved",
+      sub:"Your bookmarks",
+      accent:"#fbbf24",
+      bg:"linear-gradient(135deg,rgba(251,191,36,0.12),rgba(245,158,11,0.06))",
+      border:"rgba(251,191,36,0.35)",
+      onClick:()=>setShowSavedModal(true),
+    },
+    {
+      id:"followers",
+      icon:<UserPlus size={20}/>,
+      label:"Followers",
+      sub:`${fmt(liveStats.followers)} people`,
+      accent:"#60a5fa",
+      bg:"linear-gradient(135deg,rgba(96,165,250,0.12),rgba(59,130,246,0.06))",
+      border:"rgba(96,165,250,0.35)",
+      onClick:()=>{ setFollowersTab("followers"); setShowFollowersModal(true); },
+    },
+    {
+      id:"following",
+      icon:<Users size={20}/>,
+      label:"Following",
+      sub:`${fmt(liveStats.following)} people`,
+      accent:"#a78bfa",
+      bg:"linear-gradient(135deg,rgba(167,139,250,0.12),rgba(139,92,246,0.06))",
+      border:"rgba(167,139,250,0.35)",
+      onClick:()=>{ setFollowersTab("following"); setShowFollowersModal(true); },
+    },
+    {
+      id:"communities",
+      icon:<Hash size={20}/>,
+      label:"Communities",
+      sub:`${fmt(liveStats.communities)} joined`,
+      accent:"#34d399",
+      bg:"linear-gradient(135deg,rgba(52,211,153,0.12),rgba(16,185,129,0.06))",
+      border:"rgba(52,211,153,0.35)",
+      onClick:()=>setShowCommunitiesModal(true),
+    },
+    // [AMB-1] Ambassador Program action button
+    {
+      id:"ambassador",
+      // Icon changes based on whether user is already an ambassador
+      icon: isAmbassador
+        ? <span style={{ fontSize:20, lineHeight:1 }}>{ambLevelIcon[ambassadorData.current_level] || "🌱"}</span>
+        : <Star size={20} />,
+      label: isAmbassador ? "Ambassador" : "Earn with Us",
+      sub: isAmbassador
+        ? `${ambLevelName} · ${ambassadorData.commission_pct}% commission`
+        : "Join & earn commissions",
+      accent:"#f59e0b",
+      bg:"linear-gradient(135deg,rgba(245,158,11,0.15),rgba(217,119,6,0.08))",
+      border:"rgba(245,158,11,0.4)",
+      // [AMB-2] Calls onNavigate("ambassador") — wire this in App.jsx / AccountView
+      onClick:() => {
+        if (typeof onNavigate === "function") {
+          onNavigate("ambassador");
+        }
+      },
+    },
+    {
+      id:"logout",
+      icon:<LogOut size={20}/>,
+      label:"Sign Out",
+      sub:"Log out of account",
+      accent:"#ef4444",
+      bg:"linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))",
+      border:"rgba(239,68,68,0.35)",
+      onClick:()=>setShowLogoutConfirm(true),
+    },
   ];
 
   return (
     <>
       <style>{`
-        @keyframes spin       { to{transform:rotate(360deg)} }
+        @keyframes spin          { to{transform:rotate(360deg)} }
         @keyframes profileFadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes livePulse  { 0%{box-shadow:0 0 0 0 rgba(132,204,22,0.7)} 70%{box-shadow:0 0 0 5px rgba(132,204,22,0)} 100%{box-shadow:0 0 0 0 rgba(132,204,22,0)} }
-        @keyframes shimmerIn  { from{opacity:0;transform:scale(0.92) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes livePulse     { 0%{box-shadow:0 0 0 0 rgba(132,204,22,0.7)} 70%{box-shadow:0 0 0 5px rgba(132,204,22,0)} 100%{box-shadow:0 0 0 0 rgba(132,204,22,0)} }
+        @keyframes shimmerIn     { from{opacity:0;transform:scale(0.92) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes liveBarScroll { from{background-position:0% 0%} to{background-position:200% 0%} }
+        @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
         .profile-section { padding: 20px; }
         .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; }
@@ -406,6 +561,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
         .action-btn-sub { font-size:11px;font-weight:500;margin:0;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         .contact-row { display:flex;flex-direction:column;gap:8px;margin-bottom:18px;padding:0 2px; }
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
+
+        .action-btn-ambassador { animation: ambPulse 2.5s ease infinite; }
       `}</style>
 
       <div className="profile-section">
@@ -440,6 +597,13 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
               {profile.verified && <span className="profile-badge-verified"><Shield size={10}/> Verified</span>}
               <TierBadgePill tier={profile.subscriptionTier} paymentStatus={profile.paymentStatus} />
               {tierInfo && <AccessBadge accessStatus={tierInfo.accessStatus} />}
+              {/* [AMB-3] Ambassador badge on profile header */}
+              {ambassadorData && (
+                <AmbassadorBadge
+                  level={ambassadorData.current_level}
+                  name={ambLevelName}
+                />
+              )}
             </div>
 
             <p className="profile-username">@{profile.username}</p>
@@ -447,11 +611,17 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
 
             {(profile.showEmail || profile.showPhone) && (
               <div className="contact-row">
-                {profile.showEmail && profile.email && <div className="contact-chip"><Mail size={14}/>{profile.email}</div>}
+                {profile.showEmail && profile.email && (
+                  <div className="contact-chip"><Mail size={14}/>{profile.email}</div>
+                )}
                 {profile.showPhone && profile.phone && (
                   <div className="contact-chip">
                     <Phone size={14}/>{profile.phone}
-                    {profile.phoneVerified && <span style={{ display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",background:"rgba(34,197,94,0.2)",borderRadius:"5px",color:"#22c55e",fontSize:"10px",fontWeight:700 }}><Shield size={9}/> Verified</span>}
+                    {profile.phoneVerified && (
+                      <span style={{ display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",background:"rgba(34,197,94,0.2)",borderRadius:"5px",color:"#22c55e",fontSize:"10px",fontWeight:700 }}>
+                        <Shield size={9}/> Verified
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -473,7 +643,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
           </div>
         </BoostProfileCard>
 
-        {/* TRISTAT ROW — unchanged */}
+        {/* TRISTAT ROW */}
         <div className="tristat-card">
           <div className="tristat-live-bar" />
           <div className="tristat-row">
@@ -489,11 +659,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
           </div>
         </div>
 
-        {/* ACTION BUTTONS — unchanged */}
+        {/* ACTION BUTTONS */}
         <div className="actions-card">
           <div className="actions-grid">
             {actionButtons.map(btn => (
-              <button key={btn.id} className="action-btn" onClick={btn.onClick} style={{ background:btn.bg, borderColor:btn.border }}>
+              <button
+                key={btn.id}
+                className={`action-btn${btn.id === "ambassador" && !isAmbassador ? " action-btn-ambassador" : ""}`}
+                onClick={btn.onClick}
+                style={{ background:btn.bg, borderColor:btn.border }}
+              >
                 <div className="action-btn-icon" style={{ background:`${btn.accent}18`, border:`1px solid ${btn.accent}30` }}>
                   <span style={{ color:btn.accent }}>{btn.icon}</span>
                 </div>
@@ -501,6 +676,15 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut }) => {
                   <p className="action-btn-label" style={{ color:btn.accent }}>{btn.label}</p>
                   <p className="action-btn-sub"   style={{ color:btn.accent }}>{btn.sub}</p>
                 </div>
+                {/* NEW pill on the ambassador button if user hasn't joined yet */}
+                {btn.id === "ambassador" && !isAmbassador && (
+                  <span style={{
+                    position:"absolute", top:8, right:8,
+                    fontSize:8, fontWeight:900, letterSpacing:"0.5px",
+                    color:"#000", background:"#f59e0b",
+                    padding:"2px 6px", borderRadius:6,
+                  }}>NEW</span>
+                )}
               </button>
             ))}
           </div>

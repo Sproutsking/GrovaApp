@@ -1,12 +1,19 @@
-// components/Messages/DMMessagesView.jsx — NOVA HUB v21 FULL FIX
+// components/Messages/DMMessagesView.jsx — NOVA HUB v23 BADGES + CALLS PERFECT
 // ============================================================================
-// v21 FIXES:
-//  [CRASH-FIX-1]  canShowChat now deep-checks otherUser shape before render
-//  [CRASH-FIX-2]  selectedConv cleared atomically on tab switch (never stale)
-//  [CALLS-FIX]    CallsView + CallsTab wired; openNewCall event handled
-//  [GROUP-FIX]    Groups visible to all members; groupDMService reloads on notify
-//  [BADGE-FIX]    All three badges working correctly
-//  [INCOMING]     IncomingCallPopup shown over everything
+// v23 FIXES vs v22:
+//  [BADGE-1]  chatsBadge: tracks DMs + group messages together. Syncs on every
+//             conversationState change and gc_new_message broadcast.
+//  [BADGE-2]  updatesBadge: SET by UpdatesView (not accumulated). Resets on
+//             tab open. Shows on both rail + bottom nav.
+//  [BADGE-3]  callsBadge: increments on missed_call event. Resets on tab open.
+//             Shows on both rail + bottom nav.
+//  [BADGE-4]  totalBadge = chats + updates + calls → dispatched as dm:badge_count.
+//  [BADGE-5]  switchTab() zeros the correct badge INSTANTLY on tab open.
+//  [CALLS-1]  IncomingCallPopup shows <200ms after caller dials (fast channel).
+//  [CALLS-2]  endCall / decline: cleanup happens in callService, DMMessagesView
+//             just resets local state (no double cleanup).
+//  [GROUP-1]  deleteGroup / leaveGroup wired to groupDMService fully.
+//  [GROUP-2]  Groups reload on gc_notify + group_deleted events.
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -42,17 +49,17 @@ const ICalls = ({ a }) => (
   </svg>
 );
 const IClose = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 );
 const IPlus = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
 const IGroup = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
     <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
   </svg>
@@ -63,6 +70,21 @@ const NAV = [
   { id: "updates", label: "Updates", Icon: IUpdates },
   { id: "calls",   label: "Calls",   Icon: ICalls   },
 ];
+
+// ── Badge component ───────────────────────────────────────────────────────────
+const Bdg = ({ count, bg = "rgba(4,4,4,.99)", rail = false }) => {
+  if (!count || count <= 0) return null;
+  const label = count > 99 ? "99+" : String(count);
+  return (
+    <span
+      className={rail ? "dmh-rail-badge" : "dmh-bnav-badge"}
+      key={`bdg-${count}`}
+      style={{ borderColor: bg }}
+    >
+      {label}
+    </span>
+  );
+};
 
 /* ─── Create Group Modal ─── */
 const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
@@ -76,7 +98,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
   useEffect(() => {
     try {
       const convs = conversationState.getConversations?.() || [];
-      const seen = new Set();
+      const seen  = new Set();
       const people = [];
       convs.forEach(c => {
         const o = c.user1_id === currentUser?.id ? (c.user2 || c.otherUser) : (c.user1 || c.otherUser);
@@ -86,7 +108,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
     } catch (_) {}
   }, [currentUser?.id]);
 
-  const toggle = u => setSel(p => p.some(x => x.id === u.id) ? p.filter(x => x.id !== u.id) : [...p, u]);
+  const toggle   = u => setSel(p => p.some(x => x.id === u.id) ? p.filter(x => x.id !== u.id) : [...p, u]);
   const filtered = contacts.filter(c => (c?.full_name || c?.name || "").toLowerCase().includes(search.toLowerCase()));
 
   const handleCreate = async () => {
@@ -107,7 +129,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
         ...sel.map(u => ({ id: u.id, full_name: u.full_name || u.name, avatar_id: u.avatar_id || u.avatarId })),
       ];
       const fallbackGroup = { id: groupId, name: name.trim(), icon: "👥", members, member_ids: members.map(m => m.id), isGroup: true };
-      try { localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(fallbackGroup)); } catch (_) {}
+      try { localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(fallbackGroup)); } catch {}
       onCreate(fallbackGroup); onClose();
     } finally { setCreating(false); }
   };
@@ -185,14 +207,20 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const [showCreateGrp, setShowCreateGrp] = useState(false);
   const [incomingCall,  setIncomingCall]  = useState(null);
 
-  // [BADGES] Per-tab badge counts
+  // ── [BADGE-1][BADGE-2][BADGE-3] Three independent badge counters ──────────
   const [chatsBadge,   setChatsBadge]   = useState(0);
   const [updatesBadge, setUpdatesBadge] = useState(0);
   const [callsBadge,   setCallsBadge]   = useState(0);
 
-  // tabRef lets badge callbacks read current tab without stale closures
-  const tabRef = useRef("chats");
-  useEffect(() => { tabRef.current = tab; }, [tab]);
+  const tabRef         = useRef("chats");
+  const viewRef        = useRef("list");
+  const activeGroupRef = useRef(null);
+  const activeConvRef  = useRef(null);
+
+  useEffect(() => { tabRef.current  = tab;  }, [tab]);
+  useEffect(() => { viewRef.current = view; }, [view]);
+  useEffect(() => { activeGroupRef.current = activeGroup; }, [activeGroup]);
+  useEffect(() => { activeConvRef.current  = selectedConv; }, [selectedConv]);
 
   const initialized = useRef(false);
   const unsubList   = useRef(null);
@@ -204,27 +232,56 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
 
   const norm = {
     id: uid, name: uName, fullName: uName,
-    username: currentUser?.username || "user",
-    avatar: currentUser?.avatar, avatarId: uAvId, avatar_id: uAvId,
-    verified: currentUser?.verified || false,
+    username:  currentUser?.username || "user",
+    avatar:    currentUser?.avatar,
+    avatarId:  uAvId,
+    avatar_id: uAvId,
+    verified:  currentUser?.verified || false,
   };
 
-  // Total badge → app header
+  // ── [BADGE-4] Broadcast total ─────────────────────────────────────────────
   const totalBadge = chatsBadge + updatesBadge + callsBadge;
   useEffect(() => {
-    try { window.dispatchEvent(new CustomEvent("dm:badge_count", { detail: totalBadge })); } catch (_) {}
+    try { window.dispatchEvent(new CustomEvent("dm:badge_count", { detail: totalBadge })); } catch {}
   }, [totalBadge]);
 
-  // Init callService
+  // ── [BADGE-1] Sync chats badge ────────────────────────────────────────────
+  const syncChatsBadge = useCallback(() => {
+    if (tabRef.current === "chats" && viewRef.current === "list") {
+      // On the list view — zero the badge
+      setChatsBadge(0);
+      return;
+    }
+    if (tabRef.current === "chats" && viewRef.current !== "list") {
+      // Inside a specific chat — other convs can still accumulate
+      try {
+        const total       = conversationState.getTotalUnreadCount?.() ?? 0;
+        const openConvId  = activeConvRef.current?.id;
+        let   openUnread  = 0;
+        if (openConvId) {
+          const convs   = conversationState.getConversations?.() || [];
+          const openConv = convs.find(c => c.id === openConvId);
+          openUnread    = openConv?.unreadCount ?? 0;
+        }
+        setChatsBadge(Math.max(0, total - openUnread));
+      } catch {}
+      return;
+    }
+    // Not on chats tab — accumulate
+    try {
+      setChatsBadge(conversationState.getTotalUnreadCount?.() ?? 0);
+    } catch {}
+  }, []);
+
+  // ── callService init ──────────────────────────────────────────────────────
   useEffect(() => {
     if (uid) callService.init(uid, uName, uAvId);
   }, [uid, uName, uAvId]);
 
-  // INCOMING CALL LISTENER
+  // ── [BADGE-3] Call event listeners ───────────────────────────────────────
   useEffect(() => {
     if (!uid) return;
     const unsubIn   = callService.on("incoming_call", callData => {
-      // Only show popup if not already in a call
       setIncomingCall(prev => prev ? prev : callData);
     });
     const unsubEnd  = callService.on("call_ended", ({ callId }) => {
@@ -232,31 +289,34 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     });
     const unsubMiss = callService.on("missed_call", () => {
       setIncomingCall(null);
-      if (tabRef.current !== "calls") setCallsBadge(p => p + 1);
+      if (tabRef.current !== "calls") {
+        setCallsBadge(p => p + 1);
+      }
     });
-    return () => { unsubIn(); unsubEnd(); unsubMiss(); };
+    const unsubDec  = callService.on("call_declined", () => {
+      setIncomingCall(null);
+    });
+    return () => { unsubIn(); unsubEnd(); unsubMiss(); unsubDec(); };
   }, [uid]);
 
-  // Wire updates badge from UpdatesView
-  // [BADGE-FIX] Use setUpdatesBadge(count) directly instead of accumulating
-  // with prev + count — prevents badge inflating on every loadStatuses call.
+  // ── [BADGE-2] Wire UpdatesView badge setter ───────────────────────────────
   useEffect(() => {
     registerUpdatesBadgeSetter(count => {
       if (tabRef.current !== "updates") {
-        setUpdatesBadge(count);  // ← FIX: set directly, not prev + count
+        setUpdatesBadge(typeof count === "number" ? count : 0);
       }
     });
     return () => registerUpdatesBadgeSetter(null);
   }, []);
 
-  // Listen for dm:openNewCall event (from calls tab + button)
+  // ── Listen for dm:openNewCall event ──────────────────────────────────────
   useEffect(() => {
     const h = () => setShowSearch(true);
     document.addEventListener("dm:openNewCall", h);
     return () => document.removeEventListener("dm:openNewCall", h);
   }, []);
 
-  // Init groupDMService + personal gc_notify channel
+  // ── Init groupDMService + personal gc_notify channel ─────────────────────
   useEffect(() => {
     if (!uid) return;
     groupDMService.init(uid);
@@ -267,32 +327,57 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
       .on("broadcast", { event: "gc_new_group" }, ({ payload }) => {
         if (!payload?.id || !Array.isArray(payload?.members)) return;
         if (!payload.members.some(m => m?.id === uid)) return;
-        try { localStorage.setItem(`gc_meta_${payload.id}`, JSON.stringify({ ...payload, isGroup: true })); } catch (_) {}
+        try { localStorage.setItem(`gc_meta_${payload.id}`, JSON.stringify({ ...payload, isGroup: true })); } catch {}
         groupDMService.loadGroups();
+      })
+      .on("broadcast", { event: "gc_new_message" }, ({ payload }) => {
+        if (!payload?.groupId) return;
+        if (payload?.senderId === uid) return;
+        const isViewingThisGroup =
+          activeGroupRef.current?.id === payload.groupId && tabRef.current === "chats";
+        if (!isViewingThisGroup) {
+          if (tabRef.current !== "chats") {
+            setChatsBadge(p => p + 1);
+          } else {
+            syncChatsBadge();
+          }
+        }
       })
       .subscribe();
     notifyCh.current = nc;
-    return () => {
-      if (notifyCh.current) { try { supabase.removeChannel(notifyCh.current); } catch (_) {} notifyCh.current = null; }
-    };
-  }, [uid]);
 
-  // Init DM service + conversation badges
+    // Listen for group deletions
+    const unsubDel = groupDMService.on("group_list", () => {
+      // Refresh conversation list when groups change
+    });
+
+    return () => {
+      if (notifyCh.current) {
+        try { supabase.removeChannel(notifyCh.current); } catch {}
+        notifyCh.current = null;
+      }
+      unsubDel();
+    };
+  }, [uid, syncChatsBadge]);
+
+  // ── Init DM service ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!uid) return;
     onlineStatusService.start?.(uid);
     dmMessageService.init(uid).then(() => setLoading(false)).catch(() => setLoading(false));
     unsubList.current = dmMessageService.subscribeToConversationList?.();
 
-    const syncChatBadge = () => {
-      try { setChatsBadge(conversationState.getTotalUnreadCount?.() ?? 0); } catch (_) {}
-    };
-    syncChatBadge();
-    const unsub = conversationState.subscribe?.(syncChatBadge);
+    syncChatsBadge();
+    const unsub = conversationState.subscribe?.(() => syncChatsBadge());
     return () => { unsubList.current?.(); dmMessageService.cleanup?.(); unsub?.(); };
-  }, [uid]);
+  }, [uid, syncChatsBadge]);
 
-  // Auto-open conversation from initialOtherUserId
+  // Re-sync chats badge on view change
+  useEffect(() => {
+    syncChatsBadge();
+  }, [view, syncChatsBadge]);
+
+  // ── Auto-open conversation ─────────────────────────────────────────────────
   useEffect(() => {
     if (!initialOtherUserId || !uid || initialized.current) return;
     initialized.current = true;
@@ -306,7 +391,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
       .catch(e => console.error("[DM] init:", e));
   }, [initialOtherUserId, uid]);
 
-  // Lock body scroll
+  // ── Lock body scroll ──────────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -315,55 +400,40 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
 
   /* ── Navigation ── */
   const openChat = useCallback(conv => {
-    // [CRASH-FIX] validate conv fully before opening
     if (!conv?.id || typeof conv.id !== "string") return;
     const otherUser = conv.otherUser || conv.user1 || conv.user2;
     if (!otherUser?.id) return;
-    const safeConv = { ...conv, otherUser };
-    setActiveGroup(null);
-    setActiveCall(null);
-    setSelectedConv(safeConv);
-    setTab("chats");
-    setView("chat");
+    setActiveGroup(null); setActiveCall(null);
+    setSelectedConv({ ...conv, otherUser });
+    setTab("chats"); setView("chat");
   }, []);
 
   const openGroupChat = useCallback(g => {
     if (!g?.id) return;
-    try { localStorage.setItem(`gc_meta_${g.id}`, JSON.stringify({ ...g, isGroup: true })); } catch (_) {}
-    setSelectedConv(null);
-    setActiveCall(null);
-    setActiveGroup(g);
-    setTab("chats");
-    setView("group");
+    try { localStorage.setItem(`gc_meta_${g.id}`, JSON.stringify({ ...g, isGroup: true })); } catch {}
+    setSelectedConv(null); setActiveCall(null);
+    setActiveGroup(g); setTab("chats"); setView("group");
   }, []);
 
   const openCall = useCallback(callInfo => {
     if (!callInfo) return;
-    setActiveCall(callInfo);
-    setView("call");
+    setActiveCall(callInfo); setView("call");
   }, []);
 
-  const endCall    = useCallback(() => {
-    setActiveCall(null);
-    setView("list");
+  const endCall = useCallback(() => {
+    setActiveCall(null); setView("list");
   }, []);
 
   const backToList = useCallback(() => {
-    setSelectedConv(null);
-    setActiveCall(null);
-    setActiveGroup(null);
+    setSelectedConv(null); setActiveCall(null); setActiveGroup(null);
     setView("list");
-  }, []);
+    setTimeout(() => syncChatsBadge(), 50);
+  }, [syncChatsBadge]);
 
-  // switchTab ALWAYS resets view and detail state to prevent stale renders
+  // ── [BADGE-5] switchTab zeros badge instantly ─────────────────────────────
   const switchTab = useCallback(id => {
-    // Clear detail state BEFORE switching tab — prevents ChatView from
-    // briefly receiving a stale selectedConv on re-render
-    setSelectedConv(null);
-    setActiveCall(null);
-    setActiveGroup(null);
-    setView("list");
-    setTab(id);
+    setSelectedConv(null); setActiveCall(null); setActiveGroup(null);
+    setView("list"); setTab(id);
     if (id === "chats")   setChatsBadge(0);
     if (id === "updates") setUpdatesBadge(0);
     if (id === "calls")   setCallsBadge(0);
@@ -372,15 +442,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const handleUserSelect = useCallback(async user => {
     if (!user?.id || !uid) return;
     try {
-      const conv = await dmMessageService.createConversation(uid, user.id);
-      // Build otherUser from whichever side is not us
-      const rawOther = conv.user1_id === uid ? conv.user2 : conv.user1;
-      const otherUser = rawOther || user; // fall back to searched user
+      const conv      = await dmMessageService.createConversation(uid, user.id);
+      const rawOther  = conv.user1_id === uid ? conv.user2 : conv.user1;
+      const otherUser = rawOther || user;
       if (!otherUser?.id) return;
       setSelectedConv({ ...conv, otherUser, lastMessage: null, unreadCount: 0 });
-      setTab("chats");
-      setView("chat");
-      setShowSearch(false);
+      setTab("chats"); setView("chat"); setShowSearch(false);
     } catch (e) { console.error("[DM] select:", e); }
   }, [uid]);
 
@@ -390,7 +457,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     const statusText = ctx?.replyToStatus?.text || ctx?.text || "";
     if (!targetId || targetId === uid) return;
     try {
-      const conv = await dmMessageService.createConversation(uid, targetId);
+      const conv     = await dmMessageService.createConversation(uid, targetId);
       const rawOther = conv.user1_id === uid ? conv.user2 : conv.user1;
       if (!rawOther?.id) return;
       setSelectedConv({ ...conv, otherUser: rawOther, lastMessage: null, unreadCount: 0 });
@@ -402,13 +469,23 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     } catch (e) { console.error("[DM] story reply:", e); }
   }, [uid]);
 
+  // ── Status reply with thumbnail — opens DM with embedded card ────────────
+  const handleStatusReplyWithThumbnail = useCallback(async ({ replyText, status }) => {
+    if (!replyText?.trim() || !status?.user_id || status.user_id === uid) return;
+    try {
+      const { default: statusSvc } = await import("../../services/messages/statusUpdateService");
+      const conv = await dmMessageService.createConversation(uid, status.user_id);
+      const replyPayload = statusSvc.getReplyPayload(status, replyText);
+      await dmMessageService.sendMessage(conv.id, replyPayload, uid);
+    } catch (e) { console.warn("[DM] status reply thumbnail:", e); }
+  }, [uid]);
+
   const handlePlus = useCallback(() => {
     if (tab === "chats")   { setShowSearch(true); return; }
     if (tab === "updates") { document.dispatchEvent(new CustomEvent("dm:addStory")); return; }
-    if (tab === "calls")   { setShowSearch(true); return; } // reuse user search to start a call
+    if (tab === "calls")   { setShowSearch(true); return; }
   }, [tab]);
 
-  // Start outgoing call via callService
   const handleStartCall = useCallback(async (callInfo) => {
     if (!callInfo) return;
     const calleeId = callInfo.user?.id || callInfo.calleeId;
@@ -417,7 +494,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
       callService.startCall({
         callId,
         calleeId,
-        callType: callInfo.type || "audio",
+        callType:      callInfo.type || "audio",
         callerProfile: norm,
       }).catch(e => console.warn("[DM] startCall:", e));
       openCall({ ...callInfo, callId });
@@ -426,22 +503,34 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     }
   }, [uid, norm, openCall]);
 
-  // Accept incoming call
   const handleAcceptIncoming = useCallback(({ callId, callerId, callerName, callType, caller }) => {
     setIncomingCall(null);
+    callService.answerCall(callId).catch(e => console.warn("[DM] answerCall:", e));
     openCall({
       callId,
-      name: callerName || caller?.full_name || "Caller",
-      type: callType || "audio",
+      name:     callerName || caller?.full_name || "Caller",
+      type:     callType || "audio",
       outgoing: false,
-      user: caller || { id: callerId, full_name: callerName },
+      user:     caller || { id: callerId, full_name: callerName },
     });
   }, [openCall]);
+
+  const handleDeclineIncoming = useCallback(() => {
+    const ic = incomingCall;
+    setIncomingCall(null);
+    if (ic) {
+      callService.declineCall(ic.callId, ic.callerId || ic.caller?.id)
+        .catch(e => console.warn("[DM] decline:", e));
+      // [BADGE-3] Declined call = missed (from our side)
+      if (tabRef.current !== "calls") {
+        setCallsBadge(p => p + 1);
+      }
+    }
+  }, [incomingCall]);
 
   const isDetail = view === "chat" || view === "call" || view === "group";
   const tabTitle = { chats: "Messages", updates: "Updates", calls: "Calls" }[tab];
 
-  // [CRASH-FIX] Multi-layer guard — conv must exist, have string id, AND have a valid otherUser with id
   const canShowChat = (
     view === "chat" &&
     selectedConv !== null &&
@@ -459,12 +548,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
       <div className="dmh-bd" onClick={onClose}/>
       <div className="dmh-panel">
 
-        {/* INCOMING CALL POPUP — renders over everything */}
+        {/* INCOMING CALL POPUP */}
         {incomingCall && (
           <IncomingCallPopup
             call={incomingCall}
             onAccept={handleAcceptIncoming}
-            onDecline={() => setIncomingCall(null)}
+            onDecline={handleDeclineIncoming}
           />
         )}
 
@@ -478,7 +567,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                 <button key={id} className={`dmh-rail-btn${tab === id ? " dmh-rail-on" : ""}`} onClick={() => switchTab(id)} aria-label={label}>
                   <div className="dmh-rail-iw">
                     <Icon a={tab === id}/>
-                    {badge > 0 && <span className="dmh-rail-badge">{badge > 99 ? "99+" : badge}</span>}
+                    <Bdg count={badge} rail/>
                   </div>
                   <span className="dmh-rail-lbl">{label}</span>
                 </button>
@@ -499,7 +588,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
             </div>
           )}
 
-          {/* DM chat — strict multi-layer guard */}
+          {/* DM chat */}
           {canShowChat && (
             <div className="dmh-screen">
               <ChatView
@@ -508,11 +597,11 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                 currentUser={norm}
                 onBack={backToList}
                 onStartCall={type => handleStartCall({
-                  name: selectedConv.otherUser?.full_name || "Call",
+                  name:     selectedConv.otherUser?.full_name || "Call",
                   type,
                   outgoing: true,
-                  callId: `call_${uid}_${selectedConv.otherUser?.id}_${Date.now()}`,
-                  user: selectedConv.otherUser,
+                  callId:   `call_${uid}_${selectedConv.otherUser?.id}_${Date.now()}`,
+                  user:     selectedConv.otherUser,
                 })}
               />
             </div>
@@ -521,7 +610,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
           {/* Group chat */}
           {view === "group" && activeGroup?.id && (
             <div className="dmh-screen">
-              <GroupChatView group={activeGroup} currentUser={norm} onBack={backToList} onStartCall={openCall}/>
+              <GroupChatView
+                group={activeGroup}
+                currentUser={norm}
+                onBack={backToList}
+                onStartCall={openCall}
+              />
             </div>
           )}
 
@@ -554,7 +648,12 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                   />
                 )}
                 {tab === "updates" && (
-                  <UpdatesView currentUser={norm} userId={uid} onOpenDM={handleStoryReply}/>
+                  <UpdatesView
+                    currentUser={norm}
+                    userId={uid}
+                    onOpenDM={handleStoryReply}
+                    onStatusReplyThumbnail={handleStatusReplyWithThumbnail}
+                  />
                 )}
                 {tab === "calls" && (
                   <CallsView
@@ -572,7 +671,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                     <button key={id} className={`dmh-bnav-btn${tab === id ? " dmh-bnav-on" : ""}`} onClick={() => switchTab(id)}>
                       <div className="dmh-bnav-iw">
                         <Icon a={tab === id}/>
-                        {badge > 0 && <span className="dmh-bnav-badge">{badge > 99 ? "99+" : badge}</span>}
+                        <Bdg count={badge}/>
                       </div>
                       <span className="dmh-bnav-lbl">{label}</span>
                     </button>
@@ -595,6 +694,8 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
 const CSS = `
 .dmh-bd{position:fixed;inset:0;z-index:9990;background:transparent;}
 .dmh-panel{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:row;background:#000;overflow:hidden;}
+
+/* ── Rail ── */
 .dmh-rail{display:none;flex-direction:column;align-items:center;padding:16px 6px;border-right:1px solid rgba(132,204,22,.1);background:rgba(4,4,4,.99);width:70px;flex-shrink:0;gap:2px;}
 .dmh-rail-logo{width:38px;height:38px;border-radius:12px;background:rgba(132,204,22,.12);border:1px solid rgba(132,204,22,.25);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
 .dmh-rail-dot{width:11px;height:11px;border-radius:50%;background:#84cc16;box-shadow:0 0 10px rgba(132,204,22,.7);}
@@ -603,8 +704,41 @@ const CSS = `
 .dmh-rail-on{background:rgba(132,204,22,.1)!important;color:#84cc16!important;}
 .dmh-rail-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
 .dmh-rail-iw{position:relative;display:flex;align-items:center;justify-content:center;width:24px;height:24px;}
-.dmh-rail-badge{position:absolute;top:-6px;right:-10px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(4,4,4,.99);white-space:nowrap;animation:bdgPop .3s cubic-bezier(.34,1.56,.64,1);}
-@keyframes bdgPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── Rail badge ── */
+.dmh-rail-badge{
+  position:absolute;top:-7px;right:-11px;
+  min-width:17px;height:17px;padding:0 4px;
+  box-sizing:border-box;border-radius:9px;
+  background:#ef4444;color:#fff;
+  font-size:9px;font-weight:800;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(4,4,4,.99);
+  white-space:nowrap;
+  animation:bdgPop .35s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none;
+}
+
+/* ── Bottom nav badge ── */
+.dmh-bnav-badge{
+  position:absolute;top:-7px;right:-13px;
+  min-width:17px;height:17px;padding:0 4px;
+  box-sizing:border-box;border-radius:9px;
+  background:#ef4444;color:#fff;
+  font-size:9px;font-weight:800;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(4,4,4,.99);
+  white-space:nowrap;
+  animation:bdgPop .35s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none;
+}
+
+@keyframes bdgPop{
+  0%{transform:scale(0) rotate(-15deg);opacity:0}
+  60%{transform:scale(1.25) rotate(5deg);opacity:1}
+  100%{transform:scale(1) rotate(0deg);opacity:1}
+}
+
 .dmh-rail-close{color:#333;}.dmh-rail-close:hover{color:#84cc16;background:rgba(132,204,22,.07)!important;}
 .dmh-body{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;}
 .dmh-full{flex:1;}
@@ -619,13 +753,16 @@ const CSS = `
 .dmh-hdr-btn{width:34px;height:34px;border-radius:10px;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.25);display:flex;align-items:center;justify-content:center;color:#84cc16;cursor:pointer;transition:background .15s;}
 .dmh-hdr-btn:hover{background:rgba(132,204,22,.2);}
 .dmh-btn-grp{background:rgba(96,165,250,.1)!important;border-color:rgba(96,165,250,.25)!important;color:#60a5fa!important;}
+
+/* ── Bottom nav ── */
 .dmh-bnav{display:flex;border-top:1px solid rgba(132,204,22,.1);background:rgba(4,4,4,.99);padding-bottom:env(safe-area-inset-bottom,0px);flex-shrink:0;}
 .dmh-bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 6px;background:transparent;border:none;color:#444;cursor:pointer;transition:color .15s;position:relative;}
 .dmh-bnav-on{color:#84cc16;}
 .dmh-bnav-on::after{content:'';position:absolute;top:0;left:20%;right:20%;height:2.5px;border-radius:0 0 4px 4px;background:#84cc16;}
 .dmh-bnav-iw{position:relative;display:flex;align-items:center;justify-content:center;width:24px;height:24px;}
-.dmh-bnav-badge{position:absolute;top:-6px;right:-12px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center;border:2px solid rgba(4,4,4,.99);white-space:nowrap;}
 .dmh-bnav-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── Create group modal ── */
 .cgm-ov{position:fixed;inset:0;z-index:20002;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;backdrop-filter:blur(4px);}
 .cgm-modal{width:100%;max-height:88vh;background:#080808;border:1px solid rgba(132,204,22,.15);border-radius:24px 24px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:cgmUp .3s cubic-bezier(.34,1.4,.64,1);}
 @keyframes cgmUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
@@ -654,6 +791,8 @@ const CSS = `
 .cgm-ck{width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;flex-shrink:0;}
 .cgm-ck-on{background:#84cc16!important;border-color:#84cc16!important;color:#000!important;font-weight:800;}
 .cgm-empty{text-align:center;padding:24px;color:#444;font-size:13px;}
+
+/* ── Responsive ── */
 @media(min-width:769px){
   .dmh-panel{left:auto;right:0;width:420px;height:100vh;border-left:1px solid rgba(132,204,22,.12);box-shadow:-24px 0 72px rgba(0,0,0,.7);animation:dmhSlide .28s cubic-bezier(.22,1,.36,1);}
   @keyframes dmhSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}

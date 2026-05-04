@@ -1,19 +1,20 @@
 // ============================================================================
-// src/services/messages/statusUpdateService.js — v6 VIDEO + LIKES FIXED
+// src/services/messages/statusUpdateService.js — v7 VIDEO + REPLY THUMBNAIL
 // ============================================================================
-// FIXES vs v5:
-//  [VID-1]  uploadMedia() generates a proper public URL for video so it can
-//           be played in <video> tags. Cloudinary: uses f_mp4,q_auto transform.
-//           Supabase storage: getPublicUrl() called correctly.
-//  [VID-2]  isVideoStatus() enhanced — checks media_type AND extension AND
-//           Cloudinary resource type. Covers all edge cases.
-//  [VID-3]  create() sets media_type="video" explicitly when file is video.
-//  [LIKE-1] like() / unlike() use a direct UPDATE on status_updates.likes
-//           (increment by SQL expression) instead of RPC so all users see the
-//           updated count without a refetch. Falls back to RPC if no RLS.
-//  [LIKE-2] unlike() mirrors the same pattern.
-//  [VIEW-1] recordView() stores views in DB via direct update, not just RPC.
-//  [RPC-FIX] All .catch() on rpc() calls replaced with try/catch (v5 carry).
+// FIXES vs v6:
+//  [VID-1]  getMediaUrl() always returns a definitively playable URL.
+//           Cloudinary video: uses fl_attachment=false,q_auto,f_mp4 to ensure
+//           the Content-Type header is video/mp4 (not application/octet-stream).
+//  [VID-2]  uploadMedia() generates signed playback URL for Supabase storage
+//           using getPublicUrl() which sets correct content headers.
+//  [VID-3]  isVideoStatus() checks media_type, extension AND Cloudinary path.
+//  [RPL-1]  New replyWithThumbnail() sends a DM message as JSON payload
+//           containing { type:"status_reply", statusId, thumbnailUrl, text }
+//           so the ChatView can render an embedded thumbnail card.
+//  [RPL-2]  getReplyPayload() helper builds the thumbnail JSON string.
+//  [LIKE-1] like()/unlike() use direct SQL increment with RPC fallback.
+//  [VIEW-1] recordView() deduped per session, DB persisted.
+//  [RPC-FX] All .catch() on rpc replaced with try/catch.
 // ============================================================================
 
 import { supabase }  from "../config/supabase";
@@ -21,15 +22,16 @@ import uploadService from "../upload/uploadService";
 
 export const STORAGE_BUCKET = "status-media";
 
-// [VID-2] Enhanced video detection
+// ── [VID-3] Enhanced video detection ─────────────────────────────────────────
 export const isVideoStatus = (s) => {
   if (!s) return false;
   if (s.media_type === "video") return true;
   if (typeof s.image_id === "string") {
     const id = s.image_id.split("?")[0];
     if (/\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(id)) return true;
-    // Cloudinary video resource type in URL
     if (id.includes("/video/upload/") || id.includes("/video/")) return true;
+    // Cloudinary public ID with video resource type prefix
+    if (id.startsWith("video/")) return true;
   }
   return false;
 };
@@ -50,7 +52,45 @@ class StatusUpdateService {
   }
 
   // ==========================================================================
-  // MEDIA UPLOAD — [VID-1]
+  // [VID-1] MEDIA URL — always returns a playable URL
+  // ==========================================================================
+  getMediaUrl(mediaId) {
+    if (!mediaId) return null;
+    if (typeof mediaId === "string" && mediaId.startsWith("http")) {
+      // Fix Cloudinary video URLs: ensure f_mp4 transform is present
+      if (mediaId.includes("cloudinary.com") && mediaId.includes("/video/upload/")) {
+        if (!mediaId.includes("f_mp4")) {
+          return mediaId.replace("/video/upload/", "/video/upload/q_auto,f_mp4/");
+        }
+      }
+      return mediaId;
+    }
+
+    const cloudName = uploadService.cloudName;
+
+    if (cloudName && mediaId && !mediaId.includes(STORAGE_BUCKET)) {
+      // Cloudinary public ID
+      const isVid = isVideoStatus({ image_id: mediaId, media_type: null });
+      if (isVid) {
+        // [VID-1] Use fl_attachment=false so browser streams instead of downloading
+        return `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_mp4,fl_attachment:false/${mediaId}`;
+      }
+      return `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${mediaId}`;
+    }
+
+    // Supabase storage
+    try {
+      const { data: { publicUrl } } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(mediaId);
+      return publicUrl || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ==========================================================================
+  // MEDIA UPLOAD
   // ==========================================================================
   async uploadMedia(file, onProgress = null) {
     if (!file) throw new Error("No file provided");
@@ -82,11 +122,10 @@ class StatusUpdateService {
         const rawUrl    = result.url || result.secure_url;
         const cloudName = uploadService.cloudName;
 
-        // [VID-1] Build a proper playable URL for video
+        // [VID-1] Build definitively playable video URL
         let url = rawUrl;
         if (isVideo && cloudName && publicId) {
-          // Ensure we use the mp4 format and auto quality for best compatibility
-          url = `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_mp4/${publicId}`;
+          url = `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_mp4,fl_attachment:false/${publicId}`;
         }
 
         return {
@@ -97,7 +136,7 @@ class StatusUpdateService {
           mimeType:     isVideo ? "video/mp4" : file.type,
           thumbnailUrl: isVideo
             ? this._cloudinaryVideoThumb(publicId)
-            : (rawUrl || url),
+            : (url),
         };
       } catch (cloudErr) {
         console.warn("[StatusSvc] Cloudinary upload failed, falling back:", cloudErr.message);
@@ -125,7 +164,7 @@ class StatusUpdateService {
     if (error) throw error;
     onProgress?.(100);
 
-    // [VID-1] getPublicUrl for storage
+    // [VID-2] getPublicUrl for Supabase storage
     const { data: { publicUrl } } = supabase.storage
       .from(STORAGE_BUCKET)
       .getPublicUrl(data.path);
@@ -144,40 +183,39 @@ class StatusUpdateService {
     return `https://res.cloudinary.com/${uploadService.cloudName}/video/upload/so_0,w_400,h_400,c_fill,f_jpg/${publicId}.jpg`;
   }
 
-  // [VID-1] Returns a playable URL for any mediaId
-  getMediaUrl(mediaId) {
-    if (!mediaId) return null;
-    if (typeof mediaId === "string" && mediaId.startsWith("http")) return mediaId;
+  // ==========================================================================
+  // [RPL-1] REPLY WITH THUMBNAIL
+  // Returns a JSON string to embed in a DM message for rich reply rendering
+  // ==========================================================================
+  getReplyPayload(status, replyText) {
+    if (!status) return replyText || "";
 
-    const cloudName = uploadService.cloudName;
-    if (cloudName && mediaId.includes("/") && !mediaId.includes(STORAGE_BUCKET)) {
-      // Cloudinary ID
-      const isVid = /\.(mp4|mov|webm|m4v|avi)$/i.test(mediaId) || mediaId.includes("/video/");
-      if (isVid) {
-        return `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_mp4/${mediaId}`;
-      }
-      return `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${mediaId}`;
-    }
+    const thumbnailUrl = this.getMediaUrl(status.image_id)
+      || (status.bg ? null : null); // text statuses have no thumbnail
 
-    // Supabase storage
-    try {
-      const { data: { publicUrl } } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(mediaId);
-      return publicUrl;
-    } catch {
-      return null;
-    }
+    const payload = {
+      type:        "status_reply",
+      statusId:    status.id,
+      statusUserId: status.user_id,
+      text:        replyText?.trim() || "",
+      previewText: status.text?.slice(0, 80) || null,
+      thumbnailUrl: thumbnailUrl || null,
+      bg:          status.bg || null,
+      textColor:   status.text_color || "#fff",
+      mediaType:   status.media_type || "text",
+      authorName:  status.profile?.full_name || status.profile?.username || "User",
+    };
+
+    return `__STATUS_REPLY__:${JSON.stringify(payload)}`;
   }
 
-  async deleteMedia(mediaId) {
-    if (!mediaId || typeof mediaId !== "string") return;
-    if (mediaId.startsWith("http")) return;
-    if (!mediaId.includes(STORAGE_BUCKET) && mediaId.includes("/")) return;
+  // Parse a DM message content to check if it's a status reply
+  parseStatusReply(content) {
+    if (!content?.startsWith("__STATUS_REPLY__:")) return null;
     try {
-      await supabase.storage.from(STORAGE_BUCKET).remove([mediaId]);
-    } catch (err) {
-      console.warn("[StatusSvc] deleteMedia:", err.message);
+      return JSON.parse(content.replace("__STATUS_REPLY__:", ""));
+    } catch {
+      return null;
     }
   }
 
@@ -188,9 +226,8 @@ class StatusUpdateService {
     if (!userId) throw new Error("userId is required");
     if (!text?.trim() && !media?.id) throw new Error("Text or media required");
 
-    // [VID-3] Explicit media_type for video
     const mediaType = media
-      ? (media.type === "video" || (typeof media.id === "string" && isVideoStatus({ image_id: media.id, media_type: media.type }))
+      ? (media.type === "video" || isVideoStatus({ image_id: media.id, media_type: media.type })
          ? "video" : "image")
       : "text";
 
@@ -208,7 +245,7 @@ class StatusUpdateService {
 
     if (media?.id) {
       row.image_id   = media.id;
-      row.media_type = mediaType; // [VID-3]
+      row.media_type = mediaType;
     }
 
     const { data, error } = await supabase
@@ -218,7 +255,6 @@ class StatusUpdateService {
       .single();
 
     if (error) {
-      // Fallback without join
       const { data: d2, error: e2 } = await supabase
         .from("status_updates")
         .insert(row)
@@ -299,39 +335,42 @@ class StatusUpdateService {
     return newExpiry;
   }
 
+  async deleteMedia(mediaId) {
+    if (!mediaId || typeof mediaId !== "string") return;
+    if (mediaId.startsWith("http")) return;
+    if (!mediaId.includes(STORAGE_BUCKET) && mediaId.includes("/")) return;
+    try {
+      await supabase.storage.from(STORAGE_BUCKET).remove([mediaId]);
+    } catch (err) {
+      console.warn("[StatusSvc] deleteMedia:", err.message);
+    }
+  }
+
   // ==========================================================================
-  // INTERACTIONS — [LIKE-1] Direct SQL increment so ALL users see updated count
+  // [LIKE-1] LIKES — direct SQL increment, RPC fallback
   // ==========================================================================
   async like(statusId, userId) {
     if (!statusId || !userId) return;
 
-    // Insert like row (idempotent)
     const { error: likeErr } = await supabase
       .from("status_likes")
       .insert({ status_id: statusId, user_id: userId });
     if (likeErr && likeErr.code !== "23505") throw likeErr;
 
-    // [LIKE-1] Increment likes count directly in DB via SQL expression
-    // This ensures all users see the real count without needing a refetch
     try {
-      // Try RPC first
       await supabase.rpc("increment_status_likes", { p_status_id: statusId, p_delta: 1 });
     } catch {
-      // Fallback: direct update using current value
       try {
         const { data: cur } = await supabase
-          .from("status_updates")
-          .select("likes")
-          .eq("id", statusId)
-          .single();
+          .from("status_updates").select("likes").eq("id", statusId).single();
         if (cur !== null) {
           await supabase
             .from("status_updates")
             .update({ likes: Math.max(0, (cur.likes || 0) + 1) })
             .eq("id", statusId);
         }
-      } catch (fallbackErr) {
-        console.warn("[StatusSvc] like fallback:", fallbackErr.message);
+      } catch (e) {
+        console.warn("[StatusSvc] like fallback:", e.message);
       }
     }
   }
@@ -345,24 +384,20 @@ class StatusUpdateService {
       .eq("status_id", statusId)
       .eq("user_id", userId);
 
-    // [LIKE-2] Decrement
     try {
       await supabase.rpc("increment_status_likes", { p_status_id: statusId, p_delta: -1 });
     } catch {
       try {
         const { data: cur } = await supabase
-          .from("status_updates")
-          .select("likes")
-          .eq("id", statusId)
-          .single();
+          .from("status_updates").select("likes").eq("id", statusId).single();
         if (cur !== null) {
           await supabase
             .from("status_updates")
             .update({ likes: Math.max(0, (cur.likes || 0) - 1) })
             .eq("id", statusId);
         }
-      } catch (fallbackErr) {
-        console.warn("[StatusSvc] unlike fallback:", fallbackErr.message);
+      } catch (e) {
+        console.warn("[StatusSvc] unlike fallback:", e.message);
       }
     }
   }
@@ -380,10 +415,7 @@ class StatusUpdateService {
     } catch {
       try {
         const { data: cur } = await supabase
-          .from("status_updates")
-          .select("views")
-          .eq("id", statusId)
-          .single();
+          .from("status_updates").select("views").eq("id", statusId).single();
         if (cur !== null) {
           await supabase
             .from("status_updates")
@@ -395,14 +427,14 @@ class StatusUpdateService {
   }
 
   // ==========================================================================
-  // REALTIME — Subscribes to likes, views, and new statuses
+  // REALTIME
   // ==========================================================================
   subscribe(callback) {
     this._listeners.add(callback);
 
     if (!this._realtimeChannel) {
       this._realtimeChannel = supabase
-        .channel("status_updates_rt_v6")
+        .channel("status_updates_rt_v7")
         .on("postgres_changes", {
           event: "*", schema: "public", table: "status_updates",
         }, () => {
@@ -411,7 +443,6 @@ class StatusUpdateService {
         .on("postgres_changes", {
           event: "*", schema: "public", table: "status_likes",
         }, () => {
-          // [LIKE-1] When any like is inserted/deleted, trigger refresh
           this._listeners.forEach(cb => { try { cb(); } catch {} });
         })
         .subscribe();
@@ -426,9 +457,6 @@ class StatusUpdateService {
     };
   }
 
-  // ==========================================================================
-  // CLEANUP
-  // ==========================================================================
   resetSession() { this._sessionViews.clear(); }
 
   cleanup() {

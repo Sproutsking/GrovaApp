@@ -1,5 +1,5 @@
 // ============================================================================
-// src/components/Admin/permissions.js — v5 FORTRESS FINAL
+// src/components/Admin/permissions.js — v6 AMBASSADOR ADDED
 // ============================================================================
 //
 // ARCHITECTURE CONTRACT:
@@ -21,6 +21,13 @@
 //     5. PERMISSIONS is the canonical set of all permission strings.
 //     6. Role is ALWAYS read from DB — never derived from anything else.
 //
+// CHANGES v6:
+//   - "ambassador" added to ALL_SECTIONS.
+//   - "ambassador" added to SECTION_MAP for ceo_owner, super_admin,
+//     a_admin, b_admin, admin. Support role does NOT see it.
+//   - MANAGE_AMBASSADOR permission string added to PERMISSIONS enum.
+//   - "manage_ambassador" added to ROLE_PERMISSIONS for relevant roles.
+//
 // ============================================================================
 
 // ── All possible sections ─────────────────────────────────────────────────────
@@ -37,13 +44,15 @@ export const ALL_SECTIONS = [
   "notifications",
   "system",
   "team",
+  "ambassador",  // ← ADDED
   "ceo",
 ];
 
 // ── Section visibility by role ────────────────────────────────────────────────
 
 const SECTION_MAP = {
-  ceo_owner: [...ALL_SECTIONS],
+  ceo_owner: [...ALL_SECTIONS], // automatically includes "ambassador" via ALL_SECTIONS
+
   super_admin: [
     "dashboard",
     "support",
@@ -56,7 +65,9 @@ const SECTION_MAP = {
     "notifications",
     "system",
     "team",
+    "ambassador",  // ← ADDED
   ],
+
   a_admin: [
     "dashboard",
     "support",
@@ -69,7 +80,9 @@ const SECTION_MAP = {
     "notifications",
     "system",
     "team",
+    "ambassador",  // ← ADDED
   ],
+
   b_admin: [
     "dashboard",
     "support",
@@ -79,9 +92,24 @@ const SECTION_MAP = {
     "transactions",
     "communities",
     "security",
+    "ambassador",  // ← ADDED
   ],
-  admin: ["dashboard", "support", "users", "analytics", "communities"],
-  support: ["dashboard", "support", "users"],
+
+  admin: [
+    "dashboard",
+    "support",
+    "users",
+    "analytics",
+    "communities",
+    "ambassador",  // ← ADDED
+  ],
+
+  support: [
+    "dashboard",
+    "support",
+    "users",
+    // support agents do NOT see ambassador management
+  ],
 };
 
 // ── Role metadata for UI display ──────────────────────────────────────────────
@@ -135,6 +163,7 @@ export const ROLE_META = {
 
 export const ROLE_PERMISSIONS = {
   ceo_owner: ["all"],
+
   super_admin: [
     "view_users",
     "ban_users",
@@ -155,7 +184,9 @@ export const ROLE_PERMISSIONS = {
     "assign_support",
     "adjust_wallet",
     "block_ip",
+    "manage_ambassador",   // ← ADDED
   ],
+
   a_admin: [
     "view_users",
     "ban_users",
@@ -172,7 +203,9 @@ export const ROLE_PERMISSIONS = {
     "view_support",
     "resolve_support",
     "assign_support",
+    "manage_ambassador",   // ← ADDED
   ],
+
   b_admin: [
     "view_users",
     "ban_users",
@@ -184,7 +217,9 @@ export const ROLE_PERMISSIONS = {
     "view_security",
     "view_support",
     "resolve_support",
+    "manage_ambassador",   // ← ADDED
   ],
+
   admin: [
     "view_users",
     "ban_users",
@@ -192,64 +227,75 @@ export const ROLE_PERMISSIONS = {
     "manage_communities",
     "view_support",
     "resolve_support",
+    "manage_ambassador",   // ← ADDED
   ],
-  support: ["view_users", "view_support", "resolve_support", "assign_support"],
+
+  support: [
+    "view_users",
+    "view_support",
+    "resolve_support",
+    "assign_support",
+    // no manage_ambassador for support role
+  ],
 };
 
 // ── PERMISSIONS enum — all known permission strings ───────────────────────────
 
 export const PERMISSIONS = {
   // User management
-  VIEW_USERS: "view_users",
-  BAN_USERS: "ban_users",
-  DELETE_USERS: "delete_users",
-  VERIFY_USERS: "verify_users",
-  ADJUST_WALLET: "adjust_wallet",
-  RESTORE_USERS: "restore_users",
+  VIEW_USERS:         "view_users",
+  BAN_USERS:          "ban_users",
+  DELETE_USERS:       "delete_users",
+  VERIFY_USERS:       "verify_users",
+  ADJUST_WALLET:      "adjust_wallet",
+  RESTORE_USERS:      "restore_users",
 
   // Invites
-  MANAGE_INVITES: "manage_invites",
-  VIEW_INVITES: "view_invites",
-  CREATE_INVITES: "create_invites",
-  DELETE_INVITES: "delete_invites",
+  MANAGE_INVITES:     "manage_invites",
+  VIEW_INVITES:       "view_invites",
+  CREATE_INVITES:     "create_invites",
+  DELETE_INVITES:     "delete_invites",
 
   // Analytics
-  VIEW_ANALYTICS: "view_analytics",
+  VIEW_ANALYTICS:     "view_analytics",
 
   // Transactions
-  VIEW_TRANSACTIONS: "view_transactions",
-  REFUND_TRANSACTIONS: "refund_transactions",
+  VIEW_TRANSACTIONS:  "view_transactions",
+  REFUND_TRANSACTIONS:"refund_transactions",
 
   // Communities
   MANAGE_COMMUNITIES: "manage_communities",
 
   // Security
-  VIEW_SECURITY: "view_security",
-  BLOCK_IP: "block_ip",
-  MANAGE_SECURITY: "manage_security",
+  VIEW_SECURITY:      "view_security",
+  BLOCK_IP:           "block_ip",
+  MANAGE_SECURITY:    "manage_security",
 
   // Notifications
   SEND_NOTIFICATIONS: "send_notifications",
 
   // System
-  MANAGE_SETTINGS: "manage_settings",
-  FREEZE_PLATFORM: "freeze_platform",
-  VIEW_SYSTEM: "view_system",
-  VIEW_AUDIT_LOGS: "view_audit_logs",
+  MANAGE_SETTINGS:    "manage_settings",
+  FREEZE_PLATFORM:    "freeze_platform",
+  VIEW_SYSTEM:        "view_system",
+  VIEW_AUDIT_LOGS:    "view_audit_logs",
 
   // Team
-  MANAGE_TEAM: "manage_team",
-  ADD_TEAM: "add_team",
-  REMOVE_TEAM: "remove_team",
-  VIEW_TEAM: "view_team",
+  MANAGE_TEAM:        "manage_team",
+  ADD_TEAM:           "add_team",
+  REMOVE_TEAM:        "remove_team",
+  VIEW_TEAM:          "view_team",
 
   // Support
-  VIEW_SUPPORT: "view_support",
-  RESOLVE_SUPPORT: "resolve_support",
-  ASSIGN_SUPPORT: "assign_support",
+  VIEW_SUPPORT:       "view_support",
+  RESOLVE_SUPPORT:    "resolve_support",
+  ASSIGN_SUPPORT:     "assign_support",
+
+  // Ambassador  ← ADDED
+  MANAGE_AMBASSADOR:  "manage_ambassador",
 
   // Special
-  ALL: "all",
+  ALL:                "all",
 };
 
 // ── Exported helpers ──────────────────────────────────────────────────────────

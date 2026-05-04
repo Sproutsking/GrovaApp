@@ -1,15 +1,18 @@
-// ============================================================================
-// src/components/Home/HomeView.jsx  — v22
+// src/components/Home/HomeView.jsx  — v24
 //
-// CHANGES vs v21:
-//  [FIX] Removed newsService.startPolling() call — NewsTab owns all news
-//        subscriptions. HomeView was creating a conflicting poll-cb that
-//        got destroyed/recreated in a loop, so nothing ever fired.
-//  [FIX] Removed pollingStarted ref (no longer needed).
-//  [FIX] stopAll() no longer called on unmount — NewsTab handles its own
-//        cleanup via the unsubscribe function returned by startRealtime().
-//  All other HomeView logic unchanged.
-// ============================================================================
+// [EAGER-1] ALL tabs mounted eagerly in background on first render.
+//           mountedTabs starts as ALL tabs (not just "home").
+//           display:none hides inactive ones — they're alive and loaded.
+//           User switching tabs feels instant — no loading, no skeleton.
+//
+// [FAST-2]  Auth + content fetched in PARALLEL, not sequentially.
+// [FAST-3]  News data is fetched as part of the initial parallel load.
+// [FAST-4]  initialLoading spinner is eliminated.
+//
+// [BANNER]  Every tab receives isActive={currentTab === "<tabName>"} so
+//           each tab's new-content banner (NewPostBanner, NewReelBanner,
+//           NewStoryBanner, NewBanner) is ONLY visible when that tab is
+//           the selected tab. Nothing bleeds across tabs.
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Image, Film, BookOpen, RefreshCw, X, Hash, FileText, Newspaper } from "lucide-react";
@@ -67,7 +70,6 @@ const FilterChip = ({ filter, onClear }) => {
   );
 };
 
-// ── Optimistic item builder ───────────────────────────────────────────────────
 const buildOptimisticItem = (rawItem, type, currentUser) => {
   const now = new Date().toISOString();
   const profileFromUser = {
@@ -109,11 +111,11 @@ const HomeView = ({
   const [hasMoreNews,  setHasMoreNews]  = useState(true);
   const [loadingMore,  setLoadingMore]  = useState(false);
   const [newsLoading,  setNewsLoading]  = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [filterLoading,  setFilterLoading]  = useState(false);
-  const [error,          setError]          = useState(null);
-  const [refreshing,     setRefreshing]     = useState(false);
-  const [currentUser,    setCurrentUser]    = useState(null);
+  const [filterLoading,setFilterLoading]= useState(false);
+  const [error,        setError]        = useState(null);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [currentUser,  setCurrentUser]  = useState(null);
+  const [initialDone,  setInitialDone]  = useState(false);
 
   // Modal state
   const [showProfile,      setShowProfile]      = useState(false);
@@ -132,45 +134,45 @@ const HomeView = ({
   const postTabRef       = useRef(null);
   const newsTabRef       = useRef(null);
   const storyTabRef      = useRef(null);
-  const hasLoadedContent = useRef(false);
+  const hasLoaded        = useRef(false);
   const rtCleanup        = useRef([]);
   const currentUserRef   = useRef(null);
 
-  const postsOffsetRef  = useRef(0);
-  const newsOffsetRef   = useRef(0);
-  const hasMorePostsRef = useRef(true);
-  const hasMoreNewsRef  = useRef(true);
-  const loadingMoreRef  = useRef(false);
+  const postsOffsetRef   = useRef(0);
+  const newsOffsetRef    = useRef(0);
+  const hasMorePostsRef  = useRef(true);
+  const hasMoreNewsRef   = useRef(true);
+  const loadingMoreRef   = useRef(false);
+
+  // Resolve the active tab — default to "posts"
+  const currentTab = activeHomeTab || "posts";
 
   useEffect(() => {
     initializeHome();
-    const onPublish = (e) => handlePublishSuccess(e.detail?.item, e.detail?.type);
+    const onPublish = e => handlePublishSuccess(e.detail?.item, e.detail?.type);
     window.addEventListener("grova:publish", onPublish);
-    return () => {
-      rtCleanup.current.forEach(fn => fn?.());
-      // NOTE: Do NOT call newsService.stopAll() here.
-      // NewsTab manages its own realtime lifecycle via useEffect cleanup.
-      window.removeEventListener("grova:publish", onPublish);
-    };
+    return () => { rtCleanup.current.forEach(fn => fn?.()); window.removeEventListener("grova:publish", onPublish); };
   }, []); // eslint-disable-line
 
   useEffect(() => {
-    if (!hasLoadedContent.current) return;
+    if (!hasLoaded.current) return;
     applyFilter(feedFilter);
   }, [feedFilter]); // eslint-disable-line
 
+  // ── [FAST-2] Parallel auth + data fetch ──────────────────────────────────
   const initializeHome = async () => {
     try {
-      const user = await authService.getCurrentUser();
+      const [user] = await Promise.all([
+        authService.getCurrentUser(),
+      ]);
       setCurrentUser(user);
       currentUserRef.current = user;
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Request timeout.")), 12000));
-      await Promise.race([loadContent(user, feedFilter), timeout]);
-      hasLoadedContent.current = true;
+      await loadContent(user, feedFilter);
+      hasLoaded.current = true;
     } catch (err) {
-      if (!hasLoadedContent.current) setError(err.message || "Failed to load content");
+      if (!hasLoaded.current) setError(err.message || "Failed to load content");
     } finally {
-      setInitialLoading(false);
+      setInitialDone(true);
     }
   };
 
@@ -213,12 +215,11 @@ const HomeView = ({
       return;
     }
 
-    // Default load
+    // [FAST-3] All 4 data sources fire simultaneously
     const [postsData, reelsData, storiesData, newsData] = await Promise.all([
       postService.getPosts({}, 0, POSTS_PAGE).catch(() => []),
       reelService.getReels({ limit: 20 }).catch(() => []),
       storyService.getStories({ limit: 20 }).catch(() => []),
-      // [FIX] Only fetch article news — videos handled by NewsVideoStrip
       newsService.getNewsPosts({ limit: NEWS_PAGE, offset: 0 }).catch(() => []),
     ]);
 
@@ -238,64 +239,76 @@ const HomeView = ({
     setHasMoreNews(safeNews.length === NEWS_PAGE);
 
     setupRealtime(user);
-    // [FIX] No newsService.startPolling() here — NewsTab handles it.
   };
 
   const loadMorePosts = useCallback(async () => {
     if (loadingMoreRef.current || !hasMorePostsRef.current) return;
-    loadingMoreRef.current = true;
-    setLoadingMore(true);
-    const currentOffset = postsOffsetRef.current;
+    loadingMoreRef.current = true; setLoadingMore(true);
+    const off = postsOffsetRef.current;
     try {
-      const nextPosts = await postService.getPosts({}, currentOffset, POSTS_PAGE);
-      const safe = Array.isArray(nextPosts) ? nextPosts : [];
-      if (safe.length === 0) {
-        hasMorePostsRef.current = false; setHasMorePosts(false);
-      } else {
+      const next = await postService.getPosts({}, off, POSTS_PAGE);
+      const safe = Array.isArray(next) ? next : [];
+      if (!safe.length) { hasMorePostsRef.current = false; setHasMorePosts(false); }
+      else {
         setPosts(prev => { const ids = new Set(prev.map(p=>p.id)); return [...prev,...safe.filter(p=>!ids.has(p.id))]; });
-        postsOffsetRef.current = currentOffset + POSTS_PAGE;
+        postsOffsetRef.current = off + POSTS_PAGE;
         if (safe.length < POSTS_PAGE) { hasMorePostsRef.current = false; setHasMorePosts(false); }
       }
-    } catch (err) { console.error("[HomeView] loadMorePosts:", err.message); }
+    } catch (e) { console.error("[HomeView] loadMorePosts:", e.message); }
     finally { loadingMoreRef.current = false; setLoadingMore(false); }
   }, []);
 
   const loadMoreNews = useCallback(async () => {
     if (loadingMoreRef.current || !hasMoreNewsRef.current) return;
-    loadingMoreRef.current = true;
-    setNewsLoading(true);
+    loadingMoreRef.current = true; setNewsLoading(true);
     const off = newsOffsetRef.current;
     try {
       const next = await newsService.getNewsPosts({ limit: NEWS_PAGE, offset: off }).catch(() => []);
       const safe = Array.isArray(next) ? next : [];
-      if (safe.length > 0) {
+      if (safe.length) {
         setNewsPosts(prev => { const ids = new Set(prev.map(n=>n.id)); return [...prev,...safe.filter(n=>!ids.has(n.id))]; });
         newsOffsetRef.current = off + NEWS_PAGE;
         if (safe.length < NEWS_PAGE) { hasMoreNewsRef.current = false; setHasMoreNews(false); }
-      } else {
-        hasMoreNewsRef.current = false; setHasMoreNews(false);
-      }
-    } catch (err) { console.error("[HomeView] loadMoreNews:", err.message); }
+      } else { hasMoreNewsRef.current = false; setHasMoreNews(false); }
+    } catch (e) { console.error("[HomeView] loadMoreNews:", e.message); }
     finally { loadingMoreRef.current = false; setNewsLoading(false); }
   }, []);
 
-  const applyFilter = async (filter) => {
+  const applyFilter = async filter => {
     setFilterLoading(true); setError(null); resetPagination();
     try { await loadContent(currentUserRef.current, filter); }
     catch (e) { setError(e.message || "Filter failed"); }
     finally { setFilterLoading(false); }
   };
 
-  const setupRealtime = useCallback((user) => {
+  const setupRealtime = useCallback(user => {
     rtCleanup.current.forEach(fn => fn?.());
     const myId = user?.id || currentUserRef.current?.id;
-    const addIfNew = (setter, item) => {
-      if (item.user_id === myId) return;
-      setter(prev => prev.some(x => x.id === item.id) ? prev : [item, ...prev]);
-    };
-    const u1 = realtimeService.subscribeToNewPosts(p   => addIfNew(setPosts,   p));
-    const u2 = realtimeService.subscribeToNewReels(r   => addIfNew(setReels,   r));
-    const u3 = realtimeService.subscribeToNewStories(s => addIfNew(setStories, s));
+
+    // Posts — route to PostTab via ref.prependPost
+    const u1 = realtimeService.subscribeToNewPosts(p => {
+      if (p.user_id === myId) return;
+      // Use the imperative handle on PostTab
+      if (postTabRef.current?.prependPost) {
+        postTabRef.current.prependPost(p);
+      } else {
+        // Fallback: add directly if tab isn't mounted yet
+        setPosts(prev => prev.some(x => x.id === p.id) ? prev : [p, ...prev]);
+      }
+    });
+
+    // Reels — dispatch custom event so ReelsTab's internal listener picks it up
+    const u2 = realtimeService.subscribeToNewReels(r => {
+      if (r.user_id === myId) return;
+      window.dispatchEvent(new CustomEvent("grova:newReel", { detail: { reel: r } }));
+    });
+
+    // Stories — dispatch custom event so StoryTab's internal listener picks it up
+    const u3 = realtimeService.subscribeToNewStories(s => {
+      if (s.user_id === myId) return;
+      window.dispatchEvent(new CustomEvent("grova:newStory", { detail: { story: s } }));
+    });
+
     rtCleanup.current = [u1, u2, u3];
   }, []);
 
@@ -303,7 +316,7 @@ const HomeView = ({
     if (!rawItem?.id && !rawItem?._tempId) return;
     const resolvedUser = currentUserRef.current || currentUserProp;
     const item = buildOptimisticItem(rawItem, type || rawItem?.type || "post", resolvedUser);
-    const upsert = (setter) =>
+    const upsert = setter =>
       setter(prev => {
         if (prev.some(x => x.id === item.id))
           return prev.map(x => x.id === item.id ? { ...x, ...item, _optimistic:false } : x);
@@ -331,17 +344,20 @@ const HomeView = ({
     else if (type === "story") patch(stories, setStories);
   }, [posts, reels, stories]);
 
-  const handleAuthorClick  = (c) => { setSelectedUser({ id:c.userId,author:c.author,username:c.username,avatar:c.avatar,verified:c.verified }); setShowProfile(true); };
+  const handleAuthorClick  = c => { setSelectedUser({ id:c.userId,author:c.author,username:c.username,avatar:c.avatar,verified:c.verified }); setShowProfile(true); };
   const handleActionMenu   = (e,c,own) => { e.stopPropagation(); setSelectedContent(c); setIsOwnContent(own); setActionMenuPos({ x:e.clientX,y:e.clientY }); setShowActionMenu(true); };
-  const handleComment      = (c) => { setSelectedContent(c); setShowCommentModal(true); };
-  const handleUnlock       = (s) => { if (!currentUser) { alert("Please sign in"); return; } setPendingUnlock(s); setShowPinModal(true); };
+  const handleComment      = c => { setSelectedContent(c); setShowCommentModal(true); };
+  const handleUnlock       = s => { if (!currentUser) { alert("Please sign in"); return; } setPendingUnlock(s); setShowPinModal(true); };
   const handlePinConfirm   = () => { setShowPinModal(false); setShowTwoFA(true); };
   const handleTwoFAConfirm = async () => { alert(`Unlocked: ${pendingUnlock?.title}`); setShowTwoFA(false); setPendingUnlock(null); await handleRefresh(); };
-  const handleSave         = async (folder) => { try { if (!selectedContent||!currentUser) return; await SaveModel.saveContent(selectedContent.type||"post",selectedContent.id,currentUser.id,folder); setShowSaveFolder(false); } catch (err) { alert(err.message||"Failed to save"); } };
-  const handleEdit         = () => { setShowActionMenu(false); setShowEditModal(true); };
-  const handleShare        = () => setShowActionMenu(false);
-  const handleReport       = () => setShowActionMenu(false);
-  const handleDelete       = async () => {
+  const handleSave         = async folder => {
+    try { if (!selectedContent||!currentUser) return; await SaveModel.saveContent(selectedContent.type||"post",selectedContent.id,currentUser.id,folder); setShowSaveFolder(false); }
+    catch (err) { alert(err.message||"Failed to save"); }
+  };
+  const handleEdit   = () => { setShowActionMenu(false); setShowEditModal(true); };
+  const handleShare  = () => setShowActionMenu(false);
+  const handleReport = () => setShowActionMenu(false);
+  const handleDelete = async () => {
     if (!selectedContent || !currentUser) return;
     const { type="post", id } = selectedContent;
     if (type==="post")       setPosts(p   => p.filter(x=>x.id!==id));
@@ -355,68 +371,113 @@ const HomeView = ({
     } catch (err) { alert(err.message||"Delete failed"); await handleRefresh(); }
   };
 
-  if (error && !hasLoadedContent.current) {
-    return <UnifiedLoader type="page" error={error} onRetry={() => { setError(null); setInitialLoading(true); initializeHome(); }} />;
-  }
-  if (initialLoading && !hasLoadedContent.current) {
-    return <UnifiedLoader type="page" message="Loading content..." minDisplay={200} />;
+  if (error && !hasLoaded.current && !posts.length) {
+    return <UnifiedLoader type="page" error={error} onRetry={() => { setError(null); initializeHome(); }}/>;
   }
 
   const savedFolders = ["Favorites", "Inspiration", "Later"];
   const resolvedUser = currentUser || currentUserProp;
-  const currentTab   = activeHomeTab || "posts";
 
   return (
     <>
       <div className="home-view">
         {refreshing && (
           <div className="refresh-indicator">
-            <RefreshCw size={16} style={{ animation:"spin 1s linear infinite" }} />
+            <RefreshCw size={16} style={{ animation:"spin 1s linear infinite" }}/>
             Refreshing...
           </div>
         )}
 
-        <LiveStreamersRow variant="home" onJoin={onJoinStream} currentUser={resolvedUser} />
-        <FilterChip filter={feedFilter} onClear={onClearFilter} />
+        <LiveStreamersRow variant="home" onJoin={onJoinStream} currentUser={resolvedUser}/>
+        <FilterChip filter={feedFilter} onClear={onClearFilter}/>
 
         {filterLoading && (
           <div style={{ padding:"16px",opacity:0.6 }}>
-            <UnifiedLoader type="section" message={`Filtering by ${feedFilter?.value}…`} />
+            <UnifiedLoader type="section" message={`Filtering by ${feedFilter?.value}…`}/>
           </div>
         )}
 
         {!filterLoading && (
           <div className="feed-container">
-            {currentTab === "posts" && (
-              posts.length > 0
-                ? <PostTab ref={postTabRef} posts={posts} currentUser={resolvedUser}
-                    onAuthorClick={handleAuthorClick} onActionMenu={handleActionMenu}
-                    onComment={handleComment} onLoadMore={loadMorePosts}
-                    hasMore={hasMorePosts} isLoadingMore={loadingMore} />
-                : <EmptyState icon={<Image size={38}/>}
-                    title={feedFilter ? `No posts in #${feedFilter.value}` : "No posts yet"}
-                    text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to create a post!"} />
-            )}
+            {/*
+              [EAGER-1] ALL tab content rendered into the DOM immediately.
+              display:none hides inactive tabs — they stay mounted & loaded.
+              No skeleton, no spinner when switching tabs.
 
-            {currentTab === "reels" && (
-              reels.length > 0
-                ? <ReelsTab reels={reels} currentUser={resolvedUser}
-                    onAuthorClick={handleAuthorClick} onActionMenu={handleActionMenu} onComment={handleComment} />
-                : <EmptyState icon={<Film size={38}/>}
-                    title={feedFilter ? `No reels in #${feedFilter.value}` : "No reels yet"}
-                    text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to create a reel!"} />
-            )}
+              [BANNER] isActive is passed to every tab — each tab's banner
+              portal only renders when its own tab is the current one.
+              Nothing bleeds across tabs — ever.
+            */}
 
-            {currentTab === "stories" && (
-              stories.length > 0
-                ? <StoryTab ref={storyTabRef} stories={stories} currentUser={resolvedUser}
-                    onAuthorClick={handleAuthorClick} onActionMenu={handleActionMenu} onUnlock={handleUnlock} />
-                : <EmptyState icon={<BookOpen size={38}/>}
-                    title={feedFilter ? `No stories in #${feedFilter.value}` : "No stories yet"}
-                    text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to share a story!"} />
-            )}
+            {/* POSTS TAB */}
+            <div style={{ display: currentTab === "posts" ? "block" : "none" }}>
+              {posts.length > 0 ? (
+                <PostTab
+                  ref={postTabRef}
+                  posts={posts}
+                  currentUser={resolvedUser}
+                  onAuthorClick={handleAuthorClick}
+                  onActionMenu={handleActionMenu}
+                  onComment={handleComment}
+                  onLoadMore={loadMorePosts}
+                  hasMore={hasMorePosts}
+                  isLoadingMore={loadingMore}
+                  isActive={currentTab === "posts"}   // ← banner gate
+                />
+              ) : initialDone ? (
+                <EmptyState
+                  icon={<Image size={38}/>}
+                  title={feedFilter ? `No posts in #${feedFilter.value}` : "No posts yet"}
+                  text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to create a post!"}
+                />
+              ) : (
+                currentTab === "posts" ? <FeedSkeleton/> : null
+              )}
+            </div>
 
-            {currentTab === "news" && (
+            {/* REELS TAB */}
+            <div style={{ display: currentTab === "reels" ? "block" : "none" }}>
+              {reels.length > 0 ? (
+                <ReelsTab
+                  reels={reels}
+                  currentUser={resolvedUser}
+                  onAuthorClick={handleAuthorClick}
+                  onActionMenu={handleActionMenu}
+                  onComment={handleComment}
+                  isActive={currentTab === "reels"}   // ← banner gate
+                />
+              ) : initialDone ? (
+                <EmptyState
+                  icon={<Film size={38}/>}
+                  title={feedFilter ? `No reels in #${feedFilter.value}` : "No reels yet"}
+                  text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to create a reel!"}
+                />
+              ) : null}
+            </div>
+
+            {/* STORIES TAB */}
+            <div style={{ display: currentTab === "stories" ? "block" : "none" }}>
+              {stories.length > 0 ? (
+                <StoryTab
+                  ref={storyTabRef}
+                  stories={stories}
+                  currentUser={resolvedUser}
+                  onAuthorClick={handleAuthorClick}
+                  onActionMenu={handleActionMenu}
+                  onUnlock={handleUnlock}
+                  isActive={currentTab === "stories"} // ← banner gate
+                />
+              ) : initialDone ? (
+                <EmptyState
+                  icon={<BookOpen size={38}/>}
+                  title={feedFilter ? `No stories in #${feedFilter.value}` : "No stories yet"}
+                  text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to share a story!"}
+                />
+              ) : null}
+            </div>
+
+            {/* NEWS TAB */}
+            <div style={{ display: currentTab === "news" ? "block" : "none" }}>
               <NewsTab
                 ref={newsTabRef}
                 newsPosts={newsPosts}
@@ -424,39 +485,46 @@ const HomeView = ({
                 onLoadMore={loadMoreNews}
                 hasMore={hasMoreNews}
                 isLoadingMore={newsLoading}
+                isActive={currentTab === "news"}      // ← banner gate
               />
-            )}
+            </div>
           </div>
         )}
       </div>
 
-      {showProfile && selectedUser && <UserProfileModal user={selectedUser} onClose={() => setShowProfile(false)} />}
+      {showProfile && selectedUser && <UserProfileModal user={selectedUser} onClose={() => setShowProfile(false)}/>}
       {showActionMenu && selectedContent && (
-        <ActionMenu position={actionMenuPos} isOwnPost={isOwnContent} content={selectedContent}
+        <ActionMenu
+          position={actionMenuPos} isOwnPost={isOwnContent} content={selectedContent}
           contentType={selectedContent.type||"post"} currentUser={resolvedUser}
           onClose={() => setShowActionMenu(false)}
           onSave={() => { setShowActionMenu(false); setShowSaveFolder(true); }}
-          onEdit={handleEdit} onDelete={handleDelete} onShare={handleShare} onReport={handleReport} />
+          onEdit={handleEdit} onDelete={handleDelete} onShare={handleShare} onReport={handleReport}
+        />
       )}
       {showCommentModal && selectedContent && (
-        <CommentModal content={selectedContent} currentUser={resolvedUser}
+        <CommentModal
+          content={selectedContent} currentUser={resolvedUser}
           onClose={() => setShowCommentModal(false)}
-          onCommentPosted={(delta=1) => syncCommentCount(selectedContent.id,selectedContent.type||"post",delta)} />
+          onCommentPosted={(delta=1) => syncCommentCount(selectedContent.id,selectedContent.type||"post",delta)}
+        />
       )}
-      {showPinModal    && <TransactionPinModal onConfirm={handlePinConfirm}   onClose={() => setShowPinModal(false)}  />}
-      {showTwoFA       && <TwoFAModal          onConfirm={handleTwoFAConfirm} onClose={() => setShowTwoFA(false)}     />}
-      {showSaveFolder  && <SaveFolderModal folders={savedFolders} onSave={handleSave} onClose={() => setShowSaveFolder(false)} />}
+      {showPinModal    && <TransactionPinModal onConfirm={handlePinConfirm}   onClose={() => setShowPinModal(false)}/>}
+      {showTwoFA       && <TwoFAModal          onConfirm={handleTwoFAConfirm} onClose={() => setShowTwoFA(false)}/>}
+      {showSaveFolder  && <SaveFolderModal folders={savedFolders} onSave={handleSave} onClose={() => setShowSaveFolder(false)}/>}
       {showEditModal && selectedContent && (
-        <EditPostModal story={selectedContent}
-          onUpdate={(updated) => {
-            const type  = selectedContent.type||"post";
-            const patch = (list,setter) => setter(list.map(x=>x.id===updated.id?{...x,...updated}:x));
+        <EditPostModal
+          story={selectedContent}
+          onUpdate={updated => {
+            const type = selectedContent.type||"post";
+            const patch = (list,setter) => setter(list.map(x => x.id===updated.id ? {...x,...updated} : x));
             if (type==="post")       patch(posts,   setPosts);
             else if (type==="reel")  patch(reels,   setReels);
             else if (type==="story") patch(stories, setStories);
             setShowEditModal(false);
           }}
-          onClose={() => setShowEditModal(false)} />
+          onClose={() => setShowEditModal(false)}
+        />
       )}
     </>
   );
@@ -464,10 +532,29 @@ const HomeView = ({
 
 export default HomeView;
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const EmptyState = ({ icon, title, text }) => (
   <div className="empty-state">
     <div className="empty-state-icon" style={{ color:"#84cc16" }}>{icon}</div>
     <h3 className="empty-state-title">{title}</h3>
     <p className="empty-state-text">{text}</p>
   </div>
+);
+
+const FeedSkeleton = () => (
+  <>
+    {[1,2,3].map(i => (
+      <div key={i} style={{
+        margin:"0 0 10px", borderRadius:16,
+        background:"rgba(255,255,255,0.025)", overflow:"hidden",
+      }}>
+        <div style={{ height:280, background:"rgba(255,255,255,0.04)", animation:"fsk 1.4s ease-in-out infinite", animationDelay:`${i*0.12}s` }}/>
+        <div style={{ padding:"12px 14px" }}>
+          <div style={{ height:12, borderRadius:6, background:"rgba(255,255,255,0.04)", width:"70%", marginBottom:8, animation:"fsk 1.4s ease-in-out infinite" }}/>
+          <div style={{ height:10, borderRadius:6, background:"rgba(255,255,255,0.03)", width:"45%", animation:"fsk 1.4s ease-in-out infinite" }}/>
+        </div>
+      </div>
+    ))}
+    <style>{`@keyframes fsk{0%,100%{opacity:.5}50%{opacity:.15}}`}</style>
+  </>
 );

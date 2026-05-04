@@ -1,29 +1,41 @@
 // ============================================================================
-// src/services/news/newsRealtime.js  — v7  ACCURATE + INSTANT
+// src/services/news/newsRealtime.js  — v9  TRULY INSTANT
 //
-// KEY FIXES:
-//  [F1] Pending count is ACCURATE — we track url_hashes already in the feed.
-//       When engine emits articles, we check against _inFeedHashes before
-//       adding to pendingRef. No more "300 pending" that disappear on flush.
+// THE FUNDAMENTAL FIX:
+//  Previous versions called _runPrefetch() at module load, but this module
+//  is only imported when NewsTab.jsx mounts — which only happens when the
+//  user CLICKS the News tab. So "prefetch at import" was actually
+//  "fetch when tab is clicked" — no improvement at all.
 //
-//  [F2] _inFeedHashes is a Set exposed on the engine so NewsTab can seed it
-//       after DB load. This ensures the engine never double-counts articles
-//       already visible in the feed.
+//  The real fix: newsService.js (imported by HomeView on app boot) calls
+//  triggerNewsPrefetch() explicitly. HomeView mounts immediately when the
+//  app opens. The DB query fires before the user has even seen the Posts tab.
+//  By the time they click News, data is ready.
 //
-//  [F3] RSS via allorigins (no 422). YouTube via rss2json (no 404).
+// ARCHITECTURE:
+//  [P1] triggerNewsPrefetch() — called by newsService.js on init. Safe to
+//       call multiple times (idempotent). Returns the promise.
 //
-//  [F4] Cold boot batches ALL sources but emits each batch immediately
-//       as it completes — not waiting for all to finish. Articles appear
-//       progressively within seconds.
+//  [P2] getPrefetchedArticles() — synchronous check + async fallback.
+//       If prefetch resolved → returns {sync: data, promise: null}.
+//       If still pending → returns {sync: null, promise: <in-flight>}.
+//       NewsTab uses this to show data instantly or await the promise.
 //
-//  [F5] Nigeria first-class: Premium Times, Punch, Channels TV, Vanguard,
-//       Business Day NG, The Cable, Daily Trust, Guardian Nigeria, Tribune,
-//       Sahara Reporters, ThisDay, New Telegraph all in 30s priority bucket.
+//  [P3] bustAndRefetch() — for manual refresh, busts cache and re-runs.
+//
+//  [P4] ACCURATE PENDING COUNT — _inFeedHashes tracks visible articles.
+//       Only hashes NOT in _inFeedHashes count as "new" for the banner.
+//
+//  [P5] Nigeria first-class — same 30s poll as BBC/Reuters/AP.
+//
+//  [P6] firstBatch logic REMOVED from engine. Engine emits all new articles.
+//       NewsTab decides what goes directly in vs. what goes to pending banner.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 import { RSS_SOURCES } from "./clientNewsFetcher";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
 export const MAX_AGE_DAYS = 3;
 export const MAX_AGE_MS   = MAX_AGE_DAYS * 24 * 3600 * 1000;
 
@@ -48,18 +60,14 @@ export function getTier(publishedAt, isLiveNow = false) {
 
 export function detectLiveStatus(title = "", publishedAt = "") {
   const liveRe = /\blive\s*(stream|now|coverage|feed|broadcast)?\b/i;
-  const age    = publishedAt
-    ? Date.now() - new Date(publishedAt).getTime()
-    : Infinity;
-  if (age < 3 * 60_000)                              return "live";
-  if (liveRe.test(title) && age < 4 * 3_600_000)    return "live";
-  if (liveRe.test(title) && age >= 4 * 3_600_000)   return "ended";
+  const age    = publishedAt ? Date.now() - new Date(publishedAt).getTime() : Infinity;
+  if (age < 3 * 60_000)                           return "live";
+  if (liveRe.test(title) && age < 4 * 3_600_000) return "live";
+  if (liveRe.test(title) && age >= 4 * 3_600_000)return "ended";
   return "none";
 }
 
-export function articleKey(a) {
-  return a.url_hash || a.id || "";
-}
+export function articleKey(a) { return a.url_hash || a.id || ""; }
 
 export function filterByAge(articles) {
   const cutoff = Date.now() - MAX_AGE_MS;
@@ -69,7 +77,64 @@ export function filterByAge(articles) {
   });
 }
 
-// ── RSS fetch — allorigins primary, corsproxy fallback ────────────────────────
+// ── [P1] Pre-fetch system — called externally by newsService.js ───────────────
+function _decorateRow(r) {
+  const liveStatus = detectLiveStatus(r.title || "", r.published_at || "");
+  return { ...r, liveStatus, tier: liveStatus === "live" ? TIER.LIVE : getTier(r.published_at) };
+}
+
+let _prefetchPromise = null;
+let _prefetchResult  = null;
+let _prefetchTs      = 0;
+const _PREFETCH_TTL  = 5 * 60_000;
+
+function _runPrefetch() {
+  _prefetchPromise = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from("news_posts")
+        .select(
+          "id,title,description,image_url,source_name,source_url," +
+          "article_url,category,region,asset_tag,url_hash,published_at,is_active"
+        )
+        .eq("is_active", true)
+        .order("published_at", { ascending: false })
+        .limit(200);
+      if (error) return [];
+      const rows = filterByAge(data || []).map(_decorateRow);
+      _prefetchResult = rows;
+      _prefetchTs     = Date.now();
+      return rows;
+    } catch { return []; }
+  })();
+  return _prefetchPromise;
+}
+
+// [P1] Called by newsService.js on init — safe to call multiple times
+export function triggerNewsPrefetch() {
+  if (_prefetchResult && Date.now() - _prefetchTs < _PREFETCH_TTL) {
+    return Promise.resolve(_prefetchResult);
+  }
+  return _prefetchPromise || _runPrefetch();
+}
+
+// [P2] Called by NewsTab — sync if ready, promise if not
+export function getPrefetchedArticles() {
+  if (_prefetchResult && Date.now() - _prefetchTs < _PREFETCH_TTL) {
+    return { sync: _prefetchResult, promise: null };
+  }
+  const p = _prefetchPromise || _runPrefetch();
+  return { sync: null, promise: p };
+}
+
+// [P3] Bust + re-fetch for manual refresh
+export function bustAndRefetch() {
+  _prefetchResult = null;
+  _prefetchTs     = 0;
+  return _runPrefetch();
+}
+
+// ── RSS fetch ─────────────────────────────────────────────────────────────────
 async function fetchRss(url) {
   try {
     const res = await fetch(
@@ -77,13 +142,11 @@ async function fetchRss(url) {
       { signal: AbortSignal.timeout(12_000) }
     );
     if (res.ok) {
-      const j   = await res.json();
+      const j = await res.json();
       const txt = j?.contents || "";
-      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry")))
-        return txt;
+      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
     }
-  } catch { /* try fallback */ }
-
+  } catch { /* fallback */ }
   try {
     const res = await fetch(
       `https://corsproxy.io/?${encodeURIComponent(url)}`,
@@ -91,15 +154,13 @@ async function fetchRss(url) {
     );
     if (res.ok) {
       const txt = await res.text();
-      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry")))
-        return txt;
+      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
     }
-  } catch { /* all failed */ }
-
+  } catch { /* failed */ }
   return null;
 }
 
-// ── YouTube fetch — rss2json only ─────────────────────────────────────────────
+// ── YouTube fetch — rss2json primary ─────────────────────────────────────────
 async function fetchYtRss(channelId) {
   const ytUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
   try {
@@ -111,45 +172,36 @@ async function fetchYtRss(channelId) {
       const j = await res.json();
       if (j?.status === "ok" && j?.items?.length) return { type: "json", data: j };
     }
-  } catch { /* try fallback */ }
-
+  } catch { /* fallback */ }
   try {
     const res = await fetch(
       `https://api.allorigins.win/get?url=${encodeURIComponent(ytUrl)}`,
       { signal: AbortSignal.timeout(14_000) }
     );
     if (res.ok) {
-      const j   = await res.json();
+      const j = await res.json();
       const txt = j?.contents || "";
-      if (txt.length > 200 && txt.includes("<entry"))
-        return { type: "xml", data: txt };
+      if (txt.length > 200 && txt.includes("<entry")) return { type: "xml", data: txt };
     }
-  } catch { /* all failed */ }
-
+  } catch { /* failed */ }
   return null;
 }
 
 // ── XML helpers ───────────────────────────────────────────────────────────────
 function tagVal(block, ...names) {
   for (const n of names) {
-    const re = new RegExp(
-      `<${n}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${n}>`, "i"
-    );
-    const m = block.match(re);
+    const re = new RegExp(`<${n}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${n}>`, "i");
+    const m  = block.match(re);
     if (m?.[1]?.trim()) return m[1].trim();
   }
   return "";
 }
 
 function stripHtml(h = "") {
-  return h
-    .replace(/<!\[CDATA\[|\]\]>/g, "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
-    .replace(/&hellip;/gi, "…")
-    .replace(/\s+/g, " ").trim();
+  return h.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
+    .replace(/&hellip;/gi, "…").replace(/\s+/g, " ").trim();
 }
 
 function extractImg(block) {
@@ -162,8 +214,7 @@ function extractImg(block) {
   ];
   for (const re of pats) {
     const u = (block.match(re) || [])[1];
-    if (u && u.startsWith("http") && u.length > 20 && !u.includes("1x1"))
-      return u;
+    if (u && u.startsWith("http") && u.length > 20 && !u.includes("1x1")) return u;
   }
   return null;
 }
@@ -189,10 +240,7 @@ function extractDate(block, articleUrl = "") {
   return null;
 }
 
-const ASSETS = [
-  "BTC","ETH","SOL","BNB","XRP","ADA","DOGE","AVAX",
-  "MATIC","LINK","UNI","TON","PEPE","SHIB","USDT","USDC",
-];
+const ASSETS = ["BTC","ETH","SOL","BNB","XRP","ADA","DOGE","AVAX","MATIC","LINK","UNI","TON","PEPE","SHIB","USDT","USDC"];
 function assetTag(t = "") {
   const up = t.toUpperCase();
   return ASSETS.find((a) => new RegExp(`\\b${a}\\b`).test(up)) ?? null;
@@ -200,11 +248,8 @@ function assetTag(t = "") {
 
 async function quickHash(str) {
   try {
-    const buf = await crypto.subtle.digest(
-      "SHA-256", new TextEncoder().encode(str)
-    );
-    return Array.from(new Uint8Array(buf))
-      .map((b) => b.toString(16).padStart(2, "0")).join("");
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
   } catch {
     let h = 5381;
     for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
@@ -215,8 +260,7 @@ async function quickHash(str) {
 function normUrl(raw = "") {
   try {
     const u = new URL(raw.trim());
-    ["utm_source","utm_medium","utm_campaign","ref","fbclid","gclid"]
-      .forEach((k) => u.searchParams.delete(k));
+    ["utm_source","utm_medium","utm_campaign","ref","fbclid","gclid"].forEach((k) => u.searchParams.delete(k));
     u.pathname = u.pathname.replace(/\/+$/, "") || "/";
     u.hash = "";
     return u.href.toLowerCase();
@@ -229,27 +273,19 @@ async function parseRssXml(xml, source) {
   const re     = /<(?:item|entry)[^>]*>([\s\S]*?)<\/(?:item|entry)>/gi;
   const results = [];
   let m;
-
   while ((m = re.exec(xml)) !== null) {
     const block = m[1];
     const title = stripHtml(tagVal(block, "title")).slice(0, 300);
     if (!title || title.length < 12) continue;
-
     let articleUrl = "";
     const hrefM = block.match(/<link[^>]+href=["']([^"']+)["']/i);
     if (hrefM) articleUrl = hrefM[1].trim();
     else articleUrl = tagVal(block, "link", "guid").trim();
     if (!articleUrl.startsWith("http")) continue;
-
-    const rawDesc = tagVal(
-      block, "content:encoded", "content", "summary", "description"
-    );
+    const rawDesc = tagVal(block, "content:encoded", "content", "summary", "description");
     const description = stripHtml(rawDesc)
-      .replace(/Read more[.:…]*$/i, "")
-      .replace(/Continue reading[.:…]*$/i, "")
-      .replace(/The post .+ appeared first on .+\.$/, "")
-      .trim().slice(0, 600) || null;
-
+      .replace(/Read more[.:…]*$/i, "").replace(/Continue reading[.:…]*$/i, "")
+      .replace(/The post .+ appeared first on .+\.$/, "").trim().slice(0, 600) || null;
     const ts = extractDate(block, articleUrl);
     let published_at;
     if (ts === null) {
@@ -259,10 +295,8 @@ async function parseRssXml(xml, source) {
       if (ts < cutoff) continue;
       published_at = new Date(ts).toISOString();
     }
-
     const hash       = await quickHash(normUrl(articleUrl));
     const liveStatus = detectLiveStatus(title, published_at);
-
     results.push({
       title, description,
       image_url:   extractImg(block),
@@ -271,8 +305,7 @@ async function parseRssXml(xml, source) {
       article_url: articleUrl,
       category:    source.category,
       region:      source.region ?? null,
-      asset_tag:   source.category === "crypto"
-        ? assetTag(`${title} ${description || ""}`) : null,
+      asset_tag:   source.category === "crypto" ? assetTag(`${title} ${description || ""}`) : null,
       url_hash:    hash,
       published_at,
       is_active:   true,
@@ -304,22 +337,17 @@ export const YT_CHANNELS = [
   { id: "UCrbatV49TNrqfoPLEJqJiuw", name: "CoinDesk TV", category: "crypto" },
   { id: "UCAl9Ld79qaZxp9JzEOwd3aA", name: "Bankless",    category: "crypto" },
 ];
-
 export const LIVE_CHANNELS = YT_CHANNELS;
 
 function isRealVideoId(id) {
   return typeof id === "string" && /^[A-Za-z0-9_-]{11}$/.test(id);
 }
-
 const YT_THUMB = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
 
 async function fetchYtChannel(ch) {
   const result = await fetchYtRss(ch.id);
   if (!result) return [];
-
-  const items = [];
-  const seen  = new Set();
-
+  const items = [], seen = new Set();
   if (result.type === "json") {
     for (const it of result.data.items || []) {
       const vidId = (it.link || "").match(/[?&]v=([A-Za-z0-9_-]{11})/)?.[1] || "";
@@ -327,16 +355,16 @@ async function fetchYtChannel(ch) {
       seen.add(vidId);
       const title = (it.title || "").trim();
       if (!title) continue;
-      const pub  = it.pubDate || "";
-      const ms   = pub ? new Date(pub).getTime() : Date.now();
+      const pub = it.pubDate || "";
+      const ms  = pub ? new Date(pub).getTime() : Date.now();
       if (Date.now() - ms > 7 * 86_400_000) continue;
       const published_at = pub ? new Date(pub).toISOString() : new Date().toISOString();
       const liveStatus   = detectLiveStatus(title, published_at);
       items.push({
-        _type: "video", id: `yt_${vidId}`, videoId: vidId,
-        title, channelName: ch.name, category: ch.category,
-        image_url:  it.thumbnail || YT_THUMB(vidId),
-        thumbnail:  it.thumbnail || YT_THUMB(vidId),
+        _type: "video", id: `yt_${vidId}`, videoId: vidId, title,
+        channelName: ch.name, category: ch.category,
+        image_url: it.thumbnail || YT_THUMB(vidId),
+        thumbnail: it.thumbnail || YT_THUMB(vidId),
         published_at, liveStatus,
         isLiveBroadcast: liveStatus === "live",
         tier: liveStatus === "live" ? TIER.LIVE : getTier(published_at),
@@ -344,8 +372,7 @@ async function fetchYtChannel(ch) {
       if (items.length >= 8) break;
     }
   } else {
-    const re = /<entry>([\s\S]*?)<\/entry>/gi;
-    let m;
+    const re = /<entry>([\s\S]*?)<\/entry>/gi; let m;
     while ((m = re.exec(result.data)) !== null) {
       const blk   = m[1];
       const vidId = (blk.match(/<yt:videoId>([^<]+)<\/yt:videoId>/i)?.[1] || "").trim();
@@ -360,8 +387,8 @@ async function fetchYtChannel(ch) {
       const published_at = pub ? new Date(pub).toISOString() : new Date().toISOString();
       const liveStatus   = detectLiveStatus(title, published_at);
       items.push({
-        _type: "video", id: `yt_${vidId}`, videoId: vidId,
-        title, channelName: ch.name, category: ch.category,
+        _type: "video", id: `yt_${vidId}`, videoId: vidId, title,
+        channelName: ch.name, category: ch.category,
         image_url: YT_THUMB(vidId), thumbnail: YT_THUMB(vidId),
         published_at, liveStatus,
         isLiveBroadcast: liveStatus === "live",
@@ -377,9 +404,7 @@ async function upsertArticles(items) {
   if (!items.length) return;
   const dbItems = items.map(({ tier, liveStatus, _type, ...rest }) => rest);
   try {
-    await supabase
-      .from("news_posts")
-      .upsert(dbItems, { onConflict: "url_hash", ignoreDuplicates: true });
+    await supabase.from("news_posts").upsert(dbItems, { onConflict: "url_hash", ignoreDuplicates: true });
   } catch { /* silent */ }
 }
 
@@ -388,23 +413,20 @@ async function upsertArticles(items) {
 // ══════════════════════════════════════════════════════════════════════════════
 class NewsRealtimeEngine {
   constructor() {
-    this._listeners  = {};
-    this._seenHashes = new Set(); // hashes emitted to listeners this session
-    this._seenVids   = new Set();
-    this._intervals  = [];
-    this._rtChannel  = null;
-    this._running    = false;
-    this._bucketIdx  = 0;
+    this._listeners    = {};
+    this._seenHashes   = new Set();
+    this._seenVids     = new Set();
+    this._inFeedHashes = new Set(); // [P4] tracks visible articles
+    this._intervals    = [];
+    this._rtChannel    = null;
+    this._running      = false;
+    this._bucketIdx    = 0;
 
-    // [F1] Track hashes currently IN the feed so we count pending accurately
-    // NewsTab seeds this after DB load via seedInFeed()
-    this._inFeedHashes = new Set();
-
+    // [P5] Nigeria + global in 30s priority bucket
     this._prio = (RSS_SOURCES || []).filter((s) =>
       [
-        "BBC News","Al Jazeera","Reuters","AP News","CNN World",
-        "Sky News","DW News","VOA News","France 24","Bloomberg",
-        "The Guardian","Associated Press",
+        "BBC News","Al Jazeera","Reuters","AP News","CNN World","Sky News",
+        "DW News","VOA News","France 24","Bloomberg","The Guardian","Associated Press",
         "CoinDesk","CoinTelegraph","Decrypt",
         // Nigeria — first-class
         "Premium Times","Channels TV","Business Day NG","Punch Nigeria",
@@ -412,15 +434,12 @@ class NewsRealtimeEngine {
         "Sahara Reporters","ThisDay Nigeria","Guardian Nigeria",
         "New Telegraph NG","Daily Post Nigeria",
         // Africa
-        "Daily Nation Kenya","News24","Africa News",
+        "Daily Nation Kenya","News24","Africa News","The Africa Report",
       ].includes(s.name)
     );
-
-    this._other = (RSS_SOURCES || []).filter((s) => !this._prio.includes(s));
+    this._other   = (RSS_SOURCES || []).filter((s) => !this._prio.includes(s));
     this._buckets = [];
-    for (let i = 0; i < this._other.length; i += 10) {
-      this._buckets.push(this._other.slice(i, i + 10));
-    }
+    for (let i = 0; i < this._other.length; i += 10) this._buckets.push(this._other.slice(i, i + 10));
   }
 
   on(event, cb) {
@@ -430,16 +449,14 @@ class NewsRealtimeEngine {
   }
 
   _emit(event, data) {
-    this._listeners[event]?.forEach((cb) => {
-      try { cb(data); } catch { /* silent */ }
-    });
+    this._listeners[event]?.forEach((cb) => { try { cb(data); } catch { /* silent */ } });
   }
 
   start() {
     if (this._running) return;
     this._running = true;
     this._startRealtime();
-    this._fetchAllSources(); // immediate cold boot
+    this._fetchAllSources();
     this._intervals.push(setInterval(() => this._fetchBucket(this._prio), 30_000));
     if (this._buckets.length) {
       this._intervals.push(setInterval(() => {
@@ -463,46 +480,31 @@ class NewsRealtimeEngine {
 
   _startRealtime() {
     this._rtChannel = supabase
-      .channel(`nre_v7_${Date.now()}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "news_posts" },
-        (payload) => {
-          const row = payload.new;
-          if (!row?.is_active) return;
-          if (!row.url_hash || this._seenHashes.has(row.url_hash)) return;
-          this._seenHashes.add(row.url_hash);
-          const liveStatus = detectLiveStatus(row.title || "", row.published_at || "");
-          this._emit("newArticles", [{
-            ...row, liveStatus,
-            tier: liveStatus === "live" ? TIER.LIVE : getTier(row.published_at),
-          }]);
-        }
-      )
+      .channel(`nre_v9_${Date.now()}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "news_posts" }, (payload) => {
+        const row = payload.new;
+        if (!row?.is_active || !row.url_hash || this._seenHashes.has(row.url_hash)) return;
+        this._seenHashes.add(row.url_hash);
+        const liveStatus = detectLiveStatus(row.title || "", row.published_at || "");
+        this._emit("newArticles", [{
+          ...row, liveStatus,
+          tier: liveStatus === "live" ? TIER.LIVE : getTier(row.published_at),
+        }]);
+      })
       .subscribe();
   }
 
-  // [F4] Emit each batch as it completes — don't wait for all
   async _fetchAllSources() {
     if (!this._running) return;
     const all = [...this._prio, ...this._other];
     const BATCH = 15;
     for (let i = 0; i < all.length; i += BATCH) {
       if (!this._running) break;
-      const results = await Promise.allSettled(
-        all.slice(i, i + BATCH).map((s) => this._fetchOne(s))
-      );
+      const results = await Promise.allSettled(all.slice(i, i + BATCH).map((s) => this._fetchOne(s)));
       const fresh = [];
-      for (const r of results) {
-        if (r.status === "fulfilled") fresh.push(...r.value);
-      }
-      if (fresh.length) {
-        this._emit("newArticles", fresh);
-        upsertArticles(fresh).catch(() => {});
-      }
-      if (i + BATCH < all.length) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
+      for (const r of results) { if (r.status === "fulfilled") fresh.push(...r.value); }
+      if (fresh.length) { this._emit("newArticles", fresh); upsertArticles(fresh).catch(() => {}); }
+      if (i + BATCH < all.length) await new Promise((r) => setTimeout(r, 500));
     }
   }
 
@@ -510,13 +512,8 @@ class NewsRealtimeEngine {
     if (!this._running) return;
     const results = await Promise.allSettled(sources.map((s) => this._fetchOne(s)));
     const fresh = [];
-    for (const r of results) {
-      if (r.status === "fulfilled") fresh.push(...r.value);
-    }
-    if (fresh.length) {
-      this._emit("newArticles", fresh);
-      upsertArticles(fresh).catch(() => {});
-    }
+    for (const r of results) { if (r.status === "fulfilled") fresh.push(...r.value); }
+    if (fresh.length) { this._emit("newArticles", fresh); upsertArticles(fresh).catch(() => {}); }
   }
 
   async _fetchOne(source) {
@@ -538,16 +535,12 @@ class NewsRealtimeEngine {
   async _fetchAllVideos() {
     if (!this._running) return;
     const results = await Promise.allSettled(YT_CHANNELS.map(fetchYtChannel));
-    const fresh   = [];
+    const fresh = [];
     for (const r of results) {
       if (r.status !== "fulfilled") continue;
       for (const v of r.value) {
-        if (!this._seenVids.has(v.videoId)) {
-          this._seenVids.add(v.videoId);
-          fresh.push(v);
-        } else if (v.isLiveBroadcast) {
-          fresh.push(v); // re-emit to update live status
-        }
+        if (!this._seenVids.has(v.videoId)) { this._seenVids.add(v.videoId); fresh.push(v); }
+        else if (v.isLiveBroadcast) fresh.push(v);
       }
     }
     if (fresh.length) {
@@ -557,23 +550,16 @@ class NewsRealtimeEngine {
     }
   }
 
-  // Seed seen hashes from DB articles already loaded (prevents re-emit)
   seedSeen(articles = [], videos = []) {
     articles.forEach((a) => { if (a.url_hash) this._seenHashes.add(a.url_hash); });
     videos.forEach((v) => { if (v.videoId) this._seenVids.add(v.videoId); });
   }
 
-  // [F1][F2] Seed in-feed hashes so pending count is accurate
+  // [P4] In-feed tracking for accurate pending count
   seedInFeed(articles = []) {
     articles.forEach((a) => { if (a.url_hash) this._inFeedHashes.add(a.url_hash); });
   }
-
-  // Check if an article is truly new (not already in the feed)
-  isNewForFeed(urlHash) {
-    return !this._inFeedHashes.has(urlHash);
-  }
-
-  // Mark articles as now in feed (called after flush)
+  isNewForFeed(hash) { return !this._inFeedHashes.has(hash); }
   markInFeed(articles = []) {
     articles.forEach((a) => { if (a.url_hash) this._inFeedHashes.add(a.url_hash); });
   }

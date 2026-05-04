@@ -2,17 +2,15 @@
 // ════════════════════════════════════════════════════════════════
 // Xeevia Wallet — main shell
 //
-// FIX: Realtime balance subscription now has a strict userId guard.
-//      Every incoming payload is checked against the current user's
-//      userId before updating state — no other user's EP can bleed in.
+// FIXES:
+//  • WithdrawTab imported and wired to activeTab === "withdraw"
+//  • Realtime balance subscription has strict userId guard
 //
 // LIVE DATA:
 //  • Left sidebar fetches real BTC/ETH/BNB/USDT prices from CoinGecko
 //    every 60 seconds, with graceful fallback on error/rate-limit.
-//  • Platform stats (XEV Circulating, EP Minted Today, Active Wallets)
-//    pulled directly from Supabase — zero hardcoded values.
-//  • EP Earn table is config-driven (accurate rates), not "mock" — it
-//    reflects the platform's actual earn schedule.
+//  • Platform stats pulled directly from Supabase — zero hardcoded values.
+//  • EP Earn table is config-driven (accurate rates).
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -25,6 +23,7 @@ import ReceiveTab     from "./tabs/ReceiveTab";
 import SwapTab        from "./tabs/SwapTab";
 import TradeTab       from "./tabs/TradeTab";
 import SettingsTab    from "./tabs/SettingsTab";
+import WithdrawTab    from "./tabs/WithdrawTab";
 import PayWave        from "./paywave/PayWaveWrapper";
 import { walletService } from "../../services/wallet/walletService";
 import { CurrencyProvider } from "../../contexts/CurrencyContext";
@@ -67,9 +66,9 @@ const EP_BURN_TABLE = [
   { range: "2000+",     burn: "10 EP"  },
 ];
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // LAYOUT CSS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 const LAYOUT_CSS = `
   .wv-shell {
     position: fixed;
@@ -217,59 +216,40 @@ const LAYOUT_CSS = `
   .section-line  { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); max-width: 120px; }
 
   /* ============================================================
-   WALLET LAYOUT FIXES — add to WalletStyles.css or inline
-   
-   1. Remove forced left/right padding that was compressing content
-   2. Fix top robbing — give wallet a proper top clearance
-   3. Mobile: clean edge-to-edge layout
+   WALLET LAYOUT FIXES
    ============================================================ */
 
-/* Override .wv-shell to remove forced side gaps */
 .wv-shell {
-  /* Keep the top offset for the header (58px) but remove
-     any extra horizontal compression that came from the sidebar calc */
   padding-left: 0  !important;
   padding-right: 0 !important;
 }
 
-/* Content pad: reduce horizontal padding on desktop,
-   keep comfortable breathing room without forcing dead space */
 .wv-content-pad {
-  padding: 12px 20px 24px !important;  /* was 16px 4% — 4% adds ~30px dead space */
+  padding: 12px 20px 24px !important;
 }
 
-/* On wide screens, let content breathe but not be squished */
 @media (min-width: 1200px) {
   .wv-content-pad {
     padding: 14px 24px 28px !important;
   }
 }
 
-/* Mobile — full bleed, no side gutters */
 @media (max-width: 767px) {
   .wv-content-pad {
     padding: 10px 12px 80px !important;
   }
 }
 
-/* ── Top clearance fix ── 
-   The wallet was starting right at the header edge (top:58px)
-   with zero visual breathing room. Add 8px top padding to
-   the shell so content doesn't feel "robbed" at the top.
-*/
 .wv-shell {
-  padding-top: 0;  /* shell itself stays flush */
+  padding-top: 0;
 }
 .wv-center {
-  /* subtle top fade so content doesn't hard-cut against header */
   padding-top: 0;
 }
 .wv-content-pad {
-  padding-top: 14px !important; /* consistent top breathing room */
+  padding-top: 14px !important;
 }
 
-/* ── BalanceCard top margin fix ──
-   Card was getting clipped at top on mobile */
 .wv-content-pad > *:first-child {
   margin-top: 0;
 }
@@ -524,15 +504,11 @@ const WalletView = ({
   const [transactions,   setTransactions]   = useState([]);
 
   // ── Stable setter: ONLY accept updates that belong to this user ──
-  // This is the critical guard that prevents other users' EP from
-  // bleeding into this wallet's state via realtime or prop changes.
   const safeSetBalance = useCallback((nb, sourceUserId) => {
-    // If caller passes a sourceUserId, verify it matches before updating
     if (sourceUserId && sourceUserId !== userId) {
       console.warn("[WalletView] Rejected balance update from wrong userId:", sourceUserId);
       return;
     }
-    // Validate shape — must have numeric tokens and points
     if (typeof nb?.tokens !== "number" || typeof nb?.points !== "number") {
       console.warn("[WalletView] Rejected malformed balance payload:", nb);
       return;
@@ -547,20 +523,17 @@ const WalletView = ({
     try {
       setLoading(true);
 
-      // Fetch wallet directly from Supabase with explicit user_id filter
-      // — never trust walletService alone; double-check the row belongs to us
       const [walletRes, txData] = await Promise.all([
         supabase
           .from("wallets")
           .select("user_id, grova_tokens, engagement_points, paywave_balance")
-          .eq("user_id", userId)   // ← hard filter: THIS user only
+          .eq("user_id", userId)
           .single(),
         walletService.getRecentTransactions(userId, 25),
       ]);
 
       if (walletRes.data) {
         const row = walletRes.data;
-        // Paranoia check: confirm the row really is ours
         if (row.user_id !== userId) {
           console.error("[WalletView] wallet row user_id mismatch — ignoring");
         } else {
@@ -586,8 +559,6 @@ const WalletView = ({
   useEffect(() => {
     if (!userId) return;
 
-    // Subscribe at the Supabase channel level with a user_id filter
-    // so the server never sends other users' rows to this client.
     const channel = supabase
       .channel(`wallet:${userId}`)
       .on(
@@ -596,13 +567,12 @@ const WalletView = ({
           event:  "*",
           schema: "public",
           table:  "wallets",
-          filter: `user_id=eq.${userId}`,   // ← server-side filter
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const row = payload.new;
           if (!row) return;
 
-          // Client-side guard — double-check even though server filtered
           if (row.user_id !== userId) {
             console.warn("[WalletView] RT: unexpected user_id in payload, ignoring");
             return;
@@ -626,7 +596,6 @@ const WalletView = ({
   useEffect(() => {
     if (!userId) return;
     const unsub = walletService.subscribeToTransactions(userId, (enrichedTx) => {
-      // Guard: only accept transactions that belong to this user
       if (enrichedTx.user_id && enrichedTx.user_id !== userId) return;
 
       setTransactions((prev) => {
@@ -692,6 +661,14 @@ const WalletView = ({
             {activeTab === "swap"      && <SwapTab      {...sharedProps} />}
             {activeTab === "trade"     && <TradeTab     {...sharedProps} />}
             {activeTab === "settings"  && <SettingsTab  {...sharedProps} />}
+            {/* ── FIX: WithdrawTab now rendered when activeTab === "withdraw" ── */}
+            {activeTab === "withdraw"  && (
+              <WithdrawTab
+                userId={userId}
+                balance={balance}
+                setActiveTab={handleTabChange}
+              />
+            )}
           </div>
         </div>
         <aside className="wv-sidebar">

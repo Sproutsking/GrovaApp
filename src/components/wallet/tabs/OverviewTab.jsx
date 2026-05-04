@@ -1,15 +1,22 @@
 // src/components/wallet/tabs/OverviewTab.jsx
 // ════════════════════════════════════════════════════════════════
-//  FIX: EP AssetCard always shows the same integer as BalanceCard.
+//  LAYOUT FIX:
+//    Action buttons redesigned into 2 clean rows:
+//      Row 1 (primary):   Send · Deposit · Receive · Withdraw
+//      Row 2 (secondary): Swap · Trade · [PayWave] · Settings
+//    The "More" expand panel is removed — all actions are always
+//    visible. On narrow screens both rows wrap gracefully because
+//    each button is flex-based with a minimum width, not a rigid grid.
+//
+//  FIX (carried from v-fix): EP AssetCard always shows the same
+//  integer as BalanceCard.
 //
 //  Root cause: useAnimatedNumber kept a stale `fromRef` across
 //  loading cycles, so when loading flipped false the animation
-//  started from whatever old mid-tween float was in memory —
-//  producing values like 30.85 or 282.5 that never matched
-//  BalanceCard (which always counts up from 0).
+//  started from whatever old mid-tween float was in memory.
 //
 //  Solution:
-//   1. useAnimatedNumber now resets fromRef → 0 whenever the
+//   1. useAnimatedNumber resets fromRef → 0 whenever the
 //      component transitions out of loading, matching BalanceCard's
 //      useCountUp behaviour exactly.
 //   2. EP value is Math.floor'd once at the top and that integer
@@ -20,9 +27,19 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  ArrowUpRight, Download, ArrowDownLeft, MoreHorizontal,
-  TrendingUp, Repeat, Settings, Wifi, Coins, Zap,
-  ChevronRight, Flame, Clock,
+  ArrowUpRight,
+  Download,
+  ArrowDownLeft,
+  TrendingUp,
+  Repeat,
+  Settings,
+  Wifi,
+  Coins,
+  Zap,
+  ChevronRight,
+  Flame,
+  Clock,
+  ArrowUpToLine,
 } from "lucide-react";
 import BalanceCard from "../components/BalanceCard";
 import { useCurrency } from "../../../contexts/CurrencyContext";
@@ -41,7 +58,10 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
   useEffect(() => {
     if (!cp?.username) return;
     if (cp.avatar_id || cp.avatar_metadata || cp.avatar) return;
-    if (profileCache[cp.username]) { setProfile(profileCache[cp.username]); return; }
+    if (profileCache[cp.username]) {
+      setProfile(profileCache[cp.username]);
+      return;
+    }
     supabase
       .from("profiles")
       .select("id,username,full_name,avatar_id,avatar_metadata,verified")
@@ -53,12 +73,14 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
             ...data,
             userId: data.id,
             author: data.full_name || data.username,
-            avatar: data.avatar_metadata?.publicUrl ||
-                    data.avatar_metadata?.url ||
-                    data.avatar_metadata?.signedUrl ||
-                    (data.avatar_id
-                      ? `${process.env.REACT_APP_SUPABASE_URL || ""}/storage/v1/object/public/avatars/${data.avatar_id}`
-                      : null) || null,
+            avatar:
+              data.avatar_metadata?.publicUrl ||
+              data.avatar_metadata?.url ||
+              data.avatar_metadata?.signedUrl ||
+              (data.avatar_id
+                ? `${process.env.REACT_APP_SUPABASE_URL || ""}/storage/v1/object/public/avatars/${data.avatar_id}`
+                : null) ||
+              null,
           };
           profileCache[cp.username] = full;
           setProfile(full);
@@ -68,17 +90,34 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
 
   return (
     <div style={{ position: "relative", flexShrink: 0, width: 40, height: 40 }}>
-      <ProfilePreview profile={profile} currentUser={currentUser} size="small" showUsername={false} />
+      <ProfilePreview
+        profile={profile}
+        currentUser={currentUser}
+        size="small"
+        showUsername={false}
+      />
       <div className={`ov-tx-dir-badge ${dirClass}`}>
         {isPending ? (
           <Clock size={7} color="#000" />
         ) : isReceived ? (
           <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-            <path d="M8 2 L2 8 M2 8 H6 M2 8 V4" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M8 2 L2 8 M2 8 H6 M2 8 V4"
+              stroke="#000"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         ) : (
           <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-            <path d="M2 8 L8 2 M8 2 H4 M8 2 V6" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M2 8 L8 2 M8 2 H4 M8 2 V6"
+              stroke="#000"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         )}
       </div>
@@ -87,38 +126,39 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
 }
 
 // ── useAnimatedNumber ─────────────────────────────────────────────
-// KEY FIX: when `loading` transitions to false, we reset fromRef to 0
-// so the animation always counts up from zero — identical to BalanceCard.
 function useAnimatedNumber(target, loading, duration = 700) {
-  const [display, setDisplay]   = useState(0);
-  const rafRef                  = useRef(null);
-  const startRef                = useRef(null);
-  const fromRef                 = useRef(0);
-  const prevLoadingRef          = useRef(loading);
+  const [display, setDisplay] = useState(0);
+  const rafRef = useRef(null);
+  const startRef = useRef(null);
+  const fromRef = useRef(0);
+  const prevLoadingRef = useRef(loading);
 
   useEffect(() => {
-    // If we just finished loading, reset from 0 (same as BalanceCard)
     if (prevLoadingRef.current === true && loading === false) {
       fromRef.current = 0;
       setDisplay(0);
     }
     prevLoadingRef.current = loading;
 
-    if (loading) { setDisplay(0); return; }
+    if (loading) {
+      setDisplay(0);
+      return;
+    }
 
     const from = fromRef.current;
-    const to   = target;
+    const to = target;
 
     cancelAnimationFrame(rafRef.current);
     startRef.current = null;
 
-    const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const ease = (t) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     rafRef.current = requestAnimationFrame(function tick(ts) {
       if (!startRef.current) startRef.current = ts;
-      const elapsed  = ts - startRef.current;
+      const elapsed = ts - startRef.current;
       const progress = Math.min(elapsed / duration, 1);
-      const current  = from + (to - from) * ease(progress);
+      const current = from + (to - from) * ease(progress);
       setDisplay(current);
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(tick);
@@ -137,8 +177,8 @@ function useAnimatedNumber(target, loading, duration = 700) {
 // ── DeltaFlash ───────────────────────────────────────────────────
 function DeltaFlash({ delta, currency }) {
   const [visible, setVisible] = useState(false);
-  const [val, setVal]         = useState(delta);
-  const timerRef              = useRef(null);
+  const [val, setVal] = useState(delta);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     if (delta === 0) return;
@@ -152,63 +192,213 @@ function DeltaFlash({ delta, currency }) {
   if (!visible || !val) return null;
   const isPos = val > 0;
   return (
-    <div style={{
-      position: "absolute", top: -22, right: 0,
-      padding: "3px 9px", borderRadius: 100,
-      fontSize: 11, fontWeight: 800,
-      fontFamily: "var(--font-mono, 'DM Mono', monospace)",
-      color: isPos ? "#a3e635" : "#f87171",
-      background: isPos ? "rgba(163,230,53,0.12)" : "rgba(248,113,113,0.1)",
-      border: `1px solid ${isPos ? "rgba(163,230,53,0.3)" : "rgba(248,113,113,0.2)"}`,
-      pointerEvents: "none",
-      animation: "ovDeltaIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards",
-      whiteSpace: "nowrap",
-    }}>
-      {isPos ? "+" : ""}{Math.abs(val).toLocaleString()} {currency}
+    <div
+      style={{
+        position: "absolute",
+        top: -22,
+        right: 0,
+        padding: "3px 9px",
+        borderRadius: 100,
+        fontSize: 11,
+        fontWeight: 800,
+        fontFamily: "var(--font-mono, 'DM Mono', monospace)",
+        color: isPos ? "#a3e635" : "#f87171",
+        background: isPos ? "rgba(163,230,53,0.12)" : "rgba(248,113,113,0.1)",
+        border: `1px solid ${isPos ? "rgba(163,230,53,0.3)" : "rgba(248,113,113,0.2)"}`,
+        pointerEvents: "none",
+        animation: "ovDeltaIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {isPos ? "+" : ""}
+      {Math.abs(val).toLocaleString()} {currency}
     </div>
   );
 }
 
-// ── TxDirectionChip ───────────────────────────────────────────────
+// ── TxDirectionChip ──────────────────────────────────────────────
 function TxDirectionChip({ isIn, isPending }) {
-  if (isPending) return (
-    <div style={{
-      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-      background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <Clock size={15} color="#f59e0b" />
-    </div>
-  );
+  if (isPending)
+    return (
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          flexShrink: 0,
+          background: "rgba(245,158,11,0.1)",
+          border: "1px solid rgba(245,158,11,0.2)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Clock size={15} color="#f59e0b" />
+      </div>
+    );
   return (
-    <div style={{
-      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-      background: isIn ? "rgba(163,230,53,0.08)" : "rgba(248,113,113,0.08)",
-      border: `1px solid ${isIn ? "rgba(163,230,53,0.2)" : "rgba(248,113,113,0.2)"}`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-        style={{ transform: isIn ? "rotate(135deg)" : "rotate(-45deg)", color: isIn ? "#a3e635" : "#f87171" }}>
-        <path d="M3 13 L13 3 M13 3 H7 M13 3 V9"
-          stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <div
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        flexShrink: 0,
+        background: isIn ? "rgba(163,230,53,0.08)" : "rgba(248,113,113,0.08)",
+        border: `1px solid ${isIn ? "rgba(163,230,53,0.2)" : "rgba(248,113,113,0.2)"}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        style={{
+          transform: isIn ? "rotate(135deg)" : "rotate(-45deg)",
+          color: isIn ? "#a3e635" : "#f87171",
+        }}
+      >
+        <path
+          d="M3 13 L13 3 M13 3 H7 M13 3 V9"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     </div>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// CSS — REDESIGNED ACTION BUTTONS
+// Two clean rows, no "More" panel needed, flex-wrap safe.
+// ─────────────────────────────────────────────────────────────────
 const CSS = `
   .ov-section-head{display:flex;align-items:center;gap:10px;margin:24px 0 14px;justify-content:center;}
   .ov-section-title{font-size:10.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
   .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);}
-  .ov-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0;margin-top:10px;}
-  .ov-act-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .18s;color:rgba(255,255,255,0.55);font-size:11.5px;font-weight:600;}
-  .ov-act-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);transform:translateY(-1px);}
-  .ov-act-btn.primary{background:rgba(163,230,53,0.08);border-color:rgba(163,230,53,0.22);color:#a3e635;}
-  .ov-act-btn.primary:hover{background:rgba(163,230,53,0.13);border-color:rgba(163,230,53,0.35);}
-  .ov-act-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);}
-  .ov-act-btn.primary .ov-act-icon{background:rgba(163,230,53,0.12);}
-  .ov-more-panel{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px;animation:moreIn .2s cubic-bezier(.34,1.56,.64,1);}
-  @keyframes moreIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── Action rows ─────────────────────────────────────────────── */
+  /* Row 1: 4 primary actions always in one line */
+  .ov-actions-primary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 10px 0 0;
+  }
+
+  /* Row 2: secondary actions — up to 4, flex so PayWave slot appears/disappears cleanly */
+  .ov-actions-secondary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 8px 0 0;
+  }
+
+  /* When PayWave is hidden and only 3 secondary buttons exist, keep equal widths */
+  .ov-actions-secondary.three-cols {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* On very small screens (< 360px) allow wrapping in primary row too */
+  @media (max-width: 359px) {
+    .ov-actions-primary,
+    .ov-actions-secondary {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ── Button base ─────────────────────────────────────────────── */
+  .ov-act-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 6px 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: all .18s;
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .ov-act-btn:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.85);
+    transform: translateY(-1px);
+  }
+
+  /* Primary: Send */
+  .ov-act-btn.primary {
+    background: rgba(163,230,53,0.08);
+    border-color: rgba(163,230,53,0.22);
+    color: #a3e635;
+  }
+  .ov-act-btn.primary:hover {
+    background: rgba(163,230,53,0.13);
+    border-color: rgba(163,230,53,0.35);
+  }
+
+  /* Withdraw: red-orange */
+  .ov-act-btn.withdraw {
+    background: rgba(248,113,113,0.06);
+    border-color: rgba(248,113,113,0.18);
+    color: #f87171;
+  }
+  .ov-act-btn.withdraw:hover {
+    background: rgba(248,113,113,0.12);
+    border-color: rgba(248,113,113,0.32);
+  }
+
+  /* PayWave: cyan */
+  .ov-act-btn.paywave {
+    background: rgba(34,211,238,0.05);
+    border-color: rgba(34,211,238,0.18);
+    color: #22d3ee;
+  }
+  .ov-act-btn.paywave:hover {
+    background: rgba(34,211,238,0.10);
+    border-color: rgba(34,211,238,0.32);
+  }
+
+  /* Icon circle */
+  .ov-act-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.05);
+    flex-shrink: 0;
+  }
+  .ov-act-btn.primary .ov-act-icon  { background: rgba(163,230,53,0.12); }
+  .ov-act-btn.withdraw .ov-act-icon { background: rgba(248,113,113,0.10); }
+  .ov-act-btn.paywave .ov-act-icon  { background: rgba(34,211,238,0.08); }
+
+  /* Button label */
+  .ov-act-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+  }
+
+  /* ── Asset cards ─────────────────────────────────────────────── */
   .ov-asset-card{display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:15px;margin-bottom:8px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);transition:background .18s;position:relative;overflow:visible;}
   .ov-asset-card:hover{background:rgba(255,255,255,0.04);}
   .ov-asset-card.xev{border-color:rgba(163,230,53,0.12);background:rgba(163,230,53,0.03);}
@@ -267,10 +457,15 @@ const CSS = `
 `;
 
 // ── AnimatedBalance ───────────────────────────────────────────────
-// isInteger=true → Math.round every frame so EP never shows a decimal.
-function AnimatedBalance({ value, loading, className, style, isInteger = false }) {
-  const animated = useAnimatedNumber(loading ? 0 : (value || 0), loading, 650);
-  const display  = isInteger
+function AnimatedBalance({
+  value,
+  loading,
+  className,
+  style,
+  isInteger = false,
+}) {
+  const animated = useAnimatedNumber(loading ? 0 : value || 0, loading, 650);
+  const display = isInteger
     ? Math.round(animated).toLocaleString()
     : animated.toLocaleString(undefined, { maximumFractionDigits: 4 });
 
@@ -282,12 +477,28 @@ function AnimatedBalance({ value, loading, className, style, isInteger = false }
 }
 
 // ── AssetCard ─────────────────────────────────────────────────────
-function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, delta, currency, isInteger }) {
+function AssetCard({
+  type,
+  icon,
+  name,
+  desc,
+  value,
+  fiatLine,
+  chip,
+  loading,
+  delta,
+  currency,
+  isInteger,
+}) {
   const [flashClass, setFlashClass] = useState("");
   const prevVal = useRef(value);
 
   useEffect(() => {
-    if (!loading && value !== prevVal.current && prevVal.current !== undefined) {
+    if (
+      !loading &&
+      value !== prevVal.current &&
+      prevVal.current !== undefined
+    ) {
       setFlashClass(`flash-${type}`);
       const t = setTimeout(() => setFlashClass(""), 800);
       prevVal.current = value;
@@ -312,42 +523,80 @@ function AssetCard({ type, icon, name, desc, value, fiatLine, chip, loading, del
           isInteger={isInteger}
         />
         {fiatLine && <div className="ov-asset-fiat">{fiatLine}</div>}
-        {chip     && <div className="ov-asset-chip">{chip}</div>}
+        {chip && <div className="ov-asset-chip">{chip}</div>}
       </div>
     </div>
   );
 }
 
+// ── ActionButton helper ───────────────────────────────────────────
+function ActionBtn({ icon: Icon, label, tab, variant = "default", onClick }) {
+  return (
+    <button
+      className={`ov-act-btn ${variant}`}
+      onClick={() => onClick(tab)}
+    >
+      <div className="ov-act-icon">
+        <Icon size={18} />
+      </div>
+      <span className="ov-act-label">{label}</span>
+    </button>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 export default function OverviewTab({
-  balance, setActiveTab, loading, transactions = [],
-  userId, username, showPayWave, currentUser,
+  balance,
+  setActiveTab,
+  loading,
+  transactions = [],
+  userId,
+  username,
+  showPayWave,
+  currentUser,
 }) {
-  const [showMore, setShowMore] = useState(false);
-  const [hideBalance, setHide]  = useState(false);
+  const [hideBalance, setHide] = useState(false);
   const { format } = useCurrency();
 
   const xev = balance?.tokens ?? 0;
-  // Always floor EP to integer — this is the single source of truth.
-  // BalanceCard also floors (via Math.floor in useCountUp target),
-  // so both cards will always display the same whole number.
-  const ep  = Math.floor(balance?.points ?? 0);
+  // Always floor EP to integer — single source of truth.
+  const ep = Math.floor(balance?.points ?? 0);
 
   const prevXEV = useRef(xev);
-  const prevEP  = useRef(ep);
+  const prevEP = useRef(ep);
   const [xevDelta, setXevDelta] = useState(0);
-  const [epDelta,  setEpDelta]  = useState(0);
+  const [epDelta, setEpDelta] = useState(0);
 
   useEffect(() => {
     if (!loading) {
       const dx = xev - prevXEV.current;
-      const de = ep  - prevEP.current;
+      const de = ep - prevEP.current;
       if (dx !== 0) setXevDelta(dx);
       if (de !== 0) setEpDelta(de);
       prevXEV.current = xev;
-      prevEP.current  = ep;
+      prevEP.current = ep;
     }
   }, [xev, ep, loading]);
+
+  // ── Primary action definitions ─────────────────────────────────
+  const primaryActions = [
+    { icon: ArrowUpRight,  label: "Send",     tab: "send",     variant: "primary"  },
+    { icon: Download,      label: "Deposit",  tab: "deposit",  variant: "default"  },
+    { icon: ArrowDownLeft, label: "Receive",  tab: "receive",  variant: "default"  },
+    { icon: ArrowUpToLine, label: "Withdraw", tab: "withdraw", variant: "withdraw" },
+  ];
+
+  // ── Secondary action definitions ───────────────────────────────
+  const secondaryActions = [
+    { icon: Repeat,    label: "Swap",     tab: "swap",     variant: "default" },
+    { icon: TrendingUp,label: "Trade",    tab: "trade",    variant: "default" },
+    ...(showPayWave
+      ? [{ icon: Wifi, label: "PayWave",  tab: "paywave",  variant: "paywave" }]
+      : []),
+    { icon: Settings,  label: "Settings", tab: "settings", variant: "default" },
+  ];
+
+  const secondaryCols = secondaryActions.length === 3 ? "three-cols" : "";
 
   return (
     <div className="view-enter">
@@ -357,41 +606,39 @@ export default function OverviewTab({
         balance={balance}
         loading={loading}
         hideBalance={hideBalance}
-        onToggleHide={() => setHide(h => !h)}
+        onToggleHide={() => setHide((h) => !h)}
         username={username}
       />
 
-      <div className="ov-actions">
-        <button className="ov-act-btn primary" onClick={() => setActiveTab("send")}>
-          <div className="ov-act-icon"><ArrowUpRight size={18} /></div>Send
-        </button>
-        <button className="ov-act-btn" onClick={() => setActiveTab("deposit")}>
-          <div className="ov-act-icon"><Download size={18} /></div>Deposit
-        </button>
-        <button className="ov-act-btn" onClick={() => setActiveTab("receive")}>
-          <div className="ov-act-icon"><ArrowDownLeft size={18} /></div>Receive
-        </button>
-        <button className="ov-act-btn" onClick={() => setShowMore(m => !m)}>
-          <div className="ov-act-icon"><MoreHorizontal size={18} /></div>More
-        </button>
+      {/* ── Primary actions: Send / Deposit / Receive / Withdraw ── */}
+      <div className="ov-actions-primary">
+        {primaryActions.map(({ icon, label, tab, variant }) => (
+          <ActionBtn
+            key={tab}
+            icon={icon}
+            label={label}
+            tab={tab}
+            variant={variant}
+            onClick={setActiveTab}
+          />
+        ))}
       </div>
 
-      {showMore && (
-        <div className="ov-more-panel">
-          {[
-            { icon: Repeat,     label: "Swap",     tab: "swap"     },
-            { icon: TrendingUp, label: "Trade",    tab: "trade"    },
-            ...(showPayWave ? [{ icon: Wifi, label: "PayWave", tab: "paywave" }] : []),
-            { icon: Settings,   label: "Settings", tab: "settings" },
-          ].map(({ icon: Icon, label, tab }) => (
-            <button key={tab} className="ov-act-btn"
-              onClick={() => { setActiveTab(tab); setShowMore(false); }}>
-              <div className="ov-act-icon"><Icon size={16} /></div>{label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* ── Secondary actions: Swap / Trade / [PayWave] / Settings ── */}
+      <div className={`ov-actions-secondary ${secondaryCols}`}>
+        {secondaryActions.map(({ icon, label, tab, variant }) => (
+          <ActionBtn
+            key={tab}
+            icon={icon}
+            label={label}
+            tab={tab}
+            variant={variant}
+            onClick={setActiveTab}
+          />
+        ))}
+      </div>
 
+      {/* ── Assets ── */}
       <div className="ov-section-head">
         <div className="ov-section-line" />
         <span className="ov-section-title">Your Assets</span>
@@ -410,10 +657,6 @@ export default function OverviewTab({
         currency="$XEV"
       />
 
-      {/* EP — isInteger=true ensures Math.round every animation frame.
-          The `loading` prop is now threaded into useAnimatedNumber so the
-          animation always restarts from 0 when loading finishes, matching
-          BalanceCard's useCountUp which also starts from 0. */}
       <AssetCard
         type="ep"
         icon={<Zap size={20} />}
@@ -427,6 +670,51 @@ export default function OverviewTab({
         isInteger={true}
       />
 
+      {/* Withdraw EP shortcut strip */}
+      <div
+        onClick={() => setActiveTab("withdraw")}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === "Enter" && setActiveTab("withdraw")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "11px 14px",
+          borderRadius: 12,
+          marginTop: -4,
+          background: "rgba(248,113,113,0.04)",
+          border: "1px solid rgba(248,113,113,0.12)",
+          cursor: "pointer",
+          transition: "all .18s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(248,113,113,0.08)";
+          e.currentTarget.style.borderColor = "rgba(248,113,113,0.24)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(248,113,113,0.04)";
+          e.currentTarget.style.borderColor = "rgba(248,113,113,0.12)";
+        }}
+      >
+        <ArrowUpToLine size={14} color="#f87171" style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171" }}>
+            Withdraw EP
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.3)",
+              marginTop: 1,
+            }}
+          >
+            Tiered fees: 4% · 3% · 2% — higher amounts cost less
+          </div>
+        </div>
+        <ChevronRight size={14} color="rgba(248,113,113,0.5)" />
+      </div>
+
       {showPayWave && (
         <>
           <div className="ov-section-head" style={{ marginTop: 8 }}>
@@ -434,8 +722,15 @@ export default function OverviewTab({
             <span className="ov-section-title">Quick Pay</span>
             <div className="ov-section-line" />
           </div>
-          <div className="ov-paywave-card" onClick={() => setActiveTab("paywave")} role="button" tabIndex={0}>
-            <div className="ov-pw-logo"><Wifi size={22} color="#fff" /></div>
+          <div
+            className="ov-paywave-card"
+            onClick={() => setActiveTab("paywave")}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="ov-pw-logo">
+              <Wifi size={22} color="#fff" />
+            </div>
             <div>
               <div className="ov-pw-name">PayWave</div>
               <div className="ov-pw-desc">Send money · Zero fees · Instant</div>
@@ -445,6 +740,7 @@ export default function OverviewTab({
         </>
       )}
 
+      {/* ── Recent Activity ── */}
       <div className="ov-section-head" style={{ marginTop: 24 }}>
         <div className="ov-section-line" />
         <span className="ov-section-title">Recent Activity</span>
@@ -453,7 +749,9 @@ export default function OverviewTab({
 
       {loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[1, 2, 3].map(i => <div key={i} className="ov-skel" style={{ height: 60 }} />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="ov-skel" style={{ height: 60 }} />
+          ))}
         </div>
       ) : transactions.length === 0 ? (
         <div className="ov-empty">
@@ -464,27 +762,42 @@ export default function OverviewTab({
       ) : (
         <div className="ov-tx-list">
           {transactions.map((tx, idx) => {
-            const isPending  = tx._optimistic === true;
-            const isSent     = tx.change_type === "debit";
+            const isPending = tx._optimistic === true;
+            const isSent = tx.change_type === "debit";
             const isReceived = tx.change_type === "credit";
-            const currency   = tx.displayCurrency || tx.metadata?.currency || "EP";
-            const label      = tx.displayLabel || (isSent ? "Sent" : "Received");
-            const cp         = tx.counterparty;
-            const dateStr    = tx.created_at
+            const currency =
+              tx.displayCurrency || tx.metadata?.currency || "EP";
+            const label = tx.displayLabel || (isSent ? "Sent" : "Received");
+            const cp = tx.counterparty;
+            const dateStr = tx.created_at
               ? new Date(tx.created_at).toLocaleString("en-NG", {
-                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })
               : "Just now";
-            const dirClass = isPending ? "pending-badge" : isReceived ? "in" : "out";
+            const dirClass = isPending
+              ? "pending-badge"
+              : isReceived
+                ? "in"
+                : "out";
             const amtClass = isReceived ? "in" : "out";
 
             return (
-              <div key={tx.id || `opt-${idx}`}
+              <div
+                key={tx.id || `opt-${idx}`}
                 className={`ov-tx-row${isPending ? " pending" : ""}`}
-                style={{ animationDelay: `${idx * 30}ms` }}>
+                style={{ animationDelay: `${idx * 30}ms` }}
+              >
                 {cp ? (
-                  <TxAvatar cp={cp} currentUser={currentUser}
-                    dirClass={dirClass} isPending={isPending} isReceived={isReceived} />
+                  <TxAvatar
+                    cp={cp}
+                    currentUser={currentUser}
+                    dirClass={dirClass}
+                    isPending={isPending}
+                    isReceived={isReceived}
+                  />
                 ) : (
                   <div className="ov-tx-avatar-wrap">
                     <TxDirectionChip isIn={isReceived} isPending={isPending} />
@@ -493,7 +806,9 @@ export default function OverviewTab({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="ov-tx-label">
                     {label}
-                    {isPending && <span className="ov-pending-tag">SENDING</span>}
+                    {isPending && (
+                      <span className="ov-pending-tag">SENDING</span>
+                    )}
                   </div>
                   {cp && (
                     <div className="ov-tx-counterparty">
@@ -501,23 +816,42 @@ export default function OverviewTab({
                     </div>
                   )}
                   {tx.note && (
-                    <div className="ov-tx-sub" style={{ fontStyle: "italic" }}>"{tx.note}"</div>
+                    <div className="ov-tx-sub" style={{ fontStyle: "italic" }}>
+                      "{tx.note}"
+                    </div>
                   )}
-                  <div className="ov-tx-sub">{isPending ? "Processing…" : dateStr}</div>
+                  <div className="ov-tx-sub">
+                    {isPending ? "Processing…" : dateStr}
+                  </div>
                 </div>
                 <div className="ov-tx-right">
                   <div className={`ov-tx-amount ${amtClass}`}>
-                    {isReceived ? "+" : "−"}{(tx.amount || 0).toLocaleString()}{" "}
-                    <span style={{ fontSize: 10, opacity: 0.7 }}>{currency}</span>
+                    {isReceived ? "+" : "−"}
+                    {(tx.amount || 0).toLocaleString()}{" "}
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>
+                      {currency}
+                    </span>
                   </div>
                   <div className={`ov-tx-dir-pill ${amtClass}`}>
                     {isReceived ? (
                       <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
-                        <path d="M8 2L2 8M2 8H6M2 8V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M8 2L2 8M2 8H6M2 8V4"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     ) : (
                       <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
-                        <path d="M2 8L8 2M8 2H4M8 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path
+                          d="M2 8L8 2M8 2H4M8 2V6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                     {isReceived ? "IN" : "OUT"}
@@ -530,11 +864,19 @@ export default function OverviewTab({
       )}
 
       <div className="ov-burn-strip">
-        <Flame size={14} color="rgba(248,113,113,0.6)" style={{ flexShrink: 0, marginTop: 2 }} />
+        <Flame
+          size={14}
+          color="rgba(248,113,113,0.6)"
+          style={{ flexShrink: 0, marginTop: 2 }}
+        />
         <span>
           EP sends under 100 EP cost only{" "}
-          <strong style={{ color: "rgba(248,113,113,0.85)" }}>0.5 EP</strong> burn fee.
-          Minimum send: <strong style={{ color: "rgba(255,255,255,0.4)" }}>5 EP</strong>.
+          <strong style={{ color: "rgba(248,113,113,0.85)" }}>0.5 EP</strong>{" "}
+          burn fee. Withdrawals:{" "}
+          <strong style={{ color: "rgba(255,255,255,0.4)" }}>
+            4% / 3% / 2%
+          </strong>{" "}
+          tiered fee.
         </span>
       </div>
     </div>
