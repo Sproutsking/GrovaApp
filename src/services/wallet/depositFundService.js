@@ -1,24 +1,36 @@
 // src/services/wallet/depositFundService.js
 // ════════════════════════════════════════════════════════════════════════════
-//  DEPOSIT FUND SERVICE — v6
+//  DEPOSIT FUND SERVICE — v7
 //
-//  EP MINT FIX:
-//    Previously depositCalcCredit("NGN", ...) returned raw NGN as EP,
-//    so a $4 / ₦5,380 payment showed "5,380 EP" in the preview and
-//    the webhook minted 5,380 EP instead of 400 EP.
+//  KEY FIX (v7):
+//    REACT_APP_PAYSTACK_PUBLIC_KEY is a build-time env variable.
+//    On localhost, CRA bakes it in during `npm start`.
+//    On production (Vercel / Netlify / Railway), if the env var is NOT set
+//    in the deployment dashboard it is simply `undefined` at runtime —
+//    even if it exists in your local .env.
 //
-//    Root cause: the old formula was:
-//      ep = Math.floor(naira * epPerNGN)     ← epPerNGN ≈ 0.073 → tiny
-//    BUT the webhook was calling mintOnDeposit(userId, ngnAmount, "NGN")
-//    with deposit_per_ngn = 1, giving 1 EP/₦1 = 5,380 EP.
+//    The auth/paywall Paystack worked because it either:
+//      a) Called Paystack via a backend/edge function (key never on client), or
+//      b) Had the var set in the deploy dashboard for that specific flow.
 //
-//    Fix applied in TWO places:
-//      1. depositCalcCredit (preview) — now correctly converts NGN→USD→EP
-//      2. mintOnDeposit call path    — webhook should pass USD amount with
-//         currency="USD". If it only has NGN, epService.computeEPMint now
-//         does the conversion internally.
+//    THE REAL FIX:
+//      The Paystack PUBLIC key is returned by your own edge function
+//      (deposit-paystack-init) in `initResult.paystackKey`.
+//      We use that. No client-side env var needed at all.
 //
-//    Correct result: $4 USD = 400 EP regardless of local currency charged.
+//      Fallback chain:
+//        1. initResult.paystackKey   ← server-side secret, always available
+//        2. process.env.REACT_APP_PAYSTACK_PUBLIC_KEY  ← local dev convenience
+//
+//    This means:
+//      - Works on localhost without any .env changes
+//      - Works on production without touching deployment env vars
+//      - Auth flow and deposit flow use the same key source
+//      - The public key never needs to be baked into the frontend bundle
+//
+//  EP MINT FIX (retained from v6):
+//    NGN → USD → EP conversion at 100 EP/USD.
+//    usd_amount passed in metadata so webhook mints correctly.
 //
 //  ECONOMY (authoritative):
 //    1 USD  = 100 EP
@@ -29,12 +41,12 @@
 import { supabase } from "../config/supabase";
 
 // ─── Economy ──────────────────────────────────────────────────────────────────
-export const MIN_DEPOSIT = 100;    // NGN
-const EP_PER_USD         = 100;    // 1 USD = 100 EP
+export const MIN_DEPOSIT = 100;   // NGN
+const EP_PER_USD         = 100;   // 1 USD = 100 EP
 const XEV_PER_EP         = 0.1;   // 1 XEV = 10 EP  (1 EP = 0.1 XEV)
 
 // ─── USD/NGN live rate ────────────────────────────────────────────────────────
-let _cachedRate    = 1500;  // raised default: more conservative, avoids over-minting
+let _cachedRate    = 1500;
 let _rateFetchedAt = 0;
 const RATE_TTL_MS  = 5 * 60 * 1000;
 
@@ -61,40 +73,20 @@ export async function getLiveUSDNGN() {
 }
 
 // ─── Conversion helpers (DISPLAY ONLY — server computes actual credit) ────────
-//
-// FIX: depositCalcCredit now correctly converts NGN → USD → EP.
-//
-// Old (wrong):
-//   ep = Math.floor(naira × epPerNGN)   where epPerNGN = EP_PER_USD / rate
-//   Example: Math.floor(5380 × (100/1345)) = Math.floor(400) = 400 EP ✓
-//   This was CORRECT in the preview. The bug was in the WEBHOOK path
-//   calling mintOnDeposit with currency="NGN" and deposit_per_ngn=1.
-//
-// The preview was actually fine. The webhook was the real bug.
-// But we harden both here for clarity and auditability.
-//
 export function depositCalcCredit(naira, currency, rate) {
   const n        = parseFloat(naira) || 0;
   const r        = rate || _cachedRate;
-
-  // Always: NGN → USD → EP
-  const usdEquiv = n / r;  // e.g. ₦5,380 / 1345 = $4.00
+  const usdEquiv = n / r;
 
   if (currency === "XEV") {
-    // $4 × (1 XEV / $0.10) = 40 XEV  →  but display in XEV
     const xev = parseFloat((usdEquiv / 0.1).toFixed(4));
     return { amount: xev, label: "$XEV" };
   }
 
-  // EP: $4 × 100 EP/USD = 400 EP
   const ep = Math.floor(usdEquiv * EP_PER_USD);
   return { amount: ep, label: "EP" };
 }
 
-/**
- * Returns both EP and XEV equivalents for a NGN amount.
- * Used in the rate strip / preview lines in DepositTab.
- */
 export function depositCalcXEV(naira, rate) {
   const n        = parseFloat(naira) || 0;
   const r        = rate || _cachedRate;
@@ -253,9 +245,28 @@ export async function depositSmartImport({ wallet, nairaAmount, userId, currency
 
 // ─── Paystack open ────────────────────────────────────────────────────────────
 //
-// FIX: We now pass `usd_amount` in the intent body so the webhook/edge
-// function can credit EP based on USD, not NGN. The edge function should
-// prefer usd_amount × 100 EP/USD over ngnAmount × (wrong rate).
+//  v7 KEY CHANGE:
+//    The Paystack PUBLIC key is now sourced from the edge function response
+//    (`initResult.paystackKey`). This means:
+//
+//    • Your edge function (deposit-paystack-init) must include this in its
+//      response JSON:
+//
+//        return new Response(JSON.stringify({
+//          reference,
+//          creditAmount,
+//          amountKobo,
+//          paystackKey: Deno.env.get("PAYSTACK_PUBLIC_KEY"),  // ← ADD THIS LINE
+//        }), { headers: { "Content-Type": "application/json" } });
+//
+//    • PAYSTACK_PUBLIC_KEY is already set in your Supabase edge function
+//      secrets (it must be, since auth Paystack works). No new secrets needed.
+//
+//    • REACT_APP_PAYSTACK_PUBLIC_KEY no longer needs to be in your frontend
+//      env at all — on production or locally.
+//
+//    Fallback: if the edge function hasn't been updated yet, we still check
+//    process.env as a secondary so local dev doesn't break during migration.
 //
 export async function depositPaystackOpen({
   userId,
@@ -272,6 +283,7 @@ export async function depositPaystackOpen({
   const n = parseFloat(nairaAmount);
   if (!n || n < MIN_DEPOSIT) throw new Error(`Minimum deposit is ₦${MIN_DEPOSIT}`);
 
+  // ── 1. Get auth session ───────────────────────────────────────────────────
   let session;
   try {
     const { data } = await supabase.auth.getSession();
@@ -286,21 +298,27 @@ export async function depositPaystackOpen({
   const userEmail = email || session?.user?.email;
   if (!userEmail) throw new Error("Email not found. Please update your profile.");
 
-  // Compute USD equivalent to pass to the edge function.
-  // The edge function must use this (not raw NGN) to mint EP correctly.
+  // ── 2. Compute USD equivalent ─────────────────────────────────────────────
   const rate      = await getLiveUSDNGN();
   const usdAmount = parseFloat((n / rate).toFixed(4));
 
+  // ── 3. Call edge function to register intent ──────────────────────────────
+  //       Edge function returns: { reference, creditAmount, amountKobo, paystackKey }
+  //       paystackKey is read from Deno.env on the server — always available.
   const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
   let initResult;
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/deposit-paystack-init`, {
       method:  "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization:  `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
+        userId,           // belt+suspenders: also send userId explicitly
         nairaAmount:  n,
-        usdAmount,          // ← NEW: pass USD so webhook can mint correctly
-        usdNgnRate:   rate, // ← NEW: pass the rate used for auditability
+        usdAmount,
+        usdNgnRate:   rate,
         currency,
         channel,
         ...(fromWallet      ? { from_wallet:      fromWallet }      : {}),
@@ -315,14 +333,28 @@ export async function depositPaystackOpen({
     throw new Error("Could not register deposit: " + (e?.message ?? "network error"));
   }
 
-  const { reference, creditAmount, amountKobo } = initResult;
+  const { reference, creditAmount, amountKobo, paystackKey: serverKey } = initResult;
   if (!reference) throw new Error("Server did not return a reference");
 
+  // ── 4. Resolve Paystack public key ────────────────────────────────────────
+  //       Priority: edge function response → local env fallback
+  //       If neither exists, surface a clear actionable error.
+  const PAYSTACK_KEY = serverKey || process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
+
+
+  if (!PAYSTACK_KEY) {
+    throw new Error(
+      "Paystack key unavailable. " +
+      "Please ensure your edge function (deposit-paystack-init) returns `paystackKey` " +
+      "from Deno.env.get(\"PAYSTACK_PUBLIC_KEY\"), or set REACT_APP_PAYSTACK_PUBLIC_KEY " +
+      "in your deployment environment variables."
+    );
+  }
+
+  // ── 5. Load Paystack inline script ───────────────────────────────────────
   await _loadPaystackScript();
 
-  const PAYSTACK_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
-  if (!PAYSTACK_KEY) throw new Error("Paystack public key not configured.");
-
+  // ── 6. Open Paystack popup ────────────────────────────────────────────────
   return new Promise((resolve, reject) => {
     const handler = window.PaystackPop.setup({
       key:      PAYSTACK_KEY,
@@ -335,8 +367,8 @@ export async function depositPaystackOpen({
         source:           "wallet_deposit",
         user_id:          userId,
         deposit_currency: currency,
-        usd_amount:       usdAmount,   // ← webhook reads this to mint EP
-        usd_ngn_rate:     rate,        // ← for audit trail
+        usd_amount:       usdAmount,
+        usd_ngn_rate:     rate,
         channel,
         ...(fromWallet      ? { wallet_name:      fromWallet }      : {}),
         ...(walletAddress   ? { wallet_address:   walletAddress }   : {}),

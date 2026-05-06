@@ -6,12 +6,17 @@
 // falling back to body.userId. This resolves "userId is required" error
 // that occurred when the frontend auth session hadn't fully propagated.
 //
+// FIX v2: Response now includes `paystackKey` (from REACT_APP_PAYSTACK_PUBLIC_KEY
+// secret) so the frontend never needs REACT_APP_PAYSTACK_PUBLIC_KEY baked into
+// the build. Works identically on localhost and production.
+//
 // ENV vars required:
-//   PAYSTACK_SECRET_KEY   – your Paystack secret key
-//   APP_URL               – your app's public URL
-//   SUPABASE_URL          – injected automatically by Supabase runtime
-//   SUPABASE_SERVICE_ROLE_KEY – injected automatically by Supabase runtime
-//   SUPABASE_ANON_KEY     – injected automatically by Supabase runtime
+//   PAYSTACK_SECRET_KEY          – your Paystack secret key (sk_live_...)
+//   REACT_APP_PAYSTACK_PUBLIC_KEY – your Paystack public key (pk_live_...)
+//   APP_URL                      – your app's public URL
+//   SUPABASE_URL                 – injected automatically by Supabase runtime
+//   SUPABASE_SERVICE_ROLE_KEY    – injected automatically by Supabase runtime
+//   SUPABASE_ANON_KEY            – injected automatically by Supabase runtime
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -155,12 +160,24 @@ serve(async (req: Request) => {
       );
     }
 
-    // ── 4. Paystack secret key ─────────────────────────────────────────────
+    // ── 4. Paystack keys ───────────────────────────────────────────────────
     const PAYSTACK_SECRET = Deno.env.get("PAYSTACK_SECRET_KEY");
     if (!PAYSTACK_SECRET) {
       console.error("[deposit-paystack-init] PAYSTACK_SECRET_KEY missing");
       return json(
         { success: false, error: "Payment gateway not configured" },
+        500,
+      );
+    }
+
+    // Public key is read server-side and returned to the client.
+    // This means REACT_APP_PAYSTACK_PUBLIC_KEY never needs to be set
+    // as a frontend build-time env var — works on all deployments.
+    const PAYSTACK_PUBLIC_KEY = Deno.env.get("REACT_APP_PAYSTACK_PUBLIC_KEY");
+    if (!PAYSTACK_PUBLIC_KEY) {
+      console.error("[deposit-paystack-init] REACT_APP_PAYSTACK_PUBLIC_KEY missing");
+      return json(
+        { success: false, error: "Payment gateway not configured (public key)" },
         500,
       );
     }
@@ -303,6 +320,9 @@ serve(async (req: Request) => {
     }
 
     // ── 8. Return success ──────────────────────────────────────────────────
+    // paystackKey is included so the frontend (depositFundService.js) can
+    // open the Paystack popup without needing REACT_APP_PAYSTACK_PUBLIC_KEY
+    // baked into the frontend build. Works on localhost and all deployments.
     return json({
       success: true,
       authorization_url: paystackData.data.authorization_url,
@@ -310,11 +330,11 @@ serve(async (req: Request) => {
       access_code: paystackData.data.access_code,
       amount_ngn: n,
       amount_kobo: amountKobo,
-      // creditAmount and amountKobo needed by depositFundService
       creditAmount,
       amountKobo,
       currency,
       label: creditLabel,
+      paystackKey: PAYSTACK_PUBLIC_KEY,  // ← frontend reads this to open popup
     });
   } catch (err) {
     console.error("[deposit-paystack-init] Unexpected error:", err);
