@@ -529,7 +529,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
 
 export const CV_CSS = `
 .cv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
-.cv-head{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.1);position:relative;z-index:10;flex-shrink:0;min-height:56px;}
+.cv-head{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.1);position:relative;z-index:10;flex-shrink:0;min-height:56px;padding: 0 10px;}
 .cv-back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;}
 .cv-back-btn:hover{background:rgba(132,204,22,.1);}
 .cv-head-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
@@ -623,7 +623,7 @@ export const CV_CSS = `
 .cv-rb-x{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#666;flex-shrink:0;}
 
 /* ── Input area — NOW WITH EMOJI + GIF ── */
-.cv-input-root{flex-shrink:0;background:rgba(0,0,0,.98);border-top:1px solid rgba(255,255,255,.06);position:relative;}
+.cv-input-root{flex-shrink:0;background:rgba(0,0,0,.98);border-top:1px solid rgba(255,255,255,.06);position:relative;padding:5px 10px;}
 .cv-input-bar{display:flex;align-items:flex-end;gap:8px;padding:10px 14px calc(env(safe-area-inset-bottom,0px)+12px);}
 /* Emoji + GIF icon buttons */
 .cv-input-icon-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#666;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;}

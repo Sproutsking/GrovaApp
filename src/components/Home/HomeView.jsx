@@ -1,4 +1,4 @@
-// src/components/Home/HomeView.jsx  — v24
+// src/components/Home/HomeView.jsx  — v25 PERFECTED
 //
 // [EAGER-1] ALL tabs mounted eagerly in background on first render.
 //           mountedTabs starts as ALL tabs (not just "home").
@@ -13,6 +13,10 @@
 //           each tab's new-content banner (NewPostBanner, NewReelBanner,
 //           NewStoryBanner, NewBanner) is ONLY visible when that tab is
 //           the selected tab. Nothing bleeds across tabs.
+//
+// [FIX-v25] setActiveHomeTab is now forwarded to <PostTab> so pipeline
+//           tap-to-navigate (Reels / News cards inside the post feed)
+//           actually switches the tab.
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Image, Film, BookOpen, RefreshCw, X, Hash, FileText, Newspaper } from "lucide-react";
@@ -151,7 +155,10 @@ const HomeView = ({
     initializeHome();
     const onPublish = e => handlePublishSuccess(e.detail?.item, e.detail?.type);
     window.addEventListener("grova:publish", onPublish);
-    return () => { rtCleanup.current.forEach(fn => fn?.()); window.removeEventListener("grova:publish", onPublish); };
+    return () => {
+      rtCleanup.current.forEach(fn => fn?.());
+      window.removeEventListener("grova:publish", onPublish);
+    };
   }, []); // eslint-disable-line
 
   useEffect(() => {
@@ -288,11 +295,9 @@ const HomeView = ({
     // Posts — route to PostTab via ref.prependPost
     const u1 = realtimeService.subscribeToNewPosts(p => {
       if (p.user_id === myId) return;
-      // Use the imperative handle on PostTab
       if (postTabRef.current?.prependPost) {
         postTabRef.current.prependPost(p);
       } else {
-        // Fallback: add directly if tab isn't mounted yet
         setPosts(prev => prev.some(x => x.id === p.id) ? prev : [p, ...prev]);
       }
     });
@@ -375,8 +380,8 @@ const HomeView = ({
     return <UnifiedLoader type="page" error={error} onRetry={() => { setError(null); initializeHome(); }}/>;
   }
 
-  const savedFolders = ["Favorites", "Inspiration", "Later"];
-  const resolvedUser = currentUser || currentUserProp;
+  const savedFolders  = ["Favorites", "Inspiration", "Later"];
+  const resolvedUser  = currentUser || currentUserProp;
 
   return (
     <>
@@ -409,7 +414,7 @@ const HomeView = ({
               Nothing bleeds across tabs — ever.
             */}
 
-            {/* POSTS TAB */}
+            {/* ── POSTS TAB ── */}
             <div style={{ display: currentTab === "posts" ? "block" : "none" }}>
               {posts.length > 0 ? (
                 <PostTab
@@ -422,7 +427,8 @@ const HomeView = ({
                   onLoadMore={loadMorePosts}
                   hasMore={hasMorePosts}
                   isLoadingMore={loadingMore}
-                  isActive={currentTab === "posts"}   // ← banner gate
+                  isActive={currentTab === "posts"}
+                  setActiveHomeTab={setActiveHomeTab}   // ← pipeline tab-switch
                 />
               ) : initialDone ? (
                 <EmptyState
@@ -435,7 +441,7 @@ const HomeView = ({
               )}
             </div>
 
-            {/* REELS TAB */}
+            {/* ── REELS TAB ── */}
             <div style={{ display: currentTab === "reels" ? "block" : "none" }}>
               {reels.length > 0 ? (
                 <ReelsTab
@@ -444,7 +450,7 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onComment={handleComment}
-                  isActive={currentTab === "reels"}   // ← banner gate
+                  isActive={currentTab === "reels"}
                 />
               ) : initialDone ? (
                 <EmptyState
@@ -455,7 +461,7 @@ const HomeView = ({
               ) : null}
             </div>
 
-            {/* STORIES TAB */}
+            {/* ── STORIES TAB ── */}
             <div style={{ display: currentTab === "stories" ? "block" : "none" }}>
               {stories.length > 0 ? (
                 <StoryTab
@@ -465,7 +471,7 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onUnlock={handleUnlock}
-                  isActive={currentTab === "stories"} // ← banner gate
+                  isActive={currentTab === "stories"}
                 />
               ) : initialDone ? (
                 <EmptyState
@@ -476,7 +482,7 @@ const HomeView = ({
               ) : null}
             </div>
 
-            {/* NEWS TAB */}
+            {/* ── NEWS TAB ── */}
             <div style={{ display: currentTab === "news" ? "block" : "none" }}>
               <NewsTab
                 ref={newsTabRef}
@@ -485,14 +491,17 @@ const HomeView = ({
                 onLoadMore={loadMoreNews}
                 hasMore={hasMoreNews}
                 isLoadingMore={newsLoading}
-                isActive={currentTab === "news"}      // ← banner gate
+                isActive={currentTab === "news"}
               />
             </div>
           </div>
         )}
       </div>
 
-      {showProfile && selectedUser && <UserProfileModal user={selectedUser} onClose={() => setShowProfile(false)}/>}
+      {/* ── Modals ── */}
+      {showProfile && selectedUser && (
+        <UserProfileModal user={selectedUser} onClose={() => setShowProfile(false)}/>
+      )}
       {showActionMenu && selectedContent && (
         <ActionMenu
           position={actionMenuPos} isOwnPost={isOwnContent} content={selectedContent}
@@ -509,9 +518,15 @@ const HomeView = ({
           onCommentPosted={(delta=1) => syncCommentCount(selectedContent.id,selectedContent.type||"post",delta)}
         />
       )}
-      {showPinModal    && <TransactionPinModal onConfirm={handlePinConfirm}   onClose={() => setShowPinModal(false)}/>}
-      {showTwoFA       && <TwoFAModal          onConfirm={handleTwoFAConfirm} onClose={() => setShowTwoFA(false)}/>}
-      {showSaveFolder  && <SaveFolderModal folders={savedFolders} onSave={handleSave} onClose={() => setShowSaveFolder(false)}/>}
+      {showPinModal && (
+        <TransactionPinModal onConfirm={handlePinConfirm} onClose={() => setShowPinModal(false)}/>
+      )}
+      {showTwoFA && (
+        <TwoFAModal onConfirm={handleTwoFAConfirm} onClose={() => setShowTwoFA(false)}/>
+      )}
+      {showSaveFolder && (
+        <SaveFolderModal folders={savedFolders} onSave={handleSave} onClose={() => setShowSaveFolder(false)}/>
+      )}
       {showEditModal && selectedContent && (
         <EditPostModal
           story={selectedContent}
