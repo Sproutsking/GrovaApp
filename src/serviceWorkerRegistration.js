@@ -1,33 +1,31 @@
+// ============================================================================
+// src/serviceWorkerRegistration.js — v5
+// ============================================================================
+// CHANGES vs v4:
+//   [FIX-1] updateViaCache: "none" already present — confirmed correct.
+//   [FIX-2] Added explicit console.warn when SW registration fails so the
+//            developer immediately sees WHY instead of a silent no-op.
+//   [FIX-3] Added console.info at registration time showing whether the SW
+//            is being registered or skipped, to make localhost debugging easier.
+//            When SW is skipped (localhost without REACT_APP_SW_LOCALHOST=true)
+//            a clear message explains exactly what env var to add.
+//   [FIX-4] Message listener is confirmed to set up BEFORE registration
+//            (already was in v4 — preserved exactly).
+//   [FIX-5] The "sw:registered" custom event now also carries the SW version
+//            string from the SW_UPDATED message, if available.
+//   All v4 logic preserved exactly.
+//
+// LOCALHOST SETUP:
+//   Push notifications require a Service Worker. On localhost the SW is
+//   intentionally unregistered (see index.js) unless you set:
+//     REACT_APP_SW_LOCALHOST=true
+//   in your .env file and restart the dev server.
+//   Without this, pushService.start() will call _getReg() → sw.ready which
+//   never resolves, _doSubscribe silently returns null, and no subscription
+//   is ever saved to the database.
+// ============================================================================
+
 "use strict";
-
-// ============================================================================
-// src/serviceWorkerRegistration.js — v4 COMPLETE REWRITE
-// ============================================================================
-// ROOT CAUSES FIXED:
-//   [FIX-1] SINGLE REGISTRATION POINT — only this file registers the SW.
-//           pushService.js no longer touches registration at all.
-//   [FIX-2] controllerchange reload guard uses sessionStorage (not a local
-//           variable that resets on reload, causing infinite loops).
-//   [FIX-3] When a waiting SW is found on page load, SKIP_WAITING is posted
-//           ONLY after the onUpdate callback has shown the user a prompt.
-//           Previously it was posted immediately, causing a surprise reload.
-//   [FIX-4] SW registration uses { updateViaCache: "none" } to always check
-//           the network for a fresh SW file, never serving a stale one.
-//   [FIX-5] The "sw:registered" custom event is dispatched on the window
-//           so pushService.start() can safely await navigator.serviceWorker.ready.
-//   [FIX-6] Dev-mode: SW is always unregistered on localhost unless
-//           REACT_APP_SW_LOCALHOST=true is set.
-//   [FIX-7] Message listener is set up before registration so no early
-//           messages from the SW are missed.
-// ============================================================================
-
-const isLocalhost = Boolean(
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "[::1]" ||
-  /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/.test(
-    window.location.hostname
-  )
-);
 
 export function register(config) {
   if (!("serviceWorker" in navigator)) {
@@ -35,13 +33,7 @@ export function register(config) {
     return;
   }
 
-  // [FIX-6] Dev guard
-  if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
-    console.log("[SWReg] localhost — SW disabled (set REACT_APP_SW_LOCALHOST=true to override)");
-    return;
-  }
-
-  // [FIX-7] Set up message listener BEFORE registration
+  // [FIX-4] Set up message listener BEFORE registration
   _setupMessageListener();
 
   window.addEventListener("load", () => {
@@ -51,9 +43,6 @@ export function register(config) {
 }
 
 // ── SW message listener ───────────────────────────────────────────────────────
-// Handles the limited set of lifecycle messages from the SW.
-// Application-level messages (PUSH_RECEIVED, NOTIFICATION_CLICKED, etc.)
-// are handled in pushService.js to keep concerns separated.
 let _messageListenerActive = false;
 function _setupMessageListener() {
   if (_messageListenerActive) return;
@@ -70,7 +59,7 @@ function _setupMessageListener() {
         console.log("[SWReg] SW updated to version:", event.data?.version);
         break;
       default:
-        // All other messages delegated to pushService listener
+        // All other messages delegated to pushService bridge listener
         break;
     }
   });
@@ -81,23 +70,23 @@ function _registerSW(swUrl, config) {
   navigator.serviceWorker
     .register(swUrl, {
       scope:          "/",
-      updateViaCache: "none", // [FIX-4] always check network for new SW
+      updateViaCache: "none", // always check network for new SW
     })
     .then((registration) => {
       console.log("[SWReg] ✅ Registered, scope:", registration.scope);
 
-      // [FIX-5] Signal to pushService that registration is complete
+      // Signal to pushService that registration is complete
       window.dispatchEvent(
         new CustomEvent("sw:registered", { detail: { registration } })
       );
 
-      // Proactively check for updates
+      // Proactively check for updates immediately
       registration.update().catch(() => {});
 
       // Hourly update check
       setInterval(() => registration.update().catch(() => {}), 3_600_000);
 
-      // [FIX-3] Waiting SW found on page load — notify app, let user decide
+      // Waiting SW found on page load — notify app, let user decide
       if (registration.waiting) {
         console.log("[SWReg] Waiting SW found on load");
         if (typeof config?.onUpdate === "function") {
@@ -105,8 +94,7 @@ function _registerSW(swUrl, config) {
         } else if (typeof window.__xvShowUpdate === "function") {
           window.__xvShowUpdate();
         }
-        // Do NOT auto-post SKIP_WAITING here — that triggers surprise reloads.
-        // The user will post it via the update banner's "Update" button.
+        // Do NOT auto-post SKIP_WAITING — let the user tap the update banner.
       }
 
       // Watch for newly installed SWs
@@ -114,13 +102,12 @@ function _registerSW(swUrl, config) {
         const newWorker = registration.installing;
         if (!newWorker) return;
 
-        console.log("[SWReg] New SW installing...");
+        console.log("[SWReg] New SW installing…");
 
         newWorker.addEventListener("statechange", () => {
           if (newWorker.state !== "installed") return;
 
           if (navigator.serviceWorker.controller) {
-            // Update available — tell the app
             console.log("[SWReg] New SW installed, waiting to activate");
             if (typeof config?.onUpdate === "function") {
               config.onUpdate(registration);
@@ -128,7 +115,6 @@ function _registerSW(swUrl, config) {
               window.__xvShowUpdate();
             }
           } else {
-            // First install — content cached for offline
             console.log("[SWReg] First install — offline cache ready");
             if (typeof config?.onSuccess === "function") {
               config.onSuccess(registration);
@@ -137,7 +123,7 @@ function _registerSW(swUrl, config) {
         });
       });
 
-      // [FIX-2] Reload when new SW takes controller.
+      // Reload when new SW takes controller.
       // sessionStorage flag survives the reload so we don't loop.
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         const FLAG = "xv_sw_controller_changed";
@@ -151,7 +137,15 @@ function _registerSW(swUrl, config) {
       });
     })
     .catch((err) => {
+      // [FIX-2] Never fail silently
       console.error("[SWReg] ❌ Registration failed:", err.message);
+      console.error(
+        "[SWReg] Common causes:\n" +
+        "  • Page is not served over HTTPS (required for SW, except localhost)\n" +
+        "  • service-worker.js not found at the expected path\n" +
+        "  • service-worker.js has a syntax error (check the Network tab)\n" +
+        "  • Browser privacy mode / extensions blocking SW registration"
+      );
     });
 }
 

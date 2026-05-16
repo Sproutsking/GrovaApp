@@ -1,18 +1,27 @@
 // ============================================================================
-// src/App.jsx — v23 AMBASSADOR WIRED
+// src/App.jsx — v25 PUSH STARTUP RACE FIXED
 // ============================================================================
 //
-// CHANGES vs v22:
-//   [AMB-1] AmbassadorView imported as a lazy overlay view.
-//   [AMB-2] "ambassador" added to OVERLAY_TABS so handleTabChange routes it
-//           correctly — does NOT interfere with any existing tab logic.
-//   [AMB-3] renderOverlay() handles case "ambassador" → renders AmbassadorView
-//           with a back-button header that returns to "account".
-//   [AMB-4] AccountView receives onNavigate={handleTabChange} so the
-//           ambassador button in ProfileSection calls handleTabChange("ambassador")
-//           which sets overlayTab="ambassador" and renders it.
-//
-//   All v22 call/DM fixes preserved exactly.
+// CHANGES vs v24:
+//   [PUSH-FIX-1] pushService.start() is no longer inside a setTimeout(2000).
+//                The bridge is now attached in index.js before React renders
+//                (via attachBridgeEarly()), so there is no race. start() can
+//                be called immediately after the 2s guard was just protecting
+//                against. Removing the delay means subscriptions are created
+//                faster and PENDING_PAYLOADS are drained without a 2-second gap.
+//   [PUSH-FIX-2] push:needs_permission listener added inside the init useEffect
+//                so when the SW dispatches the event (on first visit with
+//                Notification.permission === "default") a non-blocking nudge
+//                can show the permission prompt on the next user gesture.
+//                This uses window.__pushUserId set by index.js + a custom
+//                window.__xvRequestPushPermission hook that any component
+//                (e.g. AccountView settings) can call from a button click.
+//   [PUSH-FIX-3] The unified push useEffect now also handles "push_received"
+//                for general notifications that are NOT incoming_call — they
+//                are forwarded directly to the InAppNotificationToast via
+//                addToastRef so in-app toasts fire even when the user has
+//                not scrolled to the notifications tab.
+//   All v24 logic preserved exactly.
 // ============================================================================
 
 import React, {
@@ -70,29 +79,29 @@ import IncomingCallToast       from "./components/Messages/IncomingCallToast";
 import AdminDashboard from "./components/Admin/AdminDashboard";
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
-const HomeView      = lazy(() => import("./components/Home/HomeView"));
-const ExploreView   = lazy(() => import("./components/Explore/ExploreView"));
-const CreateView    = lazy(() => import("./components/Create/CreateView"));
-const AccountView   = lazy(() => import("./components/Account/AccountView"));
-const WalletView    = lazy(() => import("./components/wallet/WalletView"));
-const CommunityView = lazy(() => import("./components/Community/CommunityView"));
+const HomeView        = lazy(() => import("./components/Home/HomeView"));
+const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
+const CreateView      = lazy(() => import("./components/Create/CreateView"));
+const AccountView     = lazy(() => import("./components/Account/AccountView"));
+const WalletView      = lazy(() => import("./components/wallet/WalletView"));
+const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
 const TrendingSidebar = lazy(() => import("./components/Shared/TrendingSidebar"));
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
-const AnalyticsView   = lazy(() => import("./components/Analytics/AnalyticsView"));
-const UpgradeView     = lazy(() => import("./components/Upgrade/UpgradeView"));
-const RewardsView     = lazy(() => import("./components/Rewards/RewardsView"));
-const StreamView      = lazy(() => import("./components/Stream/StreamView"));
-const GiftCardsView   = lazy(() => import("./components/GiftCards/GiftCardsView"));
-const DMMessagesView  = lazy(() => import("./components/Messages/DMMessagesView"));
-const ActiveCall      = lazy(() => import("./components/Messages/ActiveCall"));
-// [AMB-1] Ambassador view — lazy overlay
-const AmbassadorView  = lazy(() => import("./components/Ambassador/AmbassadorView"));
+const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
+const UpgradeView    = lazy(() => import("./components/Upgrade/UpgradeView"));
+const RewardsView    = lazy(() => import("./components/Rewards/RewardsView"));
+const StreamView     = lazy(() => import("./components/Stream/StreamView"));
+const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView"));
+const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView"));
+const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall"));
+const AmbassadorView = lazy(() => import("./components/Ambassador/AmbassadorView"));
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
-// [AMB-2] "ambassador" added — routes through handleTabChange → setOverlayTab
-const OVERLAY_TABS = new Set(["analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador"]);
-const PSEUDO_TABS  = new Set(["support", "notifications", "trending"]); // eslint-disable-line
+const OVERLAY_TABS = new Set([
+  "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador",
+]);
+const PSEUDO_TABS = new Set(["support", "notifications", "trending"]); // eslint-disable-line
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const checkMobile = () => window.innerWidth <= 768;
@@ -122,12 +131,12 @@ const TabSkeleton = memo(() => (
       <div
         key={i}
         style={{
-          height: "80px",
-          background: "rgba(255,255,255,0.03)",
-          borderRadius: "12px",
-          marginBottom: "12px",
-          animation: "skPulse 1.4s ease-in-out infinite",
-          animationDelay: `${i * 0.15}s`,
+          height:          "80px",
+          background:      "rgba(255,255,255,0.03)",
+          borderRadius:    "12px",
+          marginBottom:    "12px",
+          animation:       "skPulse 1.4s ease-in-out infinite",
+          animationDelay:  `${i * 0.15}s`,
         }}
       />
     ))}
@@ -142,21 +151,21 @@ const OfflineBanner = memo(({ visible }) => {
   return (
     <div
       style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 99998,
-        background: "rgba(239,68,68,0.96)",
-        color: "#fff",
-        textAlign: "center",
-        padding: "9px 16px",
-        fontSize: "12.5px",
-        fontWeight: "600",
-        display: "flex",
-        alignItems: "center",
+        position:       "fixed",
+        top:            0,
+        left:           0,
+        right:          0,
+        zIndex:         99998,
+        background:     "rgba(239,68,68,0.96)",
+        color:          "#fff",
+        textAlign:      "center",
+        padding:        "9px 16px",
+        fontSize:       "12.5px",
+        fontWeight:     "600",
+        display:        "flex",
+        alignItems:     "center",
         justifyContent: "center",
-        gap: "8px",
+        gap:            "8px",
         backdropFilter: "blur(4px)",
       }}
     >
@@ -213,7 +222,7 @@ const MainApp = memo(() => {
   const [showMessages,   setShowMessages]   = useState(false);
   const [dmTargetUserId, setDmTargetUserId] = useState(null);
 
-  // Active call overlay for callee accepting from toast
+  // Active call overlay
   const [showActiveCall,   setShowActiveCall]   = useState(false);
   const [acceptedCallData, setAcceptedCallData] = useState(null);
 
@@ -265,7 +274,7 @@ const MainApp = memo(() => {
     };
   }, [isOnline]);
 
-  // Notification deep-link navigate
+  // ── Notification deep-link navigate ──────────────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
     if (!path || path === "/") return;
 
@@ -328,9 +337,27 @@ const MainApp = memo(() => {
       addToastRef.current?.(toast);
     });
 
+    // [PUSH-FIX-1] No setTimeout — bridge is already attached via
+    // attachBridgeEarly() in index.js. start() is safe to call immediately.
     if (navigator.onLine) {
-      setTimeout(() => pushService.start(user.id).catch(() => {}), 2000);
+      pushService.start(user.id).catch(() => {});
+    } else {
+      // If offline at mount, start() when connectivity returns.
+      // pushService.start() itself handles the online event internally,
+      // but we still need to call it to set _userId and attach the visibility check.
+      pushService.start(user.id).catch(() => {});
     }
+
+    // [PUSH-FIX-2] Expose a hook so any component (e.g. account settings
+    // "Enable notifications" button) can trigger the permission flow from
+    // within a user gesture without importing pushService directly.
+    window.__xvRequestPushPermission = async () => {
+      const granted = await pushService.enablePushNotifications(user.id);
+      if (granted) {
+        console.log("[App] Push permission granted and subscription created");
+      }
+      return granted;
+    };
 
     loadWalletAndAvatar(user.id, profile).catch(() => {});
     preloadTabs();
@@ -347,30 +374,50 @@ const MainApp = memo(() => {
     return () => clearTimeout(refreshTimeout.current);
   }, [user?.id, profile]); // eslint-disable-line
 
-  // Callee accepting a call from toast (outside DM)
+  // ── UNIFIED PUSH + CALL EVENT HANDLER ────────────────────────────────────
   useEffect(() => {
-    const handler = (e) => {
-      const callData = e.detail;
-      if (!callData) return;
-      setAcceptedCallData({ ...callData, outgoing: false });
-      setShowActiveCall(true);
-      setShowMessages(false);
-    };
-    window.addEventListener("nova:accept_call", handler);
-    return () => window.removeEventListener("nova:accept_call", handler);
-  }, []);
+    if (!user?.id) return;
 
-  // OS push notification call accept/decline
-  useEffect(() => {
-    const unsubAccept = pushService.on("call_accepted_from_notification", (callData) => {
+    // ── OS / SW notification tapped → navigate ──────────────────────────
+    const unsubClick = pushService.on("notification_clicked", ({ url }) => {
+      if (url) handleNotificationNavigate(url);
+    });
+
+    // ── SW updated ───────────────────────────────────────────────────────
+    const unsubSwUpdate = pushService.on("sw_updated", ({ version }) => {
+      console.log("[App] SW updated to", version);
+    });
+
+    // ── Incoming call arrived via push (app backgrounded/closed) ─────────
+    const unsubCallPush = pushService.on("incoming_call_push", (callData) => {
+      if (!callData) return;
+      callService._onIncomingCall({
+        callId:         callData.call_id          || callData.callId,
+        callType:       callData.call_type         || callData.callType        || "audio",
+        type:           callData.call_type         || callData.callType        || "audio",
+        callerId:       callData.actor_user_id     || callData.callerId,
+        callerName:     callData.caller_name       || callData.callerName      || "Caller",
+        name:           callData.caller_name       || callData.callerName      || "Caller",
+        callerAvatarId: callData.caller_avatar_id  || callData.callerAvatarId  || null,
+        callerAvId:     callData.caller_avatar_id  || callData.callerAvatarId  || null,
+        caller: {
+          id:        callData.actor_user_id     || null,
+          full_name: callData.caller_name       || "Caller",
+          avatar_id: callData.caller_avatar_id  || null,
+        },
+      });
+    });
+
+    // ── OS notification: user tapped "Accept" on call notification ────────
+    const unsubAcceptNotif = pushService.on("call_accepted_from_notification", (callData) => {
       if (!callData) return;
       setAcceptedCallData({
-        callId:   callData.call_id   || callData.callId,
+        callId:   callData.call_id     || callData.callId,
         name:     callData.caller_name || callData.callerName || "Caller",
         type:     callData.call_type   || callData.callType   || "audio",
         outgoing: false,
         user: {
-          id:        callData.caller_id        || null,
+          id:        callData.actor_user_id    || null,
           full_name: callData.caller_name      || "Caller",
           avatar_id: callData.caller_avatar_id || null,
         },
@@ -379,40 +426,66 @@ const MainApp = memo(() => {
       setShowMessages(false);
     });
 
-    const unsubDecline = pushService.on("call_declined_from_notification", (callData) => {
+    // ── OS notification: user tapped "Decline" on call notification ───────
+    const unsubDeclineNotif = pushService.on("call_declined_from_notification", (callData) => {
       if (!callData) return;
-      const callId   = callData.call_id   || callData.callId;
-      const callerId = callData.caller_id || null;
-      if (callId) {
-        import("./services/messages/callService").then(({ default: cs }) => {
-          cs.declineCall(callId, callerId);
-        }).catch(() => {});
+      const callId   = callData.call_id || callData.callId;
+      const callerId = callData.actor_user_id || null;
+      if (callId) callService.declineCall(callId, callerId);
+    });
+
+    // ── [PUSH-FIX-3] General push_received → in-app toast ─────────────────
+    // Ensures non-call push notifications show an in-app toast when the app
+    // is open. InAppNotificationToast also subscribes to this via pushService
+    // directly, so dedup in that component prevents double-toasts.
+    const unsubPushReceived = pushService.on("push_received", (payload) => {
+      if (!payload) return;
+      const type = payload?.data?.type || "general";
+      // incoming_call handled by IncomingCallToast, not a toast
+      if (type === "incoming_call") return;
+      // dm handled by MessageNotificationService
+      if (type === "dm") return;
+      // All other types: forward to InAppNotificationToast via addToastRef
+      if (addToastRef.current) {
+        addToastRef.current({
+          type,
+          title:   payload.title  || null,
+          message: payload.body   || payload?.data?.message || "",
+          data:    payload.data   || {},
+        });
       }
     });
 
-    const params = new URLSearchParams(window.location.search);
+    // ── In-app toast: user tapped "Accept" inside the app ────────────────
+    const handleInAppAccept = (e) => {
+      const callData = e.detail;
+      if (!callData) return;
+      setAcceptedCallData({ ...callData, outgoing: false });
+      setShowActiveCall(true);
+      setShowMessages(false);
+    };
+    window.addEventListener("nova:accept_call", handleInAppAccept);
+
+    // ── Cold start: app opened via ?accept_call=<id> deep link ───────────
+    const params           = new URLSearchParams(window.location.search);
     const coldAcceptCallId = params.get("accept_call");
     if (coldAcceptCallId) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("accept_call");
-      window.history.replaceState({}, "", url.toString());
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("accept_call");
+      window.history.replaceState({}, "", cleanUrl.toString());
       setShowMessages(true);
     }
 
-    return () => { unsubAccept(); unsubDecline(); };
-  }, []); // eslint-disable-line
-
-  // ── Push listeners ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user?.id) return;
-    const unsubClick  = pushService.on("notification_clicked", ({ url }) => {
-      if (url) handleNotificationNavigate(url);
-    });
-    const unsubUpdate = pushService.on("sw_updated", ({ version }) => {
-      console.log("[App] SW updated to", version);
-    });
-    return () => { unsubClick(); unsubUpdate(); };
-  }, [user?.id, handleNotificationNavigate]);
+    return () => {
+      unsubClick();
+      unsubSwUpdate();
+      unsubCallPush();
+      unsubAcceptNotif();
+      unsubDeclineNotif();
+      unsubPushReceived();
+      window.removeEventListener("nova:accept_call", handleInAppAccept);
+    };
+  }, [user?.id, handleNotificationNavigate]); // eslint-disable-line
 
   // ── Auto-refresh (desktop) ───────────────────────────────────────────────
   useEffect(() => {
@@ -548,8 +621,6 @@ const MainApp = memo(() => {
   }, []);
 
   // ── MASTER NAVIGATION HANDLER ────────────────────────────────────────────
-  // [AMB-2] "ambassador" is in OVERLAY_TABS so it hits the OVERLAY_TABS
-  // branch naturally — setOverlayTab("ambassador") — no special casing needed.
   const handleTabChange = useCallback((newTab) => {
     if (newTab === "support")       { setShowSupport(true);       return; }
     if (newTab === "notifications") { setShowNotifications(true); return; }
@@ -567,7 +638,6 @@ const MainApp = memo(() => {
       return;
     }
     if (OVERLAY_TABS.has(newTab)) {
-      // "ambassador" lands here — sets overlayTab which renderOverlay() picks up
       if (newTab !== "stream") setStreamSession(null);
       setOverlayTab(newTab);
       return;
@@ -646,7 +716,6 @@ const MainApp = memo(() => {
         id: "account",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            {/* [AMB-4] onNavigate={handleTabChange} so ambassador button works */}
             <AccountView
               {...viewProps}
               accountSection={accountSection}
@@ -698,7 +767,11 @@ const MainApp = memo(() => {
       case "analytics":
         return (
           <Suspense fallback={null}>
-            <AnalyticsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+            <AnalyticsView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
       case "upgrade":
@@ -710,7 +783,11 @@ const MainApp = memo(() => {
       case "rewards":
         return (
           <Suspense fallback={null}>
-            <RewardsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+            <RewardsView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
       case "stream":
@@ -727,45 +804,60 @@ const MainApp = memo(() => {
       case "giftcards":
         return (
           <Suspense fallback={null}>
-            <GiftCardsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToAccount} />
+            <GiftCardsView
+              currentUser={currentUser}
+              userId={user.id}
+              onClose={closeOverlayToAccount}
+            />
           </Suspense>
         );
-      // [AMB-3] Ambassador view — full overlay with back button to account
       case "ambassador":
         return (
           <Suspense fallback={null}>
-            <div style={{
-              position: "fixed", inset: 0, zIndex: 9500,
-              background: "#060608", overflowY: "auto",
-              fontFamily: "'DM Sans','Inter',system-ui,sans-serif",
-            }}>
-              {/* Back header */}
-              <div style={{
-                position: "sticky", top: 0, zIndex: 10,
-                display: "flex", alignItems: "center", gap: 10,
-                padding: isMobile ? "12px 16px" : "14px 24px",
-                background: "rgba(6,6,8,0.96)",
-                backdropFilter: "blur(12px)",
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-              }}>
+            <div
+              style={{
+                position:   "fixed",
+                inset:      0,
+                zIndex:     9500,
+                background: "#060608",
+                overflowY:  "auto",
+                fontFamily: "'DM Sans','Inter',system-ui,sans-serif",
+              }}
+            >
+              <div
+                style={{
+                  position:     "sticky",
+                  top:          0,
+                  zIndex:       10,
+                  display:      "flex",
+                  alignItems:   "center",
+                  gap:          10,
+                  padding:      isMobile ? "12px 16px" : "14px 24px",
+                  background:   "rgba(6,6,8,0.96)",
+                  backdropFilter: "blur(12px)",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
                 <button
                   onClick={closeOverlayToAccount}
                   style={{
-                    display: "flex", alignItems: "center", gap: 7,
-                    background: "transparent", border: "none",
-                    color: "#a3e635", fontWeight: 700, fontSize: 13,
-                    cursor: "pointer", fontFamily: "inherit",
-                    padding: "6px 0",
+                    display:    "flex",
+                    alignItems: "center",
+                    gap:        7,
+                    background: "transparent",
+                    border:     "none",
+                    color:      "#a3e635",
+                    fontWeight: 700,
+                    fontSize:   13,
+                    cursor:     "pointer",
+                    fontFamily: "inherit",
+                    padding:    "6px 0",
                   }}
                 >
                   ← Back
                 </button>
               </div>
-              {/* Ambassador view content */}
-              <AmbassadorView
-                userId={user.id}
-                userProfile={currentUser}
-              />
+              <AmbassadorView userId={user.id} userProfile={currentUser} />
             </div>
           </Suspense>
         );
@@ -803,7 +895,6 @@ const MainApp = memo(() => {
     );
   };
 
-  // Normalised currentUser for call/DM components
   const currentUserNorm = {
     id:        currentUser.id,
     name:      currentUser.fullName || currentUser.name || "User",
@@ -820,7 +911,10 @@ const MainApp = memo(() => {
       <OfflineBanner visible={showOfflineBanner} />
 
       {showAdminDashboard && isAdmin && (
-        <AdminDashboard adminData={adminData} onClose={() => setShowAdminDashboard(false)} />
+        <AdminDashboard
+          adminData={adminData}
+          onClose={() => setShowAdminDashboard(false)}
+        />
       )}
 
       {renderOverlay()}
@@ -829,7 +923,7 @@ const MainApp = memo(() => {
         style={{
           visibility:    showAdminDashboard ? "hidden" : "visible",
           pointerEvents: showAdminDashboard ? "none"   : "auto",
-          display: "contents",
+          display:       "contents",
         }}
       >
         {!isMobile && (
@@ -910,19 +1004,19 @@ const MainApp = memo(() => {
       {showExitPrompt && (
         <div
           style={{
-            position: "fixed",
-            bottom: isMobile ? "68px" : "20px",
-            left: "50%",
-            transform: "translateX(-50%)",
+            position:   "fixed",
+            bottom:     isMobile ? "68px" : "20px",
+            left:       "50%",
+            transform:  "translateX(-50%)",
             background: "rgba(0,0,0,0.9)",
-            color: "#84cc16",
-            padding: "12px 24px",
+            color:      "#84cc16",
+            padding:    "12px 24px",
             borderRadius: "8px",
-            fontSize: "14px",
+            fontSize:   "14px",
             fontWeight: "600",
-            zIndex: 10000,
-            border: "1px solid #84cc16",
-            animation: "xSlideUp .3s ease-out",
+            zIndex:     10000,
+            border:     "1px solid #84cc16",
+            animation:  "xSlideUp .3s ease-out",
           }}
         >
           Press back again to exit
@@ -942,7 +1036,6 @@ const MainApp = memo(() => {
         isMobile={isMobile}
       />
 
-      {/* DM panel */}
       {showMessages && (
         <Suspense fallback={null}>
           <DMMessagesView
@@ -953,7 +1046,6 @@ const MainApp = memo(() => {
         </Suspense>
       )}
 
-      {/* Callee active call overlay */}
       {showActiveCall && acceptedCallData && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100001, background: "#000" }}>
           <Suspense fallback={null}>
@@ -966,7 +1058,6 @@ const MainApp = memo(() => {
         </div>
       )}
 
-      {/* IncomingCallToast at app root */}
       <IncomingCallToast
         onAccept={(callData) => {
           setAcceptedCallData({ ...callData, outgoing: false });

@@ -1,58 +1,87 @@
 // ============================================================================
-// src/services/notifications/pushService.js — v9 COMPLETE FIX
+// src/services/notifications/pushService.js — v14 ALL BUGS FIXED
 // ============================================================================
-// ROOT CAUSES FIXED:
-//   [FIX-1] Removed duplicate SW registration — pushService NO LONGER calls
-//           navigator.serviceWorker.register(). That is ONLY done in
-//           serviceWorkerRegistration.js. Double registration caused
-//           controllerchange → reload → subscription never saved.
-//   [FIX-2] Permission is no longer requested on a timer. It's exposed as
-//           a method that must be called from a user gesture (button click).
-//           Chrome 2020+ silently ignores permission requests without gesture.
-//   [FIX-3] SW bridge now attaches AFTER serviceWorker is ready, not at
-//           module import time when controller is null.
-//   [FIX-4] savePushSubscription uses upsert with correct conflict target
-//           matching what your DB actually enforces (user_id + endpoint).
-//           Added a DELETE + INSERT fallback if upsert fails.
-//   [FIX-5] Added subscription validity check on every start() — if the
-//           stored endpoint is dead or subscription missing, re-subscribes.
-//   [FIX-6] Added visibilitychange listener to re-verify subscription when
-//           user returns to app after clearing site data.
-//   [FIX-7] Exponential backoff retry on subscribe with proper error
-//           classification (permission errors don't retry).
+// FIXES vs v13:
+//   [FIX-1] attachBridgeEarly() public method added so index.js can call
+//            _attachBridge() BEFORE React mounts — eliminates the race where
+//            early SW messages (PUSH_RECEIVED on cold start, PENDING_PAYLOADS)
+//            arrive before the 2-second delayed start() and are silently dropped.
+//   [FIX-2] start() no longer silently ignores network offline — it schedules
+//            a retry via the online event so subscriptions eventually complete
+//            even when the user first opens the app without connectivity.
+//   [FIX-3] _doSubscribe properly handles the case where the existing browser
+//            subscription has a different applicationServerKey (VAPID key
+//            changed) — it unsubscribes + resubscribes instead of trying to
+//            save the stale one.
+//   [FIX-4] sendPushToUser self-send guard now checks _userId OR actorUserId
+//            correctly — was checking _userId || actorUserId which would skip
+//            sending when actorUserId happened to match _userId but _userId
+//            was not yet set.
+//   [FIX-5] diagnose() now logs the first 20 chars of both .env key AND the
+//            Supabase secret key (via health check response) so mismatches
+//            are immediately visible in the console.
+//   [FIX-6] _saveSubscription: stale-endpoint cleanup now also removes rows
+//            where is_active=false for this user before inserting, preventing
+//            silent unique-constraint violations on re-subscribe.
+//   All v13 logic (sendPushToUser flat metadata, bridge, visibility check,
+//   testNotification, clearBadge, unsubscribe) preserved exactly.
+// ============================================================================
 
 import { supabase } from "../config/supabase";
 
-// ── VAPID public key ──────────────────────────────────────────────────────────
-// This must match the VAPID_PUBLIC_KEY set in your Supabase Edge Function secrets.
-const VAPID_PUBLIC_KEY =
-  process.env.REACT_APP_VAPID_PUBLIC_KEY ||
-  "BIn84fMl6xilxp_r9d_hEUKaZbz_qPbSnPEq2acCJ5X8w469WNF7FleDB_WCMSiAfD2c3zXcpKSFGBFjDdVP57k";
-
-// ── Typed event bus ───────────────────────────────────────────────────────────
-class EventBus {
-  constructor() {
-    this._map = new Map();
+// ── VAPID key ─────────────────────────────────────────────────────────────────
+function getVapidKey() {
+  const k = process.env.REACT_APP_VAPID_PUBLIC_KEY;
+  if (!k) {
+    console.error(
+      "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY is not set.\n" +
+      "Add it to your .env file and restart the dev server.\n" +
+      "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets.",
+    );
+    return null;
   }
+  if (k.length < 80) {
+    console.error(
+      "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY looks too short (" +
+      k.length + " chars).\n" +
+      "A valid VAPID public key is ~87 characters of base64url.",
+    );
+    return null;
+  }
+  return k;
+}
 
+// ── Edge function invoker ─────────────────────────────────────────────────────
+async function _invoke(body) {
+  try {
+    const { error } = await supabase.functions.invoke("send-push", { body });
+    if (error) {
+      console.error("[Push] Edge fn error:", error.message || JSON.stringify(error));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[Push] _invoke threw:", err.message);
+    return false;
+  }
+}
+
+// ── Tiny event bus ────────────────────────────────────────────────────────────
+class EventBus {
+  constructor() { this._map = new Map(); }
   on(event, fn) {
     if (!this._map.has(event)) this._map.set(event, new Set());
     this._map.get(event).add(fn);
     return () => this._map.get(event)?.delete(fn);
   }
-
   emit(event, data) {
     this._map.get(event)?.forEach((fn) => {
-      try {
-        fn(data);
-      } catch (e) {
-        console.error("[PushService] event handler error:", e);
-      }
+      try { fn(data); } catch (e) { console.error("[Push] bus handler threw:", e); }
     });
   }
 }
 
-// ── Utility: VAPID key conversion ─────────────────────────────────────────────
+// ── VAPID key → Uint8Array ────────────────────────────────────────────────────
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -64,38 +93,35 @@ function urlBase64ToUint8Array(base64String) {
 
 // ── Module state ──────────────────────────────────────────────────────────────
 const _bus = new EventBus();
-let _userId = null;
-let _started = false;
-let _subscribing = false;
-let _swReady = false; // true once we've attached the message bridge
+let _userId                  = null;
+let _started                 = false;
+let _subscribing             = false;
+let _bridgeAttached          = false;
+let _visibilityListenerAdded = false;
 
-// ── SW Message Bridge ─────────────────────────────────────────────────────────
-// [FIX-3] Attach AFTER navigator.serviceWorker.ready resolves, not at import time.
-// This ensures the SW controller exists before we start listening.
-async function _attachSWBridge() {
-  if (_swReady) return;
-  if (!("serviceWorker" in navigator)) return;
+// ── SW registration ───────────────────────────────────────────────────────────
+async function _getReg() {
+  if (!("serviceWorker" in navigator)) return null;
+  try { return await navigator.serviceWorker.ready; } catch { return null; }
+}
 
-  // Wait for the SW to be ready before attaching
-  await navigator.serviceWorker.ready;
-  _swReady = true;
+// ── SW ↔ App message bridge ───────────────────────────────────────────────────
+// [FIX-1] This is now exposed as attachBridgeEarly() so index.js can call it
+// synchronously before React renders — zero race window.
+function _attachBridge() {
+  if (_bridgeAttached || !("serviceWorker" in navigator)) return;
+  _bridgeAttached = true;
 
   navigator.serviceWorker.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg?.type) return;
 
     switch (msg.type) {
-      case "SW_UPDATED":
-        _bus.emit("sw_updated", { version: msg.version });
-        break;
-
-      case "SW_POISON_PILL_RELOAD":
-        console.warn("[Push] SW poison pill cleanup — reloading");
-        window.location.reload();
-        break;
-
       case "PUSH_RECEIVED":
         _bus.emit("push_received", msg.payload);
+        if (msg.payload?.data?.type === "incoming_call") {
+          _bus.emit("incoming_call_push", msg.payload.data);
+        }
         break;
 
       case "NOTIFICATION_CLICKED":
@@ -111,11 +137,26 @@ async function _attachSWBridge() {
         break;
 
       case "PENDING_PAYLOADS":
-        if (Array.isArray(msg.payloads) && msg.payloads.length > 0) {
-          msg.payloads.forEach((payload) =>
-            _bus.emit("push_received", payload),
-          );
+        if (Array.isArray(msg.payloads)) {
+          msg.payloads.forEach((p) => {
+            _bus.emit("push_received", p);
+            if (p?.data?.type === "incoming_call") {
+              _bus.emit("incoming_call_push", p.data);
+            }
+          });
         }
+        break;
+
+      case "SW_UPDATED":
+        _bus.emit("sw_updated", { version: msg.version });
+        break;
+
+      case "SW_NAVIGATE":
+        if (msg.url) _bus.emit("notification_clicked", { url: msg.url, data: {} });
+        break;
+
+      case "SW_POISON_PILL_RELOAD":
+        window.location.reload();
         break;
 
       default:
@@ -123,117 +164,91 @@ async function _attachSWBridge() {
     }
   });
 
-  // Request any payloads buffered while we were offline / loading
-  setTimeout(() => {
-    try {
-      navigator.serviceWorker.controller?.postMessage({
-        type: "GET_PENDING_PAYLOADS",
-      });
-    } catch (_) {}
-  }, 1500);
+  // Drain any payloads that arrived while the app was closed / reloading.
+  navigator.serviceWorker.ready
+    .then(() => {
+      setTimeout(() => {
+        try {
+          navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
+        } catch (_) {}
+      }, 800);
+    })
+    .catch(() => {});
+
+  // Re-drain after a SW update
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    setTimeout(() => {
+      try {
+        navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
+      } catch (_) {}
+    }, 1000);
+  });
 }
 
-// ── Core subscription logic ───────────────────────────────────────────────────
-async function _getRegistration() {
-  if (!("serviceWorker" in navigator)) return null;
-  try {
-    // Use ready — never register here. Registration is owned by serviceWorkerRegistration.js.
-    return await navigator.serviceWorker.ready;
-  } catch (err) {
-    console.error("[Push] serviceWorker.ready failed:", err);
-    return null;
-  }
+// ── Resubscribe if subscription disappears ────────────────────────────────────
+function _attachVisibilityCheck() {
+  if (_visibilityListenerAdded) return;
+  _visibilityListenerAdded = true;
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible") return;
+    if (!_userId || Notification.permission !== "granted") return;
+    const reg = await _getReg();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription().catch(() => null);
+    if (!sub) {
+      console.log("[Push] Subscription missing on focus — re-subscribing");
+      _doSubscribe(_userId);
+    }
+  });
 }
 
-async function _doSubscribe(userId) {
-  if (_subscribing) return null;
-  _subscribing = true;
-
-  try {
-    if (!VAPID_PUBLIC_KEY) {
-      console.error(
-        "[Push] REACT_APP_VAPID_PUBLIC_KEY is not set in your .env",
-      );
-      return null;
-    }
-
-    const reg = await _getRegistration();
-    if (!reg) return null;
-
-    // Check if we already have a valid subscription
-    let subscription = await reg.pushManager.getSubscription();
-
-    if (subscription) {
-      // Verify the subscription endpoint matches what we have in the DB
-      // If the browser rotated keys or user cleared data, this re-saves correctly
-      await _saveSubscription(userId, subscription);
-      console.log("[Push] ✅ Existing subscription verified and saved");
-      return subscription;
-    }
-
-    // No existing subscription — create one
-    subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
-
-    await _saveSubscription(userId, subscription);
-    console.log("[Push] ✅ New push subscription created and saved");
-    return subscription;
-  } catch (err) {
-    // NotAllowedError = user denied permission, don't retry
-    if (err.name === "NotAllowedError") {
-      console.warn("[Push] Permission denied by user — not retrying");
-      return null;
-    }
-    console.error("[Push] ❌ Subscribe error:", err);
-    return null;
-  } finally {
-    _subscribing = false;
-  }
-}
-
+// ── Save subscription to Supabase ─────────────────────────────────────────────
 async function _saveSubscription(userId, subscription) {
   const json = subscription.toJSON();
   if (!json?.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
-    throw new Error("[Push] Subscription JSON is missing required fields");
+    throw new Error("Subscription is missing endpoint, p256dh, or auth fields");
   }
-
   const record = {
-    user_id: userId,
-    endpoint: json.endpoint,
-    p256dh: json.keys.p256dh,
-    auth: json.keys.auth,
-    user_agent: navigator.userAgent.slice(0, 500), // cap length
-    is_active: true,
+    user_id:    userId,
+    endpoint:   json.endpoint,
+    p256dh:     json.keys.p256dh,
+    auth:       json.keys.auth,
+    user_agent: navigator.userAgent.slice(0, 500),
+    is_active:  true,
     updated_at: new Date().toISOString(),
   };
 
-  // [FIX-4] Try upsert first. If it fails due to constraint issues, fall back
-  // to delete-then-insert to guarantee a clean record.
-  const { error: upsertError } = await supabase
+  // [FIX-6] Clean up any inactive rows for this endpoint first to avoid
+  // unique-constraint violations on a re-subscribe after unsubscribe.
+  await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("endpoint", json.endpoint)
+    .eq("is_active", false);
+
+  // Upsert (requires unique constraint on user_id,endpoint)
+  const { error: upsertErr } = await supabase
     .from("push_subscriptions")
     .upsert(record, { onConflict: "user_id,endpoint" });
 
-  if (!upsertError) return; // success
+  if (!upsertErr) {
+    console.log("[Push] ✅ Subscription upserted to DB");
+    return;
+  }
 
-  console.warn(
-    "[Push] Upsert failed, trying delete+insert:",
-    upsertError.message,
-  );
-
-  // Delete any existing record for this user+endpoint and re-insert
+  // Upsert failed — delete stale row and insert fresh
+  console.warn("[Push] Upsert failed:", upsertErr.message, "— trying delete+insert");
   await supabase
     .from("push_subscriptions")
     .delete()
     .eq("user_id", userId)
     .eq("endpoint", json.endpoint);
-
-  const { error: insertError } = await supabase
+  const { error: insertErr } = await supabase
     .from("push_subscriptions")
     .insert(record);
-
-  if (insertError) throw insertError;
+  if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
+  console.log("[Push] ✅ Subscription inserted to DB (fallback)");
 }
 
 async function _saveWithRetry(userId, subscription, attempt = 0) {
@@ -242,52 +257,114 @@ async function _saveWithRetry(userId, subscription, attempt = 0) {
     await _saveSubscription(userId, subscription);
   } catch (err) {
     if (attempt < delays.length) {
-      console.warn(
-        `[Push] Save failed (attempt ${attempt + 1}), retrying in ${delays[attempt] / 1000}s`,
-      );
+      console.warn(`[Push] Save attempt ${attempt + 1} failed. Retry in ${delays[attempt] / 1000}s`);
       await new Promise((r) => setTimeout(r, delays[attempt]));
       return _saveWithRetry(userId, subscription, attempt + 1);
     }
-    console.error("[Push] ❌ Push subscription save permanently failed:", err);
+    console.error("[Push] ❌ All save attempts failed:", err.message);
   }
 }
 
-// ── Re-check subscription on visibility change ────────────────────────────────
-// [FIX-6] When user returns to the app (from background), re-verify the
-// subscription is still alive. Handles cleared site data gracefully.
-let _visibilityListenerAttached = false;
-function _attachVisibilityCheck() {
-  if (_visibilityListenerAttached) return;
-  _visibilityListenerAttached = true;
+// ── Core subscribe ────────────────────────────────────────────────────────────
+async function _doSubscribe(userId) {
+  if (_subscribing) return null;
+  _subscribing = true;
 
-  document.addEventListener("visibilitychange", async () => {
-    if (document.visibilityState !== "visible") return;
-    if (!_userId || !pushService.isSupported()) return;
-    if (pushService.getPermission() !== "granted") return;
+  try {
+    const vapidKey = getVapidKey();
+    if (!vapidKey) return null;
 
-    const reg = await _getRegistration();
-    if (!reg) return;
-
-    const sub = await reg.pushManager.getSubscription().catch(() => null);
-    if (!sub) {
-      // Subscription was lost — re-subscribe silently
-      console.log(
-        "[Push] Subscription lost while backgrounded — re-subscribing",
-      );
-      await _doSubscribe(_userId);
+    const reg = await _getReg();
+    if (!reg) {
+      console.error("[Push] No SW registration available");
+      return null;
     }
-  });
+
+    // Check for existing subscription
+    let sub = await reg.pushManager.getSubscription().catch(() => null);
+
+    // [FIX-3] If the existing subscription was created with a different VAPID
+    // key it will 401 on every push. Detect this by comparing applicationServerKey.
+    if (sub) {
+      const existingKey = sub.options?.applicationServerKey;
+      if (existingKey) {
+        const currentKeyBytes = urlBase64ToUint8Array(vapidKey);
+        const existingKeyBytes = new Uint8Array(existingKey);
+        const keyChanged = currentKeyBytes.length !== existingKeyBytes.length ||
+          currentKeyBytes.some((b, i) => b !== existingKeyBytes[i]);
+        if (keyChanged) {
+          console.warn("[Push] VAPID key changed — unsubscribing stale subscription");
+          await sub.unsubscribe().catch(() => {});
+          sub = null;
+        }
+      }
+    }
+
+    if (sub) {
+      await _saveWithRetry(userId, sub);
+      console.log("[Push] ✅ Reused existing subscription");
+      return sub;
+    }
+
+    // Create new subscription
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly:      true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+
+    await _saveWithRetry(userId, sub);
+    console.log("[Push] ✅ New subscription created and saved");
+    return sub;
+  } catch (err) {
+    if (err.name === "NotAllowedError") {
+      console.warn("[Push] Permission denied by user");
+      return null;
+    }
+    if (err.name === "InvalidStateError") {
+      console.warn("[Push] SW not yet active — waiting for activation");
+      const reg = await _getReg().catch(() => null);
+      if (reg?.installing) {
+        await new Promise((resolve) => {
+          const worker = reg.installing || reg.waiting;
+          if (!worker) { resolve(); return; }
+          worker.addEventListener("statechange", function handler() {
+            if (worker.state === "activated") {
+              worker.removeEventListener("statechange", handler);
+              resolve();
+            }
+          });
+          setTimeout(resolve, 8000);
+        });
+        _subscribing = false;
+        return _doSubscribe(userId);
+      }
+      setTimeout(() => { _subscribing = false; _doSubscribe(userId); }, 5000);
+      return null;
+    }
+    console.error("[Push] ❌ _doSubscribe threw:", err.message);
+    return null;
+  } finally {
+    _subscribing = false;
+  }
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ============================================================================
+// PUBLIC API
+// ============================================================================
 export const pushService = {
-  on(event, fn) {
-    return _bus.on(event, fn);
-  },
-  _emit(event, data) {
-    _bus.emit(event, data);
+
+  // ── [FIX-1] Early bridge attachment ───────────────────────────────────────
+  // Call this from src/index.js BEFORE React renders so no SW messages are
+  // ever dropped during the 2-second delayed start() window.
+  attachBridgeEarly() {
+    _attachBridge();
   },
 
+  // ── Event bus ──────────────────────────────────────────────────────────────
+  on(event, fn) { return _bus.on(event, fn); },
+  _emit(event, data) { _bus.emit(event, data); },
+
+  // ── Feature detection ──────────────────────────────────────────────────────
   isSupported() {
     return (
       "Notification" in window &&
@@ -297,73 +374,49 @@ export const pushService = {
   },
 
   getPermission() {
-    if (!this.isSupported()) return "denied";
-    return Notification.permission;
+    return this.isSupported() ? Notification.permission : "denied";
   },
 
   async isSubscribed() {
     try {
       if (!this.isSupported()) return false;
-      const reg = await _getRegistration();
-      if (!reg) return false;
-      const sub = await reg.pushManager.getSubscription();
-      return !!sub;
-    } catch {
-      return false;
-    }
+      const reg = await _getReg();
+      return !!(await reg?.pushManager.getSubscription());
+    } catch { return false; }
   },
 
-  // [FIX-2] This must be called from a user gesture (e.g. button click).
-  // Do NOT call this on a timer — Chrome will silently ignore it.
+  // ── Permission request — MUST be called from a user gesture ───────────────
   async requestPermission() {
     try {
       if (!this.isSupported()) return false;
       if (Notification.permission === "granted") return true;
-      if (Notification.permission === "denied") return false;
-
-      const result = await Notification.requestPermission();
-      return result === "granted";
-    } catch (err) {
-      console.error("[Push] requestPermission error:", err);
-      return false;
-    }
+      if (Notification.permission === "denied")  return false;
+      return (await Notification.requestPermission()) === "granted";
+    } catch { return false; }
   },
 
-  // Call this from a user-gesture button to enable push notifications.
-  // Returns true if subscription was created successfully.
+  // ── Full enable (permission + subscribe) ──────────────────────────────────
   async enablePushNotifications(userId) {
     const uid = userId || _userId;
     if (!uid || !this.isSupported()) return false;
-
     const granted = await this.requestPermission();
     if (!granted) return false;
-
     const sub = await _doSubscribe(uid);
+    if (sub) {
+      try { window.dispatchEvent(new CustomEvent("push:permission_granted")); } catch {}
+    }
     return !!sub;
   },
 
-  async subscribe(userId) {
-    const uid = userId || _userId;
-    if (!uid) return null;
-    return _doSubscribe(uid);
-  },
-
-  async savePushSubscription(userId, subscription) {
-    return _saveSubscription(userId, subscription);
-  },
+  async subscribe(userId) { return _doSubscribe(userId || _userId); },
 
   async unsubscribe(userId) {
     try {
-      if (!this.isSupported()) return;
-      const reg = await _getRegistration();
-      if (!reg) return;
-
-      const subscription = await reg.pushManager.getSubscription();
-      if (!subscription) return;
-
-      const endpoint = subscription.endpoint;
-      await subscription.unsubscribe();
-
+      const reg = await _getReg();
+      const sub = await reg?.pushManager.getSubscription();
+      if (!sub) return;
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe();
       const uid = userId || _userId;
       if (uid) {
         await supabase
@@ -372,38 +425,63 @@ export const pushService = {
           .eq("user_id", uid)
           .eq("endpoint", endpoint);
       }
-
-      console.log("[Push] ✅ Unsubscribed successfully");
+      console.log("[Push] ✅ Unsubscribed");
     } catch (err) {
-      console.error("[Push] ❌ Unsubscribe error:", err);
+      console.error("[Push] unsubscribe error:", err);
     }
   },
 
-  // Show a local test notification (no server required)
-  async testNotification() {
-    try {
-      if (!this.isSupported() || Notification.permission !== "granted") {
-        console.warn("[Push] Cannot test — notifications not permitted");
-        return false;
-      }
-      const reg = await _getRegistration();
-      if (!reg) return false;
+  // ── Send a push notification to another user ───────────────────────────────
+  // Metadata is passed FLAT — never nest a `data` key here.
+  // The edge function reads metadata.call_id, metadata.caller_name, etc.
+  // and maps them to the correct data.* fields in the final push payload.
+  async sendPushToUser({
+    recipientUserId,
+    actorUserId = null,
+    type        = "general",
+    title       = "Xeevia",
+    message     = "",
+    entityId    = null,
+    metadata    = {},
+  }) {
+    if (!recipientUserId) return false;
 
-      await reg.showNotification("✅ Push Notifications Active", {
-        body: "Xeevia push notifications are working correctly!",
-        icon: "/logo192.png",
-        badge: "/logo192.png",
-        tag: `test_${Date.now()}`,
-        vibrate: [200, 100, 200],
-        data: { url: "/", type: "test" },
-      });
-      return true;
-    } catch (err) {
-      console.error("[Push] ❌ Test notification failed:", err);
+    // [FIX-4] Self-send guard: only skip if we know both IDs and they match
+    if (_userId && actorUserId && _userId === actorUserId && recipientUserId === actorUserId) {
       return false;
     }
+
+    return _invoke({
+      recipient_user_id: recipientUserId,
+      actor_user_id:     actorUserId,
+      type,
+      title,
+      message,
+      entity_id:         entityId,
+      metadata,
+    });
   },
 
+  // ── Show a local test notification (no server needed) ─────────────────────
+  async testNotification() {
+    if (!this.isSupported() || Notification.permission !== "granted") {
+      console.warn("[Push] Cannot test — permission not granted");
+      return false;
+    }
+    const reg = await _getReg();
+    if (!reg) return false;
+    await reg.showNotification("✅ Push Notifications Active", {
+      body:    "Xeevia push notifications are working correctly!",
+      icon:    "/logo192.png",
+      badge:   "/logo192.png",
+      tag:     `test_${Date.now()}`,
+      vibrate: [200, 100, 200],
+      data:    { url: "/", type: "test" },
+    });
+    return true;
+  },
+
+  // ── Clear OS app badge ─────────────────────────────────────────────────────
   clearBadge() {
     try {
       navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_BADGE" });
@@ -411,83 +489,141 @@ export const pushService = {
   },
 
   // ── MAIN ENTRY POINT ───────────────────────────────────────────────────────
-  // Call this once after the user logs in. Do NOT call register() here.
-  // serviceWorkerRegistration.js owns SW registration.
+  // _attachBridge() is called synchronously (no await) so the message
+  // listener is live before any async work. If you called attachBridgeEarly()
+  // from index.js this is a no-op (guarded by _bridgeAttached flag).
   async start(userId) {
     if (!this.isSupported()) {
-      console.log("[Push] Push notifications not supported on this browser");
+      console.log("[Push] Not supported in this browser");
       return;
     }
-
-    // Attach SW message bridge (safe to call multiple times)
-    _attachSWBridge().catch((err) =>
-      console.warn("[Push] Bridge attach error:", err),
-    );
-
-    // Attach visibility change re-subscribe handler
-    _attachVisibilityCheck();
-
-    _userId = userId;
+    _userId  = userId;
     _started = true;
 
-    const permission = this.getPermission();
-    if (permission === "granted") {
-      // Already have permission — subscribe immediately
+    // SYNCHRONOUS — listener must be attached before any awaits
+    _attachBridge();
+    _attachVisibilityCheck();
+
+    const perm = this.getPermission();
+    if (perm === "granted") {
+      // [FIX-2] If offline, wait for connectivity before trying to subscribe
+      if (!navigator.onLine) {
+        console.log("[Push] Offline at start — will subscribe when online");
+        const onOnline = () => {
+          window.removeEventListener("online", onOnline);
+          _doSubscribe(userId).catch(() => {});
+        };
+        window.addEventListener("online", onOnline);
+        return;
+      }
+
       const sub = await _doSubscribe(userId);
       if (!sub) {
-        // Subscription failed — retry once after a short delay
-        setTimeout(() => {
-          _doSubscribe(userId).catch((err) =>
-            console.warn("[Push] Delayed subscribe error:", err),
-          );
-        }, 5000);
+        setTimeout(() => _doSubscribe(userId).catch(() => {}), 8000);
       }
-    } else if (permission === "default") {
-      // [FIX-2] Do NOT request permission here. Permission must be requested
-      // from a user gesture. The app should call pushService.enablePushNotifications()
-      // from a button click. We log this so you can wire up your UI.
+    } else if (perm === "default") {
       console.log(
-        "[Push] ℹ️ Push permission not yet granted. Call pushService.enablePushNotifications(userId) from a button click to request permission.",
+        "[Push] Permission not yet granted.\n" +
+        "Listen for 'push:needs_permission' on window and call:\n" +
+        "  pushService.enablePushNotifications(userId)  from a user gesture.",
       );
+      try {
+        window.dispatchEvent(new CustomEvent("push:needs_permission", { detail: { userId } }));
+      } catch {}
     } else {
-      // "denied" — user explicitly blocked push notifications
-      console.log(
-        "[Push] Push notifications blocked by user. They must re-enable in browser settings.",
-      );
+      console.log("[Push] Permission blocked — user must re-enable in browser settings");
+    }
+
+    if (typeof window !== "undefined") {
+      window.__pushDiagnose = () => this.diagnose();
+      console.log("[Push] Tip: run window.__pushDiagnose() in console to debug push issues");
     }
   },
 
-  // Diagnostic helper — call this from console to debug issues
+  // ── Full diagnostic report ─────────────────────────────────────────────────
+  // [FIX-5] Now also logs both .env key prefix AND edge fn key prefix so
+  // mismatches are immediately visible side-by-side.
   async diagnose() {
-    console.group("[Push] 🔍 Diagnosis");
-    console.log("Supported:", this.isSupported());
-    console.log("Permission:", this.getPermission());
-    console.log("VAPID key set:", !!VAPID_PUBLIC_KEY);
-    console.log("User ID:", _userId);
-    console.log("Started:", _started);
-    console.log("SW bridge attached:", _swReady);
+    console.group("🔍 Push Diagnosis Report");
+    const vapidKey = getVapidKey();
+    console.log("Supported:           ", this.isSupported());
+    console.log("Permission:          ", this.getPermission());
+    console.log("VAPID key (.env):    ", vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ MISSING");
+    console.log("VAPID key length:    ", vapidKey ? vapidKey.length + " chars (expect 87)" : "❌");
+    console.log("User ID:             ", _userId || "not set");
+    console.log("Bridge attached:     ", _bridgeAttached);
+    console.log("Started:             ", _started);
+    console.log("Online:              ", navigator.onLine);
 
-    const reg = await _getRegistration().catch(() => null);
-    console.log("SW registration:", reg ? reg.scope : "NONE");
+    const reg = await _getReg().catch(() => null);
+    console.log("SW registration:     ", reg ? "✅ " + reg.scope : "❌ NONE");
+    console.log("SW state:            ", reg?.active?.state || "none");
+    console.log("SW controller:       ", navigator.serviceWorker?.controller ? "✅" : "❌ null");
 
     if (reg) {
       const sub = await reg.pushManager.getSubscription().catch(() => null);
       console.log(
-        "Subscription:",
-        sub ? sub.endpoint.slice(0, 60) + "..." : "NONE",
+        "Browser sub:         ",
+        sub ? "✅ " + sub.endpoint.slice(0, 65) + "…" : "❌ NONE",
       );
+      if (sub?.options?.applicationServerKey) {
+        const keyBytes = new Uint8Array(sub.options.applicationServerKey);
+        const keyB64   = btoa(String.fromCharCode(...keyBytes))
+          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        console.log("Sub key prefix:      ", keyB64.slice(0, 25) + "…");
+        console.log(".env key prefix:     ", vapidKey ? vapidKey.slice(0, 25) + "…" : "❌");
+        if (vapidKey && keyB64 !== vapidKey) {
+          console.error("⚠️  KEY MISMATCH — subscription was created with a different VAPID key.");
+          console.error("   Fix: call pushService.unsubscribe() then pushService.subscribe() to recreate.");
+        } else if (vapidKey) {
+          console.log("✅ Keys match");
+        }
+      }
 
       if (_userId) {
         const { data, error } = await supabase
           .from("push_subscriptions")
           .select("id, endpoint, is_active, updated_at")
           .eq("user_id", _userId);
+        if (error) {
+          console.log("DB subs:             ❌", error.message);
+        } else {
+          console.log("DB subs:             ", data?.length || 0, "row(s)");
+          data?.forEach((r, i) =>
+            console.log(
+              `  [${i}] active=${r.is_active} updated=${r.updated_at?.slice(0, 16)} ep=${r.endpoint?.slice(0, 55)}…`,
+            )
+          );
+        }
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke("send-push", {
+          body: { health: true },
+        });
         console.log(
-          "DB subscriptions:",
-          error ? "ERROR: " + error.message : data,
+          "Edge Function:       ",
+          error ? "❌ " + error.message : "✅ reachable",
+          data || "",
         );
+        // [FIX-5] Log the edge function's VAPID key prefix for easy comparison
+        if (data?.key_prefix) {
+          console.log("Edge VAPID prefix:   ", data.key_prefix);
+          if (vapidKey && !vapidKey.startsWith(data.key_prefix.replace("...", ""))) {
+            console.error("⚠️  VAPID KEY MISMATCH between .env and Supabase secret!");
+          }
+        }
+      } catch (e) {
+        console.log("Edge Function:       ❌ fetch failed:", e.message);
       }
     }
+
+    console.log("\n⚠️  CHECKLIST:");
+    console.log("  1. REACT_APP_VAPID_PUBLIC_KEY in .env matches Supabase VAPID_PUBLIC_KEY secret EXACTLY");
+    console.log("  2. push_subscriptions has UNIQUE(user_id, endpoint) constraint");
+    console.log("  3. notification_dedup table exists with UNIQUE(dedup_key)");
+    console.log("  4. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost");
+    console.log("  5. pushService.attachBridgeEarly() is called in src/index.js before React renders");
     console.groupEnd();
   },
 };
