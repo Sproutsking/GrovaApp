@@ -1,8 +1,21 @@
 // ============================================================================
-// src/models/FollowModel.js - FOLLOW/UNFOLLOW MODEL
+// src/models/FollowModel.js — v2 PUSH NOTIFICATIONS ADDED
+// ============================================================================
+// CHANGES vs v1:
+//   [PUSH-1] followUser() sends push to the followed user.
+//            Never pushes on unfollow. Never pushes if follower === following.
+//   All v1 logic preserved exactly.
 // ============================================================================
 
 import { supabase } from "../services/config/supabase";
+import pushService from "../services/notifications/pushService";
+
+// ── Push helper — never throws ────────────────────────────────────────────────
+async function _sendPush(params) {
+  try { await pushService.sendPushToUser(params); } catch (e) {
+    console.warn("[FollowModel] push failed (non-fatal):", e?.message);
+  }
+}
 
 class FollowModel {
   // Check if user is following another user
@@ -24,13 +37,11 @@ class FollowModel {
   }
 
   // Follow a user
+  // [PUSH-1] Sends push to the user being followed
   static async followUser(followerId, followingId) {
     try {
       // Check if already following
-      const isAlreadyFollowing = await this.isFollowing(
-        followerId,
-        followingId,
-      );
+      const isAlreadyFollowing = await this.isFollowing(followerId, followingId);
       if (isAlreadyFollowing) {
         return { success: false, message: "Already following" };
       }
@@ -38,10 +49,7 @@ class FollowModel {
       // Create follow relationship
       const { data, error } = await supabase
         .from("follows")
-        .insert({
-          follower_id: followerId,
-          following_id: followingId,
-        })
+        .insert({ follower_id: followerId, following_id: followingId })
         .select()
         .single();
 
@@ -53,8 +61,33 @@ class FollowModel {
       // Award EP for following
       await supabase.rpc("award_ep", {
         p_user_id: followerId,
-        p_amount: 5,
-        p_reason: "followed_user",
+        p_amount:  5,
+        p_reason:  "followed_user",
+      });
+
+      // [PUSH-1] Push to the followed user
+      const { data: followerProfile } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", followerId)
+        .single();
+
+      const followerName = followerProfile?.full_name || followerProfile?.username || "Someone";
+
+      _sendPush({
+        recipientUserId: followingId,
+        actorUserId:     followerId,
+        type:            "follow",
+        title:           "New follower",
+        message:         `${followerName} started following you`,
+        entityId:        null,
+        metadata: {
+          notification_id: `follow_${followerId}_${followingId}`,
+          actorName:       followerName,
+          actorId:         followerId,
+          actor_id:        followerId,
+          url:             `/profile/${followerId}`,
+        },
       });
 
       return { success: true, data };
@@ -64,7 +97,7 @@ class FollowModel {
     }
   }
 
-  // Unfollow a user
+  // Unfollow a user — no push on unfollow
   static async unfollowUser(followerId, followingId) {
     try {
       const { error } = await supabase
@@ -122,19 +155,13 @@ class FollowModel {
     try {
       const { data, error } = await supabase
         .from("follows")
-        .select(
-          `
+        .select(`
           follower_id,
           created_at,
           profiles!follows_follower_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
+            id, full_name, username, avatar_id, verified
           )
-        `,
-        )
+        `)
         .eq("following_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -152,19 +179,13 @@ class FollowModel {
     try {
       const { data, error } = await supabase
         .from("follows")
-        .select(
-          `
+        .select(`
           following_id,
           created_at,
           profiles!follows_following_id_fkey (
-            id,
-            full_name,
-            username,
-            avatar_id,
-            verified
+            id, full_name, username, avatar_id, verified
           )
-        `,
-        )
+        `)
         .eq("follower_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit);

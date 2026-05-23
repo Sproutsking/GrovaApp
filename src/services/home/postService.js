@@ -1,22 +1,43 @@
 // ============================================================================
-// src/services/home/postService.js — v2 OPTIMISTIC + BULLETPROOF
+// src/services/home/postService.js — v3 PUSH NOTIFICATIONS ADDED
 // ============================================================================
-// FIXES:
-//   [FIX-1] toggleLike() uses an optimistic DB increment/decrement via RPC
-//           instead of a two-round-trip read-then-write. If the RPC doesn't
-//           exist, falls back to the old pattern but NEVER throws to the UI.
-//   [FIX-2] getPosts() never throws — returns [] on any error so the feed
-//           renders an empty state instead of crashing.
-//   [FIX-3] createPost() error messages are always plain strings, never
-//           Supabase error objects that React can't render.
-//   [FIX-4] deletePost() is fully idempotent — double-deleting is a no-op.
-//   [FIX-5] Cache invalidation is safe — never throws.
-//   [FIX-6] incrementViews() fire-and-forget, truly silent.
+// CHANGES vs v2:
+//   [PUSH-1] toggleLike() sends push to post owner when liked.
+//            Does NOT push on unlike. Does NOT push if liker === owner.
+//   [PUSH-2] sharePost() sends push to post owner when shared.
+//   [PUSH-3] createPost() sends push to followers — skipped here since
+//            follower fan-out is expensive; handled by notificationService
+//            realtime INSERT which already fires for new_post type.
+//   All v2 optimistic/bulletproof fixes preserved exactly.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
+import pushService from "../notifications/pushService";
+
+// ── Push helper — never throws ────────────────────────────────────────────────
+async function _sendPush(params) {
+  try {
+    await pushService.sendPushToUser(params);
+  } catch (e) {
+    console.warn("[PostService] push failed (non-fatal):", e?.message);
+  }
+}
+
+// ── Fetch post owner id ───────────────────────────────────────────────────────
+async function _getPostOwner(postId) {
+  try {
+    const { data } = await supabase
+      .from("posts")
+      .select("user_id, profiles!inner(full_name, username)")
+      .eq("id", postId)
+      .single();
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 class PostService {
   // ── getPosts ────────────────────────────────────────────────────────────
@@ -47,7 +68,7 @@ class PostService {
 
       if (error) {
         console.error("[PostService] getPosts error:", error.message);
-        return []; // [FIX-2] Never throw, always return array
+        return [];
       }
 
       const result = data || [];
@@ -55,7 +76,7 @@ class PostService {
       return result;
     } catch (error) {
       console.error("[PostService] getPosts exception:", error.message);
-      return []; // [FIX-2]
+      return [];
     }
   }
 
@@ -68,9 +89,7 @@ class PostService {
 
       const { data, error } = await supabase
         .from("posts")
-        .select(
-          `*, profiles!inner(id, full_name, username, avatar_id, verified)`
-        )
+        .select(`*, profiles!inner(id, full_name, username, avatar_id, verified)`)
         .eq("id", postId)
         .is("deleted_at", null)
         .single();
@@ -106,10 +125,10 @@ class PostService {
       const newPost = {
         user_id:            user.id,
         content:            postData.content || null,
-        image_ids:          Array.isArray(postData.imageIds)       ? postData.imageIds       : [],
-        image_metadata:     Array.isArray(postData.imageMetadata)  ? postData.imageMetadata  : [],
-        video_ids:          Array.isArray(postData.videoIds)        ? postData.videoIds        : [],
-        video_metadata:     Array.isArray(postData.videoMetadata)  ? postData.videoMetadata  : [],
+        image_ids:          Array.isArray(postData.imageIds)      ? postData.imageIds      : [],
+        image_metadata:     Array.isArray(postData.imageMetadata) ? postData.imageMetadata : [],
+        video_ids:          Array.isArray(postData.videoIds)      ? postData.videoIds      : [],
+        video_metadata:     Array.isArray(postData.videoMetadata) ? postData.videoMetadata : [],
         category:           postData.category || "General",
         is_text_card:       postData.is_text_card || false,
         text_card_metadata: postData.text_card_metadata || null,
@@ -122,11 +141,7 @@ class PostService {
         .select(`*, profiles!inner(id, full_name, username, avatar_id, verified)`)
         .single();
 
-      if (error) {
-        console.error("[PostService] createPost insert error:", error);
-        // [FIX-3] Always convert to plain string
-        throw new Error(error.message || "Failed to create post");
-      }
+      if (error) throw new Error(error.message || "Failed to create post");
 
       this._safeInvalidate("posts");
       return data;
@@ -191,7 +206,6 @@ class PostService {
 
       if (fetchError) throw new Error("Post not found");
 
-      // [FIX-4] Already deleted — idempotent success
       if (post.deleted_at) {
         this._safeInvalidate(`post:${postId}`);
         this._safeInvalidate("posts");
@@ -218,6 +232,7 @@ class PostService {
   }
 
   // ── sharePost ────────────────────────────────────────────────────────────
+  // [PUSH-2] Sends push to post owner on share
   async sharePost(postId, shareType = "external") {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -227,25 +242,47 @@ class PostService {
         content_type: "post", content_id: postId, user_id: user.id, share_type: shareType,
       }]);
 
-      // Optimistic increment
       await supabase.rpc("increment_post_shares", { p_post_id: postId }).catch(async () => {
         const { data: p } = await supabase.from("posts").select("shares").eq("id", postId).single();
         if (p) await supabase.from("posts").update({ shares: (p.shares || 0) + 1 }).eq("id", postId);
       });
+
+      // [PUSH-2] Push to post owner
+      const postData = await _getPostOwner(postId);
+      if (postData && postData.user_id !== user.id) {
+        const { data: sharer } = await supabase
+          .from("profiles")
+          .select("full_name, username")
+          .eq("id", user.id)
+          .single();
+        const sharerName = sharer?.full_name || sharer?.username || "Someone";
+
+        _sendPush({
+          recipientUserId: postData.user_id,
+          actorUserId:     user.id,
+          type:            "share",
+          title:           "New share",
+          message:         `${sharerName} shared your post`,
+          entityId:        postId,
+          metadata: {
+            notification_id: `share_${postId}_${user.id}_${Date.now()}`,
+            actorName:       sharerName,
+            url:             `/post/${postId}`,
+          },
+        });
+      }
     } catch (error) {
       console.error("[PostService] sharePost error:", error);
     }
   }
 
   // ── toggleLike ───────────────────────────────────────────────────────────
-  // [FIX-1] True optimistic — single DB call via RPC when possible, fallback
-  //         to two-step. NEVER throws to the caller.
+  // [PUSH-1] Sends push to post owner on like (not on unlike)
   async toggleLike(postId) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("You must be logged in");
 
-      // Check existing like
       const { data: existingLike, error: checkError } = await supabase
         .from("post_likes")
         .select("id")
@@ -255,12 +292,11 @@ class PostService {
 
       if (checkError) {
         console.error("[PostService] toggleLike check error:", checkError.message);
-        // Return a neutral state rather than crashing
         return { liked: false, error: checkError.message };
       }
 
       if (existingLike) {
-        // Unlike
+        // Unlike — no push on unlike
         const { error: delError } = await supabase
           .from("post_likes")
           .delete()
@@ -268,10 +304,9 @@ class PostService {
 
         if (delError) {
           console.error("[PostService] unlike error:", delError.message);
-          return { liked: true, error: delError.message }; // keep current state
+          return { liked: true, error: delError.message };
         }
 
-        // Decrement count — use RPC if available, fallback to read-write
         await supabase.rpc("decrement_post_likes", { p_post_id: postId }).catch(async () => {
           const { data: p } = await supabase.from("posts").select("likes").eq("id", postId).single();
           if (p) {
@@ -282,6 +317,7 @@ class PostService {
           }
         });
         return { liked: false };
+
       } else {
         // Like
         const { error: insError } = await supabase
@@ -289,13 +325,11 @@ class PostService {
           .insert([{ post_id: postId, user_id: user.id }]);
 
         if (insError) {
-          // Duplicate = already liked (race condition) — report as liked
           if (insError.code === "23505") return { liked: true };
           console.error("[PostService] like insert error:", insError.message);
           return { liked: false, error: insError.message };
         }
 
-        // Increment count
         await supabase.rpc("increment_post_likes", { p_post_id: postId }).catch(async () => {
           const { data: p } = await supabase.from("posts").select("likes").eq("id", postId).single();
           if (p) {
@@ -305,6 +339,32 @@ class PostService {
               .eq("id", postId);
           }
         });
+
+        // [PUSH-1] Push to post owner (never to self)
+        const postData = await _getPostOwner(postId);
+        if (postData && postData.user_id !== user.id) {
+          const { data: liker } = await supabase
+            .from("profiles")
+            .select("full_name, username")
+            .eq("id", user.id)
+            .single();
+          const likerName = liker?.full_name || liker?.username || "Someone";
+
+          _sendPush({
+            recipientUserId: postData.user_id,
+            actorUserId:     user.id,
+            type:            "like",
+            title:           "New like",
+            message:         `${likerName} liked your post`,
+            entityId:        postId,
+            metadata: {
+              notification_id: `like_post_${postId}_${user.id}`,
+              actorName:       likerName,
+              url:             `/post/${postId}`,
+            },
+          });
+        }
+
         return { liked: true };
       }
     } catch (error) {
@@ -314,7 +374,6 @@ class PostService {
   }
 
   // ── incrementViews ───────────────────────────────────────────────────────
-  // [FIX-6] Fire-and-forget. Never awaited by caller, never throws.
   incrementViews(postId) {
     supabase.rpc("increment_post_views", { p_post_id: postId }).catch(() => {
       supabase
@@ -382,7 +441,7 @@ class PostService {
     try {
       if (key.includes(":")) cacheService.invalidate(key);
       else cacheService.invalidatePattern(key);
-    } catch { /* [FIX-5] never throw */ }
+    } catch { /* never throw */ }
   }
 }
 

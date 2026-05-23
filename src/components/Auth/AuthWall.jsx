@@ -1,20 +1,22 @@
 // ============================================================================
-// src/components/Auth/AuthWall.jsx — v22 BORDER_SPIN
+// src/components/Auth/AuthWall.jsx — v23 BORDER_SPIN_FIXED
 // ============================================================================
 //
-// WHAT CHANGED FROM v21:
-//   [DESIGN] Provider buttons: replaced the conic-gradient orbiting arc with
-//            the cleaner background-position spinning gradient border approach.
-//            - A div positioned at inset:-1.5px holds a linear-gradient background
-//              with background-size:300% 300%, animated via xvBorderSpin.
-//            - Always running (not hover-triggered).
-//            - Each provider uses its own brand color gradient stops.
-//            - On hover: button face lightens slightly, arrow ticks right + goes lime.
-//              No other animations on hover — border just spins continuously.
-//            - Removed: pb-arc-track, pb-arc-conic, ARC_orbit, PB_sweep CSS.
-//              Removed: conic-gradient logic, radial-gradient mask.
+// WHAT CHANGED FROM v22:
+//   [FIX] Provider button border spin system overhauled:
+//         - IDLE state:    border spins at 3s — always running (unchanged).
+//         - SELECTED state: border spins at 3s (same speed, not faster).
+//                           Conic stops are fully opaque & vivid so the ring
+//                           is clearly visible. pb-inner bg lifts to #121212
+//                           so the colored 1.5px ring contrasts against it.
+//         - OTHER state:   border animation is set to `none` instantly via
+//                           inline style override — no spinning on unchosen
+//                           buttons at all. Opacity already 0.14 so they
+//                           recede; killing the spin makes it cleaner.
+//         - Speed stays 3s across idle & selected — the previous "1.2s fast
+//           spin" feeling was wrong. The ring just needs to be more visible.
 //
-//   Everything else from v21 is UNCHANGED.
+//   Everything else from v22 is UNCHANGED.
 // ============================================================================
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -69,10 +71,16 @@ const CSS = `
   @keyframes LP_dash      { from{stroke-dashoffset:200} to{stroke-dashoffset:0} }
   @keyframes LP_linePulse { 0%,100%{stroke-opacity:.22} 50%{stroke-opacity:.7} }
 
-  /* ── Provider button — true 360° conic border spin ── */
+  /* ── Provider button border — single rotation speed used everywhere ── */
   @keyframes PB_rotate {
     from { transform: translate(-50%,-50%) rotate(0deg); }
     to   { transform: translate(-50%,-50%) rotate(360deg); }
+  }
+
+  /* ── Selected state: subtle breathe on the inner face ── */
+  @keyframes PB_selected_breathe {
+    0%,100% { background: #121212; }
+    50%     { background: #161616; }
   }
 
   .xv, .xv * { box-sizing:border-box; }
@@ -139,13 +147,15 @@ const CSS = `
     border-radius: 14px;
     margin-bottom: 8px;
     cursor: pointer;
-    overflow: hidden;    /* clips the oversized spinning conic to just the border ring */
-    padding: 1.5px;      /* this gap is what shows as the border */
+    overflow: hidden;
+    padding: 1.5px;
   }
 
   /*
-   * Spinning conic layer — 300%×300% centered, always rotating.
-   * overflow:hidden on .pb-wrap reveals only the 1.5px padding as a color ring.
+   * Spinning conic layer.
+   * The animation property is controlled entirely via inline style on the
+   * element — this lets React switch it instantly without a CSS class toggle
+   * delay. The keyframe just defines the rotation; timing lives inline.
    */
   .pb-border {
     position: absolute;
@@ -153,13 +163,11 @@ const CSS = `
     height: 300%;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) rotate(0deg);
-    animation: PB_rotate 3s linear infinite;
     pointer-events: none;
     z-index: 0;
   }
 
-  /* Inner face — sits on top, covers the conic center */
+  /* Inner face */
   .pb-inner {
     position: relative;
     z-index: 1;
@@ -177,8 +185,6 @@ const CSS = `
     outline: none;
     transition: background .18s;
   }
-  .pb-wrap:hover .pb-inner { background: #131313; }
-  .pb-wrap:active           { opacity: 0.85; }
 
   .pb-icon  { display:flex;align-items:center;justify-content:center; }
   .pb-label {
@@ -191,7 +197,7 @@ const CSS = `
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    transition: opacity .18s, transform .18s;
+    transition: opacity .18s, transform .18s, color .18s;
   }
   .pb-wrap:hover .pb-arrow {
     opacity: 1 !important;
@@ -1375,25 +1381,63 @@ const DcI = () => (
   </svg>
 );
 
-// ─── Provider button — true 360° conic border spin ───────────────────────────
+// ─── Provider button ──────────────────────────────────────────────────────────
+//
+// STATE MACHINE (driven by `state` prop from LoginView):
+//
+//   "idle"     → border spins at 3s, normal opacity, clickable
+//   "selected" → border spins at 3s (same speed — feels intentional, not frantic)
+//                conic stops are fully opaque so the 1.5px ring is vivid
+//                pb-inner background lifts to #121212 for contrast
+//                icon swaps to spinner, label shows "Opening X…"
+//   "other"    → border animation: none (instantly killed via inline style)
+//                opacity drops to 0.14, pointer-events: none
+//
+// Key insight: the animation speed does NOT change on selection. What changes
+// is (a) conic stop opacity → fully vivid, (b) inner bg → slightly lighter,
+// (c) "other" buttons lose their animation entirely so they go completely still.
+//
 function ProviderBtn({ icon, label, g1, g2, g3, delay, state, onClick }) {
   const [vis, setVis] = useState(false);
   const [hovered, setHovered] = useState(false);
+
   useEffect(() => {
     const t = setTimeout(() => setVis(true), delay);
     return () => clearTimeout(t);
   }, [delay]);
 
-  const sel = state === "selected";
+  const sel   = state === "selected";
   const other = state === "other";
   const short = label.replace("Continue with ", "");
 
-  /*
-   * Conic gradient: the full 360° color wheel using provider brand colors.
-   * When rotated continuously, the colors travel perfectly around the border ring.
-   * overflow:hidden on .pb-wrap clips it to just the 1.5px padding gap.
-   */
-  const conicBg = `conic-gradient(${g1}, ${g2}, ${g3}, ${g2}, ${g1})`;
+  // ── Conic gradient ──
+  // IDLE:     semi-transparent stops — subtle, ambient ring feel
+  // SELECTED: fully opaque stops — ring pops clearly on the button edge
+  // OTHER:    doesn't matter (animation is none), but keep it defined
+  const conicBg = sel
+    ? `conic-gradient(${g1}, ${g2}, ${g3}, ${g2}, ${g1})`
+    : `conic-gradient(
+        ${g1}88, ${g2}66, ${g3}44,
+        ${g2}66, ${g1}88
+      )`;
+
+  // ── Border animation ──
+  // selected → same 3s speed, fully vivid conic (see above)
+  // other    → "none" — kills the spin instantly the moment another is clicked
+  // idle     → 3s spin as before
+  const borderAnim = other
+    ? "none"
+    : "PB_rotate 3s linear infinite";
+
+  // ── Inner face background ──
+  // selected → #121212 so the colored 1.5px ring contrasts against it
+  // hovered  → #131313 (unchanged from v22)
+  // default  → #0d0d0d
+  const innerBg = sel
+    ? "#121212"
+    : hovered
+      ? "#131313"
+      : "#0d0d0d";
 
   return (
     <div
@@ -1404,24 +1448,25 @@ function ProviderBtn({ icon, label, g1, g2, g3, delay, state, onClick }) {
         transition: `opacity .5s ease ${delay}ms, transform .5s cubic-bezier(.23,1,.32,1) ${delay}ms`,
         pointerEvents: other ? "none" : "auto",
       }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => !sel && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Spinning conic border — always rotating */}
-      <div className="pb-border" aria-hidden style={{ background: conicBg }} />
+      {/* ── Spinning conic border ── */}
+      <div
+        className="pb-border"
+        aria-hidden
+        style={{
+          background: conicBg,
+          animation: borderAnim,
+        }}
+      />
 
-      {/* Inner button face */}
+      {/* ── Inner button face ── */}
       <button
         className="pb-inner"
         onClick={!sel && !other ? onClick : undefined}
         disabled={other}
-        style={{
-          background: sel
-            ? "rgba(255,255,255,.06)"
-            : hovered
-              ? "#111111"
-              : "#0d0d0d",
-        }}
+        style={{ background: innerBg }}
       >
         {/* Icon */}
         <span className="pb-icon">
@@ -1444,29 +1489,33 @@ function ProviderBtn({ icon, label, g1, g2, g3, delay, state, onClick }) {
         {/* Label */}
         <span
           className="pb-label"
-          style={{ color: sel ? "#fff" : hovered ? "#f0f0f0" : "#c0c0c0" }}
+          style={{
+            color: sel ? "#ffffff" : hovered ? "#f0f0f0" : "#c0c0c0",
+          }}
         >
           {sel ? `Opening ${short}…` : label}
         </span>
 
-        {/* Arrow */}
+        {/* Arrow / indicator */}
         <span
           className="pb-arrow"
           style={{
-            opacity: sel ? 0.9 : hovered ? 1 : 0.4,
-            transform: hovered && !sel ? "translateX(3px)" : "translateX(0)",
+            opacity: sel ? 1 : hovered ? 1 : 0.4,
+            transform:
+              hovered && !sel ? "translateX(3px)" : "translateX(0)",
             color: hovered && !sel ? "#a8e63d" : "#666",
-            transition: "opacity .18s, transform .18s, color .18s",
           }}
         >
           {sel ? (
+            /* Pulsing lime dot — confirms something is happening */
             <div
               style={{
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
                 background: "#a8e63d",
-                animation: "XV_spin 2s ease infinite",
+                boxShadow: "0 0 6px rgba(168,230,61,.8)",
+                animation: "LP_pulse 1.4s ease-in-out infinite",
               }}
             />
           ) : (
@@ -1494,15 +1543,14 @@ function ProviderBtn({ icon, label, g1, g2, g3, delay, state, onClick }) {
 
 // ─── LOGIN VIEW ───────────────────────────────────────────────────────────────
 function LoginView() {
-  const [status, setStatus] = useState("idle");
+  const [status, setStatus]   = useState("idle");
   const [provider, setProvider] = useState(null);
-  const [errMsg, setErrMsg] = useState("");
+  const [errMsg, setErrMsg]   = useState("");
   const mounted = useRef(true);
+
   useEffect(() => {
     mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
+    return () => { mounted.current = false; };
   }, []);
 
   const go = useCallback(

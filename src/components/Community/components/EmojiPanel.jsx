@@ -1,41 +1,735 @@
-import React, { useState } from "react";
-import { Smile, Heart, Zap, Coffee, Flag, Star, Users, Sparkles, Search, Film, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Smile,
+  Heart,
+  Zap,
+  Coffee,
+  Flag,
+  Star,
+  Users,
+  Sparkles,
+  Search,
+  Film,
+} from "lucide-react";
 
-const EmojiPanel = ({ onSelect, onClose }) => {
+const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
   const [activeCategory, setActiveCategory] = useState("people");
   const [searchTerm, setSearchTerm] = useState("");
+  const panelRef = useRef(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    // Auto-focus search on mount
+    if (searchRef.current) searchRef.current.focus();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        onClose?.();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
 
   const emojiCategories = {
-    people: { icon: Smile, name: "Smileys", emojis: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔","🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥","😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🤧","🥵","🥶","😵","🤯","🤠","🥳","😎","🤓","🧐","😕","😟","🙁","😮","😯","😲","😳","🥺","😦","😧","😨","😰","😥","😢","😭","😱","😖","😣","😞","😓","😩","😫","🥱","😤","😡","😠","🤬","👿","💀","💩","🤡","👻","👽","🤖","😺","😸","😹","😻","😼","😽","🙀","😿","😾","👋","🤚","🖐","✋","🖖","👌","🤌","🤏","✌","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","💪"] },
-    celebration: { icon: Zap, name: "Celebration", emojis: ["🎉","🎊","🎈","🎁","🎀","🎂","🍰","🧁","🥳","🎆","🎇","✨","🎗","🏆","🥇","🥈","🥉","🏅","🎖","👑","💎","💍","🔥","⚡","💫","⭐","🌟","💥","💯","🚀"] },
-    hearts: { icon: Heart, name: "Hearts", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❤️‍🔥","❤️‍🩹","💕","💞","💓","💗","💖","💘","💝","💟","♥️","❣️"] },
-    nature: { icon: Sparkles, name: "Nature", emojis: ["🌸","🌺","🌻","🌷","🌹","🥀","🌼","🌿","☘️","🍀","🍃","🍂","🍁","🌾","🌱","🌲","🌳","🌴","🌵","🌊","🌈","🌙","⭐","✨","☀️","🌤","⛅","🌥","☁️","🌦","🌧","⛈","🌩","🌨","❄️","☃️","⛄","🌬","💨","🌪","🌫","🌀","🌍","🌎","🌏","🔥","💧","🌊"] },
-    food: { icon: Coffee, name: "Food", emojis: ["🍎","🍏","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶","🫑","🌽","🥕","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🥞","🧇","🥓","🥩","🍗","🍖","🌭","🍔","🍟","🍕","🥪","🥙","🧆","🌮","🌯","🥗","🥘","🍝","🍜","🍲","🍛","🍣","🍱","🥟","🍤","🍙","🍚","🍘","🍥","🍡","🍧","🍨","🍦","🥧","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","☕","🍵","🥤","🧋","🍶","🍺","🍻","🥂","🍷","🥃","🍸","🍹","🍾"] },
-    activities: { icon: Star, name: "Activities", emojis: ["⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🏓","🏸","🏒","🏑","🥍","🏏","🥅","⛳","🏹","🎣","🥊","🥋","🎽","🛹","🛼","⛸","🥌","🎿","🏂","🏋️","🤼","🤸","🤺","⛹️","🤾","🏌️","🏇","🧘","🏊","🤽","🚣","🧗","🚵","🚴","🏆","🥇","🥈","🥉","🏅","🎖","🎗","🎫","🎟","🎪","🎭","🎨","🎬","🎤","🎧","🎼","🎹","🥁","🎷","🎺","🎸","🎻","🎲","🎯","🎳","🎮","🎰","🧩"] },
-    travel: { icon: Flag, name: "Travel", emojis: ["🚗","🚕","🚙","🚌","🚎","🏎","🚓","🚑","🚒","🚐","🚚","🚛","🚜","🚲","🛵","🏍","🛺","🚨","🚔","🚍","🚘","🚖","🚡","🚠","🚟","🚃","🚋","🚞","🚝","🚄","🚅","🚈","🚂","🚆","🚇","🚊","🚉","✈️","🛫","🛬","🛩","🚁","🛶","⛵","🚤","🛥","🛳","⛴","🚢","⚓","🗺","🗿","🗽","🗼","🏰","🏯","🏟","🎡","🎢","🎠","⛲","🏖","🏝","🏜","🌋","⛰","🏔","🗻","🏕","⛺","🏠","🏡"] },
-    objects: { icon: Users, name: "Objects", emojis: ["⌚","📱","📲","💻","⌨️","🖥","🖨","🖱","🕹","💽","💾","💿","📀","📼","📷","📸","📹","🎥","📽","🎞","📞","☎️","📟","📠","📺","📻","🎙","🎚","🎛","⏱","⏲","⏰","🕰","⌛","⏳","📡","🔋","🔌","💡","🔦","🕯","💸","💵","💴","💶","💷","💰","💳","💎","🔧","🔨","⚒","🛠","⛏","🔩","⚙️","🧱","⛓","🔫","💣","🔪","🗡","⚔️","🛡"] },
-    memes: { icon: Film, name: "Memes", emojis: ["😂","🤣","😭","💀","🔥","👀","🤡","💯","🚀","🤯","😳","🥴","🤤","😎","🤓","🧐","🤨","😏","😬","🙃","🫡","🫠","🥹","🫣","🫢","🤐","🤫","💩"] },
+    people: {
+      icon: Smile,
+      name: "Smileys",
+      emojis: [
+        "😀",
+        "😃",
+        "😄",
+        "😁",
+        "😆",
+        "😅",
+        "🤣",
+        "😂",
+        "🙂",
+        "🙃",
+        "😉",
+        "😊",
+        "😇",
+        "🥰",
+        "😍",
+        "🤩",
+        "😘",
+        "😗",
+        "😚",
+        "😙",
+        "😋",
+        "😛",
+        "😜",
+        "🤪",
+        "😝",
+        "🤑",
+        "🤗",
+        "🤭",
+        "🤫",
+        "🤔",
+        "🤐",
+        "🤨",
+        "😐",
+        "😑",
+        "😶",
+        "😏",
+        "😒",
+        "🙄",
+        "😬",
+        "🤥",
+        "😌",
+        "😔",
+        "😪",
+        "🤤",
+        "😴",
+        "😷",
+        "🤒",
+        "🤕",
+        "🤢",
+        "🤮",
+        "🤧",
+        "🥵",
+        "🥶",
+        "😵",
+        "🤯",
+        "🤠",
+        "🥳",
+        "😎",
+        "🤓",
+        "🧐",
+        "😕",
+        "😟",
+        "🙁",
+        "😮",
+        "😯",
+        "😲",
+        "😳",
+        "🥺",
+        "😦",
+        "😧",
+        "😨",
+        "😰",
+        "😥",
+        "😢",
+        "😭",
+        "😱",
+        "😖",
+        "😣",
+        "😞",
+        "😓",
+        "😩",
+        "😫",
+        "🥱",
+        "😤",
+        "😡",
+        "😠",
+        "🤬",
+        "👿",
+        "💀",
+        "💩",
+        "🤡",
+        "👻",
+        "👽",
+        "🤖",
+        "😺",
+        "😸",
+        "😹",
+        "😻",
+        "😼",
+        "😽",
+        "🙀",
+        "😿",
+        "😾",
+        "👋",
+        "🤚",
+        "🖐",
+        "✋",
+        "🖖",
+        "👌",
+        "🤌",
+        "🤏",
+        "✌",
+        "🤞",
+        "🤟",
+        "🤘",
+        "🤙",
+        "👈",
+        "👉",
+        "👆",
+        "👇",
+        "☝",
+        "👍",
+        "👎",
+        "✊",
+        "👊",
+        "🤛",
+        "🤜",
+        "👏",
+        "🙌",
+        "👐",
+        "🤲",
+        "🤝",
+        "🙏",
+        "💪",
+      ],
+    },
+    celebration: {
+      icon: Zap,
+      name: "Celebration",
+      emojis: [
+        "🎉",
+        "🎊",
+        "🎈",
+        "🎁",
+        "🎀",
+        "🎂",
+        "🍰",
+        "🧁",
+        "🥳",
+        "🎆",
+        "🎇",
+        "✨",
+        "🎗",
+        "🏆",
+        "🥇",
+        "🥈",
+        "🥉",
+        "🏅",
+        "🎖",
+        "👑",
+        "💎",
+        "💍",
+        "🔥",
+        "⚡",
+        "💫",
+        "⭐",
+        "🌟",
+        "💥",
+        "💯",
+        "🚀",
+      ],
+    },
+    hearts: {
+      icon: Heart,
+      name: "Hearts",
+      emojis: [
+        "❤️",
+        "🧡",
+        "💛",
+        "💚",
+        "💙",
+        "💜",
+        "🖤",
+        "🤍",
+        "🤎",
+        "💔",
+        "❤️‍🔥",
+        "❤️‍🩹",
+        "💕",
+        "💞",
+        "💓",
+        "💗",
+        "💖",
+        "💘",
+        "💝",
+        "💟",
+        "♥️",
+        "❣️",
+      ],
+    },
+    nature: {
+      icon: Sparkles,
+      name: "Nature",
+      emojis: [
+        "🌸",
+        "🌺",
+        "🌻",
+        "🌷",
+        "🌹",
+        "🥀",
+        "🌼",
+        "🌿",
+        "☘️",
+        "🍀",
+        "🍃",
+        "🍂",
+        "🍁",
+        "🌾",
+        "🌱",
+        "🌲",
+        "🌳",
+        "🌴",
+        "🌵",
+        "🌊",
+        "🌈",
+        "🌙",
+        "⭐",
+        "✨",
+        "☀️",
+        "🌤",
+        "⛅",
+        "🌥",
+        "☁️",
+        "🌦",
+        "🌧",
+        "⛈",
+        "🌩",
+        "🌨",
+        "❄️",
+        "☃️",
+        "⛄",
+        "🌬",
+        "💨",
+        "🌪",
+        "🌫",
+        "🌀",
+        "🌍",
+        "🌎",
+        "🌏",
+        "🔥",
+        "💧",
+      ],
+    },
+    food: {
+      icon: Coffee,
+      name: "Food",
+      emojis: [
+        "🍎",
+        "🍏",
+        "🍐",
+        "🍊",
+        "🍋",
+        "🍌",
+        "🍉",
+        "🍇",
+        "🍓",
+        "🫐",
+        "🍈",
+        "🍒",
+        "🍑",
+        "🥭",
+        "🍍",
+        "🥥",
+        "🥝",
+        "🍅",
+        "🍆",
+        "🥑",
+        "🥦",
+        "🥬",
+        "🥒",
+        "🌶",
+        "🫑",
+        "🌽",
+        "🥕",
+        "🫒",
+        "🧄",
+        "🧅",
+        "🥔",
+        "🍠",
+        "🥐",
+        "🥯",
+        "🍞",
+        "🥖",
+        "🥨",
+        "🧀",
+        "🥚",
+        "🍳",
+        "🧈",
+        "🥞",
+        "🧇",
+        "🥓",
+        "🥩",
+        "🍗",
+        "🍖",
+        "🌭",
+        "🍔",
+        "🍟",
+        "🍕",
+        "🥪",
+        "🥙",
+        "🧆",
+        "🌮",
+        "🌯",
+        "🥗",
+        "🥘",
+        "🍝",
+        "🍜",
+        "🍲",
+        "🍛",
+        "🍣",
+        "🍱",
+        "🥟",
+        "🍤",
+        "🍙",
+        "🍚",
+        "🍘",
+        "🍥",
+        "🥠",
+        "🥮",
+        "🍢",
+        "🍡",
+        "🍧",
+        "🍨",
+        "🍦",
+        "🥧",
+        "🧁",
+        "🍰",
+        "🎂",
+        "🍮",
+        "🍭",
+        "🍬",
+        "🍫",
+        "🍿",
+        "🍩",
+        "🍪",
+        "🌰",
+        "🥜",
+        "☕",
+        "🍵",
+        "🧃",
+        "🥤",
+        "🧋",
+        "🍶",
+        "🍺",
+        "🍻",
+        "🥂",
+        "🍷",
+        "🥃",
+        "🍸",
+        "🍹",
+        "🧉",
+        "🍾",
+        "🧊",
+      ],
+    },
+    activities: {
+      icon: Star,
+      name: "Activities",
+      emojis: [
+        "⚽",
+        "🏀",
+        "🏈",
+        "⚾",
+        "🥎",
+        "🎾",
+        "🏐",
+        "🏉",
+        "🥏",
+        "🎱",
+        "🪀",
+        "🏓",
+        "🏸",
+        "🏒",
+        "🏑",
+        "🥍",
+        "🏏",
+        "🪃",
+        "🥅",
+        "⛳",
+        "🪁",
+        "🏹",
+        "🎣",
+        "🤿",
+        "🥊",
+        "🥋",
+        "🎽",
+        "🛹",
+        "🛼",
+        "🛷",
+        "⛸",
+        "🥌",
+        "🎿",
+        "⛷",
+        "🏂",
+        "🪂",
+        "🏋️",
+        "🤼",
+        "🤸",
+        "🤺",
+        "⛹️",
+        "🤾",
+        "🏌️",
+        "🏇",
+        "🧘",
+        "🏊",
+        "🤽",
+        "🚣",
+        "🧗",
+        "🚵",
+        "🚴",
+        "🏆",
+        "🥇",
+        "🥈",
+        "🥉",
+        "🏅",
+        "🎖",
+        "🎗",
+        "🎫",
+        "🎟",
+        "🎪",
+        "🎭",
+        "🎨",
+        "🎬",
+        "🎤",
+        "🎧",
+        "🎼",
+        "🎹",
+        "🥁",
+        "🪘",
+        "🎷",
+        "🎺",
+        "🪗",
+        "🎸",
+        "🪕",
+        "🎻",
+        "🎲",
+        "♟",
+        "🎯",
+        "🎳",
+        "🎮",
+        "🎰",
+        "🧩",
+      ],
+    },
+    travel: {
+      icon: Flag,
+      name: "Travel",
+      emojis: [
+        "🚗",
+        "🚕",
+        "🚙",
+        "🚌",
+        "🚎",
+        "🏎",
+        "🚓",
+        "🚑",
+        "🚒",
+        "🚐",
+        "🛻",
+        "🚚",
+        "🚛",
+        "🚜",
+        "🦯",
+        "🦽",
+        "🦼",
+        "🛴",
+        "🚲",
+        "🛵",
+        "🏍",
+        "🛺",
+        "🚨",
+        "🚔",
+        "🚍",
+        "🚘",
+        "🚖",
+        "🚡",
+        "🚠",
+        "🚟",
+        "🚃",
+        "🚋",
+        "🚞",
+        "🚝",
+        "🚄",
+        "🚅",
+        "🚈",
+        "🚂",
+        "🚆",
+        "🚇",
+        "🚊",
+        "🚉",
+        "✈️",
+        "🛫",
+        "🛬",
+        "🛩",
+        "💺",
+        "🛰",
+        "🚀",
+        "🛸",
+        "🚁",
+        "🛶",
+        "⛵",
+        "🚤",
+        "🛥",
+        "🛳",
+        "⛴",
+        "🚢",
+        "⚓",
+        "⛽",
+        "🚧",
+        "🚦",
+        "🚥",
+        "🚏",
+        "🗺",
+        "🗿",
+        "🗽",
+        "🗼",
+        "🏰",
+        "🏯",
+        "🏟",
+        "🎡",
+        "🎢",
+        "🎠",
+        "⛲",
+        "⛱",
+        "🏖",
+        "🏝",
+        "🏜",
+        "🌋",
+        "⛰",
+        "🏔",
+        "🗻",
+        "🏕",
+        "⛺",
+        "🛖",
+        "🏠",
+        "🏡",
+      ],
+    },
+    objects: {
+      icon: Users,
+      name: "Objects",
+      emojis: [
+        "⌚",
+        "📱",
+        "📲",
+        "💻",
+        "⌨️",
+        "🖥",
+        "🖨",
+        "🖱",
+        "🖲",
+        "🕹",
+        "🗜",
+        "💽",
+        "💾",
+        "💿",
+        "📀",
+        "📼",
+        "📷",
+        "📸",
+        "📹",
+        "🎥",
+        "📽",
+        "🎞",
+        "📞",
+        "☎️",
+        "📟",
+        "📠",
+        "📺",
+        "📻",
+        "🎙",
+        "🎚",
+        "🎛",
+        "🧭",
+        "⏱",
+        "⏲",
+        "⏰",
+        "🕰",
+        "⌛",
+        "⏳",
+        "📡",
+        "🔋",
+        "🔌",
+        "💡",
+        "🔦",
+        "🕯",
+        "🪔",
+        "🧯",
+        "🛢",
+        "💸",
+        "💵",
+        "💴",
+        "💶",
+        "💷",
+        "🪙",
+        "💰",
+        "💳",
+        "💎",
+        "⚖️",
+        "🪜",
+        "🧰",
+        "🪛",
+        "🔧",
+        "🔨",
+        "⚒",
+        "🛠",
+        "⛏",
+        "🪚",
+        "🔩",
+        "⚙️",
+        "🪤",
+        "🧱",
+        "⛓",
+        "🧲",
+        "🪓",
+        "🔪",
+        "🗡",
+        "⚔️",
+        "🛡",
+      ],
+    },
+    memes: {
+      icon: Film,
+      name: "Memes",
+      emojis: [
+        "😂",
+        "🤣",
+        "😭",
+        "💀",
+        "🔥",
+        "👀",
+        "🤡",
+        "💯",
+        "🚀",
+        "🤯",
+        "😳",
+        "🥴",
+        "🤤",
+        "😎",
+        "🤓",
+        "🧐",
+        "🤨",
+        "😏",
+        "😬",
+        "🙃",
+        "🫡",
+        "🫠",
+        "🥹",
+        "🫣",
+        "🫢",
+        "🫥",
+        "🤐",
+        "🤫",
+        "🫨",
+        "💩",
+      ],
+    },
   };
 
   const filteredEmojis = searchTerm
-    ? Object.values(emojiCategories).flatMap(cat => cat.emojis).filter(e => e.includes(searchTerm))
-    : emojiCategories[activeCategory].emojis;
+    ? Object.values(emojiCategories)
+        .flatMap((cat) => cat.emojis)
+        .filter((emoji) => emoji.includes(searchTerm))
+    : emojiCategories[activeCategory]?.emojis || [];
 
   return (
-    <div className="emoji-panel-full" onClick={e => e.stopPropagation()}>
-      <div className="ep-header">
-        <div className="ep-search">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search emoji..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <button className="ep-close" onClick={onClose}>
-          <X size={18} />
-        </button>
+    <div
+      ref={panelRef}
+      className="emoji-panel-msg"
+      style={style}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="ep-search">
+        <Search size={14} color="#666" />
+        <input
+          ref={searchRef}
+          type="text"
+          placeholder="Search emoji..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="ep-search-input"
+        />
       </div>
 
       <div className="ep-categories">
@@ -44,160 +738,139 @@ const EmojiPanel = ({ onSelect, onClose }) => {
           return (
             <button
               key={key}
-              className={`ep-cat ${activeCategory === key ? "active" : ""}`}
-              onClick={() => { setActiveCategory(key); setSearchTerm(""); }}
+              className={`ep-cat-btn ${activeCategory === key && !searchTerm ? "active" : ""}`}
+              onClick={() => {
+                setActiveCategory(key);
+                setSearchTerm("");
+              }}
               title={cat.name}
             >
-              <Icon size={18} />
+              <Icon size={16} />
             </button>
           );
         })}
       </div>
 
       <div className="ep-grid">
-        {filteredEmojis.map((emoji, idx) => (
-          <button key={idx} className="ep-item" onClick={() => onSelect(emoji)}>
+        {filteredEmojis.map((emoji, i) => (
+          <button key={i} className="ep-item" onClick={() => onSelect(emoji)}>
             {emoji}
           </button>
         ))}
+        {filteredEmojis.length === 0 && (
+          <div className="ep-empty">No results</div>
+        )}
       </div>
 
       <style>{`
-        .emoji-panel-full {
-          width: 380px;
-          height: 450px;
-          background: rgba(10, 10, 10, 0.98);
-          border: 2px solid rgba(156, 255, 0, 0.3);
-          border-radius: 16px;
-          overflow: hidden;
+        .emoji-panel-msg {
+          position: absolute;
+          width: 360px;
+          height: 420px;
+          background: #111;
+          border: 1px solid rgba(132,204,22,0.25);
+          border-radius: 14px;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 16px 64px rgba(0, 0, 0, 0.9);
-          backdrop-filter: blur(20px);
+          overflow: hidden;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 0 60px rgba(132,204,22,0.08);
           z-index: 2000;
         }
 
-        .ep-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px;
-          background: rgba(26, 26, 26, 0.8);
-          border-bottom: 2px solid rgba(156, 255, 0, 0.1);
-        }
-
         .ep-search {
-          flex: 1;
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #999;
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
-        .ep-search input {
+        .ep-search-input {
           flex: 1;
-          background: rgba(26, 26, 26, 0.6);
-          border: 1px solid rgba(42, 42, 42, 0.6);
-          border-radius: 8px;
-          padding: 8px 12px;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 6px;
+          padding: 6px 10px;
           color: #fff;
           font-size: 13px;
           outline: none;
         }
-
-        .ep-search input:focus {
-          border-color: rgba(156, 255, 0, 0.4);
-          background: rgba(26, 26, 26, 0.9);
-        }
-
-        .ep-close {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: rgba(255, 59, 48, 0.15);
-          border: 1px solid rgba(255, 59, 48, 0.3);
-          color: #ff3b30;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .ep-close:hover {
-          background: rgba(255, 59, 48, 0.25);
-          transform: scale(1.05);
+        .ep-search-input:focus {
+          border-color: rgba(132,204,22,0.4);
         }
 
         .ep-categories {
           display: flex;
-          gap: 4px;
-          padding: 12px;
-          background: rgba(26, 26, 26, 0.8);
-          border-bottom: 2px solid rgba(156, 255, 0, 0.1);
+          gap: 3px;
+          padding: 8px 10px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
-        .ep-cat {
+        .ep-cat-btn {
           flex: 1;
-          height: 40px;
-          background: rgba(26, 26, 26, 0.6);
-          border: 2px solid rgba(42, 42, 42, 0.6);
-          border-radius: 10px;
-          color: #999;
+          height: 32px;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 6px;
+          color: #555;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.2s;
+          transition: all 0.15s;
         }
-
-        .ep-cat:hover {
-          background: rgba(26, 26, 26, 0.9);
-          border-color: rgba(156, 255, 0, 0.3);
-          color: #9cff00;
-          transform: translateY(-2px);
+        .ep-cat-btn:hover {
+          background: rgba(132,204,22,0.1);
+          color: #84cc16;
         }
-
-        .ep-cat.active {
-          background: rgba(156, 255, 0, 0.2);
-          border-color: rgba(156, 255, 0, 0.5);
-          color: #9cff00;
-          box-shadow: 0 0 20px rgba(156, 255, 0, 0.2);
+        .ep-cat-btn.active {
+          background: rgba(132,204,22,0.15);
+          border-color: rgba(132,204,22,0.3);
+          color: #84cc16;
         }
 
         .ep-grid {
           flex: 1;
           display: grid;
           grid-template-columns: repeat(8, 1fr);
-          gap: 4px;
-          padding: 12px;
+          gap: 2px;
+          padding: 8px;
           overflow-y: auto;
           scrollbar-width: thin;
-          scrollbar-color: rgba(156, 255, 0, 0.3) rgba(26, 26, 26, 0.3);
+          scrollbar-color: rgba(132,204,22,0.3) transparent;
         }
-
-        .ep-grid::-webkit-scrollbar { width: 8px; }
-        .ep-grid::-webkit-scrollbar-track { background: rgba(26, 26, 26, 0.3); }
-        .ep-grid::-webkit-scrollbar-thumb { background: rgba(156, 255, 0, 0.3); border-radius: 4px; }
+        .ep-grid::-webkit-scrollbar { width: 5px; }
+        .ep-grid::-webkit-scrollbar-thumb { background: rgba(132,204,22,0.3); border-radius: 3px; }
 
         .ep-item {
-          width: 100%;
           aspect-ratio: 1;
           background: transparent;
           border: none;
-          border-radius: 8px;
-          font-size: 24px;
+          border-radius: 5px;
+          font-size: 20px;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.2s;
+          transition: background 0.1s, transform 0.1s;
+        }
+        .ep-item:hover {
+          background: rgba(132,204,22,0.15);
+          transform: scale(1.15);
         }
 
-        .ep-item:hover {
-          background: rgba(156, 255, 0, 0.15);
-          transform: scale(1.2);
-          z-index: 1;
+        .ep-empty {
+          grid-column: 1 / -1;
+          text-align: center;
+          color: #444;
+          font-size: 13px;
+          padding: 24px 0;
+        }
+
+        @media (max-width: 420px) {
+          .emoji-panel-msg { width: 300px; height: 360px; }
+          .ep-grid { grid-template-columns: repeat(7, 1fr); }
+          .ep-item { font-size: 18px; }
         }
       `}</style>
     </div>

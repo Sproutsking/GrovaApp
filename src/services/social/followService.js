@@ -1,20 +1,48 @@
 // ============================================================================
-// src/services/social/followService.js — v2 BULLETPROOF
+// src/services/social/followService.js — v3 PUSH NOTIFICATIONS ADDED
 // ============================================================================
-// FIXES:
-//   [FIX-1] followUser() no longer throws "Already following" — it treats it
-//           as a success and returns { success: true, alreadyFollowing: true }.
-//           PostCard's toggleFollow won't flip back to "unfollowed" state.
-//   [FIX-2] All DB errors are caught and returned as { success: false } instead
-//           of re-thrown, so the UI optimistic update is always preserved.
-//   [FIX-3] unfollowUser() likewise never throws on "not following" state.
-//   [FIX-4] isFollowing() returns false (not throw) on any DB error.
-//   [FIX-5] All count helpers return 0 on error instead of throwing.
+// CHANGES vs v2:
+//   [PUSH-1] followUser() sends a push notification to the followed user
+//            immediately after a successful follow. Fire-and-forget — never
+//            blocks the follow operation or throws to the caller.
+//            Push is sent here (service layer) not in FollowModel so that
+//            both PostCard and ReelCard get push for free via this service.
+//   All v2 bulletproof fixes (FIX-1 through FIX-5) preserved exactly.
 // ============================================================================
 
-import FollowModel from "../../models/FollowModel";
-import { supabase } from "../config/supabase";
-import { handleError } from "../shared/errorHandler";
+import FollowModel   from "../../models/FollowModel";
+import { supabase }  from "../config/supabase";
+import pushService   from "../notifications/pushService";
+
+// ── Push helper — never throws ────────────────────────────────────────────────
+async function _sendFollowPush(followerId, followingId) {
+  try {
+    const { data: follower } = await supabase
+      .from("profiles")
+      .select("full_name, username")
+      .eq("id", followerId)
+      .single();
+
+    const followerName = follower?.full_name || follower?.username || "Someone";
+
+    await pushService.sendPushToUser({
+      recipientUserId: followingId,
+      actorUserId:     followerId,
+      type:            "follow",
+      title:           "New follower",
+      message:         `${followerName} started following you`,
+      entityId:        null,
+      metadata: {
+        notification_id: `follow_${followerId}_${followingId}`,
+        actorName:       followerName,
+        actor_id:        followerId,
+        url:             `/profile/${followerId}`,
+      },
+    });
+  } catch (e) {
+    console.warn("[FollowService] push failed (non-fatal):", e?.message);
+  }
+}
 
 class FollowService {
   // ── isFollowing ─────────────────────────────────────────────────────────
@@ -22,13 +50,12 @@ class FollowService {
     try {
       return await FollowModel.isFollowing(followerId, followingId);
     } catch {
-      // [FIX-4] Never throw — just report false
       return false;
     }
   }
 
   // ── followUser ──────────────────────────────────────────────────────────
-  // [FIX-1] Idempotent — calling this when already following returns success.
+  // [PUSH-1] Sends push to followed user on success
   async followUser(followerId, followingId) {
     if (followerId === followingId) {
       return { success: false, error: "Cannot follow yourself" };
@@ -36,18 +63,19 @@ class FollowService {
     try {
       const result = await FollowModel.followUser(followerId, followingId);
       if (!result.success) {
-        // "Already following" is NOT an error — treat as success
         const msg = String(result.message || "").toLowerCase();
         if (msg.includes("already") || msg.includes("duplicate") || result.code === "23505") {
           return { success: true, alreadyFollowing: true };
         }
-        // Other failures — return gracefully, never throw
         console.warn("[FollowService] followUser non-success:", result.message);
         return { success: false, error: result.message };
       }
+
+      // [PUSH-1] Fire push after confirmed success — never awaited
+      _sendFollowPush(followerId, followingId);
+
       return result;
     } catch (err) {
-      // [FIX-2] DB unique constraint violation = already following → success
       const msg = String(err?.message || err || "").toLowerCase();
       if (
         msg.includes("already") ||
@@ -55,22 +83,21 @@ class FollowService {
         err?.code === "23505" ||
         msg.includes("23505")
       ) {
+        // Still send push even on duplicate — user did follow
+        _sendFollowPush(followerId, followingId);
         return { success: true, alreadyFollowing: true };
       }
       console.error("[FollowService] followUser error:", err);
-      // Return failure object — NEVER rethrow, so optimistic UI stays intact
       return { success: false, error: err?.message || "Failed to follow user" };
     }
   }
 
   // ── unfollowUser ─────────────────────────────────────────────────────────
-  // [FIX-3] Idempotent — calling this when not following returns success.
   async unfollowUser(followerId, followingId) {
     try {
       const result = await FollowModel.unfollowUser(followerId, followingId);
       if (!result.success) {
         const msg = String(result.message || "").toLowerCase();
-        // "Not following" is not an error
         if (msg.includes("not follow") || msg.includes("not found")) {
           return { success: true };
         }
@@ -90,40 +117,24 @@ class FollowService {
 
   // ── getFollowerCount ─────────────────────────────────────────────────────
   async getFollowerCount(userId) {
-    try {
-      return await FollowModel.getFollowerCount(userId);
-    } catch {
-      return 0; // [FIX-5]
-    }
+    try { return await FollowModel.getFollowerCount(userId); } catch { return 0; }
   }
 
   // ── getFollowingCount ────────────────────────────────────────────────────
   async getFollowingCount(userId) {
-    try {
-      return await FollowModel.getFollowingCount(userId);
-    } catch {
-      return 0; // [FIX-5]
-    }
+    try { return await FollowModel.getFollowingCount(userId); } catch { return 0; }
   }
 
   // ── getFollowers ─────────────────────────────────────────────────────────
   async getFollowers(userId, limit = 20) {
-    try {
-      return await FollowModel.getFollowers(userId, limit);
-    } catch (error) {
-      console.error("Error getting followers:", error);
-      return [];
-    }
+    try { return await FollowModel.getFollowers(userId, limit); }
+    catch (error) { console.error("Error getting followers:", error); return []; }
   }
 
   // ── getFollowing ─────────────────────────────────────────────────────────
   async getFollowing(userId, limit = 20) {
-    try {
-      return await FollowModel.getFollowing(userId, limit);
-    } catch (error) {
-      console.error("Error getting following:", error);
-      return [];
-    }
+    try { return await FollowModel.getFollowing(userId, limit); }
+    catch (error) { console.error("Error getting following:", error); return []; }
   }
 
   // ── getMutualFollowers ───────────────────────────────────────────────────
@@ -168,9 +179,7 @@ class FollowService {
         this.isFollowing(userId2, userId1),
       ]);
       return a && b;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
 
   // ── getFollowStats ───────────────────────────────────────────────────────

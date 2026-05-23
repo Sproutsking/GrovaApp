@@ -1,5 +1,5 @@
 // src/components/Shared/AdminSidebar.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import ServicesModal from "./ServicesModal";
 
 // ─────────────────────────────────────────────
@@ -9,9 +9,7 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    /* FIX: was #030303 — pure black, lost in page bg. Lifted to a true surface. */
     background: #0f0f0f;
-    /* FIX: was rgba(255,255,255,0.05) — invisible. Now 0.1 on each side. */
     border-left: 1px solid rgba(255,255,255,0.1);
     border-right: 1px solid rgba(255,255,255,0.1);
     display: flex;
@@ -31,7 +29,6 @@ const STYLES = `
 
   .xv-logo {
     padding: 18px 20px;
-    /* FIX: was rgba(255,255,255,0.05) — invisible separator. Now 0.1. */
     border-bottom: 1px solid rgba(255,255,255,0.1);
     display: flex;
     align-items: center;
@@ -55,7 +52,6 @@ const STYLES = `
   .xv-logo-name {
     font-size: 16px;
     font-weight: 800;
-    /* FIX: was #f4f4f5 — this was fine, keeping it */
     color: #f0f0f0;
     letter-spacing: 0.5px;
     line-height: 1.1;
@@ -68,16 +64,14 @@ const STYLES = `
     font-weight: 700;
     margin-top: 2px;
     font-family: 'DM Mono', monospace;
-    /* color is set inline via role.color — already vivid */
   }
 
   .xv-nav {
     flex: 1;
-    padding: 16px 12px 8px;
+    padding: 14px 12px 8px;
     overflow-y: auto;
     scrollbar-width: none;
   }
-
   .xv-nav::-webkit-scrollbar { display: none; }
 
   .xv-section-label {
@@ -85,12 +79,10 @@ const STYLES = `
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    /* FIX: was #3f3f46 — invisible on dark bg. Now #6b7280, actually readable. */
     color: #6b7280;
     padding: 0 10px 8px;
     font-family: 'DM Mono', monospace;
   }
-
   .xv-section-label--spaced { padding-top: 16px; }
 
   .xv-nav-btn {
@@ -98,29 +90,25 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 11px 12px;
+    padding: 10px 12px;
     border-radius: 10px;
     background: transparent;
     border: 1px solid transparent;
-    /* FIX: was #71717a — too dark on #0f0f0f. Now #9ca3af, readable. */
     color: #9ca3af;
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    margin-bottom: 2px;
+    /* ── 3px gap — tight but breathable ── */
+    margin-bottom: 3px;
     text-align: left;
     position: relative;
     font-family: 'Syne', sans-serif;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-
   .xv-nav-btn:hover {
-    /* FIX: was rgba(255,255,255,0.04) — invisible. Now 0.08. */
-    background: rgba(255,255,255,0.08);
-    /* FIX: was #d4d4d8 — fine but bumped to pure white for sharp contrast */
+    background: rgba(255,255,255,0.07);
     color: #f0f0f0;
   }
-
   .xv-nav-btn--active { font-weight: 700; }
 
   .xv-active-bar {
@@ -131,36 +119,43 @@ const STYLES = `
     width: 3px;
     height: 60%;
     border-radius: 0 3px 3px 0;
-    /* background & boxShadow set inline via role.color */
   }
 
-  .xv-nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+  /* ── Per-item colored icon wrapper ── */
+  .xv-icon-wrap {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+  .xv-icon-wrap svg { width: 15px; height: 15px; }
 
   .xv-menu-btn {
     width: 100%;
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 11px 12px;
+    padding: 10px 12px;
     border-radius: 10px;
     background: transparent;
-    /* FIX: was rgba(255,255,255,0.06) — barely visible. Now 0.12. */
     border: 1px solid rgba(255,255,255,0.12);
-    /* FIX: was #71717a — now #9ca3af */
     color: #9ca3af;
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
     text-align: left;
     font-family: 'Syne', sans-serif;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-
   .xv-menu-btn:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.07);
     color: #f0f0f0;
-    border-color: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.2);
   }
 
   .xv-admin-btn {
@@ -176,16 +171,13 @@ const STYLES = `
     transition: background 0.15s, box-shadow 0.15s;
     text-align: left;
     font-family: 'Syne', sans-serif;
-    /* background, border, color, boxShadow all set inline via role.color */
   }
-
   .xv-admin-btn:hover { filter: brightness(1.1); }
   .xv-admin-btn-label { flex: 1; }
   .xv-chevron { width: 14px; height: 14px; opacity: 0.7; }
 
   .xv-footer {
     padding: 12px 12px 18px;
-    /* FIX: was rgba(255,255,255,0.05) — invisible. Now 0.1. */
     border-top: 1px solid rgba(255,255,255,0.1);
     flex-shrink: 0;
   }
@@ -195,11 +187,9 @@ const STYLES = `
     align-items: center;
     gap: 11px;
     padding: 12px;
-    /* FIX: was rgba(255,255,255,0.03) — invisible card surface. Now 0.07. */
     background: rgba(255,255,255,0.07);
     border-radius: 12px;
     margin-bottom: 10px;
-    /* border set inline via role.color */
   }
 
   .xv-avatar {
@@ -212,13 +202,11 @@ const STYLES = `
     font-size: 14px;
     font-weight: 800;
     flex-shrink: 0;
-    /* bg, border, color, boxShadow all set inline via role.color */
   }
 
   .xv-profile-name {
     font-size: 13px;
     font-weight: 700;
-    /* FIX: was #e4e4e7 — fine, keeping essentially the same */
     color: #f0f0f0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -232,7 +220,6 @@ const STYLES = `
     letter-spacing: 0.04em;
     margin-top: 3px;
     font-family: 'DM Mono', monospace;
-    /* color set inline via role.color */
   }
 
   .xv-signout-btn {
@@ -243,10 +230,8 @@ const STYLES = `
     gap: 8px;
     padding: 10px;
     background: transparent;
-    /* FIX: was rgba(255,255,255,0.07) — invisible. Now 0.12. */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 10px;
-    /* FIX: was #52525b — nearly invisible. Now #888, readable. */
     color: #888;
     font-size: 12.5px;
     font-weight: 600;
@@ -254,7 +239,6 @@ const STYLES = `
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     font-family: 'Syne', sans-serif;
   }
-
   .xv-signout-btn:hover {
     background: rgba(239,68,68,0.12);
     color: #f87171;
@@ -265,7 +249,6 @@ const STYLES = `
     text-align: center;
     margin-top: 12px;
     font-size: 9.5px;
-    /* FIX: was #27272a — invisible. Now #4b5563, faint but present. */
     color: #4b5563;
     letter-spacing: 0.06em;
     font-style: italic;
@@ -273,6 +256,9 @@ const STYLES = `
   }
 `;
 
+// ─────────────────────────────────────────────
+// ROLE CONFIG
+// ─────────────────────────────────────────────
 const ROLE_CONFIG = {
   ceo_owner: { label: "CEO / Owner", color: "#f59e0b", glow: "rgba(245,158,11,0.3)"  },
   a_admin:   { label: "Admin A",     color: "#a3e635", glow: "rgba(163,230,53,0.3)"  },
@@ -280,46 +266,146 @@ const ROLE_CONFIG = {
   support:   { label: "Support",     color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
 };
 
+// ─────────────────────────────────────────────
+// NAV ITEMS — each has its own personality color
+// Active state overrides to role.color
+// ─────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: "home",      label: "Home",      icon: HomeIcon      },
-  { id: "search",    label: "Explore",   icon: SearchIcon    },
-  { id: "create",    label: "Create",    icon: PlusSquareIcon },
-  { id: "community", label: "Community", icon: UsersIcon     },
-  { id: "wallet",    label: "Wallet",    icon: WalletIcon    },
-  { id: "account",   label: "Account",   icon: UserIcon      },
+  {
+    id: "home",
+    label: "Home",
+    iconColor: "#a3e635",
+    iconBg: "rgba(132,204,22,0.13)",
+    icon: HomeIcon,
+  },
+  {
+    id: "search",
+    label: "Explore",
+    iconColor: "#22d3ee",
+    iconBg: "rgba(6,182,212,0.11)",
+    icon: SearchIcon,
+  },
+  {
+    id: "create",
+    label: "Create",
+    iconColor: "#fbbf24",
+    iconBg: "rgba(245,158,11,0.11)",
+    icon: PlusSquareIcon,
+  },
+  {
+    id: "community",
+    label: "Community",
+    iconColor: "#a78bfa",
+    iconBg: "rgba(139,92,246,0.11)",
+    icon: UsersIcon,
+  },
+  {
+    id: "wallet",
+    label: "Wallet",
+    iconColor: "#34d399",
+    iconBg: "rgba(16,185,129,0.11)",
+    icon: WalletIcon,
+  },
+  {
+    id: "account",
+    label: "Account",
+    iconColor: "#fb7185",
+    iconBg: "rgba(251,113,133,0.11)",
+    icon: UserIcon,
+  },
 ];
 
-function HomeIcon({ strokeWidth = 2 }) {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>);
+// ─────────────────────────────────────────────
+// ICON COMPONENTS
+// ─────────────────────────────────────────────
+function HomeIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  );
 }
-function SearchIcon({ strokeWidth = 2 }) {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
+function SearchIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  );
 }
-function PlusSquareIcon({ strokeWidth = 2 }) {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>);
+function PlusSquareIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
+  );
 }
-function UsersIcon({ strokeWidth = 2 }) {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
+function UsersIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
 }
-function WalletIcon({ strokeWidth = 2 }) {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>);
+function WalletIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2"/>
+      <line x1="2" y1="10" x2="22" y2="10"/>
+    </svg>
+  );
 }
-function UserIcon({ strokeWidth = 2 }) {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
+function UserIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
 }
 function MenuGridIcon() {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>);
+  return (
+    <svg style={{ width: 15, height: 15 }} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  );
 }
-function ShieldIcon() {
-  return (<svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>);
+function ShieldIcon({ color }) {
+  return (
+    <svg style={{ width: 15, height: 15 }} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  );
 }
 function LogOutIcon() {
-  return (<svg style={{ width:13, height:13 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);
+  return (
+    <svg style={{ width: 13, height: 13 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
 }
 function ChevronRightIcon() {
-  return (<svg className="xv-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>);
+  return (
+    <svg className="xv-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  );
 }
 
+// ─────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────
 export default function AdminSidebar({
   activeTab,
   setActiveTab,
@@ -362,80 +448,148 @@ export default function AdminSidebar({
   const role     = ROLE_CONFIG[adminData?.role] ?? ROLE_CONFIG.a_admin;
   const initials = (adminData?.full_name || adminData?.email || "A").charAt(0).toUpperCase();
 
-  function navBtnStyle(id) {
-    const isActive = activeTab === id;
-    return {
-      background: isActive ? `${role.color}18` : undefined,
-      border:     isActive ? `1px solid ${role.color}38` : undefined,
-      color:      isActive ? role.color : undefined,
-    };
-  }
-
   return (
     <>
-      <aside className="xv-sidebar" style={{ top: headerHeight, height: `calc(100vh - ${headerHeight}px)` }}>
-        <div className="xv-accent-bar" style={{ background: `linear-gradient(90deg, ${role.color}, transparent)` }} />
+      <aside
+        className="xv-sidebar"
+        style={{ top: headerHeight, height: `calc(100vh - ${headerHeight}px)` }}
+      >
+        {/* Top accent bar — role color */}
+        <div
+          className="xv-accent-bar"
+          style={{ background: `linear-gradient(90deg, ${role.color}, transparent)` }}
+        />
 
+        {/* Logo */}
         <div className="xv-logo">
-          <div className="xv-logo-icon" style={{ background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`, boxShadow: `0 4px 16px ${role.glow}` }}>X</div>
+          <div
+            className="xv-logo-icon"
+            style={{
+              background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`,
+              boxShadow: `0 4px 16px ${role.glow}`,
+            }}
+          >
+            X
+          </div>
           <div>
             <div className="xv-logo-name">Xeevia</div>
             <div className="xv-logo-sub" style={{ color: role.color }}>Admin Console</div>
           </div>
         </div>
 
+        {/* Nav */}
         <nav className="xv-nav">
           <div className="xv-section-label">Navigation</div>
+
           {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
+            const Icon     = item.icon;
             const isActive = activeTab === item.id;
+
+            // Active → role color. Inactive → item's own personality color.
+            const iconColor = isActive ? role.color : item.iconColor;
+            const iconBg    = isActive ? `${role.color}20` : item.iconBg;
+            const iconGlow  = isActive ? `0 0 10px ${role.glow}` : "none";
+
             return (
-              <button key={item.id}
+              <button
+                key={item.id}
                 className={`xv-nav-btn${isActive ? " xv-nav-btn--active" : ""}`}
-                style={navBtnStyle(item.id)}
+                style={isActive ? {
+                  background:  `${role.color}15`,
+                  border:      `1px solid ${role.color}35`,
+                  color:       role.color,
+                } : {}}
                 onClick={() => setActiveTab(item.id)}
                 onMouseEnter={() => setHovered(item.id)}
-                onMouseLeave={() => setHovered(null)}>
-                {isActive && (<span className="xv-active-bar" style={{ background: role.color, boxShadow: `0 0 8px ${role.glow}` }} />)}
-                <Icon strokeWidth={isActive ? 2.5 : 2} />
+                onMouseLeave={() => setHovered(null)}
+              >
+                {isActive && (
+                  <span
+                    className="xv-active-bar"
+                    style={{
+                      background:  role.color,
+                      boxShadow:   `0 0 8px ${role.glow}`,
+                    }}
+                  />
+                )}
+                <div
+                  className="xv-icon-wrap"
+                  style={{ background: iconBg, boxShadow: iconGlow }}
+                >
+                  <Icon color={iconColor} strokeWidth={isActive ? 2.5 : 2} />
+                </div>
                 <span>{item.label}</span>
               </button>
             );
           })}
 
-          <button className="xv-menu-btn" onClick={() => setShowServices(true)}
-            onMouseEnter={() => setHovered("menu")} onMouseLeave={() => setHovered(null)} aria-label="Open menu">
-            <MenuGridIcon /><span>Menu</span>
+          {/* Menu button */}
+          <button
+            className="xv-menu-btn"
+            onClick={() => setShowServices(true)}
+            onMouseEnter={() => setHovered("menu")}
+            onMouseLeave={() => setHovered(null)}
+            aria-label="Open menu"
+          >
+            <div className="xv-icon-wrap" style={{ background: "rgba(148,163,184,0.09)" }}>
+              <MenuGridIcon />
+            </div>
+            <span>Menu</span>
           </button>
 
+          {/* Admin section */}
           <div className="xv-section-label xv-section-label--spaced">Administration</div>
 
-          <button className="xv-admin-btn"
+          <button
+            className="xv-admin-btn"
             style={{
-              background:  hovered === "dashboard" ? `${role.color}20` : `${role.color}12`,
-              border:      `1px solid ${role.color}38`,
-              color:       role.color,
-              boxShadow:   hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none",
+              background: hovered === "dashboard" ? `${role.color}20` : `${role.color}12`,
+              border:     `1px solid ${role.color}38`,
+              color:      role.color,
+              boxShadow:  hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none",
             }}
             onClick={onOpenDashboard}
-            onMouseEnter={() => setHovered("dashboard")} onMouseLeave={() => setHovered(null)}>
-            <ShieldIcon />
+            onMouseEnter={() => setHovered("dashboard")}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <div className="xv-icon-wrap" style={{ background: `${role.color}18` }}>
+              <ShieldIcon color={role.color} />
+            </div>
             <span className="xv-admin-btn-label">Admin Dashboard</span>
             <ChevronRightIcon />
           </button>
         </nav>
 
+        {/* Footer */}
         <div className="xv-footer">
-          <div className="xv-profile-card" style={{ border: `1px solid ${role.color}28` }}>
-            <div className="xv-avatar" style={{ background: `${role.color}20`, border: `1.5px solid ${role.color}50`, color: role.color, boxShadow: `0 2px 12px ${role.glow}` }}>
+          <div
+            className="xv-profile-card"
+            style={{ border: `1px solid ${role.color}28` }}
+          >
+            <div
+              className="xv-avatar"
+              style={{
+                background:  `${role.color}20`,
+                border:      `1.5px solid ${role.color}50`,
+                color:       role.color,
+                boxShadow:   `0 2px 12px ${role.glow}`,
+              }}
+            >
               {initials}
             </div>
-            <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div className="xv-profile-name">{adminData?.full_name || "Admin"}</div>
-              <div className="xv-profile-role" style={{ color: role.color }}>{role.label}</div>
+              <div className="xv-profile-role" style={{ color: role.color }}>
+                {role.label}
+              </div>
             </div>
           </div>
-          <button className="xv-signout-btn" onClick={onSignOut}><LogOutIcon />Sign Out</button>
+
+          <button className="xv-signout-btn" onClick={onSignOut}>
+            <LogOutIcon />
+            Sign Out
+          </button>
+
           <div className="xv-credits">Platform Administration · Xeevia</div>
         </div>
       </aside>

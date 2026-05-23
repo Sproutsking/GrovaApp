@@ -2,64 +2,116 @@
 // ════════════════════════════════════════════════════════════════
 // Engagement Points (EP) Service — COMPLETE IMPLEMENTATION
 //
-// CIRCULAR DEPENDENCY FIX:
-//   The old _getStoredUSDNGN() used require("../wallet/depositFundService")
-//   at runtime inside the module. When Webpack lazy-loads the wallet chunk,
-//   both epService and depositFundService are in the same chunk — the
-//   synchronous require() runs before either module has finished initialising,
-//   causing:
-//     "Cannot access '__WEBPACK_DEFAULT_EXPORT__' before initialization"
+// FIXES IN THIS VERSION:
 //
-//   Fix: _getStoredUSDNGN() now reads from a module-level variable that
-//   depositFundService pushes into via setEPServiceRate(rate). No require(),
-//   no circular dep. The fallback of 1500 NGN/USD is used until the first
-//   live rate arrives (conservative — never over-mints).
+// 1. PLATFORM_WALLET_USER_ID — now reads from env var with a loud
+//    console.error if missing so you see it at startup, not at
+//    send-time. The fallback is the zero-UUID so Postgres at least
+//    gets a syntactically valid UUID and throws a FK error rather
+//    than the cryptic "invalid input syntax for type uuid" error
+//    that "YOUR-PLATFORM-ADMIN-UUID-HERE" caused.
+//
+// 2. _transferEPWithFee — added a runtime guard: if the platform
+//    UUID is still the zero-UUID it logs a clear warning before
+//    hitting the RPC so you know exactly what to fix.
+//
+// 3. CIRCULAR DEPENDENCY FIX (unchanged from previous):
+//    _getStoredUSDNGN() reads from a module-level variable that
+//    depositFundService pushes into via setEPServiceRate(rate).
+//    No require(), no circular dep.
 //
 // CANONICAL EXCHANGE RATES:
 //   1 USD  = 100 EP
 //   1 $XEV = 10 EP
 //   1 $XEV = $0.10 USD
+//
+// ENV VARS REQUIRED:
+//   REACT_APP_PLATFORM_WALLET_USER_ID  — the Supabase auth.users UUID
+//                                        of your platform treasury account.
+//   Get it from: Supabase Dashboard → Authentication → Users
+//   Or run:  SELECT id FROM auth.users WHERE email = 'platform@xeevia.com';
 // ════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
 import { EP_PER_USD, EP_PER_XEV, USD_PER_XEV } from "../../models/WalletModel";
 
-// ── Platform treasury wallet user ID ─────────────────────────────
-const PLATFORM_WALLET_USER_ID =
-  process.env.REACT_APP_PLATFORM_WALLET_USER_ID ||
-  "00000000-0000-0000-0000-000000000001";
+// ─────────────────────────────────────────────────────────────────
+// PLATFORM TREASURY UUID
+//
+// IMPORTANT: Set REACT_APP_PLATFORM_WALLET_USER_ID in your .env
+// to the real UUID of the platform treasury / admin user account.
+//
+// If this env var is missing the service will:
+//   • Log a red console.error at module load time
+//   • Log a red console.error on every RPC call that uses it
+//   • Fall back to the nil UUID (00000000-...) so Postgres at least
+//     gets a valid UUID format — you'll get a FK constraint error
+//     instead of the confusing "invalid input syntax for type uuid"
+//     that a non-UUID placeholder string causes.
+// ─────────────────────────────────────────────────────────────────
+const _PLATFORM_UUID_ENV = process.env.REACT_APP_PLATFORM_WALLET_USER_ID;
+
+// Nil UUID — syntactically valid, fails FK check, never silently
+// credits a random real user. Much safer than a non-UUID string.
+const NIL_UUID = "00000000-0000-0000-0000-000000000000";
+
+// Validate: must look like a real UUID (8-4-4-4-12 hex)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function _validatePlatformUUID(raw) {
+  if (!raw) {
+    console.error(
+      "[epService] ⚠ REACT_APP_PLATFORM_WALLET_USER_ID is not set!\n" +
+      "  All EP transfers that route fees to the platform treasury will fail.\n" +
+      "  Fix: add REACT_APP_PLATFORM_WALLET_USER_ID=<your-uuid> to .env\n" +
+      "  Get it from: Supabase Dashboard → Auth → Users → platform account"
+    );
+    return NIL_UUID;
+  }
+  if (raw === "YOUR-PLATFORM-ADMIN-UUID-HERE" || !UUID_RE.test(raw.trim())) {
+    console.error(
+      `[epService] ⚠ REACT_APP_PLATFORM_WALLET_USER_ID looks invalid: "${raw}"\n` +
+      "  It must be a standard UUID (e.g. a1b2c3d4-e5f6-7890-abcd-ef1234567890).\n" +
+      "  Get it from: Supabase Dashboard → Auth → Users → platform account"
+    );
+    return NIL_UUID;
+  }
+  return raw.trim();
+}
+
+const PLATFORM_WALLET_USER_ID = _validatePlatformUUID(_PLATFORM_UUID_ENV);
 
 // ── Protocol fee rate (10% of EP transferred) ────────────────────
 const PROTOCOL_FEE_RATE = 0.1;
 
 // ── EP award amounts by engagement type ──────────────────────────
 export const EP_AWARDS = {
-  post_like_received: 1,
-  post_comment_received: 2,
-  post_share_received: 3,
-  post_view: 0.1,
-  story_unlock: 5,
-  reel_like_received: 1,
-  reel_comment_received: 2,
-  reel_share_received: 3,
-  gift_received_small: 10,
-  gift_received_medium: 25,
-  gift_received_large: 50,
-  follow_received: 2,
+  post_like_received:     1,
+  post_comment_received:  2,
+  post_share_received:    3,
+  post_view:              0.1,
+  story_unlock:           5,
+  reel_like_received:     1,
+  reel_comment_received:  2,
+  reel_share_received:    3,
+  gift_received_small:    10,
+  gift_received_medium:   25,
+  gift_received_large:    50,
+  follow_received:        2,
 
   deposit_per_usd: EP_PER_USD, // 100 EP per $1 USD
   deposit_per_xev: EP_PER_XEV, //  10 EP per 1 XEV
 
   daily_login: 5,
-  referral: 20,
+  referral:    20,
 };
 
 // ── EP burn table for wallet SEND operations ─────────────────────
 export const EP_BURN_TABLE = [
-  { maxXev: 1, burn: 0.5 },
-  { maxXev: 5, burn: 2 },
-  { maxXev: 20, burn: 5 },
-  { maxXev: Infinity, burn: 10 },
+  { maxXev: 1,        burn: 0.5 },
+  { maxXev: 5,        burn: 2   },
+  { maxXev: 20,       burn: 5   },
+  { maxXev: Infinity, burn: 10  },
 ];
 
 export function computeEPBurn(xevAmount) {
@@ -72,7 +124,6 @@ export function computeEPBurn(xevAmount) {
 
 // ─────────────────────────────────────────────────────────────────
 // WITHDRAWAL TIER SYSTEM
-// ─────────────────────────────────────────────────────────────────
 //
 // Tier 1 — Low priority   :  100 –  1,000 EP → 4% fee, ~72h est.
 // Tier 2 — Standard       : 1,001 – 10,000 EP → 3% fee, ~24h est.
@@ -117,20 +168,20 @@ export function computeWithdrawalFee(epAmount) {
   if (amount < 100) return null;
 
   const tierDef = WITHDRAWAL_TIERS.find(
-    (t) => amount >= t.minEp && amount <= t.maxEp,
+    (t) => amount >= t.minEp && amount <= t.maxEp
   );
   if (!tierDef) return null;
 
   const feeAmount = parseFloat(((amount * tierDef.feePct) / 100).toFixed(4));
-  const netEp = parseFloat((amount - feeAmount).toFixed(4));
+  const netEp     = parseFloat((amount - feeAmount).toFixed(4));
 
   return {
-    tier: tierDef.tier,
-    feePct: tierDef.feePct,
+    tier:           tierDef.tier,
+    feePct:         tierDef.feePct,
     feeAmount,
     netEp,
     estimatedHours: tierDef.estimatedHours,
-    label: tierDef.label,
+    label:          tierDef.label,
   };
 }
 
@@ -155,7 +206,7 @@ let _usdNgnRate = 1500;
  * Called by depositFundService after it fetches a live USD/NGN rate.
  * This is the ONLY way epService learns the current rate — no require().
  *
- * In depositFundService.js, add this after getLiveUSDNGN() resolves:
+ * In depositFundService.js add this after getLiveUSDNGN() resolves:
  *   import { setEPServiceRate } from "./epService";
  *   setEPServiceRate(rate);
  */
@@ -176,7 +227,7 @@ function _getStoredUSDNGN() {
 //   e.g. ₦5,380 ÷ 1345 = $4.00 → $4 × 100 = 400 EP  ✓
 //
 export function computeEPMint(currency, amount, usdNgnRate = null) {
-  const a = parseFloat(amount) || 0;
+  const a    = parseFloat(amount) || 0;
   const rate = usdNgnRate || _getStoredUSDNGN();
 
   switch (currency) {
@@ -198,15 +249,9 @@ export function computeEPMint(currency, amount, usdNgnRate = null) {
 }
 
 // ── USD display value of EP ───────────────────────────────────────
-export function epToUsd(ep) {
-  return parseFloat(ep) / EP_PER_USD;
-}
-export function epToXev(ep) {
-  return parseFloat(ep) / EP_PER_XEV;
-}
-export function xevToUsd(xev) {
-  return parseFloat(xev) * USD_PER_XEV;
-}
+export function epToUsd(ep)  { return parseFloat(ep) / EP_PER_USD; }
+export function epToXev(ep)  { return parseFloat(ep) / EP_PER_XEV; }
+export function xevToUsd(xev){ return parseFloat(xev) * USD_PER_XEV; }
 
 // ─────────────────────────────────────────────────────────────────
 // CORE: 3-WAY EP TRANSFER (social action economics)
@@ -220,19 +265,31 @@ async function _transferEPWithFee({
 }) {
   if (!fromUserId || !toUserId)
     return { success: false, error: "Missing user IDs" };
+
   if (fromUserId === toUserId)
     return { success: false, error: "Cannot transfer to self" };
+
+  // Guard: catch a still-broken platform UUID before hitting Postgres
+  if (PLATFORM_WALLET_USER_ID === NIL_UUID) {
+    console.error(
+      "[epService] _transferEPWithFee: PLATFORM_WALLET_USER_ID is the nil UUID.\n" +
+      "  Set REACT_APP_PLATFORM_WALLET_USER_ID in .env to your platform account UUID.\n" +
+      `  Attempted transfer: ${fromUserId} → ${toUserId}, ${epAmount} EP, reason: ${reason}`
+    );
+    // Still attempt the RPC — the FK constraint will produce a clear DB error
+    // rather than the confusing "invalid input syntax for type uuid" message.
+  }
 
   const fee = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
 
   const { data, error } = await supabase.rpc("transfer_ep_with_fee", {
-    p_from_user_id: fromUserId,
-    p_to_user_id: toUserId,
+    p_from_user_id:     fromUserId,
+    p_to_user_id:       toUserId,
     p_platform_user_id: PLATFORM_WALLET_USER_ID,
-    p_amount: epAmount,
-    p_fee: fee,
-    p_reason: reason,
-    p_metadata: JSON.stringify(metadata),
+    p_amount:           epAmount,
+    p_fee:              fee,
+    p_reason:           reason,
+    p_metadata:         JSON.stringify(metadata),
   });
 
   if (error) {
@@ -277,72 +334,40 @@ export const epService = {
   },
 
   // ── Social action transfers ────────────────────────────────────
-  async awardForLike(
-    fromUserId,
-    contentOwnerId,
-    contentType = "post",
-    contentId = null,
-  ) {
+  async awardForLike(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_like_received`] ?? 1;
     return _transferEPWithFee({
       fromUserId,
       toUserId: contentOwnerId,
       epAmount,
       reason: `${contentType}_like`,
-      metadata: {
-        content_type: contentType,
-        content_id: contentId,
-        action: "like",
-      },
+      metadata: { content_type: contentType, content_id: contentId, action: "like" },
     });
   },
 
-  async awardForComment(
-    fromUserId,
-    contentOwnerId,
-    contentType = "post",
-    contentId = null,
-  ) {
+  async awardForComment(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_comment_received`] ?? 2;
     return _transferEPWithFee({
       fromUserId,
       toUserId: contentOwnerId,
       epAmount,
       reason: `${contentType}_comment`,
-      metadata: {
-        content_type: contentType,
-        content_id: contentId,
-        action: "comment",
-      },
+      metadata: { content_type: contentType, content_id: contentId, action: "comment" },
     });
   },
 
-  async awardForShare(
-    fromUserId,
-    contentOwnerId,
-    contentType = "post",
-    contentId = null,
-  ) {
+  async awardForShare(fromUserId, contentOwnerId, contentType = "post", contentId = null) {
     const epAmount = EP_AWARDS[`${contentType}_share_received`] ?? 3;
     return _transferEPWithFee({
       fromUserId,
       toUserId: contentOwnerId,
       epAmount,
       reason: `${contentType}_share`,
-      metadata: {
-        content_type: contentType,
-        content_id: contentId,
-        action: "share",
-      },
+      metadata: { content_type: contentType, content_id: contentId, action: "share" },
     });
   },
 
-  async awardForStoryUnlock(
-    fromUserId,
-    storyOwnerId,
-    storyId = null,
-    unlockCost = null,
-  ) {
+  async awardForStoryUnlock(fromUserId, storyOwnerId, storyId = null, unlockCost = null) {
     const epAmount = unlockCost ?? EP_AWARDS.story_unlock;
     return _transferEPWithFee({
       fromUserId,
@@ -355,15 +380,10 @@ export const epService = {
 
   async awardForGift(recipientId, giftTier = "small", senderId = null) {
     const epAmount = EP_AWARDS[`gift_received_${giftTier}`] ?? 10;
-    return this._directCreditEP(
-      recipientId,
-      epAmount,
-      `gift_received_${giftTier}`,
-      {
-        sender_id: senderId,
-        gift_tier: giftTier,
-      },
-    );
+    return this._directCreditEP(recipientId, epAmount, `gift_received_${giftTier}`, {
+      sender_id: senderId,
+      gift_tier: giftTier,
+    });
   },
 
   async awardForFollow(followedUserId, followerId = null) {
@@ -371,19 +391,12 @@ export const epService = {
       followedUserId,
       EP_AWARDS.follow_received,
       "follow_received",
-      {
-        follower_id: followerId,
-      },
+      { follower_id: followerId }
     );
   },
 
   async awardDailyLogin(userId) {
-    return this._directCreditEP(
-      userId,
-      EP_AWARDS.daily_login,
-      "daily_login",
-      {},
-    );
+    return this._directCreditEP(userId, EP_AWARDS.daily_login, "daily_login", {});
   },
 
   async awardReferral(userId, referredUserId = null) {
@@ -397,9 +410,10 @@ export const epService = {
     const epToMint = computeEPMint(currency, amount, usdNgnRate);
     if (epToMint <= 0) return null;
 
+    const rate = usdNgnRate || _getStoredUSDNGN();
     const rateUsed =
       currency === "NGN"
-        ? `(₦${amount} ÷ ${usdNgnRate || _getStoredUSDNGN()} = $${(amount / (usdNgnRate || _getStoredUSDNGN())).toFixed(4)}) × ${EP_PER_USD} EP/USD`
+        ? `(₦${amount} ÷ ${rate} = $${(amount / rate).toFixed(4)}) × ${EP_PER_USD} EP/USD`
         : currency === "XEV"
           ? `${EP_PER_XEV} EP/XEV`
           : `${EP_PER_USD} EP/$1`;
@@ -415,12 +429,22 @@ export const epService = {
   // ── Burn EP for wallet send ────────────────────────────────────
   async burnForTransaction(userId, burnAmount, reason = "tx_burn") {
     if (burnAmount <= 0) return { success: true, burned: 0 };
+
+    // Guard: same UUID check as _transferEPWithFee
+    if (PLATFORM_WALLET_USER_ID === NIL_UUID) {
+      console.error(
+        "[epService] burnForTransaction: PLATFORM_WALLET_USER_ID is the nil UUID.\n" +
+        "  Set REACT_APP_PLATFORM_WALLET_USER_ID in .env."
+      );
+    }
+
     const { data, error } = await supabase.rpc("burn_ep", {
-      p_user_id: userId,
-      p_amount: burnAmount,
+      p_user_id:          userId,
+      p_amount:           burnAmount,
       p_platform_user_id: PLATFORM_WALLET_USER_ID,
-      p_reason: reason,
+      p_reason:           reason,
     });
+
     if (error) {
       console.error("[epService] burn_ep error:", error);
       return { success: false, error: error.message };
@@ -428,12 +452,12 @@ export const epService = {
     return { success: true, burned: burnAmount, data };
   },
 
-  // ── Direct credit (platform-funded) ───────────────────────────
+  // ── Direct credit (platform-funded, no debit source) ──────────
   async _directCreditEP(userId, epAmount, reason, metadata = {}) {
     const { data, error } = await supabase.rpc("credit_ep", {
-      p_user_id: userId,
-      p_amount: epAmount,
-      p_reason: reason,
+      p_user_id:  userId,
+      p_amount:   epAmount,
+      p_reason:   reason,
       p_metadata: JSON.stringify(metadata),
     });
     if (error) {
@@ -445,7 +469,7 @@ export const epService = {
 
   // ── Affordability check ───────────────────────────────────────
   async checkCanAfford(userId, epAmount) {
-    const fee = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
+    const fee      = parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
     const required = epAmount + fee;
     const available = await this.getBalance(userId);
     return { canAfford: available >= required, required, available, fee };
@@ -458,30 +482,28 @@ export const epService = {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event:  "*",
           schema: "public",
-          table: "wallets",
+          table:  "wallets",
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           if (payload.new?.engagement_points !== undefined) {
             callback(payload.new.engagement_points);
           }
-        },
+        }
       )
       .subscribe();
     return () => supabase.removeChannel(channel);
   },
 
   // ── Rate accessors ────────────────────────────────────────────
-  getProtocolFeeRate() {
-    return PROTOCOL_FEE_RATE;
-  },
+  getProtocolFeeRate() { return PROTOCOL_FEE_RATE; },
   getProtocolFee(epAmount) {
     return parseFloat((epAmount * PROTOCOL_FEE_RATE).toFixed(4));
   },
 
-  // ── Conversion helpers ────────────────────────────────────────
+  // ── Conversion helpers (re-exported for convenience) ──────────
   epToUsd,
   epToXev,
   xevToUsd,
