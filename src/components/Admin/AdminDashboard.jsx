@@ -1,14 +1,18 @@
 // ============================================================================
-// src/components/Admin/AdminDashboard.jsx — v9 COMPLETE PRODUCTION
+// src/components/Admin/AdminDashboard.jsx — v9 PRODUCTION COMPLETE
 // ============================================================================
-// CHANGES v9:
-//   - Liquidity added to NAV_ITEMS between system and team
-//   - Communities section no longer passes wrong props (uses internal hook)
-//   - Ambassador banner uses Lucide Globe2 icon (no emoji)
-//   - Quick actions use proper Lucide icons throughout
-//   - All emoji icon replacements with Lucide equivalents
-//   - renderSection: communities now renders without contentMgmt prop
-//   - Full prop audit — no mismatched prop names anywhere
+// KEY CHANGES vs v8:
+//   - Liquidity added to NAV_ITEMS (between System and Team)
+//   - communities case: no longer passes contentMgmt — CommunitiesSection
+//     uses its own internal useCommunities() hook
+//   - transactions case: no longer passes txMgmt — TransactionsSection
+//     uses its own internal useTransactions() hook
+//   - ambassador banner: Globe2 Lucide icon (was emoji 🌐)
+//   - Quick Actions: all Lucide icons, 9 items in 3×3 grid
+//   - Sidebar: nav group labels, tighter spacing
+//   - Economy panel: EP note "base grant 50 EP per paid user"
+//   - getVisibleSections must include "liquidity" for super_admin+ roles
+//     (update permissions.js accordingly)
 // ============================================================================
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
@@ -17,13 +21,13 @@ import {
   Globe, Globe2, Shield, Bell, Settings, Users2, Crown,
   Menu, X, ChevronRight, Headphones, RefreshCw, Zap,
   TrendingUp, TrendingDown, Star, Droplets, Activity,
-  DollarSign, MessageSquare, Hash,
+  DollarSign,
 } from "lucide-react";
-import { C, Btn, Alert, AdminOnlinePanel, LivePulse } from "./AdminUI.jsx";
+import { C, Btn, AdminOnlinePanel, LivePulse } from "./AdminUI.jsx";
 import { getVisibleSections, ROLE_META } from "./permissions.js";
 import {
-  useStats, useUsers, useInvites, useAnalytics, useTransactions,
-  useSecurity, useNotifications, useCommunities, usePlatformFreeze,
+  useStats, useUsers, useInvites, useAnalytics,
+  useSecurity, useNotifications, usePlatformFreeze,
   usePlatformSettings, useTeam, useSupportCases,
 } from "./useAdminData.js";
 
@@ -32,31 +36,49 @@ import {
   UsersSection, AnalyticsSection, TransactionsSection,
   SecuritySection, NotificationsSection, CommunitiesSection,
 } from "./sections/OtherSections.jsx";
-import InviteSection      from "./sections/InviteSection.jsx";
+import InviteSection     from "./sections/InviteSection.jsx";
 import { FreezeSection, SystemSection } from "./sections/SystemSection.jsx";
 import TeamSection, { CEOPanel } from "./sections/TeamSection.jsx";
-import AmbassadorSection  from "./sections/AmbassadorSection.jsx";
-import LiquiditySection   from "./sections/LiquiditySection.jsx";
+import AmbassadorSection from "./sections/AmbassadorSection.jsx";
+import LiquiditySection  from "./sections/LiquiditySection.jsx";
 
-// ─── Nav Items ─────────────────────────────────────────────────────────────
+// ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: "dashboard",    label: "Dashboard",    icon: LayoutDashboard },
-  { id: "support",      label: "Support",      icon: Headphones,  badge: "cases" },
-  { id: "users",        label: "Users",        icon: Users },
-  { id: "invites",      label: "Invites",      icon: Ticket },
-  { id: "analytics",   label: "Analytics",    icon: BarChart3 },
-  { id: "transactions", label: "Transactions", icon: CreditCard },
-  { id: "communities",  label: "Communities",  icon: Globe },
-  { id: "security",    label: "Security",     icon: Shield },
-  { id: "notifications",label: "Notifications",icon: Bell },
-  { id: "system",      label: "System",       icon: Settings },
-  { id: "liquidity",   label: "Liquidity",    icon: Droplets },
-  { id: "team",        label: "Team",         icon: Users2 },
-  { id: "ambassador",  label: "Ambassadors",  icon: Star },
-  { id: "ceo",         label: "CEO Panel",    icon: Crown },
+  { id: "dashboard",    label: "Dashboard",     icon: LayoutDashboard },
+  { id: "support",      label: "Support",        icon: Headphones,   badge: "cases" },
+  { id: "users",        label: "Users",          icon: Users },
+  { id: "invites",      label: "Invites",        icon: Ticket },
+  { id: "analytics",   label: "Analytics",      icon: BarChart3 },
+  { id: "transactions", label: "Transactions",   icon: CreditCard },
+  { id: "communities",  label: "Communities",    icon: Globe },
+  { id: "security",    label: "Security",       icon: Shield },
+  { id: "notifications",label: "Notifications", icon: Bell },
+  { id: "system",      label: "System",         icon: Settings },
+  { id: "liquidity",   label: "Liquidity",      icon: Droplets },   // ← NEW
+  { id: "team",        label: "Team",           icon: Users2 },
+  { id: "ambassador",  label: "Ambassadors",    icon: Star },
+  { id: "ceo",         label: "CEO Panel",      icon: Crown },
 ];
 
-// ─── Greeting ──────────────────────────────────────────────────────────────
+// Groups shown above nav items when sidebar is expanded
+const NAV_GROUPS = {
+  dashboard:     null,
+  support:       "Operations",
+  users:         null,
+  invites:       null,
+  analytics:     "Data",
+  transactions:  null,
+  communities:   null,
+  security:      "Platform",
+  notifications: null,
+  system:        null,
+  liquidity:     "Finance",
+  team:          "Admin",
+  ambassador:    null,
+  ceo:           null,
+};
+
+// ─── Utility ───────────────────────────────────────────────────────────────
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -64,8 +86,10 @@ function getGreeting() {
   return "Good evening";
 }
 
-// ─── Typewriter ────────────────────────────────────────────────────────────
-function useTypewriter(phraseA, phraseB, { typeSpeed = 52, eraseSpeed = 28, pauseAfterA = 1800, pauseAfterB = 3200 } = {}) {
+// ─── Typewriter hook ───────────────────────────────────────────────────────
+function useTypewriter(phraseA, phraseB, {
+  typeSpeed = 52, eraseSpeed = 28, pauseAfterA = 1800, pauseAfterB = 3200,
+} = {}) {
   const [displayed, setDisplayed] = useState("");
   const [phase, setPhase] = useState("typing-a");
   const timerRef = useRef(null);
@@ -77,16 +101,26 @@ function useTypewriter(phraseA, phraseB, { typeSpeed = 52, eraseSpeed = 28, paus
       setDisplayed((cur) => {
         switch (phase) {
           case "typing-a": {
-            if (cur.length < phraseA.length) { timerRef.current = setTimeout(tick, typeSpeed); return phraseA.slice(0, cur.length + 1); }
-            setPhase("pause-a"); timerRef.current = setTimeout(() => setPhase("erase-a"), pauseAfterA); return cur;
+            if (cur.length < phraseA.length) {
+              timerRef.current = setTimeout(tick, typeSpeed);
+              return phraseA.slice(0, cur.length + 1);
+            }
+            setPhase("pause-a");
+            timerRef.current = setTimeout(() => setPhase("erase-a"), pauseAfterA);
+            return cur;
           }
           case "erase-a": {
             if (cur.length > 0) { timerRef.current = setTimeout(tick, eraseSpeed); return cur.slice(0, -1); }
             setPhase("typing-b"); timerRef.current = setTimeout(tick, typeSpeed); return "";
           }
           case "typing-b": {
-            if (cur.length < phraseB.length) { timerRef.current = setTimeout(tick, typeSpeed); return phraseB.slice(0, cur.length + 1); }
-            setPhase("pause-b"); timerRef.current = setTimeout(() => setPhase("erase-b"), pauseAfterB); return cur;
+            if (cur.length < phraseB.length) {
+              timerRef.current = setTimeout(tick, typeSpeed);
+              return phraseB.slice(0, cur.length + 1);
+            }
+            setPhase("pause-b");
+            timerRef.current = setTimeout(() => setPhase("erase-b"), pauseAfterB);
+            return cur;
           }
           case "erase-b": {
             if (cur.length > 0) { timerRef.current = setTimeout(tick, eraseSpeed); return cur.slice(0, -1); }
@@ -96,14 +130,16 @@ function useTypewriter(phraseA, phraseB, { typeSpeed = 52, eraseSpeed = 28, paus
         }
       });
     }
-    if (["typing-a","typing-b","erase-a","erase-b"].includes(phase)) { timerRef.current = setTimeout(tick, typeSpeed); }
+    if (["typing-a","typing-b","erase-a","erase-b"].includes(phase)) {
+      timerRef.current = setTimeout(tick, typeSpeed);
+    }
     return clear;
   }, [phase, phraseA, phraseB, typeSpeed, eraseSpeed, pauseAfterA, pauseAfterB]);
 
   return { displayed };
 }
 
-// ─── Arc Ring ──────────────────────────────────────────────────────────────
+// ─── Arc ring ──────────────────────────────────────────────────────────────
 function ArcRing({ value, max, color, size = 46 }) {
   const pct  = max > 0 ? Math.min(value / max, 1) : 0;
   const r    = (size - 6) / 2;
@@ -113,14 +149,14 @@ function ArcRing({ value, max, color, size = 46 }) {
   return (
     <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
       <circle cx={cx} cy={cx} r={r} fill="none" stroke="#1e1e1e" strokeWidth={3} />
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={3} strokeLinecap="round"
-        strokeDasharray={`${dash} ${circ}`}
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={3}
+        strokeLinecap="round" strokeDasharray={`${dash} ${circ}`}
         style={{ filter: `drop-shadow(0 0 5px ${color}90)`, transition: "stroke-dasharray .8s cubic-bezier(.4,0,.2,1)" }} />
     </svg>
   );
 }
 
-// ─── Count Up ─────────────────────────────────────────────────────────────
+// ─── Count-up ──────────────────────────────────────────────────────────────
 function CountUp({ target }) {
   const [display, setDisplay] = useState(0);
   const ref = useRef(null);
@@ -137,8 +173,9 @@ function CountUp({ target }) {
     }, 900 / steps);
     return () => clearInterval(ref.current);
   }, [target]);
-  const prefix  = String(target).match(/^[^0-9]*/)?.[0] || "";
-  const hasDec  = String(target).includes(".");
+
+  const prefix    = String(target).match(/^[^0-9]*/)?.[0] || "";
+  const hasDec    = String(target).includes(".");
   const formatted = hasDec
     ? display.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : display.toLocaleString();
@@ -155,12 +192,15 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
         position: "relative", background: hov ? "#141414" : "#0f0f0f",
         border: `1px solid ${hov ? color + "45" : "#1d1d1d"}`, borderRadius: 18,
         padding: "22px 22px 18px", cursor: clickable ? "pointer" : "default",
-        overflow: "hidden", transition: "border-color .2s, background .2s, transform .18s, box-shadow .2s",
+        overflow: "hidden",
+        transition: "border-color .2s, background .2s, transform .18s, box-shadow .2s",
         transform: hov && clickable ? "translateY(-3px)" : "none",
         boxShadow: hov ? `0 12px 40px ${color}18, 0 2px 12px #00000055` : "0 2px 8px #00000040",
         display: "flex", flexDirection: "column", minHeight: 158,
       }}>
+      {/* Radial glow */}
       <div style={{ position: "absolute", top: -40, right: -40, width: 130, height: 130, borderRadius: "50%", background: `radial-gradient(circle, ${color}1e 0%, transparent 70%)`, pointerEvents: "none", opacity: hov ? 1 : 0.55, transition: "opacity .3s" }} />
+      {/* Top shimmer */}
       <div style={{ position: "absolute", top: 0, left: 20, right: 20, height: 1, background: `linear-gradient(90deg, transparent, ${color}55, transparent)`, opacity: hov ? 1 : 0, transition: "opacity .25s" }} />
 
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
@@ -203,15 +243,15 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
   const { displayed } = useTypewriter(phraseA, phraseB);
 
   const QUICK_ACTIONS = [
-    { label: "Support",      icon: Headphones,   nav: "support",       color: C.accent   },
-    { label: "Users",        icon: Users,         nav: "users",         color: C.info     },
-    { label: "Notifications",icon: Bell,          nav: "notifications", color: C.warn     },
-    { label: "Invites",      icon: Ticket,        nav: "invites",       color: "#8b5cf6"  },
-    { label: "Analytics",    icon: BarChart3,     nav: "analytics",     color: C.success  },
-    { label: "Ambassadors",  icon: Star,          nav: "ambassador",    color: "#f59e0b"  },
-    { label: "Liquidity",    icon: Droplets,      nav: "liquidity",     color: "#38bdf8"  },
-    { label: "Communities",  icon: Globe,         nav: "communities",   color: "#34d399"  },
-    { label: "Transactions", icon: CreditCard,    nav: "transactions",  color: "#a78bfa"  },
+    { label: "Review Cases",   icon: Headphones,  nav: "support",       color: C.accent    },
+    { label: "Manage Users",   icon: Users,        nav: "users",         color: C.info      },
+    { label: "Notifications",  icon: Bell,         nav: "notifications", color: C.warn      },
+    { label: "Invites",        icon: Ticket,       nav: "invites",       color: "#8b5cf6"   },
+    { label: "Analytics",      icon: BarChart3,    nav: "analytics",     color: C.success   },
+    { label: "Ambassadors",    icon: Star,         nav: "ambassador",    color: "#f59e0b"   },
+    { label: "Liquidity",      icon: Droplets,     nav: "liquidity",     color: "#38bdf8"   },
+    { label: "Communities",    icon: Globe,        nav: "communities",   color: "#34d399"   },
+    { label: "Transactions",   icon: CreditCard,   nav: "transactions",  color: "#a78bfa"   },
   ];
 
   return (
@@ -248,24 +288,25 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
       {/* Quick Actions + Online Team */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, marginBottom: 24 }}>
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>Quick Actions</div>
-          <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>Jump to any section instantly</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Quick Actions</div>
+          <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Jump to any section instantly</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             {QUICK_ACTIONS.map((qa) => (
               <button key={qa.nav} onClick={() => onNavigate(qa.nav)}
-                style={{ padding: "14px 10px", background: `${qa.color}08`, border: `1px solid ${qa.color}22`, borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all .15s", fontFamily: "inherit" }}
-                onMouseOver={(e) => { e.currentTarget.style.background = `${qa.color}18`; e.currentTarget.style.borderColor = `${qa.color}44`; }}
-                onMouseOut={(e)  => { e.currentTarget.style.background = `${qa.color}08`; e.currentTarget.style.borderColor = `${qa.color}22`; }}>
+                style={{ padding: "14px 10px", background: `${qa.color}08`, border: `1px solid ${qa.color}20`, borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all .15s", fontFamily: "inherit" }}
+                onMouseOver={(e) => { e.currentTarget.style.background = `${qa.color}16`; e.currentTarget.style.borderColor = `${qa.color}40`; }}
+                onMouseOut={(e)  => { e.currentTarget.style.background = `${qa.color}08`; e.currentTarget.style.borderColor = `${qa.color}20`; }}>
                 <qa.icon size={19} color={qa.color} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: C.text2, letterSpacing: "0.3px" }}>{qa.label}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: C.text2 }}>{qa.label}</span>
               </button>
             ))}
           </div>
+
           <div style={{ display: "flex", gap: 16, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
             {[
-              { label: "Suspended",      value: s.bannedUsers    || 0,                    color: C.danger },
-              { label: "Active Invites", value: s.pendingInvites || 0,                    color: C.warn   },
-              { label: "Content Pieces", value: (s.totalContent  || 0).toLocaleString(),  color: C.info   },
+              { label: "Suspended",      value: s.bannedUsers    || 0,                   color: C.danger },
+              { label: "Active Invites", value: s.pendingInvites || 0,                   color: C.warn   },
+              { label: "Content Pieces", value: (s.totalContent  || 0).toLocaleString(), color: C.info   },
             ].map((st) => (
               <div key={st.label} style={{ flex: 1, textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: st.color }}>{st.value}</div>
@@ -282,7 +323,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Economy Metrics</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Live EP & XEV ecosystem health · base grant 50 EP per paid user</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Live EP & XEV ecosystem health · base EP grant: 50 per paying user</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 8, background: `${C.accent}08`, border: `1px solid ${C.accent}18` }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, animation: "adminMetricPulse 2s ease infinite" }} />
@@ -292,13 +333,13 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
-            { label: "Circulating XEV", value: (s.totalXEVCirculating || 0).toLocaleString(), sub: "Active wallet balances", color: "#fbbf24", borderColor: "#fbbf24" },
-            { label: "Total XEV Minted", value: (s.totalXEVMinted || 0).toLocaleString(), sub: "All-time wallet credits", color: "#d4a017", borderColor: "rgba(251,191,36,0.5)" },
-            { label: "EP in Circulation", value: (s.totalEPCirculation || 0).toLocaleString(), sub: s.activeUsers > 0 ? `~${Math.round((s.totalEPCirculation || 0) / s.activeUsers)} avg/user` : "—", color: C.accent, borderColor: C.accent },
-            { label: "EP from Deposits", value: (s.epMintedOnDeposit || 0).toLocaleString(), sub: s.epMintedOnDeposit > 0 ? `≈$${((s.epMintedOnDeposit || 0) / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} deposited` : "No deposits yet", color: "#34d399", borderColor: "#34d399" },
+            { label: "Circulating XEV", value: (s.totalXEVCirculating || 0).toLocaleString(), sub: "Active wallet balances", color: "#fbbf24", topColor: "#fbbf24" },
+            { label: "Total XEV Minted", value: (s.totalXEVMinted || 0).toLocaleString(), sub: "All-time wallet credits", color: "#d4a017", topColor: "rgba(251,191,36,0.5)" },
+            { label: "EP in Circulation", value: (s.totalEPCirculation || 0).toLocaleString(), sub: s.activeUsers > 0 ? `~${Math.round((s.totalEPCirculation || 0) / s.activeUsers)} avg/user` : "—", color: C.accent, topColor: C.accent },
+            { label: "EP from Deposits", value: (s.epMintedOnDeposit || 0).toLocaleString(), sub: s.epMintedOnDeposit > 0 ? `≈$${((s.epMintedOnDeposit || 0) / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} deposited` : "No deposits yet", color: "#34d399", topColor: "#34d399" },
           ].map((m) => (
-            <div key={m.label} style={{ padding: "16px 14px", background: `${m.color}04`, border: `1px solid ${m.color}15`, borderRadius: 14, borderTop: `3px solid ${m.borderColor}` }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: m.color, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, opacity: 0.7 }}>{m.label}</div>
+            <div key={m.label} style={{ padding: "16px 14px", background: `${m.color}04`, border: `1px solid ${m.color}15`, borderRadius: 14, borderTop: `3px solid ${m.topColor}` }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: m.color, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, opacity: 0.75 }}>{m.label}</div>
               <div style={{ fontSize: 22, fontWeight: 900, color: m.color, letterSpacing: -1, marginBottom: 4 }}>{m.value}</div>
               <div style={{ fontSize: 10, color: C.muted }}>{m.sub}</div>
             </div>
@@ -318,7 +359,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
         </div>
       </div>
 
-      {/* Ambassador Banner — Lucide Globe2 icon, no emoji */}
+      {/* Ambassador Banner — Lucide Globe2, no emoji */}
       <div onClick={() => onNavigate("ambassador")}
         style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(251,191,36,0.03) 100%)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 16, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", transition: "border-color .2s, background .2s" }}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(245,158,11,0.4)"; e.currentTarget.style.background = "linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(251,191,36,0.05) 100%)"; }}
@@ -345,28 +386,11 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
   const openCases       = stats?.openCases || 0;
   const navItems        = NAV_ITEMS.filter((item) => visibleSections.includes(item.id));
 
-  // Nav group labels
-  const GROUP_LABELS = {
-    dashboard: null,
-    support:   "Operations",
-    users:     null,
-    invites:   null,
-    analytics: "Data",
-    transactions: null,
-    communities: null,
-    security:  "Platform",
-    notifications: null,
-    system:    null,
-    liquidity: "Finance",
-    team:      "Admin",
-    ambassador: null,
-    ceo:       null,
-  };
-
   let lastGroup = null;
 
   return (
-    <div style={{ width: collapsed ? 60 : 224, flexShrink: 0, background: C.bg1, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", transition: "width .2s ease", overflow: "hidden" }}>
+    <div style={{ width: collapsed ? 60 : 222, flexShrink: 0, background: C.bg1, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", transition: "width .2s ease", overflow: "hidden" }}>
+
       {/* Header */}
       <div style={{ padding: collapsed ? "16px 0" : "16px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10, justifyContent: collapsed ? "center" : "space-between" }}>
         {!collapsed && (
@@ -386,14 +410,20 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
       {!collapsed && (
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `${roleMeta.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: roleMeta.color }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `${roleMeta.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: roleMeta.color }}>
               {(adminData?.full_name || "A").charAt(0).toUpperCase()}
             </div>
             <div style={{ overflow: "hidden" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{adminData?.full_name || "Admin"}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {adminData?.full_name || "Admin"}
+              </div>
               <div style={{ fontSize: 9, fontWeight: 600, color: roleMeta.color }}>
                 {roleMeta.label}
-                {adminData?.xa_id && <span style={{ marginLeft: 5, fontFamily: "monospace", opacity: 0.8 }}>XA-{String(adminData.xa_id).padStart(2, "0")}</span>}
+                {adminData?.xa_id && (
+                  <span style={{ marginLeft: 5, fontFamily: "monospace", opacity: 0.8 }}>
+                    XA-{String(adminData.xa_id).padStart(2, "0")}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -403,22 +433,24 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
       {/* Nav */}
       <nav style={{ flex: 1, padding: "6px 0", overflowY: "auto" }}>
         {navItems.map((item) => {
-          const isActive  = activeSection === item.id;
-          const badge     = item.badge === "cases" ? openCases : null;
-          const showBadge = badge && badge > 0;
-          const groupLabel = !collapsed ? GROUP_LABELS[item.id] : null;
+          const isActive   = activeSection === item.id;
+          const badge      = item.badge === "cases" ? openCases : null;
+          const showBadge  = badge && badge > 0;
+          const groupLabel = !collapsed ? NAV_GROUPS[item.id] : null;
           const showGroup  = groupLabel && groupLabel !== lastGroup;
           if (showGroup) lastGroup = groupLabel;
 
           return (
             <React.Fragment key={item.id}>
               {showGroup && (
-                <div style={{ padding: "10px 14px 4px", fontSize: 9, fontWeight: 800, color: C.muted2, textTransform: "uppercase", letterSpacing: "1.5px" }}>{groupLabel}</div>
+                <div style={{ padding: "10px 14px 3px", fontSize: 9, fontWeight: 800, color: C.muted2, textTransform: "uppercase", letterSpacing: "1.5px" }}>
+                  {groupLabel}
+                </div>
               )}
               <button onClick={() => onNavigate(item.id)} title={collapsed ? item.label : undefined}
                 style={{ width: "100%", padding: collapsed ? "9px 0" : "8px 12px", display: "flex", alignItems: "center", gap: 9, justifyContent: collapsed ? "center" : "flex-start", background: isActive ? `${C.accent}12` : "transparent", border: "none", borderLeft: isActive ? `2px solid ${C.accent}` : "2px solid transparent", cursor: "pointer", color: isActive ? C.accent : C.muted, fontFamily: "inherit", fontSize: 12, fontWeight: isActive ? 700 : 500, transition: "all .12s", position: "relative" }}
-                onMouseOver={(e) => { if (!isActive) e.currentTarget.style.color = C.text2; e.currentTarget.style.background = isActive ? `${C.accent}12` : `${C.border}44`; }}
-                onMouseOut={(e)  => { if (!isActive) e.currentTarget.style.color = C.muted; e.currentTarget.style.background = isActive ? `${C.accent}12` : "transparent"; }}>
+                onMouseOver={(e) => { if (!isActive) { e.currentTarget.style.color = C.text2; e.currentTarget.style.background = `${C.border}40`; } }}
+                onMouseOut={(e)  => { if (!isActive) { e.currentTarget.style.color = C.muted; e.currentTarget.style.background = "transparent"; } }}>
                 <item.icon size={15} style={{ flexShrink: 0 }} />
                 {!collapsed && <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>}
                 {!collapsed && showBadge && (
@@ -444,16 +476,15 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
   );
 }
 
-// ─── Main AdminDashboard ───────────────────────────────────────────────────
+// ─── Main export ───────────────────────────────────────────────────────────
 export default function AdminDashboard({ adminData, onClose }) {
   const [activeSection,    setActiveSection]    = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const { stats, loading: statsLoading, reload: reloadStats } = useStats();
+  const { stats, reload: reloadStats } = useStats();
   const usersHook         = useUsers();
   const invitesHook       = useInvites();
   const analyticsHook     = useAnalytics();
-  const transactionsHook  = useTransactions();
   const securityHook      = useSecurity();
   const notificationsHook = useNotifications();
   const freezeHook        = usePlatformFreeze();
@@ -466,20 +497,21 @@ export default function AdminDashboard({ adminData, onClose }) {
     window.scrollTo(0, 0);
   }, []);
 
-  // Support management
   const supportMgmt = {
     cases:        casesHook.cases || [],
     loading:      casesHook.loading,
     load:         casesHook.reload,
-    resolveCase:  async (id, note, ad) => await casesHook.resolveCase(id, { adminName: ad?.full_name, adminId: ad?.user_id || ad?.id, action: "resolved", note }),
-    assignCase:   async (id, memberId, memberName) => await casesHook.assignCase(id, { adminId: memberId, adminName: memberName }),
-    addNote:      async (id, text, ad) => await casesHook.addNote(id, { text, adminName: ad?.full_name, adminId: ad?.user_id || ad?.id }),
+    resolveCase:  async (id, note, ad) =>
+      casesHook.resolveCase(id, { adminName: ad?.full_name, adminId: ad?.user_id || ad?.id, action: "resolved", note }),
+    assignCase:   async (id, memberId, memberName) =>
+      casesHook.assignCase(id, { adminId: memberId, adminName: memberName }),
+    addNote:      async (id, text, ad) =>
+      casesHook.addNote(id, { text, adminName: ad?.full_name, adminId: ad?.user_id || ad?.id }),
     getCase:      async (id) => casesHook.cases.find((c) => c.id === id) || null,
-    createCase:   async (caseData) => await casesHook.createSupportCase(caseData),
-    escalateCase: async (id) => await casesHook.updateCase(id, { status: "escalated", escalated_at: new Date().toISOString() }),
+    createCase:   async (caseData) => casesHook.createSupportCase(caseData),
+    escalateCase: async (id) => casesHook.updateCase(id, { status: "escalated", escalated_at: new Date().toISOString() }),
   };
 
-  // Team management
   const teamMgmt = {
     team:              teamHook.team || [],
     loading:           teamHook.loading,
@@ -490,7 +522,6 @@ export default function AdminDashboard({ adminData, onClose }) {
     updateRole:        teamHook.updateRole,
   };
 
-  // Section renderer
   const renderSection = () => {
     switch (activeSection) {
       case "dashboard":
@@ -500,7 +531,7 @@ export default function AdminDashboard({ adminData, onClose }) {
         return <SupportSection adminData={adminData} supportMgmt={supportMgmt} teamMgmt={teamMgmt} />;
 
       case "users":
-        // UsersSection (from OtherSections) uses usersHook prop
+        // UsersSection (OtherSections version) — receives usersHook
         return <UsersSection adminData={adminData} usersHook={usersHook} />;
 
       case "invites":
@@ -510,11 +541,11 @@ export default function AdminDashboard({ adminData, onClose }) {
         return <AnalyticsSection adminData={adminData} stats={stats} onRefresh={analyticsHook.reload} />;
 
       case "transactions":
-        // TransactionsSection uses its own internal useTransactions hook — no props needed beyond adminData
+        // TransactionsSection uses its own internal useTransactions() — only needs adminData
         return <TransactionsSection adminData={adminData} />;
 
       case "communities":
-        // CommunitiesSection uses its own internal useCommunities hook — no contentMgmt prop needed
+        // CommunitiesSection uses its own internal useCommunities() — only needs adminData
         return <CommunitiesSection adminData={adminData} />;
 
       case "security":
@@ -530,7 +561,11 @@ export default function AdminDashboard({ adminData, onClose }) {
       case "notifications":
         return (
           <NotificationsSection adminData={adminData} broadcaster={{
-            send: (notif) => notificationsHook.send({ ...notif, sentByName: adminData?.full_name, sentById: adminData?.user_id || adminData?.id }),
+            send: (notif) => notificationsHook.send({
+              ...notif,
+              sentByName: adminData?.full_name,
+              sentById:   adminData?.user_id || adminData?.id,
+            }),
           }} />
         );
 
@@ -545,6 +580,7 @@ export default function AdminDashboard({ adminData, onClose }) {
         );
 
       case "liquidity":
+        // LiquiditySection uses its own Supabase calls + liquidityService — only needs adminData
         return <LiquiditySection adminData={adminData} />;
 
       case "team":
@@ -582,7 +618,7 @@ export default function AdminDashboard({ adminData, onClose }) {
           </div>
         </div>
 
-        {/* Section content */}
+        {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
           {renderSection()}
         </div>
