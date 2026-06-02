@@ -23,17 +23,18 @@ function getVapidKey() {
   if (!k) {
     console.error(
       "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY is not set.\n" +
-      "Add it to your .env file and restart the dev server.\n" +
-      "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets\n" +
-      "(Note: In .env use REACT_APP_VAPID_PUBLIC_KEY, in Supabase Secrets use VAPID_PUBLIC_KEY)",
+        "Add it to your .env file and restart the dev server.\n" +
+        "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets\n" +
+        "(Note: In .env use REACT_APP_VAPID_PUBLIC_KEY, in Supabase Secrets use VAPID_PUBLIC_KEY)",
     );
     return null;
   }
   if (k.length < 80) {
     console.error(
       "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY looks too short (" +
-      k.length + " chars).\n" +
-      "A valid VAPID public key is ~87 characters of base64url.",
+        k.length +
+        " chars).\n" +
+        "A valid VAPID public key is ~87 characters of base64url.",
     );
     return null;
   }
@@ -45,7 +46,10 @@ async function _invoke(body) {
   try {
     const { error } = await supabase.functions.invoke("send-push", { body });
     if (error) {
-      console.error("[Push] Edge fn error:", error.message || JSON.stringify(error));
+      console.error(
+        "[Push] Edge fn error:",
+        error.message || JSON.stringify(error),
+      );
       return false;
     }
     return true;
@@ -57,7 +61,9 @@ async function _invoke(body) {
 
 // ── Tiny event bus ────────────────────────────────────────────────────────────
 class EventBus {
-  constructor() { this._map = new Map(); }
+  constructor() {
+    this._map = new Map();
+  }
   on(event, fn) {
     if (!this._map.has(event)) this._map.set(event, new Set());
     this._map.get(event).add(fn);
@@ -65,7 +71,11 @@ class EventBus {
   }
   emit(event, data) {
     this._map.get(event)?.forEach((fn) => {
-      try { fn(data); } catch (e) { console.error("[Push] bus handler threw:", e); }
+      try {
+        fn(data);
+      } catch (e) {
+        console.error("[Push] bus handler threw:", e);
+      }
     });
   }
 }
@@ -82,16 +92,20 @@ function urlBase64ToUint8Array(base64String) {
 
 // ── Module state ──────────────────────────────────────────────────────────────
 const _bus = new EventBus();
-let _userId                  = null;
-let _started                 = false;
-let _subscribing             = false;
-let _bridgeAttached          = false;
+let _userId = null;
+let _started = false;
+let _subscribing = false;
+let _bridgeAttached = false;
 let _visibilityListenerAdded = false;
 
 // ── SW registration ───────────────────────────────────────────────────────────
 async function _getReg() {
   if (!("serviceWorker" in navigator)) return null;
-  try { return await navigator.serviceWorker.ready; } catch { return null; }
+  try {
+    return await navigator.serviceWorker.ready;
+  } catch {
+    return null;
+  }
 }
 
 // ── SW ↔ App message bridge ───────────────────────────────────────────────────
@@ -139,7 +153,8 @@ function _attachBridge() {
         break;
 
       case "SW_NAVIGATE":
-        if (msg.url) _bus.emit("notification_clicked", { url: msg.url, data: {} });
+        if (msg.url)
+          _bus.emit("notification_clicked", { url: msg.url, data: {} });
         break;
 
       case "SW_POISON_PILL_RELOAD":
@@ -156,7 +171,9 @@ function _attachBridge() {
     .then(() => {
       setTimeout(() => {
         try {
-          navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
+          navigator.serviceWorker.controller?.postMessage({
+            type: "GET_PENDING_PAYLOADS",
+          });
         } catch (_) {}
       }, 800);
     })
@@ -166,7 +183,9 @@ function _attachBridge() {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     setTimeout(() => {
       try {
-        navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
+        navigator.serviceWorker.controller?.postMessage({
+          type: "GET_PENDING_PAYLOADS",
+        });
       } catch (_) {}
     }, 1000);
   });
@@ -196,12 +215,12 @@ async function _saveSubscription(userId, subscription) {
     throw new Error("Subscription is missing endpoint, p256dh, or auth fields");
   }
   const record = {
-    user_id:    userId,
-    endpoint:   json.endpoint,
-    p256dh:     json.keys.p256dh,
-    auth:       json.keys.auth,
+    user_id: userId,
+    endpoint: json.endpoint,
+    p256dh: json.keys.p256dh,
+    auth: json.keys.auth,
     user_agent: navigator.userAgent.slice(0, 500),
-    is_active:  true,
+    is_active: true,
     updated_at: new Date().toISOString(),
   };
 
@@ -224,7 +243,11 @@ async function _saveSubscription(userId, subscription) {
   }
 
   // Upsert failed — delete stale row and insert fresh
-  console.warn("[Push] Upsert failed:", upsertErr.message, "— trying delete+insert");
+  console.warn(
+    "[Push] Upsert failed:",
+    upsertErr.message,
+    "— trying delete+insert",
+  );
   await supabase
     .from("push_subscriptions")
     .delete()
@@ -243,7 +266,9 @@ async function _saveWithRetry(userId, subscription, attempt = 0) {
     await _saveSubscription(userId, subscription);
   } catch (err) {
     if (attempt < delays.length) {
-      console.warn(`[Push] Save attempt ${attempt + 1} failed. Retry in ${delays[attempt] / 1000}s`);
+      console.warn(
+        `[Push] Save attempt ${attempt + 1} failed. Retry in ${delays[attempt] / 1000}s`,
+      );
       await new Promise((r) => setTimeout(r, delays[attempt]));
       return _saveWithRetry(userId, subscription, attempt + 1);
     }
@@ -275,10 +300,13 @@ async function _doSubscribe(userId) {
       if (existingKey) {
         const currentKeyBytes = urlBase64ToUint8Array(vapidKey);
         const existingKeyBytes = new Uint8Array(existingKey);
-        const keyChanged = currentKeyBytes.length !== existingKeyBytes.length ||
+        const keyChanged =
+          currentKeyBytes.length !== existingKeyBytes.length ||
           currentKeyBytes.some((b, i) => b !== existingKeyBytes[i]);
         if (keyChanged) {
-          console.warn("[Push] VAPID key changed — unsubscribing stale subscription");
+          console.warn(
+            "[Push] VAPID key changed — unsubscribing stale subscription",
+          );
           await sub.unsubscribe().catch(() => {});
           sub = null;
         }
@@ -293,7 +321,7 @@ async function _doSubscribe(userId) {
 
     // Create new subscription
     sub = await reg.pushManager.subscribe({
-      userVisibleOnly:      true,
+      userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
 
@@ -311,7 +339,10 @@ async function _doSubscribe(userId) {
       if (reg?.installing) {
         await new Promise((resolve) => {
           const worker = reg.installing || reg.waiting;
-          if (!worker) { resolve(); return; }
+          if (!worker) {
+            resolve();
+            return;
+          }
           worker.addEventListener("statechange", function handler() {
             if (worker.state === "activated") {
               worker.removeEventListener("statechange", handler);
@@ -323,7 +354,10 @@ async function _doSubscribe(userId) {
         _subscribing = false;
         return _doSubscribe(userId);
       }
-      setTimeout(() => { _subscribing = false; _doSubscribe(userId); }, 5000);
+      setTimeout(() => {
+        _subscribing = false;
+        _doSubscribe(userId);
+      }, 5000);
       return null;
     }
     console.error("[Push] ❌ _doSubscribe threw:", err.message);
@@ -337,15 +371,18 @@ async function _doSubscribe(userId) {
 // PUBLIC API
 // ============================================================================
 export const pushService = {
-
   // ── Early bridge attachment ────────────────────────────────────────────────
   attachBridgeEarly() {
     _attachBridge();
   },
 
   // ── Event bus ──────────────────────────────────────────────────────────────
-  on(event, fn) { return _bus.on(event, fn); },
-  _emit(event, data) { _bus.emit(event, data); },
+  on(event, fn) {
+    return _bus.on(event, fn);
+  },
+  _emit(event, data) {
+    _bus.emit(event, data);
+  },
 
   // ── Feature detection ──────────────────────────────────────────────────────
   isSupported() {
@@ -365,7 +402,9 @@ export const pushService = {
       if (!this.isSupported()) return false;
       const reg = await _getReg();
       return !!(await reg?.pushManager.getSubscription());
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   },
 
   // ── Permission request — MUST be called from a user gesture ───────────────
@@ -373,9 +412,11 @@ export const pushService = {
     try {
       if (!this.isSupported()) return false;
       if (Notification.permission === "granted") return true;
-      if (Notification.permission === "denied")  return false;
+      if (Notification.permission === "denied") return false;
       return (await Notification.requestPermission()) === "granted";
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   },
 
   // ── Full enable (permission + subscribe) ──────────────────────────────────
@@ -386,12 +427,16 @@ export const pushService = {
     if (!granted) return false;
     const sub = await _doSubscribe(uid);
     if (sub) {
-      try { window.dispatchEvent(new CustomEvent("push:permission_granted")); } catch {}
+      try {
+        window.dispatchEvent(new CustomEvent("push:permission_granted"));
+      } catch {}
     }
     return !!sub;
   },
 
-  async subscribe(userId) { return _doSubscribe(userId || _userId); },
+  async subscribe(userId) {
+    return _doSubscribe(userId || _userId);
+  },
 
   async unsubscribe(userId) {
     try {
@@ -418,26 +463,31 @@ export const pushService = {
   async sendPushToUser({
     recipientUserId,
     actorUserId = null,
-    type        = "general",
-    title       = "Xeevia",
-    message     = "",
-    entityId    = null,
-    metadata    = {},
+    type = "general",
+    title = "Xeevia",
+    message = "",
+    entityId = null,
+    metadata = {},
   }) {
     if (!recipientUserId) return false;
 
     // Self-send guard: only skip if we know both IDs and they match
-    if (_userId && actorUserId && _userId === actorUserId && recipientUserId === actorUserId) {
+    if (
+      _userId &&
+      actorUserId &&
+      _userId === actorUserId &&
+      recipientUserId === actorUserId
+    ) {
       return false;
     }
 
     return _invoke({
       recipient_user_id: recipientUserId,
-      actor_user_id:     actorUserId,
+      actor_user_id: actorUserId,
       type,
       title,
       message,
-      entity_id:         entityId,
+      entity_id: entityId,
       metadata,
     });
   },
@@ -451,12 +501,12 @@ export const pushService = {
     const reg = await _getReg();
     if (!reg) return false;
     await reg.showNotification("✅ Push Notifications Active", {
-      body:    "Xeevia push notifications are working correctly!",
-      icon:    "/logo192.png",
-      badge:   "/logo192.png",
-      tag:     `test_${Date.now()}`,
+      body: "Xeevia push notifications are working correctly!",
+      icon: "/logo192.png",
+      badge: "/logo192.png",
+      tag: `test_${Date.now()}`,
       vibrate: [200, 100, 200],
-      data:    { url: "/", type: "test" },
+      data: { url: "/", type: "test" },
     });
     return true;
   },
@@ -474,7 +524,7 @@ export const pushService = {
       console.log("[Push] Not supported in this browser");
       return;
     }
-    _userId  = userId;
+    _userId = userId;
     _started = true;
 
     // SYNCHRONOUS — listener must be attached before any awaits
@@ -501,19 +551,25 @@ export const pushService = {
     } else if (perm === "default") {
       console.log(
         "[Push] Permission not yet granted.\n" +
-        "Listen for 'push:needs_permission' on window and call:\n" +
-        "  pushService.enablePushNotifications(userId)  from a user gesture.",
+          "Listen for 'push:needs_permission' on window and call:\n" +
+          "  pushService.enablePushNotifications(userId)  from a user gesture.",
       );
       try {
-        window.dispatchEvent(new CustomEvent("push:needs_permission", { detail: { userId } }));
+        window.dispatchEvent(
+          new CustomEvent("push:needs_permission", { detail: { userId } }),
+        );
       } catch {}
     } else {
-      console.log("[Push] Permission blocked — user must re-enable in browser settings");
+      console.log(
+        "[Push] Permission blocked — user must re-enable in browser settings",
+      );
     }
 
     if (typeof window !== "undefined") {
       window.__pushDiagnose = () => this.diagnose();
-      console.log("[Push] Tip: run window.__pushDiagnose() in console to debug push issues");
+      console.log(
+        "[Push] Tip: run window.__pushDiagnose() in console to debug push issues",
+      );
     }
   },
 
@@ -523,8 +579,14 @@ export const pushService = {
     const vapidKey = getVapidKey();
     console.log("Supported:           ", this.isSupported());
     console.log("Permission:          ", this.getPermission());
-    console.log("VAPID key (.env):    ", vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ MISSING");
-    console.log("VAPID key length:    ", vapidKey ? vapidKey.length + " chars (expect 87)" : "❌");
+    console.log(
+      "VAPID key (.env):    ",
+      vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ MISSING",
+    );
+    console.log(
+      "VAPID key length:    ",
+      vapidKey ? vapidKey.length + " chars (expect 87)" : "❌",
+    );
     console.log("User ID:             ", _userId || "not set");
     console.log("Bridge attached:     ", _bridgeAttached);
     console.log("Started:             ", _started);
@@ -533,7 +595,10 @@ export const pushService = {
     const reg = await _getReg().catch(() => null);
     console.log("SW registration:     ", reg ? "✅ " + reg.scope : "❌ NONE");
     console.log("SW state:            ", reg?.active?.state || "none");
-    console.log("SW controller:       ", navigator.serviceWorker?.controller ? "✅" : "❌ null");
+    console.log(
+      "SW controller:       ",
+      navigator.serviceWorker?.controller ? "✅" : "❌ null",
+    );
 
     if (reg) {
       const sub = await reg.pushManager.getSubscription().catch(() => null);
@@ -543,13 +608,22 @@ export const pushService = {
       );
       if (sub?.options?.applicationServerKey) {
         const keyBytes = new Uint8Array(sub.options.applicationServerKey);
-        const keyB64   = btoa(String.fromCharCode(...keyBytes))
-          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const keyB64 = btoa(String.fromCharCode(...keyBytes))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
         console.log("Sub key prefix:      ", keyB64.slice(0, 25) + "…");
-        console.log(".env key prefix:     ", vapidKey ? vapidKey.slice(0, 25) + "…" : "❌");
+        console.log(
+          ".env key prefix:     ",
+          vapidKey ? vapidKey.slice(0, 25) + "…" : "❌",
+        );
         if (vapidKey && keyB64 !== vapidKey) {
-          console.error("⚠️  KEY MISMATCH — subscription was created with a different VAPID key.");
-          console.error("   Fix: call pushService.unsubscribe() then pushService.subscribe() to recreate.");
+          console.error(
+            "⚠️  KEY MISMATCH — subscription was created with a different VAPID key.",
+          );
+          console.error(
+            "   Fix: call pushService.unsubscribe() then pushService.subscribe() to recreate.",
+          );
         } else if (vapidKey) {
           console.log("✅ Keys match");
         }
@@ -567,7 +641,7 @@ export const pushService = {
           data?.forEach((r, i) =>
             console.log(
               `  [${i}] active=${r.is_active} updated=${r.updated_at?.slice(0, 16)} ep=${r.endpoint?.slice(0, 55)}…`,
-            )
+            ),
           );
         }
       }
@@ -588,11 +662,17 @@ export const pushService = {
           if (vapidKey && !vapidKey.startsWith(edgePrefix)) {
             console.error(
               "⚠️  VAPID KEY MISMATCH between .env and Supabase secret!\n" +
-              "   .env REACT_APP_VAPID_PUBLIC_KEY starts with: " + (vapidKey?.slice(0, 20) ?? "N/A") + "\n" +
-              "   Supabase VAPID_PUBLIC_KEY starts with:        " + edgePrefix + "\n" +
-              "   These must be IDENTICAL.\n" +
-              "   Fix: In Supabase Secrets, set VAPID_PUBLIC_KEY = " + (vapidKey ?? "") + "\n" +
-              "   Make sure the secret is named VAPID_PUBLIC_KEY (no REACT_APP_ prefix)",
+                "   .env REACT_APP_VAPID_PUBLIC_KEY starts with: " +
+                (vapidKey?.slice(0, 20) ?? "N/A") +
+                "\n" +
+                "   Supabase VAPID_PUBLIC_KEY starts with:        " +
+                edgePrefix +
+                "\n" +
+                "   These must be IDENTICAL.\n" +
+                "   Fix: In Supabase Secrets, set VAPID_PUBLIC_KEY = " +
+                (vapidKey ?? "") +
+                "\n" +
+                "   Make sure the secret is named VAPID_PUBLIC_KEY (no REACT_APP_ prefix)",
             );
           } else {
             console.log("✅ .env key matches Edge Function secret");
@@ -601,19 +681,21 @@ export const pushService = {
           // [FIX-CRITICAL] New clear message for the most common error
           console.error(
             "❌ EDGE FUNCTION SECRETS NOT CONFIGURED CORRECTLY\n" +
-            "   The Edge Function cannot find VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY.\n" +
-            "\n" +
-            "   YOUR CURRENT PROBLEM: You likely added secrets named\n" +
-            "     REACT_APP_VAPID_PUBLIC_KEY  ← WRONG for Edge Functions\n" +
-            "     REACT_APP_VAPID_PRIVATE_KEY ← WRONG for Edge Functions\n" +
-            "\n" +
-            "   FIX: In Supabase → Edge Functions → Secrets, add:\n" +
-            "     VAPID_PUBLIC_KEY  = " + (vapidKey ?? "<your public key>") + "\n" +
-            "     VAPID_PRIVATE_KEY = DWuL6M8VtzowMyXrcAj8cPZu_drE1WrtfZhwqvRncQI\n" +
-            "     VAPID_SUBJECT     = mailto:support@xeevia.com\n" +
-            "\n" +
-            "   The REACT_APP_ prefix is only for .env files (browser bundle).\n" +
-            "   Edge Functions run on Deno and use plain secret names.",
+              "   The Edge Function cannot find VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY.\n" +
+              "\n" +
+              "   YOUR CURRENT PROBLEM: You likely added secrets named\n" +
+              "     REACT_APP_VAPID_PUBLIC_KEY  ← WRONG for Edge Functions\n" +
+              "     REACT_APP_VAPID_PRIVATE_KEY ← WRONG for Edge Functions\n" +
+              "\n" +
+              "   FIX: In Supabase → Edge Functions → Secrets, add:\n" +
+              "     VAPID_PUBLIC_KEY  = " +
+              (vapidKey ?? "<your public key>") +
+              "\n" +
+              "     VAPID_PRIVATE_KEY = DWuL6M8VtzowMyXrcAj8cPZu_drE1WrtfZhwqvRncQI\n" +
+              "     VAPID_SUBJECT     = mailto:support@xeevia.com\n" +
+              "\n" +
+              "   The REACT_APP_ prefix is only for .env files (browser bundle).\n" +
+              "   Edge Functions run on Deno and use plain secret names.",
           );
         }
       } catch (e) {
@@ -622,15 +704,29 @@ export const pushService = {
     }
 
     console.log("\n⚠️  CHECKLIST:");
-    console.log("  1. In .env:              REACT_APP_VAPID_PUBLIC_KEY  (with REACT_APP_ prefix)");
-    console.log("  2. In Supabase Secrets:  VAPID_PUBLIC_KEY            (NO REACT_APP_ prefix)");
+    console.log(
+      "  1. In .env:              REACT_APP_VAPID_PUBLIC_KEY  (with REACT_APP_ prefix)",
+    );
+    console.log(
+      "  2. In Supabase Secrets:  VAPID_PUBLIC_KEY            (NO REACT_APP_ prefix)",
+    );
     console.log("  3. Both keys above must be the SAME value");
-    console.log("  4. In .env:              REACT_APP_VAPID_PRIVATE_KEY  (with REACT_APP_ prefix) — only needed locally");
-    console.log("  5. In Supabase Secrets:  VAPID_PRIVATE_KEY            (NO REACT_APP_ prefix) — REQUIRED");
-    console.log("  6. push_subscriptions has UNIQUE(user_id, endpoint) constraint");
+    console.log(
+      "  4. In .env:              REACT_APP_VAPID_PRIVATE_KEY  (with REACT_APP_ prefix) — only needed locally",
+    );
+    console.log(
+      "  5. In Supabase Secrets:  VAPID_PRIVATE_KEY            (NO REACT_APP_ prefix) — REQUIRED",
+    );
+    console.log(
+      "  6. push_subscriptions has UNIQUE(user_id, endpoint) constraint",
+    );
     console.log("  7. notification_dedup table exists with UNIQUE(dedup_key)");
-    console.log("  8. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost");
-    console.log("  9. pushService.attachBridgeEarly() is called in src/index.js before React renders");
+    console.log(
+      "  8. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost",
+    );
+    console.log(
+      "  9. pushService.attachBridgeEarly() is called in src/index.js before React renders",
+    );
     console.groupEnd();
   },
 };
