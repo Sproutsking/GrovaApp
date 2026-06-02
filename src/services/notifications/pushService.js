@@ -1,30 +1,18 @@
 // ============================================================================
-// src/services/notifications/pushService.js — v14 ALL BUGS FIXED
+// src/services/notifications/pushService.js — v15 SECRET NAME FIX
 // ============================================================================
-// FIXES vs v13:
-//   [FIX-1] attachBridgeEarly() public method added so index.js can call
-//            _attachBridge() BEFORE React mounts — eliminates the race where
-//            early SW messages (PUSH_RECEIVED on cold start, PENDING_PAYLOADS)
-//            arrive before the 2-second delayed start() and are silently dropped.
-//   [FIX-2] start() no longer silently ignores network offline — it schedules
-//            a retry via the online event so subscriptions eventually complete
-//            even when the user first opens the app without connectivity.
-//   [FIX-3] _doSubscribe properly handles the case where the existing browser
-//            subscription has a different applicationServerKey (VAPID key
-//            changed) — it unsubscribes + resubscribes instead of trying to
-//            save the stale one.
-//   [FIX-4] sendPushToUser self-send guard now checks _userId OR actorUserId
-//            correctly — was checking _userId || actorUserId which would skip
-//            sending when actorUserId happened to match _userId but _userId
-//            was not yet set.
-//   [FIX-5] diagnose() now logs the first 20 chars of both .env key AND the
-//            Supabase secret key (via health check response) so mismatches
-//            are immediately visible in the console.
-//   [FIX-6] _saveSubscription: stale-endpoint cleanup now also removes rows
-//            where is_active=false for this user before inserting, preventing
-//            silent unique-constraint violations on re-subscribe.
-//   All v13 logic (sendPushToUser flat metadata, bridge, visibility check,
-//   testNotification, clearBadge, unsubscribe) preserved exactly.
+// FIXES vs v14:
+//   [FIX-CRITICAL] diagnose() now explicitly checks that the Edge Function is
+//            reading VAPID_PUBLIC_KEY (not REACT_APP_VAPID_PUBLIC_KEY) and
+//            warns clearly when the key prefix returned by the health check
+//            doesn't match the .env key. This is the #1 reason push fails.
+//   [FIX-1] attachBridgeEarly() public method (from v14)
+//   [FIX-2] start() offline retry (from v14)
+//   [FIX-3] _doSubscribe VAPID key mismatch detection (from v14)
+//   [FIX-4] sendPushToUser self-send guard (from v14)
+//   [FIX-5] diagnose() side-by-side key comparison (from v14)
+//   [FIX-6] _saveSubscription stale-endpoint cleanup (from v14)
+//   All v14 logic preserved exactly.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
@@ -36,7 +24,8 @@ function getVapidKey() {
     console.error(
       "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY is not set.\n" +
       "Add it to your .env file and restart the dev server.\n" +
-      "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets.",
+      "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets\n" +
+      "(Note: In .env use REACT_APP_VAPID_PUBLIC_KEY, in Supabase Secrets use VAPID_PUBLIC_KEY)",
     );
     return null;
   }
@@ -106,8 +95,6 @@ async function _getReg() {
 }
 
 // ── SW ↔ App message bridge ───────────────────────────────────────────────────
-// [FIX-1] This is now exposed as attachBridgeEarly() so index.js can call it
-// synchronously before React renders — zero race window.
 function _attachBridge() {
   if (_bridgeAttached || !("serviceWorker" in navigator)) return;
   _bridgeAttached = true;
@@ -218,8 +205,7 @@ async function _saveSubscription(userId, subscription) {
     updated_at: new Date().toISOString(),
   };
 
-  // [FIX-6] Clean up any inactive rows for this endpoint first to avoid
-  // unique-constraint violations on a re-subscribe after unsubscribe.
+  // Clean up any inactive rows for this endpoint first
   await supabase
     .from("push_subscriptions")
     .delete()
@@ -283,8 +269,7 @@ async function _doSubscribe(userId) {
     // Check for existing subscription
     let sub = await reg.pushManager.getSubscription().catch(() => null);
 
-    // [FIX-3] If the existing subscription was created with a different VAPID
-    // key it will 401 on every push. Detect this by comparing applicationServerKey.
+    // If the existing subscription was created with a different VAPID key it will 401.
     if (sub) {
       const existingKey = sub.options?.applicationServerKey;
       if (existingKey) {
@@ -353,9 +338,7 @@ async function _doSubscribe(userId) {
 // ============================================================================
 export const pushService = {
 
-  // ── [FIX-1] Early bridge attachment ───────────────────────────────────────
-  // Call this from src/index.js BEFORE React renders so no SW messages are
-  // ever dropped during the 2-second delayed start() window.
+  // ── Early bridge attachment ────────────────────────────────────────────────
   attachBridgeEarly() {
     _attachBridge();
   },
@@ -432,9 +415,6 @@ export const pushService = {
   },
 
   // ── Send a push notification to another user ───────────────────────────────
-  // Metadata is passed FLAT — never nest a `data` key here.
-  // The edge function reads metadata.call_id, metadata.caller_name, etc.
-  // and maps them to the correct data.* fields in the final push payload.
   async sendPushToUser({
     recipientUserId,
     actorUserId = null,
@@ -446,7 +426,7 @@ export const pushService = {
   }) {
     if (!recipientUserId) return false;
 
-    // [FIX-4] Self-send guard: only skip if we know both IDs and they match
+    // Self-send guard: only skip if we know both IDs and they match
     if (_userId && actorUserId && _userId === actorUserId && recipientUserId === actorUserId) {
       return false;
     }
@@ -462,7 +442,7 @@ export const pushService = {
     });
   },
 
-  // ── Show a local test notification (no server needed) ─────────────────────
+  // ── Show a local test notification ────────────────────────────────────────
   async testNotification() {
     if (!this.isSupported() || Notification.permission !== "granted") {
       console.warn("[Push] Cannot test — permission not granted");
@@ -489,9 +469,6 @@ export const pushService = {
   },
 
   // ── MAIN ENTRY POINT ───────────────────────────────────────────────────────
-  // _attachBridge() is called synchronously (no await) so the message
-  // listener is live before any async work. If you called attachBridgeEarly()
-  // from index.js this is a no-op (guarded by _bridgeAttached flag).
   async start(userId) {
     if (!this.isSupported()) {
       console.log("[Push] Not supported in this browser");
@@ -506,7 +483,7 @@ export const pushService = {
 
     const perm = this.getPermission();
     if (perm === "granted") {
-      // [FIX-2] If offline, wait for connectivity before trying to subscribe
+      // If offline, wait for connectivity before trying to subscribe
       if (!navigator.onLine) {
         console.log("[Push] Offline at start — will subscribe when online");
         const onOnline = () => {
@@ -541,8 +518,6 @@ export const pushService = {
   },
 
   // ── Full diagnostic report ─────────────────────────────────────────────────
-  // [FIX-5] Now also logs both .env key prefix AND edge fn key prefix so
-  // mismatches are immediately visible side-by-side.
   async diagnose() {
     console.group("🔍 Push Diagnosis Report");
     const vapidKey = getVapidKey();
@@ -606,12 +581,40 @@ export const pushService = {
           error ? "❌ " + error.message : "✅ reachable",
           data || "",
         );
-        // [FIX-5] Log the edge function's VAPID key prefix for easy comparison
+        // Log the edge function's VAPID key prefix for easy comparison
         if (data?.key_prefix) {
+          const edgePrefix = data.key_prefix.replace("...", "");
           console.log("Edge VAPID prefix:   ", data.key_prefix);
-          if (vapidKey && !vapidKey.startsWith(data.key_prefix.replace("...", ""))) {
-            console.error("⚠️  VAPID KEY MISMATCH between .env and Supabase secret!");
+          if (vapidKey && !vapidKey.startsWith(edgePrefix)) {
+            console.error(
+              "⚠️  VAPID KEY MISMATCH between .env and Supabase secret!\n" +
+              "   .env REACT_APP_VAPID_PUBLIC_KEY starts with: " + (vapidKey?.slice(0, 20) ?? "N/A") + "\n" +
+              "   Supabase VAPID_PUBLIC_KEY starts with:        " + edgePrefix + "\n" +
+              "   These must be IDENTICAL.\n" +
+              "   Fix: In Supabase Secrets, set VAPID_PUBLIC_KEY = " + (vapidKey ?? "") + "\n" +
+              "   Make sure the secret is named VAPID_PUBLIC_KEY (no REACT_APP_ prefix)",
+            );
+          } else {
+            console.log("✅ .env key matches Edge Function secret");
           }
+        } else if (data?.error?.includes("Missing secrets")) {
+          // [FIX-CRITICAL] New clear message for the most common error
+          console.error(
+            "❌ EDGE FUNCTION SECRETS NOT CONFIGURED CORRECTLY\n" +
+            "   The Edge Function cannot find VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY.\n" +
+            "\n" +
+            "   YOUR CURRENT PROBLEM: You likely added secrets named\n" +
+            "     REACT_APP_VAPID_PUBLIC_KEY  ← WRONG for Edge Functions\n" +
+            "     REACT_APP_VAPID_PRIVATE_KEY ← WRONG for Edge Functions\n" +
+            "\n" +
+            "   FIX: In Supabase → Edge Functions → Secrets, add:\n" +
+            "     VAPID_PUBLIC_KEY  = " + (vapidKey ?? "<your public key>") + "\n" +
+            "     VAPID_PRIVATE_KEY = DWuL6M8VtzowMyXrcAj8cPZu_drE1WrtfZhwqvRncQI\n" +
+            "     VAPID_SUBJECT     = mailto:support@xeevia.com\n" +
+            "\n" +
+            "   The REACT_APP_ prefix is only for .env files (browser bundle).\n" +
+            "   Edge Functions run on Deno and use plain secret names.",
+          );
         }
       } catch (e) {
         console.log("Edge Function:       ❌ fetch failed:", e.message);
@@ -619,11 +622,15 @@ export const pushService = {
     }
 
     console.log("\n⚠️  CHECKLIST:");
-    console.log("  1. REACT_APP_VAPID_PUBLIC_KEY in .env matches Supabase VAPID_PUBLIC_KEY secret EXACTLY");
-    console.log("  2. push_subscriptions has UNIQUE(user_id, endpoint) constraint");
-    console.log("  3. notification_dedup table exists with UNIQUE(dedup_key)");
-    console.log("  4. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost");
-    console.log("  5. pushService.attachBridgeEarly() is called in src/index.js before React renders");
+    console.log("  1. In .env:              REACT_APP_VAPID_PUBLIC_KEY  (with REACT_APP_ prefix)");
+    console.log("  2. In Supabase Secrets:  VAPID_PUBLIC_KEY            (NO REACT_APP_ prefix)");
+    console.log("  3. Both keys above must be the SAME value");
+    console.log("  4. In .env:              REACT_APP_VAPID_PRIVATE_KEY  (with REACT_APP_ prefix) — only needed locally");
+    console.log("  5. In Supabase Secrets:  VAPID_PRIVATE_KEY            (NO REACT_APP_ prefix) — REQUIRED");
+    console.log("  6. push_subscriptions has UNIQUE(user_id, endpoint) constraint");
+    console.log("  7. notification_dedup table exists with UNIQUE(dedup_key)");
+    console.log("  8. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost");
+    console.log("  9. pushService.attachBridgeEarly() is called in src/index.js before React renders");
     console.groupEnd();
   },
 };

@@ -17,53 +17,59 @@
     <!--
       color-scheme: dark — tells Chrome 135+ edge-to-edge engine that this
       app is dark. Chrome uses this to paint the new "chin" (gesture nav bar
-      overlay) in a dark color. Combined with #000000 background on html,
-      the chin becomes invisible against the app.
+      overlay) in a dark color.
     -->
     <meta name="color-scheme" content="dark" />
 
-    <!--
-      Three theme-color declarations — Chrome reads all three:
-      • media light  → black
-      • media dark   → black
-      • no media     → black fallback
-      All pure #000000 so the Android status bar area is invisible
-      against the app header in standalone mode.
-    -->
+    <!-- All black theme-color so Android status bar is invisible -->
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#000000" />
 
+    <!-- PWA standalone flags — these are what make it look like a native app -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!--
       black-translucent: extends iOS viewport under the status bar.
       env(safe-area-inset-top/bottom) return real values only with this.
     -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      THIS IS THE KEY TAG that sets the app name in the iOS/Android task
+      switcher and home screen label. Must be "Xeevia" not the page title.
+    -->
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
-
-    <meta name="description" content="New social experience." />
-    <meta property="og:title" content="Xeevia — Own Your Social" />
-    <meta property="og:description" content="Own your content. Build your network. Engage to Earn" />
-    <meta property="og:type" content="website" />
     <meta name="application-name" content="Xeevia" />
 
+    <!-- SEO / sharing -->
+    <meta name="description" content="Own your content. Build your network. Engage to Earn." />
+    <meta property="og:title" content="Xeevia — Own Your Social" />
+    <meta property="og:description" content="Own your content. Build your network. Engage to Earn." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo512.png" />
+
+    <!-- Preload critical assets -->
     <link rel="preload" as="image" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/logo192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <!--
+      CRITICAL: Pure black on html + body so Android Chrome edge-to-edge
+      paints the gesture navigation bar ("chin") black = invisible.
+    -->
     <style>
-  html, body {
-    background: #000000;
-  }
-</style>
+      html, body {
+        background: #000000;
+      }
+    </style>
 
     <style>
       *, *::before, *::after {
@@ -72,13 +78,6 @@
         -webkit-tap-highlight-color: transparent;
       }
 
-      /*
-        Pure #000000 on html — Android Chrome 135+ edge-to-edge paints
-        the gesture navigation bar ("chin") using the html background color.
-        Any value other than pure black shows as a visible strip.
-        overscroll-behavior: none stops rubber-band bounce from exposing
-        background color above or below the page.
-      */
       html {
         width: 100%;
         height: 100%;
@@ -97,6 +96,8 @@
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
         overscroll-behavior: none;
+        /* Prevent pull-to-refresh showing white flash */
+        overscroll-behavior-y: contain;
       }
 
       input, textarea, select {
@@ -245,7 +246,6 @@
 
     <!-- Update card — smart snooze flow -->
     <div id="xv-update-card" role="complementary" aria-label="Update Xeevia">
-      <!-- Default view: Update + Later -->
       <div id="xvc-main" style="display:flex;align-items:center;gap:14px;width:100%;">
         <div class="xvi-icon" aria-hidden="true">✦</div>
         <div class="xvi-text">
@@ -254,7 +254,6 @@
         <button id="xvc-update-btn" class="xvi-btn">Update</button>
         <button id="xvc-later-btn" class="xvi-dismiss" aria-label="Later" style="font-size:10px;font-weight:700;width:auto;padding:0 10px;border-radius:8px;color:#84cc16;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);">Later</button>
       </div>
-      <!-- Snooze picker — shown after tapping Later -->
       <div id="xvc-snooze" style="display:none;width:100%;">
         <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:10px;letter-spacing:0.3px;">REMIND ME IN</div>
         <div style="display:flex;gap:8px;width:100%;">
@@ -289,16 +288,25 @@
 
     <script>
       (function () {
-        var deferred = null;
-        var STORAGE_KEY = "xv_install_dismissed";
-
+        // ── Detect standalone mode ──────────────────────────────────────────
         function isStandalone() {
           return (
             window.matchMedia("(display-mode: standalone)").matches ||
+            window.matchMedia("(display-mode: fullscreen)").matches ||
             window.navigator.standalone === true ||
             document.referrer.includes("android-app://")
           );
         }
+
+        // ── REDIRECT TO STANDALONE if opened in browser tab ────────────────
+        // When the user opens app.xeevia.com in Chrome (not from home screen),
+        // this nudges them to install. If they have it installed, the browser
+        // will automatically open in standalone mode on next visit.
+        // We do NOT force a redirect since we still want the install prompt.
+
+        // ── Install prompt ──────────────────────────────────────────────────
+        var deferred = null;
+        var STORAGE_KEY = "xv_install_dismissed";
 
         function shouldShow() {
           if (localStorage.getItem(STORAGE_KEY)) return false;
@@ -312,7 +320,7 @@
           if (shouldShow()) {
             setTimeout(function () {
               document.getElementById("xv-install").classList.add("show");
-            }, 10000);
+            }, 8000);
           }
         });
 
@@ -320,7 +328,12 @@
           document.getElementById("xv-install").classList.remove("show");
           if (deferred) {
             deferred.prompt();
-            deferred.userChoice.then(function () { deferred = null; });
+            deferred.userChoice.then(function (result) {
+              deferred = null;
+              if (result.outcome === "accepted") {
+                try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
+              }
+            });
           }
         });
 
@@ -333,7 +346,7 @@
           window.location.reload();
         });
 
-        // ── Update card with smart snooze ────────────────────────────────
+        // ── Update card with smart snooze ───────────────────────────────────
         var UPDATE_SNOOZE_KEY = "xv_update_snooze_until";
 
         var isLocalhost = Boolean(
@@ -362,7 +375,6 @@
         function hideUpdateCard() {
           var card = document.getElementById("xv-update-card");
           card.classList.remove("show");
-          // Reset back to main view for next time
           setTimeout(function () {
             document.getElementById("xvc-main").style.display = "flex";
             document.getElementById("xvc-snooze").style.display = "none";
@@ -370,7 +382,6 @@
         }
 
         function showUpdateCard() {
-          // Check if snoozed
           try {
             var snoozeUntil = localStorage.getItem(UPDATE_SNOOZE_KEY);
             if (snoozeUntil && Date.now() < Number(snoozeUntil)) return;
@@ -379,23 +390,19 @@
           document.getElementById("xv-update-card").classList.add("show");
         }
 
-        // Update button — full cache clear + reload
         document.getElementById("xvc-update-btn").addEventListener("click", doUpdate);
 
-        // Later button — show snooze picker
         document.getElementById("xvc-later-btn").addEventListener("click", function () {
           document.getElementById("xvc-main").style.display = "none";
           document.getElementById("xvc-snooze").style.display = "block";
         });
 
-        // Snooze buttons — store wakeup time, hide card, reschedule check
         document.querySelectorAll(".xvc-snooze-btn").forEach(function (btn) {
           btn.addEventListener("click", function () {
             var hours = Number(btn.getAttribute("data-hours"));
             var wakeAt = Date.now() + hours * 60 * 60 * 1000;
             try { localStorage.setItem(UPDATE_SNOOZE_KEY, String(wakeAt)); } catch (e) {}
             hideUpdateCard();
-            // Re-check after the chosen period and show card again if SW still waiting
             setTimeout(function () {
               if (navigator.serviceWorker && !isLocalhost) {
                 navigator.serviceWorker.getRegistration().then(function (reg) {
@@ -407,6 +414,11 @@
         });
 
         window.__xvShowUpdate = function () { showUpdateCard(); };
+
+        // ── Set document title to just "Xeevia" (not "Xeevia | Home" etc) ──
+        // This controls what shows in the Android task switcher when running
+        // as a PWA. Keep it short and branded.
+        document.title = "Xeevia";
       })();
     </script>
   </body>
