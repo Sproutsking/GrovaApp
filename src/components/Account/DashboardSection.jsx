@@ -198,7 +198,7 @@ const DashboardSection = ({ currentUser, profile, setActiveTab, onOpenSaved }) =
   const [data, setData] = useState({
     followers:0, following:0, posts:0, reels:0, stories:0,
     totalViews:0, totalLikes:0, totalComments:0,
-    grovaTokens:0, engagementPoints:0, communities:0,
+    xevTokens:0, engagementPoints:0, communities:0,
     isPro:false, verified:false, loginStreak:0,
   });
   const [loading,  setLoading]  = useState(true);
@@ -241,9 +241,9 @@ const DashboardSection = ({ currentUser, profile, setActiveTab, onOpenSaved }) =
         supabase.from("profiles")
           .select("verified, is_pro, engagement_points")
           .eq("id", uid).maybeSingle(),
-        // wallets for grova_tokens only
+        // wallets for xev_tokens only
         supabase.from("wallets")
-          .select("grova_tokens")
+          .select("xev_tokens")
           .eq("user_id", uid).maybeSingle(),
         supabase.from("stories").select("*", { count:"exact", head:true }).eq("user_id", uid).is("deleted_at", null),
         supabase.from("reels").select("*", { count:"exact", head:true }).eq("user_id", uid).is("deleted_at", null),
@@ -286,7 +286,7 @@ const DashboardSection = ({ currentUser, profile, setActiveTab, onOpenSaved }) =
         totalComments:    safe(commentsRes),
         // [FIX-1] EP from profiles (authoritative)
         engagementPoints: Number(profileFlags?.engagement_points ?? 0),
-        grovaTokens:      Number(wallet?.grova_tokens ?? 0),
+        xevTokens:      Number(wallet?.xev_tokens ?? 0),
         communities:      safe(commRes),
         isPro:            profileFlags?.is_pro  ?? false,
         verified:         profileFlags?.verified ?? false,
@@ -320,7 +320,7 @@ const DashboardSection = ({ currentUser, profile, setActiveTab, onOpenSaved }) =
       .on("postgres_changes", { event:"UPDATE", schema:"public", table:"profiles", filter:`id=eq.${uid}` }, () => loadData())
       .subscribe());
 
-    // wallets (for GT changes)
+    // wallets (for XEV changes)
     sub(supabase.channel(`ds-wallet-${uid}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"wallets", filter:`user_id=eq.${uid}` }, () => loadData())
       .subscribe());
@@ -486,8 +486,8 @@ const DashboardSection = ({ currentUser, profile, setActiveTab, onOpenSaved }) =
               <div className="ds-gt-card">
                 <span style={{ fontSize:15 }}>🪙</span>
                 <div>
-                  <div className="ds-gt-val"><AnimVal raw={data.grovaTokens} /></div>
-                  <div className="ds-gt-lbl">GT Balance</div>
+                  <div className="ds-gt-val"><AnimVal raw={data.xevTokens} /></div>
+                  <div className="ds-gt-lbl">XEV Balance</div>
                 </div>
               </div>
               <div className="ds-str-card">

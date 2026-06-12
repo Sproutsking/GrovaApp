@@ -69,7 +69,7 @@ export function formatXEV(value, decimals = 4) {
  *
  *   // ✓ NEW (correct)
  *   import { toUsd } from "@/constants/rates";
- *   const usdValue  = toUsd.fromXev(wallet.grova_tokens);   // xev * 0.10
+ *   const usdValue  = toUsd.fromXev(wallet.xev_tokens);   // xev * 0.10
  *   const epDisplay = wallet.engagement_points;              // always from wallets table
  *
  * SWAP UI:

@@ -11,7 +11,7 @@ const ListItemModal = ({ onList, onClose, selectedItem }) => {
 
   const handleList = () => {
     if (price < minPrice) {
-      alert(`Minimum listing price is ${minPrice} GT (120% of original price)`);
+      alert(`Minimum listing price is ${minPrice} XEV (120% of original price)`);
       return;
     }
     onList(selectedItem, price);
@@ -34,7 +34,7 @@ const ListItemModal = ({ onList, onClose, selectedItem }) => {
             <strong>{selectedItem?.title}</strong>
           </div>
           <div className="list-story-meta">
-            <span>Original Price: {selectedItem?.unlockCost} GT</span>
+            <span>Original Price: {selectedItem?.unlockCost} XEV</span>
             <span className="sold-out-badge">• SOLD OUT</span>
           </div>
         </div>
@@ -62,7 +62,7 @@ const ListItemModal = ({ onList, onClose, selectedItem }) => {
               min={minPrice}
               step={0.1}
             />
-            <span className="list-currency">GT</span>
+            <span className="list-currency">XEV</span>
           </div>
           
           {/* Price Suggestions */}
@@ -71,13 +71,13 @@ const ListItemModal = ({ onList, onClose, selectedItem }) => {
               className="suggestion-btn"
               onClick={() => setPrice(suggestedPrice)}
             >
-              Suggested: {suggestedPrice} GT
+              Suggested: {suggestedPrice} XEV
             </button>
             <button 
               className="suggestion-btn"
               onClick={() => setPrice(suggestedPrice * 2)}
             >
-              Premium: {(suggestedPrice * 2).toFixed(1)} GT
+              Premium: {(suggestedPrice * 2).toFixed(1)} XEV
             </button>
           </div>
         </div>
@@ -86,18 +86,18 @@ const ListItemModal = ({ onList, onClose, selectedItem }) => {
         <div className="list-breakdown">
           <div className="breakdown-row">
             <span>Listing Price</span>
-            <strong>{price.toFixed(1)} GT</strong>
+            <strong>{price.toFixed(1)} XEV</strong>
           </div>
           <div className="breakdown-row royalty">
             <span>
               <TrendingUp size={16} />
               Creator Royalty (10%)
             </span>
-            <span>-{royaltyAmount.toFixed(1)} GT</span>
+            <span>-{royaltyAmount.toFixed(1)} XEV</span>
           </div>
           <div className="breakdown-row total">
             <span>You'll Receive</span>
-            <strong className="earnings">{yourEarnings.toFixed(1)} GT</strong>
+            <strong className="earnings">{yourEarnings.toFixed(1)} XEV</strong>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ const ListItemModal = ({ onList, onClose, selectedItem }) => {
         {price < minPrice && price > 0 && (
           <div className="list-warning">
             <AlertCircle size={16} />
-            <span>Price must be at least {minPrice} GT</span>
+            <span>Price must be at least {minPrice} XEV</span>
           </div>
         )}
 

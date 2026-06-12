@@ -7,7 +7,7 @@
 // the admin-revoke-user Edge Function to invalidate Supabase auth sessions.
 //
 // PATCHED v3 (Economy Metrics): useStats() extended with four new fields:
-//   totalXEVCirculating  — SUM(wallets.grova_tokens) for all non-null user wallets
+//   totalXEVCirculating  — SUM(wallets.xev_tokens) for all non-null user wallets
 //   totalXEVMinted       — all-time SUM(wallet_history.amount) where change_type='credit'
 //   totalEPCirculation   — SUM(profiles.engagement_points) for activated, non-deleted users
 //   epMintedOnDeposit    — SUM(ep_transactions.amount) where type='purchase_grant'
@@ -241,10 +241,10 @@ export function useStats() {
           .select("amount_cents")
           .eq("status", "completed")
           .gte("created_at", weekAgo),
-        // XEV circulating — sum of all active wallets' grova_tokens
+        // XEV circulating — sum of all active wallets' xev_tokens
         sb()
           .from("wallets")
-          .select("grova_tokens")
+          .select("xev_tokens")
           .not("user_id", "is", null),
         // XEV minted all-time — sum wallet_history credits as proxy
         // (wallet_history.change_type = 'credit', amount is the credited amount)
@@ -273,7 +273,7 @@ export function useStats() {
       const revWeek      = sum(revenueWeek)  / 100;
 
       // Economy metrics — rounded for display
-      const totalXEVCirculating = Math.round(sum(xevCirculatingData || [], "grova_tokens"));
+      const totalXEVCirculating = Math.round(sum(xevCirculatingData || [], "xev_tokens"));
       const totalXEVMinted      = Math.round(sum(xevMintedData      || [], "amount"));
       const totalEPCirculation  = Math.round(sum(epCirculationData  || [], "engagement_points"));
       const epMintedOnDeposit   = Math.round(sum(epDepositData      || [], "amount"));
@@ -295,7 +295,7 @@ export function useStats() {
         revenueToday:        revToday,
         revenueWeek:         revWeek,
         // ── Economy stats ─────────────────────────────────────────────────
-        totalXEVCirculating,   // current sum of wallets.grova_tokens
+        totalXEVCirculating,   // current sum of wallets.xev_tokens
         totalXEVMinted,        // all-time credits from wallet_history
         totalEPCirculation,    // sum of profiles.engagement_points (activated users)
         epMintedOnDeposit,     // EP created from real-money deposits (purchase_grant type)
@@ -430,14 +430,14 @@ export function useUsers(pageSize = 20) {
     if (tokens !== 0) {
       const { data: wallet } = await sb()
         .from("wallets")
-        .select("grova_tokens")
+        .select("xev_tokens")
         .eq("user_id", userId)
         .maybeSingle();
       if (wallet) {
         await sb()
           .from("wallets")
           .update({
-            grova_tokens: Math.max(0, (wallet.grova_tokens || 0) + tokens),
+            xev_tokens: Math.max(0, (wallet.xev_tokens || 0) + tokens),
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId);
@@ -446,7 +446,7 @@ export function useUsers(pageSize = 20) {
           .from("wallets")
           .insert({
             user_id: userId,
-            grova_tokens: Math.max(0, tokens),
+            xev_tokens: Math.max(0, tokens),
             engagement_points: Math.max(0, points || 0),
           });
       }

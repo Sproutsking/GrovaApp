@@ -131,7 +131,7 @@ const TradeTab = ({ setActiveTab }) => {
     rating: 99, completion: '100%', trades: 50, joined: 'Jan 2023', verified: true,
     responseTime: '< 5 min', avatar: 'TP', email: 'trader@example.com', phone: '+234 xxx xxxx',
     preferredPayment: 'Bank Transfer', tradingHours: '9 AM - 10 PM', languages: 'English, Hausa',
-    totalVolume: '125,000 GT'
+    totalVolume: '125,000 XEV'
   });
 
   const userBalance = { tokens: 1250 };
@@ -141,19 +141,19 @@ const TradeTab = ({ setActiveTab }) => {
   const demoSellOffers = [
     {
       id: 1, seller: 'User123',
-      sellerDetails: { rating: 99, completion: '98%', trades: 120, joined: 'Mar 2023', verified: true, responseTime: '< 3 min', bio: 'Experienced trader. Quick responses guaranteed.', avatar: 'U1', totalVolume: '250,000 GT', preferredPayment: 'Bank Transfer', tradingHours: '24/7', languages: 'English, French' },
+      sellerDetails: { rating: 99, completion: '98%', trades: 120, joined: 'Mar 2023', verified: true, responseTime: '< 3 min', bio: 'Experienced trader. Quick responses guaranteed.', avatar: 'U1', totalVolume: '250,000 XEV', preferredPayment: 'Bank Transfer', tradingHours: '24/7', languages: 'English, French' },
       available: 500, price: 2.5, currency: 'NGN', method: 'Bank Transfer', min: 50, max: 300, status: 'active',
       terms: 'Payment within 30 minutes. Bank details will be provided.'
     },
     {
       id: 2, seller: 'TraderX',
-      sellerDetails: { rating: 97, completion: '95%', trades: 80, joined: 'Jun 2023', verified: true, responseTime: '< 10 min', bio: 'Crypto enthusiast. Available 24/7.', avatar: 'TX', totalVolume: '180,000 GT', preferredPayment: 'Crypto Wallet', tradingHours: 'Flexible', languages: 'English' },
+      sellerDetails: { rating: 97, completion: '95%', trades: 80, joined: 'Jun 2023', verified: true, responseTime: '< 10 min', bio: 'Crypto enthusiast. Available 24/7.', avatar: 'TX', totalVolume: '180,000 XEV', preferredPayment: 'Crypto Wallet', tradingHours: 'Flexible', languages: 'English' },
       available: 1000, price: 1, currency: 'USDT', method: 'Crypto Wallet', min: 100, max: 500, status: 'idle',
       terms: 'Send to provided wallet address.'
     },
     {
       id: 5, seller: 'FastTrade',
-      sellerDetails: { rating: 98, completion: '99%', trades: 200, joined: 'Jan 2023', verified: true, responseTime: '< 2 min', bio: 'Lightning fast trades. Professional service.', avatar: 'FT', totalVolume: '500,000 GT', preferredPayment: 'Mobile Money', tradingHours: '8 AM - 11 PM', languages: 'English, Yoruba, Igbo' },
+      sellerDetails: { rating: 98, completion: '99%', trades: 200, joined: 'Jan 2023', verified: true, responseTime: '< 2 min', bio: 'Lightning fast trades. Professional service.', avatar: 'FT', totalVolume: '500,000 XEV', preferredPayment: 'Mobile Money', tradingHours: '8 AM - 11 PM', languages: 'English, Yoruba, Igbo' },
       available: 750, price: 2.55, currency: 'NGN', method: 'Mobile Money', min: 50, max: 400, status: 'active',
       terms: 'Mobile money transfer only. Fast release.'
     },
@@ -162,13 +162,13 @@ const TradeTab = ({ setActiveTab }) => {
   const demoBuyOffers = [
     {
       id: 3, buyer: 'BuyerA',
-      buyerDetails: { rating: 98, completion: '99%', trades: 90, joined: 'Apr 2023', verified: true, responseTime: '< 5 min', bio: 'Regular buyer. Instant payments.', avatar: 'BA', totalVolume: '200,000 GT', preferredPayment: 'Mobile Money', tradingHours: '9 AM - 9 PM', languages: 'English, Hausa' },
+      buyerDetails: { rating: 98, completion: '99%', trades: 90, joined: 'Apr 2023', verified: true, responseTime: '< 5 min', bio: 'Regular buyer. Instant payments.', avatar: 'BA', totalVolume: '200,000 XEV', preferredPayment: 'Mobile Money', tradingHours: '9 AM - 9 PM', languages: 'English, Hausa' },
       wanted: 300, price: 2.4, currency: 'NGN', method: 'Mobile Money', min: 50, max: 200, status: 'active',
       terms: 'Release tokens after payment confirmation.'
     },
     {
       id: 4, buyer: 'InvestorB',
-      buyerDetails: { rating: 96, completion: '97%', trades: 60, joined: 'May 2023', verified: false, responseTime: '< 15 min', bio: 'Long-term investor. Serious buyers only.', avatar: 'IB', totalVolume: '150,000 GT', preferredPayment: 'PayPal', tradingHours: '10 AM - 6 PM', languages: 'English' },
+      buyerDetails: { rating: 96, completion: '97%', trades: 60, joined: 'May 2023', verified: false, responseTime: '< 15 min', bio: 'Long-term investor. Serious buyers only.', avatar: 'IB', totalVolume: '150,000 XEV', preferredPayment: 'PayPal', tradingHours: '10 AM - 6 PM', languages: 'English' },
       wanted: 600, price: 0.95, currency: 'USDT', method: 'PayPal', min: 100, max: 400, status: 'inactive',
       terms: 'PayPal payment. May take longer.'
     },
@@ -203,7 +203,7 @@ const TradeTab = ({ setActiveTab }) => {
       return;
     }
     if (subTab === 'sell' && amount > userBalance.tokens) {
-      alert('Insufficient GT balance.');
+      alert('Insufficient XEV balance.');
       return;
     }
     setTradeInitiated(true);
@@ -406,8 +406,8 @@ const TradeTab = ({ setActiveTab }) => {
                       {amountFilterOpen && (
                         <div className="filter-dropdown" onClick={(e) => e.stopPropagation()}>
                           <div className="amount-filter-row">
-                            <input type="number" className="amount-filter-input" placeholder="Min (GT)" value={filterMinAmount} onChange={(e) => setFilterMinAmount(e.target.value)} />
-                            <input type="number" className="amount-filter-input" placeholder="Max (GT)" value={filterMaxAmount} onChange={(e) => setFilterMaxAmount(e.target.value)} />
+                            <input type="number" className="amount-filter-input" placeholder="Min (XEV)" value={filterMinAmount} onChange={(e) => setFilterMinAmount(e.target.value)} />
+                            <input type="number" className="amount-filter-input" placeholder="Max (XEV)" value={filterMaxAmount} onChange={(e) => setFilterMaxAmount(e.target.value)} />
                             <button className="amount-filter-button" onClick={() => setAmountFilterOpen(false)}>Apply</button>
                           </div>
                         </div>
@@ -477,7 +477,7 @@ const TradeTab = ({ setActiveTab }) => {
                             </div>
                             <div className="offer-price-section">
                               <div className="offer-price">{offer.price} {offer.currency}</div>
-                              <div className="offer-currency">per GT</div>
+                              <div className="offer-currency">per XEV</div>
                             </div>
                             <button className="btn-buy" onClick={() => handleSelectOffer(offer)}>
                               <ShoppingCart size={13} /> BUY
@@ -485,8 +485,8 @@ const TradeTab = ({ setActiveTab }) => {
                           </div>
                           <div className="offer-body">
                             <div className="offer-details">
-                              <div className="offer-detail"><strong>Available</strong><span>{offer.available} GT</span></div>
-                              <div className="offer-detail"><strong>Limits</strong><span>{offer.min}–{offer.max} GT</span></div>
+                              <div className="offer-detail"><strong>Available</strong><span>{offer.available} XEV</span></div>
+                              <div className="offer-detail"><strong>Limits</strong><span>{offer.min}–{offer.max} XEV</span></div>
                               <div className="offer-detail"><strong>Method</strong><span>{offer.method}</span></div>
                               <div className="offer-detail"><strong>Time Limit</strong><span>30 min</span></div>
                             </div>
@@ -529,7 +529,7 @@ const TradeTab = ({ setActiveTab }) => {
                             </div>
                             <div className="offer-price-section">
                               <div className="offer-price">{offer.price} {offer.currency}</div>
-                              <div className="offer-currency">per GT</div>
+                              <div className="offer-currency">per XEV</div>
                             </div>
                             <button className="btn-sell" onClick={() => handleSelectOffer(offer)}>
                               <DollarSign size={13} /> SELL
@@ -537,8 +537,8 @@ const TradeTab = ({ setActiveTab }) => {
                           </div>
                           <div className="offer-body">
                             <div className="offer-details">
-                              <div className="offer-detail"><strong>Wants</strong><span>{offer.wanted} GT</span></div>
-                              <div className="offer-detail"><strong>Limits</strong><span>{offer.min}–{offer.max} GT</span></div>
+                              <div className="offer-detail"><strong>Wants</strong><span>{offer.wanted} XEV</span></div>
+                              <div className="offer-detail"><strong>Limits</strong><span>{offer.min}–{offer.max} XEV</span></div>
                               <div className="offer-detail"><strong>Method</strong><span>{offer.method}</span></div>
                               <div className="offer-detail"><strong>Time Limit</strong><span>30 min</span></div>
                             </div>
@@ -617,10 +617,10 @@ const TradeTab = ({ setActiveTab }) => {
                             </div>
                           </div>
                           <div className="ad-details">
-                            <div className="ad-detail"><strong>Price</strong>{ad.price} {ad.currency}/GT</div>
-                            <div className="ad-detail"><strong>Amount</strong>{ad.amount} GT</div>
+                            <div className="ad-detail"><strong>Price</strong>{ad.price} {ad.currency}/XEV</div>
+                            <div className="ad-detail"><strong>Amount</strong>{ad.amount} XEV</div>
                             <div className="ad-detail"><strong>Method</strong>{ad.method}</div>
-                            <div className="ad-detail"><strong>Limits</strong>{ad.min}–{ad.max} GT</div>
+                            <div className="ad-detail"><strong>Limits</strong>{ad.min}–{ad.max} XEV</div>
                           </div>
                         </div>
                       ))}
@@ -639,18 +639,18 @@ const TradeTab = ({ setActiveTab }) => {
                     <div className="trade-section">
                       <h3 className="trade-section-title">{editAd ? 'Edit Ad' : 'Create New Ad'}</h3>
                       <div className="trade-form">
-                        <div className="form-group"><label className="form-label">Ad Type</label><select className="form-select" value={createForm.type} onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })}><option value="sell">Sell GT</option><option value="buy">Buy GT</option></select></div>
+                        <div className="form-group"><label className="form-label">Ad Type</label><select className="form-select" value={createForm.type} onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })}><option value="sell">Sell XEV</option><option value="buy">Buy XEV</option></select></div>
                         <div className="form-row">
-                          <div className="form-group"><label className="form-label">Total Amount (GT)</label><input type="number" className="form-input" placeholder="0" value={createForm.amount} onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })} /></div>
-                          <div className="form-group"><label className="form-label">Price per GT</label><input type="number" className="form-input" placeholder="0.00" value={createForm.price} onChange={(e) => setCreateForm({ ...createForm, price: e.target.value })} /></div>
+                          <div className="form-group"><label className="form-label">Total Amount (XEV)</label><input type="number" className="form-input" placeholder="0" value={createForm.amount} onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })} /></div>
+                          <div className="form-group"><label className="form-label">Price per XEV</label><input type="number" className="form-input" placeholder="0.00" value={createForm.price} onChange={(e) => setCreateForm({ ...createForm, price: e.target.value })} /></div>
                         </div>
                         <div className="form-row">
                           <div className="form-group"><label className="form-label">Currency</label><select className="form-select" value={createForm.currency} onChange={(e) => setCreateForm({ ...createForm, currency: e.target.value })}><option value="NGN">NGN</option><option value="USDT">USDT</option></select></div>
                           <div className="form-group"><label className="form-label">Payment Method</label><select className="form-select" value={createForm.method} onChange={(e) => setCreateForm({ ...createForm, method: e.target.value })}>{paymentMethods.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
                         </div>
                         <div className="form-row">
-                          <div className="form-group"><label className="form-label">Min per Trade (GT)</label><input type="number" className="form-input" placeholder="0" value={createForm.min} onChange={(e) => setCreateForm({ ...createForm, min: e.target.value })} /></div>
-                          <div className="form-group"><label className="form-label">Max per Trade (GT)</label><input type="number" className="form-input" placeholder="0" value={createForm.max} onChange={(e) => setCreateForm({ ...createForm, max: e.target.value })} /></div>
+                          <div className="form-group"><label className="form-label">Min per Trade (XEV)</label><input type="number" className="form-input" placeholder="0" value={createForm.min} onChange={(e) => setCreateForm({ ...createForm, min: e.target.value })} /></div>
+                          <div className="form-group"><label className="form-label">Max per Trade (XEV)</label><input type="number" className="form-input" placeholder="0" value={createForm.max} onChange={(e) => setCreateForm({ ...createForm, max: e.target.value })} /></div>
                         </div>
                         <div className="form-group"><label className="form-label">Terms (Optional)</label><textarea className="form-textarea" value={createForm.terms} onChange={(e) => setCreateForm({ ...createForm, terms: e.target.value })} placeholder="Any specific terms..." /></div>
                         <div className="form-actions">
@@ -681,14 +681,14 @@ const TradeTab = ({ setActiveTab }) => {
                           <div className="history-header">
                             <div className={`history-type ${trade.type}`}>
                               {trade.type === 'buy' ? <ShoppingCart size={15} /> : <DollarSign size={15} />}
-                              {trade.type.toUpperCase()} {trade.amount} GT
+                              {trade.type.toUpperCase()} {trade.amount} XEV
                             </div>
                             <div className={`history-status ${trade.status}`}>
                               {trade.status === 'in-progress' ? 'In Progress' : trade.status.charAt(0).toUpperCase() + trade.status.slice(1)}
                             </div>
                           </div>
                           <div className="history-details">
-                            <strong>Price:</strong> {trade.price} {trade.currency}/GT &nbsp;|&nbsp;
+                            <strong>Price:</strong> {trade.price} {trade.currency}/XEV &nbsp;|&nbsp;
                             <strong>Total:</strong> {(trade.amount * trade.price).toFixed(2)} {trade.currency}<br />
                             <strong>With:</strong> {trade.counterparty} &nbsp;|&nbsp; <strong>Date:</strong> {trade.date}
                           </div>
@@ -747,16 +747,16 @@ const TradeTab = ({ setActiveTab }) => {
                     <span className="summary-detail-value" style={{ color: subTab === 'buy' ? '#22c55e' : '#ef4444' }}>{subTab.toUpperCase()}</span>
                   </div>
                   <div className="summary-detail">
-                    <span className="summary-detail-label">Price per GT</span>
+                    <span className="summary-detail-label">Price per XEV</span>
                     <span className="summary-detail-value">{selectedOffer.price} {selectedOffer.currency}</span>
                   </div>
                   <div className="summary-detail">
                     <span className="summary-detail-label">{subTab === 'buy' ? 'Available' : 'Wanted'}</span>
-                    <span className="summary-detail-value">{subTab === 'buy' ? selectedOffer.available : selectedOffer.wanted} GT</span>
+                    <span className="summary-detail-value">{subTab === 'buy' ? selectedOffer.available : selectedOffer.wanted} XEV</span>
                   </div>
                   <div className="summary-detail">
                     <span className="summary-detail-label">Trade Limits</span>
-                    <span className="summary-detail-value">{selectedOffer.min} – {selectedOffer.max} GT</span>
+                    <span className="summary-detail-value">{selectedOffer.min} – {selectedOffer.max} XEV</span>
                   </div>
                   <div className="summary-detail">
                     <span className="summary-detail-label">Payment Method</span>
@@ -773,7 +773,7 @@ const TradeTab = ({ setActiveTab }) => {
 
               {/* Amount input */}
               <div className="amount-input-group">
-                <label className="amount-label">Enter Amount (GT)</label>
+                <label className="amount-label">Enter Amount (XEV)</label>
                 <input type="number" className="amount-input" value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} placeholder={`${selectedOffer.min} – ${selectedOffer.max}`} />
                 {tradeAmount && !isNaN(parseFloat(tradeAmount)) && (
                   <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -786,7 +786,7 @@ const TradeTab = ({ setActiveTab }) => {
                     {subTab === 'sell' && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <span style={{ color: '#444', fontFamily: 'JetBrains Mono, monospace' }}>Your Balance</span>
-                        <span style={{ color: '#666', fontFamily: 'JetBrains Mono, monospace' }}>{userBalance.tokens} GT</span>
+                        <span style={{ color: '#666', fontFamily: 'JetBrains Mono, monospace' }}>{userBalance.tokens} XEV</span>
                       </div>
                     )}
                   </div>
@@ -822,8 +822,8 @@ const TradeTab = ({ setActiveTab }) => {
                 <div className="summary-title" style={{ color: '#84cc16' }}>🔄 Trade In Progress</div>
                 <div className="summary-details">
                   <div className="summary-detail"><span className="summary-detail-label">Trading with</span><span className="summary-detail-value">{counterpartyName}</span></div>
-                  <div className="summary-detail"><span className="summary-detail-label">Amount</span><span className="summary-detail-value">{tradeAmount} GT</span></div>
-                  <div className="summary-detail"><span className="summary-detail-label">Price</span><span className="summary-detail-value">{selectedOffer.price} {selectedOffer.currency}/GT</span></div>
+                  <div className="summary-detail"><span className="summary-detail-label">Amount</span><span className="summary-detail-value">{tradeAmount} XEV</span></div>
+                  <div className="summary-detail"><span className="summary-detail-label">Price</span><span className="summary-detail-value">{selectedOffer.price} {selectedOffer.currency}/XEV</span></div>
                   <div className="summary-detail">
                     <span className="summary-detail-label">Total</span>
                     <span className="summary-detail-value" style={{ fontSize: '18px', color: '#84cc16', fontFamily: 'JetBrains Mono, monospace' }}>
@@ -842,14 +842,14 @@ const TradeTab = ({ setActiveTab }) => {
                       <p style={{ marginBottom: '10px' }}>1. Send <strong style={{ color: '#84cc16' }}>{(parseFloat(tradeAmount) * selectedOffer.price).toFixed(2)} {selectedOffer.currency}</strong> via <strong>{selectedOffer.method}</strong></p>
                       <p style={{ marginBottom: '10px' }}>2. Get payment details from seller in chat</p>
                       <p style={{ marginBottom: '10px' }}>3. After sending, click "Confirm Payment Sent"</p>
-                      <p style={{ color: '#555', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>⚠ Seller releases GT after payment confirmed</p>
+                      <p style={{ color: '#555', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>⚠ Seller releases XEV after payment confirmed</p>
                     </>
                   ) : (
                     <>
                       <p style={{ marginBottom: '10px' }}>1. Share your payment details in chat</p>
                       <p style={{ marginBottom: '10px' }}>2. Wait for buyer to send <strong style={{ color: '#84cc16' }}>{(parseFloat(tradeAmount) * selectedOffer.price).toFixed(2)} {selectedOffer.currency}</strong></p>
                       <p style={{ marginBottom: '10px' }}>3. Confirm payment received in your account</p>
-                      <p style={{ marginBottom: '10px' }}>4. Click "Confirm Received & Release GT"</p>
+                      <p style={{ marginBottom: '10px' }}>4. Click "Confirm Received & Release XEV"</p>
                       <p style={{ color: '#555', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>⚠ Only release after payment is confirmed</p>
                     </>
                   )}
@@ -863,7 +863,7 @@ const TradeTab = ({ setActiveTab }) => {
                   </button>
                 ) : (
                   <button className="btn-primary" onClick={() => handleConfirm(false)} style={{ width: '100%' }}>
-                    <Check size={16} /> Confirm Received & Release GT
+                    <Check size={16} /> Confirm Received & Release XEV
                   </button>
                 )}
                 <button className="btn-secondary" style={{ background: 'rgba(239,68,68,0.07)', borderColor: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>

@@ -151,7 +151,7 @@ const StoryTab = React.forwardRef(function StoryTab(
         >
           Share your daily life, folklore, or fiction.
           <br />
-          <span style={{ color: "#84cc16" }}>Set a price to earn GT</span> — or
+          <span style={{ color: "#84cc16" }}>Set a price to earn XEV</span> — or
           share it free to inspire someone today.
         </p>
       </div>

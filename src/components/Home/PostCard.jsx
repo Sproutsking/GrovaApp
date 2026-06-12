@@ -77,13 +77,18 @@ function safeVideoUrl(id) {
   try {
     const raw = mediaUrlService.getVideoUrl(id, { quality: QUALITY.videoQ, format: "mp4" });
     if (!raw) return null;
-    // Split off any query string first so we only touch the path
-    const qIdx     = raw.indexOf("?");
-    const base     = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
-    const query    = qIdx >= 0 ? raw.slice(qIdx)    : "";
-    const cleanB   = base.replace(/\.mp4$/i, "");   // strip if already there
-    return cleanB + ".mp4" + query;                  // add back exactly once
+    const qIdx   = raw.indexOf("?");
+    const base   = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    const query  = qIdx >= 0 ? raw.slice(qIdx) : "";
+    const cleanB = base.replace(/\.mp4$/i, "");
+    return cleanB + ".mp4" + query;
   } catch { return null; }
+}
+
+function normalizeMediaIds(rawIds) {
+  if (Array.isArray(rawIds)) return rawIds.filter(id => typeof id === "string" && id.trim());
+  if (typeof rawIds === "string") return rawIds.split(",").map(id => id.trim()).filter(Boolean);
+  return [];
 }
 
 // ── Relative timestamp ────────────────────────────────────────────────────────
@@ -265,44 +270,43 @@ const PostCard = ({
   const getMediaItems = () => {
     if (isTextCard) return [];
     const items = [];
-    if (post.image_ids?.length) {
-      post.image_ids.forEach((id, i) => {
-        if (!id?.trim()) return;
-        const meta = post.image_metadata?.[i] || {};
-        items.push({
-          type: "image", id, index: i,
-          url:     mediaUrlService.getImageUrl(id, {
-            width:   QUALITY.imgWidth,
-            quality: QUALITY.quality,
-            format:  QUALITY.imgFormat,
-            crop: "limit",       // don't upscale small images
-            gravity: "auto",
-          }),
-          fullUrl: mediaUrlService.getImageUrl(id, {
-            width: 1920, quality:"auto:best", format:"webp", crop:"limit",
-          }),
-          width:  meta.width  || null,
-          height: meta.height || null,
-        });
+    const imageIds = normalizeMediaIds(post.image_ids);
+    const videoIds = normalizeMediaIds(post.video_ids);
+
+    imageIds.forEach((id, i) => {
+      const meta = post.image_metadata?.[i] || {};
+      items.push({
+        type: "image", id, index: i,
+        url:     mediaUrlService.getImageUrl(id, {
+          width:   QUALITY.imgWidth,
+          quality: QUALITY.quality,
+          format:  QUALITY.imgFormat,
+          crop: "limit",
+          gravity: "auto",
+        }),
+        fullUrl: mediaUrlService.getImageUrl(id, {
+          width: 1920, quality:"auto:best", format:"webp", crop:"limit",
+        }),
+        width:  meta.width  || null,
+        height: meta.height || null,
       });
-    }
-    if (post.video_ids?.length) {
-      post.video_ids.forEach((id, i) => {
-        if (!id?.trim()) return;
-        const url  = safeVideoUrl(id);   // [VID-1] correct Cloudinary URL
-        if (!url) return;
-        const meta = post.video_metadata?.[i] || {};
-        items.push({
-          type: "video", id, index: i, url,
-          thumbnail: meta.thumbnail_url
-            || mediaUrlService.getVideoThumbnail?.(id, { width:640, height:360, time:"0" })
-            || null,
-          duration: meta.duration,
-          aspectW:  meta.width  || 9,
-          aspectH:  meta.height || 16,
-        });
+    });
+
+    videoIds.forEach((id, i) => {
+      const url  = safeVideoUrl(id);
+      if (!url) return;
+      const meta = post.video_metadata?.[i] || {};
+      items.push({
+        type: "video", id, index: i, url,
+        thumbnail: meta.thumbnail_url
+          || mediaUrlService.getVideoThumbnail?.(id, { width:640, height:360, time:"0" })
+          || null,
+        duration: meta.duration,
+        aspectW:  meta.width  || 9,
+        aspectH:  meta.height || 16,
       });
-    }
+    });
+
     return items;
   };
 
@@ -310,11 +314,28 @@ const PostCard = ({
   const hasMultipleMedia = mediaItems.length > 1;
   const hasMedia         = mediaItems.length > 0;
 
+  useEffect(() => {
+    if (activeMedia >= mediaItems.length) {
+      setActiveMedia(Math.max(0, mediaItems.length - 1));
+    }
+  }, [mediaItems.length, activeMedia]);
+
+  useEffect(() => {
+    setActiveMedia(0);
+    setMediaErrors({});
+    setMediaLoaded({});
+    setVideoLoading({});
+    setVideoFailed({});
+    setVideoRetries({});
+    Object.values(retryTimers.current).forEach(clearTimeout);
+    retryTimers.current = {};
+  }, [post.id]);
+
   // [PERF-2] Prefetch next image
   useEffect(() => {
     const next = mediaItems[activeMedia + 1];
     if (next?.type === "image" && next.url) prefetchImage(next.url);
-  }, [activeMedia]); // eslint-disable-line
+  }, [activeMedia, mediaItems]); // eslint-disable-line
 
   // Text overflow
   useEffect(() => {
@@ -590,6 +611,10 @@ const PostCard = ({
                             className="pc-video-outer"
                             style={{ "--vid-aw": item.aspectW, "--vid-ah": item.aspectH }}
                           >
+                            {!mediaLoaded[index] && !videoFailed[index] && (
+                              <MediaShimmer aspectW={item.aspectW} aspectH={item.aspectH}/>
+                            )}
+
                             {/* [VID-3] Spinner */}
                             {videoLoading[index] && !videoFailed[index] && (
                               <div className="pc-vid-overlay pc-vid-loading">
@@ -624,9 +649,13 @@ const PostCard = ({
                                 playsInline loop muted={muted}
                                 preload={preload}
                                 onLoadStart={() => setVideoLoading(p => ({ ...p, [index]: true }))}
-                                onCanPlay={()  => setVideoLoading(p => ({ ...p, [index]: false }))}
+                                onCanPlay={() => {
+                                  setVideoLoading(p => ({ ...p, [index]: false }));
+                                  setMediaLoaded(p => ({ ...p, [index]: true }));
+                                }}
                                 onLoadedData={e => {
                                   setVideoLoading(p => ({ ...p, [index]: false }));
+                                  setMediaLoaded(p => ({ ...p, [index]: true }));
                                   try { e.target.currentTime = 0.001; } catch {}
                                 }}
                                 onError={() => handleVideoError(index, item.url)}

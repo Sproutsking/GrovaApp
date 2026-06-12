@@ -220,13 +220,13 @@ const UserProfileModal = ({ user, onClose, currentUser, onAuthorClick, onActionM
   const mobileStats = [
     { icon: BookOpen, value: profileData.stats?.totalStories || 0, label: "Stories" },
     { icon: Film, value: profileData.stats?.totalReels || 0, label: "Reels" },
-    { icon: DollarSign, value: formatNumber(profileData.wallet?.grovaTokens || 0), label: "Tokens", highlight: true },
+    { icon: DollarSign, value: formatNumber(profileData.wallet?.xevTokens || 0), label: "Tokens", highlight: true },
   ];
   const desktopStats = [
     { icon: BookOpen, value: profileData.stats?.totalStories || 0, label: "Stories" },
     { icon: Film, value: profileData.stats?.totalReels || 0, label: "Reels" },
     { icon: Image, value: profileData.stats?.totalPosts || 0, label: "Posts" },
-    { icon: DollarSign, value: formatNumber(profileData.wallet?.grovaTokens || 0), label: "Tokens", highlight: true },
+    { icon: DollarSign, value: formatNumber(profileData.wallet?.xevTokens || 0), label: "Tokens", highlight: true },
   ];
   const stats = isMobile ? mobileStats : desktopStats;
 

@@ -26,7 +26,7 @@ const ALL_SERVICES = [
   { id:"home",      Icon:Home,       label:"Home",       color:"#84cc16", bg:"rgba(132,204,22,0.1)",  section:"Navigate", desc:"Your feed"         },
   { id:"search",    Icon:Search,     label:"Explore",    color:"#60a5fa", bg:"rgba(96,165,250,0.1)",  section:"Navigate", desc:"Discover content"  },
   { id:"community", Icon:Users,      label:"Community",  color:"#a78bfa", bg:"rgba(167,139,250,0.1)", section:"Navigate", desc:"Your communities"  },
-  { id:"wallet",    Icon:Wallet,     label:"Wallet",     color:"#fbbf24", bg:"rgba(251,191,36,0.1)",  section:"Navigate", desc:"GT & EP balance"   },
+  { id:"wallet",    Icon:Wallet,     label:"Wallet",     color:"#fbbf24", bg:"rgba(251,191,36,0.1)",  section:"Navigate", desc:"XEV & EP balance"   },
   { id:"oracle",    Icon:OracleIcon, label:"XRC Oracle", color:"#a855f7", bg:"rgba(168,85,247,0.12)", section:"Discover", desc:"Chain explorer"    },
   { id:"trending",  Icon:TrendingUp, label:"Trending",   color:"#f97316", bg:"rgba(249,115,22,0.1)",  section:"Discover", desc:"What's hot now"    },
   { id:"tags",      Icon:Hash,       label:"Tags",       color:"#34d399", bg:"rgba(52,211,153,0.1)",  section:"Discover", desc:"Browse by tag"     },

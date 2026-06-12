@@ -1175,7 +1175,7 @@ const VideoEditor = ({ videoFile, onSave, onClose, onPost }) => {
         recorder.stop();
       });
 
-      const file = new File([blob], `grova_edit_${Date.now()}.webm`, {
+      const file = new File([blob], `xeevia_edit_${Date.now()}.webm`, {
         type: "video/webm",
       });
 
@@ -1213,7 +1213,7 @@ const VideoEditor = ({ videoFile, onSave, onClose, onPost }) => {
       ctx.textBaseline = "middle";
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 20;
-      ctx.fillText("GROVA", width / 2, height / 2);
+      ctx.fillText("XEEVIA", width / 2, height / 2);
 
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;

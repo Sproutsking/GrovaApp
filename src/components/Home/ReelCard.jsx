@@ -41,7 +41,18 @@ const relTime = (dateStr) => {
     day: "numeric",
   });
 };
-
+function safeVideoUrl(id) {
+  try {
+    const raw = mediaUrlService.getVideoUrl(id, { quality: "auto", format: "mp4" });
+    if (!raw) return null;
+    const qIdx = raw.indexOf("?");
+    const base = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    const query = qIdx >= 0 ? raw.slice(qIdx) : "";
+    return base.replace(/\.mp4$/i, "") + ".mp4" + query;
+  } catch {
+    return null;
+  }
+}
 // ── Global video state ────────────────────────────────────────────────────────
 const GlobalVideoState = {
   globalPlayState: false,
@@ -195,12 +206,7 @@ const ReelCard = ({
   };
 
   const reelWithType = { ...reel, type: "reel" };
-  const videoUrl = reel.video_id
-    ? mediaUrlService.getVideoUrl(reel.video_id, {
-        quality: "auto",
-        format: "mp4",
-      })
-    : null;
+  const videoUrl = reel.video_id ? safeVideoUrl(reel.video_id) : null;
   const thumbnailUrl = reel.thumbnail_id
     ? mediaUrlService.getVideoThumbnail(reel.thumbnail_id, {
         width: 640,
@@ -411,6 +417,25 @@ const ReelCard = ({
       if (w && h) setVideoAspectRatio(w / h);
     }
   };
+
+  useEffect(() => {
+    setPlaying(false);
+    setVideoError(false);
+    setIsLoading(true);
+    setCurrentTime(0);
+    setDuration(0);
+    setBufferedProgress(0);
+    if (videoRef.current) {
+      videoRef.current.muted = muted;
+      videoRef.current.currentTime = 0;
+    }
+  }, [reel.video_id, muted]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
   const handleProgress = () => {
     if (videoRef.current?.buffered.length > 0) {
       const end = videoRef.current.buffered.end(
@@ -477,9 +502,16 @@ const ReelCard = ({
                 loop
                 playsInline
                 muted={muted}
-                preload="metadata"
+                preload={isVisible ? "auto" : "metadata"}
                 style={{ objectFit: getVideoFit() }}
-                onLoadStart={() => setIsLoading(true)}
+                onLoadStart={() => {
+                  setIsLoading(true);
+                  setVideoError(false);
+                }}
+                onCanPlay={() => {
+                  setIsLoading(false);
+                  setVideoError(false);
+                }}
                 onLoadedMetadata={handleLoadedMetadata}
                 onTimeUpdate={handleTimeUpdate}
                 onProgress={handleProgress}
@@ -487,6 +519,7 @@ const ReelCard = ({
                   setVideoError(true);
                   setIsLoading(false);
                 }}
+                onWaiting={() => setIsLoading(true)}
                 onEnded={() => setPlaying(false)}
               />
               {isLoading && (

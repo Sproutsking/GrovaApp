@@ -336,7 +336,7 @@ function WalletSidebar() {
 
       const [walletCountRes, xevSumRes, epTodayRes, volumeRes] = await Promise.allSettled([
         supabase.from("wallets").select("*", { count: "exact", head: true }),
-        supabase.from("wallets").select("grova_tokens"),
+        supabase.from("wallets").select("xev_tokens"),
         supabase.from("wallet_history")
           .select("amount, metadata")
           .eq("change_type", "credit")
@@ -351,7 +351,7 @@ function WalletSidebar() {
         ? walletCountRes.value.count ?? 0 : 0;
 
       const xevCirculating = xevSumRes.status === "fulfilled"
-        ? (xevSumRes.value.data ?? []).reduce((s, r) => s + (r.grova_tokens || 0), 0) : 0;
+        ? (xevSumRes.value.data ?? []).reduce((s, r) => s + (r.xev_tokens || 0), 0) : 0;
 
       const epToday = epTodayRes.status === "fulfilled"
         ? (epTodayRes.value.data ?? [])
@@ -552,7 +552,7 @@ const WalletView = ({
       const [walletRes, txData] = await Promise.all([
         supabase
           .from("wallets")
-          .select("user_id, grova_tokens, engagement_points, paywave_balance")
+          .select("user_id, xev_tokens, engagement_points, paywave_balance")
           .eq("user_id", userId)   // ← hard filter: THIS user only
           .single(),
         walletService.getRecentTransactions(userId, 25),
@@ -565,7 +565,7 @@ const WalletView = ({
           console.error("[WalletView] wallet row user_id mismatch — ignoring");
         } else {
           safeSetBalance({
-            tokens:  Number(row.grova_tokens)      || 0,
+            tokens:  Number(row.xev_tokens)      || 0,
             points:  Math.floor(Number(row.engagement_points) || 0),
             paywave: Number(row.paywave_balance)   || 0,
           });
@@ -609,7 +609,7 @@ const WalletView = ({
           }
 
           safeSetBalance({
-            tokens:  Number(row.grova_tokens)      || 0,
+            tokens:  Number(row.xev_tokens)      || 0,
             points:  Math.floor(Number(row.engagement_points) || 0),
             paywave: Number(row.paywave_balance)   || 0,
           });

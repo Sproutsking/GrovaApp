@@ -397,8 +397,8 @@ const MainApp = memo(() => {
   // ── Load wallet + avatar ─────────────────────────────────────────────────
   const loadWalletAndAvatar = async (userId, p) => {
     try {
-      const { data: w } = await supabase.from("wallets").select("grova_tokens,engagement_points").eq("user_id", userId).maybeSingle();
-      if (w) setUserBalance({ tokens: w.grova_tokens || 0, points: w.engagement_points || 0 });
+      const { data: w } = await supabase.from("wallets").select("xev_tokens,engagement_points").eq("user_id", userId).maybeSingle();
+      if (w) setUserBalance({ tokens: w.xev_tokens || 0, points: w.engagement_points || 0 });
       if (p) {
         let avatarUrl = null;
         if (p.avatar_id) {

@@ -32,7 +32,7 @@
 
 import React from "react";
 import ReactDOM from "react-dom/client";
-import GrovaApp from "./App.jsx";
+import App from "./App.jsx";
 import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
@@ -292,7 +292,7 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 
 const AppTree = (
   <AppErrorBoundary>
-    <GrovaApp />
+    <App />
   </AppErrorBoundary>
 );
 

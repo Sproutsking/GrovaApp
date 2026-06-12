@@ -251,7 +251,7 @@ const Drafts = ({ onLoadDraft, onClose, showToast }) => {
 
                     {draft.content_type === "story" && (
                       <div className="draft-badge">
-                        <span>{draft.story_unlock_cost || 0} GT</span>
+                        <span>{draft.story_unlock_cost || 0} XEV</span>
                       </div>
                     )}
                   </div>

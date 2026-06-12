@@ -28,7 +28,7 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
     setSecret(newSecret);
     
     // Generate QR code URL for TOTP
-    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=otpauth://totp/Grova:${userId}?secret=${newSecret}&issuer=Grova`;
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=otpauth://totp/Xeevia:${userId}?secret=${newSecret}&issuer=Xeevia`;
     setQrCode(qr);
   };
 

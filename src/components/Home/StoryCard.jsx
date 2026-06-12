@@ -168,7 +168,7 @@ const StoryCard = ({
             {isLocked ? (
               <button className="story-action-btn unlock-compact" onClick={handleUnlockOrRead}>
                 <Lock size={14} />
-                <span>{story.unlock_cost} GT</span>
+                <span>{story.unlock_cost} XEV</span>
               </button>
             ) : (
               <button className="story-action-btn read-compact" onClick={handleUnlockOrRead}>

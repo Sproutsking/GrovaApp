@@ -1,6 +1,6 @@
 // src/services/wallet/walletService.js
 // ════════════════════════════════════════════════════════════════
-// Xeevia Wallet Service — $XEV (grova_tokens) + EP dual currency
+// Xeevia Wallet Service — $XEV (xev_tokens) + EP dual currency
 //
 // CANONICAL EXCHANGE RATES:
 //   1 USD  = 100 EP
@@ -143,7 +143,7 @@ export const walletService = {
         .from("wallets")
         .insert({
           user_id:           userId,
-          grova_tokens:      0,
+          xev_tokens:        0,
           engagement_points: 0,
           paywave_balance:   0,
         })
@@ -204,7 +204,7 @@ export const walletService = {
         { event: "UPDATE", schema: "public", table: "wallets", filter: `user_id=eq.${userId}` },
         (payload) => {
           if (payload.new) {
-            const xev = payload.new.grova_tokens      ?? 0;
+            const xev = payload.new.xev_tokens      ?? 0;
             const ep  = payload.new.engagement_points ?? 0;
             callback({
               tokens:   xev,
@@ -312,13 +312,13 @@ export const walletService = {
   async _recordOnChainSendIntent({ fromUserId, toAddress, chain, amount, epBurn, note }) {
     const wallet = await this.getWallet(fromUserId);
     if (!wallet)                          return { success: false, error: "Wallet not found" };
-    if (wallet.grova_tokens < amount)     return { success: false, error: "Insufficient XEV balance" };
+    if (wallet.xev_tokens < amount)     return { success: false, error: "Insufficient XEV balance" };
     if (wallet.engagement_points < epBurn) return { success: false, error: "Insufficient EP for fee" };
 
     const { error: debitErr } = await supabase
       .from("wallets")
       .update({
-        grova_tokens:      wallet.grova_tokens - amount,
+        xev_tokens:      wallet.xev_tokens - amount,
         engagement_points: wallet.engagement_points - epBurn,
         updated_at:        new Date().toISOString(),
       })
@@ -344,7 +344,7 @@ export const walletService = {
 
     if (txErr) {
       await supabase.from("wallets").update({
-        grova_tokens:      wallet.grova_tokens,
+        xev_tokens:      wallet.xev_tokens,
         engagement_points: wallet.engagement_points,
         updated_at:        new Date().toISOString(),
       }).eq("user_id", fromUserId);
@@ -356,8 +356,8 @@ export const walletService = {
       user_id:        fromUserId,
       change_type:    "debit",
       amount,
-      balance_before: wallet.grova_tokens,
-      balance_after:  wallet.grova_tokens - amount,
+      balance_before: wallet.xev_tokens,
+      balance_after:  wallet.xev_tokens - amount,
       reason:         `on_chain_send:${chain}`,
       transaction_id: tx.id,
       metadata: {

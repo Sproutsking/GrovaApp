@@ -20,6 +20,9 @@ import Drafts             from "../Drafts/Drafts";
 import CustomCardMaker    from "../MediaUploader/CustomCardMaker";
 import TemplateLibrary    from "../MediaUploader/TemplateLibrary";
 import SmartTextarea      from "../SmartTextarea/SmartTextarea";
+import useDistribution    from "../../hooks/useDistribution";
+import PlatformSelector   from "../Distribution/PlatformSelector";
+import DistributionStatus from "../Distribution/DistributionStatus";
 
 // ── Helper: fire the optimistic publish event ─────────────────────────────────
 const dispatchPublish = (item, type) => {
@@ -43,6 +46,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
   const [hasUnsavedChanges,   setHasUnsavedChanges]   = useState(false);
   const [showExitDialog,      setShowExitDialog]      = useState(false);
   const [pendingNavigation,   setPendingNavigation]   = useState(null);
+  const [distributedPostId,   setDistributedPostId]   = useState(null);
 
   const autoSaveTimer = useRef(null);
 
@@ -80,6 +84,9 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
   const [storyCover,        setStoryCover]        = useState(null);
   const [titleColor,        setTitleColor]        = useState("#ffffff");
   const [textColor,         setTextColor]         = useState("#d4d4d4");
+
+  const distribution = useDistribution(currentUser?.id);
+  const isPublishing = loading || distribution.isDistributing;
 
   const postCategories = [
     "General","Technology","Art","Music","Photography","Lifestyle","Food","Travel",
@@ -277,12 +284,14 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
   const handlePublishPost = async () => {
     try {
       setLoading(true);
+      setDistributedPostId(null);
       if (securityService?.updateActivity) securityService.updateActivity();
       if (!currentUser || !userProfile) throw new Error("Please complete your profile setup");
 
+      let postData;
       if (useTextCard) {
         if (!postContent.trim()) throw new Error("Text card requires content");
-        const postData = {
+        postData = {
           content: postContent.trim(), images: [], videos: [],
           category: postCategory, isTextCard: true,
           textCardMetadata: {
@@ -291,26 +300,31 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
           },
           cardCaption: postCaption.trim() || null,
         };
-        const newPost = await createService.createPost(postData, currentUser.id);
-        dispatchPublish(newPost, "post");
-        if (onPublishSuccess) onPublishSuccess(newPost, "post");
-        if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
-        clearForm();
       } else {
         if (!postCaption.trim() && postMedia.length === 0)
           throw new Error("Post must have a caption or media");
         const imagesToUpload = postMedia.filter((m) => m.type === "image").map((m) => m.file);
         const videosToUpload = postMedia.filter((m) => m.type === "video").map((m) => m.file);
-        const postData = {
+        postData = {
           content: postCaption.trim() || null, images: imagesToUpload,
           videos: videosToUpload, category: postCategory, isTextCard: false,
         };
-        const newPost = await createService.createPost(postData, currentUser.id);
-        dispatchPublish(newPost, "post");
-        if (onPublishSuccess) onPublishSuccess(newPost, "post");
-        if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
-        clearForm();
       }
+
+      const newPost = await createService.createPost(postData, currentUser.id);
+      dispatchPublish(newPost, "post");
+      if (onPublishSuccess) onPublishSuccess(newPost, "post");
+      setDistributedPostId(newPost.id);
+
+      try {
+        await distribution.distributePost(newPost.id);
+      } catch (distributionError) {
+        console.warn("Post created but distribution failed:", distributionError);
+        alert(distributionError.message || "Post published, but distribution failed. Please check your distribution settings.");
+      }
+
+      if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
+      clearForm();
     } catch (err) {
       console.error("Failed to publish post:", err);
       alert(err.message || "Failed to publish post. Please try again.");
@@ -455,7 +469,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
         {/* ── HEADER ── */}
         <div className="studio-header">
           <h1 className="studio-title">Creator Studio</h1>
-          <p className="studio-subtitle">Share your creativity, earn Grova Tokens</p>
+          <p className="studio-subtitle">Share your creativity, earn XEV</p>
 
           <div className="studio-header-actions">
             <button className="save-draft-btn" onClick={handleManualSave} disabled={!hasUnsavedChanges || autoSaving}>
@@ -623,14 +637,55 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
               </select>
             </div>
 
+            {currentUser?.id && (
+              <div className="form-group">
+                <PlatformSelector
+                  userId={currentUser.id}
+                  onSelection={distribution.setPlatforms}
+                  initialSelection={distribution.selectedPlatforms}
+                />
+              </div>
+            )}
+
             <div className="publish-btn-wrapper">
               <button className="publish-btn" onClick={handlePublishPost}
-                disabled={loading || (!useTextCard && !postCaption.trim() && postMedia.length === 0) || (useTextCard && !postContent.trim()) || !currentUser}>
+                disabled={isPublishing || (!useTextCard && !postCaption.trim() && postMedia.length === 0) || (useTextCard && !postContent.trim()) || !currentUser}>
                 {loading
                   ? <><Loader size={15} className="spinner" /> Publishing…</>
                   : <><Send size={15} /> Publish Post</>}
               </button>
+
+              {/* Debug helper: show why publish is disabled (dev-only) */}
+              { (isPublishing || !currentUser || (!useTextCard && !postCaption.trim() && postMedia.length === 0) || (useTextCard && !postContent.trim())) && (
+                <div style={{ marginTop:8, fontSize:12, color:'#b91c1c' }}>
+                  <strong>Publish blocked:</strong>
+                  <div style={{ marginTop:6 }}>
+                    {isPublishing && <div>- Distribution/publish in progress</div>}
+                    {!currentUser && <div>- Not signed in (no currentUser)</div>}
+                    {!useTextCard && !postCaption.trim() && postMedia.length === 0 && <div>- No caption or media for post</div>}
+                    {useTextCard && !postContent.trim() && <div>- No content in text card</div>}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {distribution.selectedPlatforms.length === 0 && currentUser?.id && (
+              <div className="distribution-warning">
+                <strong>Distribution note:</strong> No external platforms are selected.
+                Your post will still publish to Xeevia, but it won’t be shared elsewhere until you connect and select platforms.
+              </div>
+            )}
+
+            {(distributedPostId || distribution.distributionStatus) && (
+              <div className="distribution-status-section">
+                {distribution.distributionError && (
+                  <div className="distribution-error-message">
+                    <strong>Distribution issue:</strong> {distribution.distributionError}
+                  </div>
+                )}
+                <DistributionStatus postId={distributedPostId} isVisible={!!distributedPostId} />
+              </div>
+            )}
           </div>
         )}
 
@@ -778,7 +833,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
               <div className="monetization-header"><DollarSign size={14} /><span>Monetisation</span></div>
 
               <div className="form-group">
-                <label className="form-label"><Lock size={12} /> Unlock Price (GT)</label>
+                <label className="form-label"><Lock size={12} /> Unlock Price (XEV)</label>
                 <div className="price-grid">
                   <button className={`price-btn${unlockPrice === 0 ? " active" : ""}`}
                     onClick={() => setUnlockPrice(0)} disabled={loading}>Free</button>
@@ -786,7 +841,7 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
                     <button key={price}
                       className={`price-btn${unlockPrice === price ? " active" : ""}`}
                       onClick={() => setUnlockPrice(price)} disabled={loading}>
-                      {price} GT
+                      {price} XEV
                     </button>
                   ))}
                 </div>
@@ -821,12 +876,12 @@ const CreateView = ({ onPublishSuccess, onClose }) => {
                 <div className="stat-card">
                   <div className="stat-label">Potential Earnings</div>
                   <div className="stat-value">
-                    {unlockPrice === 0 ? "Free" : isUnlimitedAccess ? "∞ GT" : `${(unlockPrice * maxAccesses).toLocaleString()} GT`}
+                    {unlockPrice === 0 ? "Free" : isUnlimitedAccess ? "∞ XEV" : `${(unlockPrice * maxAccesses).toLocaleString()} XEV`}
                   </div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Per Access</div>
-                  <div className="stat-value">{unlockPrice === 0 ? "Free" : `${unlockPrice} GT`}</div>
+                  <div className="stat-value">{unlockPrice === 0 ? "Free" : `${unlockPrice} XEV`}</div>
                 </div>
               </div>
             </div>

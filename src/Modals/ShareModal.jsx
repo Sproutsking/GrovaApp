@@ -245,7 +245,7 @@ const ShareModal = ({
 
   // ── External social share - all properly wired ───────────────────────────
   const shareExternal = async (platform) => {
-    const title = content?.title || content?.caption || content?.content || "Check this out on Grova!";
+    const title = content?.title || content?.caption || content?.content || "Check this out on Xeevia!";
     const shortTitle = title.substring(0, 120);
     const encodedUrl = encodeURIComponent(shareUrl);
     const encodedText = encodeURIComponent(shortTitle);
@@ -279,7 +279,7 @@ const ShareModal = ({
     }
     try {
       await navigator.share({
-        title: content?.title || "Check this out on Grova!",
+        title: content?.title || "Check this out on Xeevia!",
         text: content?.caption || content?.content || "",
         url: shareUrl,
       });

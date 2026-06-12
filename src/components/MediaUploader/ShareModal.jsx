@@ -152,7 +152,7 @@ const ShareModal = ({ videoFile, onClose, onDownload }) => {
 
         <div className="share-modal-footer">
           <p className="share-watermark-notice">
-            <span>🌟</span> All shared videos include Grova branding
+            <span>🌟</span> All shared videos include Xeevia branding
           </p>
         </div>
       </div>
