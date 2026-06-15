@@ -122,6 +122,7 @@ const MessageInput = ({ onSend, onTyping, conversationId, disabled = false }) =>
 
       <style>{`
         .msg-input-wrapper {
+        padding: 10px;
           position: relative;
           width: 100%;
         }

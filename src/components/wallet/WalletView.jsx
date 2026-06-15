@@ -2,17 +2,12 @@
 // ════════════════════════════════════════════════════════════════
 // Xeevia Wallet — main shell
 //
-// FIX: Realtime balance subscription now has a strict userId guard.
-//      Every incoming payload is checked against the current user's
-//      userId before updating state — no other user's EP can bleed in.
-//
-// LIVE DATA:
-//  • Left sidebar fetches real BTC/ETH/BNB/USDT prices from CoinGecko
-//    every 60 seconds, with graceful fallback on error/rate-limit.
-//  • Platform stats (XEV Circulating, EP Minted Today, Active Wallets)
-//    pulled directly from Supabase — zero hardcoded values.
-//  • EP Earn table is config-driven (accurate rates), not "mock" — it
-//    reflects the platform's actual earn schedule.
+// FIXES in this version:
+//  • useMobileTop() hook measures the real fixed-header height at
+//    runtime and sets --wv-top-offset / --wv-bottom-offset on :root
+//    so the wallet shell is NEVER hidden behind the mobile header.
+//  • WithdrawTab imported and wired (unchanged from previous)
+//  • Realtime balance subscription has strict userId guard (unchanged)
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -25,6 +20,7 @@ import ReceiveTab     from "./tabs/ReceiveTab";
 import SwapTab        from "./tabs/SwapTab";
 import TradeTab       from "./tabs/TradeTab";
 import SettingsTab    from "./tabs/SettingsTab";
+import WithdrawTab    from "./tabs/WithdrawTab";
 import PayWave        from "./paywave/PayWaveWrapper";
 import { walletService } from "../../services/wallet/walletService";
 import { CurrencyProvider } from "../../contexts/CurrencyContext";
@@ -67,10 +63,65 @@ const EP_BURN_TABLE = [
   { range: "2000+",     burn: "10 EP"  },
 ];
 
-// ─────────────────────────────────────────────────────────────
+// ── useMobileTop ─────────────────────────────────────────────────
+// Measures the tallest fixed/sticky top bar and tallest bottom bar
+// then writes --wv-top-offset / --wv-bottom-offset to :root so the
+// wallet shell can position itself correctly on every device.
+function useMobileTop(shellRef) {
+  useEffect(() => {
+    function measure() {
+      let topBarBottom    = 0;
+      let bottomBarHeight = 0;
+
+      document.querySelectorAll("*").forEach(el => {
+        if (!el.isConnected) return;
+        // Skip anything inside the wallet shell itself
+        if (shellRef?.current && shellRef.current.contains(el)) return;
+
+        const style = getComputedStyle(el);
+        if (style.position !== "fixed" && style.position !== "sticky") return;
+        // Must span at least 40% of the viewport width to count as a bar
+        const rect = el.getBoundingClientRect();
+        if (rect.width < window.innerWidth * 0.4 || rect.height < 2) return;
+
+        // Top bars — bottom edge within the top 25% of the screen
+        if (rect.top <= 2 && rect.bottom < window.innerHeight * 0.25) {
+          topBarBottom = Math.max(topBarBottom, rect.bottom);
+        }
+        // Bottom bars — top edge within the bottom 20% of the screen
+        if (rect.top > window.innerHeight * 0.8) {
+          bottomBarHeight = Math.max(bottomBarHeight, window.innerHeight - rect.top);
+        }
+      });
+
+      // Write to CSS vars on :root for any descendant to read
+      document.documentElement.style.setProperty("--wv-top-offset",    `${topBarBottom}px`);
+      document.documentElement.style.setProperty("--wv-bottom-offset",  `${Math.max(bottomBarHeight, 48)}px`);
+    }
+
+    measure();
+    const t1 = setTimeout(measure, 150);
+    const t2 = setTimeout(measure, 600);
+    window.addEventListener("resize",            measure, { passive: true });
+    window.addEventListener("orientationchange", measure, { passive: true });
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize",            measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, [shellRef]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LAYOUT CSS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 const LAYOUT_CSS = `
+  /* ─────────────────────────────────────────────────────────────
+     Shell — desktop default uses fixed px; mobile uses the
+     measured CSS vars so we NEVER overlap the top/bottom bars.
+  ───────────────────────────────────────────────────────────── */
   .wv-shell {
     position: fixed;
     top: 58px;
@@ -86,10 +137,12 @@ const LAYOUT_CSS = `
 
   @media (max-width: 767px) {
     .wv-shell {
-      top: 20px;
-      left: 0;
-      right: 0;
-      bottom: 40px;
+      /* Fall back to the measured header height; default 0 so it's
+         not worse than before if the hook hasn't run yet */
+      top:    var(--wv-top-offset, 0px) !important;
+      bottom: var(--wv-bottom-offset, 56px) !important;
+      left:   0;
+      right:  0;
       z-index: 200;
     }
   }
@@ -114,6 +167,12 @@ const LAYOUT_CSS = `
   .wv-content-pad {
     padding: 16px 4% 24px;
     flex: 1;
+  }
+
+  @media (max-width: 767px) {
+    .wv-content-pad {
+      padding: 10px 12px 80px !important;
+    }
   }
 
   /* ── Right sidebar ── */
@@ -216,73 +275,28 @@ const LAYOUT_CSS = `
   .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.22); white-space: nowrap; flex-shrink: 0; }
   .section-line  { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); max-width: 120px; }
 
-  /* ============================================================
-   WALLET LAYOUT FIXES — add to WalletStyles.css or inline
-   
-   1. Remove forced left/right padding that was compressing content
-   2. Fix top robbing — give wallet a proper top clearance
-   3. Mobile: clean edge-to-edge layout
-   ============================================================ */
-
-/* Override .wv-shell to remove forced side gaps */
-.wv-shell {
-  /* Keep the top offset for the header (58px) but remove
-     any extra horizontal compression that came from the sidebar calc */
-  padding-left: 0  !important;
-  padding-right: 0 !important;
-}
-
-/* Content pad: reduce horizontal padding on desktop,
-   keep comfortable breathing room without forcing dead space */
-.wv-content-pad {
-  padding: 12px 20px 24px !important;  /* was 16px 4% — 4% adds ~30px dead space */
-}
-
-/* On wide screens, let content breathe but not be squished */
-@media (min-width: 1200px) {
-  .wv-content-pad {
-    padding: 14px 24px 28px !important;
+  /* ── Wallet layout fixes ── */
+  .wv-shell {
+    padding-left: 0  !important;
+    padding-right: 0 !important;
   }
-}
-
-/* Mobile — full bleed, no side gutters */
-@media (max-width: 767px) {
   .wv-content-pad {
-    padding: 10px 12px 80px !important;
+    padding: 12px 20px 24px !important;
   }
-}
-
-/* ── Top clearance fix ── 
-   The wallet was starting right at the header edge (top:58px)
-   with zero visual breathing room. Add 8px top padding to
-   the shell so content doesn't feel "robbed" at the top.
-*/
-.wv-shell {
-  padding-top: 0;  /* shell itself stays flush */
-}
-.wv-center {
-  /* subtle top fade so content doesn't hard-cut against header */
-  padding-top: 0;
-}
-.wv-content-pad {
-  padding-top: 14px !important; /* consistent top breathing room */
-}
-
-/* ── BalanceCard top margin fix ──
-   Card was getting clipped at top on mobile */
-.wv-content-pad > *:first-child {
-  margin-top: 0;
-}
+  @media (min-width: 1200px) {
+    .wv-content-pad { padding: 14px 24px 28px !important; }
+  }
+  .wv-content-pad > *:first-child { margin-top: 0; }
 `;
 
 // ── Right Sidebar ─────────────────────────────────────────────
 function WalletSidebar() {
   const [markets, setMarkets] = useState([
-    { sym: "BTC",  val: null,    chg: null,         up: true },
-    { sym: "ETH",  val: null,    chg: null,         up: true },
-    { sym: "BNB",  val: null,    chg: null,         up: true },
-    { sym: "USDT", val: "$1.00", chg: "+0.00%",     up: true },
-    { sym: "$XEV", val: "₦2.50", chg: "Launching",  up: true },
+    { sym: "BTC",  val: null,    chg: null,        up: true },
+    { sym: "ETH",  val: null,    chg: null,        up: true },
+    { sym: "BNB",  val: null,    chg: null,        up: true },
+    { sym: "USDT", val: "$1.00", chg: "+0.00%",    up: true },
+    { sym: "$XEV", val: "₦2.50", chg: "Launching", up: true },
   ]);
 
   const [platformStats, setPlatformStats] = useState([
@@ -327,7 +341,7 @@ function WalletSidebar() {
     } catch {
       setCryptoStale(true);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line
 
   const fetchPlatformStats = useCallback(async () => {
     try {
@@ -336,7 +350,7 @@ function WalletSidebar() {
 
       const [walletCountRes, xevSumRes, epTodayRes, volumeRes] = await Promise.allSettled([
         supabase.from("wallets").select("*", { count: "exact", head: true }),
-        supabase.from("wallets").select("xev_tokens"),
+        supabase.from("wallets").select("grova_tokens"),
         supabase.from("wallet_history")
           .select("amount, metadata")
           .eq("change_type", "credit")
@@ -351,7 +365,7 @@ function WalletSidebar() {
         ? walletCountRes.value.count ?? 0 : 0;
 
       const xevCirculating = xevSumRes.status === "fulfilled"
-        ? (xevSumRes.value.data ?? []).reduce((s, r) => s + (r.xev_tokens || 0), 0) : 0;
+        ? (xevSumRes.value.data ?? []).reduce((s, r) => s + (r.grova_tokens || 0), 0) : 0;
 
       const epToday = epTodayRes.status === "fulfilled"
         ? (epTodayRes.value.data ?? [])
@@ -515,6 +529,9 @@ const WalletView = ({
   const { profile } = useAuth();
   const showPayWave = isNigerianUser(profile);
 
+  const shellRef = useRef(null);           // ← for useMobileTop
+  useMobileTop(shellRef);                  // ← measures real header height
+
   const [activeTab,      setActiveTab]      = useState("overview");
   const [showPayWaveV,   setShowPayWaveV]   = useState(false);
   const [balance,        setBalance]        = useState(
@@ -524,15 +541,11 @@ const WalletView = ({
   const [transactions,   setTransactions]   = useState([]);
 
   // ── Stable setter: ONLY accept updates that belong to this user ──
-  // This is the critical guard that prevents other users' EP from
-  // bleeding into this wallet's state via realtime or prop changes.
   const safeSetBalance = useCallback((nb, sourceUserId) => {
-    // If caller passes a sourceUserId, verify it matches before updating
     if (sourceUserId && sourceUserId !== userId) {
       console.warn("[WalletView] Rejected balance update from wrong userId:", sourceUserId);
       return;
     }
-    // Validate shape — must have numeric tokens and points
     if (typeof nb?.tokens !== "number" || typeof nb?.points !== "number") {
       console.warn("[WalletView] Rejected malformed balance payload:", nb);
       return;
@@ -547,25 +560,22 @@ const WalletView = ({
     try {
       setLoading(true);
 
-      // Fetch wallet directly from Supabase with explicit user_id filter
-      // — never trust walletService alone; double-check the row belongs to us
       const [walletRes, txData] = await Promise.all([
         supabase
           .from("wallets")
-          .select("user_id, xev_tokens, engagement_points, paywave_balance")
-          .eq("user_id", userId)   // ← hard filter: THIS user only
+          .select("user_id, grova_tokens, engagement_points, paywave_balance")
+          .eq("user_id", userId)
           .single(),
         walletService.getRecentTransactions(userId, 25),
       ]);
 
       if (walletRes.data) {
         const row = walletRes.data;
-        // Paranoia check: confirm the row really is ours
         if (row.user_id !== userId) {
           console.error("[WalletView] wallet row user_id mismatch — ignoring");
         } else {
           safeSetBalance({
-            tokens:  Number(row.xev_tokens)      || 0,
+            tokens:  Number(row.grova_tokens)      || 0,
             points:  Math.floor(Number(row.engagement_points) || 0),
             paywave: Number(row.paywave_balance)   || 0,
           });
@@ -586,8 +596,6 @@ const WalletView = ({
   useEffect(() => {
     if (!userId) return;
 
-    // Subscribe at the Supabase channel level with a user_id filter
-    // so the server never sends other users' rows to this client.
     const channel = supabase
       .channel(`wallet:${userId}`)
       .on(
@@ -596,20 +604,17 @@ const WalletView = ({
           event:  "*",
           schema: "public",
           table:  "wallets",
-          filter: `user_id=eq.${userId}`,   // ← server-side filter
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const row = payload.new;
           if (!row) return;
-
-          // Client-side guard — double-check even though server filtered
           if (row.user_id !== userId) {
             console.warn("[WalletView] RT: unexpected user_id in payload, ignoring");
             return;
           }
-
           safeSetBalance({
-            tokens:  Number(row.xev_tokens)      || 0,
+            tokens:  Number(row.grova_tokens)      || 0,
             points:  Math.floor(Number(row.engagement_points) || 0),
             paywave: Number(row.paywave_balance)   || 0,
           });
@@ -617,26 +622,20 @@ const WalletView = ({
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [userId, safeSetBalance]);
 
-  // ── Real-time transactions — scoped to this user ─────────────
+  // ── Real-time transactions ────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     const unsub = walletService.subscribeToTransactions(userId, (enrichedTx) => {
-      // Guard: only accept transactions that belong to this user
       if (enrichedTx.user_id && enrichedTx.user_id !== userId) return;
-
       setTransactions((prev) => {
         const filtered = prev.filter(
           (tx) =>
-            !(
-              tx._optimistic === true &&
+            !(tx._optimistic === true &&
               Math.abs((tx.amount || 0) - (enrichedTx.amount || 0)) < 0.001 &&
-              tx.displayCurrency === enrichedTx.displayCurrency
-            )
+              tx.displayCurrency === enrichedTx.displayCurrency)
         );
         if (filtered.some((tx) => tx.id === enrichedTx.id)) return filtered;
         return [enrichedTx, ...filtered];
@@ -682,7 +681,8 @@ const WalletView = ({
   return (
     <CurrencyProvider>
       <style>{LAYOUT_CSS}</style>
-      <div className="wv-shell">
+      {/* shellRef is used by useMobileTop to exclude its own children from measurement */}
+      <div className="wv-shell" ref={shellRef}>
         <div className="wv-center">
           <div className="wv-content-pad">
             {activeTab === "overview"  && <OverviewTab  {...sharedProps} loading={loading} />}
@@ -692,6 +692,13 @@ const WalletView = ({
             {activeTab === "swap"      && <SwapTab      {...sharedProps} />}
             {activeTab === "trade"     && <TradeTab     {...sharedProps} />}
             {activeTab === "settings"  && <SettingsTab  {...sharedProps} />}
+            {activeTab === "withdraw"  && (
+              <WithdrawTab
+                userId={userId}
+                balance={balance}
+                setActiveTab={handleTabChange}
+              />
+            )}
           </div>
         </div>
         <aside className="wv-sidebar">

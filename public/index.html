@@ -17,68 +17,88 @@
     <!--
       color-scheme: dark — tells Chrome 135+ edge-to-edge engine that this
       app is dark. Chrome uses this to paint the new "chin" (gesture nav bar
-      overlay) in a dark color. Combined with #000000 background on html,
-      the chin becomes invisible against the app.
+      overlay) in a dark color.
     -->
     <meta name="color-scheme" content="dark" />
 
-    <!--
-      Three theme-color declarations — Chrome reads all three:
-      • media light  → black
-      • media dark   → black
-      • no media     → black fallback
-      All pure #000000 so the Android status bar area is invisible
-      against the app header in standalone mode.
-    -->
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <!-- All black theme-color so Android status bar is invisible -->
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: dark)"
+    />
     <meta name="theme-color" content="#000000" />
 
+    <!-- PWA standalone flags — these are what make it look like a native app -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!--
       black-translucent: extends iOS viewport under the status bar.
       env(safe-area-inset-top/bottom) return real values only with this.
     -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <!--
+      THIS IS THE KEY TAG that sets the app name in the iOS/Android task
+      switcher and home screen label. Must be "Xeevia" not the page title.
+    -->
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
-
-    <meta name="description" content="New social experience." />
-    <meta property="og:title" content="Xeevia — Own Your Social" />
-    <meta property="og:description" content="Own your content. Build your network. Engage to Earn" />
-    <meta property="og:type" content="website" />
     <meta name="application-name" content="Xeevia" />
 
+    <!-- SEO / sharing -->
+    <meta
+      name="description"
+      content="Own your content. Build your network. Engage to Earn."
+    />
+    <meta property="og:title" content="Xeevia — Own Your Social" />
+    <meta
+      property="og:description"
+      content="Own your content. Build your network. Engage to Earn."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo512.png" />
+
+    <!-- Preload critical assets -->
     <link rel="preload" as="image" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/logo192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <!--
+      CRITICAL: Pure black on html + body so Android Chrome edge-to-edge
+      paints the gesture navigation bar ("chin") black = invisible.
+    -->
     <style>
-  html, body {
-    background: #000000;
-  }
-</style>
+      html,
+      body {
+        background: #000000;
+      }
+    </style>
 
     <style>
-      *, *::before, *::after {
-        margin: 0; padding: 0;
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
         box-sizing: border-box;
         -webkit-tap-highlight-color: transparent;
       }
 
-      /*
-        Pure #000000 on html — Android Chrome 135+ edge-to-edge paints
-        the gesture navigation bar ("chin") using the html background color.
-        Any value other than pure black shows as a visible strip.
-        overscroll-behavior: none stops rubber-band bounce from exposing
-        background color above or below the page.
-      */
       html {
         width: 100%;
         height: 100%;
@@ -93,13 +113,20 @@
         height: 100%;
         background: #000000;
         color: #e6ebe6;
-        font-family: "DM Sans", -apple-system, sans-serif;
+        font-family:
+          "DM Sans",
+          -apple-system,
+          sans-serif;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
         overscroll-behavior: none;
+        /* Prevent pull-to-refresh showing white flash */
+        overscroll-behavior-y: contain;
       }
 
-      input, textarea, select {
+      input,
+      textarea,
+      select {
         font-size: 16px !important;
       }
 
@@ -109,17 +136,24 @@
       }
 
       @keyframes xv_slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       /* ── Subtle install nudge ── */
       #xv-install {
         position: fixed;
         bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-        left: 16px; right: 16px;
-        background: rgba(8,8,8,0.98);
-        border: 1px solid rgba(168,230,61,0.18);
+        left: 16px;
+        right: 16px;
+        background: rgba(8, 8, 8, 0.98);
+        border: 1px solid rgba(168, 230, 61, 0.18);
         border-radius: 18px;
         padding: 16px 18px;
         z-index: 10001;
@@ -128,36 +162,69 @@
         gap: 14px;
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
         max-width: 480px;
         margin: 0 auto;
       }
       #xv-install.show {
         display: flex;
-        animation: xv_slideUp 0.4s cubic-bezier(0.23,1,0.32,1);
+        animation: xv_slideUp 0.4s cubic-bezier(0.23, 1, 0.32, 1);
       }
       .xvi-icon {
-        width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
-        background: linear-gradient(135deg,#a8e63d,#3d7800);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: 900; color: #050706;
-        font-family: "Bebas Neue", sans-serif; letter-spacing: 1px;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        flex-shrink: 0;
+        background: linear-gradient(135deg, #a8e63d, #3d7800);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: 900;
+        color: #050706;
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 1px;
       }
-      .xvi-text { flex: 1; min-width: 0; }
-      .xvi-title { font-size: 13px; font-weight: 700; color: #e6ebe6; margin-bottom: 2px; }
-      .xvi-sub   { font-size: 11px; color: #3a4a3a; }
+      .xvi-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .xvi-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #e6ebe6;
+        margin-bottom: 2px;
+      }
+      .xvi-sub {
+        font-size: 11px;
+        color: #3a4a3a;
+      }
       .xvi-btn {
-        padding: 9px 18px; border-radius: 100px; border: none;
-        font-size: 12px; font-weight: 800; cursor: pointer;
-        background: linear-gradient(135deg,#a8e63d,#5a9a10);
-        color: #040604; font-family: inherit; flex-shrink: 0;
+        padding: 9px 18px;
+        border-radius: 100px;
+        border: none;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        background: linear-gradient(135deg, #a8e63d, #5a9a10);
+        color: #040604;
+        font-family: inherit;
+        flex-shrink: 0;
         white-space: nowrap;
       }
       .xvi-dismiss {
-        width: 28px; height: 28px; border-radius: 50%; border: none;
-        background: rgba(255,255,255,0.05); color: #3a4a3a;
-        font-size: 16px; cursor: pointer; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        color: #3a4a3a;
+        font-size: 16px;
+        cursor: pointer;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-family: inherit;
       }
 
@@ -165,9 +232,10 @@
       #xv-update-card {
         position: fixed;
         bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-        left: 16px; right: 16px;
-        background: rgba(8,8,8,0.98);
-        border: 1px solid rgba(168,230,61,0.18);
+        left: 16px;
+        right: 16px;
+        background: rgba(8, 8, 8, 0.98);
+        border: 1px solid rgba(168, 230, 61, 0.18);
         border-radius: 18px;
         padding: 16px 18px;
         z-index: 10002;
@@ -176,23 +244,25 @@
         gap: 14px;
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
         max-width: 480px;
         margin: 0 auto;
       }
       #xv-update-card.show {
         display: flex;
-        animation: xv_slideUp 0.4s cubic-bezier(0.23,1,0.32,1);
+        animation: xv_slideUp 0.4s cubic-bezier(0.23, 1, 0.32, 1);
       }
 
       /* ── SW update banner ── */
       #xv-update {
         position: fixed;
-        bottom: 0; left: 0; right: 0;
-        background: rgba(0,0,0,0.97);
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.97);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
-        border-top: 1px solid rgba(168,230,61,0.14);
+        border-top: 1px solid rgba(168, 230, 61, 0.14);
         padding: 16px 20px;
         padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         z-index: 10000;
@@ -200,44 +270,151 @@
       }
       #xv-update.show {
         display: block;
-        animation: xv_slideUp 0.38s cubic-bezier(0.23,1,0.32,1);
+        animation: xv_slideUp 0.38s cubic-bezier(0.23, 1, 0.32, 1);
       }
       .xvu-inner {
-        max-width: 500px; margin: 0 auto;
-        display: flex; align-items: center; gap: 14px;
+        max-width: 500px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 14px;
       }
       .xvu-icon {
-        width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
-        background: linear-gradient(135deg,#a8e63d,#4d8800);
-        display: flex; align-items: center; justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        flex-shrink: 0;
+        background: linear-gradient(135deg, #a8e63d, #4d8800);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-size: 18px;
       }
-      .xvu-text { flex: 1; }
-      .xvu-title { font-size: 14px; font-weight: 600; color: #e6ebe6; margin-bottom: 2px; }
-      .xvu-sub   { font-size: 12px; color: #4a6a2a; }
-      .xvu-btn {
-        padding: 10px 20px; border-radius: 100px; border: none;
-        font-size: 13px; font-weight: 700; cursor: pointer;
-        background: linear-gradient(135deg,#a8e63d,#5a9a10);
-        color: #040604; font-family: inherit;
-        transition: transform 0.15s; flex-shrink: 0;
+      .xvu-text {
+        flex: 1;
       }
-      .xvu-btn:hover { transform: scale(1.04); }
+      .xvu-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #e6ebe6;
+        margin-bottom: 2px;
+      }
+      .xvu-sub {
+        font-size: 12px;
+        color: #4a6a2a;
+      }
+      .xvu-btn {
+        padding: 10px 20px;
+        border-radius: 100px;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        background: linear-gradient(135deg, #a8e63d, #5a9a10);
+        color: #040604;
+        font-family: inherit;
+        transition: transform 0.15s;
+        flex-shrink: 0;
+      }
+      .xvu-btn:hover {
+        transform: scale(1.04);
+      }
 
       /* ── Snooze picker buttons ── */
       .xvc-snooze-btn {
-        flex: 1; padding: 9px 0; border-radius: 10px;
-        font-size: 12px; font-weight: 700; cursor: pointer;
-        background: rgba(132,204,22,0.08);
-        border: 1px solid rgba(132,204,22,0.2);
-        color: #84cc16; font-family: inherit;
-        transition: background 0.15s, border-color 0.15s;
+        flex: 1;
+        padding: 9px 0;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        background: rgba(132, 204, 22, 0.08);
+        border: 1px solid rgba(132, 204, 22, 0.2);
+        color: #84cc16;
+        font-family: inherit;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
       }
       .xvc-snooze-btn:active {
-        background: rgba(132,204,22,0.18);
-        border-color: rgba(132,204,22,0.4);
+        background: rgba(132, 204, 22, 0.18);
+        border-color: rgba(132, 204, 22, 0.4);
       }
     </style>
+
+    <!--
+      STANDALONE ENFORCEMENT SCRIPT
+      ─────────────────────────────
+      When a user opens app.xeevia.com directly in Chrome (not from the home
+      screen icon), the PWA runs inside a browser tab and shows the URL bar.
+      This script detects that situation and redirects them to a special intent
+      URL that Android resolves to the installed PWA in standalone mode.
+
+      HOW IT WORKS:
+        1. If already in standalone / fullscreen / TWA → do nothing (we're good).
+        2. If the PWA is installed (we can't detect this 100% from JS, but we
+           check localStorage for a flag set after a successful install prompt
+           acceptance), redirect via the intent:// URL which Android routes
+           directly to the installed app window.
+        3. If the PWA is NOT installed → let the page load normally so the
+           install prompt can appear.
+
+      WHY intent:// AND NOT window.location?
+        A normal JS redirect still opens the destination inside Chrome.
+        The intent:// scheme tells Android to hand the URL to the app that
+        owns it — which, for an installed PWA, is Chrome in standalone mode
+        (separate app window, no URL bar).
+    -->
+    <script>
+      (function () {
+        function isStandalone() {
+          return (
+            window.matchMedia("(display-mode: standalone)").matches ||
+            window.matchMedia("(display-mode: fullscreen)").matches ||
+            window.navigator.standalone === true ||
+            document.referrer.startsWith("android-app://")
+          );
+        }
+
+        // Already running standalone — nothing to do.
+        if (isStandalone()) return;
+
+        // Only attempt the intent redirect on Android Chrome.
+        var isAndroid = /Android/i.test(navigator.userAgent);
+        var isChrome =
+          /Chrome/i.test(navigator.userAgent) &&
+          !/Edg|OPR|Samsung/i.test(navigator.userAgent);
+        if (!isAndroid || !isChrome) return;
+
+        // Only redirect if the user has previously accepted the install prompt
+        // (meaning the PWA is installed). Without this guard we'd redirect
+        // users who haven't installed yet and they'd get an error page.
+        var installed = false;
+        try {
+          installed = !!localStorage.getItem("xv_install_dismissed");
+        } catch (_) {}
+        if (!installed) return;
+
+        // Build the intent URL for the current path so deep links work.
+        var path =
+          window.location.pathname +
+          window.location.search +
+          window.location.hash;
+        var intentUrl =
+          "intent://app.xeevia.com" +
+          path +
+          "#Intent;" +
+          "scheme=https;" +
+          "action=android.intent.action.VIEW;" +
+          "category=android.intent.category.BROWSABLE;" +
+          "package=com.android.chrome;" +
+          "S.browser_fallback_url=" +
+          encodeURIComponent("https://app.xeevia.com" + path) +
+          ";end";
+
+        window.location.replace(intentUrl);
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
@@ -245,19 +422,46 @@
 
     <!-- Update card — smart snooze flow -->
     <div id="xv-update-card" role="complementary" aria-label="Update Xeevia">
-      <!-- Default view: Update + Later -->
-      <div id="xvc-main" style="display:flex;align-items:center;gap:14px;width:100%;">
+      <div
+        id="xvc-main"
+        style="display: flex; align-items: center; gap: 14px; width: 100%"
+      >
         <div class="xvi-icon" aria-hidden="true">✦</div>
         <div class="xvi-text">
           <div class="xvi-title">Update available for Xeevia</div>
         </div>
         <button id="xvc-update-btn" class="xvi-btn">Update</button>
-        <button id="xvc-later-btn" class="xvi-dismiss" aria-label="Later" style="font-size:10px;font-weight:700;width:auto;padding:0 10px;border-radius:8px;color:#84cc16;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);">Later</button>
+        <button
+          id="xvc-later-btn"
+          class="xvi-dismiss"
+          aria-label="Later"
+          style="
+            font-size: 10px;
+            font-weight: 700;
+            width: auto;
+            padding: 0 10px;
+            border-radius: 8px;
+            color: #84cc16;
+            background: rgba(132, 204, 22, 0.08);
+            border: 1px solid rgba(132, 204, 22, 0.2);
+          "
+        >
+          Later
+        </button>
       </div>
-      <!-- Snooze picker — shown after tapping Later -->
-      <div id="xvc-snooze" style="display:none;width:100%;">
-        <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:10px;letter-spacing:0.3px;">REMIND ME IN</div>
-        <div style="display:flex;gap:8px;width:100%;">
+      <div id="xvc-snooze" style="display: none; width: 100%">
+        <div
+          style="
+            font-size: 11px;
+            font-weight: 700;
+            color: #555;
+            margin-bottom: 10px;
+            letter-spacing: 0.3px;
+          "
+        >
+          REMIND ME IN
+        </div>
+        <div style="display: flex; gap: 8px; width: 100%">
           <button class="xvc-snooze-btn" data-hours="6">6 hrs</button>
           <button class="xvc-snooze-btn" data-hours="12">12 hrs</button>
           <button class="xvc-snooze-btn" data-hours="24">Tomorrow</button>
@@ -272,7 +476,9 @@
         <div class="xvi-title">Add Xeevia to your home screen</div>
       </div>
       <button id="xvi-btn" class="xvi-btn">Install</button>
-      <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss">✕</button>
+      <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss">
+        ✕
+      </button>
     </div>
 
     <!-- SW update banner -->
@@ -289,16 +495,19 @@
 
     <script>
       (function () {
-        var deferred = null;
-        var STORAGE_KEY = "xv_install_dismissed";
-
+        // ── Detect standalone mode ──────────────────────────────────────────
         function isStandalone() {
           return (
             window.matchMedia("(display-mode: standalone)").matches ||
+            window.matchMedia("(display-mode: fullscreen)").matches ||
             window.navigator.standalone === true ||
             document.referrer.includes("android-app://")
           );
         }
+
+        // ── Install prompt ──────────────────────────────────────────────────
+        var deferred = null;
+        var STORAGE_KEY = "xv_install_dismissed";
 
         function shouldShow() {
           if (localStorage.getItem(STORAGE_KEY)) return false;
@@ -312,34 +521,51 @@
           if (shouldShow()) {
             setTimeout(function () {
               document.getElementById("xv-install").classList.add("show");
-            }, 10000);
+            }, 8000);
           }
         });
 
-        document.getElementById("xvi-btn").addEventListener("click", function () {
-          document.getElementById("xv-install").classList.remove("show");
-          if (deferred) {
-            deferred.prompt();
-            deferred.userChoice.then(function () { deferred = null; });
-          }
-        });
+        document
+          .getElementById("xvi-btn")
+          .addEventListener("click", function () {
+            document.getElementById("xv-install").classList.remove("show");
+            if (deferred) {
+              deferred.prompt();
+              deferred.userChoice.then(function (result) {
+                deferred = null;
+                if (result.outcome === "accepted") {
+                  try {
+                    localStorage.setItem(STORAGE_KEY, "1");
+                  } catch (e) {}
+                }
+              });
+            }
+          });
 
-        document.getElementById("xvi-dismiss").addEventListener("click", function () {
-          document.getElementById("xv-install").classList.remove("show");
-          try { localStorage.setItem(STORAGE_KEY, "1"); } catch (e) {}
-        });
+        document
+          .getElementById("xvi-dismiss")
+          .addEventListener("click", function () {
+            document.getElementById("xv-install").classList.remove("show");
+            try {
+              localStorage.setItem(STORAGE_KEY, "1");
+            } catch (e) {}
+          });
 
-        document.getElementById("xv-update-btn").addEventListener("click", function () {
-          window.location.reload();
-        });
+        document
+          .getElementById("xv-update-btn")
+          .addEventListener("click", function () {
+            window.location.reload();
+          });
 
-        // ── Update card with smart snooze ────────────────────────────────
+        // ── Update card with smart snooze ───────────────────────────────────
         var UPDATE_SNOOZE_KEY = "xv_update_snooze_until";
 
         var isLocalhost = Boolean(
           window.location.hostname === "localhost" ||
           window.location.hostname === "[::1]" ||
-          window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+          window.location.hostname.match(
+            /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
+          ),
         );
 
         function doUpdate() {
@@ -351,9 +577,18 @@
             });
           }
           if ("caches" in window) {
-            caches.keys().then(function (keys) {
-              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-            }).then(function () { window.location.reload(true); });
+            caches
+              .keys()
+              .then(function (keys) {
+                return Promise.all(
+                  keys.map(function (k) {
+                    return caches.delete(k);
+                  }),
+                );
+              })
+              .then(function () {
+                window.location.reload(true);
+              });
           } else {
             window.location.reload(true);
           }
@@ -362,7 +597,6 @@
         function hideUpdateCard() {
           var card = document.getElementById("xv-update-card");
           card.classList.remove("show");
-          // Reset back to main view for next time
           setTimeout(function () {
             document.getElementById("xvc-main").style.display = "flex";
             document.getElementById("xvc-snooze").style.display = "none";
@@ -370,7 +604,6 @@
         }
 
         function showUpdateCard() {
-          // Check if snoozed
           try {
             var snoozeUntil = localStorage.getItem(UPDATE_SNOOZE_KEY);
             if (snoozeUntil && Date.now() < Number(snoozeUntil)) return;
@@ -379,34 +612,48 @@
           document.getElementById("xv-update-card").classList.add("show");
         }
 
-        // Update button — full cache clear + reload
-        document.getElementById("xvc-update-btn").addEventListener("click", doUpdate);
+        document
+          .getElementById("xvc-update-btn")
+          .addEventListener("click", doUpdate);
 
-        // Later button — show snooze picker
-        document.getElementById("xvc-later-btn").addEventListener("click", function () {
-          document.getElementById("xvc-main").style.display = "none";
-          document.getElementById("xvc-snooze").style.display = "block";
-        });
+        document
+          .getElementById("xvc-later-btn")
+          .addEventListener("click", function () {
+            document.getElementById("xvc-main").style.display = "none";
+            document.getElementById("xvc-snooze").style.display = "block";
+          });
 
-        // Snooze buttons — store wakeup time, hide card, reschedule check
         document.querySelectorAll(".xvc-snooze-btn").forEach(function (btn) {
           btn.addEventListener("click", function () {
             var hours = Number(btn.getAttribute("data-hours"));
             var wakeAt = Date.now() + hours * 60 * 60 * 1000;
-            try { localStorage.setItem(UPDATE_SNOOZE_KEY, String(wakeAt)); } catch (e) {}
+            try {
+              localStorage.setItem(UPDATE_SNOOZE_KEY, String(wakeAt));
+            } catch (e) {}
             hideUpdateCard();
-            // Re-check after the chosen period and show card again if SW still waiting
-            setTimeout(function () {
-              if (navigator.serviceWorker && !isLocalhost) {
-                navigator.serviceWorker.getRegistration().then(function (reg) {
-                  if (reg && reg.waiting) showUpdateCard();
-                });
-              }
-            }, hours * 60 * 60 * 1000);
+            setTimeout(
+              function () {
+                if (navigator.serviceWorker && !isLocalhost) {
+                  navigator.serviceWorker
+                    .getRegistration()
+                    .then(function (reg) {
+                      if (reg && reg.waiting) showUpdateCard();
+                    });
+                }
+              },
+              hours * 60 * 60 * 1000,
+            );
           });
         });
 
-        window.__xvShowUpdate = function () { showUpdateCard(); };
+        window.__xvShowUpdate = function () {
+          showUpdateCard();
+        };
+
+        // ── Set document title to just "Xeevia" ────────────────────────────
+        // This controls what shows in the Android task switcher when running
+        // as a PWA. Keep it short and branded.
+        document.title = "Xeevia";
       })();
     </script>
   </body>

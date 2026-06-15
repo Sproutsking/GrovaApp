@@ -1,8 +1,20 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Smile, Image, Film, Paperclip } from "lucide-react";
+import { Smile, Image, Film, Paperclip, X } from "lucide-react";
 import EmojiPanel from "./EmojiPanel";
 import GifPanel from "./GifPanel";
 import MemePanel from "./MemePanel";
+
+/**
+ * MediaPopup — tabbed panel that hosts Emoji, GIF, Meme, File tabs
+ * Pops up above the message input bar
+ */
+
+const TABS = [
+  { key: "emoji", label: "EMOJI", Icon: Smile },
+  { key: "gif",   label: "GIF",   Icon: Image },
+  { key: "meme",  label: "MEME",  Icon: Film },
+  { key: "file",  label: "FILE",  Icon: Paperclip },
+];
 
 const MediaPopup = ({
   onEmojiSelect,
@@ -12,184 +24,188 @@ const MediaPopup = ({
   onClose,
   triggerRect,
 }) => {
-  const [activePanel, setActivePanel] = useState(null);
-  const toolbarRef = useRef(null);
+  const [activeTab, setActiveTab] = useState("emoji");
+  const popupRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files).slice(0, 10);
-    files.forEach(file => onFileSelect(file));
-    onClose();
+  // Position above trigger
+  const popupStyle = {
+    position: "fixed",
+    bottom: triggerRect
+      ? window.innerHeight - triggerRect.top + 8
+      : 80,
+    left: triggerRect
+      ? Math.max(8, Math.min(triggerRect.left - 8, window.innerWidth - 380))
+      : 8,
+    zIndex: 3000,
   };
 
   useEffect(() => {
-    const handler = (e) => {
-      if (toolbarRef.current && !toolbarRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    const timeout = setTimeout(() => {
-      document.addEventListener("mousedown", handler);
-    }, 100);
-    return () => {
-      clearTimeout(timeout);
-      document.removeEventListener("mousedown", handler);
-    };
+    const handleKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") {
-        if (activePanel) setActivePanel(null);
-        else onClose();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [activePanel, onClose]);
-
-  // Position toolbar above plus button
-  const getToolbarStyle = () => {
-    if (!triggerRect) return {};
-    
-    return {
-      position: "fixed",
-      bottom: `${window.innerHeight - triggerRect.top + 8}px`,
-      left: `${triggerRect.left}px`,
-      zIndex: 20000
-    };
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => onFileSelect?.(file));
+    onClose?.();
   };
 
-  // Position panel to the left of toolbar
-  const getPanelStyle = () => {
-    if (!triggerRect) return {};
-    
-    return {
-      position: "fixed",
-      bottom: `${window.innerHeight - triggerRect.top + 8}px`,
-      left: `${triggerRect.left + 68}px`,
-      zIndex: 20001
-    };
+  const handleEmojiSelect = (emoji) => {
+    onEmojiSelect?.(emoji);
+    // Keep open for emoji — let user pick multiple
   };
 
-  const buttons = [
-    { id: "emoji", icon: Smile, label: "Emoji" },
-    { id: "gif", icon: Image, label: "GIF" },
-    { id: "meme", icon: Film, label: "Meme" },
-    { id: "file", icon: Paperclip, label: "File" },
-  ];
+  const handleGifSelect = (gif) => {
+    onGifSelect?.(gif);
+    onClose?.();
+  };
+
+  const handleMemeSelect = (meme) => {
+    onMemeSelect?.(meme);
+    onClose?.();
+  };
 
   return (
-    <>
-      <div ref={toolbarRef} style={getToolbarStyle()} className="mp-toolbar-column" onClick={e => e.stopPropagation()}>
-        {buttons.map(btn => {
-          const Icon = btn.icon;
-          const isActive = activePanel === btn.id;
-          return (
-            <button
-              key={btn.id}
-              className={`mp-btn-col ${isActive ? "active" : ""}`}
-              onClick={e => {
-                e.stopPropagation();
-                if (btn.id === "file") {
-                  fileInputRef.current?.click();
-                  return;
-                }
-                setActivePanel(isActive ? null : btn.id);
-              }}
-            >
-              <Icon size={20} />
-            </button>
-          );
-        })}
+    <div ref={popupRef} style={popupStyle} className="mp-popup" onClick={(e) => e.stopPropagation()}>
+      {/* Tab bar */}
+      <div className="mp-tabbar">
+        {TABS.map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            className={`mp-tab ${activeTab === key ? "active" : ""}`}
+            onClick={() => {
+              if (key === "file") {
+                fileInputRef.current?.click();
+              } else {
+                setActiveTab(key);
+              }
+            }}
+          >
+            <Icon size={15} />
+            <span>{label}</span>
+          </button>
+        ))}
+        <button className="mp-tab-close" onClick={onClose}>
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Panel content — rendered inline, positioned by this popup */}
+      <div className="mp-panel-area">
+        {activeTab === "emoji" && (
+          <EmojiPanel
+            onSelect={handleEmojiSelect}
+            onClose={onClose}
+            style={{ position: "relative", width: "100%", height: "100%", borderRadius: "0 0 14px 14px", border: "none", boxShadow: "none" }}
+          />
+        )}
+        {activeTab === "gif" && (
+          <GifPanel
+            onSelect={handleGifSelect}
+            onClose={onClose}
+            style={{ position: "relative", width: "100%", height: "100%", borderRadius: "0 0 14px 14px", border: "none", boxShadow: "none" }}
+          />
+        )}
+        {activeTab === "meme" && (
+          <MemePanel
+            onSelect={handleMemeSelect}
+            onClose={onClose}
+            style={{ position: "relative", width: "100%", height: "100%", borderRadius: "0 0 14px 14px", border: "none", boxShadow: "none" }}
+          />
+        )}
       </div>
 
       <input
         ref={fileInputRef}
         type="file"
         multiple
+        accept="image/*,video/*,.pdf,.doc,.docx,.txt"
         style={{ display: "none" }}
         onChange={handleFileChange}
-        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
       />
 
-      {activePanel === "emoji" && (
-        <div style={getPanelStyle()} onClick={e => e.stopPropagation()}>
-          <EmojiPanel
-            onSelect={emoji => onEmojiSelect(emoji)}
-            onClose={() => setActivePanel(null)}
-          />
-        </div>
-      )}
-
-      {activePanel === "gif" && (
-        <div style={getPanelStyle()} onClick={e => e.stopPropagation()}>
-          <GifPanel
-            onSelect={gif => {
-              onGifSelect(gif);
-              setActivePanel(null);
-              onClose();
-            }}
-            onClose={() => setActivePanel(null)}
-          />
-        </div>
-      )}
-
-      {activePanel === "meme" && (
-        <div style={getPanelStyle()} onClick={e => e.stopPropagation()}>
-          <MemePanel
-            onSelect={meme => {
-              onMemeSelect(meme);
-              setActivePanel(null);
-              onClose();
-            }}
-            onClose={() => setActivePanel(null)}
-          />
-        </div>
-      )}
-
       <style>{`
-        .mp-toolbar-column {
+        .mp-popup {
+          width: 360px;
+          background: #0d0d0d;
+          border: 1px solid rgba(156,255,0,0.25);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 -8px 40px rgba(0,0,0,0.8), 0 0 60px rgba(156,255,0,0.08);
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          padding: 6px;
-          background: rgba(10, 10, 10, 0.98);
-          border: 2px solid rgba(156, 255, 0, 0.3);
-          border-radius: 14px;
-          box-shadow: 0 16px 64px rgba(0, 0, 0, 0.9);
-          backdrop-filter: blur(20px);
+          animation: popupIn 0.18s cubic-bezier(0.34,1.56,0.64,1);
         }
 
-        .mp-btn-col {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          background: rgba(26, 26, 26, 0.9);
-          border: 2px solid rgba(255, 255, 255, 0.1);
-          color: #888;
+        @keyframes popupIn {
+          from { opacity: 0; transform: translateY(12px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .mp-tabbar {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          padding: 6px 8px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: rgba(0,0,0,0.5);
+        }
+
+        .mp-tab {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 10px;
+          background: none;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          color: #666;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.15s;
+          font-family: inherit;
+        }
+        .mp-tab:hover {
+          background: rgba(156,255,0,0.08);
+          color: #9cff00;
+          border-color: rgba(156,255,0,0.15);
+        }
+        .mp-tab.active {
+          background: rgba(156,255,0,0.15);
+          color: #9cff00;
+          border-color: rgba(156,255,0,0.3);
+        }
+
+        .mp-tab-close {
+          margin-left: auto;
+          width: 28px;
+          height: 28px;
+          background: rgba(255,59,48,0.1);
+          border: 1px solid rgba(255,59,48,0.2);
+          border-radius: 8px;
+          color: #ff3b30;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.2s;
+          transition: all 0.15s;
         }
-
-        .mp-btn-col:hover {
-          background: rgba(42, 42, 42, 0.95);
-          border-color: rgba(156, 255, 0, 0.5);
-          color: #9cff00;
+        .mp-tab-close:hover {
+          background: rgba(255,59,48,0.2);
           transform: scale(1.05);
         }
 
-        .mp-btn-col.active {
-          background: rgba(156, 255, 0, 0.2);
-          border-color: rgba(156, 255, 0, 0.7);
-          color: #9cff00;
-          box-shadow: 0 0 20px rgba(156, 255, 0, 0.3);
+        .mp-panel-area {
+          height: 420px;
+          overflow: hidden;
+          position: relative;
         }
       `}</style>
-    </>
+    </div>
   );
 };
 

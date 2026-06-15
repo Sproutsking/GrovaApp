@@ -1,25 +1,16 @@
 // ============================================================================
-// src/services/messages/callService.js — v7 INSTANT + SMART MIC
+// src/services/messages/callService.js — v9 PUSH INTEGRATED
 // ============================================================================
-// FIXES vs v6:
-//  [INSTANT-1]  startCall() broadcasts invite BEFORE setting up peer connection.
-//               Callee sees the ring within ~100ms not 2-3s.
-//  [INSTANT-2]  endCall() / declineCall() send the signal FIRST, then cleanup.
-//               Call ends on recipient's screen immediately.
-//  [MIC-1]     getUserMedia is deferred — mic ONLY opens when call is answered
-//               (callee) or when the callee picks up (caller). Never before.
-//  [MIC-2]     _cleanupPeer() stops all tracks synchronously and removes the
-//               remote audio element. No lingering mic activity after hang-up.
-//  [TIMEOUT-1]  30s ring timeout fires endCall() automatically with reason.
-//  [SIGNAL-1]   _broadcastToUser() uses a persistent cached channel per target,
-//               reusing the already-SUBSCRIBED channel instead of creating a
-//               new one each time (which caused the 3-5s delay per call).
-//  [RT-1]      _myChannel uses ack:false to avoid REST fallback warnings.
-//  [STATE-1]   Clear state machine: idle → ringing → connected → ended.
-//  All v6 peer-connection and ICE logic preserved.
+// CHANGES vs v8:
+//   [PUSH-1] _sendCallPush() now uses pushService.sendPushToUser() instead of
+//            calling supabase.functions.invoke() directly. Consistent with DM push.
+//   [PUSH-2] Push payload now includes all fields the SW needs to show the
+//            incoming call notification with Accept/Decline actions.
+//   All v8 WebRTC / MIC / RING / STATE fixes preserved exactly.
 // ============================================================================
 
-import { supabase } from "../config/supabase";
+import { supabase }  from "../config/supabase";
+import pushService   from "../notifications/pushService";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -30,8 +21,14 @@ const ICE_SERVERS = {
   ],
 };
 
-// Call states
-const STATE = { IDLE: "idle", RINGING: "ringing", CONNECTING: "connecting", CONNECTED: "connected", ENDED: "ended" };
+const STATE = {
+  IDLE:       "idle",
+  RINGING:    "ringing",
+  ANSWERING:  "answering",
+  CONNECTING: "connecting",
+  CONNECTED:  "connected",
+  ENDED:      "ended",
+};
 
 class Emitter {
   constructor() { this._map = new Map(); }
@@ -55,35 +52,25 @@ async function dbWrite(queryFn) {
 class CallService extends Emitter {
   constructor() {
     super();
-    this._userId            = null;
-    this._userName          = null;
-    this._userAvId          = null;
-
-    // Active call state
-    this._callState         = STATE.IDLE;
-    this._activeCallId      = null;
-    this._callRole          = null; // "caller" | "callee"
-    this._calleeId          = null;
-    this._lastIncomingCall  = null;
-    this._callType          = "audio";
-
-    // WebRTC
-    this._pc                = null;
-    this._localStream       = null;
-    this._remoteAudio       = null;
-    this._pendingCandidates = [];
-
-    // [TIMEOUT-1] Ring timeout
-    this._ringTimeout       = null;
-
-    // Realtime
-    this._myChannel         = null;
-    this._myChannelReady    = false;
-
-    // [SIGNAL-1] Persistent outbound channels per target userId
-    this._outboundChannels  = new Map(); // targetUserId → { channel, ready }
-
-    this._initialized       = false;
+    this._userId             = null;
+    this._userName           = null;
+    this._userAvId           = null;
+    this._state              = STATE.IDLE;
+    this._activeCallId       = null;
+    this._callRole           = null;
+    this._calleeId           = null;
+    this._lastIncoming       = null;
+    this._callType           = "audio";
+    this._pc                 = null;
+    this._localStream        = null;
+    this._remoteAudio        = null;
+    this._pendingCandidates  = [];
+    this._pendingOffer       = null;
+    this._ringTimeout        = null;
+    this._myChannel          = null;
+    this._myChannelReady     = false;
+    this._outbound           = new Map();
+    this._initialized        = false;
   }
 
   // ==========================================================================
@@ -102,7 +89,6 @@ class CallService extends Emitter {
       this._myChannel = null;
     }
 
-    // [SIGNAL-1] Pre-connect to our own channel so we're ready to receive instantly
     this._myChannel = supabase
       .channel(`user_calls:${userId}`, {
         config: { broadcast: { self: false, ack: false } },
@@ -116,83 +102,71 @@ class CallService extends Emitter {
       .on("broadcast", { event: "sdp_answer"    }, ({ payload }) => this._onSdpAnswer(payload))
       .subscribe((status) => {
         this._myChannelReady = status === "SUBSCRIBED";
-        if (status === "SUBSCRIBED") {
-          console.log("[callService] ✅ ready:", userId);
-        }
+        if (status === "SUBSCRIBED") console.log("[callService] ✅ ready:", userId);
       });
 
     this._initialized = true;
   }
 
   // ==========================================================================
-  // START CALL — [INSTANT-1] Invite sent BEFORE peer setup
+  // START CALL
   // ==========================================================================
   async startCall({ callId, calleeId, callType = "audio", callerProfile }) {
     if (!this._userId || !calleeId) return;
-    if (this._callState !== STATE.IDLE) {
-      console.warn("[callService] Already in a call, ignoring startCall");
+    if (this._state !== STATE.IDLE) {
+      console.warn("[callService] Already in call");
       return;
     }
 
+    this._state        = STATE.RINGING;
     this._activeCallId = callId;
     this._callRole     = "caller";
     this._calleeId     = calleeId;
     this._callType     = callType;
-    this._callState    = STATE.RINGING;
 
     const callerName = callerProfile?.fullName || callerProfile?.full_name
       || callerProfile?.name || this._userName || "User";
     const callerAvId = callerProfile?.avatar_id || callerProfile?.avatarId
       || this._userAvId || null;
 
-    const payload = {
-      callId,
-      callType,
-      type:           callType,
+    const invitePayload = {
+      callId, callType, type: callType,
       callerId:       this._userId,
       callerName,
       name:           callerName,
       callerAvatarId: callerAvId,
       callerAvId,
       caller: {
-        id:        this._userId,
-        full_name: callerName,
-        name:      callerName,
-        avatar_id: callerAvId,
-        avatarId:  callerAvId,
+        id: this._userId, full_name: callerName, name: callerName,
+        avatar_id: callerAvId, avatarId: callerAvId,
       },
     };
 
-    // [INSTANT-1] SEND INVITE FIRST — before any async media/peer work
-    await this._broadcastToUser(calleeId, "incoming_call", payload);
+    // Send realtime invite first (for online callee)
+    await this._broadcastToUser(calleeId, "incoming_call", invitePayload);
 
-    // Fire push notification in parallel (non-blocking)
+    // [PUSH-1][PUSH-2] Push notification for offline/backgrounded callee
     this._sendCallPush({ calleeId, callId, callerName, callerAvId, callType });
 
-    // DB write in parallel (non-blocking)
     dbWrite(() =>
       supabase.from("active_calls").upsert({
-        id:         callId,
-        caller_id:  this._userId,
-        callee_ids: [calleeId],
-        call_type:  callType,
-        status:     "ringing",
+        id: callId, caller_id: this._userId,
+        callee_ids: [calleeId], call_type: callType, status: "ringing",
       })
     );
 
-    // [TIMEOUT-1] Auto-cancel after 30s if no answer
+    // 30s ring timeout
     this._ringTimeout = setTimeout(() => {
-      if (this._callState === STATE.RINGING) {
-        console.log("[callService] Ring timeout — no answer");
+      if (this._state === STATE.RINGING) {
         this.emit("ring_timeout", { callId });
+        this.emit("missed_call",  { callId });
         this.endCall(callId, calleeId);
       }
     }, 30_000);
 
-    // [MIC-1] Set up peer AFTER invite is sent (non-blocking for caller)
-    // We do this while the callee's phone is ringing, so by the time they pick up
-    // the peer connection is ready.
-    this._setupPeerConnection(callType).then(async () => {
+    // Setup receive-only peer so we can create offer without opening mic
+    this._setupRecvOnlyPeer(callType).then(async () => {
+      if (this._state === STATE.ENDED) return;
       try {
         const offer = await this._pc.createOffer({
           offerToReceiveAudio: true,
@@ -202,31 +176,48 @@ class CallService extends Emitter {
         await this._broadcastToUser(calleeId, "sdp_offer", {
           callId, sdp: offer, callerId: this._userId,
         });
-      } catch (e) {
-        console.warn("[callService] offer:", e.message);
-      }
+      } catch (e) { console.warn("[callService] offer:", e.message); }
     }).catch(e => console.warn("[callService] peer setup:", e.message));
 
     return callId;
   }
 
   // ==========================================================================
-  // ANSWER CALL
+  // ANSWER CALL — THIS is where mic opens
   // ==========================================================================
   async answerCall(callId) {
+    if (this._state === STATE.ANSWERING || this._state === STATE.CONNECTING) return;
+
     this._activeCallId = callId;
     this._callRole     = "callee";
-    this._callState    = STATE.CONNECTING;
-    const call         = this._lastIncomingCall;
-    const targetId     = call?.callerId || call?.caller?.id;
+    this._state        = STATE.ANSWERING;
+
+    const call     = this._lastIncoming;
+    const targetId = call?.callerId || call?.caller?.id;
+    const callType = call?.callType || call?.type || "audio";
+
+    try {
+      await this._openLocalMedia(callType);
+    } catch (e) { console.warn("[callService] media open:", e.message); }
+
+    if (this._pc && this._localStream) {
+      this._localStream.getTracks().forEach(t => {
+        try { this._pc.addTrack(t, this._localStream); } catch {}
+      });
+    }
 
     if (targetId) {
-      // [INSTANT-2] Send answer signal first
       await this._broadcastToUser(targetId, "call_answer", {
         callId, calleeId: this._userId, calleeName: this._userName,
       });
     }
 
+    if (this._pendingOffer) {
+      await this._processPendingOffer(this._pendingOffer, targetId);
+      this._pendingOffer = null;
+    }
+
+    this._state = STATE.CONNECTING;
     dbWrite(() =>
       supabase.from("active_calls").update({ status: "answered" }).eq("id", callId)
     );
@@ -234,15 +225,14 @@ class CallService extends Emitter {
   }
 
   // ==========================================================================
-  // DECLINE CALL — [INSTANT-2]
+  // DECLINE
   // ==========================================================================
   async declineCall(callId, callerId) {
     const cid      = callId || this._activeCallId;
     const targetId = callerId
-      || this._lastIncomingCall?.callerId
-      || this._lastIncomingCall?.caller?.id;
+      || this._lastIncoming?.callerId
+      || this._lastIncoming?.caller?.id;
 
-    // [INSTANT-2] Signal BEFORE cleanup
     if (targetId) {
       await this._broadcastToUser(targetId, "call_decline", {
         callId: cid, calleeId: this._userId,
@@ -256,23 +246,22 @@ class CallService extends Emitter {
     );
 
     this._clearRingTimeout();
-    this._cleanupPeer(); // [MIC-2]
-    this._resetCallState();
+    this._cleanupPeer();
+    this._resetState();
   }
 
   // ==========================================================================
-  // END CALL — [INSTANT-2]
+  // END CALL
   // ==========================================================================
   async endCall(callId, remoteUserId) {
     const cid      = callId || this._activeCallId;
     const targetId = remoteUserId
       || (this._callRole === "caller" ? this._calleeId : null)
-      || this._lastIncomingCall?.callerId
-      || this._lastIncomingCall?.caller?.id;
+      || this._lastIncoming?.callerId
+      || this._lastIncoming?.caller?.id;
 
-    this._callState = STATE.ENDED;
+    this._state = STATE.ENDED;
 
-    // [INSTANT-2] Signal FIRST — remote sees hang-up instantly
     if (targetId) {
       await this._broadcastToUser(targetId, "call_end", {
         callId: cid, endedBy: this._userId,
@@ -286,33 +275,34 @@ class CallService extends Emitter {
     );
 
     this._clearRingTimeout();
-    this._cleanupPeer(); // [MIC-2]
+    this._cleanupPeer();
     this.emit("call_ended", { callId: cid });
-    this._resetCallState();
+
+    setTimeout(() => {
+      if (this._localStream) {
+        this._localStream.getTracks().forEach(t => t.stop());
+        this._localStream = null;
+      }
+    }, 500);
+
+    this._resetState();
   }
 
   // ==========================================================================
   // CONTROLS
   // ==========================================================================
-  setMuted(muted) {
-    this._localStream?.getAudioTracks().forEach(t => { t.enabled = !muted; });
-  }
-
-  setVideoEnabled(enabled) {
-    this._localStream?.getVideoTracks().forEach(t => { t.enabled = enabled; });
-  }
-
-  async setSpeakerEnabled(enabled) {
+  setMuted(muted)          { this._localStream?.getAudioTracks().forEach(t => { t.enabled = !muted; }); }
+  setVideoEnabled(enabled) { this._localStream?.getVideoTracks().forEach(t => { t.enabled = enabled; }); }
+  setSpeakerEnabled(enabled) {
     if (this._remoteAudio) this._remoteAudio.muted = !enabled;
-    document.querySelectorAll("audio[data-call-audio], video[data-call-video]").forEach(el => {
+    document.querySelectorAll("audio[data-call-audio]").forEach(el => {
       try { el.muted = !enabled; } catch {}
     });
   }
-
   getLocalStream()    { return this._localStream; }
   getPeerConnection() { return this._pc; }
-  getCallState()      { return this._callState; }
-  isInCall()          { return this._callState !== STATE.IDLE && this._callState !== STATE.ENDED; }
+  getCallState()      { return this._state; }
+  isInCall()          { return this._state !== STATE.IDLE && this._state !== STATE.ENDED; }
 
   // ==========================================================================
   // CLEANUP
@@ -320,19 +310,14 @@ class CallService extends Emitter {
   cleanup() {
     this._clearRingTimeout();
     this._cleanupPeer();
-
-    // Clean up all outbound channels
-    this._outboundChannels.forEach(({ channel }) => {
-      try { supabase.removeChannel(channel); } catch {}
-    });
-    this._outboundChannels.clear();
-
+    this._outbound.forEach(({ ch }) => { try { supabase.removeChannel(ch); } catch {} });
+    this._outbound.clear();
     try { supabase.removeChannel(this._myChannel); } catch {}
     this._myChannel      = null;
     this._myChannelReady = false;
     this._initialized    = false;
     this._userId         = null;
-    this._resetCallState();
+    this._resetState();
     this.clear();
   }
 
@@ -341,71 +326,88 @@ class CallService extends Emitter {
   // ==========================================================================
   _onIncomingCall(payload) {
     if (!payload?.callId) return;
-    this._lastIncomingCall = payload;
-    this._callType = payload.callType || payload.type || "audio";
-    this._callState = STATE.RINGING;
+    this._lastIncoming = payload;
+    this._callType     = payload.callType || payload.type || "audio";
+    if (this._state === STATE.IDLE) this._state = STATE.RINGING;
     this.emit("incoming_call", payload);
-    try {
-      window.dispatchEvent(new CustomEvent("nova:incoming_call", { detail: payload }));
-    } catch {}
+    try { window.dispatchEvent(new CustomEvent("nova:incoming_call", { detail: payload })); } catch {}
   }
 
   async _onSdpOffer(payload) {
-    if (!this._lastIncomingCall) return;
+    if (!payload?.sdp) return;
     const callType = this._callType || "audio";
 
-    // [MIC-1] Callee only opens mic when actually setting up the connection
-    // (which happens when they answer — _setupPeerConnection is called in answerCall flow)
+    if (this._state === STATE.RINGING || this._state === STATE.IDLE) {
+      this._pendingOffer = payload;
+      if (!this._pc) await this._setupRecvOnlyPeer(callType);
+      try {
+        await this._pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        for (const c of this._pendingCandidates) await this._pc.addIceCandidate(c).catch(() => {});
+        this._pendingCandidates = [];
+      } catch (e) { console.warn("[callService] setRemote (pre-answer):", e.message); }
+      return;
+    }
+    await this._processPendingOffer(payload, payload.callerId);
+  }
+
+  async _processPendingOffer(payload, targetId) {
     try {
-      if (!this._pc) {
-        await this._setupPeerConnection(callType);
+      if (!this._pc) await this._setupRecvOnlyPeer(this._callType || "audio");
+      if (this._pc.signalingState === "stable") {
+        await this._pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
       }
-      await this._pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-      for (const c of this._pendingCandidates) {
-        await this._pc.addIceCandidate(c).catch(() => {});
-      }
+      for (const c of this._pendingCandidates) await this._pc.addIceCandidate(c).catch(() => {});
       this._pendingCandidates = [];
 
       const answer = await this._pc.createAnswer();
       await this._pc.setLocalDescription(answer);
-      await this._broadcastToUser(payload.callerId, "sdp_answer", {
-        callId: payload.callId, sdp: answer, calleeId: this._userId,
-      });
-    } catch (e) {
-      console.warn("[callService] sdp offer:", e.message);
-    }
+
+      const tid = targetId || payload.callerId;
+      if (tid) {
+        await this._broadcastToUser(tid, "sdp_answer", {
+          callId: payload.callId || this._activeCallId,
+          sdp: answer, calleeId: this._userId,
+        });
+      }
+    } catch (e) { console.warn("[callService] processPendingOffer:", e.message); }
   }
 
   async _onSdpAnswer(payload) {
     try {
       if (this._pc && this._pc.signalingState !== "stable") {
         await this._pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        for (const c of this._pendingCandidates) {
-          await this._pc.addIceCandidate(c).catch(() => {});
-        }
+        for (const c of this._pendingCandidates) await this._pc.addIceCandidate(c).catch(() => {});
         this._pendingCandidates = [];
-        this._callState = STATE.CONNECTING;
+        this._state = STATE.CONNECTING;
       }
-    } catch (e) {
-      console.warn("[callService] sdp answer:", e.message);
-    }
+    } catch (e) { console.warn("[callService] sdp answer:", e.message); }
   }
 
   async _onRemoteICE(payload) {
     if (!payload?.candidate) return;
     try {
       const c = new RTCIceCandidate(payload.candidate);
-      if (this._pc?.remoteDescription) {
-        await this._pc.addIceCandidate(c);
-      } else {
-        this._pendingCandidates.push(c);
-      }
+      if (this._pc?.remoteDescription) await this._pc.addIceCandidate(c);
+      else this._pendingCandidates.push(c);
     } catch {}
   }
 
   _onCallAnswer(payload) {
-    this._clearRingTimeout(); // [TIMEOUT-1] Cancel ring timeout on answer
-    this._callState = STATE.CONNECTING;
+    this._clearRingTimeout();
+    this._state = STATE.CONNECTING;
+    if (this._callRole === "caller" && !this._localStream) {
+      this._openLocalMedia(this._callType).then(() => {
+        if (this._pc && this._localStream) {
+          this._localStream.getTracks().forEach(t => {
+            try {
+              const sender = this._pc.getSenders().find(s => s.track?.kind === t.kind);
+              if (sender) sender.replaceTrack(t);
+              else        this._pc.addTrack(t, this._localStream);
+            } catch {}
+          });
+        }
+      }).catch(e => console.warn("[callService] caller media:", e.message));
+    }
     this.emit("call_answered", payload);
   }
 
@@ -413,61 +415,34 @@ class CallService extends Emitter {
     this._clearRingTimeout();
     this.emit("call_declined", payload);
     this._cleanupPeer();
-    this._resetCallState();
+    this._resetState();
   }
 
   _onCallEnd(payload) {
     this._clearRingTimeout();
     this.emit("call_ended", payload);
-    try {
-      window.dispatchEvent(new CustomEvent("nova:call_ended", { detail: payload }));
-    } catch {}
-    this._cleanupPeer(); // [MIC-2] Immediate mic stop
-    this._resetCallState();
+    try { window.dispatchEvent(new CustomEvent("nova:call_ended", { detail: payload })); } catch {}
+    this._cleanupPeer();
+    this._resetState();
   }
 
   // ==========================================================================
-  // WEBRTC — [MIC-1] Mic only opened here, called when call connects
+  // WEBRTC
   // ==========================================================================
-  async _setupPeerConnection(callType = "audio") {
-    // If already set up, don't open a second mic
-    if (this._pc && this._localStream) return this._pc;
-
-    this._cleanupPeer();
-
-    // [MIC-1] Request media with graceful fallback
-    try {
-      this._localStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl:  true,
-        },
-        video: callType.includes("video")
-          ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
-          : false,
-      });
-    } catch (err) {
-      console.warn("[callService] media error, audio-only fallback:", err.message);
-      try {
-        this._localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (err2) {
-        console.error("[callService] Cannot access microphone:", err2.message);
-        // Continue without local stream — call can still receive audio
-      }
-    }
+  async _setupRecvOnlyPeer(callType = "audio") {
+    if (this._pc) return this._pc;
 
     this._pc = new RTCPeerConnection(ICE_SERVERS);
-
-    if (this._localStream) {
-      this._localStream.getTracks().forEach(t => this._pc.addTrack(t, this._localStream));
+    this._pc.addTransceiver("audio", { direction: "recvonly" });
+    if (callType.includes("video")) {
+      this._pc.addTransceiver("video", { direction: "recvonly" });
     }
 
     this._pc.onicecandidate = (e) => {
       if (!e.candidate) return;
       const remote = this._calleeId
-        || this._lastIncomingCall?.callerId
-        || this._lastIncomingCall?.caller?.id;
+        || this._lastIncoming?.callerId
+        || this._lastIncoming?.caller?.id;
       if (remote) {
         this._broadcastToUser(remote, "ice_candidate", {
           callId: this._activeCallId, candidate: e.candidate.toJSON(),
@@ -478,193 +453,189 @@ class CallService extends Emitter {
     this._pc.ontrack = (e) => {
       const [stream] = e.streams;
       this.emit("remote_stream", { stream });
-
-      // Create or reuse remote audio element
-      if (!this._remoteAudio) {
-        this._remoteAudio                   = document.createElement("audio");
-        this._remoteAudio.autoplay          = true;
-        this._remoteAudio.playsInline       = true;
-        this._remoteAudio.setAttribute("data-call-audio", "true");
-        this._remoteAudio.style.cssText     = "position:fixed;width:0;height:0;opacity:0;pointer-events:none;z-index:-1;";
-        document.body.appendChild(this._remoteAudio);
-      }
-      this._remoteAudio.srcObject = stream;
-      this._remoteAudio.play().catch(() => {});
+      this._attachRemoteAudio(stream);
     };
 
     this._pc.onconnectionstatechange = () => {
       const s = this._pc?.connectionState;
       this.emit("connection_state", { state: s });
       if (s === "connected") {
-        this._callState = STATE.CONNECTED;
+        this._state = STATE.CONNECTED;
         this.emit("call_connected", { callId: this._activeCallId });
       }
       if (s === "failed" || s === "disconnected") {
         this.emit("call_ended", { callId: this._activeCallId, reason: "connection_lost" });
         this._cleanupPeer();
-        this._resetCallState();
+        this._resetState();
       }
     };
 
     return this._pc;
   }
 
-  // [MIC-2] Comprehensive cleanup — stops all tracks, removes audio element
-  _cleanupPeer() {
-    // Stop all local media tracks immediately
-    if (this._localStream) {
-      this._localStream.getTracks().forEach(track => {
-        track.stop();
-        track.enabled = false;
+  async _openLocalMedia(callType = "audio") {
+    if (this._localStream) return this._localStream;
+    try {
+      this._localStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: callType.includes("video")
+          ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
+          : false,
       });
+      if (this._pc) {
+        this._pc.getSenders().forEach(sender => {
+          if (!sender.track) {
+            const track = callType.includes("video")
+              ? this._localStream.getVideoTracks()[0]
+              : this._localStream.getAudioTracks()[0];
+            if (track) sender.replaceTrack(track).catch(() => {});
+          }
+        });
+      }
+      return this._localStream;
+    } catch (err) {
+      console.warn("[callService] getUserMedia failed:", err.message);
+      try {
+        this._localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        return this._localStream;
+      } catch (err2) {
+        console.error("[callService] Cannot access mic:", err2.message);
+        return null;
+      }
+    }
+  }
+
+  _attachRemoteAudio(stream) {
+    if (!this._remoteAudio) {
+      this._remoteAudio = document.createElement("audio");
+      this._remoteAudio.autoplay    = true;
+      this._remoteAudio.playsInline = true;
+      this._remoteAudio.setAttribute("data-call-audio", "true");
+      this._remoteAudio.style.cssText = "position:fixed;width:0;height:0;opacity:0;pointer-events:none;z-index:-1;";
+      document.body.appendChild(this._remoteAudio);
+    }
+    this._remoteAudio.srcObject = stream;
+    this._remoteAudio.play().catch(() => {});
+  }
+
+  _cleanupPeer() {
+    if (this._localStream) {
+      this._localStream.getTracks().forEach(t => { try { t.stop(); t.enabled = false; } catch {} });
       this._localStream = null;
     }
-
-    // Close peer connection
     if (this._pc) {
       try {
-        // Remove all tracks before closing
-        this._pc.getSenders().forEach(sender => {
-          try { this._pc.removeTrack(sender); } catch {}
-        });
+        this._pc.getSenders().forEach(s => { try { this._pc.removeTrack(s); } catch {} });
         this._pc.close();
       } catch {}
       this._pc = null;
     }
-
-    // Remove remote audio element
     if (this._remoteAudio) {
-      try {
-        this._remoteAudio.pause();
-        this._remoteAudio.srcObject = null;
-        this._remoteAudio.remove();
-      } catch {}
+      try { this._remoteAudio.pause(); this._remoteAudio.srcObject = null; this._remoteAudio.remove(); }
+      catch {}
       this._remoteAudio = null;
     }
-
     this._pendingCandidates = [];
+    this._pendingOffer      = null;
   }
 
   _clearRingTimeout() {
-    if (this._ringTimeout) {
-      clearTimeout(this._ringTimeout);
-      this._ringTimeout = null;
+    if (this._ringTimeout) { clearTimeout(this._ringTimeout); this._ringTimeout = null; }
+  }
+
+  _resetState() {
+    this._state        = STATE.IDLE;
+    this._activeCallId = null;
+    this._callRole     = null;
+    this._calleeId     = null;
+    this._lastIncoming = null;
+    this._callType     = "audio";
+  }
+
+  // ==========================================================================
+  // SIGNALING — cached outbound channels
+  // ==========================================================================
+  async _ensureOutboundChannel(targetUserId) {
+    const existing = this._outbound.get(targetUserId);
+    const now      = Date.now();
+
+    if (existing && existing.ready && (now - existing.createdAt) < 60_000) {
+      return existing.ch;
     }
+    if (existing?.ch) { try { supabase.removeChannel(existing.ch); } catch {} }
+
+    const ch    = supabase.channel(`user_calls:${targetUserId}`, {
+      config: { broadcast: { self: false, ack: false } },
+    });
+    const entry = { ch, ready: false, createdAt: now };
+    this._outbound.set(targetUserId, entry);
+
+    await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn("[callService] outbound subscribe timeout:", targetUserId);
+        resolve();
+      }, 3000);
+      ch.subscribe((status) => {
+        if (status === "SUBSCRIBED") { entry.ready = true; clearTimeout(timeout); resolve(); }
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") { clearTimeout(timeout); resolve(); }
+      });
+    });
+
+    setTimeout(() => {
+      const e = this._outbound.get(targetUserId);
+      if (e?.ch === ch) {
+        try { supabase.removeChannel(ch); } catch {}
+        this._outbound.delete(targetUserId);
+      }
+    }, 120_000);
+
+    return ch;
   }
 
-  _resetCallState() {
-    this._callState        = STATE.IDLE;
-    this._activeCallId     = null;
-    this._callRole         = null;
-    this._calleeId         = null;
-    this._lastIncomingCall = null;
-    this._callType         = "audio";
-  }
-
-  // ==========================================================================
-  // SIGNALING — [SIGNAL-1] Persistent cached channels
-  // ==========================================================================
   async _broadcastToUser(targetUserId, event, payload) {
     if (!targetUserId) return;
-
     try {
-      // [SIGNAL-1] Reuse existing subscribed channel instead of creating new each time
-      let entry = this._outboundChannels.get(targetUserId);
-
-      if (!entry || !entry.ready) {
-        // Create a new channel and wait for it to be ready
-        if (entry?.channel) {
-          try { supabase.removeChannel(entry.channel); } catch {}
-        }
-
-        const channel = supabase.channel(`user_calls:${targetUserId}`, {
-          config: { broadcast: { self: false, ack: false } },
-        });
-
-        entry = { channel, ready: false };
-        this._outboundChannels.set(targetUserId, entry);
-
-        // Wait for SUBSCRIBED with timeout
-        await new Promise((resolve) => {
-          const timeout = setTimeout(() => {
-            console.warn("[callService] channel subscribe timeout for:", targetUserId);
-            resolve();
-          }, 3000);
-
-          channel.subscribe((status) => {
-            if (status === "SUBSCRIBED") {
-              entry.ready = true;
-              clearTimeout(timeout);
-              resolve();
-            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-              clearTimeout(timeout);
-              resolve();
-            }
-          });
-        });
-
-        // Auto-cleanup outbound channels after 30s of inactivity
-        setTimeout(() => {
-          const e = this._outboundChannels.get(targetUserId);
-          if (e?.channel === channel) {
-            try { supabase.removeChannel(channel); } catch {}
-            this._outboundChannels.delete(targetUserId);
-          }
-        }, 30_000);
-      }
-
-      // Send the broadcast
-      await entry.channel.send({ type: "broadcast", event, payload });
-    } catch (e) {
-      console.warn("[callService] broadcast to", targetUserId, ":", e.message);
-    }
+      const ch = await this._ensureOutboundChannel(targetUserId);
+      await ch.send({ type: "broadcast", event, payload });
+    } catch (e) { console.warn("[callService] broadcast to", targetUserId, ":", e.message); }
   }
 
-  // Used by MessageNotificationService [M2]
+  // [PUSH-1] Use pushService.sendPushToUser() — consistent, auth-handled
+  _sendCallPush({ calleeId, callId, callerName, callerAvId, callType }) {
+    pushService.sendPushToUser({
+      recipientUserId: calleeId,
+      actorUserId:     this._userId,
+      type:            "incoming_call",
+      title:           `📞 ${callerName} is calling`,
+      message:         `Incoming ${callType === "video" ? "video" : "voice"} call — tap to answer`,
+      metadata: {
+        // [PUSH-2] All fields the SW needs for call notification
+        url:          "/messages",
+        callId,
+        call_id:      callId,
+        callerName,
+        caller_name:  callerName,
+        callerAvId,
+        callerAvatarId: callerAvId,
+        caller_avatar_id: callerAvId,
+        callType,
+        call_type:    callType,
+        notification_id: `call_${callId}`,
+      },
+    }).catch(() => {}); // fire and forget — push failure must not block call
+  }
+
+  // Used by group calls
   async _sendInviteToCallee({ callId, calleeId, callType, groupName, participantCount }) {
     return this._broadcastToUser(calleeId, "incoming_call", {
-      callId,
-      callType,
-      type:             callType || "audio",
+      callId, callType, type: callType || "audio",
       callerId:         this._userId,
       callerName:       this._userName || "User",
       callerAvatarId:   this._userAvId || null,
       groupName:        groupName || null,
       participantCount: participantCount || 0,
-      caller: {
-        id:        this._userId,
-        full_name: this._userName || "User",
-        avatar_id: this._userAvId || null,
-      },
+      caller: { id: this._userId, full_name: this._userName || "User", avatar_id: this._userAvId },
     });
-  }
-
-  _sendCallPush({ calleeId, callId, callerName, callerAvId, callType }) {
-    supabase.functions.invoke("send-push", {
-      body: {
-        recipient_user_id: calleeId,
-        actor_user_id:     this._userId,
-        type:              "incoming_call",
-        title:             `📞 ${callerName} is calling`,
-        message:           `Incoming ${callType === "video" ? "video" : "voice"} call — tap to answer`,
-        metadata: {
-          callId,
-          call_id:        callId,
-          callerName,
-          caller_name:    callerName,
-          callerAvatarId: callerAvId,
-          callType,
-          call_type:      callType,
-          url:            "/messages",
-        },
-        data: {
-          url:       "/messages",
-          type:      "incoming_call",
-          call_id:   callId,
-          call_type: callType,
-        },
-      },
-    }).catch(() => {});
   }
 }
 

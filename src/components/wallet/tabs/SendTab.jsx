@@ -1,9 +1,11 @@
 // src/components/wallet/tabs/SendTab.jsx
 // ════════════════════════════════════════════════════════════════════
 //  UNIFIED SEND — $XEV + EP
-//  Avatars: XevAvatar (pure circle, handles all Supabase URL shapes).
-//  Profile view: UserProfileModal opened on click.
-//  ProfilePreview removed — it is a full card layout, not an avatar.
+//  FIXES:
+//   • "Continue" / "Confirm & Send" button renamed to st-action-btn
+//     (isolated from btn-primary / btn-ghost collisions)
+//   • Button is inline/auto width, centred, no full-width stretch
+//   • Mobile top-header overlap fixed via dynamic --mobile-header-h var
 // ════════════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
@@ -39,7 +41,13 @@ function isWalletAddress(s) {
   return /^0x[a-fA-F0-9]{40,}$/.test((s || "").trim());
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   ALL CSS is scoped with st- prefix so nothing bleeds out or in.
+   st-action-btn replaces btn-primary / btn-ghost entirely for this
+   component so global wallet styles can't override it.
+───────────────────────────────────────────────────────────────── */
 const CSS = `
+/* ── currency switcher ── */
 .cs-wrap{display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:4px;width:fit-content;margin:0 20px 24px;gap:2px;position:relative;}
 .cs-pill{position:absolute;top:4px;left:4px;height:calc(100% - 8px);border-radius:100px;transition:transform .22s cubic-bezier(.4,0,.2,1),width .22s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:0;}
 .cs-pill.xev{background:rgba(163,230,53,.1);border:1px solid rgba(163,230,53,.2);}
@@ -47,6 +55,8 @@ const CSS = `
 .cs-btn{position:relative;display:flex;align-items:center;gap:7px;padding:9px 20px;border-radius:100px;border:none;background:transparent;font-size:13px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.28);z-index:1;white-space:nowrap;}
 .cs-btn.active-xev{color:#a3e635;}.cs-btn.active-ep{color:#22d3ee;}
 .cs-divider{width:1px;height:16px;background:rgba(255,255,255,.08);flex-shrink:0;}
+
+/* ── recipient search ── */
 .st-input-row{display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;overflow:visible;position:relative;transition:border-color .2s,box-shadow .2s;}
 .st-input-row:focus-within{border-color:rgba(163,230,53,.35);box-shadow:0 0 0 3px rgba(163,230,53,.07);}
 .st-prefix{padding:0 0 0 14px;font-size:16px;font-weight:700;color:#a3e635;user-select:none;}
@@ -64,6 +74,8 @@ const CSS = `
 .st-empty{padding:20px 14px;text-align:center;font-size:13px;color:rgba(255,255,255,.2);}
 .st-loading-row{padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.25);}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ── recipient card ── */
 .rcpt-card{display:flex;align-items:center;gap:12px;padding:13px 14px;background:rgba(163,230,53,.04);border:1px solid rgba(163,230,53,.18);border-radius:14px;animation:cardIn .25s cubic-bezier(.34,1.56,.64,1);}
 @keyframes cardIn{from{opacity:0;transform:scale(.96) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .rcpt-name{font-size:15px;font-weight:700;color:rgba(255,255,255,.9);display:flex;align-items:center;gap:6px;}
@@ -72,20 +84,105 @@ const CSS = `
 .rcpt-view-btn:hover{background:rgba(163,230,53,.14);}
 .rcpt-chg-btn{display:flex;align-items:center;gap:4px;padding:6px 9px;border-radius:100px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:11px;font-weight:600;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s;}
 .rcpt-chg-btn:hover{background:rgba(239,68,68,.07);color:#f87171;border-color:rgba(239,68,68,.15);}
+
+/* ── wallet address card ── */
 .waddr-card{display:flex;align-items:center;gap:12px;padding:13px 14px;background:rgba(34,211,238,.04);border:1px solid rgba(34,211,238,.15);border-radius:14px;animation:cardIn .25s cubic-bezier(.34,1.56,.64,1);}
 .waddr-text{font-size:11px;font-family:"DM Mono",monospace;color:rgba(34,211,238,.65);word-break:break-all;line-height:1.6;}
 .waddr-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:100px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.18);font-size:9px;font-weight:700;color:#22d3ee;text-transform:uppercase;letter-spacing:.08em;}
+
+/* ── progress bar ── */
 .conf-bar{width:100%;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-top:12px;}
 .conf-bar-inner{height:100%;border-radius:2px;background:linear-gradient(90deg,#a3e635,#22d3ee);animation:confProg 2.2s ease-in-out forwards;}
 @keyframes confProg{0%{width:0}60%{width:82%}100%{width:100%}}
+
+/* ── success ring ── */
 @keyframes spulse{0%{box-shadow:0 0 0 0 rgba(163,230,53,.4)}70%{box-shadow:0 0 0 22px rgba(163,230,53,0)}100%{box-shadow:0 0 0 0 rgba(163,230,53,0)}}
 .sring{animation:spulse .7s ease-out;}
+
+/* ── verified badge ── */
 .vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#a3e635;flex-shrink:0;}
+
+/* ── toast ── */
 .st-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:100px;background:rgba(7,9,12,.97);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(20px);font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.5);}
 .st-toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 .td{width:6px;height:6px;border-radius:50%;background:#a3e635;flex-shrink:0;animation:tdPulse 1.4s ease-in-out infinite;}
 .td.err{background:#f87171;animation:none;}
 @keyframes tdPulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ════════════════════════════════════════════════════════
+   ACTION BUTTON — completely self-contained, not affected
+   by btn-primary / btn-ghost / any other wallet class.
+   Width is inline (fit-content), centred in its row.
+════════════════════════════════════════════════════════ */
+.st-action-row{
+  display:flex;
+  justify-content:center;
+  padding:0 20px 8px;
+}
+.st-action-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  /* auto-width — never full-width */
+  width:auto;
+  min-width:160px;
+  max-width:100%;
+  padding:13px 32px;
+  border-radius:100px;
+  border:none;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:0.01em;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 4px 20px rgba(163,230,53,.2);
+  background:linear-gradient(135deg,#a3e635 0%,#7ec510 100%);
+  color:#0c1800;
+}
+.st-action-btn:hover:not(:disabled){
+  transform:translateY(-1px);
+  box-shadow:0 8px 28px rgba(163,230,53,.35);
+}
+.st-action-btn:active:not(:disabled){
+  transform:translateY(0);
+}
+.st-action-btn:disabled{
+  opacity:.3;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+.st-action-btn.ghost{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.45);
+  box-shadow:none;
+}
+.st-action-btn.ghost:hover:not(:disabled){
+  background:rgba(255,255,255,.07);
+  color:rgba(255,255,255,.7);
+  box-shadow:none;
+}
+.st-action-btn.danger-ghost{
+  background:rgba(239,68,68,.06);
+  border:1px solid rgba(239,68,68,.15);
+  color:rgba(248,113,113,.7);
+  box-shadow:none;
+}
+.st-action-btn.danger-ghost:hover{
+  background:rgba(239,68,68,.1);
+  color:#f87171;
+}
+
+/* ── mobile top-header clearance ──────────────────────────────────
+   We measure the actual header height via JS and set
+   --st-mobile-top on .view-enter so content is never clipped.
+   On desktop this var is 0.
+─────────────────────────────────────────────────────────────────── */
+.st-mobile-safe{
+  padding-top: var(--st-mobile-top, 0px);
+}
 `;
 
 function CurrencySwitcher({ currency, onChange }) {
@@ -110,10 +207,42 @@ function CurrencySwitcher({ currency, onChange }) {
   );
 }
 
+/* ── useMobileHeaderOffset ──────────────────────────────────────────
+   Measures the first fixed/sticky element above the wallet shell
+   and exposes the height as a CSS variable on the component root.
+   This prevents the mobile top header from clipping tab content.
+─────────────────────────────────────────────────────────────────── */
+function useMobileHeaderOffset(ref) {
+  useEffect(() => {
+    function measure() {
+      if (!ref.current) return;
+      // Find the highest fixed/sticky element that sits above our component
+      let maxBottom = 0;
+      document.querySelectorAll("*").forEach(el => {
+        if (el === ref.current || ref.current.contains(el)) return;
+        const style = window.getComputedStyle(el);
+        if (style.position === "fixed" || style.position === "sticky") {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom > 0 && rect.bottom < window.innerHeight * 0.25) {
+            maxBottom = Math.max(maxBottom, rect.bottom);
+          }
+        }
+      });
+      ref.current.style.setProperty("--st-mobile-top", `${maxBottom}px`);
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [ref]);
+}
+
 const SendTab = ({
   setActiveTab, balance, userId, onRefresh,
   transactions, setTransactions, username: currentUsername,
 }) => {
+  const rootRef = useRef(null);
+  useMobileHeaderOffset(rootRef);
+
   const [currency,     setCurrency]     = useState("EP");
   const [rawInput,     setRawInput]     = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
@@ -319,10 +448,10 @@ const SendTab = ({
     );
   }
 
-  // ── DONE ────────────────────────────────────────────────────────────────
+  // ── DONE / SENDING ──────────────────────────────────────────────────────
   if (step === 3) {
     return (
-      <div className="view-enter" style={{ display:"flex",flexDirection:"column",alignItems:"center",padding:"60px 20px" }}>
+      <div ref={rootRef} className="view-enter st-mobile-safe" style={{ display:"flex",flexDirection:"column",alignItems:"center",padding:"60px 20px" }}>
         <style>{CSS}</style>
         <div className={rpcDone ? "sring" : ""} style={{
           width:72,height:72,borderRadius:"50%",background:"rgba(163,230,53,.06)",
@@ -331,13 +460,22 @@ const SendTab = ({
           marginBottom:20,transition:"border-color .4s",
           boxShadow:rpcDone ? "0 0 40px rgba(163,230,53,.18)" : "none",
         }}>
-          {rpcLoading ? <Loader size={30} color="#a3e635" style={{ animation:"spin .8s linear infinite" }} /> : <CheckCircle size={32} color="#a3e635" />}
+          {rpcLoading
+            ? <Loader size={30} color="#a3e635" style={{ animation:"spin .8s linear infinite" }} />
+            : <CheckCircle size={32} color="#a3e635" />}
         </div>
-        <div style={{ fontSize:24,fontWeight:800,color:"#fff",marginBottom:6 }}>{rpcLoading ? "Sending…" : "Sent!"}</div>
+
+        <div style={{ fontSize:24,fontWeight:800,color:"#fff",marginBottom:6 }}>
+          {rpcLoading ? "Sending…" : "Sent!"}
+        </div>
         <div style={{ fontSize:38,fontWeight:700,fontFamily:"DM Mono,monospace",color:currency==="EP"?"#22d3ee":"#a3e635",marginBottom:4,letterSpacing:"-0.04em" }}>
           {parsed.toLocaleString()} <span style={{ fontSize:18 }}>{currency}</span>
         </div>
-        {fiatValue > 0 && <div style={{ fontSize:13,color:"rgba(255,255,255,.3)",fontFamily:"DM Mono,monospace",marginBottom:8 }}>≈ ₦{fiatValue.toLocaleString()}</div>}
+        {fiatValue > 0 && (
+          <div style={{ fontSize:13,color:"rgba(255,255,255,.3)",fontFamily:"DM Mono,monospace",marginBottom:8 }}>
+            ≈ ₦{fiatValue.toLocaleString()}
+          </div>
+        )}
 
         {selectedUser ? (
           <div onClick={() => setProfileUser(selectedUser)} style={{
@@ -364,6 +502,7 @@ const SendTab = ({
         <div style={{ display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.12)",borderRadius:100,fontSize:11,color:"#f87171",marginBottom:16 }}>
           <Flame size={11} />{epBurn} EP burned
         </div>
+
         {rpcLoading && (
           <div style={{ width:"100%",maxWidth:320,marginBottom:16 }}>
             <div style={{ fontSize:11,color:"rgba(255,255,255,.18)",textAlign:"center",marginBottom:6 }}>Confirming…</div>
@@ -375,13 +514,25 @@ const SendTab = ({
             <CheckCircle size={11} />Confirmed · {txId.slice(0,8)}…
           </div>
         )}
+
         {!rpcLoading && (
-          <div style={{ display:"flex",flexDirection:"column",width:"100%",maxWidth:320,marginTop:8,gap:8 }}>
-            <button className="btn-primary" onClick={() => { resetForm(); setActiveTab("overview"); }}>Back to Wallet</button>
-            <button className="btn-ghost" onClick={resetForm}>Send Again</button>
+          <div style={{ display:"flex",flexDirection:"column",alignItems:"center",width:"100%",maxWidth:320,marginTop:8,gap:10 }}>
+            <div className="st-action-row" style={{ width:"100%",padding:0 }}>
+              <button className="st-action-btn" onClick={() => { resetForm(); setActiveTab("overview"); }}>
+                Back to Wallet
+              </button>
+            </div>
+            <div className="st-action-row" style={{ width:"100%",padding:0 }}>
+              <button className="st-action-btn ghost" onClick={resetForm}>
+                Send Again
+              </button>
+            </div>
           </div>
         )}
-        <div className={`st-toast ${toastShow?"show":""}`}><div className={`td ${toastType==="err"?"err":""}`}/>{toastMsg}</div>
+
+        <div className={`st-toast ${toastShow?"show":""}`}>
+          <div className={`td ${toastType==="err"?"err":""}`}/>{toastMsg}
+        </div>
       </div>
     );
   }
@@ -389,12 +540,16 @@ const SendTab = ({
   // ── CONFIRM ──────────────────────────────────────────────────────────────
   if (step === 2) {
     return (
-      <div className="view-enter">
+      <div ref={rootRef} className="view-enter st-mobile-safe">
         <style>{CSS}</style>
         <div className="view-header">
           <button className="back-btn" onClick={() => setStep(1)}><ArrowLeft size={18} /></button>
-          <div><div className="view-title">Confirm</div><div className="view-subtitle">Review before sending</div></div>
+          <div>
+            <div className="view-title">Confirm</div>
+            <div className="view-subtitle">Review before sending</div>
+          </div>
         </div>
+
         {selectedUser && (
           <div onClick={() => setProfileUser(selectedUser)} style={{
             display:"flex",alignItems:"center",gap:12,margin:"0 20px 20px",padding:"14px",
@@ -409,9 +564,12 @@ const SendTab = ({
               </div>
               <div style={{ fontSize:12,color:"#a3e635",fontFamily:"DM Mono,monospace",marginTop:2 }}>@{selectedUser.username}</div>
             </div>
-            <span style={{ fontSize:11,color:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",gap:3 }}>View profile <ChevronRight size={13}/></span>
+            <span style={{ fontSize:11,color:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",gap:3 }}>
+              View profile <ChevronRight size={13}/>
+            </span>
           </div>
         )}
+
         {walletAddr && (
           <div className="waddr-card" style={{ margin:"0 20px 20px" }}>
             <div style={{ width:38,height:38,borderRadius:10,background:"rgba(34,211,238,.08)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
@@ -423,40 +581,79 @@ const SendTab = ({
             </div>
           </div>
         )}
+
         <div className="summary-card">
           <div className="summary-card-title">Transaction Details</div>
-          <div className="summary-row"><span>Amount</span><strong style={{ color:currency==="EP"?"#22d3ee":"#a3e635" }}>{parsed.toLocaleString()} {currency}</strong></div>
-          {fiatValue > 0 && <div className="summary-row"><span>Value</span><span>≈ ₦{fiatValue.toLocaleString()}</span></div>}
-          {note && <div className="summary-row"><span>Note</span><span style={{ maxWidth:180,textAlign:"right",fontSize:12 }}>{note}</span></div>}
+          <div className="summary-row">
+            <span>Amount</span>
+            <strong style={{ color:currency==="EP"?"#22d3ee":"#a3e635" }}>{parsed.toLocaleString()} {currency}</strong>
+          </div>
+          {fiatValue > 0 && (
+            <div className="summary-row"><span>Value</span><span>≈ ₦{fiatValue.toLocaleString()}</span></div>
+          )}
+          {note && (
+            <div className="summary-row"><span>Note</span><span style={{ maxWidth:180,textAlign:"right",fontSize:12 }}>{note}</span></div>
+          )}
           <div className="summary-divider" />
-          <div className="summary-row total"><span>EP Burn</span><strong style={{ color:"#f87171" }}>−{epBurn} EP</strong></div>
-          {currency === "EP" && <div className="summary-row"><span>Total EP</span><strong style={{ color:"rgba(255,255,255,.5)" }}>{parsed + epBurn} EP</strong></div>}
+          <div className="summary-row total">
+            <span>EP Burn</span><strong style={{ color:"#f87171" }}>−{epBurn} EP</strong>
+          </div>
+          {currency === "EP" && (
+            <div className="summary-row">
+              <span>Total EP</span><strong style={{ color:"rgba(255,255,255,.5)" }}>{parsed + epBurn} EP</strong>
+            </div>
+          )}
         </div>
-        <div className="ep-burn-notice" style={{ margin:"0 20px 20px" }}>
-          <Flame size={13} color="#f87171" /><span>{epBurn} EP burned — sustains the platform, non-refundable.</span>
+
+        <div className="ep-burn-notice" style={{ margin:"0 20px 24px" }}>
+          <Flame size={13} color="#f87171" />
+          <span>{epBurn} EP burned — sustains the platform, non-refundable.</span>
         </div>
-        <button className="btn-primary" onClick={handleSend}><Send size={15}/>Confirm &amp; Send</button>
-        <button className="btn-ghost" onClick={() => setStep(1)}>Cancel</button>
+
+        {/* ── Confirm & Send button — properly sized, centred ── */}
+        <div className="st-action-row">
+          <button className="st-action-btn" onClick={handleSend}>
+            <Send size={14}/>Confirm &amp; Send
+          </button>
+        </div>
+        <div className="st-action-row" style={{ marginTop:6 }}>
+          <button className="st-action-btn ghost" onClick={() => setStep(1)}>
+            Cancel
+          </button>
+        </div>
+
+        <div className={`st-toast ${toastShow?"show":""}`}>
+          <div className={`td ${toastType==="err"?"err":""}`}/>{toastMsg}
+        </div>
       </div>
     );
   }
 
   // ── STEP 1 — FORM ────────────────────────────────────────────────────────
   return (
-    <div className="view-enter">
+    <div ref={rootRef} className="view-enter st-mobile-safe">
       <style>{CSS}</style>
+
       <div className="view-header">
-        <button className="back-btn" onClick={() => setActiveTab("overview")}><ArrowLeft size={18} /></button>
-        <div><div className="view-title">Send</div><div className="view-subtitle">Transfer $XEV or EP instantly</div></div>
+        <button className="back-btn" onClick={() => setActiveTab("overview")}>
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <div className="view-title">Send</div>
+          <div className="view-subtitle">Transfer $XEV or EP instantly</div>
+        </div>
       </div>
 
       <CurrencySwitcher currency={currency} onChange={handleCurrencyChange} />
 
       <div className="form-body">
+        {/* ── Recipient ── */}
         <div className="field-group">
           <label className="field-label">
             Recipient
-            <span style={{ marginLeft:8,fontSize:10,color:"rgba(255,255,255,.2)",fontWeight:400,fontFamily:"DM Mono,monospace" }}>@username or 0x… address</span>
+            <span style={{ marginLeft:8,fontSize:10,color:"rgba(255,255,255,.2)",fontWeight:400,fontFamily:"DM Mono,monospace" }}>
+              @username or 0x… address
+            </span>
           </label>
 
           {selectedUser ? (
@@ -470,8 +667,12 @@ const SendTab = ({
                 <div className="rcpt-handle">@{selectedUser.username}</div>
               </div>
               <div style={{ display:"flex",gap:6,flexShrink:0 }}>
-                <button className="rcpt-view-btn" onClick={() => setProfileUser(selectedUser)}>Profile <ChevronRight size={10}/></button>
-                <button className="rcpt-chg-btn" onClick={clearRcpt}><X size={11}/> Change</button>
+                <button className="rcpt-view-btn" onClick={() => setProfileUser(selectedUser)}>
+                  Profile <ChevronRight size={10}/>
+                </button>
+                <button className="rcpt-chg-btn" onClick={clearRcpt}>
+                  <X size={11}/> Change
+                </button>
               </div>
             </div>
 
@@ -481,11 +682,17 @@ const SendTab = ({
                 <Shield size={20} color="#22d3ee"/>
               </div>
               <div style={{ flex:1 }}>
-                <div className="waddr-badge" style={{ marginBottom:5 }}><Shield size={8}/>On-chain address detected</div>
+                <div className="waddr-badge" style={{ marginBottom:5 }}>
+                  <Shield size={8}/>On-chain address detected
+                </div>
                 <div className="waddr-text">{walletAddr.slice(0,20)}…{walletAddr.slice(-8)}</div>
-                {currency === "EP" && <div style={{ fontSize:10,color:"#f87171",marginTop:4 }}>Switch to $XEV for wallet address sends</div>}
+                {currency === "EP" && (
+                  <div style={{ fontSize:10,color:"#f87171",marginTop:4 }}>Switch to $XEV for wallet address sends</div>
+                )}
               </div>
-              <button className="rcpt-chg-btn" onClick={clearRcpt} style={{ flexShrink:0 }}><X size={11}/> Clear</button>
+              <button className="rcpt-chg-btn" onClick={clearRcpt} style={{ flexShrink:0 }}>
+                <X size={11}/> Clear
+              </button>
             </div>
 
           ) : (
@@ -501,7 +708,9 @@ const SendTab = ({
                   onFocus={() => { if (results.length > 0) setShowDrop(true); }}
                   autoComplete="off" autoCapitalize="none" spellCheck={false}
                 />
-                {rawInput && <button className="st-clear" onClick={clearRcpt}><X size={13}/></button>}
+                {rawInput && (
+                  <button className="st-clear" onClick={clearRcpt}><X size={13}/></button>
+                )}
               </div>
 
               {showDrop && (
@@ -536,36 +745,64 @@ const SendTab = ({
           )}
         </div>
 
+        {/* ── Amount ── */}
         <div className="field-group">
           <label className="field-label">
             Amount
-            {currency === "EP" && <span style={{ marginLeft:8,color:"#22d3ee",fontWeight:700,fontSize:9,opacity:.7 }}>MIN 5 EP</span>}
+            {currency === "EP" && (
+              <span style={{ marginLeft:8,color:"#22d3ee",fontWeight:700,fontSize:9,opacity:.7 }}>MIN 5 EP</span>
+            )}
           </label>
           <div className="amount-field">
-            <input className="amount-input-big" type="number" placeholder="0"
-              value={amount} onChange={e => { setAmount(e.target.value); setError(""); }}
-              min={currency==="EP"?5:0} step={currency==="EP"?1:"any"}
+            <input
+              className="amount-input-big"
+              type="number"
+              placeholder="0"
+              value={amount}
+              onChange={e => { setAmount(e.target.value); setError(""); }}
+              min={currency==="EP"?5:0}
+              step={currency==="EP"?1:"any"}
             />
             <div className="amount-ticker-row">
-              <span className="amount-ticker" style={{ color:currency==="EP"?"#22d3ee":"#a3e635" }}>{currency==="XEV"?"$XEV":"EP"}</span>
-              {currency==="XEV" && parsed > 0 && <span className="amount-fiat-display">≈ ₦{fiatValue.toLocaleString()}</span>}
-              {currency==="EP" && parsed > 0 && !epMinFail && <span className="amount-fiat-display">{parsed<100?"0.5 EP fee":`${epBurn} EP fee`}</span>}
+              <span className="amount-ticker" style={{ color:currency==="EP"?"#22d3ee":"#a3e635" }}>
+                {currency==="XEV"?"$XEV":"EP"}
+              </span>
+              {currency==="XEV" && parsed > 0 && (
+                <span className="amount-fiat-display">≈ ₦{fiatValue.toLocaleString()}</span>
+              )}
+              {currency==="EP" && parsed > 0 && !epMinFail && (
+                <span className="amount-fiat-display">{parsed<100?"0.5 EP fee":`${epBurn} EP fee`}</span>
+              )}
             </div>
           </div>
-          <div className="field-hint">Available: <strong style={{ color:"rgba(255,255,255,.5)" }}>{available.toLocaleString()}</strong> {currency}</div>
+          <div className="field-hint">
+            Available: <strong style={{ color:"rgba(255,255,255,.5)" }}>{available.toLocaleString()}</strong> {currency}
+          </div>
         </div>
 
+        {/* ── Note ── */}
         <div className="field-group">
-          <label className="field-label">Note <span style={{ color:"rgba(255,255,255,.2)",fontWeight:400 }}>(optional)</span></label>
-          <input className="field-input" placeholder="What's this for?" value={note} onChange={e => setNote(e.target.value)} maxLength={120}/>
+          <label className="field-label">
+            Note <span style={{ color:"rgba(255,255,255,.2)",fontWeight:400 }}>(optional)</span>
+          </label>
+          <input
+            className="field-input"
+            placeholder="What's this for?"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            maxLength={120}
+          />
         </div>
 
+        {/* ── Burn notice ── */}
         {parsed > 0 && !epMinFail && (
           <div className="ep-burn-notice" style={{ marginBottom:14 }}>
             <Flame size={13} color="#f87171"/>
             <span>{currency==="EP" && parsed < 100 ? "Micro-transfer: 0.5 EP fee only" : `${epBurn} EP will be burned`}</span>
           </div>
         )}
+
+        {/* ── Warnings ── */}
         {epMinFail && (
           <div style={{ display:"flex",gap:8,alignItems:"center",padding:"10px 14px",background:"rgba(245,158,11,.06)",border:"1px solid rgba(245,158,11,.15)",borderRadius:8,marginBottom:12 }}>
             <AlertCircle size={14} color="#f59e0b"/>
@@ -580,12 +817,20 @@ const SendTab = ({
         )}
       </div>
 
-      <button className="btn-primary"
-        disabled={!hasRcpt || !amount || parsed <= 0 || tooLittle || epMinFail || (walletAddr && currency === "EP")}
-        onClick={handleContinue}>
-        <Send size={15}/>Continue
-      </button>
-      <div className={`st-toast ${toastShow?"show":""}`}><div className={`td ${toastType==="err"?"err":""}`}/>{toastMsg}</div>
+      {/* ── Continue button — renamed, self-contained, centred, auto-width ── */}
+      <div className="st-action-row">
+        <button
+          className="st-action-btn"
+          disabled={!hasRcpt || !amount || parsed <= 0 || tooLittle || epMinFail || (walletAddr && currency === "EP")}
+          onClick={handleContinue}
+        >
+          <Send size={14}/>Review Transfer
+        </button>
+      </div>
+
+      <div className={`st-toast ${toastShow?"show":""}`}>
+        <div className={`td ${toastType==="err"?"err":""}`}/>{toastMsg}
+      </div>
     </div>
   );
 };

@@ -1,70 +1,88 @@
-// ============================================================================
-// src/services/account/settingsService.js - COMPLETE - ALL OFF BY DEFAULT
-// ============================================================================
+// src/services/account/settingsService.js
+// ─────────────────────────────────────────────────────────────────────────────
+// Unified: Pro/subscription removed. Boost tier (silver/gold/diamond) is the
+// only upgrade path. Reads from profile_boosts table, not is_pro column.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 
 class SettingsService {
-  // ==================== GET USER SETTINGS ====================
+  // ── GET USER SETTINGS ──────────────────────────────────────────────────────
 
   async getUserSettings(userId) {
     try {
       console.log("⚙️ Loading settings for user:", userId);
 
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      const [profileRes, boostRes] = await Promise.allSettled([
+        supabase.from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single(),
+        supabase.from("profile_boosts")
+          .select("boost_tier,expires_at,status,is_system_grant,ep_bonus_pct")
+          .eq("user_id", userId)
+          .eq("status", "active")
+          .maybeSingle(),
+      ]);
 
-      if (error) throw error;
+      if (profileRes.status === "rejected") throw profileRes.reason;
+      const profile = profileRes.value.data;
+      if (!profile) throw new Error("Profile not found");
 
-      // DEFAULT TO ALL OFF - USER MUST EXPLICITLY ENABLE
+      // Notifications — default all OFF
       const defaultPreferences = {
         notify_profile_visits: false,
-        notify_comments: false,
-        notify_likes: false,
-        notify_shares: false,
-        notify_followers: false,
-        notify_unlocks: false,
+        notify_comments:       false,
+        notify_likes:          false,
+        notify_shares:         false,
+        notify_followers:      false,
+        notify_unlocks:        false,
       };
-
-      // Merge defaults with actual preferences (preserves user choices)
       const prefs = profile.preferences
         ? { ...defaultPreferences, ...profile.preferences }
         : defaultPreferences;
 
+      // Boost tier (replaces is_pro)
+      const boost = boostRes.status === "fulfilled" ? boostRes.value?.data : null;
+      const boostTier = boost?.boost_tier ?? "none";
+      const hasBoost  = !!boost && boostTier !== "none";
+
       const settings = {
         notifications: {
           profileVisits: prefs.notify_profile_visits === true,
-          comments: prefs.notify_comments === true,
-          likes: prefs.notify_likes === true,
-          shares: prefs.notify_shares === true,
-          newFollowers: prefs.notify_followers === true,
-          storyUnlocks: prefs.notify_unlocks === true,
+          comments:      prefs.notify_comments       === true,
+          likes:         prefs.notify_likes          === true,
+          shares:        prefs.notify_shares         === true,
+          newFollowers:  prefs.notify_followers      === true,
+          storyUnlocks:  prefs.notify_unlocks        === true,
         },
         privacy: {
           privateAccount: profile.is_private || false,
-          showEmail: profile.show_email || false,
-          showPhone: profile.show_phone || false,
+          showEmail:      profile.show_email  || false,
+          showPhone:      profile.show_phone  || false,
         },
         security: {
-          require2FA: profile.require_2fa || false,
+          require2FA:        profile.require_2fa       || false,
           passwordChangedAt: profile.password_changed_at,
-          securityLevel: profile.security_level || 1,
+          securityLevel:     profile.security_level    || 1,
         },
         contact: {
-          email: profile.email,
-          phone: profile.phone,
+          email:         profile.email,
+          phone:         profile.phone,
           phoneVerified: profile.phone_verified || false,
+        },
+        // Unified boost status — no more is_pro
+        boost: {
+          hasBoost,
+          tier:          boostTier,
+          expiresAt:     boost?.expires_at    ?? null,
+          isSystemGrant: boost?.is_system_grant ?? false,
+          epBonusPct:    boost?.ep_bonus_pct  ?? 0,
         },
       };
 
-      console.log(
-        "✅ Settings loaded - Notifications default to OFF:",
-        settings.notifications,
-      );
+      console.log("✅ Settings loaded:", settings.boost);
       return settings;
     } catch (error) {
       console.error("❌ Failed to fetch settings:", error);
@@ -72,13 +90,10 @@ class SettingsService {
     }
   }
 
-  // ==================== UPDATE NOTIFICATION SETTINGS ====================
+  // ── UPDATE NOTIFICATION SETTINGS ──────────────────────────────────────────
 
   async updateNotificationSettings(userId, notificationSettings) {
     try {
-      console.log("🔔 Updating notification settings:", notificationSettings);
-
-      // Get current preferences
       const { data: profile } = await supabase
         .from("profiles")
         .select("preferences")
@@ -86,383 +101,202 @@ class SettingsService {
         .single();
 
       const currentPrefs = profile?.preferences || {};
-
-      // Convert to database format with strict boolean values
       const updatedPrefs = {
         ...currentPrefs,
         notify_profile_visits: notificationSettings.profileVisits === true,
-        notify_comments: notificationSettings.comments === true,
-        notify_likes: notificationSettings.likes === true,
-        notify_shares: notificationSettings.shares === true,
-        notify_followers: notificationSettings.newFollowers === true,
-        notify_unlocks: notificationSettings.storyUnlocks === true,
+        notify_comments:       notificationSettings.comments      === true,
+        notify_likes:          notificationSettings.likes         === true,
+        notify_shares:         notificationSettings.shares        === true,
+        notify_followers:      notificationSettings.newFollowers  === true,
+        notify_unlocks:        notificationSettings.storyUnlocks  === true,
       };
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          preferences: updatedPrefs,
-          updated_at: new Date().toISOString(),
-        })
+      const { error } = await supabase.from("profiles")
+        .update({ preferences: updatedPrefs, updated_at: new Date().toISOString() })
         .eq("id", userId);
 
       if (error) throw error;
-
-      console.log("✅ Notification settings updated:", updatedPrefs);
       return { success: true, settings: notificationSettings };
     } catch (error) {
-      console.error("❌ Failed to update notification settings:", error);
       throw handleError(error, "Failed to update notification settings");
     }
   }
 
-  // ==================== UPDATE PRIVACY SETTINGS ====================
+  // ── UPDATE PRIVACY SETTINGS ────────────────────────────────────────────────
 
   async updatePrivacySettings(userId, privacySettings) {
     try {
-      console.log("🔒 Updating privacy settings:", privacySettings);
-
       const updates = {};
-
-      if (privacySettings.privateAccount !== undefined) {
-        updates.is_private = privacySettings.privateAccount;
-      }
-
-      if (privacySettings.showEmail !== undefined) {
-        updates.show_email = privacySettings.showEmail;
-      }
-
-      if (privacySettings.showPhone !== undefined) {
-        updates.show_phone = privacySettings.showPhone;
-      }
-
+      if (privacySettings.privateAccount !== undefined) updates.is_private = privacySettings.privateAccount;
+      if (privacySettings.showEmail      !== undefined) updates.show_email  = privacySettings.showEmail;
+      if (privacySettings.showPhone      !== undefined) updates.show_phone  = privacySettings.showPhone;
       updates.updated_at = new Date().toISOString();
 
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", userId);
-
+      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
       if (error) throw error;
-
-      console.log("✅ Privacy settings updated");
       return { success: true, settings: privacySettings };
     } catch (error) {
-      console.error("❌ Failed to update privacy settings:", error);
       throw handleError(error, "Failed to update privacy settings");
     }
   }
 
-  // ==================== UPDATE CONTACT INFO ====================
+  // ── UPDATE CONTACT INFO ────────────────────────────────────────────────────
 
   async updateContactInfo(userId, contactInfo) {
     try {
-      console.log("📧 Updating contact info");
-
       const updates = {};
-
-      if (contactInfo.email !== undefined) {
-        updates.email = contactInfo.email;
-      }
-
-      if (contactInfo.phone !== undefined) {
-        updates.phone = contactInfo.phone;
-        updates.phone_verified = false;
-      }
-
+      if (contactInfo.email !== undefined) updates.email = contactInfo.email;
+      if (contactInfo.phone !== undefined) { updates.phone = contactInfo.phone; updates.phone_verified = false; }
       updates.updated_at = new Date().toISOString();
 
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", userId);
-
+      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
       if (error) throw error;
-
-      console.log("✅ Contact info updated");
       return { success: true };
     } catch (error) {
-      console.error("❌ Failed to update contact info:", error);
       throw handleError(error, "Failed to update contact info");
     }
   }
 
-  // ==================== CHANGE PASSWORD ====================
+  // ── CHANGE PASSWORD ────────────────────────────────────────────────────────
 
   async changePassword(currentPassword, newPassword) {
     try {
-      console.log("🔑 Changing password");
-
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase
-          .from("profiles")
-          .update({
-            password_changed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+        await supabase.from("profiles")
+          .update({ password_changed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
           .eq("id", user.id);
-
         await supabase.from("security_events").insert({
-          user_id: user.id,
-          event_type: "password_changed",
-          severity: "info",
-          metadata: {},
+          user_id: user.id, event_type: "password_changed", severity: "info", metadata: {},
         });
       }
-
-      console.log("✅ Password changed successfully");
       return { success: true, message: "Password changed successfully" };
     } catch (error) {
-      console.error("❌ Failed to change password:", error);
       throw handleError(error, "Failed to change password");
     }
   }
 
-  // ==================== GET PAYMENT METHODS ====================
+  // ── GET BOOST STATUS (replaces getSubscriptionStatus) ─────────────────────
 
-  async getPaymentMethods(userId) {
-    try {
-      // TODO: Implement actual payment method storage
-      // For now, return empty array
-      return [];
-    } catch (error) {
-      console.error("Failed to fetch payment methods:", error);
-      return [];
-    }
-  }
-
-  // ==================== ADD PAYMENT METHOD ====================
-
-  async addPaymentMethod(userId, paymentData) {
-    try {
-      // TODO: Implement actual payment processing integration
-      console.log("💳 Adding payment method:", paymentData);
-      return { success: true, message: "Payment method added" };
-    } catch (error) {
-      throw handleError(error, "Failed to add payment method");
-    }
-  }
-
-  // ==================== REMOVE PAYMENT METHOD ====================
-
-  async removePaymentMethod(userId, paymentMethodId) {
-    try {
-      // TODO: Implement actual payment processing integration
-      console.log("🗑️ Removing payment method:", paymentMethodId);
-      return { success: true, message: "Payment method removed" };
-    } catch (error) {
-      throw handleError(error, "Failed to remove payment method");
-    }
-  }
-
-  // ==================== GET SUBSCRIPTION STATUS ====================
-
-  async getSubscriptionStatus(userId) {
+  async getBoostStatus(userId) {
     try {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("is_pro, pro_expires_at")
-        .eq("id", userId)
-        .single();
+        .from("profile_boosts")
+        .select("boost_tier,expires_at,status,is_system_grant,ep_bonus_pct,billing")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
 
       if (error) throw error;
 
+      if (!data) return { hasBoost: false, tier: "none", expiresAt: null, isSystemGrant: false, epBonusPct: 0 };
+
       return {
-        isActive: data.is_pro || false,
-        plan: data.is_pro ? "Pro" : "Free",
-        renewalDate: data.pro_expires_at,
+        hasBoost:      true,
+        tier:          data.boost_tier,
+        expiresAt:     data.expires_at,
+        isSystemGrant: data.is_system_grant || false,
+        epBonusPct:    data.ep_bonus_pct    || 0,
+        billing:       data.billing,
       };
     } catch (error) {
-      console.error("Failed to fetch subscription status:", error);
-      return {
-        isActive: false,
-        plan: "Free",
-        renewalDate: null,
-      };
+      console.error("Failed to fetch boost status:", error);
+      return { hasBoost: false, tier: "none", expiresAt: null, isSystemGrant: false, epBonusPct: 0 };
     }
   }
 
-  // ==================== UPDATE SUBSCRIPTION ====================
+  // ── DEPRECATED: kept as stub so old callers don't crash ───────────────────
+  // These all forward to boost equivalents or return safe defaults.
+
+  async getSubscriptionStatus(userId) {
+    console.warn("⚠️ getSubscriptionStatus is deprecated. Use getBoostStatus instead.");
+    const boost = await this.getBoostStatus(userId);
+    return {
+      isActive:    boost.hasBoost,
+      plan:        boost.hasBoost ? boost.tier.charAt(0).toUpperCase() + boost.tier.slice(1) : "Free",
+      renewalDate: boost.expiresAt,
+    };
+  }
 
   async updateSubscription(userId, plan) {
-    try {
-      console.log("💎 Updating subscription to:", plan);
-
-      const isPro = plan === "pro";
-      const updates = {
-        is_pro: isPro,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (isPro) {
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-        updates.pro_expires_at = expiryDate.toISOString();
-      } else {
-        updates.pro_expires_at = null;
-      }
-
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      console.log("✅ Subscription updated");
-      return {
-        success: true,
-        message: isPro ? "Upgraded to Pro" : "Downgraded to Free",
-      };
-    } catch (error) {
-      console.error("❌ Failed to update subscription:", error);
-      throw handleError(error, "Failed to update subscription");
-    }
+    console.warn("⚠️ updateSubscription is deprecated. Use UpgradeView / boostService instead.");
+    return { success: false, message: "Use Boost (Silver/Gold/Diamond) via UpgradeView." };
   }
 
-  // ==================== REQUEST ACCOUNT DELETION ====================
+  // ── ACCOUNT DELETION ───────────────────────────────────────────────────────
 
   async requestAccountDeletion(userId) {
     try {
-      console.log("🗑️ Requesting account deletion");
-
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          deletion_requested_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+      const { error } = await supabase.from("profiles")
+        .update({ deletion_requested_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("id", userId);
-
       if (error) throw error;
-
-      // Log security event
       await supabase.from("security_events").insert({
-        user_id: userId,
-        event_type: "account_deletion_requested",
-        severity: "warning",
-        metadata: {},
+        user_id: userId, event_type: "account_deletion_requested", severity: "warning", metadata: {},
       });
-
-      console.log("✅ Account deletion requested");
-      return {
-        success: true,
-        message:
-          "Account deletion requested. Your account will be deleted in 30 days.",
-      };
+      return { success: true, message: "Account deletion requested. Your account will be deleted in 30 days." };
     } catch (error) {
-      console.error("❌ Failed to request account deletion:", error);
       throw handleError(error, "Failed to request account deletion");
     }
   }
 
-  // ==================== CANCEL ACCOUNT DELETION ====================
-
   async cancelAccountDeletion(userId) {
     try {
-      console.log("✅ Canceling account deletion");
-
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          deletion_requested_at: null,
-          updated_at: new Date().toISOString(),
-        })
+      const { error } = await supabase.from("profiles")
+        .update({ deletion_requested_at: null, updated_at: new Date().toISOString() })
         .eq("id", userId);
-
       if (error) throw error;
-
-      // Log security event
       await supabase.from("security_events").insert({
-        user_id: userId,
-        event_type: "account_deletion_cancelled",
-        severity: "info",
-        metadata: {},
+        user_id: userId, event_type: "account_deletion_cancelled", severity: "info", metadata: {},
       });
-
-      console.log("✅ Account deletion cancelled");
-      return {
-        success: true,
-        message: "Account deletion cancelled",
-      };
+      return { success: true, message: "Account deletion cancelled" };
     } catch (error) {
-      console.error("❌ Failed to cancel account deletion:", error);
       throw handleError(error, "Failed to cancel account deletion");
     }
   }
 
-  // ==================== SEND VERIFICATION CODE ====================
+  // ── PHONE VERIFICATION ─────────────────────────────────────────────────────
 
   async sendVerificationCode(userId, phoneNumber) {
     try {
-      console.log("📲 Sending verification code to:", phoneNumber);
-
-      // Generate random 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-      // In production, send via Twilio/AWS SNS
-      // For now, store in console and localStorage for testing
       console.log(`🔐 VERIFICATION CODE for ${phoneNumber}: ${code}`);
-
-      // Store code temporarily (in production, use server-side storage)
       localStorage.setItem(`verify_code_${userId}`, code);
       localStorage.setItem(`verify_phone_${userId}`, phoneNumber);
-
       return { success: true, message: "Verification code sent" };
     } catch (error) {
       throw handleError(error, "Failed to send verification code");
     }
   }
 
-  // ==================== VERIFY PHONE NUMBER ====================
-
   async verifyPhoneNumber(userId, phoneNumber, verificationCode) {
     try {
-      console.log("📱 Verifying phone number with code:", verificationCode);
-
-      // In production, verify via backend API
-      // For now, check against localStorage
-      const storedCode = localStorage.getItem(`verify_code_${userId}`);
+      const storedCode  = localStorage.getItem(`verify_code_${userId}`);
       const storedPhone = localStorage.getItem(`verify_phone_${userId}`);
+      if (storedCode  !== verificationCode) return { success: false, message: "Invalid verification code" };
+      if (storedPhone !== phoneNumber)      return { success: false, message: "Phone number mismatch" };
 
-      if (storedCode !== verificationCode) {
-        return { success: false, message: "Invalid verification code" };
-      }
-
-      if (storedPhone !== phoneNumber) {
-        return { success: false, message: "Phone number mismatch" };
-      }
-
-      // Update database
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          phone: phoneNumber,
-          phone_verified: true,
-          updated_at: new Date().toISOString(),
-        })
+      const { error } = await supabase.from("profiles")
+        .update({ phone: phoneNumber, phone_verified: true, updated_at: new Date().toISOString() })
         .eq("id", userId);
-
       if (error) throw error;
 
-      // Clean up
       localStorage.removeItem(`verify_code_${userId}`);
       localStorage.removeItem(`verify_phone_${userId}`);
-
       return { success: true, message: "Phone number verified" };
     } catch (error) {
       throw handleError(error, "Failed to verify phone number");
     }
   }
+
+  // ── PAYMENT METHODS (stubs) ────────────────────────────────────────────────
+
+  async getPaymentMethods(userId)                    { return []; }
+  async addPaymentMethod(userId, paymentData)        { return { success: true }; }
+  async removePaymentMethod(userId, paymentMethodId) { return { success: true }; }
 }
 
 const settingsService = new SettingsService();

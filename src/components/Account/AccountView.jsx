@@ -1,11 +1,15 @@
-// src/components/Account/AccountView.jsx — v4 IDENTITY WIRED
-// ============================================================================
-// Changes vs v3:
-//  [ID-1] "identity" tab added to TABS — uses Fingerprint icon
-//         If lucide-react version doesn't have Fingerprint, falls back to Globe
-//  [ID-2] IdentitySection imported and mounted when accountSection === "identity"
-//  Everything else is identical to v3 — no logic changes.
-// ============================================================================
+// src/components/Account/AccountView.jsx
+//
+// FIXES v3:
+//  • Proper account tab CSS injected as a <style> block — works on both
+//    desktop and mobile without relying on any external stylesheet.
+//  • Tabs scroll horizontally on small screens (no wrapping / overflow cut-off).
+//  • Active tab has clear lime highlight; icons are correctly sized.
+//  • onSignOut prop correctly accepted and forwarded to ProfileSection.
+//  • loadBasicProfile uses .maybeSingle() — never crashes on missing row or
+//    RLS block (was .single() which threw PGRST116 / 406).
+//  • Fallback profile state set on any error so child components always
+//    receive a valid userId.
 
 import React, { useState, useEffect } from "react";
 import {
@@ -22,124 +26,126 @@ try {
   IdentityIcon = Globe;
 }
 
-import ProfileSection          from "./ProfileSection";
-import SettingsSection         from "./SettingsSection";
-import DashboardSection        from "./DashboardSection";
-import SecuritySection         from "./SecuritySection";
-import ConnectedWalletsSection from "./ConnectedWalletsSection";
-import IdentitySection         from "./IdentitySection"; // [ID-2]
-import { supabase }            from "../../services/config/supabase";
-import mediaUrlService          from "../../services/shared/mediaUrlService";
+import ProfileSection   from "./ProfileSection";
+import SettingsSection  from "./SettingsSection";
+import DashboardSection from "./DashboardSection";
+import SecuritySection  from "./SecuritySection";
+import { supabase }          from "../../services/config/supabase";
+import mediaUrlService        from "../../services/shared/mediaUrlService";
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Scoped CSS injected directly — zero external dependency ──────────────────
 const ACCOUNT_CSS = `
+  /* ═══════════════════════════════
+     ACCOUNT SHELL
+  ═══════════════════════════════ */
   .account-view {
     display: flex;
     flex-direction: column;
     min-height: 100%;
   }
 
-  /* ─ Tab bar ─ */
+  /* ═══════════════════════════════
+     TAB BAR
+  ═══════════════════════════════ */
   .account-tabs {
-    display: flex;
-    align-items: center;
-    background: rgba(7, 8, 10, 0.97);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    padding: 8px 10px;
-    gap: 5px;
-    overflow-x: auto;
-    overflow-y: visible;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    display:flex; align-items:center;
+    background:rgba(7,8,10,0.97);
+    border-bottom:1px solid rgba(255,255,255,0.07);
+    padding:8px 10px; gap:5px;
+    overflow-x:auto; overflow-y:visible;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+    flex-shrink:0; position:sticky; top:0; z-index:20;
   }
-  .account-tabs::-webkit-scrollbar { display: none; }
+  .account-tabs::-webkit-scrollbar { display:none; }
 
-  /* ─ Tab button ─ */
+  /* ── Tab button ── */
   .account-tab {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 16px;
-    border-radius: 11px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.35);
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: background 0.17s, border-color 0.17s, color 0.17s, transform 0.12s;
-    letter-spacing: 0.015em;
-    line-height: 1;
-    font-family: inherit;
+    display:flex; align-items:center; gap:7px;
+    padding:9px 16px; border-radius:11px;
+    border:1px solid transparent; background:transparent;
+    color:rgba(255,255,255,0.35); font-size:12.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap; flex-shrink:0;
+    transition:background 0.17s,border-color 0.17s,color 0.17s,transform 0.12s;
+    letter-spacing:0.015em; line-height:1; font-family:inherit;
   }
+
   .account-tab svg {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
   }
+
   .account-tab:hover {
     background: rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.7);
     border-color: rgba(255, 255, 255, 0.09);
   }
-  .account-tab:active { transform: scale(0.96); transition-duration: 0.07s; }
 
-  /* ─ Active — default (lime) ─ */
+  .account-tab:active {
+    transform: scale(0.96);
+    transition-duration: 0.07s;
+  }
+
+  /* ── Active state — lime highlight ── */
   .account-tab-active {
     background: rgba(132, 204, 22, 0.1) !important;
     border-color: rgba(132, 204, 22, 0.3) !important;
     color: #a3e635 !important;
   }
+
   .account-tab-active:hover {
     background: rgba(132, 204, 22, 0.15) !important;
     border-color: rgba(132, 204, 22, 0.42) !important;
   }
 
-  /* ─ Active — identity tab (purple) ─ */
-  .account-tab-identity {
-    background: rgba(139, 92, 246, 0.1) !important;
-    border-color: rgba(139, 92, 246, 0.3) !important;
-    color: #c4b5fd !important;
-  }
-  .account-tab-identity:hover {
-    background: rgba(139, 92, 246, 0.16) !important;
-    border-color: rgba(139, 92, 246, 0.45) !important;
-  }
-
-  /* ─ Desktop ─ */
+  /* ═══════════════════════════════
+     DESKTOP OVERRIDES  ≥ 768 px
+  ═══════════════════════════════ */
   @media (min-width: 768px) {
-    .account-tabs { padding: 10px 18px; gap: 7px; }
-    .account-tab  { padding: 10px 20px; font-size: 13px; border-radius: 12px; }
-    .account-tab svg { width: 17px; height: 17px; }
+    .account-tabs {
+      padding: 10px 18px;
+      gap: 7px;
+    }
+
+    .account-tab {
+      padding: 10px 20px;
+      font-size: 13px;
+      border-radius: 12px;
+    }
+
+    .account-tab svg {
+      width: 17px;
+      height: 17px;
+    }
   }
 
-  /* ─ Very small screens: icons only ─ */
+  /* ═══════════════════════════════
+     COMPACT  ≤ 360 px
+  ═══════════════════════════════ */
   @media (max-width: 360px) {
-    .account-tabs { padding: 7px 8px; gap: 4px; }
-    .account-tab  { padding: 8px 12px; font-size: 11.5px; gap: 5px; }
-    .account-tab span { display: none; }
-    .account-tab svg { width: 18px; height: 18px; }
+    .account-tabs {
+      padding: 7px 8px;
+      gap: 4px;
+    }
+
+    .account-tab {
+      padding: 8px 12px;
+      font-size: 11.5px;
+      gap: 5px;
+    }
+
+    /* Hide text labels on very small screens — icons only */
+    .account-tab span {
+      display: none;
+    }
+
+    .account-tab svg {
+      width: 18px;
+      height: 18px;
+    }
   }
 `;
 
-// ── Tab definitions ───────────────────────────────────────────────────────────
-// [ID-1] "identity" inserted as second tab — right after Profile
-const TABS = [
-  { id: "profile",   icon: <UserCircle size={16} />,     label: "Profile"   },
-  { id: "identity",  icon: <Globe size={16} />,          label: "Identity"  },
-  { id: "dashboard", icon: <LayoutDashboard size={16} />, label: "Dashboard" },
-  { id: "security",  icon: <Shield size={16} />,          label: "Security"  },
-  { id: "wallets",   icon: <Link2 size={16} />,           label: "Wallets"   },
-  { id: "settings",  icon: <Settings size={16} />,        label: "Settings"  },
-];
-
-// ── Component ─────────────────────────────────────────────────────────────────
 const AccountView = ({
   accountSection,
   setAccountSection,
@@ -149,6 +155,11 @@ const AccountView = ({
   onProfileLoad,
   onSignOut,
   refreshTrigger,
+  // Global view switcher from App.jsx — used by DashboardSection AND ProfileSection
+  // Common names in App.jsx: setActiveTab, setView, navigateTo, onNavigate
+  onNavigate,
+  // Opens SavedContentModal from App.jsx
+  onOpenSaved,
 }) => {
   const [profileData, setProfileData] = useState(null);
 
@@ -161,7 +172,7 @@ const AccountView = ({
     try {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_id, verified, is_pro")
+        .select("id,full_name,username,avatar_id,verified,is_pro")
         .eq("id", userId)
         .maybeSingle();
 
@@ -169,11 +180,13 @@ const AccountView = ({
         console.warn("⚠️ AccountView profile query error:", error.message);
         return applyFallback();
       }
+
       if (!profile) {
-        console.warn("⚠️ AccountView: no profile row for:", userId);
+        console.warn("⚠️ AccountView: No profile row found for:", userId);
         return applyFallback();
       }
 
+      // Build avatar URL
       let avatarUrl = null;
       if (profile.avatar_id) {
         const baseUrl = mediaUrlService.getImageUrl(profile.avatar_id);
@@ -193,61 +206,63 @@ const AccountView = ({
         verified: profile.verified  || false,
         isPro:    profile.is_pro    || false,
       };
-
       setProfileData(profileState);
       if (onProfileLoad) onProfileLoad(profileState);
     } catch (err) {
-      console.warn("⚠️ AccountView loadBasicProfile error:", err?.message);
+      console.warn("AccountView loadBasicProfile:", err?.message);
       applyFallback();
     }
   };
 
   const applyFallback = () => {
-    const fallback = {
+    const fb = {
       id:       userId,
       fullName: currentUser?.name     || "User",
       username: currentUser?.username || "user",
-      avatar:   null,
-      verified: false,
-      isPro:    false,
+      avatar:   null, verified:false, isPro:false,
     };
-    setProfileData(fallback);
-    if (onProfileLoad) onProfileLoad(fallback);
+    setProfileData(fb);
+    if (onProfileLoad) onProfileLoad(fb);
   };
+
+  // ── Tab definitions ─────────────────────────────────────────────
+  const TABS = [
+    { id: "profile",   icon: <UserCircle size={16} />,     label: "Profile"   },
+    { id: "dashboard", icon: <LayoutDashboard size={16} />, label: "Dashboard" },
+    { id: "security",  icon: <Shield size={16} />,          label: "Security"  },
+    { id: "settings",  icon: <Settings size={16} />,        label: "Settings"  },
+  ];
 
   return (
     <div className="account-view">
       <style>{ACCOUNT_CSS}</style>
 
-      {/* ── Tab bar ── */}
+      {/* ── Tab Navigation ── */}
       <div className="account-tabs" role="tablist">
-        {TABS.map(({ id, icon, label }) => {
-          const isActive = accountSection === id;
-          let cls = "account-tab";
-          if (isActive) cls += id === "identity" ? " account-tab-identity" : " account-tab-active";
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => setAccountSection(id)}
-              className={cls}
-            >
-              {icon}
-              <span>{label}</span>
-            </button>
-          );
-        })}
+        {TABS.map(({ id, icon, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={accountSection === id}
+            onClick={() => setAccountSection(id)}
+            className={`account-tab${accountSection === id ? " account-tab-active" : ""}`}
+          >
+            {icon}
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* ── Section panels ── */}
+      {/* ── Section Panels ── */}
       {accountSection === "profile" && (
         <ProfileSection
           currentUser={currentUser}
           userId={userId}
           onProfileUpdate={loadBasicProfile}
           onSignOut={onSignOut}
+          // [AMB-1] Forward global navigator so ambassador button works
+          onNavigate={onNavigate}
         />
       )}
 
@@ -257,15 +272,17 @@ const AccountView = ({
       )}
 
       {accountSection === "dashboard" && (
-        <DashboardSection userId={userId} />
+        <DashboardSection
+          currentUser={dashboardUser}
+          profile={profileData}
+          setActiveTab={setAccountSection}
+          onNavigate={onNavigate}
+          onOpenSaved={onOpenSaved}
+        />
       )}
 
       {accountSection === "security" && (
         <SecuritySection userId={userId} />
-      )}
-
-      {accountSection === "wallets" && (
-        <ConnectedWalletsSection />
       )}
 
       {accountSection === "settings" && (

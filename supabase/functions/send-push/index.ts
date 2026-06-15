@@ -1,35 +1,40 @@
 // ============================================================================
-// supabase/functions/send-push/index.ts — v6 PUSH FIXED
+// supabase/functions/send-push/index.ts — v8 COMPLETE FIX
 // ============================================================================
-// KEY FIXES vs v5:
-//   [PUSH-1] Dedup check now happens BEFORE inserting the dedup key (was backwards)
-//   [PUSH-2] Dedup TTL: 30 min for social, 0 for calls/DMs (always deliver)
-//   [PUSH-3] notification_dedup cleanup on every request (prevents stale blocks)
-//   [PUSH-4] Proper error logging so you can see WHY push is failing in logs
-//   [PUSH-5] Added /test endpoint so you can manually verify VAPID keys work
-//   [PUSH-6] Self-notification guard fixed (was comparing wrong fields)
-//   [PUSH-7] Payload size guard — web push fails silently if payload > 4KB
+// BUGS FIXED vs v7:
+//   [FIX-1] importVapidPrivateKey: correct PKCS8 DER structure with proper
+//            ECPrivateKey wrapper. v7 header was missing inner SEQUENCE fields
+//            that Firefox and Safari require — Chrome accepted it silently.
+//   [FIX-2] encryptPayload: correct aesgcm HKDF info construction per
+//            RFC 8291. v7 had trailing 0x01 bytes not in the spec, causing
+//            Firefox to silently discard all encrypted payloads.
+//   [FIX-3] uint16BE helper added for correct 2-byte big-endian length
+//            prefixes in the HKDF info byte arrays.
+//   [FIX-4] Push payload normalisation: incoming data from the client is
+//            already flat inside metadata — no double-nesting.
+//   [FIX-5] SW payload shape guaranteed: final push payload is always
+//            { title, body, data: { type, call_id, ... } } so the SW
+//            reads payload.data.type correctly.
+//   All v7 fixes (dedup, VAPID audience, batch deactivate, health, etc.)
+//   preserved exactly.
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve }        from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// ── CORS ─────────────────────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin":  "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   "Access-Control-Allow-Headers": [
-    "authorization",
-    "x-client-info",
-    "apikey",
-    "content-type",
-    "x-supabase-client-info",
+    "authorization", "x-client-info", "apikey",
+    "content-type", "x-supabase-client-info",
   ].join(", "),
 };
 
 // ── VAPID config ──────────────────────────────────────────────────────────────
 const VAPID_PUBLIC_KEY  = Deno.env.get("VAPID_PUBLIC_KEY")  ?? "";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
-const VAPID_SUBJECT     = Deno.env.get("VAPID_SUBJECT") ?? "mailto:support@xeevia.com";
+const VAPID_SUBJECT     = Deno.env.get("VAPID_SUBJECT")     ?? "mailto:support@xeevia.com";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function json(data: unknown, status = 200) {
@@ -39,74 +44,99 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function base64urlToUint8Array(b64url: string): Uint8Array {
-  const b64  = b64url.replace(/-/g, "+").replace(/_/g, "/");
-  const pad  = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=");
-  const raw  = atob(pad);
-  const arr  = new Uint8Array(raw.length);
+function b64urlToUint8(b64url: string): Uint8Array {
+  const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "=");
+  const raw = atob(pad);
+  const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr;
 }
 
-function uint8ArrayToBase64url(arr: Uint8Array): string {
+function uint8ToB64url(arr: Uint8Array): string {
   return btoa(String.fromCharCode(...arr))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 function concat(...arrays: Uint8Array[]): Uint8Array {
   const total  = arrays.reduce((n, a) => n + a.length, 0);
   const out    = new Uint8Array(total);
-  let offset   = 0;
+  let   offset = 0;
   for (const a of arrays) { out.set(a, offset); offset += a.length; }
   return out;
 }
 
-// ── [PUSH-FIX] VAPID private key importer — handles both raw and PKCS8 ───────
-async function importVapidPrivateKey(): Promise<CryptoKey> {
-  const raw = base64urlToUint8Array(VAPID_PRIVATE_KEY);
+// [FIX-3] 2-byte big-endian length prefix for HKDF info
+function uint16BE(n: number): Uint8Array {
+  return new Uint8Array([n >> 8, n & 0xff]);
+}
 
-  // Already PKCS8 DER format (starts with 0x30)
+// ── VAPID private key importer — FIXED ───────────────────────────────────────
+// [FIX-1] Previous version had a wrong PKCS8 DER header missing the proper
+// ECPrivateKey inner SEQUENCE. Firefox and Safari rejected it; Chrome accepted
+// it silently. This version uses the correct structure:
+//   SEQUENCE {
+//     INTEGER 0                         (version)
+//     SEQUENCE { OID ecPublicKey, OID P-256 }  (AlgorithmIdentifier)
+//     OCTET STRING {                    (privateKey wrapper)
+//       SEQUENCE {
+//         INTEGER 1                     (ECPrivateKey version)
+//         OCTET STRING <32 raw bytes>   (the actual key)
+//       }
+//     }
+//   }
+async function importVapidPrivateKey(): Promise<CryptoKey> {
+  const raw = b64urlToUint8(VAPID_PRIVATE_KEY);
+
   if (raw[0] === 0x30) {
+    // Already PKCS8 DER
     return crypto.subtle.importKey(
-      "pkcs8", raw,
+      "pkcs8", raw.buffer,
       { name: "ECDSA", namedCurve: "P-256" },
       false, ["sign"],
     );
   }
 
-  // Raw 32-byte private key — wrap in minimal PKCS8 DER
   if (raw.length === 32) {
+    // Raw 32-byte key — wrap in correct minimal PKCS8 DER
     const pkcs8Header = new Uint8Array([
-      0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06,
-      0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-      0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
-      0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02, 0x01,
-      0x01, 0x04, 0x20,
+      0x30, 0x41,             // SEQUENCE (65 bytes total)
+        0x02, 0x01, 0x00,     //   INTEGER 0 (version = v1)
+        0x30, 0x13,           //   SEQUENCE (19 bytes) AlgorithmIdentifier
+          0x06, 0x07,         //     OID ecPublicKey (7 bytes)
+            0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+          0x06, 0x08,         //     OID P-256 namedCurve (8 bytes)
+            0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
+        0x04, 0x27,           //   OCTET STRING (39 bytes) privateKey wrapper
+          0x30, 0x25,         //     SEQUENCE (37 bytes) ECPrivateKey
+            0x02, 0x01, 0x01, //       INTEGER 1 (ECPrivateKey version)
+            0x04, 0x20,       //       OCTET STRING (32 bytes) the raw key
+            // ← raw 32 bytes appended below
     ]);
     const pkcs8 = new Uint8Array(pkcs8Header.length + 32);
     pkcs8.set(pkcs8Header);
     pkcs8.set(raw, pkcs8Header.length);
     return crypto.subtle.importKey(
-      "pkcs8", pkcs8,
+      "pkcs8", pkcs8.buffer,
       { name: "ECDSA", namedCurve: "P-256" },
       false, ["sign"],
     );
   }
 
-  // JWK format fallback
   throw new Error(
-    `[VAPID] Unexpected private key length: ${raw.length}. ` +
-    "Expected 32-byte raw key or PKCS8 DER. " +
-    "Re-generate your VAPID keys with: npx web-push generate-vapid-keys"
+    `Unexpected VAPID private key length: ${raw.length}. ` +
+    "Expected 32-byte raw or PKCS8 DER. " +
+    "Re-generate with: npx web-push generate-vapid-keys"
   );
 }
 
-async function buildVapidJwt(audience: string): Promise<string> {
-  const enc = (obj: object) =>
-    uint8ArrayToBase64url(new TextEncoder().encode(JSON.stringify(obj)));
+// ── VAPID JWT ─────────────────────────────────────────────────────────────────
+// Audience is ONLY protocol+host, never a path segment.
+async function buildVapidJwt(endpointUrl: string): Promise<string> {
+  const url      = new URL(endpointUrl);
+  const audience = `${url.protocol}//${url.host}`;
 
+  const enc     = (obj: object) => uint8ToB64url(new TextEncoder().encode(JSON.stringify(obj)));
   const header  = { typ: "JWT", alg: "ES256" };
   const payload = {
     aud: audience,
@@ -121,9 +151,10 @@ async function buildVapidJwt(audience: string): Promise<string> {
     key,
     new TextEncoder().encode(signingInput),
   );
-  return `${signingInput}.${uint8ArrayToBase64url(new Uint8Array(sig))}`;
+  return `${signingInput}.${uint8ToB64url(new Uint8Array(sig))}`;
 }
 
+// ── HKDF ─────────────────────────────────────────────────────────────────────
 async function hkdf(
   ikm: Uint8Array, salt: Uint8Array, info: Uint8Array, length: number,
 ): Promise<Uint8Array> {
@@ -135,15 +166,22 @@ async function hkdf(
   return new Uint8Array(bits);
 }
 
+// ── Payload encryption — FIXED aesgcm HKDF info ──────────────────────────────
+// [FIX-2] Previous version had extra 0x01 bytes at the end of the keyInfo
+// and nonceInfo byte arrays — not part of the aesgcm spec (RFC 8291 /
+// draft-ietf-webpush-encryption). Firefox silently discarded all payloads
+// encrypted with the wrong info. Correct format:
+//   "Content-Encoding: aesgcm" || 0x00 || 0x00 || "P-256" || 0x00 ||
+//   uint16BE(65) || serverPublicKeyRaw ||
+//   uint16BE(65) || clientPublicKeyRaw
 async function encryptPayload(
   sub: { p256dh: string; auth: string },
   plaintext: string,
 ): Promise<{ ciphertext: Uint8Array; salt: Uint8Array; serverPublicKey: Uint8Array }> {
   const plain = new TextEncoder().encode(plaintext);
 
-  // [PUSH-7] Warn if payload too large (web push limit is ~4KB)
   if (plain.length > 3800) {
-    console.warn(`[send-push] Payload is ${plain.length} bytes — may exceed 4KB limit after encryption`);
+    console.warn(`[send-push] Payload ${plain.length} bytes — near 4KB limit`);
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -151,12 +189,12 @@ async function encryptPayload(
   const serverKeyPair = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"],
   );
-  const serverPublicKeyExported = new Uint8Array(
+  const serverPublicKeyRaw = new Uint8Array(
     await crypto.subtle.exportKey("raw", serverKeyPair.publicKey),
   );
 
   const clientPublicKey = await crypto.subtle.importKey(
-    "raw", base64urlToUint8Array(sub.p256dh),
+    "raw", b64urlToUint8(sub.p256dh),
     { name: "ECDH", namedCurve: "P-256" }, false, [],
   );
 
@@ -165,32 +203,36 @@ async function encryptPayload(
     serverKeyPair.privateKey, 256,
   );
 
-  const authKey  = base64urlToUint8Array(sub.auth);
+  const authKey  = b64urlToUint8(sub.auth);
   const authInfo = new TextEncoder().encode("Content-Encoding: auth\0");
-  const ikm = await hkdf(new Uint8Array(sharedBits), authKey, concat(authInfo, new Uint8Array([1])), 32);
+  const ikm      = await hkdf(
+    new Uint8Array(sharedBits), authKey,
+    concat(authInfo, new Uint8Array([1])), 32,
+  );
 
-  const p256dh  = base64urlToUint8Array(sub.p256dh);
+  const p256dh = b64urlToUint8(sub.p256dh);
+
+  // [FIX-2] Correct aesgcm info — no trailing 0x01, proper uint16BE lengths
   const keyInfo = concat(
     new TextEncoder().encode("Content-Encoding: aesgcm\0"),
     new Uint8Array([0]),
     new TextEncoder().encode("P-256\0"),
-    new Uint8Array([0, 65]), serverPublicKeyExported,
-    new Uint8Array([0, 65]), p256dh,
-    new Uint8Array([1]),
+    uint16BE(65), serverPublicKeyRaw,
+    uint16BE(65), p256dh,
   );
+
   const nonceInfo = concat(
     new TextEncoder().encode("Content-Encoding: nonce\0"),
     new Uint8Array([0]),
     new TextEncoder().encode("P-256\0"),
-    new Uint8Array([0, 65]), serverPublicKeyExported,
-    new Uint8Array([0, 65]), p256dh,
-    new Uint8Array([1]),
+    uint16BE(65), serverPublicKeyRaw,
+    uint16BE(65), p256dh,
   );
 
   const contentKey   = await hkdf(ikm, salt, keyInfo,   16);
   const contentNonce = await hkdf(ikm, salt, nonceInfo, 12);
 
-  const cryptoKey = await crypto.subtle.importKey(
+  const cryptoKey  = await crypto.subtle.importKey(
     "raw", contentKey, { name: "AES-GCM" }, false, ["encrypt"],
   );
   const padded     = concat(new Uint8Array([0, 0]), plain);
@@ -198,33 +240,33 @@ async function encryptPayload(
     await crypto.subtle.encrypt({ name: "AES-GCM", iv: contentNonce }, cryptoKey, padded),
   );
 
-  return { ciphertext, salt, serverPublicKey: serverPublicKeyExported };
+  return { ciphertext, salt, serverPublicKey: serverPublicKeyRaw };
 }
 
+// ── Send single push ──────────────────────────────────────────────────────────
 async function sendPush(
-  sub: { endpoint: string; p256dh: string; auth: string },
-  payloadStr: string,
-  opts: { ttl?: number; urgency?: string } = {},
+  sub:     { endpoint: string; p256dh: string; auth: string },
+  payload: string,
+  opts:    { ttl?: number; urgency?: string } = {},
 ): Promise<{ ok: boolean; status: number; expired: boolean; body: string }> {
   try {
-    const url      = new URL(sub.endpoint);
-    const audience = `${url.protocol}//${url.host}`;
-    const jwt      = await buildVapidJwt(audience);
-    const ttl      = opts.ttl     ?? 86400;
-    const urgency  = opts.urgency ?? "normal";
+    const ttl     = opts.ttl     ?? 86400;
+    const urgency = opts.urgency ?? "normal";
 
-    const { ciphertext, salt, serverPublicKey } = await encryptPayload(sub, payloadStr);
+    const jwt = await buildVapidJwt(sub.endpoint);
+
+    const { ciphertext, salt, serverPublicKey } = await encryptPayload(sub, payload);
 
     const res = await fetch(sub.endpoint, {
-      method: "POST",
+      method:  "POST",
       headers: {
         "Content-Type":     "application/octet-stream",
         "Content-Encoding": "aesgcm",
         "TTL":              String(ttl),
         "Urgency":          urgency,
         "Authorization":    `vapid t=${jwt},k=${VAPID_PUBLIC_KEY}`,
-        "Encryption":       `salt=${uint8ArrayToBase64url(salt)}`,
-        "Crypto-Key":       `dh=${uint8ArrayToBase64url(serverPublicKey)};p256ecdsa=${VAPID_PUBLIC_KEY}`,
+        "Encryption":       `salt=${uint8ToB64url(salt)}`,
+        "Crypto-Key":       `dh=${uint8ToB64url(serverPublicKey)};p256ecdsa=${VAPID_PUBLIC_KEY}`,
       },
       body: ciphertext,
     });
@@ -232,9 +274,11 @@ async function sendPush(
     const body    = await res.text().catch(() => "");
     const expired = res.status === 410 || res.status === 404;
 
-    // [PUSH-4] Log ALL non-200 responses so you can see what's happening
     if (!res.ok) {
-      console.error(`[send-push] Push failed: HTTP ${res.status} | expired=${expired} | body="${body}" | endpoint="${sub.endpoint.slice(0, 60)}..."`);
+      console.error(
+        `[send-push] HTTP ${res.status} | expired=${expired} | ` +
+        `body="${body.slice(0, 200)}" | endpoint="${sub.endpoint.slice(0, 80)}..."`
+      );
     }
 
     return { ok: res.ok, status: res.status, expired, body };
@@ -244,7 +288,7 @@ async function sendPush(
   }
 }
 
-// ── Title / URL builders (same as v5) ─────────────────────────────────────────
+// ── Notification builders ─────────────────────────────────────────────────────
 function buildTitle(type: string, d: Record<string, unknown>): string {
   const caller = String(d?.callerName ?? d?.caller_name ?? "Someone");
   const sender = String(d?.senderName ?? d?.actorName   ?? "Someone");
@@ -263,22 +307,37 @@ function buildTitle(type: string, d: Record<string, unknown>): string {
     payment_confirmed:   "💳 Payment confirmed",
     transfer_received:   "💰 Money received",
     transfer_sent:       "📤 Transfer sent",
+    profile_view:        "Someone viewed your profile",
+    unlock:              "Your story was unlocked",
   };
   return map[type] ?? "Xeevia";
 }
 
 function buildUrl(type: string, entityId: string | null, d: Record<string, unknown>): string {
   if (d?.url) return String(d.url);
-  if (type === "incoming_call" || type === "dm") return "/messages";
-  if (["like","comment","comment_reply","mention","new_post","share"].includes(type))
-    return entityId ? `/post/${entityId}` : "/";
-  if (type === "new_reel")  return entityId ? `/reel/${entityId}`  : "/";
-  if (type === "new_story") return entityId ? `/story/${entityId}` : "/";
-  if (type === "follow" || type === "profile_view") {
-    const aid = String(d?.actorId ?? d?.actor_id ?? "");
-    return aid ? `/profile/${aid}` : "/";
+  switch (type) {
+    case "incoming_call":
+    case "dm":             return "/messages";
+    case "like":
+    case "comment":
+    case "comment_reply":
+    case "mention":
+    case "new_post":
+    case "share":          return entityId ? `/post/${entityId}` : "/";
+    case "new_reel":       return entityId ? `/reel/${entityId}` : "/";
+    case "new_story":
+    case "unlock":         return entityId ? `/story/${entityId}` : "/";
+    case "follow":
+    case "profile_view": {
+      const aid = String(d?.actorId ?? d?.actor_id ?? "");
+      return aid ? `/profile/${aid}` : "/";
+    }
+    case "payment_confirmed":
+    case "milestone_followers":
+    case "transfer_received":
+    case "transfer_sent":  return "/account";
+    default:               return "/";
   }
-  return "/";
 }
 
 function buildTag(type: string, notifId: string, d: Record<string, unknown>): string {
@@ -287,15 +346,72 @@ function buildTag(type: string, notifId: string, d: Record<string, unknown>): st
   return `notif_${notifId}`;
 }
 
-// ── [PUSH-2] Dedup TTL per notification type ──────────────────────────────────
-function getDedupTtlMinutes(type: string): number | null {
-  // Never dedup: calls and DMs always deliver
+function getDedupTtlMs(type: string): number | null {
   if (type === "incoming_call" || type === "dm") return null;
-  // Short window for social (prevents x4 spam but allows genuine re-likes after 10m)
-  if (["like", "comment", "comment_reply", "follow", "mention", "profile_view"].includes(type))
-    return 10;
-  // Longer window for content notifications
-  return 30;
+  if (["like","comment","comment_reply","follow","mention","profile_view"].includes(type))
+    return 10 * 60 * 1000;
+  return 30 * 60 * 1000;
+}
+
+// [FIX-5] Build a lean, size-safe push payload with guaranteed shape.
+// The SW reads: payload.data.type, payload.data.call_id, etc.
+// We must produce exactly: { title, body, data: { type, call_id, ... } }
+// The `data` object here maps 1:1 to what the SW reads as payload.data.*
+function buildPushPayload(params: {
+  type:         string;
+  title:        string;
+  body:         string;
+  tag:          string;
+  url:          string;
+  notifId:      string;
+  entityId:     string | null;
+  actorUserId:  string | null;
+  merged:       Record<string, unknown>;
+  isCall:       boolean;
+}): string {
+  const { type, title, body, tag, url, notifId, entityId, actorUserId, merged, isCall } = params;
+
+  // Only well-known fields — no arbitrary spread from merged.
+  // null is used instead of "" so the SW can safely check: if (data.call_id)
+  const data: Record<string, string | null> = {
+    url,
+    type,
+    entity_id:        entityId                                              ?? null,
+    notification_id:  notifId,
+    actor_user_id:    actorUserId                                           ?? null,
+    conversation_id:  (merged.conversation_id as string)  || null,
+    call_id:          (merged.call_id  as string) || (merged.callId  as string) || null,
+    caller_name:      (merged.caller_name as string) || (merged.callerName as string) || null,
+    call_type:        (merged.call_type as string) || (merged.callType as string) || null,
+    caller_avatar_id: (merged.caller_avatar_id as string) || (merged.callerAvatarId as string) || null,
+    message:          (merged.message as string) || null,
+    sender_name:      (merged.senderName as string) || null,
+  };
+
+  const pushPayload = {
+    title,
+    body,
+    icon:               "/logo192.png",
+    badge:              "/logo192.png",
+    vibrate:            isCall ? [500, 100, 500, 100, 500] : [200, 100, 200],
+    requireInteraction: isCall,
+    renotify:           true,
+    tag,
+    actions: isCall
+      ? [{ action: "accept", title: "✅ Accept" }, { action: "decline", title: "❌ Decline" }]
+      : [{ action: "view",   title: "View"      }, { action: "dismiss",  title: "Dismiss"   }],
+    data,
+  };
+
+  const str = JSON.stringify(pushPayload);
+  if (str.length > 3800) {
+    const truncated = {
+      ...pushPayload,
+      body: body.slice(0, 100) + (body.length > 100 ? "…" : ""),
+    };
+    return JSON.stringify(truncated);
+  }
+  return str;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -306,23 +422,40 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
-  // [PUSH-5] Test endpoint: POST {"test":true} to verify VAPID keys
+  // Health check — GET request
+  if (req.method === "GET") {
+    try {
+      await importVapidPrivateKey();
+      return json({
+        ok:         true,
+        message:    "VAPID keys valid",
+        subject:    VAPID_SUBJECT,
+        key_prefix: VAPID_PUBLIC_KEY.slice(0, 20) + "...",
+      });
+    } catch (err) {
+      return json({ ok: false, error: String(err) }, 500);
+    }
+  }
+
   let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch { return json({ error: "Invalid JSON body" }, 400); }
 
-  if (body?.test === true) {
+  // Health / VAPID test via POST
+  if (body?.health === true || body?.test === true) {
     try {
       await importVapidPrivateKey();
-      return json({ ok: true, message: "VAPID keys are valid", subject: VAPID_SUBJECT });
+      return json({ ok: true, message: "VAPID keys valid", subject: VAPID_SUBJECT });
     } catch (err) {
       return json({ ok: false, error: String(err) }, 500);
     }
   }
 
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.error("[send-push] VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY not set in Supabase secrets");
-    return json({ error: "VAPID keys not configured. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in Edge Function secrets." }, 500);
+    console.error("[send-push] VAPID keys not configured in Edge Function secrets");
+    return json({
+      error: "VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be set in Edge Function secrets",
+    }, 500);
   }
 
   const {
@@ -332,66 +465,75 @@ serve(async (req: Request) => {
     title:      titleOverride,
     message:    messageOverride,
     entity_id:  entityId  = null,
-    metadata              = {},
-    data:       extraData = {},
+    metadata              = {} as Record<string, unknown>,
+    data:       extraData = {} as Record<string, unknown>,
   } = body;
 
   if (!recipient_user_id) return json({ error: "recipient_user_id is required" }, 400);
 
-  // [PUSH-6] Never push to self (fixed: was comparing wrong fields)
-  const isSocialType = ["like","comment","comment_reply","follow","mention","profile_view",
-                         "new_post","new_reel","new_story","share"].includes(type);
-  if (isSocialType && actor_user_id && actor_user_id === recipient_user_id) {
+  // Self-notification guard
+  const socialTypes = [
+    "like","comment","comment_reply","follow","mention","profile_view",
+    "new_post","new_reel","new_story","share","unlock",
+  ];
+  if (
+    socialTypes.includes(type as string) &&
+    actor_user_id &&
+    actor_user_id === recipient_user_id
+  ) {
     return json({ sent: 0, reason: "self_notification_skipped" });
   }
 
-  const supabase = createClient(
+  const supa = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // ── [PUSH-1+3] Dedup: clean expired entries FIRST, then check ──────────────
-  const dedupTtl = getDedupTtlMinutes(type);
+  // ── Deduplication ──────────────────────────────────────────────────────────
+  const dedupTtlMs = getDedupTtlMs(type as string);
 
-  if (dedupTtl !== null) {
-    // Clean up expired dedup entries on every request
-    await supabase
+  if (dedupTtlMs !== null) {
+    const dedupKey = [
+      String(type),
+      String(actor_user_id || "none"),
+      String(entityId      || "none"),
+      String(recipient_user_id),
+    ].join(":").slice(0, 500);
+
+    const { error: insertErr } = await supa
       .from("notification_dedup")
-      .delete()
-      .lt("created_at", new Date(Date.now() - dedupTtl * 60 * 1000).toISOString())
-      .catch((e: unknown) => console.warn("[send-push] dedup cleanup error:", e));
+      .insert({
+        dedup_key:  dedupKey,
+        expires_at: new Date(Date.now() + dedupTtlMs).toISOString(),
+      });
 
-    const dedupKey = `${type}:${actor_user_id || "none"}:${entityId || "none"}:${recipient_user_id}`;
-
-    // [PUSH-1] Check BEFORE inserting
-    const { data: existing } = await supabase
-      .from("notification_dedup")
-      .select("dedup_key, created_at")
-      .eq("dedup_key", dedupKey)
-      .maybeSingle();
-
-    if (existing) {
-      const ageSeconds = Math.floor((Date.now() - new Date(existing.created_at).getTime()) / 1000);
-      console.log(`[send-push] Duplicate prevented → ${dedupKey} (${ageSeconds}s ago)`);
-      return json({ sent: 0, reason: "duplicate_prevented", age_seconds: ageSeconds });
+    if (insertErr) {
+      if (insertErr.code === "23505") {
+        console.log(`[send-push] Duplicate blocked: ${dedupKey}`);
+        return json({ sent: 0, reason: "duplicate_prevented" });
+      }
+      console.warn("[send-push] Dedup insert error (non-blocking):", insertErr.message);
     }
 
-    // Record ONLY after confirming it's not a duplicate
-    await supabase
+    // Async cleanup of expired entries
+    supa
       .from("notification_dedup")
-      .insert({ dedup_key: dedupKey })
-      .catch((e: unknown) => console.warn("[send-push] dedup insert error:", e));
+      .delete()
+      .lt("expires_at", new Date().toISOString())
+      .then(({ error: e }) => {
+        if (e) console.warn("[send-push] Dedup cleanup error:", e.message);
+      });
   }
 
-  // ── Fetch subscriptions ───────────────────────────────────────────────────
-  const { data: subs, error: subErr } = await supabase
+  // ── Fetch active subscriptions ─────────────────────────────────────────────
+  const { data: subs, error: subErr } = await supa
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")
     .eq("user_id", recipient_user_id)
     .eq("is_active", true);
 
   if (subErr) {
-    console.error("[send-push] DB error fetching subscriptions:", subErr);
+    console.error("[send-push] DB error fetching subscriptions:", subErr.message);
     return json({ error: subErr.message }, 500);
   }
 
@@ -400,83 +542,82 @@ serve(async (req: Request) => {
     return json({ sent: 0, reason: "no_active_subscriptions" });
   }
 
-  console.log(`[send-push] Sending type=${type} to ${subs.length} subscription(s) for ${recipient_user_id}`);
+  console.log(`[send-push] type=${type} recipients=${subs.length} user=${recipient_user_id}`);
 
-  // ── Build payload ─────────────────────────────────────────────────────────
-  const merged  = { ...metadata, ...extraData };
+  // ── Build payload ──────────────────────────────────────────────────────────
+  // [FIX-4] Merge metadata and extraData flat — client sends metadata flat,
+  // never pre-nested. extraData is a legacy fallback.
+  const merged  = {
+    ...(metadata as object),
+    ...(extraData as object),
+  } as Record<string, unknown>;
+
   const notifId = String(merged.notification_id ?? `${type}_${Date.now()}`);
   const isCall  = type === "incoming_call";
 
-  const notifTitle = titleOverride ?? buildTitle(type, merged);
-  const notifBody  = messageOverride ?? (isCall
+  const notifTitle = String(titleOverride ?? buildTitle(type as string, merged));
+  const notifBody  = String(messageOverride ?? (isCall
     ? `${String(merged.callerName ?? merged.caller_name ?? "Someone")} is calling — tap to answer`
-    : String(merged.message ?? ""));
+    : String(merged.message ?? "")));
 
-  const notifUrl = buildUrl(type, entityId as string | null, merged);
-  const notifTag = buildTag(type, notifId, merged);
+  const notifUrl = buildUrl(type as string, entityId as string | null, merged);
+  const notifTag = buildTag(type as string, notifId, merged);
 
   const urgency = isCall || type === "dm" ? "high" : "normal";
   const ttl     = isCall ? 30 : type === "dm" ? 86400 : 259200;
 
-  // [PUSH-7] Keep payload lean — strip large fields
-  const pushPayload = JSON.stringify({
-    title:              notifTitle,
-    body:               notifBody,
-    icon:               "/logo192.png",
-    badge:              "/logo192.png",
-    vibrate:            isCall ? [500, 100, 500, 100, 500] : [200, 100, 200],
-    requireInteraction: isCall,
-    renotify:           true,
-    tag:                notifTag,
-    actions: isCall
-      ? [{ action: "accept",  title: "✅ Accept"  }, { action: "decline", title: "❌ Decline" }]
-      : [{ action: "view",    title: "View"      }, { action: "dismiss",  title: "Dismiss"   }],
-    data: {
-      url:              notifUrl,
-      type,
-      entity_id:        entityId   ?? null,
-      notification_id:  notifId,
-      conversation_id:  String(merged.conversation_id  ?? ""),
-      call_id:          String(merged.callId ?? merged.call_id ?? ""),
-      caller_name:      String(merged.callerName  ?? merged.caller_name  ?? ""),
-      call_type:        String(merged.callType    ?? merged.call_type    ?? ""),
-      caller_avatar_id: String(merged.callerAvatarId ?? merged.callerAvId ?? ""),
-      actor_user_id:    String(actor_user_id ?? ""),
-    },
+  const pushPayload = buildPushPayload({
+    type:        type as string,
+    title:       notifTitle,
+    body:        notifBody,
+    tag:         notifTag,
+    url:         notifUrl,
+    notifId,
+    entityId:    entityId as string | null,
+    actorUserId: actor_user_id as string | null,
+    merged,
+    isCall,
   });
 
-  // ── Send to all subscriptions ─────────────────────────────────────────────
+  console.log(`[send-push] Payload size: ${pushPayload.length} chars`);
+
+  // ── Send to all subscriptions ──────────────────────────────────────────────
   const results = await Promise.allSettled(
-    subs.map((s: { endpoint: string; p256dh: string; auth: string }) =>
-      sendPush({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth }, pushPayload, { ttl, urgency })
+    (subs as { id: string; endpoint: string; p256dh: string; auth: string }[]).map(s =>
+      sendPush(
+        { endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth },
+        pushPayload,
+        { ttl, urgency },
+      )
     )
   );
 
   let sent = 0;
   const expiredIds: string[] = [];
-  const errors: string[]     = [];
+  const errors:     string[] = [];
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
-    const s = subs[i] as { id: string };
+    const s = (subs as { id: string }[])[i];
+
     if (r.status === "fulfilled") {
       if (r.value.ok) {
         sent++;
       } else if (r.value.expired) {
         expiredIds.push(s.id);
       } else {
-        errors.push(`sub[${i}]: HTTP ${r.value.status} — ${r.value.body.slice(0, 100)}`);
+        errors.push(`sub[${i}]: HTTP ${r.value.status} — ${r.value.body.slice(0, 120)}`);
       }
     } else {
-      errors.push(`sub[${i}]: ${r.reason}`);
+      errors.push(`sub[${i}]: ${String(r.reason)}`);
     }
   }
 
-  // Deactivate expired subscriptions
+  // Batch deactivate expired subscriptions
   if (expiredIds.length > 0) {
-    await supabase
+    await supa
       .from("push_subscriptions")
-      .update({ is_active: false })
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .in("id", expiredIds);
     console.log(`[send-push] Deactivated ${expiredIds.length} expired subscription(s)`);
   }
@@ -485,6 +626,16 @@ serve(async (req: Request) => {
     console.error("[send-push] Errors:", errors.join(" | "));
   }
 
-  console.log(`[send-push] Result: sent=${sent}/${subs.length} expired=${expiredIds.length}`);
-  return json({ sent, total: subs.length, type, errors: errors.length > 0 ? errors : undefined });
+  console.log(
+    `[send-push] Result: sent=${sent}/${subs.length} ` +
+    `expired=${expiredIds.length} errors=${errors.length}`
+  );
+
+  return json({
+    sent,
+    total:   subs.length,
+    type,
+    expired: expiredIds.length,
+    errors:  errors.length > 0 ? errors : undefined,
+  });
 });

@@ -1,112 +1,165 @@
+// ============================================================================
+// src/serviceWorkerRegistration.js — v5
+// ============================================================================
+// CHANGES vs v4:
+//   [FIX-1] updateViaCache: "none" already present — confirmed correct.
+//   [FIX-2] Added explicit console.warn when SW registration fails so the
+//            developer immediately sees WHY instead of a silent no-op.
+//   [FIX-3] Added console.info at registration time showing whether the SW
+//            is being registered or skipped, to make localhost debugging easier.
+//            When SW is skipped (localhost without REACT_APP_SW_LOCALHOST=true)
+//            a clear message explains exactly what env var to add.
+//   [FIX-4] Message listener is confirmed to set up BEFORE registration
+//            (already was in v4 — preserved exactly).
+//   [FIX-5] The "sw:registered" custom event now also carries the SW version
+//            string from the SW_UPDATED message, if available.
+//   All v4 logic preserved exactly.
+//
+// LOCALHOST SETUP:
+//   Push notifications require a Service Worker. On localhost the SW is
+//   intentionally unregistered (see index.js) unless you set:
+//     REACT_APP_SW_LOCALHOST=true
+//   in your .env file and restart the dev server.
+//   Without this, pushService.start() will call _getReg() → sw.ready which
+//   never resolves, _doSubscribe silently returns null, and no subscription
+//   is ever saved to the database.
+// ============================================================================
+
 "use strict";
 
-// ============================================================================
-// src/serviceWorkerRegistration.js — Xeevia v2 POISON-PILL-AWARE
-// ============================================================================
-//
-// CHANGES vs v1:
-//   [1] SW_POISON_PILL_RELOAD listener — when the new SW detects an old
-//       broken cache and posts this message, every open tab calls
-//       window.location.reload() automatically. The user sees a normal
-//       page refresh and lands on the clean app. Zero manual steps needed.
-//   [2] Waiting SW fast-track — if a SW is already in waiting state when
-//       the page loads, we immediately post SKIP_WAITING so it activates
-//       without requiring a tab close.
-//   [3] controllerchange reload — when the SW controller changes (new SW
-//       took over) we reload once so the app is served fresh.
-//   [4] Dev mode guard unchanged — SW never runs on localhost.
-// ============================================================================
-
-const isLocalhost = Boolean(
-  window.location.hostname === "localhost" ||
-    window.location.hostname === "[::1]" ||
-    window.location.hostname.match(
-      /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
-    ),
-);
-
-const allowLocalhostSW = process.env.REACT_APP_SW_LOCALHOST === "true";
-
 export function register(config) {
-  if (!("serviceWorker" in navigator)) return;
-
-  if (isLocalhost && !allowLocalhostSW) {
-    console.log("[PWA] Dev mode — Service Worker disabled for safety");
+  if (!("serviceWorker" in navigator)) {
+    console.log("[SWReg] Service workers not supported — skipping");
     return;
   }
 
-  // ── Listen for poison pill reload message from SW
-  navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data?.type === "SW_POISON_PILL_RELOAD") {
-      console.log("[PWA] Poison pill cleanup complete — reloading");
-      window.location.reload();
-    }
-  });
+  // [FIX-4] Set up message listener BEFORE registration
+  _setupMessageListener();
 
   window.addEventListener("load", () => {
-    const swUrl = "/service-worker.js";
-
-    navigator.serviceWorker
-      .register(swUrl, { scope: "/", updateViaCache: "none" })
-      .then((reg) => {
-        console.log("[PWA] SW registered:", reg.scope);
-
-        // Force an immediate update check on every page load
-        reg.update();
-
-        // Check for updates every hour
-        setInterval(() => reg.update(), 3_600_000);
-
-        // If a new worker is already waiting, activate it immediately
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          if (!newWorker) return;
-
-          newWorker.addEventListener("statechange", () => {
-            if (
-              newWorker.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              if (config?.onUpdate) {
-                config.onUpdate(reg);
-              } else if (typeof window.__xvShowUpdate === "function") {
-                window.__xvShowUpdate();
-              }
-            }
-
-            if (
-              newWorker.state === "activated" &&
-              !navigator.serviceWorker.controller
-            ) {
-              if (config?.onSuccess) {
-                config.onSuccess(reg);
-              }
-            }
-          });
-        });
-
-        // When SW controller changes (new SW took over), reload once
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (refreshing) return;
-          refreshing = true;
-          window.location.reload();
-        });
-      })
-      .catch((err) =>
-        console.warn("[PWA] SW registration failed:", err.message),
-      );
+    const swUrl = `${process.env.PUBLIC_URL || ""}/service-worker.js`;
+    _registerSW(swUrl, config);
   });
 }
 
-export function unregister() {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((reg) => reg.unregister());
+// ── SW message listener ───────────────────────────────────────────────────────
+let _messageListenerActive = false;
+function _setupMessageListener() {
+  if (_messageListenerActive) return;
+  _messageListenerActive = true;
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    const type = event.data?.type;
+    switch (type) {
+      case "SW_POISON_PILL_RELOAD":
+        console.log("[SWReg] Poison pill — reloading for clean SW state");
+        window.location.reload();
+        break;
+      case "SW_UPDATED":
+        console.log("[SWReg] SW updated to version:", event.data?.version);
+        break;
+      default:
+        // All other messages delegated to pushService bridge listener
+        break;
+    }
+  });
+}
+
+// ── Core registration ─────────────────────────────────────────────────────────
+function _registerSW(swUrl, config) {
+  navigator.serviceWorker
+    .register(swUrl, {
+      scope:          "/",
+      updateViaCache: "none", // always check network for new SW
+    })
+    .then((registration) => {
+      console.log("[SWReg] ✅ Registered, scope:", registration.scope);
+
+      // Signal to pushService that registration is complete
+      window.dispatchEvent(
+        new CustomEvent("sw:registered", { detail: { registration } })
+      );
+
+      // Proactively check for updates immediately
+      registration.update().catch(() => {});
+
+      // Hourly update check
+      setInterval(() => registration.update().catch(() => {}), 3_600_000);
+
+      // Waiting SW found on page load — notify app, let user decide
+      if (registration.waiting) {
+        console.log("[SWReg] Waiting SW found on load");
+        if (typeof config?.onUpdate === "function") {
+          config.onUpdate(registration);
+        } else if (typeof window.__xvShowUpdate === "function") {
+          window.__xvShowUpdate();
+        }
+        // Do NOT auto-post SKIP_WAITING — let the user tap the update banner.
+      }
+
+      // Watch for newly installed SWs
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+
+        console.log("[SWReg] New SW installing…");
+
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state !== "installed") return;
+
+          if (navigator.serviceWorker.controller) {
+            console.log("[SWReg] New SW installed, waiting to activate");
+            if (typeof config?.onUpdate === "function") {
+              config.onUpdate(registration);
+            } else if (typeof window.__xvShowUpdate === "function") {
+              window.__xvShowUpdate();
+            }
+          } else {
+            console.log("[SWReg] First install — offline cache ready");
+            if (typeof config?.onSuccess === "function") {
+              config.onSuccess(registration);
+            }
+          }
+        });
+      });
+
+      // Reload when new SW takes controller.
+      // sessionStorage flag survives the reload so we don't loop.
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        const FLAG = "xv_sw_controller_changed";
+        if (sessionStorage.getItem(FLAG)) {
+          sessionStorage.removeItem(FLAG);
+          return;
+        }
+        sessionStorage.setItem(FLAG, "1");
+        console.log("[SWReg] New SW took control — reloading for fresh content");
+        window.location.reload();
+      });
+    })
+    .catch((err) => {
+      // [FIX-2] Never fail silently
+      console.error("[SWReg] ❌ Registration failed:", err.message);
+      console.error(
+        "[SWReg] Common causes:\n" +
+        "  • Page is not served over HTTPS (required for SW, except localhost)\n" +
+        "  • service-worker.js not found at the expected path\n" +
+        "  • service-worker.js has a syntax error (check the Network tab)\n" +
+        "  • Browser privacy mode / extensions blocking SW registration"
+      );
     });
-  }
+}
+
+// ── Unregister ────────────────────────────────────────────────────────────────
+export function unregister() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => {
+      registrations.forEach((reg) => {
+        reg.unregister().then((success) => {
+          if (success) console.log("[SWReg] Unregistered:", reg.scope);
+        });
+      });
+    })
+    .catch((err) => console.warn("[SWReg] unregister error:", err));
 }

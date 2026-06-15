@@ -570,12 +570,15 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
       </div>
 
       <style>{`
+        /* ── Backdrop: near-transparent on desktop, no blur ── */
         .upm-bd {
           position:fixed; inset:0; z-index:10000;
-          background:rgba(0,0,0,0.82); backdrop-filter:blur(8px);
+          background:rgba(0,0,0,0.28);
           display:flex; align-items:center; justify-content:center;
           padding:20px 16px; animation:upmFI .2s ease;
         }
+
+        /* ── Sheet: centered card on desktop ── */
         .upm-sheet {
           position:relative; width:100%; max-width:440px; max-height:90vh;
           overflow-y:auto; border-radius:20px; background:#0a0a0a;
@@ -584,6 +587,26 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
           animation:upmSU .25s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none;
         }
         .upm-sheet::-webkit-scrollbar { display:none; }
+
+        /* ── Mobile: fullscreen bottom sheet ── */
+        @media (max-width: 480px) {
+          .upm-bd {
+            padding:0;
+            align-items:flex-end;
+            background:rgba(0,0,0,0.55);
+          }
+          .upm-sheet {
+            max-width:100%;
+            width:100%;
+            max-height:100dvh;
+            height:100dvh;
+            border-radius:0;
+            border:none;
+            box-shadow:none;
+            animation:upmSUMobile .28s cubic-bezier(.34,1.2,.64,1);
+          }
+        }
+
         .upm-close {
           position:absolute; top:14px; right:14px; z-index:20;
           width:30px; height:30px; border-radius:50%;
@@ -631,9 +654,11 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
         .upm-cnt { padding:10px 14px 20px; min-height:100px; }
         .upm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
         .upm-empty { display:flex; flex-direction:column; align-items:center; gap:10px; padding:30px; color:#525252; font-size:13px; }
-        @keyframes upmFI  { from{opacity:0} to{opacity:1} }
-        @keyframes upmSU  { from{opacity:0;transform:translateY(24px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes upmSpin{ to{transform:rotate(360deg)} }
+
+        @keyframes upmFI       { from{opacity:0} to{opacity:1} }
+        @keyframes upmSU       { from{opacity:0;transform:translateY(24px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes upmSUMobile { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes upmSpin     { to{transform:rotate(360deg)} }
       `}</style>
     </div>,
     document.body

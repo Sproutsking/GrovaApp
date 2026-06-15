@@ -1,328 +1,733 @@
 // ============================================================================
-// src/services/notifications/pushService.js — v8 FINAL
+// src/services/notifications/pushService.js — v15 SECRET NAME FIX
 // ============================================================================
-// Built directly on your original v7 code you shared earlier.
-// Only minor improvements: better error handling, consistent userId storage, and safer subscribe guard.
-// No major rewrites — your logic preserved.
+// FIXES vs v14:
+//   [FIX-CRITICAL] diagnose() now explicitly checks that the Edge Function is
+//            reading VAPID_PUBLIC_KEY (not REACT_APP_VAPID_PUBLIC_KEY) and
+//            warns clearly when the key prefix returned by the health check
+//            doesn't match the .env key. This is the #1 reason push fails.
+//   [FIX-1] attachBridgeEarly() public method (from v14)
+//   [FIX-2] start() offline retry (from v14)
+//   [FIX-3] _doSubscribe VAPID key mismatch detection (from v14)
+//   [FIX-4] sendPushToUser self-send guard (from v14)
+//   [FIX-5] diagnose() side-by-side key comparison (from v14)
+//   [FIX-6] _saveSubscription stale-endpoint cleanup (from v14)
+//   All v14 logic preserved exactly.
+// ============================================================================
 
 import { supabase } from "../config/supabase";
 
 // ── VAPID key ─────────────────────────────────────────────────────────────────
-const VAPID_PUBLIC_KEY =
-  process.env.REACT_APP_VAPID_PUBLIC_KEY ||
-  "BIn84fMl6xilxp_r9d_hEUKaZbz_qPbSnPEq2acCJ5X8w469WNF7FleDB_WCMSiAfD2c3zXcpKSFGBFjDdVP57k";
+function getVapidKey() {
+  const k = process.env.REACT_APP_VAPID_PUBLIC_KEY;
+  if (!k) {
+    console.error(
+      "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY is not set.\n" +
+        "Add it to your .env file and restart the dev server.\n" +
+        "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets\n" +
+        "(Note: In .env use REACT_APP_VAPID_PUBLIC_KEY, in Supabase Secrets use VAPID_PUBLIC_KEY)",
+    );
+    return null;
+  }
+  if (k.length < 80) {
+    console.error(
+      "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY looks too short (" +
+        k.length +
+        " chars).\n" +
+        "A valid VAPID public key is ~87 characters of base64url.",
+    );
+    return null;
+  }
+  return k;
+}
 
-const isLocalhost = Boolean(
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "[::1]" ||
-  window.location.hostname.match(
-    /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
-  ),
-);
-const allowLocalhostSW = process.env.REACT_APP_SW_LOCALHOST === "true";
+// ── Edge function invoker ─────────────────────────────────────────────────────
+async function _invoke(body) {
+  try {
+    const { error } = await supabase.functions.invoke("send-push", { body });
+    if (error) {
+      console.error(
+        "[Push] Edge fn error:",
+        error.message || JSON.stringify(error),
+      );
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[Push] _invoke threw:", err.message);
+    return false;
+  }
+}
 
-// ── Typed event bus (your original) ───────────────────────────────────────────
+// ── Tiny event bus ────────────────────────────────────────────────────────────
 class EventBus {
-  constructor() { this._map = new Map(); }
+  constructor() {
+    this._map = new Map();
+  }
   on(event, fn) {
     if (!this._map.has(event)) this._map.set(event, new Set());
     this._map.get(event).add(fn);
     return () => this._map.get(event)?.delete(fn);
   }
   emit(event, data) {
-    this._map.get(event)?.forEach(fn => {
-      try { fn(data); } catch (e) { console.error("[PushService] handler error:", e); }
+    this._map.get(event)?.forEach((fn) => {
+      try {
+        fn(data);
+      } catch (e) {
+        console.error("[Push] bus handler threw:", e);
+      }
     });
   }
 }
 
-// ── Utility: convert VAPID public key to Uint8Array (your original) ───────────
+// ── VAPID key → Uint8Array ────────────────────────────────────────────────────
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64  = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
-  const output  = new Uint8Array(rawData.length);
+  const output = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) output[i] = rawData.charCodeAt(i);
   return output;
 }
 
-// ── Module state (your original + small safety) ───────────────────────────────
-const _bus              = new EventBus();
-let   _reg              = null;
-let   _started          = false;
-let   _userId           = null;
-let   _subscribing      = false;
-let   _onlineStartScheduled = false;
+// ── Module state ──────────────────────────────────────────────────────────────
+const _bus = new EventBus();
+let _userId = null;
+let _started = false;
+let _subscribing = false;
+let _bridgeAttached = false;
+let _visibilityListenerAdded = false;
 
-// ── Bridge setup (your exact code) ───────────────────────────────────────────
-_setupSWBridge();
+// ── SW registration ───────────────────────────────────────────────────────────
+async function _getReg() {
+  if (!("serviceWorker" in navigator)) return null;
+  try {
+    return await navigator.serviceWorker.ready;
+  } catch {
+    return null;
+  }
+}
 
-function _setupSWBridge() {
-  if (!("serviceWorker" in navigator)) return;
+// ── SW ↔ App message bridge ───────────────────────────────────────────────────
+function _attachBridge() {
+  if (_bridgeAttached || !("serviceWorker" in navigator)) return;
+  _bridgeAttached = true;
+
   navigator.serviceWorker.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg?.type) return;
+
     switch (msg.type) {
-      case "SW_UPDATED":
-        _bus.emit("sw_updated", { version: msg.version });
-        break;
-      case "SW_POISON_PILL_RELOAD":
-        console.warn("[Push] SW poison pill — reloading");
-        window.location.reload();
-        break;
       case "PUSH_RECEIVED":
         _bus.emit("push_received", msg.payload);
+        if (msg.payload?.data?.type === "incoming_call") {
+          _bus.emit("incoming_call_push", msg.payload.data);
+        }
         break;
+
       case "NOTIFICATION_CLICKED":
         _bus.emit("notification_clicked", { url: msg.url, data: msg.data });
         break;
+
       case "CALL_ACCEPTED_FROM_NOTIFICATION":
         _bus.emit("call_accepted_from_notification", msg.data);
         break;
+
       case "CALL_DECLINED_FROM_NOTIFICATION":
         _bus.emit("call_declined_from_notification", msg.data);
         break;
+
       case "PENDING_PAYLOADS":
-        if (Array.isArray(msg.payloads) && msg.payloads.length > 0) {
-          msg.payloads.forEach(payload => { _bus.emit("push_received", payload); });
+        if (Array.isArray(msg.payloads)) {
+          msg.payloads.forEach((p) => {
+            _bus.emit("push_received", p);
+            if (p?.data?.type === "incoming_call") {
+              _bus.emit("incoming_call_push", p.data);
+            }
+          });
         }
         break;
+
+      case "SW_UPDATED":
+        _bus.emit("sw_updated", { version: msg.version });
+        break;
+
+      case "SW_NAVIGATE":
+        if (msg.url)
+          _bus.emit("notification_clicked", { url: msg.url, data: {} });
+        break;
+
+      case "SW_POISON_PILL_RELOAD":
+        window.location.reload();
+        break;
+
       default:
         break;
     }
   });
+
+  // Drain any payloads that arrived while the app was closed / reloading.
+  navigator.serviceWorker.ready
+    .then(() => {
+      setTimeout(() => {
+        try {
+          navigator.serviceWorker.controller?.postMessage({
+            type: "GET_PENDING_PAYLOADS",
+          });
+        } catch (_) {}
+      }, 800);
+    })
+    .catch(() => {});
+
+  // Re-drain after a SW update
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    setTimeout(() => {
+      try {
+        navigator.serviceWorker.controller?.postMessage({
+          type: "GET_PENDING_PAYLOADS",
+        });
+      } catch (_) {}
+    }, 1000);
+  });
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
-export const pushService = {
-  on(event, fn)      { return _bus.on(event, fn); },
-  _emit(event, data) { _bus.emit(event, data); },
+// ── Resubscribe if subscription disappears ────────────────────────────────────
+function _attachVisibilityCheck() {
+  if (_visibilityListenerAdded) return;
+  _visibilityListenerAdded = true;
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible") return;
+    if (!_userId || Notification.permission !== "granted") return;
+    const reg = await _getReg();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription().catch(() => null);
+    if (!sub) {
+      console.log("[Push] Subscription missing on focus — re-subscribing");
+      _doSubscribe(_userId);
+    }
+  });
+}
 
+// ── Save subscription to Supabase ─────────────────────────────────────────────
+async function _saveSubscription(userId, subscription) {
+  const json = subscription.toJSON();
+  if (!json?.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
+    throw new Error("Subscription is missing endpoint, p256dh, or auth fields");
+  }
+  const record = {
+    user_id: userId,
+    endpoint: json.endpoint,
+    p256dh: json.keys.p256dh,
+    auth: json.keys.auth,
+    user_agent: navigator.userAgent.slice(0, 500),
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Clean up any inactive rows for this endpoint first
+  await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("endpoint", json.endpoint)
+    .eq("is_active", false);
+
+  // Upsert (requires unique constraint on user_id,endpoint)
+  const { error: upsertErr } = await supabase
+    .from("push_subscriptions")
+    .upsert(record, { onConflict: "user_id,endpoint" });
+
+  if (!upsertErr) {
+    console.log("[Push] ✅ Subscription upserted to DB");
+    return;
+  }
+
+  // Upsert failed — delete stale row and insert fresh
+  console.warn(
+    "[Push] Upsert failed:",
+    upsertErr.message,
+    "— trying delete+insert",
+  );
+  await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("endpoint", json.endpoint);
+  const { error: insertErr } = await supabase
+    .from("push_subscriptions")
+    .insert(record);
+  if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
+  console.log("[Push] ✅ Subscription inserted to DB (fallback)");
+}
+
+async function _saveWithRetry(userId, subscription, attempt = 0) {
+  const delays = [3000, 10000, 30000];
+  try {
+    await _saveSubscription(userId, subscription);
+  } catch (err) {
+    if (attempt < delays.length) {
+      console.warn(
+        `[Push] Save attempt ${attempt + 1} failed. Retry in ${delays[attempt] / 1000}s`,
+      );
+      await new Promise((r) => setTimeout(r, delays[attempt]));
+      return _saveWithRetry(userId, subscription, attempt + 1);
+    }
+    console.error("[Push] ❌ All save attempts failed:", err.message);
+  }
+}
+
+// ── Core subscribe ────────────────────────────────────────────────────────────
+async function _doSubscribe(userId) {
+  if (_subscribing) return null;
+  _subscribing = true;
+
+  try {
+    const vapidKey = getVapidKey();
+    if (!vapidKey) return null;
+
+    const reg = await _getReg();
+    if (!reg) {
+      console.error("[Push] No SW registration available");
+      return null;
+    }
+
+    // Check for existing subscription
+    let sub = await reg.pushManager.getSubscription().catch(() => null);
+
+    // If the existing subscription was created with a different VAPID key it will 401.
+    if (sub) {
+      const existingKey = sub.options?.applicationServerKey;
+      if (existingKey) {
+        const currentKeyBytes = urlBase64ToUint8Array(vapidKey);
+        const existingKeyBytes = new Uint8Array(existingKey);
+        const keyChanged =
+          currentKeyBytes.length !== existingKeyBytes.length ||
+          currentKeyBytes.some((b, i) => b !== existingKeyBytes[i]);
+        if (keyChanged) {
+          console.warn(
+            "[Push] VAPID key changed — unsubscribing stale subscription",
+          );
+          await sub.unsubscribe().catch(() => {});
+          sub = null;
+        }
+      }
+    }
+
+    if (sub) {
+      await _saveWithRetry(userId, sub);
+      console.log("[Push] ✅ Reused existing subscription");
+      return sub;
+    }
+
+    // Create new subscription
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+
+    await _saveWithRetry(userId, sub);
+    console.log("[Push] ✅ New subscription created and saved");
+    return sub;
+  } catch (err) {
+    if (err.name === "NotAllowedError") {
+      console.warn("[Push] Permission denied by user");
+      return null;
+    }
+    if (err.name === "InvalidStateError") {
+      console.warn("[Push] SW not yet active — waiting for activation");
+      const reg = await _getReg().catch(() => null);
+      if (reg?.installing) {
+        await new Promise((resolve) => {
+          const worker = reg.installing || reg.waiting;
+          if (!worker) {
+            resolve();
+            return;
+          }
+          worker.addEventListener("statechange", function handler() {
+            if (worker.state === "activated") {
+              worker.removeEventListener("statechange", handler);
+              resolve();
+            }
+          });
+          setTimeout(resolve, 8000);
+        });
+        _subscribing = false;
+        return _doSubscribe(userId);
+      }
+      setTimeout(() => {
+        _subscribing = false;
+        _doSubscribe(userId);
+      }, 5000);
+      return null;
+    }
+    console.error("[Push] ❌ _doSubscribe threw:", err.message);
+    return null;
+  } finally {
+    _subscribing = false;
+  }
+}
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
+export const pushService = {
+  // ── Early bridge attachment ────────────────────────────────────────────────
+  attachBridgeEarly() {
+    _attachBridge();
+  },
+
+  // ── Event bus ──────────────────────────────────────────────────────────────
+  on(event, fn) {
+    return _bus.on(event, fn);
+  },
+  _emit(event, data) {
+    _bus.emit(event, data);
+  },
+
+  // ── Feature detection ──────────────────────────────────────────────────────
   isSupported() {
     return (
-      "Notification"     in window &&
-      "serviceWorker"    in navigator &&
-      "PushManager"      in window
+      "Notification" in window &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window
     );
   },
 
   getPermission() {
-    if (!this.isSupported()) return "denied";
-    return Notification.permission;
+    return this.isSupported() ? Notification.permission : "denied";
   },
 
   async isSubscribed() {
     try {
       if (!this.isSupported()) return false;
-      const registration = _reg || (await navigator.serviceWorker.ready);
-      const sub = await registration.pushManager.getSubscription();
-      return !!sub;
+      const reg = await _getReg();
+      return !!(await reg?.pushManager.getSubscription());
     } catch {
       return false;
     }
   },
 
+  // ── Permission request — MUST be called from a user gesture ───────────────
   async requestPermission() {
     try {
       if (!this.isSupported()) return false;
-      const permission = await Notification.requestPermission();
-      return permission === "granted";
+      if (Notification.permission === "granted") return true;
+      if (Notification.permission === "denied") return false;
+      return (await Notification.requestPermission()) === "granted";
     } catch {
       return false;
     }
   },
 
+  // ── Full enable (permission + subscribe) ──────────────────────────────────
+  async enablePushNotifications(userId) {
+    const uid = userId || _userId;
+    if (!uid || !this.isSupported()) return false;
+    const granted = await this.requestPermission();
+    if (!granted) return false;
+    const sub = await _doSubscribe(uid);
+    if (sub) {
+      try {
+        window.dispatchEvent(new CustomEvent("push:permission_granted"));
+      } catch {}
+    }
+    return !!sub;
+  },
+
   async subscribe(userId) {
-    if (_subscribing) return null;
-    try {
-      if (!userId || !this.isSupported()) return null;
-      if (!VAPID_PUBLIC_KEY) {
-        console.warn("[Push] VAPID_PUBLIC_KEY not set");
-        return null;
-      }
-
-      _subscribing = true;
-      if (userId) _userId = userId;
-
-      const registration = _reg || (await navigator.serviceWorker.ready);
-
-      let subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await this._saveWithRetry(userId, subscription);
-        console.log("[Push] ✅ Existing subscription saved");
-        return subscription;
-      }
-
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly:      true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
-
-      await this._saveWithRetry(userId, subscription);
-      console.log("[Push] ✅ New subscription created and saved");
-      return subscription;
-    } catch (error) {
-      console.error("[Push] ❌ Subscribe failed:", error);
-      return null;
-    } finally {
-      _subscribing = false;
-    }
-  },
-
-  async _saveWithRetry(userId, subscription, attempt = 0) {
-    const delays = [5000, 15000, 45000];
-    try {
-      await this.savePushSubscription(userId, subscription);
-    } catch (err) {
-      if (attempt < delays.length) {
-        console.warn(`[Push] Save failed, retrying in ${delays[attempt] / 1000}s…`, err);
-        await new Promise(r => setTimeout(r, delays[attempt]));
-        return this._saveWithRetry(userId, subscription, attempt + 1);
-      }
-      console.error("[Push] ❌ Save permanently failed after all retries:", err);
-    }
-  },
-
-  async savePushSubscription(userId, subscription) {
-    const json = subscription.toJSON();
-    if (!json?.keys?.p256dh || !json?.keys?.auth) {
-      throw new Error("[Push] Subscription missing keys — cannot save");
-    }
-    const { error } = await supabase.from("push_subscriptions").upsert(
-      {
-        user_id:    userId,
-        endpoint:   json.endpoint,
-        p256dh:     json.keys.p256dh,
-        auth:       json.keys.auth,
-        user_agent: navigator.userAgent,
-        is_active:  true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,endpoint" }
-    );
-    if (error) throw error;
+    return _doSubscribe(userId || _userId);
   },
 
   async unsubscribe(userId) {
     try {
-      if (!this.isSupported()) return;
-      const registration = _reg || (await navigator.serviceWorker.ready);
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await subscription.unsubscribe();
-        const uid = userId || _userId;
-        if (uid) {
-          await supabase
-            .from("push_subscriptions")
-            .update({ is_active: false })
-            .eq("user_id", uid)
-            .eq("endpoint", subscription.endpoint);
-        }
-        console.log("[Push] ✅ Unsubscribed");
+      const reg = await _getReg();
+      const sub = await reg?.pushManager.getSubscription();
+      if (!sub) return;
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe();
+      const uid = userId || _userId;
+      if (uid) {
+        await supabase
+          .from("push_subscriptions")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("user_id", uid)
+          .eq("endpoint", endpoint);
       }
-    } catch (error) {
-      console.error("[Push] ❌ Unsubscribe error:", error);
+      console.log("[Push] ✅ Unsubscribed");
+    } catch (err) {
+      console.error("[Push] unsubscribe error:", err);
     }
   },
 
+  // ── Send a push notification to another user ───────────────────────────────
+  async sendPushToUser({
+    recipientUserId,
+    actorUserId = null,
+    type = "general",
+    title = "Xeevia",
+    message = "",
+    entityId = null,
+    metadata = {},
+  }) {
+    if (!recipientUserId) return false;
+
+    // Self-send guard: only skip if we know both IDs and they match
+    if (
+      _userId &&
+      actorUserId &&
+      _userId === actorUserId &&
+      recipientUserId === actorUserId
+    ) {
+      return false;
+    }
+
+    return _invoke({
+      recipient_user_id: recipientUserId,
+      actor_user_id: actorUserId,
+      type,
+      title,
+      message,
+      entity_id: entityId,
+      metadata,
+    });
+  },
+
+  // ── Show a local test notification ────────────────────────────────────────
   async testNotification() {
-    try {
-      if (!this.isSupported() || Notification.permission !== "granted") return;
-      const registration = _reg || (await navigator.serviceWorker.ready);
-      await registration.showNotification("✅ Test Notification", {
-        body:    "Push notifications are working correctly on Xeevia!",
-        icon:    "/logo192.png",
-        badge:   "/logo192.png",
-        tag:     `test_${Date.now()}`,
-        vibrate: [200, 100, 200],
-        data:    { url: "/", type: "test" },
-      });
-    } catch (error) {
-      console.error("[Push] ❌ Test notification failed:", error);
+    if (!this.isSupported() || Notification.permission !== "granted") {
+      console.warn("[Push] Cannot test — permission not granted");
+      return false;
     }
+    const reg = await _getReg();
+    if (!reg) return false;
+    await reg.showNotification("✅ Push Notifications Active", {
+      body: "Xeevia push notifications are working correctly!",
+      icon: "/logo192.png",
+      badge: "/logo192.png",
+      tag: `test_${Date.now()}`,
+      vibrate: [200, 100, 200],
+      data: { url: "/", type: "test" },
+    });
+    return true;
   },
 
+  // ── Clear OS app badge ─────────────────────────────────────────────────────
+  clearBadge() {
+    try {
+      navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_BADGE" });
+    } catch (_) {}
+  },
+
+  // ── MAIN ENTRY POINT ───────────────────────────────────────────────────────
   async start(userId) {
     if (!this.isSupported()) {
-      console.log("[Push] Push not supported on this browser/device");
+      console.log("[Push] Not supported in this browser");
       return;
     }
-    if (isLocalhost && !allowLocalhostSW) {
-      console.log("[Push] Localhost SW disabled — skipping push startup");
-      return;
-    }
-    if (_started && _userId === userId) return;
+    _userId = userId;
+    _started = true;
 
-    if (!navigator.onLine) {
-      console.log("[Push] Offline — scheduling push startup when online");
-      if (!_onlineStartScheduled) {
-        _onlineStartScheduled = true;
-        const onOnline = async () => {
-          _onlineStartScheduled = false;
+    // SYNCHRONOUS — listener must be attached before any awaits
+    _attachBridge();
+    _attachVisibilityCheck();
+
+    const perm = this.getPermission();
+    if (perm === "granted") {
+      // If offline, wait for connectivity before trying to subscribe
+      if (!navigator.onLine) {
+        console.log("[Push] Offline at start — will subscribe when online");
+        const onOnline = () => {
           window.removeEventListener("online", onOnline);
-          await this.start(userId).catch((err) => {
-            console.warn("[Push] delayed start failed:", err?.message || err);
-          });
+          _doSubscribe(userId).catch(() => {});
         };
         window.addEventListener("online", onOnline);
+        return;
       }
-      return;
+
+      const sub = await _doSubscribe(userId);
+      if (!sub) {
+        setTimeout(() => _doSubscribe(userId).catch(() => {}), 8000);
+      }
+    } else if (perm === "default") {
+      console.log(
+        "[Push] Permission not yet granted.\n" +
+          "Listen for 'push:needs_permission' on window and call:\n" +
+          "  pushService.enablePushNotifications(userId)  from a user gesture.",
+      );
+      try {
+        window.dispatchEvent(
+          new CustomEvent("push:needs_permission", { detail: { userId } }),
+        );
+      } catch {}
+    } else {
+      console.log(
+        "[Push] Permission blocked — user must re-enable in browser settings",
+      );
     }
 
-    _started = true;
-    _userId  = userId;
-
-    try {
-      _reg = await navigator.serviceWorker.register("/service-worker.js", {
-        scope:          "/",
-        updateViaCache: "none",
-      });
-      console.log("[Push] ✅ SW registered:", _reg.scope);
-
-      this._watchForUpdates(_reg);
-
-      setTimeout(() => {
-        navigator.serviceWorker.controller?.postMessage({ type: "GET_PENDING_PAYLOADS" });
-      }, 1500);
-
-      const perm = this.getPermission();
-      if (perm === "granted") {
-        await this.subscribe(userId);
-      } else if (perm === "default") {
-        setTimeout(async () => {
-          const granted = await this.requestPermission();
-          if (granted) await this.subscribe(userId);
-        }, 8000);
-      } else {
-        console.log("[Push] Permission denied — push notifications disabled");
-      }
-    } catch (err) {
-      console.error("[Push] start error:", err);
+    if (typeof window !== "undefined") {
+      window.__pushDiagnose = () => this.diagnose();
+      console.log(
+        "[Push] Tip: run window.__pushDiagnose() in console to debug push issues",
+      );
     }
   },
 
-  clearBadge() {
-    navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_BADGE" });
-  },
+  // ── Full diagnostic report ─────────────────────────────────────────────────
+  async diagnose() {
+    console.group("🔍 Push Diagnosis Report");
+    const vapidKey = getVapidKey();
+    console.log("Supported:           ", this.isSupported());
+    console.log("Permission:          ", this.getPermission());
+    console.log(
+      "VAPID key (.env):    ",
+      vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ MISSING",
+    );
+    console.log(
+      "VAPID key length:    ",
+      vapidKey ? vapidKey.length + " chars (expect 87)" : "❌",
+    );
+    console.log("User ID:             ", _userId || "not set");
+    console.log("Bridge attached:     ", _bridgeAttached);
+    console.log("Started:             ", _started);
+    console.log("Online:              ", navigator.onLine);
 
-  _watchForUpdates(reg) {
-    if (!reg) return;
-    reg.addEventListener("updatefound", () => {
-      const newWorker = reg.installing;
-      if (!newWorker) return;
-      newWorker.addEventListener("statechange", () => {
-        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-          _bus.emit("sw_update_available", { registration: reg });
+    const reg = await _getReg().catch(() => null);
+    console.log("SW registration:     ", reg ? "✅ " + reg.scope : "❌ NONE");
+    console.log("SW state:            ", reg?.active?.state || "none");
+    console.log(
+      "SW controller:       ",
+      navigator.serviceWorker?.controller ? "✅" : "❌ null",
+    );
+
+    if (reg) {
+      const sub = await reg.pushManager.getSubscription().catch(() => null);
+      console.log(
+        "Browser sub:         ",
+        sub ? "✅ " + sub.endpoint.slice(0, 65) + "…" : "❌ NONE",
+      );
+      if (sub?.options?.applicationServerKey) {
+        const keyBytes = new Uint8Array(sub.options.applicationServerKey);
+        const keyB64 = btoa(String.fromCharCode(...keyBytes))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
+        console.log("Sub key prefix:      ", keyB64.slice(0, 25) + "…");
+        console.log(
+          ".env key prefix:     ",
+          vapidKey ? vapidKey.slice(0, 25) + "…" : "❌",
+        );
+        if (vapidKey && keyB64 !== vapidKey) {
+          console.error(
+            "⚠️  KEY MISMATCH — subscription was created with a different VAPID key.",
+          );
+          console.error(
+            "   Fix: call pushService.unsubscribe() then pushService.subscribe() to recreate.",
+          );
+        } else if (vapidKey) {
+          console.log("✅ Keys match");
         }
-      });
-    });
+      }
 
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
+      if (_userId) {
+        const { data, error } = await supabase
+          .from("push_subscriptions")
+          .select("id, endpoint, is_active, updated_at")
+          .eq("user_id", _userId);
+        if (error) {
+          console.log("DB subs:             ❌", error.message);
+        } else {
+          console.log("DB subs:             ", data?.length || 0, "row(s)");
+          data?.forEach((r, i) =>
+            console.log(
+              `  [${i}] active=${r.is_active} updated=${r.updated_at?.slice(0, 16)} ep=${r.endpoint?.slice(0, 55)}…`,
+            ),
+          );
+        }
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke("send-push", {
+          body: { health: true },
+        });
+        console.log(
+          "Edge Function:       ",
+          error ? "❌ " + error.message : "✅ reachable",
+          data || "",
+        );
+        // Log the edge function's VAPID key prefix for easy comparison
+        if (data?.key_prefix) {
+          const edgePrefix = data.key_prefix.replace("...", "");
+          console.log("Edge VAPID prefix:   ", data.key_prefix);
+          if (vapidKey && !vapidKey.startsWith(edgePrefix)) {
+            console.error(
+              "⚠️  VAPID KEY MISMATCH between .env and Supabase secret!\n" +
+                "   .env REACT_APP_VAPID_PUBLIC_KEY starts with: " +
+                (vapidKey?.slice(0, 20) ?? "N/A") +
+                "\n" +
+                "   Supabase VAPID_PUBLIC_KEY starts with:        " +
+                edgePrefix +
+                "\n" +
+                "   These must be IDENTICAL.\n" +
+                "   Fix: In Supabase Secrets, set VAPID_PUBLIC_KEY = " +
+                (vapidKey ?? "") +
+                "\n" +
+                "   Make sure the secret is named VAPID_PUBLIC_KEY (no REACT_APP_ prefix)",
+            );
+          } else {
+            console.log("✅ .env key matches Edge Function secret");
+          }
+        } else if (data?.error?.includes("Missing secrets")) {
+          // [FIX-CRITICAL] New clear message for the most common error
+          console.error(
+            "❌ EDGE FUNCTION SECRETS NOT CONFIGURED CORRECTLY\n" +
+              "   The Edge Function cannot find VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY.\n" +
+              "\n" +
+              "   YOUR CURRENT PROBLEM: You likely added secrets named\n" +
+              "     REACT_APP_VAPID_PUBLIC_KEY  ← WRONG for Edge Functions\n" +
+              "     REACT_APP_VAPID_PRIVATE_KEY ← WRONG for Edge Functions\n" +
+              "\n" +
+              "   FIX: In Supabase → Edge Functions → Secrets, add:\n" +
+              "     VAPID_PUBLIC_KEY  = " +
+              (vapidKey ?? "<your public key>") +
+              "\n" +
+              "     VAPID_PRIVATE_KEY = DWuL6M8VtzowMyXrcAj8cPZu_drE1WrtfZhwqvRncQI\n" +
+              "     VAPID_SUBJECT     = mailto:support@xeevia.com\n" +
+              "\n" +
+              "   The REACT_APP_ prefix is only for .env files (browser bundle).\n" +
+              "   Edge Functions run on Deno and use plain secret names.",
+          );
+        }
+      } catch (e) {
+        console.log("Edge Function:       ❌ fetch failed:", e.message);
+      }
+    }
+
+    console.log("\n⚠️  CHECKLIST:");
+    console.log(
+      "  1. In .env:              REACT_APP_VAPID_PUBLIC_KEY  (with REACT_APP_ prefix)",
+    );
+    console.log(
+      "  2. In Supabase Secrets:  VAPID_PUBLIC_KEY            (NO REACT_APP_ prefix)",
+    );
+    console.log("  3. Both keys above must be the SAME value");
+    console.log(
+      "  4. In .env:              REACT_APP_VAPID_PRIVATE_KEY  (with REACT_APP_ prefix) — only needed locally",
+    );
+    console.log(
+      "  5. In Supabase Secrets:  VAPID_PRIVATE_KEY            (NO REACT_APP_ prefix) — REQUIRED",
+    );
+    console.log(
+      "  6. push_subscriptions has UNIQUE(user_id, endpoint) constraint",
+    );
+    console.log("  7. notification_dedup table exists with UNIQUE(dedup_key)");
+    console.log(
+      "  8. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost",
+    );
+    console.log(
+      "  9. pushService.attachBridgeEarly() is called in src/index.js before React renders",
+    );
+    console.groupEnd();
   },
 };
 
