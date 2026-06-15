@@ -108,7 +108,7 @@ const StoryCard = ({
               {isLocked ? (
                 <>
                   <Lock size={13} />
-                  <span>Unlock for {story.unlock_cost} GT</span>
+                  <span>Unlock for {story.unlock_cost} XEV</span>
                 </>
               ) : (
                 <>

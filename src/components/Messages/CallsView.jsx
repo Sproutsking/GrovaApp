@@ -1,6 +1,6 @@
 // components/Messages/CallsView.jsx
 // ============================================================================
-// GROVA CALLS — PRODUCTION v7  (cleaned — zero duplication)
+// XEEVIA CALLS — PRODUCTION v7  (cleaned — zero duplication)
 // ============================================================================
 // Data sources (all real, zero mocks):
 //   • Contacts  → conversations table (people you've DM'd)

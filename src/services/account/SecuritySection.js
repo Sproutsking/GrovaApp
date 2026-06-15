@@ -219,7 +219,7 @@ class SecurityService {
       return {
         success: true,
         secret,
-        qrCodeUrl: `otpauth://totp/Grova:${userId}?secret=${secret}&issuer=Grova`,
+        qrCodeUrl: `otpauth://totp/Xeevia:${userId}?secret=${secret}&issuer=Xeevia`,
       };
     } catch (error) {
       throw handleError(error, "Failed to enable 2FA");

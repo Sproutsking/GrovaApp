@@ -163,14 +163,14 @@ class DashboardService {
       if (error) throw error;
 
       return {
-        grovaTokens: data.grova_tokens || 0,
+        xevTokens: data.xev_tokens || 0,
         engagementPoints: data.engagement_points || 0
       };
 
     } catch (error) {
       console.error('Failed to get wallet data:', error);
       return {
-        grovaTokens: 0,
+        xevTokens: 0,
         engagementPoints: 0
       };
     }

@@ -60,7 +60,7 @@ class ProfileService {
         isPro: profileData.is_pro || false,
         createdAt: profileData.created_at,
         wallet: {
-          grovaTokens: walletData?.grova_tokens || 0,
+          xevTokens: walletData?.xev_tokens || 0,
           engagementPoints: walletData?.engagement_points || 0,
         },
         stats: {

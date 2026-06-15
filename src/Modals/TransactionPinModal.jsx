@@ -171,7 +171,7 @@ const TransactionPinModal = ({
         {/* Amount */}
         <div className="amount-box">
           <span className="amount-value">{amount?.toLocaleString() || 0}</span>
-          <span className="amount-currency">GT</span>
+          <span className="amount-currency">XEV</span>
         </div>
 
         {/* PIN Input */}

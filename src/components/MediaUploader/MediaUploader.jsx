@@ -356,7 +356,7 @@ const MediaUploader = ({
 
       const videoFile = new File(
         [videoBlob],
-        `grova_video_${Date.now()}.webm`,
+        `xeevia_video_${Date.now()}.webm`,
         {
           type: "video/webm",
         },
@@ -504,7 +504,7 @@ const MediaUploader = ({
       ctx.textBaseline = "middle";
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 20;
-      ctx.fillText("GROVA", width / 2, height / 2);
+      ctx.fillText("XEEVIA", width / 2, height / 2);
 
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;

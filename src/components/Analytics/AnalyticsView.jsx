@@ -207,7 +207,7 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
         storyLikesRes, reelLikesRes, postLikesRes,
         profileViewsRes, sharesRes, savedRes,
       ] = await Promise.allSettled([
-        supabase.from("wallets").select("grova_tokens, engagement_points").eq("user_id", uid).maybeSingle(),
+        supabase.from("wallets").select("xev_tokens, engagement_points").eq("user_id", uid).maybeSingle(),
         supabase.from("ep_dashboard").select("total_ep_earned, daily_ep, weekly_ep, monthly_ep, annual_ep").eq("user_id", uid).maybeSingle(),
         supabase.from("stories").select("*", { count:"exact", head:true }).eq("user_id",uid).is("deleted_at",null),
         supabase.from("reels")  .select("*", { count:"exact", head:true }).eq("user_id",uid).is("deleted_at",null),
@@ -280,7 +280,7 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
         sharesCount, savedCount, profileViews,
         storiesCount, reelsCount, postsCount, totalContent,
         communities: commCount,
-        grovaTokens:      wallet?.grova_tokens      ?? 0,
+        xevTokens:      wallet?.xev_tokens      ?? 0,
         engagementPoints: wallet?.engagement_points ?? 0,
         totalEpEarned: epDash?.total_ep_earned ?? 0,
         dailyEp:       epDash?.daily_ep        ?? 0,
@@ -571,7 +571,7 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
                 <p className="av-sec">Token Ledger</p>
                 <div className="av-w-gt">
                   <div className="av-w-lbl" style={{ color:"#fbbf24" }}>🪙 Grova Tokens</div>
-                  <MetricNode label="GT Balance" raw={d.grovaTokens} color="#fbbf24" icon="🪙" size="lg" delay={0.05}/>
+                  <MetricNode label="XEV Balance" raw={d.xevTokens} color="#fbbf24" icon="🪙" size="lg" delay={0.05}/>
                 </div>
                 <div className="av-w-ep">
                   <div className="av-w-lbl" style={{ color:"#84cc16" }}>⚡ Engagement Points</div>
@@ -595,7 +595,7 @@ const AnalyticsView = ({ currentUser, userId, onClose, isSidebar = false }) => {
                   {(() => {
                     const rows = [
                       { label:"EP Balance",   value:d.engagementPoints, color:"#84cc16" },
-                      { label:"Grova Tokens", value:d.grovaTokens,      color:"#fbbf24" },
+                      { label:"Grova Tokens", value:d.xevTokens,      color:"#fbbf24" },
                       { label:"Total Likes",  value:d.totalLikes,       color:"#f472b6" },
                       { label:"Total Views",  value:d.totalViews,       color:"#a78bfa" },
                       { label:"Followers",    value:d.followers,        color:"#60a5fa" },

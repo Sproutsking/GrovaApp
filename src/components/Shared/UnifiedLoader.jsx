@@ -121,7 +121,7 @@ const UnifiedLoader = ({
     return (
       <>
         {current.showLogo && (
-          <div className="loader-logo">GROVA</div>
+          <div className="loader-logo">XEEVIA</div>
         )}
         <div 
           className="loader-spinner"

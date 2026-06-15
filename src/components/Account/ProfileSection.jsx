@@ -215,7 +215,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
   const [liveStats,             setLiveStats]             = useState({
     totalViews:0, totalComments:0, totalLikes:0,
     followers:0, following:0, communities:0,
-    grovaTokens:0, engagementPoints:0, totalContent:0,
+    xevTokens:0, engagementPoints:0, totalContent:0,
   });
   // [B4] active theme id
   const [activeThemeId, setActiveThemeId] = useState(null);
@@ -274,7 +274,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
         followersRes, followingRes, communitiesRes,
         storyLikesRes, reelLikesRes, postLikesRes,
       ] = await Promise.allSettled([
-        supabase.from("wallets").select("grova_tokens, engagement_points").eq("user_id", userId).maybeSingle(),
+        supabase.from("wallets").select("xev_tokens, engagement_points").eq("user_id", userId).maybeSingle(),
         supabase.from("stories").select("*", { count:"exact", head:true }).eq("user_id", userId).is("deleted_at", null),
         supabase.from("reels").select("*", { count:"exact", head:true }).eq("user_id", userId).is("deleted_at", null),
         supabase.from("posts").select("*", { count:"exact", head:true }).eq("user_id", userId).is("deleted_at", null),
@@ -322,7 +322,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
       }
 
       const epBalance = Number(profileData?.engagement_points ?? 0);
-      const gtBalance = Number(wallet?.grova_tokens ?? 0);
+      const gtBalance = Number(wallet?.xev_tokens ?? 0);
 
       const profileState = {
         id:               profileData?.id,
@@ -348,7 +348,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
 
       if (!profileData) {
         setProfile({ id:userId, fullName:"User", username:"user", avatar:null, avatarId:null, bio:null, verified:false, isPro:false, joinDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}), email:null, phone:null, phoneVerified:false, showEmail:false, showPhone:false, subscriptionTier:"standard", paymentStatus:"pending", accountActivated:false, engagementPoints:0 });
-        setLiveStats({ totalContent:0, totalViews:0, totalComments:0, totalLikes:0, followers:0, following:0, communities:0, grovaTokens:0, engagementPoints:0 });
+        setLiveStats({ totalContent:0, totalViews:0, totalComments:0, totalLikes:0, followers:0, following:0, communities:0, xevTokens:0, engagementPoints:0 });
         return;
       }
 
@@ -358,7 +358,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
         totalViews, totalComments: commentsCount, totalLikes,
         followers: followersCount, following: followingCount,
         communities: communitiesCount,
-        grovaTokens:      gtBalance,
+        xevTokens:      gtBalance,
         engagementPoints: epBalance,
       });
 
@@ -426,7 +426,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
     { label:"Content",   value:fmt(liveStats.totalContent)     },
     { label:"Followers", value:fmt(liveStats.followers)        },
     { label:"EP",        value:fmt(liveStats.engagementPoints) },
-    { label:"GT",        value:fmt(liveStats.grovaTokens)      },
+    { label:"XEV",        value:fmt(liveStats.xevTokens)      },
   ];
 
   // [AMB-1] Ambassador button — dynamic label/sub based on whether user is already an ambassador
@@ -696,7 +696,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
           profileData={{
             ...profile,
             stats:  { totalContent:liveStats.totalContent, totalViews:liveStats.totalViews, totalComments:liveStats.totalComments },
-            wallet: { grovaTokens:liveStats.grovaTokens, engagementPoints:liveStats.engagementPoints },
+            wallet: { xevTokens:liveStats.xevTokens, engagementPoints:liveStats.engagementPoints },
             social: { followers:liveStats.followers, following:liveStats.following, communities:liveStats.communities },
           }}
           currentUser={{ id: userId }}
