@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { X, Clock, Users, ArrowLeft } from "lucide-react";
 import ProfilePreview from "../../Shared/ProfilePreview";
 import { walletService } from "../../../services/wallet/walletService";
+import useRegisterBack from "../../../hooks/useRegisterBack";
 
 const CSS = `
 .bene-section-head{
@@ -102,6 +103,11 @@ function timeAgo(ts) {
 // ── Full beneficiaries page ─────────────────────────────────
 function BeneficiaryFullPage({ userId, onSelect, onBack, currentUser }) {
   const [list, setList] = useState([]);
+
+  useRegisterBack(() => {
+    if (typeof onBack === "function") onBack();
+    return true;
+  }, [onBack]);
 
   useEffect(() => {
     setList(walletService.getBeneficiaries(userId));

@@ -1,34 +1,36 @@
-// ============================================================================
 // src/services/distribution/platformAdapterFactory.js
-// Factory for creating platform-specific adapters
+// ============================================================================
+// Registry that maps platform string keys to their adapter instances.
+// distributionService.js calls getAdapter(platform) — if this file is missing
+// or mis-registered, every publish call fails silently.
 // ============================================================================
 
-import XAdapter from "./adapters/XAdapter";
-import FacebookAdapter from "./adapters/FacebookAdapter";
+import XAdapter         from "./adapters/XAdapter";
+import FacebookAdapter  from "./adapters/FacebookAdapter";
 import InstagramAdapter from "./adapters/InstagramAdapter";
-import LinkedInAdapter from "./adapters/LinkedInAdapter";
+import LinkedInAdapter  from "./adapters/LinkedInAdapter";
 
 class PlatformAdapterFactory {
   constructor() {
-    this.adapters = {
-      x: new XAdapter(),
-      facebook: new FacebookAdapter(),
+    this._adapters = {
+      x:         new XAdapter(),
+      facebook:  new FacebookAdapter(),
       instagram: new InstagramAdapter(),
-      linkedin: new LinkedInAdapter(),
+      linkedin:  new LinkedInAdapter(),
     };
   }
 
   getAdapter(platform) {
-    const key = platform.toLowerCase();
-    return this.adapters[key] || null;
+    const adapter = this._adapters[platform];
+    if (!adapter) {
+      console.warn(`[PlatformAdapterFactory] No adapter registered for: "${platform}"`);
+      return null;
+    }
+    return adapter;
   }
 
   getSupportedPlatforms() {
-    return Object.keys(this.adapters);
-  }
-
-  registerAdapter(platform, adapter) {
-    this.adapters[platform.toLowerCase()] = adapter;
+    return Object.keys(this._adapters);
   }
 }
 

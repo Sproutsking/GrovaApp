@@ -25,17 +25,17 @@ const isLocalhost = Boolean(
     ),
 );
 
+const allowLocalhostSW = process.env.REACT_APP_SW_LOCALHOST === "true";
+
 export function register(config) {
   if (!("serviceWorker" in navigator)) return;
 
-  if (isLocalhost) {
+  if (isLocalhost && !allowLocalhostSW) {
     console.log("[PWA] Dev mode — Service Worker disabled for safety");
     return;
   }
 
-  // ── Listen for poison pill reload message from SW ─────────────────────────
-  // The new SW posts SW_POISON_PILL_RELOAD when it detects and nukes an old
-  // broken cache. We reload the page so the user lands on the clean app.
+  // ── Listen for poison pill reload message from SW
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "SW_POISON_PILL_RELOAD") {
       console.log("[PWA] Poison pill cleanup complete — reloading");

@@ -43,6 +43,7 @@ import { useBackButton }         from "./hooks/useBackButton";
 import { usePullToRefresh }      from "./hooks/usePullToRefresh";
 
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
+import { BackNavigationProvider } from "./contexts/BackNavigationContext";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
 import BoostStyles               from "./components/Boost/BoostStyles";
 import { canAccessApp }          from "./services/auth/paymentGate";
@@ -74,6 +75,8 @@ const StreamView     = lazy(() => import("./components/Stream/StreamView"));
 const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView"));
 const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView"));
 const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall"));
+const AddAccountCallback = lazy(() => import("./components/Auth/AddAccountCallback"));
+const AuthCallback       = lazy(() => import("./components/Auth/AuthCallback"));
 
 const OVERLAY_TABS = new Set(["analytics", "upgrade", "rewards", "stream", "giftcards"]);
 
@@ -255,11 +258,9 @@ const MainApp = memo(() => {
     });
 
     // [APP-PUSH-2] Start push service — SW bridge already set up at module load
-    if (navigator.onLine) {
-      pushService.start(user.id).catch(e => {
-        console.warn("[App] Push start non-fatal:", e.message);
-      });
-    }
+    pushService.start(user.id).catch(e => {
+      console.warn("[App] Push start non-fatal:", e.message);
+    });
 
     loadWalletAndAvatar(user.id, profile).catch(() => {});
     preloadTabs();
@@ -671,6 +672,22 @@ MainApp.displayName = "MainApp";
 
 // ── AppRouter ─────────────────────────────────────────────────────────────────
 function AppRouter() {
+  const currentPath = window.location.pathname;
+  if (currentPath === "/auth/popup-callback") {
+    return (
+      <Suspense fallback={<Splash/>}>
+        <AddAccountCallback />
+      </Suspense>
+    );
+  }
+  if (currentPath === "/auth/callback") {
+    return (
+      <Suspense fallback={<Splash/>}>
+        <AuthCallback />
+      </Suspense>
+    );
+  }
+
   const { user, profile, isAdmin, adminData, loading, profileLoading, getIsPaidCached } = useAuth();
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
@@ -705,7 +722,9 @@ function AppRouter() {
 
 const App = () => (
   <AuthProvider>
-    <AppRouter/>
+    <BackNavigationProvider>
+      <AppRouter/>
+    </BackNavigationProvider>
   </AuthProvider>
 );
 

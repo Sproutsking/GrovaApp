@@ -1,38 +1,31 @@
 import { useEffect, useState, useRef } from "react";
+import { useBackNavigation } from "../contexts/BackNavigationContext";
 
 export const useBackButton = (isAtRoot) => {
   const [showExitPrompt, setShowExitPrompt] = useState(false);
   const lastBackPressRef = useRef(0);
   const DOUBLE_BACK_DELAY = 2000;
+  const { register } = useBackNavigation();
 
   useEffect(() => {
-    const handleBackButton = (event) => {
-      if (!isAtRoot()) {
-        return;
-      }
-
-      event.preventDefault();
+    const handler = () => {
+      if (!isAtRoot()) return false;
 
       const now = Date.now();
       if (now - lastBackPressRef.current < DOUBLE_BACK_DELAY) {
         window.history.back();
-        return;
+        return true;
       }
 
       lastBackPressRef.current = now;
       setShowExitPrompt(true);
-
-      setTimeout(() => {
-        setShowExitPrompt(false);
-      }, DOUBLE_BACK_DELAY);
+      setTimeout(() => setShowExitPrompt(false), DOUBLE_BACK_DELAY);
+      return true;
     };
 
-    window.addEventListener("popstate", handleBackButton);
-
-    return () => {
-      window.removeEventListener("popstate", handleBackButton);
-    };
-  }, [isAtRoot]);
+    const unregister = register(handler);
+    return unregister;
+  }, [isAtRoot, register]);
 
   useEffect(() => {
     if (window.history.state === null) {

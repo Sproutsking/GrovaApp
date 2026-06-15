@@ -311,9 +311,10 @@ const isLocalhost = Boolean(
     /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
   ),
 );
+const allowLocalhostSW = process.env.REACT_APP_SW_LOCALHOST === "true";
 
-if (isLocalhost) {
-  // Dev: always unregister SW — prevents stale cache from masking changes
+if (isLocalhost && !allowLocalhostSW) {
+  // Dev: always unregister SW unless explicitly allowed for localhost testing
   serviceWorkerRegistration.unregister();
 } else {
   serviceWorkerRegistration.register({

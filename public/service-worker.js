@@ -388,7 +388,64 @@ function _defaultUrl(type, data) {
   return "/";
 }
 
-// ── Notification click, close, message (your exact code — untouched) ────────
-self.addEventListener("notificationclick", event => { /* your full original code */ });
-self.addEventListener("notificationclose", event => { /* your full original code */ });
-self.addEventListener("message", event => { /* your full original code */ });
+// ── Notification click, close, message (fixed handlers) ────────────────
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const payload = event.notification.data || {};
+    const action = event.action;
+    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const message = action === "accept"
+      ? { type: "CALL_ACCEPTED_FROM_NOTIFICATION", data: payload }
+      : action === "decline"
+        ? { type: "CALL_DECLINED_FROM_NOTIFICATION", data: payload }
+        : { type: "NOTIFICATION_CLICKED", url: payload.url || _defaultUrl(payload.type, payload), data: payload };
+
+    if (clients.length > 0) {
+      clients.forEach(client => {
+        try { client.postMessage(message); } catch (err) { console.warn("[SW] postMessage failed:", err); }
+      });
+      if (message.type === "NOTIFICATION_CLICKED") {
+        const focusedClient = clients.find(c => c.visibilityState === "visible" && c.focused);
+        if (!focusedClient) {
+          await clients[0].focus?.();
+        }
+      }
+      return;
+    }
+
+    if (message.type === "NOTIFICATION_CLICKED") {
+      await self.clients.openWindow(message.url || "/");
+    } else {
+      await self.clients.openWindow(payload.url || "/");
+    }
+  })());
+});
+
+self.addEventListener("notificationclose", event => {
+  console.log("[SW] notificationclose", event.notification?.data || {});
+});
+
+self.addEventListener("message", event => {
+  const msg = event.data;
+  if (!msg?.type) return;
+
+  switch (msg.type) {
+    case "GET_PENDING_PAYLOADS":
+      event.waitUntil((async () => {
+        const payloads = await getAllPendingPayloads();
+        const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        clients.forEach(client => {
+          try { client.postMessage({ type: "PENDING_PAYLOADS", payloads }); } catch (err) { console.warn("[SW] PENDING_PAYLOADS failed:", err); }
+        });
+      })());
+      break;
+    case "CLEAR_BADGE":
+      break;
+    case "SKIP_WAITING":
+      self.skipWaiting();
+      break;
+    default:
+      break;
+  }
+});

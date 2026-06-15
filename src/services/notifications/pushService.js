@@ -12,6 +12,15 @@ const VAPID_PUBLIC_KEY =
   process.env.REACT_APP_VAPID_PUBLIC_KEY ||
   "BIn84fMl6xilxp_r9d_hEUKaZbz_qPbSnPEq2acCJ5X8w469WNF7FleDB_WCMSiAfD2c3zXcpKSFGBFjDdVP57k";
 
+const isLocalhost = Boolean(
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "[::1]" ||
+  window.location.hostname.match(
+    /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
+  ),
+);
+const allowLocalhostSW = process.env.REACT_APP_SW_LOCALHOST === "true";
+
 // ── Typed event bus (your original) ───────────────────────────────────────────
 class EventBus {
   constructor() { this._map = new Map(); }
@@ -38,11 +47,12 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 // ── Module state (your original + small safety) ───────────────────────────────
-const _bus        = new EventBus();
-let   _reg        = null;
-let   _started    = false;
-let   _userId     = null;
-let   _subscribing = false;
+const _bus              = new EventBus();
+let   _reg              = null;
+let   _started          = false;
+let   _userId           = null;
+let   _subscribing      = false;
+let   _onlineStartScheduled = false;
 
 // ── Bridge setup (your exact code) ───────────────────────────────────────────
 _setupSWBridge();
@@ -237,7 +247,27 @@ export const pushService = {
       console.log("[Push] Push not supported on this browser/device");
       return;
     }
+    if (isLocalhost && !allowLocalhostSW) {
+      console.log("[Push] Localhost SW disabled — skipping push startup");
+      return;
+    }
     if (_started && _userId === userId) return;
+
+    if (!navigator.onLine) {
+      console.log("[Push] Offline — scheduling push startup when online");
+      if (!_onlineStartScheduled) {
+        _onlineStartScheduled = true;
+        const onOnline = async () => {
+          _onlineStartScheduled = false;
+          window.removeEventListener("online", onOnline);
+          await this.start(userId).catch((err) => {
+            console.warn("[Push] delayed start failed:", err?.message || err);
+          });
+        };
+        window.addEventListener("online", onOnline);
+      }
+      return;
+    }
 
     _started = true;
     _userId  = userId;
