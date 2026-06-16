@@ -7,16 +7,20 @@ import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
 import platformAdapterFactory from "./platformAdapterFactory";
+import withTimeout from "../shared/requestUtils";
 
 class DistributionService {
   // ── Get user's platform preferences ──────────────────────────────────────
   async getPlatformPreferences(userId) {
     try {
-      const { data, error } = await supabase
-        .from("platform_distribution_preferences")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+      const { data, error } = await withTimeout(
+        supabase
+          .from("platform_distribution_preferences")
+          .select("*")
+          .eq("user_id", userId)
+          .single(),
+        12000
+      );
 
       if (error && error.code !== "PGRST116") throw error; // 116 = no rows
       
@@ -66,11 +70,14 @@ class DistributionService {
   // ── Get connected platforms for user ─────────────────────────────────────
   async getConnectedPlatforms(userId) {
     try {
-      const { data, error } = await supabase
-        .from("connections")
-        .select("provider, auth_status")
-        .eq("user_id", userId)
-        .eq("auth_status", "active");
+      const { data, error } = await withTimeout(
+        supabase
+          .from("connections")
+          .select("provider, auth_status")
+          .eq("user_id", userId)
+          .eq("auth_status", "active"),
+        12000
+      );
 
       if (error) throw error;
 
@@ -120,11 +127,14 @@ class DistributionService {
       console.log(`📢 Starting distribution for post ${postId}`);
 
       // Get the post data
-      const { data: post, error: postError } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("id", postId)
-        .single();
+      const { data: post, error: postError } = await withTimeout(
+        supabase
+          .from("posts")
+          .select("*")
+          .eq("id", postId)
+          .single(),
+        12000
+      );
 
       if (postError) throw new Error(`Post not found: ${postId}`);
 
@@ -138,16 +148,19 @@ class DistributionService {
       }
 
       // Create distribution queue entry
-      const { data: queueEntry, error: queueError } = await supabase
-        .from("distribution_queue")
-        .insert({
-          post_id: postId,
-          user_id: userId,
-          selected_platforms: targets,
-          status: "processing",
-        })
-        .select()
-        .single();
+      const { data: queueEntry, error: queueError } = await withTimeout(
+        supabase
+          .from("distribution_queue")
+          .insert({
+            post_id: postId,
+            user_id: userId,
+            selected_platforms: targets,
+            status: "processing",
+          })
+          .select()
+          .single(),
+        12000
+      );
 
       if (queueError) throw queueError;
 
@@ -209,22 +222,28 @@ class DistributionService {
       if (!adapter) throw new Error(`No adapter for platform: ${platform}`);
 
       // Get user's connection for this platform
-      const { data: connection, error: connError } = await supabase
-        .from("connections")
-        .select("id, provider, platform_user_id")
-        .eq("user_id", userId)
-        .eq("provider", platform)
-        .single();
+      const { data: connection, error: connError } = await withTimeout(
+        supabase
+          .from("connections")
+          .select("id, provider, platform_user_id")
+          .eq("user_id", userId)
+          .eq("provider", platform)
+          .single(),
+        12000
+      );
 
       if (connError) throw new Error(`Not connected to ${platform}`);
 
       // Get encrypted token
-      const { data: tokenData, error: tokenError } = await supabase
-        .from("tokens")
-        .select("encrypted_token, expires_at")
-        .eq("connection_id", connection.id)
-        .eq("revoked", false)
-        .single();
+      const { data: tokenData, error: tokenError } = await withTimeout(
+        supabase
+          .from("tokens")
+          .select("encrypted_token, expires_at")
+          .eq("connection_id", connection.id)
+          .eq("revoked", false)
+          .single(),
+        12000
+      );
 
       if (tokenError) throw new Error(`No valid token for ${platform}`);
 

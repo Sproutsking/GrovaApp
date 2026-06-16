@@ -11,6 +11,7 @@ import {
   RefreshCw, BarChart2, Shield, Zap,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import withTimeout from "../../services/shared/requestUtils";
 
 // ── Platform metadata ─────────────────────────────────────────────────────────
 const PLATFORMS = {
@@ -183,14 +184,20 @@ const IdentitySection = ({ userId }) => {
     setFetchError(null);
     try {
       const [connRes, distRes] = await Promise.all([
-        supabase
-          .from("connections")
-          .select("provider, platform_user_id, auth_status, connected_at")
-          .eq("user_id", userId),
-        supabase
-          .from("post_distribution")
-          .select("platform, status")
-          .eq("user_id", userId),
+        withTimeout(
+          supabase
+            .from("connections")
+            .select("provider, platform_user_id, auth_status, connected_at")
+            .eq("user_id", userId),
+          12000
+        ),
+        withTimeout(
+          supabase
+            .from("post_distribution")
+            .select("platform, status")
+            .eq("user_id", userId),
+          12000
+        ),
       ]);
 
       // Detect missing table (42P01 = undefined_table)

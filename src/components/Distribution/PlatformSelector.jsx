@@ -15,6 +15,7 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [selectedPlatforms, setSelectedPlatforms] = useState(initialSelection);
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [preferences, setPreferences] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [useGlobalDefault, setUseGlobalDefault] = useState(true);
@@ -69,6 +70,7 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
         }
       } catch (error) {
         console.error("Error loading platform data:", error);
+        setLoadError(error?.message || "Failed to load platforms");
       } finally {
         setLoading(false);
       }
@@ -136,6 +138,15 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
 
   if (loading) {
     return <div className="platform-selector loading">Loading platforms...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="platform-selector loading">
+        <div style={{ color: '#f87171', marginBottom: 8 }}>Could not load platforms: {loadError}</div>
+        <button onClick={() => { setLoading(true); setLoadError(null); (async () => { try { const connected = await distributionService.getConnectedPlatforms(userId); const prefs = await distributionService.getPlatformPreferences(userId); setConnectedPlatforms(connected); setPreferences(prefs); setUseGlobalDefault(prefs?.global_default_enabled ?? true); if (!initialSelection.length) { if (prefs?.global_default_enabled) { setSelectedPlatforms(connected); } else { const enabledPlatforms = Object.keys(prefs?.platform_preferences || {}).filter(p => prefs.platform_preferences[p]?.enabled); setSelectedPlatforms(enabledPlatforms); } } } catch(e){ setLoadError(e?.message||'Failed to load'); } finally{ setLoading(false); } })() }} className="retry-btn">Retry</button>
+      </div>
+    );
   }
 
   return (
