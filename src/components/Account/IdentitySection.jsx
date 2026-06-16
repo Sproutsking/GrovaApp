@@ -346,7 +346,7 @@ const IdentitySection = ({ userId }) => {
               const cfg    = STATUS[status];
               const Ic     = cfg.Icon;
               const isBusy = busy === key;
-              const handle = conn?.platform_username || conn?.platform_user_id;
+              const handle = conn?.platform_user_id || conn?.platform_username || null;
 
               return (
                 <div key={key} className={`id-card status-${status}`}>
