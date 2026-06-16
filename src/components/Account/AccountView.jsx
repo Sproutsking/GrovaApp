@@ -13,8 +13,16 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  UserCircle, Settings, LayoutDashboard, Shield, Link2, Globe,
+  UserCircle, Settings, LayoutDashboard, Shield, Globe,
 } from "lucide-react";
+
+import ProfileSection   from "./ProfileSection";
+import SettingsSection  from "./SettingsSection";
+import DashboardSection from "./DashboardSection";
+import SecuritySection  from "./SecuritySection";
+import IdentitySection  from "./IdentitySection";
+import { supabase }          from "../../services/config/supabase";
+import mediaUrlService        from "../../services/shared/mediaUrlService";
 
 // Try to import Fingerprint — older lucide versions may not have it
 let IdentityIcon;
@@ -25,13 +33,6 @@ try {
 } catch {
   IdentityIcon = Globe;
 }
-
-import ProfileSection   from "./ProfileSection";
-import SettingsSection  from "./SettingsSection";
-import DashboardSection from "./DashboardSection";
-import SecuritySection  from "./SecuritySection";
-import { supabase }          from "../../services/config/supabase";
-import mediaUrlService        from "../../services/shared/mediaUrlService";
 
 // ── Scoped CSS injected directly — zero external dependency ──────────────────
 const ACCOUNT_CSS = `
@@ -225,9 +226,10 @@ const AccountView = ({
     if (onProfileLoad) onProfileLoad(fb);
   };
 
-  // ── Tab definitions ─────────────────────────────────────────────
+   // ── Tab definitions ─────────────────────────────────────────────
   const TABS = [
     { id: "profile",   icon: <UserCircle size={16} />,     label: "Profile"   },
+    { id: "identity",  icon: <IdentityIcon size={16} />,    label: "Identity"  },
     { id: "dashboard", icon: <LayoutDashboard size={16} />, label: "Dashboard" },
     { id: "security",  icon: <Shield size={16} />,          label: "Security"  },
     { id: "settings",  icon: <Settings size={16} />,        label: "Settings"  },
@@ -273,7 +275,7 @@ const AccountView = ({
 
       {accountSection === "dashboard" && (
         <DashboardSection
-          currentUser={dashboardUser}
+          currentUser={currentUser}
           profile={profileData}
           setActiveTab={setAccountSection}
           onNavigate={onNavigate}

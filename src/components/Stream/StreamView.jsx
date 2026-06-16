@@ -71,12 +71,13 @@ let LiveKitRoom = null;
 let VideoConference = null;
 let RoomAudioRenderer = null;
 try {
-  const lkComponents = require("@livekit/components-react");
+  // Use eval to avoid bundlers statically resolving the optional dependency.
+  const lkComponents = eval("require")("@livekit/components-react");
   LiveKitRoom = lkComponents.LiveKitRoom;
   VideoConference = lkComponents.VideoConference;
   RoomAudioRenderer = lkComponents.RoomAudioRenderer;
 } catch {
-  /* SDK not installed */
+  /* SDK not installed; keep SDK_AVAILABLE=false */
 }
 const SDK_AVAILABLE = LiveKitRoom !== null;
 
