@@ -137,25 +137,11 @@ export function bustAndRefetch() {
 // ── RSS fetch ─────────────────────────────────────────────────────────────────
 async function fetchRss(url) {
   try {
-    const res = await fetch(
-      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-      { signal: AbortSignal.timeout(12_000) }
-    );
-    if (res.ok) {
-      const j = await res.json();
-      const txt = j?.contents || "";
-      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
-    }
-  } catch { /* fallback */ }
-  try {
-    const res = await fetch(
-      `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      { signal: AbortSignal.timeout(12_000) }
-    );
-    if (res.ok) {
-      const txt = await res.text();
-      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
-    }
+    const proxy = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxy, { signal: AbortSignal.timeout(12_000) });
+    if (!res.ok) return null;
+    const txt = await res.text();
+    if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
   } catch { /* failed */ }
   return null;
 }
@@ -174,14 +160,11 @@ async function fetchYtRss(channelId) {
     }
   } catch { /* fallback */ }
   try {
-    const res = await fetch(
-      `https://api.allorigins.win/get?url=${encodeURIComponent(ytUrl)}`,
-      { signal: AbortSignal.timeout(14_000) }
-    );
+    const proxy = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(ytUrl)}`;
+    const res = await fetch(proxy, { signal: AbortSignal.timeout(14_000) });
     if (res.ok) {
-      const j = await res.json();
-      const txt = j?.contents || "";
-      if (txt.length > 200 && txt.includes("<entry")) return { type: "xml", data: txt };
+      const txt = await res.text();
+      if (txt && txt.includes("<entry")) return { type: "xml", data: txt };
     }
   } catch { /* failed */ }
   return null;
@@ -198,23 +181,48 @@ function tagVal(block, ...names) {
 }
 
 function stripHtml(h = "") {
-  return h.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
-    .replace(/&hellip;/gi, "…").replace(/\s+/g, " ").trim();
+  return h
+    .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&hellip;/gi, "…")
+    .replace(/&#8230;/gi, "…")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitiseImg(url) {
+  if (!url || typeof url !== "string") return null;
+  const t = url.trim();
+  if (!t.startsWith("http")) return null;
+  const l = t.toLowerCase();
+  if (
+    l.includes("1x1") ||
+    l.includes("pixel") ||
+    l.includes("spacer") ||
+    l.endsWith(".svg") ||
+    t.length < 20
+  )
+    return null;
+  return t;
 }
 
 function extractImg(block) {
   const pats = [
     /media:content[^>]+url=["']([^"']+)["']/i,
     /media:thumbnail[^>]+url=["']([^"']+)["']/i,
-    /enclosure[^>]+url=["'](https?:\/\/[^"']+)["']/i,
+    /enclosure[^>]+url=["'](https?:\/\/[^"]+)["']/i,
     /<img[^>]+src=["'](https?:\/\/[^"']{20,})["']/i,
-    /(https?:\/\/[^\s"'<>]{20,}\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?)/i,
+    /(https?:\/\/[^\s"'<>]{20,}\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)/i,
   ];
   for (const re of pats) {
-    const u = (block.match(re) || [])[1];
-    if (u && u.startsWith("http") && u.length > 20 && !u.includes("1x1")) return u;
+    const u = sanitiseImg((block.match(re) || [])[1]);
+    if (u) return u;
   }
   return null;
 }

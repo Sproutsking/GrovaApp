@@ -17,12 +17,9 @@
 
 import { supabase } from "../config/supabase";
 
-// ── CORS proxies — ALL fired in parallel, first valid XML wins ────────────────
+// ── CORS proxies — prefer our server-side proxy; fall back to direct fetch
 const PROXIES = [
-  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
+  (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
   (u) => u, // direct fetch — works for CORS-enabled RSS feeds
 ];
 

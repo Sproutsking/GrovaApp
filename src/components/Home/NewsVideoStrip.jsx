@@ -108,7 +108,7 @@ const PROXIES = [
   },
   {
     name: "allorigins",
-    build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    build: (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
     parse: async (res) => {
       const j = await res.json();
       return parseAtomXml(j?.contents || "");
