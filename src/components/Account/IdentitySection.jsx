@@ -185,7 +185,7 @@ const IdentitySection = ({ userId }) => {
       const [connRes, distRes] = await Promise.all([
         supabase
           .from("connections")
-          .select("provider, platform_user_id, platform_username, auth_status, connected_at")
+          .select("provider, platform_user_id, auth_status, connected_at")
           .eq("user_id", userId),
         supabase
           .from("post_distribution")
@@ -346,6 +346,7 @@ const IdentitySection = ({ userId }) => {
               const cfg    = STATUS[status];
               const Ic     = cfg.Icon;
               const isBusy = busy === key;
+              const handle = conn?.platform_username || conn?.platform_user_id;
 
               return (
                 <div key={key} className={`id-card status-${status}`}>
@@ -362,8 +363,10 @@ const IdentitySection = ({ userId }) => {
                     <div className="id-status-row" style={{ color: cfg.color }}>
                       <Ic size={13} />
                       {cfg.label}
-                      {conn?.platform_username && (
-                        <span className="id-handle">· @{conn.platform_username}</span>
+                      {handle ? (
+                        <span className="id-handle">· @{handle}</span>
+                      ) : (
+                        <span className="id-handle">· Connected</span>
                       )}
                     </div>
                   </div>
