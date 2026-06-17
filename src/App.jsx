@@ -178,12 +178,22 @@ OfflineBanner.displayName = "OfflineBanner";
 // ── Preload tabs ──────────────────────────────────────────────────────────────
 function preloadTabs() {
   [
+    () => import("./components/Home/HomeView"),
     () => import("./components/Explore/ExploreView"),
     () => import("./components/wallet/WalletView"),
     () => import("./components/Account/AccountView"),
     () => import("./components/Community/CommunityView"),
     () => import("./components/Create/CreateView"),
-  ].forEach((fn, i) => setTimeout(() => fn().catch(() => {}), 1500 + i * 400));
+    () => import("./components/Shared/TrendingSidebar"),
+    () => import("./components/Analytics/AnalyticsView"),
+    () => import("./components/Upgrade/UpgradeView"),
+    () => import("./components/Rewards/RewardsView"),
+    () => import("./components/Stream/StreamView"),
+    () => import("./components/GiftCards/GiftCardsView"),
+    () => import("./components/Messages/DMMessagesView"),
+    () => import("./components/Messages/ActiveCall"),
+    () => import("./components/Ambassador/AmbassadorView"),
+  ].forEach((fn, i) => setTimeout(() => fn().catch(() => {}), 300 + i * 250));
 }
 
 // ── MainApp ───────────────────────────────────────────────────────────────────
@@ -215,7 +225,7 @@ const MainApp = memo(() => {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isOnline,           setIsOnline]           = useState(navigator.onLine);
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
-  const [mountedTabs,        setMountedTabs]        = useState(new Set(["home"]));
+  const [mountedTabs,        setMountedTabs]        = useState(new Set(["home", "search", "create", "community", "account", "wallet"]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
 
   // DM panel state

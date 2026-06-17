@@ -313,10 +313,10 @@ const ReelsTab = React.forwardRef(function ReelsTab({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // [INSTANT-2] Preload thumbnails for first 24 reels immediately
+  // [INSTANT-2] Preload thumbnails for first 24 reels immediately, and when list changes
   useEffect(() => {
     if (localReels.length) preloadReelThumbs(localReels, 0);
-  }, []); // eslint-disable-line
+  }, [localReels.length]);
 
   // Preload around anchor on scroll
   const handleAnchorChange = useCallback((idx) => {

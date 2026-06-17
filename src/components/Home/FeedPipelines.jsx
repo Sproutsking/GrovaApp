@@ -92,6 +92,29 @@ const CATEGORY_GRADIENTS = {
 };
 const DEFAULT_CATEGORY_GRAD = "linear-gradient(160deg,#0a0a14,#1a1a2e)";
 
+// ─── Pipeline reel thumbnail preloader ──────────────────────────────────────
+const _pipelineReelThumbsPreloaded = new Set();
+function preloadPipelineReelThumbs(reels) {
+  if (!reels?.length) return;
+  reels.forEach((reel, i) => {
+    const thumbId = reel.thumbnail_id || reel.video_id;
+    if (!thumbId) return;
+    const cacheKey = `p_thumb_${thumbId}`;
+    if (_pipelineReelThumbsPreloaded.has(cacheKey)) return;
+    _pipelineReelThumbsPreloaded.add(cacheKey);
+    try {
+      const url = reel.thumbnail_id
+        ? mediaUrlService.getImageUrl(thumbId, { width: 240, quality: "auto:good", format: "webp" })
+        : mediaUrlService.getVideoThumbnail(thumbId, { width: 240, height: 355 });
+      if (url) {
+        const img = new Image();
+        img.fetchPriority = i < 3 ? "high" : "low";
+        img.src = url;
+      }
+    } catch {}
+  });
+}
+
 // ─── Per-reel category gradients ─────────────────────────────────────────────
 const REEL_CAT_GRADIENTS = {
   Entertainment: "linear-gradient(160deg,#1a0a2e,#4c1d95)",
@@ -476,6 +499,8 @@ export const ReelsPipeline = ({ onNavigate }) => {
         const result = rankItems(items.sort((a,b) => (b.views||0)-(a.views||0))).slice(0, 16);
         setCached(PIPELINE.REELS, result);
         setReels(result);
+        // Preload reel thumbnails ahead of user click
+        preloadPipelineReelThumbs(result);
       } catch {
         if (!cancelled) { setReels([]); fetchedRef.current = false; }
       } finally {

@@ -111,6 +111,33 @@ function preloadFirstPaintImages(posts) {
   });
 }
 
+// [ULTRA-REELS-PRELOAD] Preload reel thumbnails ahead of navigation
+const _reelThumbPreloaded = new Set();
+function preloadReelThumbs(reels, anchorIdx = 0) {
+  if (!reels?.length) return;
+  const start = Math.max(0, anchorIdx - 4);
+  const end = Math.min(reels.length - 1, anchorIdx + 20);
+  for (let i = start; i <= end; i++) {
+    const reel = reels[i];
+    if (!reel) continue;
+    const thumbId = reel.thumbnail_id || reel.video_id;
+    if (!thumbId) continue;
+    const cacheKey = `thumb_${thumbId}`;
+    if (_reelThumbPreloaded.has(cacheKey)) continue;
+    _reelThumbPreloaded.add(cacheKey);
+    try {
+      const url = reel.thumbnail_id
+        ? mediaUrlService.getImageUrl(thumbId, { width: 480, quality: "auto:good", format: "webp" })
+        : mediaUrlService.getVideoThumbnail(thumbId, { width: 480, height: 711 });
+      if (url) {
+        const img = new Image();
+        img.fetchPriority = i <= anchorIdx + 4 ? "high" : "low";
+        img.src = url;
+      }
+    } catch {}
+  }
+}
+
 // ─── Optimistic builder ───────────────────────────────────────────────────────
 function buildOptimisticItem(rawItem, type, currentUser) {
   const now     = new Date().toISOString();
@@ -347,6 +374,7 @@ const HomeView = ({
 
       // [ULTRA-6] Preload images BEFORE setState (paint synchronization)
       preloadFirstPaintImages(safePosts);
+      preloadReelThumbs(safeReels, 0);
 
       swrSet("posts",   safePosts);
       swrSet("reels",   safeReels);
@@ -538,9 +566,11 @@ const HomeView = ({
     ]);
     if (!mountedRef.current) return;
     const safePosts = Array.isArray(pd) ? pd : [];
+    const safeReels = Array.isArray(rd) ? rd : [];
     const safeNews  = Array.isArray(nd) ? nd : [];
     preloadFirstPaintImages(safePosts);
-    setPosts(safePosts); setReels(Array.isArray(rd)?rd:[]); setStories(Array.isArray(sd)?sd:[]); setNewsPosts(safeNews);
+    preloadReelThumbs(safeReels, 0);
+    setPosts(safePosts); setReels(safeReels); setStories(Array.isArray(sd)?sd:[]); setNewsPosts(safeNews);
     postsOffRef.current = POSTS_PAGE; newsOffRef.current = NEWS_PAGE; reelsOffRef.current = REELS_PAGE;
     hasMorePostsRef.current = safePosts.length === POSTS_PAGE;
     hasMoreReelsRef.current = (Array.isArray(rd)?rd:[]).length === REELS_PAGE;
