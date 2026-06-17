@@ -40,8 +40,9 @@ export function clearDiscoveryCache() { _cache.clear(); }
 
 // ─── Saved Items (localStorage, subscription-gated) ───────────────────────────
 const SAVED_KEY     = "xv_saved_discovery_v2";
-const SAVED_MAX     = 500;
+const SAVED_MAX     = 500; // global cap
 const BOOSTED_TIERS = new Set(["silver", "gold", "diamond"]);
+const TIER_LIMITS   = { free:0, silver:20, gold:100, diamond:Infinity };
 
 function _loadSaved() {
   try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; }
@@ -79,6 +80,12 @@ export function toggleSavedDiscovery(item, userProfile) {
     _writeSaved(list);
     window.dispatchEvent(new CustomEvent("xv:discoverySaved", { detail: { item, saved: false } }));
     return { saved: false, error: null };
+  }
+
+  // Enforce per-tier limits
+  const tierLimit = TIER_LIMITS[tier] ?? 0;
+  if (tierLimit !== Infinity && list.length >= tierLimit) {
+    return { saved: false, error: "tier_limit_reached" };
   }
 
   // Store only metadata + URL refs — no binary data, zero DB cost

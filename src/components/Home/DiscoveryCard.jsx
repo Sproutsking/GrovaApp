@@ -213,6 +213,7 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     if (pct >= 0.8 && !fullFired.current) {
       fullFired.current = true;
       recordSignal(item, "WATCH_COMPLETE");
+      try { window.dispatchEvent(new CustomEvent("xv:discoveryInterest", { detail: { item, reason: "watch_complete" } })); } catch {}
     } else if (pct >= 0.4 && !halfFired.current) {
       halfFired.current = true;
       recordSignal(item, "WATCH_HALF");
@@ -225,7 +226,10 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
   const handleLike = useCallback((e) => {
     e.stopPropagation();
     const next = !liked; setLiked(next);
-    if (next) recordSignal(item, "LIKE");
+    if (next) {
+      recordSignal(item, "LIKE");
+      try { window.dispatchEvent(new CustomEvent("xv:discoveryInterest", { detail: { item, reason: "like" } })); } catch {}
+    }
     resetHud();
   }, [liked, item, resetHud]);
 

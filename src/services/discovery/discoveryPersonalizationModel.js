@@ -46,6 +46,7 @@ export const SIGNAL = {
   PAUSE:            3,
   REPLAY:          12,
   LIKE:            10,
+  INTEREST:        20,
   SAVE:            18,
   SHARE:           14,
   COMMENT:          9,

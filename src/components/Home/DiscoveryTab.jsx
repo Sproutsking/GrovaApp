@@ -30,6 +30,7 @@ import {
   DISCOVERY_CATEGORIES,
 } from "../../services/discovery/discoveryService";
 import { recordSignal, getSessionContext } from "../../services/discovery/discoveryPersonalizationModel";
+import DiscoveryInterestPrompt from "./DiscoveryInterestPrompt";
 
 // ─── Category display config ──────────────────────────────────────────────────
 // Ordered roughly by engagement/addictiveness
@@ -139,6 +140,7 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
   const [savedItems,     setSavedItems]     = useState(() => getSavedDiscovery());
   const [lastWatched,    setLastWatched]    = useState(null);
   const [showRelated,    setShowRelated]    = useState(false);
+  const [promptItem,     setPromptItem]     = useState(null);
 
   const containerRef  = useRef(null);
   const sentinelRef   = useRef(null);
@@ -161,6 +163,18 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
     const onSave = () => setSavedItems(getSavedDiscovery());
     window.addEventListener("xv:discoverySaved", onSave);
     return () => window.removeEventListener("xv:discoverySaved", onSave);
+  }, []);
+
+  // Listen for user interest events from cards (show bottom prompt)
+  useEffect(() => {
+    const onInterest = (e) => {
+      try {
+        const it = e?.detail?.item;
+        if (it && mountedRef.current) setPromptItem(it);
+      } catch {}
+    };
+    window.addEventListener("xv:discoveryInterest", onInterest);
+    return () => window.removeEventListener("xv:discoveryInterest", onInterest);
   }, []);
 
   // Initial load
@@ -417,6 +431,13 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
       )}
 
       {/* Full-screen overlay */}
+      {promptItem && (
+        <DiscoveryInterestPrompt
+          item={promptItem}
+          onClose={() => setPromptItem(null)}
+        />
+      )}
+
       {fullScreenItem && (
         <DiscoveryFullScreen
           item={fullScreenItem}
