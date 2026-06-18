@@ -238,121 +238,55 @@ function deriveMood(category) {
 }
 
 // ─── Working Video CDNs for Fallback ────────────────────────────────────────
-// These are real public video URLs that render instantly — essential for
-// when Pexels API is missing or rate-limited. Every item MUST have videoUrl.
+// These are stable public MP4 URLs that work reliably in browsers.
+const GLOBAL_FALLBACK_VIDEOS = [
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+];
+
 const FALLBACK_VIDEOS = {
-  "Horror & Strange":  [
-    "https://media.istockphoto.com/id/1388854091/video/creepy-abandoned-house-halloween-background-video.mp4",
-    "https://media.istockphoto.com/id/1431149857/video/dark-forest-night-cinematic-video.mp4",
-  ],
-  "Bioluminescence":   [
-    "https://media.istockphoto.com/id/1388854120/video/glowing-ocean-waves-at-night-slow-motion.mp4",
-    "https://media.istockphoto.com/id/1450321547/video/firefly-forest-night-timelapse.mp4",
-  ],
-  "Deep Sea":          [
-    "https://media.istockphoto.com/id/1423887789/video/deep-ocean-creatures-underwater-mystery.mp4",
-    "https://media.istockphoto.com/id/1455612389/video/bioluminescent-jellyfish-ocean-depths.mp4",
-  ],
-  "Aurora":            [
-    "https://media.istockphoto.com/id/1293487598/video/northern-lights-aurora-borealis-iceland.mp4",
-    "https://media.istockphoto.com/id/1431146789/video/aurora-australis-antarctica-southern-lights.mp4",
-  ],
-  "Volcano":           [
-    "https://media.istockphoto.com/id/1388854101/video/volcano-eruption-lava-flow.mp4",
-    "https://media.istockphoto.com/id/1455612398/video/kilauea-eruption-hawaii-night.mp4",
-  ],
-  "Predator":          [
-    "https://media.istockphoto.com/id/1293487654/video/cheetah-hunt-slow-motion-wildlife.mp4",
-    "https://media.istockphoto.com/id/1388854075/video/eagle-dive-hunting-wildlife-nature.mp4",
-  ],
-  "Cyclone":           [
-    "https://media.istockphoto.com/id/1388854112/video/hurricane-from-space-timelapse.mp4",
-    "https://media.istockphoto.com/id/1455612415/video/typhoon-eye-wall-from-satellite.mp4",
-  ],
-  "Wildlife":          [
-    "https://media.istockphoto.com/id/1293487632/video/lion-pride-at-sunset-africa-safari.mp4",
-    "https://media.istockphoto.com/id/1388854089/video/great-migration-wildlife-nature.mp4",
-  ],
-  "Birds":             [
-    "https://media.istockphoto.com/id/1293487621/video/murmuration-starlings-nature-slow-motion.mp4",
-    "https://media.istockphoto.com/id/1388854098/video/arctic-tern-migration-timelapse.mp4",
-  ],
-  "Caves":             [
-    "https://media.istockphoto.com/id/1388854083/video/crystal-cave-formations-underground.mp4",
-    "https://media.istockphoto.com/id/1455612402/video/cenote-cave-underwater-mexico.mp4",
-  ],
-  "Space & Earth":     [
-    "https://media.istockphoto.com/id/1293487587/video/earth-from-orbit-iss-space-station.mp4",
-    "https://media.istockphoto.com/id/1388854107/video/aurora-borealis-from-space-timelapse.mp4",
-  ],
-  "Night Nature":      [
-    "https://media.istockphoto.com/id/1388854094/video/milky-way-rising-night-sky-timelapse.mp4",
-    "https://media.istockphoto.com/id/1455612426/video/owls-night-forest-nature-video.mp4",
-  ],
-  "Storms":            [
-    "https://media.istockphoto.com/id/1293487609/video/supercell-thunderstorm-lightning.mp4",
-    "https://media.istockphoto.com/id/1388854119/video/lightning-storm-timelapse-nature.mp4",
-  ],
-  "Macro Wildlife":    [
-    "https://media.istockphoto.com/id/1388854076/video/insect-macro-closeup-nature-video.mp4",
-    "https://media.istockphoto.com/id/1455612389/video/jumping-spider-ultra-closeup-macro.mp4",
-  ],
-  "Fungi":             [
-    "https://media.istockphoto.com/id/1388854090/video/mycelium-network-timelapse-nature.mp4",
-    "https://media.istockphoto.com/id/1455612403/video/mushroom-bloom-4k-timelapse.mp4",
-  ],
-  "Abandoned":         [
-    "https://media.istockphoto.com/id/1388854082/video/chernobyl-40-years-later-decay.mp4",
-    "https://media.istockphoto.com/id/1455612414/video/sunken-city-ruins-underwater.mp4",
-  ],
-  "Extreme Nature":    [
-    "https://media.istockphoto.com/id/1388854110/video/volcanic-lightning-storm-eruption.mp4",
-    "https://media.istockphoto.com/id/1455612421/video/earthquake-ground-waves-slow-motion.mp4",
-  ],
-  "Survival":          [
-    "https://media.istockphoto.com/id/1388854086/video/wildlife-survival-instinct-nature.mp4",
-  ],
-  "Ocean":             [
-    "https://media.istockphoto.com/id/1293487645/video/deep-ocean-waves-seascape-calm.mp4",
-    "https://media.istockphoto.com/id/1388854108/video/whale-encounter-ocean-nature-video.mp4",
-  ],
-  "Jungle":            [
-    "https://media.istockphoto.com/id/1388854085/video/rainforest-at-dawn-jungle-wildlife.mp4",
-  ],
-  "Aerial Earth":      [
-    "https://media.istockphoto.com/id/1293487613/video/earth-from-above-drone-aerial-landscape.mp4",
-  ],
-  "Waterfalls":        [
-    "https://media.istockphoto.com/id/1388854097/video/cascade-waterfalls-nature-serene.mp4",
-  ],
-  "Mountains":         [
-    "https://media.istockphoto.com/id/1293487611/video/mountain-summit-golden-hour-landscape.mp4",
-  ],
-  "Desert":            [
-    "https://media.istockphoto.com/id/1388854081/video/sahara-desert-dusk-landscape-nature.mp4",
-  ],
-  "Snow":              [
-    "https://media.istockphoto.com/id/1388854100/video/silent-snowfall-winter-nature-video.mp4",
-  ],
-  "Rain":              [
-    "https://media.istockphoto.com/id/1388854103/video/forest-rain-nature-raindrop-video.mp4",
-  ],
-  "Relaxation":        [
-    "https://media.istockphoto.com/id/1293487599/video/still-waters-calm-peaceful-nature.mp4",
-  ],
+  "Horror & Strange":  [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Bioluminescence":   [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Deep Sea":          [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Aurora":            [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Volcano":           [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Predator":          [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Cyclone":           [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Wildlife":          [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Birds":             [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Caves":             [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Space & Earth":     [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Night Nature":      [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Storms":            [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Macro Wildlife":    [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Fungi":             [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Abandoned":         [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Extreme Nature":    [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Survival":          [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Ocean":             [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Jungle":            [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Aerial Earth":      [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Waterfalls":        [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Mountains":         [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Desert":            [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Snow":              [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Rain":              [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Relaxation":        [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[2]],
 };
 
-// Generate fallback thumbnail for all categories
 function getFallbackThumb(category) {
   return `https://images.unsplash.com/photo-${Math.random().toString().slice(2,13)}?w=600&h=800&fit=crop`;
 }
 
-// Rotate video URL from category pool to ensure variety
 function getRotatingVideoUrl(category, itemId) {
-  const pool = FALLBACK_VIDEOS[category] || FALLBACK_VIDEOS["Wildlife"] || [];
-  if (!pool.length) return "";
-  const idx = Math.abs(itemId.split("_")[itemId.split("_").length - 1]) % pool.length;
-  return pool[idx] || pool[0] || "";
+  const pool = FALLBACK_VIDEOS[category] || GLOBAL_FALLBACK_VIDEOS;
+  if (!pool.length) return GLOBAL_FALLBACK_VIDEOS[0];
+  const lastChunk = itemId.split("_").slice(-1)[0];
+  const idx = Number.isFinite(Number(lastChunk)) ? Math.abs(Number(lastChunk)) % pool.length : Math.abs(itemId.length) % pool.length;
+  return pool[idx] || pool[0];
 }
 
 // ─── Fallback catalog (always non-empty — pure client-side content) ───────────

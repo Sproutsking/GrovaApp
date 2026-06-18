@@ -125,6 +125,14 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
   const hasThumb   = !!(item.thumbnailUrl && typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim());
   const hasVideo   = !!(adaptedUrl && adaptedUrl.length > 0);
 
+  // Ensure the video element always gets a source once the item is rendered.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !adaptedUrl) return;
+    el.crossOrigin = "anonymous";
+    if (!el.src) el.src = adaptedUrl;
+  }, [adaptedUrl]);
+
   // Skip signal on fast scroll-past
   useEffect(() => {
     skipRef.current = Date.now();
@@ -143,7 +151,7 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
       if (!el.src) el.src = adaptedUrl;
       return () => { _slots.active = Math.max(0, _slots.active - 1); };
     }
-  }, []); // eslint-disable-line
+  }, [adaptedUrl]);
 
   // [V1] Autoplay driven by isVisible
   useEffect(() => {
@@ -154,8 +162,11 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
       clearTimeout(coolingRef.current);
       if (!el.src && adaptedUrl) el.src = adaptedUrl;
       el.muted = muted;
+      el.preload = "auto";
       const tryPlay = () => {
-        el.play().then(() => setPlaying(true)).catch(() => {});
+        el.play().then(() => setPlaying(true)).catch(() => {
+          setPlaying(false);
+        });
       };
       if (el.readyState >= 2) tryPlay();
       else el.addEventListener("canplay", tryPlay, { once: true });
@@ -170,7 +181,7 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
       }, 900);
     }
     return () => clearTimeout(coolingRef.current);
-  }, [isVisible]); // eslint-disable-line
+  }, [isVisible, adaptedUrl, muted]);
 
   const resetHud = useCallback(() => {
     setShowHud(true);
@@ -321,10 +332,21 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
             ref={videoRef}
             muted={muted}
             playsInline
+            autoPlay={isVisible}
             loop
-            preload="none"
+            preload={isVisible ? "auto" : "metadata"}
             className={`dc-video${vidReady ? " dc-video--ready" : ""}`}
             onCanPlay={() => setVidReady(true)}
+            onLoadedData={() => setVidReady(true)}
+            onError={() => {
+              const el = videoRef.current;
+              if (el) {
+                el.pause();
+                el.removeAttribute("src");
+                el.load();
+              }
+              showToast("Video failed to load, trying next clip", "#f97316");
+            }}
             onTimeUpdate={onTimeUpdate}
             onSeeked={() => {
               if (videoRef.current?.currentTime < 1) recordSignal(item, "REPLAY");
@@ -460,9 +482,8 @@ const DC_CSS = `
   z-index:0;pointer-events:none;
 }
 .dc-media{
-  position:relative;width:100%;aspect-ratio:9/14;overflow:hidden;z-index:1;
+  position:relative;width:100%;aspect-ratio:9/16;overflow:hidden;z-index:1;
 }
-@media(max-width:768px){.dc-media{aspect-ratio:9/16;}}
 
 .dc-cat-bg{position:absolute;inset:0;z-index:0;}
 .dc-poster{
