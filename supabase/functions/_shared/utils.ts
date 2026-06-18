@@ -176,7 +176,7 @@ export function walletColumn(
   asset: "XEV" | "USDT",
 ): string {
   return asset === "XEV"
-    ? "grova_tokens"
+    ? "xev_tokens"
     : "usdt_balance";
 }
 

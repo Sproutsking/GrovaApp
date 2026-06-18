@@ -333,7 +333,7 @@ const DashboardSection = ({
           .select("verified,is_pro,engagement_points,subscription_tier,reward_level")
           .eq("id", uid).maybeSingle(),
         supabase.from("wallets")
-          .select("grova_tokens,paywave_balance")
+          .select("xev_tokens,paywave_balance")
           .eq("user_id", uid).maybeSingle(),
         supabase.from("ep_dashboard")
           .select("daily_ep,weekly_ep,monthly_ep,total_ep_earned")
@@ -398,7 +398,7 @@ const DashboardSection = ({
         stories:          safe(storiesCountRes),
         totalViews, totalLikes, totalComments, totalShares,
         engagementPoints: Number(pf?.engagement_points ?? 0),
-        grovaTokens:      Number(wt?.grova_tokens     ?? 0),
+        grovaTokens:      Number(wt?.xev_tokens     ?? 0),
         paywaveBalance:   Number(wt?.paywave_balance   ?? 0),
         dailyEP:          Number(ep?.daily_ep          ?? 0),
         weeklyEP:         Number(ep?.weekly_ep         ?? 0),

@@ -56,7 +56,7 @@ async function releaseEscrow(
   if (escErr || !escrow) return { error: "Escrow record not found or already resolved" };
 
   // Credit buyer wallet
-  const walletCol = escrow.asset === "XEV" ? "grova_tokens" : "usdt_balance";
+  const walletCol = escrow.asset === "XEV" ? "xev_tokens" : "usdt_balance";
   const { data: buyerWallet } = await db
     .from("wallets")
     .select(`id, ${walletCol}`)
@@ -82,7 +82,7 @@ async function releaseEscrow(
     balance_before: buyerWallet[walletCol] ?? 0,
     balance_after:  newBal,
     reason:         `P2P Trade ${tradeId} completed`,
-    metadata:       { trade_id: tradeId, asset: escrow.asset },
+    metadata:       { trade_id: tradeId, asset: escrow.asset, currency: escrow.asset },
   });
 
   // Mark escrow released
@@ -107,7 +107,7 @@ async function refundEscrow(
 
   if (!escrow) return { error: "No locked escrow found" };
 
-  const walletCol = escrow.asset === "XEV" ? "grova_tokens" : "usdt_balance";
+  const walletCol = escrow.asset === "XEV" ? "xev_tokens" : "usdt_balance";
   const { data: sellerWallet } = await db
     .from("wallets")
     .select(`id, ${walletCol}`)
@@ -129,7 +129,7 @@ async function refundEscrow(
     balance_before: sellerWallet[walletCol] ?? 0,
     balance_after:  newBal,
     reason:         `P2P Trade ${tradeId} cancelled/refunded`,
-    metadata:       { trade_id: tradeId, asset: escrow.asset },
+    metadata:       { trade_id: tradeId, asset: escrow.asset, currency: escrow.asset },
   });
 
   await db.from("p2p_escrow")

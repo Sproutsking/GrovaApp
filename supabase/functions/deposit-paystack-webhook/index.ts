@@ -248,7 +248,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let creditError: string | null = null;
 
   try {
-    const field = depositCurrency === "XEV" ? "grova_tokens" : "engagement_points";
+    const field = depositCurrency === "XEV" ? "xev_tokens" : "engagement_points";
 
     // Fetch current wallet balance
     let walletQuery = db.from("wallets").select(`id,${field}`);

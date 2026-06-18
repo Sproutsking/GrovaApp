@@ -260,11 +260,12 @@ export function useStats() {
           .select("amount_cents,currency,provider")
           .eq("status", "completed")
           .gte("created_at", monthStart),
-        sb().from("wallets").select("grova_tokens").not("user_id", "is", null),
+        sb().from("wallets").select("xev_tokens").not("user_id", "is", null),
         sb()
           .from("wallet_history")
-          .select("amount")
-          .eq("change_type", "credit"),
+          .select("amount,metadata")
+          .eq("change_type", "credit")
+          .contains("metadata", { currency: "XEV" }),
         sb()
           .from("profiles")
           .select("engagement_points")
@@ -330,7 +331,7 @@ export function useStats() {
         (arr || []).reduce((s, r) => s + (Number(r[field]) || 0), 0);
 
       const totalXEVCirculating = Math.round(
-        sum(xevCirculatingData || [], "grova_tokens"),
+        sum(xevCirculatingData || [], "xev_tokens"),
       );
       const totalXEVMinted = Math.round(sum(xevMintedData || [], "amount"));
       // EP is raw units — correct, do NOT divide by 100
@@ -527,14 +528,14 @@ export function useUsers(pageSize = 20) {
     if (tokens !== 0) {
       const { data: wallet } = await sb()
         .from("wallets")
-        .select("grova_tokens")
+        .select("xev_tokens")
         .eq("user_id", userId)
         .maybeSingle();
       if (wallet) {
         await sb()
           .from("wallets")
           .update({
-            grova_tokens: Math.max(0, (wallet.grova_tokens || 0) + tokens),
+            xev_tokens: Math.max(0, (wallet.xev_tokens || 0) + tokens),
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId);
@@ -543,7 +544,7 @@ export function useUsers(pageSize = 20) {
           .from("wallets")
           .insert({
             user_id: userId,
-            grova_tokens: Math.max(0, tokens),
+            xev_tokens: Math.max(0, tokens),
             engagement_points: Math.max(0, points || 0),
           });
       }

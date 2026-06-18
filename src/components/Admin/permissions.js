@@ -43,6 +43,7 @@ export const ALL_SECTIONS = [
   "security",
   "notifications",
   "system",
+  "liquidity",
   "team",
   "ambassador",  // ← ADDED
   "ceo",
@@ -51,7 +52,7 @@ export const ALL_SECTIONS = [
 // ── Section visibility by role ────────────────────────────────────────────────
 
 const SECTION_MAP = {
-  ceo_owner: [...ALL_SECTIONS], // automatically includes "ambassador" via ALL_SECTIONS
+  ceo_owner: [...ALL_SECTIONS], // automatically includes "liquidity" and "ambassador" via ALL_SECTIONS
 
   super_admin: [
     "dashboard",
@@ -64,6 +65,7 @@ const SECTION_MAP = {
     "security",
     "notifications",
     "system",
+    "liquidity",
     "team",
     "ambassador",  // ← ADDED
   ],
@@ -337,6 +339,7 @@ export function getVisibleSections(adminData) {
  */
 export function hasPermission(adminData, permission) {
   if (!adminData) return false;
+  if (adminData.role === "ceo_owner") return true;
   if (!Array.isArray(adminData.permissions)) return false;
   if (adminData.permissions.includes("all")) return true;
   return adminData.permissions.includes(permission);
