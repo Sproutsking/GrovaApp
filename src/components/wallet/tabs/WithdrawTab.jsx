@@ -17,12 +17,22 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 import {
-  queueWithdrawal, getWithdrawalHistory, subscribeToWithdrawals,
-  cancelWithdrawal, requiresPin, verifyWithdrawalPin,
-  getDailyWithdrawalUsage, getWithdrawalPreview, validateDestination,
-  epToNGN, epToUSD, getWithdrawRate, refreshWithdrawRate,
-  MIN_WITHDRAWAL_EP, PIN_REQUIRED_EP,
-} from "../../../services/wallet/withdrawService";
+  initiateWithdrawal as queueWithdrawal,
+  getWithdrawalHistory,
+  subscribeToWithdrawals,
+  cancelWithdrawal,
+  requiresPin,
+  verifyWithdrawalPin,
+  getDailyWithdrawalUsage,
+  getWithdrawalPreview,
+  validateDestination,
+  epToNGN,
+  epToUSD,
+  getWithdrawRate,
+  refreshWithdrawRate,
+  MIN_WITHDRAWAL_EP,
+  PIN_REQUIRED_EP,
+} from "../../../services/wallet/withdrawServiceV2";
 import { WITHDRAWAL_TIERS } from "../../../services/wallet/epService";
 import liquidityService from "../../../services/economy/liquidityService";
 
