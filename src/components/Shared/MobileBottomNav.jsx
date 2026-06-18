@@ -18,6 +18,7 @@ const NAV_ITEMS = [
 const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
   const [showServices, setShowServices] = useState(false);
   const [fabVisible, setFabVisible] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const timerRef = useRef(null);
 
   const triggerFab = useCallback(() => {
@@ -44,6 +45,28 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
       clearTimeout(timerRef.current);
     };
   }, [triggerFab]);
+
+  // Hide nav when PayWave is open (defensive against body class persistence)
+  useEffect(() => {
+    const onOpen = () => setHidden(true);
+    const onClose = () => setHidden(false);
+    window.addEventListener("paywave:open", onOpen);
+    window.addEventListener("paywave:close", onClose);
+    const onPop = () => {
+      // If history state no longer indicates paywave, ensure nav is visible
+      try {
+        const st = window.history.state || {};
+        const bodyHas = document.body.classList && document.body.classList.contains && document.body.classList.contains("paywave-open");
+        if ((!st || !st.paywave) && !bodyHas) setHidden(false);
+      } catch { setHidden(false); }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("paywave:open", onOpen);
+      window.removeEventListener("paywave:close", onClose);
+      window.removeEventListener("popstate", onPop);
+    };
+  }, []);
 
   return (
     <>
@@ -290,55 +313,55 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         }
       `}</style>
 
-      <nav className="mbn">
-        <div className="mbn-row">
-          {NAV_ITEMS.map(({ id, Icon, label, isMenu }) => {
-            if (isMenu)
+      {!hidden && (
+        <nav className="mbn">
+          <div className="mbn-row">
+            {NAV_ITEMS.map(({ id, Icon, label, isMenu }) => {
+              if (isMenu)
+                return (
+                  <button
+                    key={id}
+                    className="mbn-btn mbn-menu-btn"
+                    onClick={() => setShowServices(true)}
+                    aria-label="Services"
+                  >
+                    <div className={`mbn-menu-pill${showServices ? " open" : ""}`}>
+                      <div className="mbn-grid">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                      <span className="mbn-menu-lbl">Menu</span>
+                    </div>
+                  </button>
+                );
+
+              const active = activeTab === id;
               return (
                 <button
                   key={id}
-                  className="mbn-btn mbn-menu-btn"
-                  onClick={() => setShowServices(true)}
-                  aria-label="Services"
+                  className={`mbn-btn${active ? " is-active" : ""}`}
+                  onClick={() => setActiveTab(id)}
+                  aria-label={label}
+                  aria-current={active ? "page" : undefined}
                 >
-                  <div
-                    className={`mbn-menu-pill${showServices ? " open" : ""}`}
-                  >
-                    <div className="mbn-grid">
-                      <span />
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                    <span className="mbn-menu-lbl">Menu</span>
+                  <div className="mbn-pill">
+                    <span className="mbn-ico">
+                      <Icon
+                        size={active ? 20 : 19}
+                        strokeWidth={active ? 2.4 : 1.8}
+                      />
+                    </span>
+                    <span className="mbn-lbl">{label}</span>
+                    {active && <span className="mbn-dot" />}
                   </div>
                 </button>
               );
-
-            const active = activeTab === id;
-            return (
-              <button
-                key={id}
-                className={`mbn-btn${active ? " is-active" : ""}`}
-                onClick={() => setActiveTab(id)}
-                aria-label={label}
-                aria-current={active ? "page" : undefined}
-              >
-                <div className="mbn-pill">
-                  <span className="mbn-ico">
-                    <Icon
-                      size={active ? 20 : 19}
-                      strokeWidth={active ? 2.4 : 1.8}
-                    />
-                  </span>
-                  <span className="mbn-lbl">{label}</span>
-                  {active && <span className="mbn-dot" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* FAB */}
       <button

@@ -2,6 +2,7 @@
 // Desktop shell: tight left nav + center app + right data panel
 import React, { useState, useEffect, useCallback } from "react";
 import PayWaveApp from "./PayWaveApp";
+import useRegisterBack from "../../../hooks/useRegisterBack";
 import { supabase } from "../../../services/config/supabase";
 import { useAuth } from "../../../components/Auth/AuthContext";
 
@@ -229,8 +230,25 @@ export default function PayWaveWrapper({ onBack, userId }) {
 
   useEffect(() => {
     document.body.classList.add("paywave-open");
-    return () => document.body.classList.remove("paywave-open");
+    // Dispatch a global event so other UI (bottom nav) can react immediately
+    window.dispatchEvent(new CustomEvent("paywave:open"));
+
+    // Push a history state so browser Back returns to wallet (not exit the app)
+    try { window.history.pushState({ paywave: true }, ""); } catch {}
+
+    return () => {
+      document.body.classList.remove("paywave-open");
+      window.dispatchEvent(new CustomEvent("paywave:close"));
+      // No need to pop state here — allow native nav to restore previous state
+    };
   }, []);
+
+  // Register back handler so popstate closes PayWave and allows native history
+  useRegisterBack(() => {
+    if (typeof onBack === "function") onBack();
+    // Return false so BackNavigationContext allows native navigation (go back)
+    return false;
+  }, [onBack]);
 
   const RefreshBtn = ({ onClick, loading, color = "rgba(163,230,53,0.55)" }) => (
     <button onClick={onClick} style={{

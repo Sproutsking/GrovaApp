@@ -185,14 +185,14 @@ export async function queueWithdrawal({ userId, epAmount, method, fields, pin = 
   // — Paystack won't be called until admin unblocks).
   if (method === "bank" && !result.batched && result.id) {
     try {
-      const { error: fnError } = await supabase.functions.invoke(
+      const { data: fnData, error: fnError } = await supabase.functions.invoke(
         "withdraw-paystack-init",
         { body: { withdrawal_id: result.id } }
       );
       if (fnError) {
         // Non-fatal: the DB trigger will retry, or admin can process manually.
         // Log but don't throw — the withdrawal is safely queued and EP is debited.
-        console.warn("[withdrawService] Paystack init warning:", fnError.message);
+        console.warn("[withdrawService] Paystack init warning:", fnError.message, { fnData });
       }
     } catch (e) {
       // Also non-fatal: network error or function not yet deployed.

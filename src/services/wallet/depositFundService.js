@@ -343,11 +343,13 @@ export async function depositPaystackOpen({
 
 
   if (!PAYSTACK_KEY) {
+    // Include server response to help diagnose misconfiguration without
+    // exposing secret keys (serverKey would be undefined here).
+    const debug = { serverKeyPresent: !!serverKey, initResultSummary: { reference, amountKobo, creditAmount } };
+    console.error("[depositPaystackOpen] Missing Paystack public key", debug);
     throw new Error(
-      "Paystack key unavailable. " +
-      "Please ensure your edge function (deposit-paystack-init) returns `paystackKey` " +
-      "from Deno.env.get(\"PAYSTACK_PUBLIC_KEY\"), or set REACT_APP_PAYSTACK_PUBLIC_KEY " +
-      "in your deployment environment variables."
+      "Paystack key unavailable. Ensure your edge function (deposit-paystack-init) returns `paystackKey` (Deno.env.get(\"PAYSTACK_PUBLIC_KEY\") or REACT_APP_PAYSTACK_PUBLIC_KEY). " +
+      "Server response: " + JSON.stringify(debug)
     );
   }
 

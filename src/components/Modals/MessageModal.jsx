@@ -2,32 +2,46 @@
 // src/components/Modals/MessageModal.jsx - DIRECT MESSAGING MODAL
 // ============================================================================
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Send, Smile, Paperclip, Image as ImageIcon } from "lucide-react";
+import dmMessageService from "../../services/messages/dmMessageService";
 
 const MessageModal = ({ recipient, onClose, currentUser }) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const onDomClose = () => onClose?.();
+    window.addEventListener("xv:dom-back-close", onDomClose);
+    return () => window.removeEventListener("xv:dom-back-close", onDomClose);
+  }, [onClose]);
+
   const handleSend = async () => {
     if (!message.trim()) return;
-
+    setSending(true);
     try {
-      setSending(true);
-      // TODO: Implement actual messaging logic
-      console.log("Sending message to:", recipient.username);
-      console.log("Message:", message);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      setMessage("");
-      alert("Message sent! (Feature coming soon)");
+      const userId = currentUser?.id;
+      if (!userId) throw new Error("Not authenticated");
+      const conv = await dmMessageService.createConversation(userId, recipient.id);
+      if (!conv?.id) throw new Error("Could not create conversation");
+      const sent = await dmMessageService.sendMessage(conv.id, message.trim(), userId);
+      if (!sent) throw new Error("Message failed to send");
+      if (mountedRef.current) {
+        setMessage("");
+        onClose?.();
+      }
     } catch (error) {
       console.error("Failed to send message:", error);
-      alert("Failed to send message");
+      alert("Failed to send message: " + (error?.message || ""));
     } finally {
-      setSending(false);
+      if (mountedRef.current) setSending(false);
     }
   };
 
@@ -302,7 +316,7 @@ const MessageModal = ({ recipient, onClose, currentUser }) => {
         }
       `}</style>
 
-      <div className="message-modal-overlay" onClick={onClose}>
+      <div className="message-modal-overlay" onClick={onClose} data-back-close>
         <div className="message-modal" onClick={(e) => e.stopPropagation()}>
           <div className="message-modal-header">
             <div className="recipient-info">

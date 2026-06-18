@@ -171,11 +171,14 @@ serve(async (req: Request) => {
     }
 
     // Public key is read server-side and returned to the client.
-    // This means REACT_APP_PAYSTACK_PUBLIC_KEY never needs to be set
-    // as a frontend build-time env var — works on all deployments.
-    const PAYSTACK_PUBLIC_KEY = Deno.env.get("REACT_APP_PAYSTACK_PUBLIC_KEY");
+    // Accept either PAYSTACK_PUBLIC_KEY or REACT_APP_PAYSTACK_PUBLIC_KEY
+    // to be robust across deployment environments.
+    const PAYSTACK_PUBLIC_KEY = Deno.env.get("PAYSTACK_PUBLIC_KEY")
+      ?? Deno.env.get("REACT_APP_PAYSTACK_PUBLIC_KEY");
     if (!PAYSTACK_PUBLIC_KEY) {
-      console.error("[deposit-paystack-init] REACT_APP_PAYSTACK_PUBLIC_KEY missing");
+      console.error(
+        "[deposit-paystack-init] PAYSTACK public key missing (PAYSTACK_PUBLIC_KEY or REACT_APP_PAYSTACK_PUBLIC_KEY)",
+      );
       return json(
         { success: false, error: "Payment gateway not configured (public key)" },
         500,
@@ -323,6 +326,13 @@ serve(async (req: Request) => {
     // paystackKey is included so the frontend (depositFundService.js) can
     // open the Paystack popup without needing REACT_APP_PAYSTACK_PUBLIC_KEY
     // baked into the frontend build. Works on localhost and all deployments.
+    // Expose the public key only if present. Also include diagnostics so
+    // clients can clearly detect a missing key without exposing secret values.
+    const paystackKeyPresent = !!PAYSTACK_PUBLIC_KEY;
+    const paystackKeySource = paystackKeyPresent
+      ? (Deno.env.get("PAYSTACK_PUBLIC_KEY") ? "PAYSTACK_PUBLIC_KEY" : "REACT_APP_PAYSTACK_PUBLIC_KEY")
+      : null;
+
     return json({
       success: true,
       authorization_url: paystackData.data.authorization_url,
@@ -334,7 +344,9 @@ serve(async (req: Request) => {
       amountKobo,
       currency,
       label: creditLabel,
-      paystackKey: PAYSTACK_PUBLIC_KEY,  // ← frontend reads this to open popup
+      paystackKey: paystackKeyPresent ? PAYSTACK_PUBLIC_KEY : null,
+      paystackKeyPresent,
+      paystackKeySource,
     });
   } catch (err) {
     console.error("[deposit-paystack-init] Unexpected error:", err);

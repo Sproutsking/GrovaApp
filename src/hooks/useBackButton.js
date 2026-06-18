@@ -13,8 +13,10 @@ export const useBackButton = (isAtRoot) => {
 
       const now = Date.now();
       if (now - lastBackPressRef.current < DOUBLE_BACK_DELAY) {
+        // Allow native navigation to proceed (exit) on double-back.
+        // Return false so BackNavigationContext lets the browser handle it.
         window.history.back();
-        return true;
+        return false;
       }
 
       lastBackPressRef.current = now;

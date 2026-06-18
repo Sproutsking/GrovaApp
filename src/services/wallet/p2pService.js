@@ -6,12 +6,17 @@ import { supabase } from "../config/supabase";
 
 // ── Invoke helper ────────────────────────────────────────────────────────────
 async function invoke(fn, payload = {}) {
-  const { data, error } = await supabase.functions.invoke(fn, {
-    body: payload,
-  });
-  if (error) throw new Error(error.message || "Request failed");
-  if (data?.error) throw new Error(data.error);
-  return data;
+  try {
+    const { data, error } = await supabase.functions.invoke(fn, { body: payload });
+    if (error) throw new Error(error.message || "Request failed");
+    if (!data) throw new Error("No response from function");
+    if (data?.error) throw new Error(data.error || "Function error");
+    return data;
+  } catch (e) {
+    // Surface function name to help debugging
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`${fn} failed: ${msg}`);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
