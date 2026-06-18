@@ -236,12 +236,7 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
     try {
       let data;
       if (activeCategory === "All") {
-        data = await getDiscoveryFeed({ limit: limit + (page - 1) * limit });
-        // For "All", we don't do real pagination — the ranking engine handles it
-        // Instead we re-fetch with higher limit each time
-        if (!reset) {
-          data = await getDiscoveryFeed({ limit: limit * page });
-        }
+        data = await getDiscoveryFeed({ limit, page });
       } else {
         data = await getCategoryFeed(activeCategory, limit, page);
       }
@@ -259,7 +254,7 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
             return [...prev, ...data.filter(i => !ids.has(i.id))];
           });
         }
-        setHasMore(data.length >= 8);
+        setHasMore(data.length >= limit);
         pageRef.current = page + 1;
       }
     } catch (e) {

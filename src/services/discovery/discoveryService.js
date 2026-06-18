@@ -530,7 +530,7 @@ function buildFeedCategories(ctx, userTopCats = [], overrideCategories = null) {
 }
 
 // ─── Main feed ────────────────────────────────────────────────────────────────
-export async function getDiscoveryFeed({ limit = 30, categories, mood } = {}) {
+export async function getDiscoveryFeed({ limit = 30, categories, mood, page = 1 } = {}) {
   const ctx      = getSessionContext();
   const topCats  = getTopCategories(5);
   const finalCats = buildFeedCategories(ctx, topCats, categories);
@@ -541,24 +541,26 @@ export async function getDiscoveryFeed({ limit = 30, categories, mood } = {}) {
     : finalCats;
   const activeCats = (moodFiltered.length >= 3 ? moodFiltered : finalCats).slice(0, 8);
 
-  // Parallel fetch
+  // Parallel fetch from live sources. Page support enables infinite discovery.
+  const supaLimit = Math.max(4, Math.floor(limit * 0.4));
+  const pexelsPerCategory = Math.max(3, Math.ceil(limit / Math.min(activeCats.length, 5)));
+
   const [supaItems, ...pexelsArrays] = await Promise.all([
-    fetchFromSupabase(activeCats, Math.floor(limit * 0.4)),
-    ...activeCats.slice(0, 5).map(cat => fetchFromPexels(cat, 6)),
+    fetchFromSupabase(activeCats, supaLimit, (page - 1) * supaLimit),
+    ...activeCats.slice(0, 5).map(cat => fetchFromPexels(cat, pexelsPerCategory, page)),
   ]);
 
   const pexelsItems  = pexelsArrays.flat();
   const combined     = [...supaItems, ...pexelsItems];
   const existingIds  = new Set(combined.map(i => i.id));
 
-  // Fill from fallback — sorted by engagement descending
+  // Fill from fallback when live sources are empty or still warming up.
   const fallbackFill = FALLBACK_CATALOG
     .filter(i => !existingIds.has(i.id))
     .sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0));
 
   const withFallback = [...combined, ...fallbackFill];
 
-  // Run through addiction ranking engine
   return rankItems(withFallback, "discovery").slice(0, limit);
 }
 
