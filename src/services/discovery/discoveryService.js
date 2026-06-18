@@ -27,7 +27,7 @@ const PEXELS_BASE = "https://api.pexels.com/videos";
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 const _cache    = new Map();
-const CACHE_TTL = 10 * 60_000;
+const CACHE_TTL = 2 * 60_000;
 
 function getCached(key) {
   const e = _cache.get(key);
@@ -289,6 +289,35 @@ function getRotatingVideoUrl(category, itemId) {
   return pool[idx] || pool[0];
 }
 
+function makeLCG(seed) {
+  let s = Math.max(1, seed | 0);
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function shuffleCategories(items, seed = 1) {
+  const rnd = makeLCG(seed);
+  const list = [...items];
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rnd() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+function getPageFallbackItems(category, page = 1, limit = 20) {
+  const fallback = FALLBACK_CATALOG.filter(i => !category || i.category === category);
+  const ordered = shuffleCategories(fallback, page + 13)
+    .sort((a, b) => {
+      const scoreDiff = (b.engagementScore || 0) - (a.engagementScore || 0);
+      if (scoreDiff) return scoreDiff;
+      return a.id.localeCompare(b.id);
+    });
+  return ordered.slice(0, limit);
+}
+
 // ─── Fallback catalog (always non-empty — pure client-side content) ───────────
 export const FALLBACK_CATALOG = [
   // HORROR & STRANGE — top engagement
@@ -506,7 +535,7 @@ async function fetchFromSupabase(categories = [], limit = 20, offset = 0) {
 }
 
 // ─── Context-aware category selection ────────────────────────────────────────
-function buildFeedCategories(ctx, userTopCats = [], overrideCategories = null) {
+function buildFeedCategories(ctx, userTopCats = [], overrideCategories = null, page = 1) {
   if (overrideCategories?.length) return overrideCategories.slice(0, 10);
 
   const cats = new Set(userTopCats.slice(0, 4));
@@ -520,10 +549,13 @@ function buildFeedCategories(ctx, userTopCats = [], overrideCategories = null) {
     ["Predator","Volcano","Cyclone","Storms","Extreme Nature","Deep Sea"].forEach(c => cats.add(c));
   }
 
-  // Add high-engagement fillers
-  const ordered = DISCOVERY_CATEGORIES.sort(
-    (a, b) => (CATEGORY_ENGAGEMENT_BASE[b] || 70) - (CATEGORY_ENGAGEMENT_BASE[a] || 70)
+  // Add high-engagement fillers with page-dependent order so the stream evolves
+  const timeBoost = (ctx.isNight ? 11 : 0) + (ctx.isMorning ? 7 : 0) + (ctx.isAfternoon ? 5 : 0);
+  const ordered = shuffleCategories(
+    [...DISCOVERY_CATEGORIES].sort((a, b) => (CATEGORY_ENGAGEMENT_BASE[b] || 70) - (CATEGORY_ENGAGEMENT_BASE[a] || 70)),
+    page + timeBoost,
   );
+
   for (const c of ordered) {
     if (cats.size >= 10) break;
     cats.add(c);
@@ -536,7 +568,7 @@ function buildFeedCategories(ctx, userTopCats = [], overrideCategories = null) {
 export async function getDiscoveryFeed({ limit = 30, categories, mood, page = 1 } = {}) {
   const ctx      = getSessionContext();
   const topCats  = getTopCategories(5);
-  const finalCats = buildFeedCategories(ctx, topCats, categories);
+  const finalCats = buildFeedCategories(ctx, topCats, categories, page);
 
   // Apply mood filter
   const moodFiltered = mood && MOOD_CATEGORIES[mood]
@@ -547,20 +579,20 @@ export async function getDiscoveryFeed({ limit = 30, categories, mood, page = 1 
   // Parallel fetch from live sources. Page support enables infinite discovery.
   const supaLimit = Math.max(4, Math.floor(limit * 0.4));
   const pexelsPerCategory = Math.max(3, Math.ceil(limit / Math.min(activeCats.length, 5)));
+  const pexelsCats = shuffleCategories(activeCats, page).slice(0, Math.min(activeCats.length, 5));
 
   const [supaItems, ...pexelsArrays] = await Promise.all([
     fetchFromSupabase(activeCats, supaLimit, (page - 1) * supaLimit),
-    ...activeCats.slice(0, 5).map(cat => fetchFromPexels(cat, pexelsPerCategory, page)),
+    ...pexelsCats.map(cat => fetchFromPexels(cat, pexelsPerCategory, page)),
   ]);
 
   const pexelsItems  = pexelsArrays.flat();
   const combined     = [...supaItems, ...pexelsItems];
   const existingIds  = new Set(combined.map(i => i.id));
 
-  // Fill from fallback when live sources are empty or still warming up.
-  const fallbackFill = FALLBACK_CATALOG
-    .filter(i => !existingIds.has(i.id))
-    .sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0));
+  // Page-aware fallback pool so later pages feel fresh and never repeat the same seed order.
+  const fallbackFill = getPageFallbackItems("", page, limit)
+    .filter(i => !existingIds.has(i.id));
 
   const withFallback = [...combined, ...fallbackFill];
 
@@ -580,7 +612,7 @@ export async function getCategoryFeed(category, limit = 20, page = 1) {
     fetchFromPexels(category, Math.ceil(limit * 0.5), page),
   ]);
 
-  const fallback = FALLBACK_CATALOG.filter(i => i.category === category);
+  const fallback = getPageFallbackItems(category, page, limit);
   const all      = [...supaItems, ...pexelsItems, ...fallback];
   const unique   = [...new Map(all.map(i => [i.id, i])).values()];
 

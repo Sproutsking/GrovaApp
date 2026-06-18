@@ -54,7 +54,7 @@ export const PIPELINE = {
 
 // ─── Module-level cache (5 min TTL) ──────────────────────────────────────────
 const _cache    = new Map();
-const CACHE_TTL = 5 * 60_000;
+const CACHE_TTL = 60_000;
 function getCached(key) {
   const e = _cache.get(key);
   if (!e) return null;

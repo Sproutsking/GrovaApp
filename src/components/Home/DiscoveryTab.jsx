@@ -27,6 +27,7 @@ import {
   getCategoryFeed,
   getRelatedFeed,
   getSavedDiscovery,
+  clearDiscoveryCache,
   DISCOVERY_CATEGORIES,
 } from "../../services/discovery/discoveryService";
 import { recordSignal, getSessionContext } from "../../services/discovery/discoveryPersonalizationModel";
@@ -303,6 +304,7 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
   }, [fullScreenIdx, items, savedItems, activeCategory]);
 
   const handleRefresh = useCallback(() => {
+    clearDiscoveryCache();
     setItems([]); setRelatedItems([]); setHasMore(true);
     setError(null); setShowRelated(false);
     pageRef.current = 1;
