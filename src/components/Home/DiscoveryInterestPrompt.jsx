@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Button } from "../Shared/Buttons"; // optional, fallback to native if missing
 import { recordSignal } from "../../services/discovery/discoveryPersonalizationModel";
 
 const DiscoveryInterestPrompt = ({ item, onClose }) => {

@@ -125,7 +125,7 @@ CatPill.displayName = "CatPill";
 // DiscoveryTab
 // ═══════════════════════════════════════════════════════════════════════════════
 const DiscoveryTab = React.forwardRef(function DiscoveryTab(
-  { currentUser, isActive },
+  { currentUser, isActive, initialCategory = "All" },
   _ref,
 ) {
   const [items,          setItems]          = useState([]);
@@ -133,7 +133,7 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
   const [loading,        setLoading]        = useState(true);
   const [loadingMore,    setLoadingMore]    = useState(false);
   const [hasMore,        setHasMore]        = useState(true);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState(initialCategory || "All");
   const [error,          setError]          = useState(null);
   const [fullScreenItem, setFullScreenItem] = useState(null);
   const [fullScreenIdx,  setFullScreenIdx]  = useState(0);
@@ -191,6 +191,16 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
       loadFeed(true);
     }
   }, [activeCategory]); // eslint-disable-line
+
+  // Update category when discovery navigation requests a specific filter
+  useEffect(() => {
+    if (!initialCategory || initialCategory === activeCategory) return;
+    setActiveCategory(initialCategory);
+    setItems([]); setRelatedItems([]); setHasMore(true);
+    setError(null); setShowRelated(false);
+    pageRef.current = 1;
+    loadFeed(true);
+  }, [initialCategory]); // eslint-disable-line
 
   // Related feed — load after user watches a clip
   useEffect(() => {

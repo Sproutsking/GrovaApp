@@ -42,6 +42,7 @@ import PostTab          from "./PostTab";
 import NewsTab          from "./NewsTab";
 import ReelsTab         from "./ReelsTab";
 import StoryTab         from "./StoryTab";
+import DiscoveryTab     from "./DiscoveryTab";
 import LiveStreamersRow from "../Stream/LiveStreamersRow";
 
 import postService     from "../../services/home/postService";
@@ -297,6 +298,7 @@ const HomeView = ({
   const [loadingMore,   setLoadingMore]   = useState(false);
   const [newsLoading,   setNewsLoading]   = useState(false);
   const [reelsLoading,  setReelsLoading]  = useState(false);
+  const [discoveryCategory, setDiscoveryCategory] = useState("All");
 
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
 
@@ -679,7 +681,8 @@ const HomeView = ({
       return;
     }
     if (dest === "discovery") {
-      // Could navigate to discovery tab if it exists, else stay on posts
+      setDiscoveryCategory(entityId || "All");
+      setActiveHomeTab?.("discovery");
       return;
     }
     if (typeof setActiveHomeTab === "function" && dest) {
@@ -791,6 +794,15 @@ const HomeView = ({
                 hasMore={hasMoreNews}
                 isLoadingMore={newsLoading}
                 isActive={currentTab==="news"}
+              />
+            </div>
+
+            {/* ── DISCOVERY TAB ── */}
+            <div style={{ display: currentTab==="discovery" ? "block" : "none" }}>
+              <DiscoveryTab
+                currentUser={resolvedUser}
+                isActive={currentTab==="discovery"}
+                initialCategory={discoveryCategory}
               />
             </div>
           </div>

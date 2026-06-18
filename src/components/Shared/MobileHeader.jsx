@@ -90,10 +90,11 @@ const NewsTabIcon = ({ active }) => (
 
 // ── [4-TAB] Home tabs array ───────────────────────────────────────────────────
 const HOME_TABS = [
-  { id: "posts",   Icon: PostsTabIcon,   label: "Posts"   },
-  { id: "reels",   Icon: ReelsTabIcon,   label: "Reels"   },
-  { id: "stories", Icon: StoriesTabIcon, label: "Stories" },
-  { id: "news",    Icon: NewsTabIcon,    label: "News"    },
+  { id: "posts",     Icon: PostsTabIcon,     label: "Posts"     },
+  { id: "reels",     Icon: ReelsTabIcon,     label: "Reels"     },
+  { id: "stories",   Icon: StoriesTabIcon,   label: "Stories"   },
+  { id: "news",      Icon: NewsTabIcon,      label: "News"      },
+
 ];
 
 // ── Fetch unread data ─────────────────────────────────────────────────────────
