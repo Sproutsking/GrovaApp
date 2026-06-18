@@ -238,43 +238,43 @@ function deriveMood(category) {
 }
 
 // ─── Working Video CDNs for Fallback ────────────────────────────────────────
-// These are stable public MP4 URLs that work reliably in browsers.
+// These public MP4 URLs are accessible from browsers and should not 403.
 const GLOBAL_FALLBACK_VIDEOS = [
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+  "https://media.w3.org/2010/05/sintel/trailer.mp4",
+  "https://media.w3.org/2010/05/bunny/trailer.mp4",
+  "https://media.w3.org/2010/05/video/movie_300.mp4",
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm",
 ];
 
 const FALLBACK_VIDEOS = {
-  "Horror & Strange":  [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
-  "Bioluminescence":   [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[3]],
-  "Deep Sea":          [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[2]],
-  "Aurora":            [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[4]],
-  "Volcano":           [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[0]],
-  "Predator":          [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[2]],
-  "Cyclone":           [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
-  "Wildlife":          [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[4]],
-  "Birds":             [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[1]],
-  "Caves":             [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[2]],
-  "Space & Earth":     [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Horror & Strange":  [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Bioluminescence":   [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Deep Sea":          [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Aurora":            [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Volcano":           [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Predator":          [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Cyclone":           [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Wildlife":          [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Birds":             [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Caves":             [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Space & Earth":     [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[4]],
   "Night Nature":      [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[1]],
-  "Storms":            [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[3]],
-  "Macro Wildlife":    [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
-  "Fungi":             [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[3]],
-  "Abandoned":         [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[2]],
-  "Extreme Nature":    [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Storms":            [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Macro Wildlife":    [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Fungi":             [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Abandoned":         [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Extreme Nature":    [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[3]],
   "Survival":          [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[3]],
-  "Ocean":             [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[4]],
-  "Jungle":            [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[0]],
-  "Aerial Earth":      [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[1]],
-  "Waterfalls":        [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[0]],
-  "Mountains":         [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[2]],
-  "Desert":            [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[4]],
-  "Snow":              [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[3]],
-  "Rain":              [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[0]],
-  "Relaxation":        [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Ocean":             [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Jungle":            [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Aerial Earth":      [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[2]],
+  "Waterfalls":        [GLOBAL_FALLBACK_VIDEOS[3], GLOBAL_FALLBACK_VIDEOS[0]],
+  "Mountains":         [GLOBAL_FALLBACK_VIDEOS[1], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Desert":            [GLOBAL_FALLBACK_VIDEOS[2], GLOBAL_FALLBACK_VIDEOS[4]],
+  "Snow":              [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[1]],
+  "Rain":              [GLOBAL_FALLBACK_VIDEOS[4], GLOBAL_FALLBACK_VIDEOS[3]],
+  "Relaxation":        [GLOBAL_FALLBACK_VIDEOS[0], GLOBAL_FALLBACK_VIDEOS[4]],
 };
 
 function getFallbackThumb(category) {
@@ -424,12 +424,15 @@ async function fetchFromPexels(category, limit = 10, page = 1) {
     const json = await res.json();
 
     const items = (json.videos || []).map(v => {
-      const best = (v.video_files || [])
+      const files = v.video_files || [];
+      const best = files
         .filter(f => f.quality === "hd" || f.quality === "sd")
-        .sort((a, b) => (b.width || 0) - (a.width || 0))[0];
-      const sd = (v.video_files || [])
+        .sort((a, b) => (b.width || 0) - (a.width || 0))[0]
+        || files.sort((a, b) => (b.width || 0) - (a.width || 0))[0];
+      const sd = files
         .filter(f => f.quality === "sd")
-        .sort((a, b) => (b.width || 0) - (a.width || 0))[0];
+        .sort((a, b) => (b.width || 0) - (a.width || 0))[0]
+        || best;
       return {
         id:             `pexels_${v.id}`,
         type:           "discovery_stream",
