@@ -13,8 +13,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
-  Bookmark, Users, UserPlus, Hash, Crown, Heart, Star,
+  Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard,
 } from "lucide-react";
+import { useAuth } from "../Auth/AuthContext";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import { buildTierInfo, getTierBadge } from "../../services/account/profileTierService";
@@ -201,7 +202,7 @@ const FourStatRow = ({ stats }) => {
 // ── Main component ────────────────────────────────────────────────────────
 // [AMB-2] Added `onNavigate` prop — routes ambassador button click to the
 //         ambassador view in App.jsx (same pattern as DashboardSection → wallet)
-const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
+const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, currentUser }) => {
   const [profile,               setProfile]               = useState(null);
   const [tierInfo,              setTierInfo]              = useState(null);
   const [loading,               setLoading]               = useState(true);
@@ -242,6 +243,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
       })
       .catch(() => {}); // non-fatal
   }, [userId]);
+
+  const { isAdmin } = useAuth() || {};
 
   const loadProfileData = async () => {
     try {
@@ -435,7 +438,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
   const ambLevelName = ambassadorData ? (ambassadorLevelNames[ambassadorData.current_level] || "Scout") : null;
   const ambLevelIcon = { 1:"🌱", 2:"⚡", 3:"🔥", 4:"💎", 5:"👑" };
 
-  const actionButtons = [
+  let actionButtons = [
     {
       id:"edit",
       icon:<Edit size={20}/>,
@@ -518,6 +521,20 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate }) => {
       onClick:()=>setShowLogoutConfirm(true),
     },
   ];
+
+  // Admin quick-access button (mobile-friendly) — inserted before Sign Out
+  if (isAdmin) {
+    actionButtons.splice(actionButtons.length - 1, 0, {
+      id: "admin",
+      icon: <LayoutDashboard size={20} />,
+      label: "Admin Dashboard",
+      sub: "Open admin tools",
+      accent: "#f59e0b",
+      bg: "linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04))",
+      border: "rgba(245,158,11,0.25)",
+      onClick: () => { if (typeof onNavigate === "function") onNavigate("admin"); },
+    });
+  }
 
   return (
     <>

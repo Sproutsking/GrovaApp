@@ -268,7 +268,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
       </div>
 
       {/* Key Metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: dashboardCols, gap: 14, marginBottom: 24 }}>
         <MetricCard icon={Users} label="Total Users"
           value={(s.totalUsers || 0).toLocaleString()} subValue={`+${s.newUsersToday || 0} today`}
           trend={s.newUsersWeek > 0 ? `+${s.newUsersWeek} this week` : undefined} trendPositive
@@ -286,11 +286,11 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
       </div>
 
       {/* Quick Actions + Online Team */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: overviewPanelCols, gap: 16, marginBottom: 24 }}>
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Quick Actions</div>
           <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Jump to any section instantly</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: quickActionCols, gap: 10 }}>
             {QUICK_ACTIONS.map((qa) => (
               <button key={qa.nav} onClick={() => onNavigate(qa.nav)}
                 style={{ padding: "14px 10px", background: `${qa.color}08`, border: `1px solid ${qa.color}20`, borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all .15s", fontFamily: "inherit" }}
@@ -331,7 +331,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData }) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: economyCols, gap: 12 }}>
           {[
             { label: "Circulating XEV", value: (s.totalXEVCirculating || 0).toLocaleString(), sub: "Active wallet balances", color: "#fbbf24", topColor: "#fbbf24" },
             { label: "Total XEV Minted", value: (s.totalXEVMinted || 0).toLocaleString(), sub: "All-time wallet credits", color: "#d4a017", topColor: "rgba(251,191,36,0.5)" },
@@ -480,6 +480,14 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
 export default function AdminDashboard({ adminData, onClose }) {
   const [activeSection,    setActiveSection]    = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileAdmin,    setIsMobileAdmin]    = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileAdmin(window.innerWidth <= 900);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const { stats, reload: reloadStats } = useStats();
   const usersHook         = useUsers();
@@ -496,6 +504,12 @@ export default function AdminDashboard({ adminData, onClose }) {
     setActiveSection(section);
     window.scrollTo(0, 0);
   }, []);
+
+  const dashboardCols = isMobileAdmin ? "1fr" : "repeat(4, 1fr)";
+  const quickActionCols = isMobileAdmin ? "repeat(2, 1fr)" : "repeat(3, 1fr)";
+  const economyCols = isMobileAdmin ? "1fr" : "repeat(4, 1fr)";
+  const overviewPanelCols = isMobileAdmin ? "1fr" : "1fr 300px";
+  const contentPadding = isMobileAdmin ? "16px 16px 24px" : "24px 28px";
 
   const supportMgmt = {
     cases:        casesHook.cases || [],
@@ -599,7 +613,7 @@ export default function AdminDashboard({ adminData, onClose }) {
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: C.bg, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif", color: C.text, overflow: "hidden", position: "fixed", top: 0, left: 0, zIndex: 10000 }}>
-      <AdminSidebarNav adminData={adminData} activeSection={activeSection} onNavigate={navigate} stats={stats} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
+      <AdminSidebarNav adminData={adminData} activeSection={activeSection} onNavigate={navigate} stats={stats} collapsed={sidebarCollapsed || isMobileAdmin} onToggle={() => setSidebarCollapsed((c) => !c)} />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         {/* Top bar */}
@@ -619,7 +633,7 @@ export default function AdminDashboard({ adminData, onClose }) {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: contentPadding }}>
           {renderSection()}
         </div>
       </div>

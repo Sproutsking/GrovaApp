@@ -483,10 +483,10 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
       <Section title="Platform Vitals" subtitle="Live snapshot">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
-            { label: "Total Users",     value: (s.totalUsers || 0).toLocaleString(), color: C.accent },
-            { label: "Total Revenue",   value: `$${(s.totalRevenue || 0).toFixed(0)}`, color: C.success },
-            { label: "Admin Team Size", value: activeMembers.length, color: "#f59e0b" },
-            { label: "Total Content",   value: (s.totalContent || 0).toLocaleString(), color: C.info },
+            { label: "Total Users",       value: (s.totalUsers || 0).toLocaleString(), color: C.accent },
+            { label: "Total Revenue",     value: `$${(s.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: C.success },
+            { label: "Revenue Today",     value: `$${(s.revenueToday || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "#34d399" },
+            { label: "Total XEV Circulating", value: (s.totalXEVCirculating || 0).toLocaleString(), color: "#f59e0b" },
           ].map((c) => (
             <div key={c.label} style={{ padding: "16px", background: `${c.color}10`, border: `1px solid ${c.color}25`, borderRadius: 12, textAlign: "center" }}>
               <div style={{ fontSize: 26, fontWeight: 900, color: c.color }}>{c.value}</div>
