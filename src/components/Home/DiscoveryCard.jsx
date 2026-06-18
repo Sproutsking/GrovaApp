@@ -1,13 +1,21 @@
-// src/components/Home/DiscoveryCard.jsx — v5 ULTRA-ADDICTIVE + SUBSCRIPTION SAVE
+// src/components/Home/DiscoveryCard.jsx — v6 WORKING MEDIA + INTEREST CARDS
+//
+// FIXES in v6:
+// ─────────────────────────────────────────────────────────────────────────────
+// • Video loads with explicit src assignment on mount, not just on isVisible
+// • Thumbnail always shows (no opacity:0 on initial render)
+// • Error fallback — if video 404s, card stays beautiful with thumbnail
+// • Video element uses crossOrigin="anonymous" for CDN compatibility
+// ─────────────────────────────────────────────────────────────────────────────
 //
 // FEATURES:
 // ─────────────────────────────────────────────────────────────────────────────
 // [V1] Autoplay driven by isVisible prop (IntersectionObserver in parent)
 // [V2] Adaptive video quality based on connection speed
-// [V3] LQIP blur-up thumbnail loading
+// [V3] Thumbnail always visible — video fades in on top when ready
 // [V4] Subscription-gated save (silver/gold/diamond only) with upgrade nudge
-// [V5] Save stores URL reference in localStorage — zero DB cost
-//      Saved items reload on demand from their external URLs
+// [V5] Interest Card — shown after 4s of watching, or on fast scroll
+//      "More like this" / "Show less" — feeds personalization model
 // [V6] Share via navigator.share or clipboard fallback
 // [V7] Full-screen overlay on expand tap
 // [V8] Category gradient always rendered — never black screen
@@ -22,7 +30,7 @@ import {
   Play, Volume2, VolumeX,
   Heart, Bookmark, Share2, Eye,
   Compass, Maximize2, ChevronDown, BookmarkCheck,
-  Lock,
+  Lock, ThumbsUp, ThumbsDown, X as XIcon,
 } from "lucide-react";
 import { recordSignal } from "../../services/discovery/discoveryPersonalizationModel";
 import {
@@ -32,8 +40,6 @@ import {
 } from "../../services/discovery/discoveryService";
 
 export { CATEGORY_GRADIENTS };
-
-// ─── Re-export getSavedDiscovery for DiscoveryTab ─────────────────────────────
 export { getSavedDiscovery } from "../../services/discovery/discoveryService";
 
 // ─── Connection quality ───────────────────────────────────────────────────────
@@ -47,15 +53,6 @@ function adaptUrl(url) {
     return url.replace("hd_1920_1080","sd_960_540").replace("hd_","sd_");
   if (_ect === "3g") return url.replace("hd_1920_1080","hd_1280_720");
   return url;
-}
-
-function getLqip(thumbUrl) {
-  if (!thumbUrl || typeof thumbUrl !== "string") return "";
-  if (thumbUrl.includes("cloudinary.com"))
-    return thumbUrl.replace("/upload/", "/upload/w_20,q_1,f_auto/");
-  if (thumbUrl.includes("pexels.com"))
-    return `${thumbUrl.split("?")[0]}?w=20&auto=compress`;
-  return "";
 }
 
 // ─── Mute preference ─────────────────────────────────────────────────────────
@@ -81,13 +78,17 @@ const MOOD_THEME = {
 };
 const DEFAULT_THEME = { grad:"rgba(132,204,22,0.22)", accent:"#84cc16", label:"Discovery" };
 
-// ─── Subscription tiers that can save ────────────────────────────────────────
+// ─── Subscription tiers ───────────────────────────────────────────────────────
 const SAVE_TIERS = new Set(["silver","gold","diamond"]);
-
 function canSave(userProfile) {
   const t = userProfile?.subscription_tier || userProfile?.boost_tier || "free";
   return SAVE_TIERS.has(t);
 }
+
+// ─── Interest card trigger ────────────────────────────────────────────────────
+// Show after 4 seconds of watching, or if user watches > 60%
+const INTEREST_CARD_DELAY = 4000;
+const INTEREST_CARD_WATCH_PCT = 0.6;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DiscoveryCard
@@ -99,47 +100,38 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
   onOpenFullScreen,
   currentUser,
 }) {
-  const [muted,       setMuted]       = useState(getMutePref);
-  const [playing,     setPlaying]     = useState(false);
-  const [vidReady,    setVidReady]    = useState(false);
-  const [posterOk,    setPosterOk]    = useState(false);
-  const [liked,       setLiked]       = useState(false);
-  const [saved,       setSaved]       = useState(() => isSavedDiscovery(item.id));
-  const [captionExp,  setCaptionExp]  = useState(false);
-  const [showHud,     setShowHud]     = useState(true);
-  const [toast,       setToast]       = useState(null);
-  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [muted,         setMuted]         = useState(getMutePref);
+  const [playing,       setPlaying]       = useState(false);
+  const [vidReady,      setVidReady]      = useState(false);
+  const [vidError,      setVidError]      = useState(false);
+  const [posterOk,      setPosterOk]      = useState(false);
+  const [liked,         setLiked]         = useState(false);
+  const [saved,         setSaved]         = useState(() => isSavedDiscovery(item.id));
+  const [captionExp,    setCaptionExp]    = useState(false);
+  const [showHud,       setShowHud]       = useState(true);
+  const [toast,         setToast]         = useState(null);
+  const [showUpgrade,   setShowUpgrade]   = useState(false);
+  const [showInterest,  setShowInterest]  = useState(false);
+  const [interestDone,  setInterestDone]  = useState(false);
 
-  const videoRef   = useRef(null);
-  const hudTimer   = useRef(null);
-  const skipRef    = useRef(Date.now());
-  const coolingRef = useRef(null);
-  const halfFired  = useRef(false);
-  const fullFired  = useRef(false);
-  const quarterFired = useRef(false);
+  const videoRef      = useRef(null);
+  const hudTimer      = useRef(null);
+  const skipRef       = useRef(Date.now());
+  const coolingRef    = useRef(null);
+  const halfFired     = useRef(false);
+  const fullFired     = useRef(false);
+  const quarterFired  = useRef(false);
+  const interestTimer = useRef(null);
+  const watchStart    = useRef(null);
+  const mountedRef    = useRef(true);
 
   const theme      = MOOD_THEME[item.mood] || DEFAULT_THEME;
   const catGrad    = CATEGORY_GRADIENTS[item.category] || "linear-gradient(170deg,#0a0a14,#1a1a2e)";
   const adaptedUrl = useMemo(() => adaptUrl(item.videoUrl), [item.videoUrl]);
-  const lqip       = useMemo(() => getLqip(item.thumbnailUrl), [item.thumbnailUrl]);
   const hasThumb   = !!(item.thumbnailUrl && typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim());
-  const hasVideo   = !!(adaptedUrl && adaptedUrl.length > 0);
+  const hasVideo   = !!(adaptedUrl && adaptedUrl.length > 0) && !vidError;
 
-  // Ensure the video element always gets a source once the item is rendered.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !adaptedUrl) return;
-    el.crossOrigin = "anonymous";
-    if (!el.src) el.src = adaptedUrl;
-  }, [adaptedUrl]);
-
-  // Skip signal on fast scroll-past
-  useEffect(() => {
-    skipRef.current = Date.now();
-    return () => {
-      if (Date.now() - skipRef.current < 1200) recordSignal(item, "SKIP");
-    };
-  }, []); // eslint-disable-line
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   // Preload slot
   useEffect(() => {
@@ -148,40 +140,75 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     if (_slots.active < _slots.max) {
       _slots.active++;
       el.preload = "metadata";
-      if (!el.src) el.src = adaptedUrl;
+      // Assign src immediately so the browser can start fetching metadata
+      if (!el.src || el.src !== adaptedUrl) {
+        el.src = adaptedUrl;
+      }
       return () => { _slots.active = Math.max(0, _slots.active - 1); };
     }
-  }, [adaptedUrl]);
+  }, []); // eslint-disable-line
 
   // [V1] Autoplay driven by isVisible
   useEffect(() => {
     const el = videoRef.current;
-    if (!el) return;
+    if (!el || !adaptedUrl || vidError) return;
 
     if (isVisible) {
       clearTimeout(coolingRef.current);
-      if (!el.src && adaptedUrl) el.src = adaptedUrl;
+      watchStart.current = Date.now();
+
+      // Ensure src is set
+      if (!el.src || !el.src.includes(adaptedUrl.split("/").pop())) {
+        el.src = adaptedUrl;
+      }
       el.muted = muted;
-      el.preload = "auto";
+
       const tryPlay = () => {
-        el.play().then(() => setPlaying(true)).catch(() => {
-          setPlaying(false);
-        });
+        el.play()
+          .then(() => { if (mountedRef.current) setPlaying(true); })
+          .catch(() => {});
       };
-      if (el.readyState >= 2) tryPlay();
-      else el.addEventListener("canplay", tryPlay, { once: true });
+
+      if (el.readyState >= 2) {
+        tryPlay();
+      } else {
+        el.load();
+        el.addEventListener("canplay", tryPlay, { once: true });
+      }
+
+      // Interest card timer
+      if (!interestDone) {
+        clearTimeout(interestTimer.current);
+        interestTimer.current = setTimeout(() => {
+          if (mountedRef.current && !interestDone) setShowInterest(true);
+        }, INTEREST_CARD_DELAY);
+      }
     } else {
+      clearTimeout(interestTimer.current);
+      setShowInterest(false);
       el.pause();
       setPlaying(false);
+
+      // Record watch time as signal
+      if (watchStart.current) {
+        const elapsed = Date.now() - watchStart.current;
+        if (elapsed < 1200) recordSignal(item, "SKIP");
+        watchStart.current = null;
+      }
+
       coolingRef.current = setTimeout(() => {
         if (!el.paused) return;
         el.removeAttribute("src");
         el.load();
-        setVidReady(false);
+        if (mountedRef.current) setVidReady(false);
       }, 900);
     }
-    return () => clearTimeout(coolingRef.current);
-  }, [isVisible, adaptedUrl, muted]);
+
+    return () => {
+      clearTimeout(coolingRef.current);
+      clearTimeout(interestTimer.current);
+    };
+  }, [isVisible]); // eslint-disable-line
 
   const resetHud = useCallback(() => {
     setShowHud(true);
@@ -189,7 +216,10 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     hudTimer.current = setTimeout(() => setShowHud(false), 3200);
   }, []);
 
-  useEffect(() => { resetHud(); return () => clearTimeout(hudTimer.current); }, []); // eslint-disable-line
+  useEffect(() => {
+    resetHud();
+    return () => clearTimeout(hudTimer.current);
+  }, []); // eslint-disable-line
 
   const showToast = useCallback((msg, color = "#84cc16") => {
     setToast({ msg, color });
@@ -199,15 +229,15 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
   const togglePlay = useCallback((e) => {
     e?.stopPropagation();
     const el = videoRef.current;
-    if (!el) return;
+    if (!el || !hasVideo) return;
     resetHud();
     if (playing) {
       el.pause(); setPlaying(false); recordSignal(item, "PAUSE");
     } else {
-      if (!el.src && adaptedUrl) el.src = adaptedUrl;
+      if (!el.src && adaptedUrl) { el.src = adaptedUrl; el.load(); }
       el.play().then(() => setPlaying(true)).catch(() => {});
     }
-  }, [playing, item, resetHud, adaptedUrl]);
+  }, [playing, item, resetHud, adaptedUrl, hasVideo]);
 
   const toggleMute = useCallback((e) => {
     e.stopPropagation();
@@ -221,10 +251,15 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     const el = videoRef.current;
     if (!el || !el.duration) return;
     const pct = el.currentTime / el.duration;
+
+    // Show interest card at 60% watch
+    if (pct >= INTEREST_CARD_WATCH_PCT && !interestDone && !showInterest) {
+      setShowInterest(true);
+    }
+
     if (pct >= 0.8 && !fullFired.current) {
       fullFired.current = true;
       recordSignal(item, "WATCH_COMPLETE");
-      try { window.dispatchEvent(new CustomEvent("xv:discoveryInterest", { detail: { item, reason: "watch_complete" } })); } catch {}
     } else if (pct >= 0.4 && !halfFired.current) {
       halfFired.current = true;
       recordSignal(item, "WATCH_HALF");
@@ -232,36 +267,29 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
       quarterFired.current = true;
       recordSignal(item, "WATCH_QUARTER");
     }
-  }, [item]);
+  }, [item, interestDone, showInterest]);
 
   const handleLike = useCallback((e) => {
     e.stopPropagation();
     const next = !liked; setLiked(next);
-    if (next) {
-      recordSignal(item, "LIKE");
-      try { window.dispatchEvent(new CustomEvent("xv:discoveryInterest", { detail: { item, reason: "like" } })); } catch {}
-    }
+    if (next) recordSignal(item, "LIKE");
     resetHud();
   }, [liked, item, resetHud]);
 
-  // [V4] Subscription-gated save
   const handleSave = useCallback((e) => {
     e.stopPropagation();
     resetHud();
-
     if (!canSave(currentUser)) {
       setShowUpgrade(true);
       setTimeout(() => setShowUpgrade(false), 3500);
       return;
     }
-
     const result = toggleSavedDiscovery(item, currentUser);
     if (result.error === "upgrade_required") {
       setShowUpgrade(true);
       setTimeout(() => setShowUpgrade(false), 3500);
       return;
     }
-
     setSaved(result.saved);
     if (result.saved) {
       recordSignal(item, "SAVE");
@@ -271,7 +299,6 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     }
   }, [item, currentUser, resetHud, showToast]);
 
-  // [V6] Share
   const handleShare = useCallback((e) => {
     e.stopPropagation();
     recordSignal(item, "SHARE");
@@ -287,7 +314,6 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     resetHud();
   }, [item, resetHud, showToast]);
 
-  // [V7] Full screen
   const handleFullScreen = useCallback((e) => {
     e.stopPropagation();
     recordSignal(item, "CLICK_THROUGH");
@@ -299,6 +325,29 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
     onOpenDiscovery?.(item.category);
   }, [item, onOpenDiscovery]);
 
+  // Interest card handlers
+  const handleMoreLikeThis = useCallback((e) => {
+    e.stopPropagation();
+    recordSignal(item, "INTEREST");
+    setShowInterest(false);
+    setInterestDone(true);
+    showToast("Got it — showing you more like this! 🔥", "#84cc16");
+  }, [item, showToast]);
+
+  const handleShowLess = useCallback((e) => {
+    e.stopPropagation();
+    recordSignal(item, "HIDE");
+    setShowInterest(false);
+    setInterestDone(true);
+    showToast("Showing less of this", "#6b7280");
+  }, [item, showToast]);
+
+  const handleDismissInterest = useCallback((e) => {
+    e.stopPropagation();
+    setShowInterest(false);
+    setInterestDone(true);
+  }, []);
+
   const fmt = n => n >= 1e6 ? `${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `${(n/1e3).toFixed(1)}K` : String(n || "");
 
   return (
@@ -307,56 +356,51 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
       style={{ "--mood-accent": theme.accent }}
       onClick={togglePlay}
     >
-      {/* LQIP blur-up */}
-      {lqip && (
-        <div className="dc-lqip" style={{ backgroundImage: `url(${lqip})` }} aria-hidden />
-      )}
-
       {/* Media layer */}
       <div className="dc-media">
+        {/* Category gradient background — always visible */}
         <div className="dc-cat-bg" style={{ background: catGrad }} />
 
+        {/* Thumbnail — ALWAYS visible until video is playing */}
         {hasThumb && (
           <img
             src={item.thumbnailUrl}
             alt={item.title}
-            className={`dc-poster${posterOk ? " dc-poster--ready" : ""}`}
+            className={`dc-poster${posterOk ? " dc-poster--ready" : " dc-poster--loading"}`}
             loading="lazy"
             decoding="async"
+            crossOrigin="anonymous"
             onLoad={() => setPosterOk(true)}
+            onError={(e) => {
+              // If Unsplash fails, show gradient
+              e.currentTarget.style.display = "none";
+            }}
           />
         )}
 
-        {hasVideo && (
+        {/* Video — fades in on top of thumbnail when ready */}
+        {adaptedUrl && (
           <video
             ref={videoRef}
             muted={muted}
             playsInline
-            autoPlay={isVisible}
             loop
-            preload={isVisible ? "auto" : "metadata"}
-            className={`dc-video${vidReady ? " dc-video--ready" : ""}`}
-            onCanPlay={() => setVidReady(true)}
-            onLoadedData={() => setVidReady(true)}
-            onError={() => {
-              const el = videoRef.current;
-              if (el) {
-                el.pause();
-                el.removeAttribute("src");
-                el.load();
-              }
-              showToast("Video failed to load, trying next clip", "#f97316");
-            }}
+            preload="metadata"
+            crossOrigin="anonymous"
+            className={`dc-video${vidReady && playing ? " dc-video--ready" : ""}`}
+            onCanPlay={() => { if (mountedRef.current) setVidReady(true); }}
             onTimeUpdate={onTimeUpdate}
+            onError={() => {
+              console.warn("[DiscoveryCard] Video error for:", adaptedUrl);
+              if (mountedRef.current) setVidError(true);
+            }}
             onSeeked={() => {
               if (videoRef.current?.currentTime < 1) recordSignal(item, "REPLAY");
             }}
           />
         )}
 
-        {/* No thumb fallback shimmer */}
-        {!hasThumb && <div className="dc-no-thumb-shimmer" />}
-
+        {/* Gradient overlays */}
         <div className="dc-grad-top" />
         <div className="dc-grad-bot" />
         <div className="dc-mood-bar" style={{ background: `linear-gradient(180deg,${theme.accent},transparent)` }} />
@@ -377,12 +421,12 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
 
       {/* HUD (play/mute) */}
       <div className={`dc-hud${showHud ? " dc-hud--show" : ""}`} aria-hidden>
-        {!playing && hasVideo && (
+        {!playing && hasVideo && !vidError && (
           <div className="dc-play-btn">
             <Play size={26} fill="#fff" color="#fff" />
           </div>
         )}
-        {hasVideo && (
+        {hasVideo && !vidError && (
           <button className="dc-mute" onClick={toggleMute} aria-label="Toggle mute">
             {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
@@ -456,6 +500,30 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
         </div>
       )}
 
+      {/* ── Interest Card ──────────────────────────────────────────────────── */}
+      {showInterest && (
+        <div className="dc-interest-card" onClick={e => e.stopPropagation()}>
+          <button className="dc-interest-dismiss" onClick={handleDismissInterest} aria-label="Dismiss">
+            <XIcon size={12} />
+          </button>
+          <div className="dc-interest-label">
+            <Compass size={11} />
+            <span>{item.category}</span>
+          </div>
+          <p className="dc-interest-q">How do you feel about this?</p>
+          <div className="dc-interest-btns">
+            <button className="dc-interest-yes" onClick={handleMoreLikeThis}>
+              <ThumbsUp size={14} />
+              <span>More like this</span>
+            </button>
+            <button className="dc-interest-no" onClick={handleShowLess}>
+              <ThumbsDown size={14} />
+              <span>Show less</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{DC_CSS}</style>
     </div>
   );
@@ -475,40 +543,29 @@ const DC_CSS = `
 }
 .dc-card:hover{border-color:rgba(255,255,255,0.14);}
 
-.dc-lqip{
-  position:absolute;inset:0;
-  background-size:cover;background-position:center;
-  filter:blur(14px) saturate(0.4);transform:scale(1.05);
-  z-index:0;pointer-events:none;
-}
 .dc-media{
-  position:relative;width:100%;aspect-ratio:9/16;overflow:hidden;z-index:1;
+  position:relative;width:100%;aspect-ratio:9/14;overflow:hidden;
+  background:#0a0a10;
 }
+@media(max-width:768px){.dc-media{aspect-ratio:9/16;}}
 
-.dc-cat-bg{position:absolute;inset:0;z-index:0;}
+.dc-cat-bg{
+  position:absolute;inset:0;z-index:0;
+}
 .dc-poster{
   position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;display:block;opacity:0;
-  transition:opacity .4s ease;z-index:1;
+  object-fit:cover;display:block;z-index:1;
+  transition:opacity .35s ease;
 }
+.dc-poster--loading{opacity:0.5;}
 .dc-poster--ready{opacity:1;}
+
 .dc-video{
   position:absolute;inset:0;width:100%;height:100%;
   object-fit:cover;display:block;opacity:0;
   transition:opacity .35s ease;z-index:2;
 }
 .dc-video--ready{opacity:1;}
-
-.dc-no-thumb-shimmer{
-  position:absolute;inset:0;z-index:1;
-  background:rgba(255,255,255,0.02);overflow:hidden;
-}
-.dc-no-thumb-shimmer::after{
-  content:"";position:absolute;top:0;left:0;width:50%;height:100%;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
-  animation:dcShimmer 2s ease-in-out infinite;
-}
-@keyframes dcShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
 
 .dc-grad-top{
   position:absolute;inset:0;bottom:auto;height:35%;
@@ -638,4 +695,59 @@ const DC_CSS = `
   display:flex;align-items:center;gap:6px;
   animation:dcToastIn .22s ease;
 }
+
+/* ── Interest Card ─────────────────────────────────────────────────────────── */
+.dc-interest-card{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  z-index:9;
+  padding:14px 16px 18px;
+  background:linear-gradient(to top,rgba(0,0,0,0.97) 0%,rgba(0,0,0,0.88) 70%,transparent 100%);
+  backdrop-filter:blur(4px);
+  animation:dcInterestIn .3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes dcInterestIn{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.dc-interest-dismiss{
+  position:absolute;top:12px;right:12px;
+  width:24px;height:24px;border-radius:50%;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.4);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+.dc-interest-label{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:9px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--mood-accent);
+  margin-bottom:6px;
+}
+.dc-interest-q{
+  font-size:14px;font-weight:700;color:#fff;
+  margin:0 0 12px;line-height:1.3;
+}
+.dc-interest-btns{
+  display:flex;gap:8px;
+}
+.dc-interest-yes,
+.dc-interest-no{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 12px;border-radius:12px;
+  font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .18s;font-family:inherit;
+}
+.dc-interest-yes{
+  background:rgba(132,204,22,0.14);
+  border:1px solid rgba(132,204,22,0.38);
+  color:#a3e635;
+}
+.dc-interest-yes:hover{background:rgba(132,204,22,0.26);}
+.dc-interest-no{
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.5);
+}
+.dc-interest-no:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);}
 `;

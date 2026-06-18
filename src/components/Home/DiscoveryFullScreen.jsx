@@ -1,8 +1,9 @@
-// src/components/Home/DiscoveryFullScreen.jsx — v2 SUBSCRIPTION GATED SAVE
+// src/components/Home/DiscoveryFullScreen.jsx — v3 WORKING MEDIA + INTEREST CARD
 //
 // Full-screen overlay for a single discovery clip.
 // Features: autoplay, mute toggle, like, subscription-gated save, share,
-//           swipe-to-navigate, keyboard nav, gradient background fallback.
+//           swipe-to-navigate, keyboard nav, gradient background fallback,
+//           interest card system (more like this / show less).
 
 import React, {
   useState, useRef, useEffect, useCallback,
@@ -10,6 +11,7 @@ import React, {
 import {
   X, Volume2, VolumeX, Heart, Bookmark, BookmarkCheck,
   Share2, Compass, ChevronLeft, ChevronRight, Lock,
+  ThumbsUp, ThumbsDown,
 } from "lucide-react";
 import { recordSignal } from "../../services/discovery/discoveryPersonalizationModel";
 import {
@@ -34,17 +36,26 @@ const DiscoveryFullScreen = ({
   const [muted,        setMuted]        = useState(true);
   const [playing,      setPlaying]      = useState(false);
   const [ready,        setReady]        = useState(false);
+  const [vidError,     setVidError]     = useState(false);
   const [liked,        setLiked]        = useState(false);
   const [saved,        setSaved]        = useState(() => isSavedDiscovery(item.id));
   const [showControls, setShowControls] = useState(true);
   const [toast,        setToast]        = useState(null);
   const [showUpgrade,  setShowUpgrade]  = useState(false);
   const [captionExp,   setCaptionExp]   = useState(false);
+  const [showInterest, setShowInterest] = useState(false);
+  const [interestDone, setInterestDone] = useState(false);
 
   const videoRef   = useRef(null);
   const ctrlTimer  = useRef(null);
   const touchStart = useRef(null);
   const touchY     = useRef(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Lock body scroll
   useEffect(() => {
@@ -56,25 +67,54 @@ const DiscoveryFullScreen = ({
   useEffect(() => {
     const el = videoRef.current;
     if (!el || !item.videoUrl) return;
-    el.src   = item.videoUrl;
+
+    setReady(false);
+    setVidError(false);
+    setPlaying(false);
     el.muted = true;
     setMuted(true);
-    const tryPlay = () => el.play().then(() => setPlaying(true)).catch(() => {});
-    if (el.readyState >= 2) tryPlay();
-    else el.addEventListener("canplay", tryPlay, { once: true });
-  }, [item.videoUrl]);
+
+    el.src = item.videoUrl;
+    el.load();
+
+    const tryPlay = () => {
+      if (!mountedRef.current) return;
+      el.play()
+        .then(() => { if (mountedRef.current) setPlaying(true); })
+        .catch(() => {});
+    };
+
+    if (el.readyState >= 2) {
+      tryPlay();
+    } else {
+      el.addEventListener("canplay", tryPlay, { once: true });
+    }
+
+    // Interest card after 5s
+    const interestT = setTimeout(() => {
+      if (mountedRef.current && !interestDone) setShowInterest(true);
+    }, 5000);
+
+    return () => clearTimeout(interestT);
+  }, [item.videoUrl]); // eslint-disable-line
 
   // Reset on item change
   useEffect(() => {
-    setSaved(isSavedDiscovery(item.id));
-    setLiked(false); setReady(false); setPlaying(false); setCaptionExp(false);
-    const el = videoRef.current;
-    if (!el) return;
-    if (item.videoUrl) {
-      el.src   = item.videoUrl;
-      el.muted = muted;
-      el.play().then(() => setPlaying(true)).catch(() => {});
+    if (mountedRef.current) {
+      setSaved(isSavedDiscovery(item.id));
+      setLiked(false);
+      setReady(false);
+      setVidError(false);
+      setPlaying(false);
+      setCaptionExp(false);
+      setShowInterest(false);
     }
+    const el = videoRef.current;
+    if (!el || !item.videoUrl) return;
+    el.src = item.videoUrl;
+    el.muted = muted;
+    el.load();
+    el.play().then(() => { if (mountedRef.current) setPlaying(true); }).catch(() => {});
   }, [item.id]); // eslint-disable-line
 
   const resetCtrl = useCallback(() => {
@@ -83,7 +123,10 @@ const DiscoveryFullScreen = ({
     ctrlTimer.current = setTimeout(() => setShowControls(false), 3800);
   }, []);
 
-  useEffect(() => { resetCtrl(); return () => clearTimeout(ctrlTimer.current); }, []); // eslint-disable-line
+  useEffect(() => {
+    resetCtrl();
+    return () => clearTimeout(ctrlTimer.current);
+  }, []); // eslint-disable-line
 
   const showToast = useCallback((msg, color = "#84cc16") => {
     setToast({ msg, color });
@@ -94,9 +137,13 @@ const DiscoveryFullScreen = ({
     const el = videoRef.current;
     if (!el) return;
     resetCtrl();
-    if (playing) { el.pause(); setPlaying(false); }
-    else { el.play().then(() => setPlaying(true)).catch(() => {}); }
-  }, [playing, resetCtrl]);
+    if (playing) {
+      el.pause(); setPlaying(false);
+    } else {
+      if (!el.src && item.videoUrl) { el.src = item.videoUrl; el.load(); }
+      el.play().then(() => setPlaying(true)).catch(() => {});
+    }
+  }, [playing, resetCtrl, item.videoUrl]);
 
   const toggleMute = useCallback((e) => {
     e.stopPropagation();
@@ -116,20 +163,17 @@ const DiscoveryFullScreen = ({
   const handleSave = useCallback((e) => {
     e.stopPropagation();
     resetCtrl();
-
     if (!canSave(currentUser)) {
       setShowUpgrade(true);
       setTimeout(() => setShowUpgrade(false), 3500);
       return;
     }
-
     const result = toggleSavedDiscovery(item, currentUser);
     if (result.error === "upgrade_required") {
       setShowUpgrade(true);
       setTimeout(() => setShowUpgrade(false), 3500);
       return;
     }
-
     setSaved(result.saved);
     if (result.saved) {
       recordSignal(item, "SAVE");
@@ -153,6 +197,23 @@ const DiscoveryFullScreen = ({
     resetCtrl();
   }, [item, resetCtrl, showToast]);
 
+  // Interest card
+  const handleMoreLikeThis = useCallback((e) => {
+    e.stopPropagation();
+    recordSignal(item, "INTEREST");
+    setShowInterest(false);
+    setInterestDone(true);
+    showToast("Showing you more like this 🔥", "#84cc16");
+  }, [item, showToast]);
+
+  const handleShowLess = useCallback((e) => {
+    e.stopPropagation();
+    recordSignal(item, "HIDE");
+    setShowInterest(false);
+    setInterestDone(true);
+    showToast("Got it — showing less of this", "#6b7280");
+  }, [item, showToast]);
+
   // Swipe navigation
   const onTouchStart = (e) => {
     touchStart.current = e.touches[0].clientX;
@@ -163,7 +224,7 @@ const DiscoveryFullScreen = ({
     const dx = touchStart.current - e.changedTouches[0].clientX;
     const dy = Math.abs((touchY.current || 0) - e.changedTouches[0].clientY);
     touchStart.current = null; touchY.current = null;
-    if (dy > 80) return; // vertical swipe = scroll, ignore
+    if (dy > 80) return;
     if (dx > 60 && onNext) onNext();
     if (dx < -60 && onPrev) onPrev();
   };
@@ -180,8 +241,8 @@ const DiscoveryFullScreen = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, onNext, onPrev, togglePlay]);
 
-  const bgGrad  = CATEGORY_GRADIENTS[item.category] || "linear-gradient(170deg,#0a0a14,#1a1a2e)";
-  const hasVideo = !!(item.videoUrl && item.videoUrl.trim());
+  const bgGrad   = CATEGORY_GRADIENTS[item.category] || "linear-gradient(170deg,#0a0a14,#1a1a2e)";
+  const hasVideo = !!(item.videoUrl && item.videoUrl.trim()) && !vidError;
 
   return (
     <div
@@ -193,25 +254,29 @@ const DiscoveryFullScreen = ({
       {/* Background */}
       <div className="dfs-bg" style={{ background: bgGrad }} />
 
-      {/* Thumbnail poster */}
+      {/* Thumbnail — always visible behind video */}
       {item.thumbnailUrl && (
         <img
           src={item.thumbnailUrl}
           alt=""
-          className={`dfs-poster${(!hasVideo || !playing) ? " dfs-poster--show" : ""}`}
+          className="dfs-poster dfs-poster--show"
+          crossOrigin="anonymous"
+          onError={e => { e.currentTarget.style.opacity = "0"; }}
         />
       )}
 
       {/* Video */}
-      {hasVideo && (
+      {item.videoUrl && (
         <video
           ref={videoRef}
           muted={muted}
           playsInline
           loop
           preload="auto"
-          className={`dfs-video${ready ? " dfs-video--ready" : ""}`}
-          onCanPlay={() => setReady(true)}
+          crossOrigin="anonymous"
+          className={`dfs-video${ready && playing ? " dfs-video--ready" : ""}`}
+          onCanPlay={() => { if (mountedRef.current) setReady(true); }}
+          onError={() => { if (mountedRef.current) setVidError(true); }}
         />
       )}
 
@@ -227,7 +292,7 @@ const DiscoveryFullScreen = ({
         </button>
       </div>
 
-      {/* Prev/Next arrows (desktop) */}
+      {/* Prev/Next arrows */}
       {onPrev && (
         <button className={`dfs-nav dfs-nav-l${showControls ? " show" : ""}`}
           onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="Previous">
@@ -288,6 +353,25 @@ const DiscoveryFullScreen = ({
         <div className="dfs-upgrade">
           <Lock size={14} />
           <span>Silver, Gold or Diamond required to save clips</span>
+        </div>
+      )}
+
+      {/* ── Interest Card ────────────────────────────────────────────────────── */}
+      {showInterest && !interestDone && (
+        <div className="dfs-interest" onClick={e => e.stopPropagation()}>
+          <div className="dfs-interest-inner">
+            <p className="dfs-interest-q">Enjoying <strong>{item.category}</strong> content?</p>
+            <div className="dfs-interest-btns">
+              <button className="dfs-int-yes" onClick={handleMoreLikeThis}>
+                <ThumbsUp size={16} />
+                More like this
+              </button>
+              <button className="dfs-int-no" onClick={handleShowLess}>
+                <ThumbsDown size={16} />
+                Show less
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -413,4 +497,49 @@ const DFS_CSS = `
   white-space:nowrap;display:flex;align-items:center;gap:6px;
   animation:dfsIn .2s ease;
 }
+
+/* Interest Card */
+.dfs-interest{
+  position:absolute;bottom:0;left:0;right:0;z-index:8;
+  padding:0 0 env(safe-area-inset-bottom,0);
+  animation:dfsInterestIn .35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes dfsInterestIn{
+  from{opacity:0;transform:translateY(24px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.dfs-interest-inner{
+  margin:16px;
+  background:rgba(10,10,18,0.94);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px;
+  padding:18px 16px;
+  backdrop-filter:blur(16px);
+}
+.dfs-interest-q{
+  font-size:15px;font-weight:700;color:#fff;
+  margin:0 0 14px;line-height:1.4;
+}
+.dfs-interest-q strong{color:#a3e635;}
+.dfs-interest-btns{
+  display:flex;gap:10px;
+}
+.dfs-int-yes,.dfs-int-no{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:11px 14px;border-radius:14px;
+  font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .18s;font-family:inherit;
+}
+.dfs-int-yes{
+  background:rgba(132,204,22,0.14);
+  border:1px solid rgba(132,204,22,0.4);
+  color:#a3e635;
+}
+.dfs-int-yes:hover{background:rgba(132,204,22,0.28);}
+.dfs-int-no{
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.55);
+}
+.dfs-int-no:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);}
 `;
