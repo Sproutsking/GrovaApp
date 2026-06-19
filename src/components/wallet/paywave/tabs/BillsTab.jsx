@@ -7,6 +7,7 @@ import {
   RefreshCw, AlertCircle, X, FileText,
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
+import { opayService } from "../../../../services/wallet/opayService";
 import { useAuth } from "../../../../components/Auth/AuthContext";
 
 const fmtNGN = (n) =>
@@ -110,15 +111,8 @@ function AirtimeView({ onBack, onSuccess }) {
     if (!canBuy) return;
     setLoading(true);
     try {
-      await supabase.from("bill_payments").insert({
-        user_id:   profile.id,
-        bill_type: "airtime",
-        provider:  network,
-        recipient: phone,
-        amount:    parsed,
-        status:    "success",
-        meta:      { network, phone },
-      });
+      const res = await opayService.buyAirtime({ userId: profile.id, network, phone, amount: parsed });
+      if (!res || !res.success) throw new Error(res?.error || "Airtime purchase failed");
       onSuccess(`₦${fmtNGN(parsed)} airtime sent to ${phone} (${network.toUpperCase()})`);
     } catch { alert("Airtime purchase failed. Please try again."); }
     finally { setLoading(false); }
@@ -232,15 +226,8 @@ function DataView({ onBack, onSuccess }) {
     if (!canBuy) return;
     setLoading(true);
     try {
-      await supabase.from("bill_payments").insert({
-        user_id:   profile.id,
-        bill_type: "data",
-        provider:  network,
-        recipient: phone,
-        amount:    selPlan.price,
-        status:    "success",
-        meta:      { network, phone, plan: selPlan.label, validity: selPlan.validity },
-      });
+      const res = await opayService.buyData({ userId: profile.id, network, phone, planId: selPlan.id, amount: selPlan.price });
+      if (!res || !res.success) throw new Error(res?.error || "Data purchase failed");
       onSuccess(`${selPlan.label} data sent to ${phone} (${network.toUpperCase()})\n${selPlan.validity} validity`);
     } catch { alert("Data purchase failed. Please try again."); }
     finally { setLoading(false); }
@@ -349,15 +336,8 @@ function ElectricityView({ onBack, onSuccess }) {
     if (!canPay) return;
     setLoading(true);
     try {
-      await supabase.from("bill_payments").insert({
-        user_id:   profile.id,
-        bill_type: "electricity",
-        provider,
-        recipient: meterNum,
-        amount:    parsed,
-        status:    "success",
-        meta:      { provider, meterNum, meterType },
-      });
+      const res = await opayService.buyElectricity({ userId: profile.id, provider, meterNumber: meterNum, meterType, amount: parsed });
+      if (!res || !res.success) throw new Error(res?.error || "Electricity payment failed");
       onSuccess(`₦${fmtNGN(parsed)} electricity payment\nMeter: ${meterNum}`);
     } catch { alert("Payment failed. Please try again."); }
     finally { setLoading(false); }
@@ -467,15 +447,8 @@ function CableTVView({ onBack, onSuccess }) {
     if (!canPay) return;
     setLoading(true);
     try {
-      await supabase.from("bill_payments").insert({
-        user_id:   profile.id,
-        bill_type: "cable_tv",
-        provider,
-        recipient: smartCard,
-        amount:    selPlan.price,
-        status:    "success",
-        meta:      { provider, plan: selPlan.name, smartCard },
-      });
+      const res = await opayService.buyCable({ userId: profile.id, provider, smartCard, packageId: selPlan.id, amount: selPlan.price });
+      if (!res || !res.success) throw new Error(res?.error || "Cable payment failed");
       onSuccess(`${prov.name} ${selPlan.name} renewed\nSmart card: ${smartCard}`);
     } catch { alert("Payment failed. Please try again."); }
     finally { setLoading(false); }

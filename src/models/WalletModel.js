@@ -27,6 +27,18 @@ export const XEV_TO_USD  = USD_PER_XEV;   // 0.10
 /** @deprecated use EP_PER_USD */
 export const EP_TO_NGN   = 1; // EP ↔ NGN peg is separate from USD rate; keep 1 EP = ₦1
 
+/**
+ * Compute NGN value for a given EP amount using a USD→NGN rate.
+ * NGN per EP = (USD_NGN_rate / EP_PER_USD)
+ * @param {number} ngnRate - USD → NGN rate (e.g., 1580)
+ * @param {number} epAmount
+ * @returns {number} NGN amount
+ */
+export function epToNgn(ngnRate, epAmount) {
+  const perEp = (Number(ngnRate) || 0) / EP_PER_USD;
+  return Number(epAmount || 0) * perEp;
+}
+
 // ── Conversion helpers ────────────────────────────────────────────
 export const convert = {
   epToUsd:  (ep)  => ep  / EP_PER_USD,           // EP  → USD

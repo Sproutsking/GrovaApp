@@ -24,7 +24,8 @@
 
 import { supabase }                     from "../config/supabase";
 import { epService, computeEPBurn }     from "./epService";
-import { EP_PER_USD, EP_PER_XEV, USD_PER_XEV } from "../../models/WalletModel";
+import { EP_PER_USD, EP_PER_XEV, USD_PER_XEV, epToNgn } from "../../models/WalletModel";
+import { fetchPaywallConfig } from "../auth/paywallDataService";
 
 // ── Supported chains ──────────────────────────────────────────────
 export const CHAINS = {
@@ -197,6 +198,12 @@ export const walletService = {
 
   // ── Real-time balance subscription ────────────────────────────
   subscribeToBalance(userId, callback) {
+    // Prefetch NGN rate for EP→NGN conversions
+    let ngnPerEp = 1; // fallback 1:1
+    fetchPaywallConfig().then(cfg => {
+      if (cfg && cfg.ngn_rate) ngnPerEp = Number(cfg.ngn_rate) / EP_PER_USD;
+    }).catch(() => {});
+
     const ch = supabase
       .channel(`wallet_balance:${userId}`)
       .on(
@@ -215,6 +222,7 @@ export const walletService = {
               epUsd:    ep  / EP_PER_USD,            // EP  → USD
               xevAsEp:  xev * EP_PER_XEV,            // XEV → EP
               epAsXev:  ep  / EP_PER_XEV,            // EP  → XEV
+              epNgn:    Number(ep) * ngnPerEp,
             });
           }
         }
@@ -449,10 +457,20 @@ export const walletService = {
   // PayWave balance: EP is pegged 1:1 to NGN
   async getPayWaveBalance(userId) {
     const wallet = await this.getWallet(userId);
-    return {
-      ep:  wallet?.engagement_points ?? 0,
-      ngn: wallet?.engagement_points ?? 0,  // 1 EP = ₦1
-    };
+    try {
+      const cfg = await fetchPaywallConfig();
+      const ngnRate = cfg?.ngn_rate ?? null;
+      const ngn = ngnRate ? epToNgn(ngnRate, wallet?.engagement_points ?? 0) : (wallet?.engagement_points ?? 0);
+      return {
+        ep:  wallet?.engagement_points ?? 0,
+        ngn,
+      };
+    } catch (e) {
+      return {
+        ep:  wallet?.engagement_points ?? 0,
+        ngn: wallet?.engagement_points ?? 0,
+      };
+    }
   },
 
   // ── Credit EP (delegated to epService) ───────────────────────
