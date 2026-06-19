@@ -61,13 +61,14 @@ const ACCOUNT_CSS = `
 
   /* ── Tab button ── */
   .account-tab {
-    display:flex; align-items:center; gap:7px;
-    padding:9px 16px; border-radius:11px;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:9px 12px; border-radius:11px;
     border:1px solid transparent; background:transparent;
     color:rgba(255,255,255,0.35); font-size:12.5px; font-weight:600;
-    cursor:pointer; white-space:nowrap; flex-shrink:0;
+    cursor:pointer; white-space:nowrap; flex-shrink:1; flex-grow:1;
     transition:background 0.17s,border-color 0.17s,color 0.17s,transform 0.12s;
     letter-spacing:0.015em; line-height:1; font-family:inherit;
+    min-width:0;
   }
 
   .account-tab svg {
@@ -104,14 +105,23 @@ const ACCOUNT_CSS = `
   ═══════════════════════════════ */
   @media (min-width: 768px) {
     .account-tabs {
-      padding: 10px 18px;
-      gap: 7px;
+      padding: 10px 12px;
+      gap: 6px;
+      overflow-x: visible;
     }
 
     .account-tab {
-      padding: 10px 20px;
-      font-size: 13px;
+      padding: 9px 10px;
+      font-size: 12.8px;
       border-radius: 12px;
+      flex-grow: 1;
+      min-width: 0;
+    }
+
+    .account-tab span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .account-tab svg {
