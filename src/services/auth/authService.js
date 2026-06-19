@@ -109,6 +109,7 @@ class AuthService {
         if (!popup || popup.closed) return reject(new Error("Popup was blocked"));
 
         // Listen for the popup's postMessage
+        let overallTimeout;
         const onMessage = async (event) => {
           try {
             if (event.origin !== window.location.origin) return;
@@ -136,11 +137,26 @@ class AuthService {
 
         window.addEventListener("message", onMessage);
 
+        // Fallback timer: if popup doesn't respond, close it and fall back to
+        // the traditional redirect flow in the main window so sign-in still works.
+        const overallTimeout = setTimeout(async () => {
+          try {
+            window.removeEventListener("message", onMessage);
+            if (popup && !popup.closed) popup.close();
+            console.warn('[AuthService] popup signin timed out — falling back to redirect');
+            const { error } = await supabase.auth.signInWithOAuth({ provider, options, flowType: 'pkce' });
+            if (error) return reject(error);
+            resolve(true);
+          } catch (e) {
+            reject(e);
+          }
+        }, 65000); // 65s
+
         // Build popup HTML — minimal page that creates its own Supabase client
         // and runs signInWithOAuth. When the session is established it posts
         // the full session object back to the opener and then clears its
         // local session for safety.
-        const popupHtml = `<!doctype html>
+        const popupHtml = `<!doctype html>`}``}]}]}]}]
 <html>
 <head>
   <meta charset="utf-8" />
