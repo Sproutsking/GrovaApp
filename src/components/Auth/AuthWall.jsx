@@ -1560,7 +1560,9 @@ function LoginView() {
       setProvider(p);
       setStatus("loading");
       try {
-        await authService.signInOAuth(p);
+        // Use the popup-based OAuth flow for interactive sign-in so the
+        // main window is not redirected away and app state is preserved.
+        await authService.signInOAuth({ provider: p, usePopup: true });
       } catch (e) {
         if (!mounted.current) return;
         const msg = e?.message || "";
