@@ -12,7 +12,7 @@
 // FEATURES:
 // ─────────────────────────────────────────────────────────────────────────────
 // • 27 categories covering the most psychologically engaging nature content
-// • Three-tier content sourcing: Supabase DB → Pexels API → Fallback catalog
+// • Two-tier content sourcing: Supabase DB → Unsplash API (images paired with reliable videos)
 // • Saved items: stored in localStorage as metadata + URL references only
 //   (zero DB cost). Subscription-gated (silver/gold/diamond only).
 // • Per-user saved items loaded back on demand via URL reference
@@ -26,13 +26,12 @@ import {
   rankItems,
   getSessionContext,
   getTopCategories,
-  getUnexploredCategories,
   MOOD_CATEGORIES,
   CATEGORY_ENGAGEMENT_BASE,
 } from "./discoveryPersonalizationModel";
 
-const PEXELS_KEY  = process.env.REACT_APP_PEXELS_API_KEY || "";
-const PEXELS_BASE = "https://api.pexels.com/videos";
+const UNSPLASH_KEY  = process.env.REACT_APP_UNSPLASH_ACCESS_KEY || "";
+const UNSPLASH_BASE = "https://api.unsplash.com";
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 const _cache    = new Map();
@@ -362,213 +361,54 @@ function shuffleCategories(items, seed = 1) {
   return list;
 }
 
-// ─── Build fallback catalog item ──────────────────────────────────────────────
-function buildFallbackItem(raw) {
-  const videoUrl    = getVideoUrl(raw.category, raw.id);
-  const thumbnailUrl = getThumbUrl(raw.category, raw.id);
-  return {
-    ...raw,
-    videoUrl,
-    videoUrlHD:   videoUrl,
-    videoUrlSD:   videoUrl,
-    thumbnailUrl,
-    duration:     raw.duration || 20,
-    tags:         raw.tags || [raw.category?.toLowerCase() || "nature"],
-    type:         "discovery_stream",
-    source:       "Discovery (Curated)",
-    aiInjected:   true,
-    caption:      raw.caption || pickCaption(raw.category),
-    mood:         raw.mood || deriveMood(raw.category),
-  };
-}
-
-// ─── Fallback catalog ─────────────────────────────────────────────────────────
-const RAW_CATALOG = [
-  // HORROR & STRANGE
-  { id:"ds_horror_1",   category:"Horror & Strange", mood:"eerie",       title:"Zombie Fungus Takes Over an Ant",   engagementScore:98 },
-  { id:"ds_horror_2",   category:"Horror & Strange", mood:"eerie",       title:"Mantis Shrimp — Fastest Punch",     engagementScore:97 },
-  { id:"ds_horror_3",   category:"Horror & Strange", mood:"eerie",       title:"Tardigrade: The Indestructible",    engagementScore:96 },
-  { id:"ds_horror_4",   category:"Horror & Strange", mood:"eerie",       title:"Pistol Shrimp — Sonic Weapon",      engagementScore:95 },
-  { id:"ds_horror_5",   category:"Horror & Strange", mood:"eerie",       title:"Candiru: River Terror",             engagementScore:94 },
-  { id:"ds_horror_6",   category:"Horror & Strange", mood:"eerie",       title:"Parasitic Wasp Hijacks Host",       engagementScore:93 },
-  { id:"ds_horror_7",   category:"Horror & Strange", mood:"eerie",       title:"Lamprey: The Ancient Predator",     engagementScore:92 },
-  // BIOLUMINESCENCE
-  { id:"ds_bio_1",      category:"Bioluminescence",  mood:"wonder",      title:"Glowing Waves, Maldives",           engagementScore:97 },
-  { id:"ds_bio_2",      category:"Bioluminescence",  mood:"wonder",      title:"Firefly Forest, Japan",             engagementScore:95 },
-  { id:"ds_bio_3",      category:"Bioluminescence",  mood:"wonder",      title:"Deep Sea Anglerfish Lure",          engagementScore:94 },
-  { id:"ds_bio_4",      category:"Bioluminescence",  mood:"wonder",      title:"Glowing Plankton Bay",              engagementScore:93 },
-  { id:"ds_bio_5",      category:"Bioluminescence",  mood:"wonder",      title:"Sea Fireflies of Japan",            engagementScore:92 },
-  // DEEP SEA
-  { id:"ds_deepsea_1",  category:"Deep Sea",         mood:"wonder",      title:"Creatures of the Abyss",            engagementScore:96 },
-  { id:"ds_deepsea_2",  category:"Deep Sea",         mood:"eerie",       title:"Giant Squid Encounter",             engagementScore:95 },
-  { id:"ds_deepsea_3",  category:"Deep Sea",         mood:"eerie",       title:"Vampire Squid Revealed",            engagementScore:94 },
-  { id:"ds_deepsea_4",  category:"Deep Sea",         mood:"wonder",      title:"Hydrothermal Vent Life",            engagementScore:93 },
-  { id:"ds_deepsea_5",  category:"Deep Sea",         mood:"eerie",       title:"Barreleye Fish — Transparent Head", engagementScore:92 },
-  // AURORA
-  { id:"ds_aurora_1",   category:"Aurora",           mood:"wonder",      title:"Aurora Borealis, Iceland",          engagementScore:97 },
-  { id:"ds_aurora_2",   category:"Aurora",           mood:"night",       title:"Aurora Australis, Antarctica",      engagementScore:96 },
-  { id:"ds_aurora_3",   category:"Aurora",           mood:"wonder",      title:"Aurora Storm — Solar Maximum",      engagementScore:95 },
-  { id:"ds_aurora_4",   category:"Aurora",           mood:"wonder",      title:"Timelapse: Northern Lights Dance",  engagementScore:94 },
-  // VOLCANO
-  { id:"ds_volcano_1",  category:"Volcano",          mood:"intense",     title:"Lava Meets the Ocean",              engagementScore:96 },
-  { id:"ds_volcano_2",  category:"Volcano",          mood:"intense",     title:"Kilauea Eruption — Night",          engagementScore:95 },
-  { id:"ds_volcano_3",  category:"Volcano",          mood:"intense",     title:"Stromboli Eruption",                engagementScore:94 },
-  { id:"ds_volcano_4",  category:"Volcano",          mood:"intense",     title:"Lava Tube Collapse",                engagementScore:93 },
-  // PREDATOR
-  { id:"ds_predator_1", category:"Predator",         mood:"intense",     title:"Cheetah — Full Sprint",             engagementScore:95 },
-  { id:"ds_predator_2", category:"Predator",         mood:"intense",     title:"Eagle Hunt — Ultra Slow Motion",    engagementScore:94 },
-  { id:"ds_predator_3", category:"Predator",         mood:"intense",     title:"Great White Breach",                engagementScore:93 },
-  { id:"ds_predator_4", category:"Predator",         mood:"intense",     title:"Crocodile Ambush",                  engagementScore:92 },
-  { id:"ds_predator_5", category:"Predator",         mood:"intense",     title:"Wolf Pack — The Hunt",              engagementScore:91 },
-  { id:"ds_predator_6", category:"Predator",         mood:"intense",     title:"Orca Pod — Coordinated Strike",     engagementScore:90 },
-  // CYCLONE
-  { id:"ds_cyclone_1",  category:"Cyclone",          mood:"intense",     title:"Hurricane from Space",              engagementScore:92 },
-  { id:"ds_cyclone_2",  category:"Cyclone",          mood:"intense",     title:"Typhoon Eye Wall",                  engagementScore:90 },
-  { id:"ds_cyclone_3",  category:"Cyclone",          mood:"intense",     title:"Inside the Storm — Drone Footage",  engagementScore:89 },
-  // WILDLIFE
-  { id:"ds_wildlife_1", category:"Wildlife",         mood:"curious",     title:"Lion Pride at Sunset",              engagementScore:91 },
-  { id:"ds_wildlife_2", category:"Wildlife",         mood:"intense",     title:"The Great Migration",               engagementScore:94 },
-  { id:"ds_wildlife_3", category:"Wildlife",         mood:"curious",     title:"Elephant at the Waterhole",         engagementScore:89 },
-  { id:"ds_wildlife_4", category:"Wildlife",         mood:"curious",     title:"Gorilla Family — Congo",            engagementScore:88 },
-  { id:"ds_wildlife_5", category:"Wildlife",         mood:"curious",     title:"Snow Leopard Stalking",             engagementScore:93 },
-  // CAVES
-  { id:"ds_caves_1",    category:"Caves",            mood:"eerie",       title:"Crystal Cave Formations",           engagementScore:89 },
-  { id:"ds_caves_2",    category:"Caves",            mood:"curious",     title:"Underwater Cenote, Mexico",         engagementScore:91 },
-  { id:"ds_caves_3",    category:"Caves",            mood:"eerie",       title:"Son Doong — World's Largest Cave",  engagementScore:93 },
-  { id:"ds_caves_4",    category:"Caves",            mood:"eerie",       title:"Glowworm Cave, New Zealand",        engagementScore:90 },
-  // BIRDS
-  { id:"ds_birds_1",    category:"Birds",            mood:"motivational",title:"Murmuration — Ten Thousand Starlings", engagementScore:94 },
-  { id:"ds_birds_2",    category:"Birds",            mood:"motivational",title:"Arctic Tern Migration",             engagementScore:88 },
-  { id:"ds_birds_3",    category:"Birds",            mood:"motivational",title:"Peregrine Falcon Stoop",            engagementScore:92 },
-  { id:"ds_birds_4",    category:"Birds",            mood:"motivational",title:"Flamingo Colony — Dawn",            engagementScore:87 },
-  // SPACE & EARTH
-  { id:"ds_space_1",    category:"Space & Earth",    mood:"cinematic",   title:"Earth from Orbit — ISS",            engagementScore:96 },
-  { id:"ds_space_2",    category:"Space & Earth",    mood:"cinematic",   title:"Aurora from Space",                 engagementScore:95 },
-  { id:"ds_space_3",    category:"Space & Earth",    mood:"cinematic",   title:"Sahara Dunes from Orbit",           engagementScore:90 },
-  // NIGHT NATURE
-  { id:"ds_night_1",    category:"Night Nature",     mood:"night",       title:"Milky Way Rising",                  engagementScore:93 },
-  { id:"ds_night_2",    category:"Night Nature",     mood:"night",       title:"Owls in the Dark",                  engagementScore:88 },
-  { id:"ds_night_3",    category:"Night Nature",     mood:"night",       title:"Bats at Dusk — Millions",           engagementScore:90 },
-  // STORMS
-  { id:"ds_storm_1",    category:"Storms",           mood:"intense",     title:"Supercell Thunderstorm",            engagementScore:93 },
-  { id:"ds_storm_2",    category:"Storms",           mood:"intense",     title:"Lightning Storm Timelapse",         engagementScore:91 },
-  { id:"ds_storm_3",    category:"Storms",           mood:"intense",     title:"Waterspout Formation",              engagementScore:89 },
-  // MACRO WILDLIFE
-  { id:"ds_macro_1",    category:"Macro Wildlife",   mood:"curious",     title:"Hidden World — Insect Macro",       engagementScore:85 },
-  { id:"ds_macro_2",    category:"Macro Wildlife",   mood:"curious",     title:"Jumping Spider Ultra-Close",        engagementScore:89 },
-  { id:"ds_macro_3",    category:"Macro Wildlife",   mood:"curious",     title:"Ant Colony in Glass",               engagementScore:87 },
-  // FUNGI
-  { id:"ds_fungi_1",    category:"Fungi",            mood:"curious",     title:"Mycelium Network Timelapse",        engagementScore:88 },
-  { id:"ds_fungi_2",    category:"Fungi",            mood:"eerie",       title:"Mushroom Bloom — 4K Timelapse",     engagementScore:90 },
-  { id:"ds_fungi_3",    category:"Fungi",            mood:"curious",     title:"Zombie Fungus Sprouts",             engagementScore:92 },
-  // ABANDONED
-  { id:"ds_abandoned_1",category:"Abandoned",       mood:"cinematic",   title:"Chernobyl — 40 Years Later",        engagementScore:92 },
-  { id:"ds_abandoned_2",category:"Abandoned",       mood:"eerie",       title:"Sunken City Ruins",                 engagementScore:88 },
-  { id:"ds_abandoned_3",category:"Abandoned",       mood:"cinematic",   title:"Pripyat — Frozen in Time",          engagementScore:91 },
-  // EXTREME NATURE
-  { id:"ds_extreme_1",  category:"Extreme Nature",   mood:"intense",     title:"Volcanic Lightning Storm",          engagementScore:95 },
-  { id:"ds_extreme_2",  category:"Extreme Nature",   mood:"intense",     title:"Earthquake Ground Waves",           engagementScore:91 },
-  { id:"ds_extreme_3",  category:"Extreme Nature",   mood:"intense",     title:"Lava River Meets Jungle",           engagementScore:93 },
-  // SURVIVAL
-  { id:"ds_survival_1", category:"Survival",         mood:"intense",     title:"Against All Odds",                  engagementScore:89 },
-  { id:"ds_survival_2", category:"Survival",         mood:"intense",     title:"Prey Outsmarts Predator",           engagementScore:91 },
-  // OCEAN
-  { id:"ds_ocean_1",    category:"Ocean",            mood:"calm",        title:"Deep Ocean Waves",                  engagementScore:85 },
-  { id:"ds_ocean_2",    category:"Ocean",            mood:"calm",        title:"Whale Song Encounter",              engagementScore:88 },
-  { id:"ds_ocean_3",    category:"Ocean",            mood:"curious",     title:"Giant Manta Ray Ballet",            engagementScore:87 },
-  // JUNGLE
-  { id:"ds_jungle_1",   category:"Jungle",           mood:"curious",     title:"Rainforest at Dawn",                engagementScore:78 },
-  { id:"ds_jungle_2",   category:"Jungle",           mood:"curious",     title:"Canopy Life — 30m Up",              engagementScore:81 },
-  // AERIAL EARTH
-  { id:"ds_aerial_1",   category:"Aerial Earth",     mood:"cinematic",   title:"Earth from Above",                  engagementScore:92 },
-  { id:"ds_aerial_2",   category:"Aerial Earth",     mood:"cinematic",   title:"Amazon River Delta — Drone",        engagementScore:90 },
-  // WATERFALLS
-  { id:"ds_waterfall_1",category:"Waterfalls",       mood:"calm",        title:"Cascade Falls",                     engagementScore:80 },
-  { id:"ds_waterfall_2",category:"Waterfalls",       mood:"calm",        title:"Angel Falls — World's Tallest",     engagementScore:86 },
-  // MOUNTAINS
-  { id:"ds_mountains_1",category:"Mountains",        mood:"motivational",title:"Summit at Golden Hour",             engagementScore:88 },
-  { id:"ds_mountains_2",category:"Mountains",        mood:"cinematic",   title:"Himalayas from the Air",            engagementScore:91 },
-  // DESERT
-  { id:"ds_desert_1",   category:"Desert",           mood:"cinematic",   title:"Sahara at Dusk",                    engagementScore:82 },
-  { id:"ds_desert_2",   category:"Desert",           mood:"cinematic",   title:"Namibia Sand Dunes",                engagementScore:84 },
-  // SNOW
-  { id:"ds_snow_1",     category:"Snow",             mood:"calm",        title:"Silent Snowfall",                   engagementScore:76 },
-  { id:"ds_snow_2",     category:"Snow",             mood:"calm",        title:"Arctic Fox in Blizzard",            engagementScore:80 },
-  // RAIN
-  { id:"ds_rain_1",     category:"Rain",             mood:"calm",        title:"Forest Rain",                       engagementScore:79 },
-  { id:"ds_rain_2",     category:"Rain",             mood:"calm",        title:"Rain on Still Water",               engagementScore:77 },
-  // RELAXATION
-  { id:"ds_relax_1",    category:"Relaxation",       mood:"calm",        title:"Still Waters",                      engagementScore:77 },
-  { id:"ds_relax_2",    category:"Relaxation",       mood:"calm",        title:"Morning Mist on a Lake",            engagementScore:75 },
-];
-
-export const FALLBACK_CATALOG = RAW_CATALOG.map(buildFallbackItem);
-
-function getPageFallbackItems(category, page = 1, limit = 20) {
-  const fallback = category
-    ? FALLBACK_CATALOG.filter(i => i.category === category)
-    : FALLBACK_CATALOG;
-  const ordered = shuffleCategories(fallback, page + 13)
-    .sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0));
-  return ordered.slice(0, limit);
-}
-
-// ─── Pexels ───────────────────────────────────────────────────────────────────
-async function fetchFromPexels(category, limit = 10, page = 1) {
-  if (!PEXELS_KEY) return [];
+// ─── Unsplash (images used to enrich discovery + paired working videos) ──────
+async function fetchFromUnsplash(category, limit = 10, page = 1) {
+  if (!UNSPLASH_KEY) {
+    console.info("[DiscoveryService] Unsplash API key not configured");
+    return [];
+  }
   const query    = CATEGORY_QUERIES[category] || category;
-  const cacheKey = `pexels_${category}_${limit}_${page}`;
+  const cacheKey = `unsplash_${category}_${limit}_${page}`;
   const cached   = getCached(cacheKey);
   if (cached) return cached;
 
   try {
-    const res = await fetch(
-      `${PEXELS_BASE}/search?query=${encodeURIComponent(query)}&per_page=${limit}&page=${page}&orientation=portrait`,
-      { headers: { Authorization: PEXELS_KEY } },
-    );
-    if (!res.ok) throw new Error(`Pexels HTTP ${res.status}`);
+    const url = `${UNSPLASH_BASE}/search/photos?query=${encodeURIComponent(query)}&per_page=${limit}&page=${page}`;
+    const res = await fetch(url, { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } });
+    if (!res.ok) {
+      console.warn(`[DiscoveryService] Unsplash HTTP ${res.status} for category: ${category}`);
+      return [];
+    }
     const json = await res.json();
 
-    const items = (json.videos || []).map(v => {
-      const files = v.video_files || [];
-      const best = files
-        .filter(f => f.quality === "hd" || f.quality === "sd")
-        .sort((a, b) => (b.width || 0) - (a.width || 0))[0]
-        || files.sort((a, b) => (b.width || 0) - (a.width || 0))[0];
-      const sd = files
-        .filter(f => f.quality === "sd")
-        .sort((a, b) => (b.width || 0) - (a.width || 0))[0]
-        || best;
-
-      const videoUrl = adaptVideoQuality(best?.link || "");
-      if (!videoUrl) return null;
+    const items = (json.results || []).map(p => {
+      const photoId = p.id;
+      const thumb = p.urls?.regular || p.urls?.small || getThumbUrl(category, `unsplash_${photoId}`);
+      const videoUrl = adaptVideoQuality(getVideoUrl(category, `unsplash_${photoId}`));
 
       return {
-        id:             `pexels_${v.id}`,
-        type:           "discovery_stream",
+        id:              `unsplash_${photoId}`,
+        type:            "discovery_stream",
         category,
-        mood:           deriveMood(category),
-        title:          v.user?.name ? `${category} — ${v.user.name}` : category,
-        caption:        pickCaption(category),
+        mood:            deriveMood(category),
+        title:           p.description || p.alt_description || `${category} — Unsplash`,
+        caption:         pickCaption(category),
         videoUrl,
-        videoUrlHD:     best?.link || "",
-        videoUrlSD:     sd?.link   || best?.link || "",
-        // Use Pexels image if available, else fall back to our verified Unsplash pool
-        thumbnailUrl:   v.image || getThumbUrl(category, `pexels_${v.id}`),
-        duration:       v.duration || 20,
-        tags:           [category.toLowerCase()],
-        source:         "Pexels",
-        pexelsId:       v.id,
-        photographer:   v.user?.name || "",
-        engagementScore: (CATEGORY_ENGAGEMENT_BASE[category] || 70) + Math.floor(Math.random() * 15),
-        aiInjected:     true,
+        thumbnailUrl:    thumb,
+        duration:        20,
+        tags:            p.tags?.map(t => t.title) || [category.toLowerCase()],
+        source:          "Unsplash",
+        unsplashId:      photoId,
+        photographer:    p.user?.name || "",
+        engagementScore: (CATEGORY_ENGAGEMENT_BASE[category] || 70) + Math.floor(Math.random() * 12),
+        aiInjected:      true,
       };
     }).filter(Boolean);
 
-    setCached(cacheKey, items);
+    if (items.length > 0) setCached(cacheKey, items);
     return items;
   } catch (err) {
-    console.warn("[DiscoveryService] Pexels:", err.message);
+    console.warn(`[DiscoveryService] Unsplash error for ${category}:`, err?.message || err);
     return [];
   }
 }
@@ -589,9 +429,17 @@ async function fetchFromSupabase(categories = [], limit = 20, offset = 0) {
     if (categories.length) q = q.in("category", categories);
 
     const { data, error } = await q;
-    if (error) throw error;
+    if (error) {
+      console.warn(`[DiscoveryService] Supabase error:`, error.message);
+      return [];
+    }
 
-    const items = (data || []).map(row => {
+    if (!data || data.length === 0) {
+      console.info(`[DiscoveryService] No Supabase content for categories: ${categories.join(",")}`);
+      return [];
+    }
+
+    const items = data.map(row => {
       // Even for DB items, ensure working thumbnails/videos
       const thumbnailUrl = row.thumbnail_url || getThumbUrl(row.category, row.id);
       const videoUrl     = row.video_url     || getVideoUrl(row.category, row.id);
@@ -616,7 +464,7 @@ async function fetchFromSupabase(categories = [], limit = 20, offset = 0) {
     setCached(cacheKey, items);
     return items;
   } catch (err) {
-    console.warn("[DiscoveryService] Supabase:", err.message);
+    console.error(`[DiscoveryService] Supabase fetch error:`, err);
     return [];
   }
 }
@@ -661,24 +509,17 @@ export async function getDiscoveryFeed({ limit = 30, categories, mood, page = 1 
   const activeCats = (moodFiltered.length >= 3 ? moodFiltered : finalCats).slice(0, 8);
 
   const supaLimit = Math.max(4, Math.floor(limit * 0.4));
-  const pexelsPerCategory = Math.max(3, Math.ceil(limit / Math.min(activeCats.length, 5)));
-  const pexelsCats = shuffleCategories(activeCats, page).slice(0, Math.min(activeCats.length, 5));
+  const unsplashPerCategory = Math.max(3, Math.ceil(limit / Math.min(activeCats.length, 5)));
+  const unsplashCats = shuffleCategories(activeCats, page).slice(0, Math.min(activeCats.length, 5));
 
-  const [supaItems, ...pexelsArrays] = await Promise.all([
+  const [supaItems, ...unsplashArrays] = await Promise.all([
     fetchFromSupabase(activeCats, supaLimit, (page - 1) * supaLimit),
-    ...pexelsCats.map(cat => fetchFromPexels(cat, pexelsPerCategory, page)),
+    ...unsplashCats.map(cat => fetchFromUnsplash(cat, unsplashPerCategory, page)),
   ]);
 
-  const pexelsItems  = pexelsArrays.flat();
-  const combined     = [...supaItems, ...pexelsItems];
-  const existingIds  = new Set(combined.map(i => i.id));
-
-  const fallbackFill = getPageFallbackItems("", page, limit)
-    .filter(i => !existingIds.has(i.id));
-
-  const withFallback = [...combined, ...fallbackFill];
-
-  return rankItems(withFallback, "discovery").slice(0, limit);
+  const unsplashItems  = unsplashArrays.flat();
+  const combined       = [...supaItems, ...unsplashItems];
+  return rankItems(combined, "discovery").slice(0, limit);
 }
 
 // ─── Category-specific feed ───────────────────────────────────────────────────
@@ -689,14 +530,12 @@ export async function getCategoryFeed(category, limit = 20, page = 1) {
 
   const supaOffset = (page - 1) * Math.floor(limit * 0.6);
 
-  const [supaItems, pexelsItems] = await Promise.all([
+  const [supaItems, unsplashItems] = await Promise.all([
     fetchFromSupabase([category], Math.floor(limit * 0.6), supaOffset),
-    fetchFromPexels(category, Math.ceil(limit * 0.5), page),
+    fetchFromUnsplash(category, Math.ceil(limit * 0.5), page),
   ]);
 
-  const fallback = getPageFallbackItems(category, page, limit);
-  const all      = [...supaItems, ...pexelsItems, ...fallback];
-  const unique   = [...new Map(all.map(i => [i.id, i])).values()];
+  const unique = [...new Map([...supaItems, ...unsplashItems].map(i => [i.id, i])).values()];
 
   setCached(cacheKey, unique);
   return rankItems(unique, "discovery").slice(0, limit);
@@ -729,15 +568,15 @@ export async function getInjectClip(context = {}) {
   if (topCats.length) {
     const supaItems = await fetchFromSupabase(topCats, 3).catch(() => []);
     if (supaItems.length) return supaItems[0];
-    const pex = await fetchFromPexels(topCats[0], 3).catch(() => []);
-    if (pex.length) return pex[0];
+    const uns = await fetchFromUnsplash(topCats[0], 3).catch(() => []);
+    if (uns.length) return uns[0];
   }
-  return FALLBACK_CATALOG.sort((a,b) => b.engagementScore - a.engagementScore)[0];
+  return null;
 }
 
 export default {
   getDiscoveryFeed, getCategoryFeed, getRelatedFeed, getInjectClip,
   clearDiscoveryCache, getSavedDiscovery, isSavedDiscovery,
   toggleSavedDiscovery, loadSavedItem, clearAllSaved,
-  DISCOVERY_CATEGORIES, CATEGORY_GRADIENTS, FALLBACK_CATALOG, CATEGORY_QUERIES,
+  DISCOVERY_CATEGORIES, CATEGORY_GRADIENTS, CATEGORY_QUERIES,
 };
