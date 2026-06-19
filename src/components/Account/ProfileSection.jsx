@@ -580,6 +580,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
 
         .action-btn-ambassador { animation: ambPulse 2.5s ease infinite; }
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+          .profile-section { padding: 12px; }
+          .profile-header-content { padding: 18px 12px 16px; }
+          .profile-name { font-size:20px; }
+          .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
+          .tri-stat-inner { padding:10px 8px; }
+          .actions-grid { grid-template-columns: 1fr; gap:10px; }
+          .action-btn { padding:12px; }
+        }
       `}</style>
 
       <div className="profile-section">
