@@ -6,7 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   CORS, json, err, serviceClient, getAuthUser,
   checkRateLimit, audit, notify, isValidTransition
-} from "../shared/utils.ts";
+} from "../_shared/utils.ts";
 
 // ── Helper: update trade status with validation ──────────────────────────────
 async function transitionTrade(

@@ -61,21 +61,45 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
   const [showOracle, setShowOracle] = useState(false);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
+  const resizeTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const handleResize = () => {
+      // Debounce resize to avoid excessive re-renders
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+      resizeTimerRef.current = setTimeout(() => {
+        setIsMobile(window.innerWidth <= 768);
+      }, 150);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
-    const t = requestAnimationFrame(() => setVisible(true));
-    // Lock body scroll
-    document.body.style.overflow = "hidden";
+    let rafId;
+    let scrollLocked = false;
+    
+    const lockScroll = () => {
+      document.body.style.overflow = "hidden";
+      scrollLocked = true;
+    };
+    
+    rafId = requestAnimationFrame(() => {
+      setVisible(true);
+      lockScroll();
+    });
+    
     return () => {
-      cancelAnimationFrame(t);
-      document.body.style.overflow = "";
+      cancelAnimationFrame(rafId);
+      // Only unlock if we locked it and it's still locked
+      if (scrollLocked && document.body.style.overflow === "hidden") {
+        document.body.style.overflow = "";
+      }
     };
   }, []);
 
@@ -86,6 +110,18 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
       return () => clearTimeout(t);
     }
   }, [visible, isMobile]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+      // Ensure scroll is unlocked on unmount
+      if (document.body.style.overflow === "hidden") {
+        document.body.style.overflow = "";
+      }
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return null;
@@ -98,26 +134,40 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
   }, [query]);
 
   const close = () => {
+    // Unlock scroll before closing
+    if (document.body.style.overflow === "hidden") {
+      document.body.style.overflow = "";
+    }
     setVisible(false);
-    setTimeout(onClose, 290);
+    // Clear any pending close timer
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(onClose, 280);
   };
 
   const navigate = (id) => {
+    // Unlock scroll before navigation
+    if (document.body.style.overflow === "hidden") {
+      document.body.style.overflow = "";
+    }
+    
     if (id === "saved") {
       setVisible(false);
-      setTimeout(() => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = setTimeout(() => {
         if (typeof onOpenSaved === "function") onOpenSaved();
         else setActiveTab("account");
-      }, 210);
+      }, 200);
       return;
     }
     if (id === "oracle") {
       setVisible(false);
-      setTimeout(() => setShowOracle(true), 210);
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = setTimeout(() => setShowOracle(true), 200);
       return;
     }
     setVisible(false);
-    setTimeout(() => setActiveTab(resolveTab(id)), 210);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setActiveTab(resolveTab(id)), 200);
   };
 
   // ── Desktop tile ──────────────────────────────────────────────────────────
@@ -181,8 +231,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           backdrop-filter: blur(2px);
           -webkit-backdrop-filter: blur(2px);
           z-index: 99998;
-          animation: smBgIn 0.22s ease;
-          transition: opacity 0.26s ease;
+          animation: smBgIn 0.2s ease;
+          transition: opacity 0.28s ease;
         }
         .dsm-bg.out { opacity: 0; }
 
@@ -215,7 +265,7 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           font-family: 'Manrope', sans-serif;
         }
         .dsm-panel.out {
-          animation: dsmPanOut 0.22s ease forwards;
+          animation: dsmPanOut 0.28s ease forwards;
         }
 
         /* Top lime accent line */
@@ -351,8 +401,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           cursor: pointer;
           position: relative;
           overflow: hidden;
-          transition: all 0.2s cubic-bezier(0.34,1.2,0.64,1);
-          animation: smItemIn 0.24s ease both;
+          transition: all 0.22s cubic-bezier(0.34,1.2,0.64,1);
+          animation: smItemIn 0.26s ease both;
           -webkit-tap-highlight-color: transparent;
           outline: none;
         }
@@ -429,7 +479,7 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           backdrop-filter: blur(2px);
           -webkit-backdrop-filter: blur(2px);
           z-index: 99998;
-          animation: smBgIn 0.22s ease;
+          animation: smBgIn 0.2s ease;
           transition: opacity 0.28s;
         }
         .sm-bg.out { opacity: 0; }
@@ -442,9 +492,9 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           border-radius: 24px 24px 0 0;
           padding: 0 0 calc(88px + env(safe-area-inset-bottom));
           max-height: 88vh; overflow-y: auto;
-          animation: smPanInMob 0.32s cubic-bezier(0.34,1.12,0.64,1) both;
+          animation: smPanInMob 0.3s cubic-bezier(0.34,1.12,0.64,1) both;
         }
-        .sm-panel.out { animation: smPanOutMob 0.26s ease forwards; }
+        .sm-panel.out { animation: smPanOutMob 0.28s ease forwards; }
         .sm-panel::-webkit-scrollbar { display: none; }
 
         @media (max-width: 768px) {
@@ -476,7 +526,7 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
         .sm-sec-lbl { font-size: 9.5px; font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: 1.2px; padding: 0 4px; margin-bottom: 8px; }
         .sm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
         @media (max-width: 340px) { .sm-grid { grid-template-columns: repeat(3, 1fr); } }
-        .sm-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 13px 6px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.025); cursor: pointer; position: relative; transition: all 0.22s cubic-bezier(0.34,1.4,0.64,1); animation: smItemIn 0.28s ease both; -webkit-tap-highlight-color: transparent; }
+        .sm-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 13px 6px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.025); cursor: pointer; position: relative; transition: all 0.22s cubic-bezier(0.34,1.4,0.64,1); animation: smItemIn 0.26s ease both; -webkit-tap-highlight-color: transparent; }
         .sm-item:active { transform: scale(0.86) !important; }
         .sm-item:hover { background: var(--bg); border-color: color-mix(in srgb, var(--c) 28%, transparent); transform: translateY(-3px) scale(1.04); box-shadow: 0 8px 22px rgba(0,0,0,0.32); }
         .sm-item-icon { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }

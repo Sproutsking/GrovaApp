@@ -18,7 +18,6 @@ const NAV_ITEMS = [
 const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
   const [showServices, setShowServices] = useState(false);
   const [fabVisible, setFabVisible] = useState(false);
-  const [hidden, setHidden] = useState(false);
   const timerRef = useRef(null);
 
   const triggerFab = useCallback(() => {
@@ -46,26 +45,48 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
     };
   }, [triggerFab]);
 
-  // Hide nav when PayWave is open (defensive against body class persistence)
+  // DOM-based PayWave detection: watch body.paywave-open class
+  // Instant hide when PayWave opens, smooth animate-in when it closes
   useEffect(() => {
-    const onOpen = () => setHidden(true);
-    const onClose = () => setHidden(false);
-    window.addEventListener("paywave:open", onOpen);
-    window.addEventListener("paywave:close", onClose);
-    const onPop = () => {
-      // If history state no longer indicates paywave, ensure nav is visible
-      try {
-        const st = window.history.state || {};
-        const bodyHas = document.body.classList && document.body.classList.contains && document.body.classList.contains("paywave-open");
-        if ((!st || !st.paywave) && !bodyHas) setHidden(false);
-      } catch { setHidden(false); }
+    const nav = document.querySelector(".mbn");
+    if (!nav) return;
+
+    // Check current state and apply immediately
+    const updateNavState = () => {
+      const isPayWaveOpen = document.body.classList.contains("paywave-open");
+      
+      if (isPayWaveOpen) {
+        // PayWave is active: instantly hide (no animation)
+        nav.style.display = "none";
+        nav.classList.remove("mbn-show");
+      } else {
+        // PayWave closed: show and let CSS animation handle entrance
+        nav.style.display = "flex";
+        // Trigger animation by adding class
+        requestAnimationFrame(() => {
+          nav.classList.add("mbn-show");
+        });
+      }
     };
-    window.addEventListener("popstate", onPop);
-    return () => {
-      window.removeEventListener("paywave:open", onOpen);
-      window.removeEventListener("paywave:close", onClose);
-      window.removeEventListener("popstate", onPop);
-    };
+
+    // Initialize based on current state
+    updateNavState();
+
+    // Watch for class changes on body (handles both app back and device back)
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "class") {
+          updateNavState();
+        }
+      });
+    });
+
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -81,6 +102,24 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           -webkit-backdrop-filter: blur(28px);
           padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
           border-top: 1px solid rgba(255,255,255,0.06);
+          /* Controlled by DOM: display:none or display:flex */
+          display: flex;
+        }
+
+        /* Animation: smooth entrance when PayWave closes */
+        @keyframes mbnSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .mbn.mbn-show {
+          animation: mbnSlideIn 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
         }
 
         /* ── Row ── */
@@ -313,10 +352,10 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         }
       `}</style>
 
-      {!hidden && (
-        <nav className="mbn">
-          <div className="mbn-row">
-            {NAV_ITEMS.map(({ id, Icon, label, isMenu }) => {
+      {/* Bottom Navigation */}
+      <nav className="mbn">
+        <div className="mbn-row">
+          {NAV_ITEMS.map(({ id, Icon, label, isMenu }) => {
               if (isMenu)
                 return (
                   <button
@@ -361,9 +400,8 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
             })}
           </div>
         </nav>
-      )}
 
-      {/* FAB */}
+        {/* FAB */}
       <button
         className={`mbn-fab${fabVisible ? " fab-show" : ""}`}
         onClick={() => setActiveTab("create")}

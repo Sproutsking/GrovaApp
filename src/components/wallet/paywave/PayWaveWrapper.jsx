@@ -229,17 +229,17 @@ export default function PayWaveWrapper({ onBack, userId }) {
   }, [profile?.id, fetchActivity]);
 
   useEffect(() => {
+    // Add paywave-open class to body when component mounts
+    // MobileBottomNav watches this class and handles visibility automatically
     document.body.classList.add("paywave-open");
-    // Dispatch a global event so other UI (bottom nav) can react immediately
-    window.dispatchEvent(new CustomEvent("paywave:open"));
 
-    // Push a history state so browser Back returns to wallet (not exit the app)
+    // Push history state so browser Back returns to wallet
     try { window.history.pushState({ paywave: true }, ""); } catch {}
 
+    // Cleanup: Remove class when unmounting (both back buttons trigger this)
+    // MobileBottomNav's MutationObserver detects the class removal and animates nav back in
     return () => {
       document.body.classList.remove("paywave-open");
-      window.dispatchEvent(new CustomEvent("paywave:close"));
-      // No need to pop state here — allow native nav to restore previous state
     };
   }, []);
 
