@@ -442,6 +442,14 @@ export default function TeamSection({ adminData, teamMgmt }) {
   );
 }
 
+const DEFAULT_NOTIFICATION_AGENTS = [
+  { id: "system",      name: "System",      icon: "⚙️" },
+  { id: "maintenance", name: "Maintenance", icon: "🛠️" },
+  { id: "wallet",      name: "Money",       icon: "💰" },
+  { id: "social",      name: "Social",       icon: "💬" },
+  { id: "community",   name: "Community",   icon: "🌐" },
+];
+
 function normalizeNotificationAgents(raw) {
   if (Array.isArray(raw)) return raw;
   if (typeof raw === "string") {
