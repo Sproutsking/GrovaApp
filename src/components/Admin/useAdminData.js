@@ -1068,6 +1068,9 @@ export function useNotifications() {
     const title = notif.title;
     const body = notif.message || notif.body;
     const type = notif.type || "info";
+    const agentId = notif.agentId || notif.agent_id || "system";
+    const agentName = notif.agentName || notif.agent_name || "System";
+    const agentIcon = notif.agentIcon || notif.agent_icon || "⚙️";
 
     const { error: logErr } = await sb()
       .from("push_notifications")
@@ -1112,7 +1115,15 @@ export function useNotifications() {
           type: "payment_confirmed",
           message: `${title}: ${body}`,
           is_read: false,
-          metadata: { admin_notification: true, notif_type: type, title, body },
+          metadata: {
+            admin_notification: true,
+            notif_type: type,
+            title,
+            body,
+            agent_id: agentId,
+            agent_name: agentName,
+            agent_icon: agentIcon,
+          },
           created_at: new Date().toISOString(),
         }));
         await sb()

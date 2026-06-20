@@ -1426,18 +1426,43 @@ export function SecuritySection({ adminData, secData }) {
   );
 }
 
+const DEFAULT_NOTIFICATION_AGENTS = [
+  { id: "system",      name: "System",      icon: "⚙️" },
+  { id: "maintenance", name: "Maintenance", icon: "🛠️" },
+  { id: "wallet",      name: "Money",       icon: "💰" },
+  { id: "social",      name: "Social",      icon: "💬" },
+  { id: "community",   name: "Community",   icon: "🌐" },
+];
+
 // ============================================================================
 // NOTIFICATIONS SECTION
 // ============================================================================
-export function NotificationsSection({ adminData, broadcaster }) {
+export function NotificationsSection({ adminData, broadcaster, platformSettings }) {
   const { sent, loading, reload } = useNotifications();
   const [form, setForm] = useState({
     title: "",
     message: "",
     type: "info",
+    agentId: "system",
     targetType: "all",
     specificEmails: "",
   });
+
+  const notificationAgents = (() => {
+    const raw = platformSettings?.settings?.notification_agents;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return DEFAULT_NOTIFICATION_AGENTS; }
+    }
+    return DEFAULT_NOTIFICATION_AGENTS;
+  })();
+  const selectedAgent = notificationAgents.find((a) => a.id === form.agentId) || notificationAgents[0] || DEFAULT_NOTIFICATION_AGENTS[0];
+
+  useEffect(() => {
+    if (!form.agentId && notificationAgents.length > 0) {
+      setForm((prev) => ({ ...prev, agentId: notificationAgents[0].id }));
+    }
+  }, [notificationAgents, form.agentId]);
   const [sending, setSending] = useState(false);
   const [alert, setAlert] = useState(null);
 
@@ -1458,6 +1483,8 @@ export function NotificationsSection({ adminData, broadcaster }) {
       await broadcaster.send({
         ...form,
         targetIds,
+        agentName: selectedAgent.name,
+        agentIcon: selectedAgent.icon,
         sentByName: adminData?.full_name,
         sentById: adminData?.user_id || adminData?.id,
       });
@@ -1563,6 +1590,20 @@ export function NotificationsSection({ adminData, broadcaster }) {
               ]}
             />
           </Field>
+          <Field label="Notification Agent">
+            <Select
+              value={form.agentId}
+              onChange={(e) => setForm({ ...form, agentId: e.target.value })}
+              options={notificationAgents.map((agent) => ({
+                value: agent.id,
+                label: `${agent.icon || "🔔"} ${agent.name || agent.id}`,
+              }))}
+            />
+          </Field>
+        </div>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}
+        >
           <Field label="Target Audience">
             <Select
               value={form.targetType}

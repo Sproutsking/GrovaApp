@@ -5,7 +5,7 @@
 // The DB trigger auto-assigns xa_id on insert; we just display it here.
 // ============================================================================
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Shield, UserPlus, Trash2, Edit2, RefreshCw, Crown,
   Users, CheckCircle2, Star,
@@ -442,6 +442,14 @@ export default function TeamSection({ adminData, teamMgmt }) {
   );
 }
 
+function normalizeNotificationAgents(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+  return null;
+}
+
 // ============================================================================
 // CEO Panel
 // ============================================================================
@@ -449,12 +457,40 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
   const { settings, update } = platformSettings;
   const [saving, setSaving]  = useState(false);
   const [alert, setAlert]    = useState(null);
+  const [agents, setAgents]  = useState(() => normalizeNotificationAgents(settings.notification_agents) || DEFAULT_NOTIFICATION_AGENTS);
 
-  const handleSave = async (key, value) => {
+  useEffect(() => {
+    const parsed = normalizeNotificationAgents(settings.notification_agents);
+    setAgents(parsed || DEFAULT_NOTIFICATION_AGENTS);
+  }, [settings.notification_agents]);
+
+  const effectiveAgents = Array.isArray(agents) ? agents : DEFAULT_NOTIFICATION_AGENTS;
+
+  const handleAgentFieldChange = (index, field, value) => {
+    setAgents((current) => {
+      const next = [...current];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleAddAgent = () => {
+    setAgents((current) => [
+      ...current,
+      {
+        id: `agent_${Date.now()}`,
+        name: "New Agent",
+        icon: "🔔",
+      },
+    ]);
+  };
+
+  const handleSaveAgents = async () => {
     setSaving(true);
     try {
-      await update(key, value);
-      setAlert({ type: "success", msg: `Setting "${key}" updated.` });
+      const payload = Array.isArray(agents) ? JSON.stringify(agents) : agents;
+      await update("notification_agents", payload);
+      setAlert({ type: "success", msg: "Notification agents saved." });
     } catch (e) {
       setAlert({ type: "error", msg: e.message });
     } finally {
@@ -551,6 +587,53 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
               </div>
             );
           })}
+        </div>
+      </Section>
+
+      <Section title="Notification Agents" subtitle="Edit carrier names and icons for admin broadcasts">
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
+            These agents are used in the admin notification sender. Change the display name or emoji icon for each channel.
+          </div>
+          {Array.isArray(effectiveAgents)
+            ? effectiveAgents.map((agent, index) => (
+              <div key={agent.id || index} style={{ display: "grid", gridTemplateColumns: "72px 1fr 1fr", gap: 10, alignItems: "center", padding: "12px 14px", background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                <div style={{ fontSize: 24, textAlign: "center" }}>{agent.icon || "🔔"}</div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Name</div>
+                  <Input
+                    value={agent.name || ""}
+                    onChange={(e) => handleAgentFieldChange(index, "name", e.target.value)}
+                    placeholder="Agent name"
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Icon</div>
+                  <Input
+                    value={agent.icon || ""}
+                    onChange={(e) => handleAgentFieldChange(index, "icon", e.target.value)}
+                    placeholder="Emoji or icon"
+                  />
+                </div>
+              </div>
+            ))
+            : null}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Btn
+              label="Add Agent"
+              icon={UserPlus}
+              size="sm"
+              onClick={handleAddAgent}
+            />
+            <Btn
+              label="Save Agents"
+              icon={Save}
+              size="sm"
+              variant="primary"
+              loading={saving}
+              onClick={handleSaveAgents}
+            />
+          </div>
         </div>
       </Section>
 

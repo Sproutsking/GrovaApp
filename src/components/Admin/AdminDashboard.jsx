@@ -574,13 +574,17 @@ export default function AdminDashboard({ adminData, onClose }) {
 
       case "notifications":
         return (
-          <NotificationsSection adminData={adminData} broadcaster={{
-            send: (notif) => notificationsHook.send({
-              ...notif,
-              sentByName: adminData?.full_name,
-              sentById:   adminData?.user_id || adminData?.id,
-            }),
-          }} />
+          <NotificationsSection
+            adminData={adminData}
+            platformSettings={platformSettings}
+            broadcaster={{
+              send: (notif) => notificationsHook.send({
+                ...notif,
+                sentByName: adminData?.full_name,
+                sentById:   adminData?.user_id || adminData?.id,
+              }),
+            }}
+          />
         );
 
       case "system":
