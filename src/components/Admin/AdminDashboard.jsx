@@ -234,7 +234,7 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
 }
 
 // ─── Dashboard Overview ────────────────────────────────────────────────────
-function DashboardOverview({ stats, onNavigate, team, adminData }) {
+function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, overviewPanelCols, quickActionCols, economyCols }) {
   const s         = stats || {};
   const openCases = s.openCases || 0;
   const firstName = (adminData?.full_name || "Admin").split(" ")[0];
@@ -539,7 +539,16 @@ export default function AdminDashboard({ adminData, onClose }) {
   const renderSection = () => {
     switch (activeSection) {
       case "dashboard":
-        return <DashboardOverview stats={stats} onNavigate={navigate} team={teamHook.team || []} adminData={adminData} />;
+        return <DashboardOverview
+          stats={stats}
+          onNavigate={navigate}
+          team={teamHook.team || []}
+          adminData={adminData}
+          dashboardCols={dashboardCols}
+          overviewPanelCols={overviewPanelCols}
+          quickActionCols={quickActionCols}
+          economyCols={economyCols}
+        />;
 
       case "support":
         return <SupportSection adminData={adminData} supportMgmt={supportMgmt} teamMgmt={teamMgmt} />;

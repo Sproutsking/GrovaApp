@@ -133,7 +133,7 @@ const TabSkeleton = memo(() => (
         key={i}
         style={{
           height:          "80px",
-          background:      "rgba(255,255,255,0.03)",
+          background:      "var(--surface)",
           borderRadius:    "12px",
           marginBottom:    "12px",
           animation:       "skPulse 1.4s ease-in-out infinite",
@@ -157,8 +157,8 @@ const OfflineBanner = memo(({ visible }) => {
         left:           0,
         right:          0,
         zIndex:         99998,
-        background:     "rgba(239,68,68,0.96)",
-        color:          "#fff",
+        background:     "var(--danger-bg)",
+        color:          "var(--accent-inverse-text)",
         textAlign:      "center",
         padding:        "9px 16px",
         fontSize:       "12.5px",
@@ -228,6 +228,12 @@ const MainApp = memo(() => {
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
   const [mountedTabs,        setMountedTabs]        = useState(new Set(["home", "search", "create", "community", "account", "wallet"]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
+  const [themeMode,         setThemeMode]         = useState(() => {
+    if (typeof window === "undefined") return "dark";
+    const stored = window.localStorage.getItem("xv_theme_mode");
+    if (stored === "light" || stored === "dark") return stored;
+    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+  });
 
   // DM panel state
   const [showMessages,   setShowMessages]   = useState(false);
@@ -284,6 +290,22 @@ const MainApp = memo(() => {
       clearInterval(netCheckRef.current);
     };
   }, [isOnline]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    root.classList.toggle("theme-light", themeMode === "light");
+    root.classList.toggle("theme-dark", themeMode === "dark");
+    window.localStorage.setItem("xv_theme_mode", themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    const pref = profile?.preferences?.theme_mode || profile?.preferences?.themeMode;
+    const normalized = pref === "light" ? "light" : pref === "dark" ? "dark" : null;
+    if (normalized && normalized !== themeMode) {
+      setThemeMode(normalized);
+    }
+  }, [profile?.preferences]);
 
   // ── Notification deep-link navigate ──────────────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
@@ -674,7 +696,7 @@ const MainApp = memo(() => {
     setMountedTabs((p) => new Set([...p, "home"]));
   }, []);
 
-  const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget };
+  const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode };
   const showTrending = activeTab !== "community" && activeTab !== "wallet";
 
   // ── Tab content ──────────────────────────────────────────────────────────
@@ -830,7 +852,7 @@ const MainApp = memo(() => {
                 position:   "fixed",
                 inset:      0,
                 zIndex:     9500,
-                background: "#060608",
+                background: "var(--bg-strong)",
                 overflowY:  "auto",
                 fontFamily: "'DM Sans','Inter',system-ui,sans-serif",
               }}
@@ -844,9 +866,9 @@ const MainApp = memo(() => {
                   alignItems:   "center",
                   gap:          10,
                   padding:      isMobile ? "12px 16px" : "14px 24px",
-                  background:   "rgba(6,6,8,0.96)",
+                  background:   "var(--surface-strong)",
                   backdropFilter: "blur(12px)",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  borderBottom: "1px solid var(--surface-border)",
                 }}
               >
                 <button
@@ -857,7 +879,7 @@ const MainApp = memo(() => {
                     gap:        7,
                     background: "transparent",
                     border:     "none",
-                    color:      "#a3e635",
+                    color:      "var(--accent)",
                     fontWeight: 700,
                     fontSize:   13,
                     cursor:     "pointer",
@@ -1019,14 +1041,14 @@ const MainApp = memo(() => {
             bottom:     isMobile ? "68px" : "20px",
             left:       "50%",
             transform:  "translateX(-50%)",
-            background: "rgba(0,0,0,0.9)",
-            color:      "#84cc16",
+            background: "var(--panel)",
+            color:      "var(--accent)",
             padding:    "12px 24px",
             borderRadius: "8px",
             fontSize:   "14px",
             fontWeight: "600",
             zIndex:     10000,
-            border:     "1px solid #84cc16",
+            border:     "1px solid var(--accent)",
             animation:  "xSlideUp .3s ease-out",
           }}
         >
@@ -1058,7 +1080,7 @@ const MainApp = memo(() => {
       )}
 
       {showActiveCall && acceptedCallData && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 100001, background: "#000" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 100001, background: "var(--overlay)" }}>
           <Suspense fallback={null}>
             <ActiveCall
               call={acceptedCallData}

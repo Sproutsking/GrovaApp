@@ -117,6 +117,7 @@ class AuthService {
             if (data?.type !== "XEEVIA_OAUTH_SIGNIN") return;
 
             window.removeEventListener("message", onMessage);
+            if (overallTimeout) clearTimeout(overallTimeout);
             if (popup && !popup.closed) popup.close();
 
             const session = data.session;
@@ -139,7 +140,7 @@ class AuthService {
 
         // Fallback timer: if popup doesn't respond, close it and fall back to
         // the traditional redirect flow in the main window so sign-in still works.
-        const overallTimeout = setTimeout(async () => {
+        overallTimeout = setTimeout(async () => {
           try {
             window.removeEventListener("message", onMessage);
             if (popup && !popup.closed) popup.close();
@@ -156,7 +157,7 @@ class AuthService {
         // and runs signInWithOAuth. When the session is established it posts
         // the full session object back to the opener and then clears its
         // local session for safety.
-        const popupHtml = `<!doctype html>`}``}]}]}]}]
+        const popupHtml = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -186,7 +187,7 @@ class AuthService {
         }
 
         // Start OAuth redirect inside the popup
-        const { error } = await sb.auth.signInWithOAuth({ provider: '${provider}', options: ${JSON.stringify(options)} , flowType: 'pkce' });
+        const { error } = await sb.auth.signInWithOAuth({ provider: '${provider}', options: ${JSON.stringify(options)}, flowType: 'pkce' });
         if (error) {
           document.getElementById('msg').textContent = 'Error: ' + (error.message || 'Sign-in failed');
         }

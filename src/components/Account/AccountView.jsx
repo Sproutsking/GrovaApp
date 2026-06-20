@@ -166,6 +166,8 @@ const AccountView = ({
   onProfileLoad,
   onSignOut,
   refreshTrigger,
+  themeMode,
+  setThemeMode,
   // Global view switcher from App.jsx — used by DashboardSection AND ProfileSection
   // Common names in App.jsx: setActiveTab, setView, navigateTo, onNavigate
   onNavigate,
@@ -298,7 +300,12 @@ const AccountView = ({
       )}
 
       {accountSection === "settings" && (
-        <SettingsSection isSubscribed={isSubscribed} userId={userId} />
+        <SettingsSection
+          isSubscribed={isSubscribed}
+          userId={userId}
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
+        />
       )}
     </div>
   );

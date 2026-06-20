@@ -202,7 +202,7 @@ class AppErrorBoundary extends React.Component {
     return (
       <div style={{
         minHeight:      "100dvh",
-        background:     "#080808",
+        background:     "var(--bg-strong)",
         display:        "flex",
         flexDirection:  "column",
         alignItems:     "center",
@@ -216,7 +216,7 @@ class AppErrorBoundary extends React.Component {
           fontSize:        "32px",
           fontWeight:      900,
           letterSpacing:   "-1.5px",
-          background:      "linear-gradient(135deg, #a3e635, #4d7c0f)",
+          background:      "linear-gradient(135deg, var(--accent), var(--accent-strong))",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -229,7 +229,7 @@ class AppErrorBoundary extends React.Component {
           width:          "60px",
           height:         "60px",
           borderRadius:   "50%",
-          background:     "rgba(245,158,11,0.08)",
+          background:     "var(--accent-bg-soft)",
           border:         "2px solid rgba(245,158,11,0.3)",
           display:        "flex",
           alignItems:     "center",
@@ -239,10 +239,10 @@ class AppErrorBoundary extends React.Component {
           ⚡
         </div>
 
-        <div style={{ fontSize: "16px", fontWeight: 800, color: "#f0f0f0" }}>
+        <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)" }}>
           Something hiccupped
         </div>
-        <div style={{ fontSize: "13px", color: "#555", maxWidth: "300px", lineHeight: 1.7 }}>
+        <div style={{ fontSize: "13px", color: "var(--text-secondary)", maxWidth: "300px", lineHeight: 1.7 }}>
           A temporary error occurred. Your session and data are safe.
         </div>
 
@@ -271,12 +271,12 @@ class AppErrorBoundary extends React.Component {
             padding:    "13px 32px",
             borderRadius: "13px",
             border:     "none",
-            background: "linear-gradient(135deg, #a3e635 0%, #65a30d 100%)",
-            color:      "#061000",
+            background: "linear-gradient(135deg, var(--accent), var(--accent-strong))",
+            color:      "var(--accent-contrast)",
             fontSize:   "14px",
             fontWeight: 800,
             cursor:     "pointer",
-            boxShadow:  "0 4px 18px rgba(163,230,53,0.3)",
+            boxShadow:  "0 4px 18px var(--accent-shadow)",
           }}
         >
           {this.state.retried ? "Reload App" : "Try Again"}
@@ -335,12 +335,12 @@ if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
         bottom: 24px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(8,8,8,0.97);
-        color: #e8e8e8;
+        background: var(--bg-strong);
+        color: var(--text);
         padding: 14px 20px;
         border-radius: 16px;
-        border: 1.5px solid rgba(163,230,53,0.35);
-        box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(163,230,53,0.08);
+        border: 1.5px solid var(--accent-border);
+        box-shadow: 0 8px 40px var(--shadow), 0 0 0 1px var(--accent-shadow);
         z-index: 99999;
         max-width: 320px;
         width: calc(100vw - 48px);
@@ -355,12 +355,12 @@ if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
         <style>@keyframes xvUpdateIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}</style>
         <span style="font-size:22px;flex-shrink:0">⚡</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:2px">Update ready</div>
-          <div style="font-size:11px;color:#555">A new version of Xeevia is available</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">Update ready</div>
+          <div style="font-size:11px;color:var(--text-secondary)">A new version of Xeevia is available</div>
         </div>
         <button id="xv-update-btn" style="
-          background:linear-gradient(135deg,#a3e635,#65a30d);
-          color:#061000;border:none;padding:9px 16px;
+          background:linear-gradient(135deg,var(--accent),var(--accent-strong));
+          color:var(--accent-contrast);border:none;padding:9px 16px;
           border-radius:10px;font-weight:800;cursor:pointer;
           font-size:12px;white-space:nowrap;flex-shrink:0;
           font-family:inherit;

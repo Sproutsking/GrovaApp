@@ -42,8 +42,8 @@ const S = `
 .sset { padding: 12px 14px 80px; animation: ssFade .3s ease; }
 
 .sset-card {
-  background: rgba(255,255,255,.02);
-  border: 1px solid rgba(255,255,255,.07);
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
   border-radius: 14px; padding: 14px; margin-bottom: 12px;
   position: relative; overflow: hidden;
 }
@@ -63,7 +63,7 @@ const S = `
   border: 1px solid rgba(132,204,22,.2);
   display: flex; align-items: center; justify-content: center; color: #84cc16;
 }
-.sset-title { font-size: 14px; font-weight: 800; color: #fff; margin: 0; }
+.sset-title { font-size: 14px; font-weight: 800; color: var(--text); margin: 0; }
 .sset-badge {
   padding: 2px 8px; background: rgba(132,204,22,.12);
   border-radius: 6px; color: #84cc16; font-size: 10px; font-weight: 700;
@@ -73,29 +73,30 @@ const S = `
 
 .sset-toggle {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+  padding: 10px 0; border-bottom: 1px solid var(--surface-border);
 }
 .sset-toggle:last-child { border-bottom: none; padding-bottom: 0; }
 .sset-toggle:first-child { padding-top: 0; }
 .sset-tinfo { flex: 1; padding-right: 12px; }
-.sset-tlabel { font-size: 13px; font-weight: 700; color: #d4d4d4; margin-bottom: 1px; }
-.sset-tdesc  { font-size: 10.5px; color: #444; line-height: 1.4; }
+.sset-tlabel { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 1px; }
+.sset-tdesc  { font-size: 10.5px; color: var(--text-secondary); line-height: 1.4; }
 
 .sset-sw {
   position: relative; width: 42px; height: 24px; flex-shrink: 0;
-  background: rgba(255,255,255,.08); border-radius: 12px;
+  background: var(--surface);
+  border-radius: 12px;
   cursor: pointer; transition: all .25s;
-  border: 1.5px solid rgba(255,255,255,.1);
+  border: 1.5px solid var(--surface-border);
 }
 .sset-sw.on {
-  background: linear-gradient(135deg, #84cc16, #65a30d);
-  border-color: #84cc16;
+  background: linear-gradient(135deg, var(--accent), #65a30d);
+  border-color: var(--accent);
 }
 .sset-sw-knob {
   position: absolute; top: 2px; left: 2px;
-  width: 16px; height: 16px; background: #fff;
+  width: 16px; height: 16px; background: var(--panel);
   border-radius: 50%; transition: transform .25s;
-  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
 }
 .sset-sw.on .sset-sw-knob { transform: translateX(18px); }
 
@@ -106,12 +107,12 @@ const S = `
 .sset-contact:last-of-type { border-bottom: none; }
 .sset-contact-body { flex: 1; min-width: 0; }
 .sset-contact-label {
-  font-size: 9.5px; color: #444; font-weight: 700;
+  font-size: 9.5px; color: var(--text-secondary); font-weight: 700;
   text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px;
 }
 .sset-contact-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sset-contact-val {
-  font-size: 13px; color: #ccc; font-weight: 600;
+  font-size: 13px; color: var(--text); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;
 }
 
@@ -139,11 +140,11 @@ const S = `
 
 .sset-cbtn {
   padding: 6px 12px; border-radius: 8px; flex-shrink: 0;
-  background: rgba(132,204,22,.07); border: 1px solid rgba(132,204,22,.2);
+  background: rgba(132,204,22,.08); border: 1px solid rgba(132,204,22,.25);
   color: #84cc16; font-size: 11.5px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; gap: 5px; transition: all .15s; white-space: nowrap;
 }
-.sset-cbtn:hover { background: rgba(132,204,22,.13); border-color: rgba(132,204,22,.4); transform: translateY(-1px); }
+.sset-cbtn:hover { background: rgba(132,204,22,.16); border-color: rgba(132,204,22,.45); transform: translateY(-1px); }
 
 /* ── Boost card ── */
 .sset-boost-active {
@@ -191,16 +192,17 @@ const S = `
   border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
   display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
 }
-.sset-banner.warn  { background: rgba(251,191,36,.06); border: 1px solid rgba(251,191,36,.2);  color: #fbbf24; }
-.sset-banner.info  { background: rgba(96,165,250,.06);  border: 1px solid rgba(96,165,250,.15); color: #60a5fa; }
-.sset-banner.succ  { background: rgba(34,197,94,.06);   border: 1px solid rgba(34,197,94,.18);  color: #22c55e; }
+.sset-banner.warn  { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.22);  color: #fbbf24; }
+.sset-banner.info  { background: rgba(96,165,250,.08);  border: 1px solid rgba(96,165,250,.2); color: #60a5fa; }
+.sset-banner.succ  { background: rgba(34,197,94,.08);   border: 1px solid rgba(34,197,94,.2);  color: #22c55e; }
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
-const SettingsSection = ({ userId, onOpenUpgrade }) => {
+const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [profilePreferences, setProfilePreferences] = useState({});
 
   // Contact
   const [email,         setEmail]         = useState("");
@@ -270,6 +272,7 @@ const SettingsSection = ({ userId, onOpenUpgrade }) => {
           showPhone:      p.show_phone  || false,
         });
         const prefs = p.preferences || {};
+        setProfilePreferences(prefs);
         setNotifs({
           profileVisits: prefs.notify_profile_visits === true,
           comments:      prefs.notify_comments       === true,
@@ -278,6 +281,10 @@ const SettingsSection = ({ userId, onOpenUpgrade }) => {
           newFollowers:  prefs.notify_followers      === true,
           storyUnlocks:  prefs.notify_unlocks        === true,
         });
+        if (setThemeMode) {
+          const themePref = prefs.theme_mode === "light" || prefs.themeMode === "light" ? "light" : "dark";
+          setThemeMode(themePref);
+        }
       }
 
       if (boostRes.status === "fulfilled" && boostRes.value?.data) {
@@ -308,12 +315,15 @@ const SettingsSection = ({ userId, onOpenUpgrade }) => {
     try {
       setSaving(true);
       const preferences = {
+        ...profilePreferences,
         notify_profile_visits: notifs.profileVisits,
         notify_comments:       notifs.comments,
         notify_likes:          notifs.likes,
         notify_shares:         notifs.shares,
         notify_followers:      notifs.newFollowers,
         notify_unlocks:        notifs.storyUnlocks,
+        theme_mode:            themeMode === "light" ? "light" : "dark",
+        themeMode:             themeMode === "light" ? "light" : "dark",
       };
       const { error } = await supabase.from("profiles")
         .update({
@@ -337,6 +347,11 @@ const SettingsSection = ({ userId, onOpenUpgrade }) => {
 
   const toggleNotif   = key => { setNotifs(p => ({ ...p, [key]: !p[key] }));  setHasChanges(true); };
   const togglePrivacy = key => { setPrivacy(p => ({ ...p, [key]: !p[key] })); setHasChanges(true); };
+  const toggleAppTheme = () => {
+    const nextTheme = themeMode === "light" ? "dark" : "light";
+    setThemeMode?.(nextTheme);
+    setHasChanges(true);
+  };
   const togSection    = key => setOpenSection(o => o === key ? null : key);
 
   const enabledCount = Object.values(notifs).filter(Boolean).length;
@@ -492,6 +507,35 @@ const SettingsSection = ({ userId, onOpenUpgrade }) => {
               </div>
             </>
           )}
+        </div>
+
+        {/* ── Preferences ───────────────────────────────────────────────── */}
+        <div className="sset-card">
+          <div className="sset-card-accent"/>
+          <div className="sset-ch" onClick={() => togSection("preferences")}>
+            <div className="sset-ch-left">
+              <div className="sset-icon" style={{ background: "linear-gradient(135deg, rgba(84,204,22,.15), rgba(84,204,22,.05))", borderColor: "rgba(132,204,22,.2)", color: "#84cc16" }}>
+                <User size={16}/>
+              </div>
+              <h3 className="sset-title">Preferences</h3>
+            </div>
+            <ChevronDown size={14} className={`sset-caret ${openSection==="preferences"?"open":""}`}/>
+          </div>
+
+          {openSection === "preferences" && (
+            <>
+              <div className="sset-toggle">
+                <div className="sset-tinfo">
+                  <div className="sset-tlabel">App theme</div>
+                  <div className="sset-tdesc">Switch between light and dark mode for the whole app.</div>
+                </div>
+                <div className={`sset-sw ${themeMode==="light"?"on":""}`} onClick={toggleAppTheme}>
+                  <div className="sset-sw-knob"/>
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* ── Boost / Upgrade ───────────────────────────────────────────────── */}
