@@ -31,13 +31,23 @@ const PushPermissionNudge = memo(({ userId }) => {
       if (sessionStorage.getItem("xv_push_nudge_dismissed")) return;
     } catch {}
 
+    const showNudge = () => {
+      if (!visible) {
+        setVisible(true);
+      }
+    };
+
     // Show after a short delay on the "push:needs_permission" event
     const handler = () => {
-      // Small delay so it doesn't flash immediately on load
-      setTimeout(() => setVisible(true), 4000);
+      setTimeout(showNudge, 4000);
     };
 
     window.addEventListener("push:needs_permission", handler);
+
+    // If the event already fired before this component mounted, still show the nudge
+    if (window.__pushUserId) {
+      setTimeout(showNudge, 4000);
+    }
 
     // Also handle grant success — hide the nudge
     const grantHandler = () => {
@@ -51,20 +61,21 @@ const PushPermissionNudge = memo(({ userId }) => {
     };
   }, []);
 
+  const effectiveUserId = userId || window.__pushUserId || null;
+
   const handleEnable = useCallback(async () => {
-    if (requesting || !userId) return;
+    if (requesting || !effectiveUserId) return;
     setRequesting(true);
     try {
-      const granted = await pushService.enablePushNotifications(userId);
+      const granted = await pushService.enablePushNotifications(effectiveUserId);
       if (granted) {
         setVisible(false);
       } else {
-        // Permission denied — dismiss quietly
         handleDismiss();
       }
     } catch {}
     setRequesting(false);
-  }, [userId, requesting]);
+  }, [effectiveUserId, requesting]);
 
   const handleDismiss = useCallback(() => {
     setVisible(false);
