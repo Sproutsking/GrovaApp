@@ -29,9 +29,10 @@ import React, {
   useState, useCallback, useRef, useEffect, useImperativeHandle,
 } from "react";
 import ReactDOM from "react-dom";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Play } from "lucide-react";
 import ReelCard       from "./ReelCard";
 import FullScreenReels from "./FullScreenReels";
+import SectionHeader from "../Shared/SectionHeader";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
 // ─── Connection profile ───────────────────────────────────────────────────────
@@ -430,6 +431,7 @@ const ReelsTab = React.forwardRef(function ReelsTab({
 
       {!showFullScreen && (
         <>
+          <SectionHeader icon={Play} title="Reels" subtitle="Watch the latest short videos" />
           <VirtualReelGrid
             reels={localReels}
             currentUser={currentUser}

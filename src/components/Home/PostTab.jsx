@@ -38,8 +38,9 @@ import React, {
   useMemo, useLayoutEffect, lazy, Suspense,
 } from "react";
 import ReactDOM from "react-dom";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, FileText } from "lucide-react";
 import PostCard    from "./PostCard";
+import SectionHeader from "../Shared/SectionHeader";
 import { FeedPipeline, useFeedInjections } from "./FeedPipelines";
 import { rankItems, recordSignal }          from "../../services/discovery/discoveryPersonalizationModel";
 import mediaUrlService                      from "../../services/shared/mediaUrlService";
@@ -627,6 +628,7 @@ const PostTab = React.forwardRef(function PostTab(
 
   return (
     <div className="post-tab-feed">
+      <SectionHeader icon={FileText} title="Posts" subtitle="Latest updates from your community" />
       <NewPostBanner count={pendingCount} onShow={flushPending} isActive={isActive} />
       <Suspense fallback={null}><NewsVideoStrip currentUser={currentUser} /></Suspense>
       <VideoPreloadRunway posts={localPosts} anchorIndex={anchorIndex} />

@@ -20,6 +20,7 @@ import {
   Compass, RefreshCw, ChevronLeft, ChevronRight,
   Bookmark, Zap, TrendingUp,
 } from "lucide-react";
+import SectionHeader from "../Shared/SectionHeader";
 import DiscoveryCard from "./DiscoveryCard";
 import DiscoveryFullScreen from "./DiscoveryFullScreen";
 import {
@@ -322,26 +323,21 @@ const DiscoveryTab = React.forwardRef(function DiscoveryTab(
   return (
     <div className="dt-root">
       {/* Header */}
-      <div className="dt-header">
-        <div className="dt-header-l">
-          <div className="dt-header-icon"><Compass size={16} /></div>
-          <div>
-            <div className="dt-header-title">
-              Discovery
-              {moodHint && <span className="dt-mood-hint">{moodHint}</span>}
-            </div>
-            <div className="dt-header-sub">Nature · Wildlife · The Unexplained</div>
-          </div>
-        </div>
-        <button
-          className={`dt-refresh${loading ? " dt-refresh--spin" : ""}`}
-          onClick={handleRefresh}
-          disabled={loading}
-          aria-label="Refresh"
-        >
-          <RefreshCw size={14} />
-        </button>
-      </div>
+      <SectionHeader
+        icon={Compass}
+        title="Discovery"
+        subtitle={`Nature · Wildlife · The Unexplained${moodHint ? ` · ${moodHint}` : ""}`}
+        right={
+          <button
+            className={`dt-refresh${loading ? " dt-refresh--spin" : ""}`}
+            onClick={handleRefresh}
+            disabled={loading}
+            aria-label="Refresh"
+          >
+            <RefreshCw size={14} />
+          </button>
+        }
+      />
 
       {/* Category filter bar */}
       <div className="dt-cats-wrap">

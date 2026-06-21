@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, useMemo } from "react";
 import ReactDOM from "react-dom";
 import { Globe, Bitcoin, MapPin, Newspaper, ArrowUp, RefreshCw, Zap } from "lucide-react";
+import SectionHeader from "../Shared/SectionHeader";
 import { supabase } from "../../services/config/supabase";
 import {
   getNewsEngine, TIER, getTier, detectLiveStatus,
@@ -264,6 +265,7 @@ const NewsTab = React.forwardRef(function NewsTab(
     <div className="nt-root">
       {/* Banner — portal, strictly gated: isActive AND count > 0 */}
       <NewBanner count={pendingCount} onShow={flushPending} isActive={isActive}/>
+      <SectionHeader icon={Newspaper} title="News" subtitle="Top headlines and live updates" />
 
       <div className="nt-bar">
         {CATEGORIES.map(({id,label,Icon})=>(

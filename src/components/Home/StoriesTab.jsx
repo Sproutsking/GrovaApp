@@ -1,6 +1,8 @@
 // src/components/Home/StoriesTab.jsx
 import React from 'react';
+import { BookOpen } from 'lucide-react';
 import StoryCard from '../Shared/StoryCard';
+import SectionHeader from '../Shared/SectionHeader';
 
 const StoriesTab = ({ 
   stories,
@@ -26,6 +28,7 @@ const StoriesTab = ({
 
   return (
     <div className="stories-tab-container">
+      <SectionHeader icon={BookOpen} title="Stories" subtitle="Read what creators are sharing today" />
       {stories.map((story) => (
         <StoryCard
           key={story.id}

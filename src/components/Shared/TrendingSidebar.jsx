@@ -29,6 +29,7 @@ import mediaUrlService      from "../../services/shared/mediaUrlService";
 import UnifiedLoader        from "./UnifiedLoader";
 import UserProfileModal     from "../Modals/UserProfileModal";
 import StreamerDetailModal  from "./StreamerDetailModal";
+import SectionHeader        from "../Shared/SectionHeader";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DESKTOP_HEADER_H  = 58;
@@ -803,20 +804,19 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
           {/* ── TOP STREAMERS ── */}
           <div className="ts-section" style={{ "--ha": "#ef4444" }}>
-            <div className="ts-header">
-              <div className="ts-header-left">
-                <div className="ts-icon-pill red"><Tv size={13} color="#ef4444" /></div>
-                <div className="ts-title-block">
-                  <span className="ts-title">Top Streamers</span>
-                  <span className="ts-subtitle">Ranked by peak viewers</span>
-                </div>
-              </div>
-              {isMobile && (
+            <SectionHeader
+              icon={Tv}
+              iconColor="#ef4444"
+              iconBg="rgba(239,68,68,.12)"
+              iconBorder="rgba(239,68,68,.3)"
+              title="Top Streamers"
+              subtitle="Ranked by peak viewers"
+              right={isMobile ? (
                 <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
                   <RefreshCw size={12} className={refreshing ? "spin" : ""} />
                 </button>
-              )}
-            </div>
+              ) : null}
+            />
             {topStreamers.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">📡</div>
@@ -841,16 +841,15 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
           {/* ── LIVE NOW — always rendered when sessions exist, loading handled gracefully ── */}
           {liveSessions.length > 0 && (
             <div className="ts-section ts-live-strip" style={{ "--ha": "#ef4444" }}>
-              <div className="ts-header">
-                <div className="ts-header-left">
-                  <div className="ts-icon-pill red"><Radio size={13} color="#ef4444" /></div>
-                  <div className="ts-title-block">
-                    <span className="ts-title">Live Now</span>
-                    <span className="ts-subtitle">Tap a circle to join</span>
-                  </div>
-                </div>
-                <div className="ts-live-count"><span className="ts-live-dot" />{liveSessions.length}</div>
-              </div>
+              <SectionHeader
+                icon={Radio}
+                iconColor="#ef4444"
+                iconBg="rgba(239,68,68,.12)"
+                iconBorder="rgba(239,68,68,.3)"
+                title="Live Now"
+                subtitle="Tap a circle to join"
+                right={<div className="ts-live-count"><span className="ts-live-dot" />{liveSessions.length}</div>}
+              />
               <div className="sc-scroll">
                 {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
               </div>
@@ -859,20 +858,19 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
           {/* ── TRENDING TAGS ── */}
           <div className="ts-section">
-            <div className="ts-header">
-              <div className="ts-header-left">
-                <div className="ts-icon-pill"><Flame size={13} color="#84cc16" /></div>
-                <div className="ts-title-block">
-                  <span className="ts-title">Trending Now</span>
-                  <span className="ts-subtitle">What's hot on Xeevia</span>
-                </div>
-              </div>
-              {isMobile && (
+            <SectionHeader
+              icon={Flame}
+              iconColor="#84cc16"
+              iconBg="rgba(132,204,22,.1)"
+              iconBorder="rgba(132,204,22,.2)"
+              title="Trending Now"
+              subtitle="What's hot on Xeevia"
+              right={isMobile ? (
                 <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
                   <RefreshCw size={12} className={refreshing ? "spin" : ""} />
                 </button>
-              )}
-            </div>
+              ) : null}
+            />
             {topTags.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">🔥</div><p className="empty-text">No trending tags yet</p></div>
             ) : (
@@ -887,15 +885,14 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
           {/* ── TOP CREATORS ── */}
           <div className="ts-section">
-            <div className="ts-header">
-              <div className="ts-header-left">
-                <div className="ts-icon-pill gold"><Crown size={13} color="#fbbf24" /></div>
-                <div className="ts-title-block">
-                  <span className="ts-title">Top Creators</span>
-                  <span className="ts-subtitle">This week's stars</span>
-                </div>
-              </div>
-            </div>
+            <SectionHeader
+              icon={Crown}
+              iconColor="#fbbf24"
+              iconBg="rgba(251,191,36,.1)"
+              iconBorder="rgba(251,191,36,.25)"
+              title="Top Creators"
+              subtitle="This week's stars"
+            />
             {topCreators.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">👑</div><p className="empty-text">No creators this week</p></div>
             ) : (
