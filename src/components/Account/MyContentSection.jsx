@@ -50,16 +50,48 @@ const timeAgo = (d) => {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-// Build image URL — plain URL only (no transform params that cause 400s on Supabase Storage)
-const buildUrl = (mediaId) => {
+const buildUrl = (mediaId, options = {}) => {
   if (!mediaId) return null;
+  if (typeof mediaId === "string" && mediaId.startsWith("http")) return mediaId;
   try {
-    const url = mediaUrlService.getImageUrl(mediaId);
+    const url = mediaUrlService.getImageUrl(mediaId, {
+      width: 640,
+      height: 640,
+      crop: "fill",
+      gravity: "auto",
+      quality: "auto:good",
+      format: "webp",
+      ...options,
+    });
     if (!url || typeof url !== "string") return null;
-    const base = url.split("?")[0];
-    if (!base.startsWith("http")) return null;
-    return base;
-  } catch { return null; }
+    return url.split("?")[0];
+  } catch {
+    return null;
+  }
+};
+
+const getStoryThumbUrl = (coverId) => {
+  if (!coverId) return null;
+  if (typeof coverId === "string" && coverId.startsWith("http")) return coverId;
+  try {
+    return mediaUrlService.getStoryImageUrl(coverId, 640);
+  } catch {
+    return null;
+  }
+};
+
+const getReelThumbUrl = (item) => {
+  const thumbId = item.thumbnail_id || item.video_id;
+  if (!thumbId) return null;
+  try {
+    return mediaUrlService.getVideoThumbnail(thumbId, {
+      width: 640,
+      height: 640,
+      time: "0",
+    });
+  } catch {
+    return null;
+  }
 };
 
 const thumbUrl = (mediaId) => buildUrl(mediaId);
@@ -157,15 +189,20 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
       if (tab === "posts") {
         const ids = item.image_ids || [];
         for (const id of ids.slice(0, 3)) {
-          const u = thumbUrl(id);
+          const u = buildUrl(id, {
+            width: 640,
+            height: 640,
+            crop: "fill",
+            gravity: "auto",
+            quality: "auto:good",
+            format: "webp",
+          });
           if (u) candidates.push(u);
         }
+        if (item.preview?.startsWith("http")) candidates.push(item.preview);
       } else if (tab === "reels") {
-        if (item.thumbnail_id) {
-          const u = thumbUrl(item.thumbnail_id);
-          if (u) candidates.push(u);
-        }
-        // direct thumbnail URL in metadata
+        const u = getReelThumbUrl(item);
+        if (u) candidates.push(u);
         const tmeta = item.video_metadata || {};
         if (tmeta.thumbnail_url && tmeta.thumbnail_url.startsWith("http"))
           candidates.push(tmeta.thumbnail_url);
@@ -173,10 +210,12 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
           candidates.push(tmeta.thumbnailUrl);
         if (tmeta.poster && tmeta.poster.startsWith("http"))
           candidates.push(tmeta.poster);
+        if (item.preview?.startsWith("http")) candidates.push(item.preview);
       } else if (tab === "stories") {
-        const u = thumbUrl(item.cover_image_id);
+        const u = getStoryThumbUrl(item.cover_image_id);
         if (u) candidates.push(u);
         if (item.cover_url?.startsWith("http")) candidates.push(item.cover_url);
+        if (item.preview?.startsWith("http")) candidates.push(item.preview);
       }
 
       // 2. Try each candidate: probe with an Image object so we don't block render
