@@ -1,6 +1,7 @@
 // src/components/Shared/AdminSidebar.jsx
 import React, { useState, useEffect } from "react";
 import ServicesModal from "./ServicesModal";
+import SectionHeader from "./SectionHeader";
 
 // ─────────────────────────────────────────────
 // STYLES
@@ -479,7 +480,7 @@ export default function AdminSidebar({
 
         {/* Nav */}
         <nav className="xv-nav">
-          <div className="xv-section-label">Navigation</div>
+          <SectionHeader icon={MenuGridIcon} iconColor="#94a3b8" iconBg="rgba(148,163,184,0.06)" iconBorder="rgba(148,163,184,0.12)" title="Navigation" />
 
           {NAV_ITEMS.map((item) => {
             const Icon     = item.icon;
@@ -538,7 +539,7 @@ export default function AdminSidebar({
           </button>
 
           {/* Admin section */}
-          <div className="xv-section-label xv-section-label--spaced">Administration</div>
+          <SectionHeader icon={ShieldIcon} iconColor={role.color} iconBg={`${role.color}18`} iconBorder={`${role.color}28`} title="Administration" />
 
           <button
             className="xv-admin-btn"

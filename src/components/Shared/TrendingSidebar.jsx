@@ -550,17 +550,15 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     <aside className={isMobile ? "trending-mobile-fullscreen" : "trending-sidebar"}>
       {isMobile && <MobileHeader onClose={onClose} />}
       {!isMobile && (
-        <div style={{
-          position: "sticky", top: 0, zIndex: 5,
-          background: "#111",
-          padding: "10px 12px",
-          borderBottom: "1px solid rgba(132,204,22,0.18)",
-          display: "flex", alignItems: "center", gap: 8,
-        }}>
-          <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.15)", border: "1px solid rgba(132,204,22,.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <TrendingUp size={13} color="#84cc16" />
-          </div>
-          <span style={{ fontSize: 12, fontWeight: 800, color: "#e0e0e0", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
+        <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--bg-strong)", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--border)" }}>
+          <SectionHeader
+            icon={TrendingUp}
+            iconColor="#84cc16"
+            iconBg="rgba(132,204,22,.12)"
+            iconBorder="rgba(132,204,22,.25)"
+            title="Trending"
+            right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
+          />
         </div>
       )}
       <div style={{ padding: "12px" }}>
@@ -779,24 +777,16 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
         {/* Desktop sticky top label */}
         {!isMobile && (
-          <div style={{
-            position: "sticky", top: 0, zIndex: 5,
-            background: "#111",
-            padding: "10px 12px 10px 12px",
-            marginBottom: 0,
-            borderBottom: "1px solid rgba(132,204,22,0.2)",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(132,204,22,.15)", border: "1px solid rgba(132,204,22,.32)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <TrendingUp size={13} color="#84cc16" />
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#f0f0f0", letterSpacing: ".4px", textTransform: "uppercase" }}>Trending</span>
-            </div>
-            <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh">
-              <RefreshCw size={11} className={refreshing ? "spin" : ""} />
-            </button>
-          </div>
+          <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--bg-strong)", padding: "10px 12px 10px 12px", marginBottom: 0, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <SectionHeader
+            icon={TrendingUp}
+            iconColor="#84cc16"
+            iconBg="rgba(132,204,22,.12)"
+            iconBorder="rgba(132,204,22,.25)"
+            title="Trending"
+            right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
+          />
+        </div>
         )}
 
         {/* Inner content wrapper */}

@@ -1,6 +1,7 @@
 // src/components/Shared/Sidebar.jsx
 import React, { useState } from "react";
 import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid } from "lucide-react";
+import SectionHeader from "./SectionHeader";
 import Logo from "./Assets/Logo.png";
 import ServicesModal from "./ServicesModal";
 
@@ -124,13 +125,15 @@ const Sidebar = ({
           </div>
 
           {/* Nav section label */}
-          <div className="nav-section-label">
-            <span className="nav-label-line" />
-            <span className="nav-label-text">NAVIGATION</span>
-            <span className="nav-label-line" />
-          </div>
+          <SectionHeader
+            icon={LayoutGrid}
+            iconColor="#94a3b8"
+            iconBg="rgba(148,163,184,0.08)"
+            iconBorder="rgba(148,163,184,0.12)"
+            title="Navigation"
+          />
 
-          {/* Nav */}
+          {/* Nav */
           <nav className="nav-container">
             {navItems.map((item, idx) => {
               const Icon     = item.icon;
