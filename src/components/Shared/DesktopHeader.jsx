@@ -387,8 +387,8 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
   .dh-header {
     height: 58px;
     position: sticky; top: 0; z-index: 100;
-    background: #000;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: var(--bg-strong);
+    border-bottom: 1px solid var(--border);
   }
   .dh-content {
     display: flex; align-items: center; justify-content: space-between;
@@ -402,8 +402,8 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
   .dh-greeting-box {
     display: flex; align-items: center; gap: 6px;
     padding: 4px 10px;
-    background: ${hasBoosted ? `${greetingColor}10` : "rgba(255,255,255,0.03)"};
-    border: 1px solid ${hasBoosted ? `${greetingColor}28` : "rgba(255,255,255,0.07)"};
+    background: ${hasBoosted ? `${greetingColor}10` : "var(--surface-muted)"};
+    border: 1px solid ${hasBoosted ? `${greetingColor}28` : "var(--surface-border)"};
     border-radius: 9px;
     min-height: 28px; min-width: 36px;
     transition: background 0.4s, border-color 0.4s;
@@ -434,8 +434,8 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     position: absolute; left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 2px;
     padding: 4px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--surface-muted);
+    border: 1px solid var(--surface-border);
     border-radius: 13px; height: 42px;
   }
   .dh-nav-tab {
@@ -443,13 +443,13 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     display: flex; align-items: center; gap: 6px;
     padding: 0 12px; height: 32px;
     border-radius: 9px; border: 1px solid transparent;
-    background: transparent; color: rgba(255,255,255,0.38);
+    background: transparent; color: var(--text-muted);
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em;
     cursor: pointer;
     transition: color 0.18s, background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s;
     white-space: nowrap; font-family: inherit; user-select: none;
   }
-  .dh-nav-tab:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.06); transform: translateY(-0.5px); }
+  .dh-nav-tab:hover { color: var(--text-secondary); background: var(--surface-highlight); transform: translateY(-0.5px); }
   .dh-nav-tab:active { transform: scale(0.97); }
   .dh-nav-tab--active {
     color: #84cc16;
@@ -473,8 +473,8 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     position: relative;
     display: flex; align-items: center; gap: 6px;
     padding: 6px 12px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--surface-muted);
+    border: 1px solid var(--surface-border);
     border-radius: 9px;
     font-size: 12.5px; font-weight: 600;
     cursor: pointer; transition: all 0.18s;
@@ -493,7 +493,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     min-width: 19px; height: 19px; padding: 0 5px;
     border-radius: 10px; font-size: 10px; font-weight: 900;
     display: flex; align-items: center; justify-content: center;
-    border: 2.5px solid #000;
+    border: 2.5px solid var(--bg-strong);
     line-height: 1; z-index: 2; letter-spacing: -0.2px;
     animation: dhBadgePop 0.35s cubic-bezier(.34,1.56,.64,1),
                dhBadgePulse 2.8s ease-in-out 0.35s infinite;

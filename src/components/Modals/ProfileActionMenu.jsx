@@ -111,7 +111,7 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
         .profile-action-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.8);
+          background: var(--modal-overlay);
           backdrop-filter: blur(12px);
           z-index: 10001;
           display: flex;
@@ -132,8 +132,8 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
         .profile-action-menu {
           width: 100%;
           max-width: 480px;
-          background: #000;
-          border: 1px solid rgba(132, 204, 22, 0.3);
+          background: var(--modal-bg);
+          border: 1px solid var(--surface-border);
           border-radius: 20px 20px 0 0;
           animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -162,20 +162,20 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
           align-items: center;
           justify-content: space-between;
           padding: 20px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+          border-bottom: 1px solid var(--border);
         }
 
         .profile-action-header h3 {
           font-size: 18px;
           font-weight: 700;
-          color: #fff;
+          color: var(--text);
           margin: 0;
         }
 
         .profile-action-header button {
           background: none;
           border: none;
-          color: #737373;
+          color: var(--text-muted);
           cursor: pointer;
           padding: 4px;
           transition: all 0.2s;
@@ -185,7 +185,7 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
         }
 
         .profile-action-header button:hover {
-          color: #84cc16;
+          color: var(--accent);
         }
 
         .profile-action-items {
@@ -200,10 +200,10 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
           align-items: center;
           gap: 16px;
           padding: 16px;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--surface-muted);
+          border: 1px solid var(--surface-border);
           border-radius: 12px;
-          color: var(--item-color, #fff);
+          color: var(--item-color, var(--text));
           cursor: pointer;
           transition: all 0.2s;
           width: 100%;
@@ -213,8 +213,8 @@ const ProfileActionMenu = ({ user, onClose, currentUser, isOwnProfile }) => {
         }
 
         .profile-action-item:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(132, 204, 22, 0.3);
+          background: var(--surface-highlight);
+          border-color: var(--accent-border);
           transform: translateX(4px);
         }
 

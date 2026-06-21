@@ -97,11 +97,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           position: fixed;
           bottom: 0; left: 0; right: 0;
           z-index: 100;
-          background: rgba(5,5,5,0.98);
+          background: var(--bg-strong);
           backdrop-filter: blur(28px);
           -webkit-backdrop-filter: blur(28px);
           padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
-          border-top: 1px solid rgba(255,255,255,0.06);
+          border-top: 1px solid var(--deck-border);
           /* Controlled by DOM: display:none or display:flex */
           display: flex;
         }
@@ -169,11 +169,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
 
         /* ── ACTIVE pill — clean bordered, no lift ── */
         .mbn-btn.is-active .mbn-pill {
-          background: rgba(132,204,22,0.09);
-          border-color: rgba(132,204,22,0.22);
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border);
           box-shadow:
-            0 2px 12px rgba(132,204,22,0.12),
-            inset 0 1px 0 rgba(132,204,22,0.1);
+            0 2px 12px var(--accent-glow),
+            inset 0 1px 0 var(--surface-highlight);
         }
 
         /* Active top glow bar — sits on the nav border, not the pill */
@@ -185,9 +185,9 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           transform: translateX(-50%);
           width: 24px;
           height: 2px;
-          background: linear-gradient(90deg, transparent, #84cc16, transparent);
+          background: linear-gradient(90deg, transparent, var(--accent), transparent);
           border-radius: 0 0 3px 3px;
-          box-shadow: 0 0 10px 1px rgba(132,204,22,0.6);
+          box-shadow: 0 0 10px 1px var(--accent-shadow-strong);
           animation: mbnBarPulse 2.8s ease-in-out infinite;
         }
         @keyframes mbnBarPulse {
@@ -206,12 +206,12 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #888;
+          color: var(--text-muted);
           transition: color 0.2s ease, filter 0.2s ease;
         }
         .mbn-btn.is-active .mbn-ico {
-          color: #84cc16;
-          filter: drop-shadow(0 0 6px rgba(132,204,22,0.55));
+          color: var(--accent);
+          filter: drop-shadow(0 0 6px var(--accent-shadow));
         }
 
         /* ── Label ── */
@@ -221,12 +221,12 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           letter-spacing: 0.3px;
           white-space: nowrap;
           line-height: 1;
-          color: #888;
+          color: var(--text-muted);
           transition: color 0.2s ease;
         }
         .mbn-btn.is-active .mbn-lbl {
-          color: #84cc16;
-          text-shadow: 0 0 8px rgba(132,204,22,0.4);
+          color: var(--accent);
+          text-shadow: 0 0 8px var(--accent-glow);
         }
 
         /* ── Pulse dot ── */
@@ -234,8 +234,8 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           width: 3px;
           height: 3px;
           border-radius: 50%;
-          background: #84cc16;
-          box-shadow: 0 0 5px rgba(132,204,22,0.9);
+          background: var(--accent);
+          box-shadow: 0 0 5px var(--accent-shadow-strong);
           animation: mbnDot 2s ease-in-out infinite;
           margin-top: 1px;
         }
@@ -258,8 +258,8 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           cursor: pointer;
         }
         .mbn-menu-pill.open {
-          background: rgba(255,255,255,0.05);
-          border-color: rgba(255,255,255,0.1);
+          background: var(--surface-highlight-strong);
+          border-color: var(--surface-border);
         }
         .mbn-menu-btn:active .mbn-menu-pill {
           transform: scale(0.93);
@@ -276,10 +276,10 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         }
         .mbn-grid span {
           border-radius: 2.5px;
-          background: #888;
+          background: var(--text-muted);
           transition: background 0.2s ease, transform 0.2s ease;
         }
-        .mbn-menu-pill.open .mbn-grid span { background: #aaa; }
+        .mbn-menu-pill.open .mbn-grid span { background: var(--text-secondary); }
         .mbn-menu-btn:hover .mbn-grid span:nth-child(1) { transform: scale(0.75); }
         .mbn-menu-btn:hover .mbn-grid span:nth-child(4) { transform: scale(0.75); }
         .mbn-menu-btn:hover .mbn-grid span:nth-child(2) { transform: scale(1.2);  }
@@ -288,11 +288,11 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         .mbn-menu-lbl {
           font-size: 9px;
           font-weight: 700;
-          color: #888;
+          color: var(--text-muted);
           letter-spacing: 0.3px;
           transition: color 0.2s ease;
         }
-        .mbn-menu-pill.open .mbn-menu-lbl { color: #aaa; }
+        .mbn-menu-pill.open .mbn-menu-lbl { color: var(--text-secondary); }
 
         /* ── FAB ── */
         .mbn-fab {
@@ -303,14 +303,14 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
           width: 50px;
           height: 50px;
           border-radius: 16px;
-          background: linear-gradient(145deg, #84cc16 0%, #4a7c0a 100%);
+          background: var(--accent-gradient);
           border: none;
-          color: #000;
+          color: var(--accent-contrast);
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          box-shadow: 0 8px 28px rgba(132,204,22,0.5), 0 2px 8px rgba(0,0,0,0.55);
+          box-shadow: 0 8px 28px var(--accent-shadow), 0 2px 8px var(--shadow-strong);
           opacity: 0;
           transform: scale(0.35) translateY(18px);
           transition:
@@ -328,7 +328,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser }) => {
         }
         .mbn-fab:hover {
           transform: scale(1.1) translateY(-3px) !important;
-          box-shadow: 0 14px 36px rgba(132,204,22,0.6), 0 4px 12px rgba(0,0,0,0.4);
+          box-shadow: 0 14px 36px var(--accent-shadow-strong), 0 4px 12px var(--shadow-soft);
         }
         .mbn-fab:active { transform: scale(0.9) !important; }
 

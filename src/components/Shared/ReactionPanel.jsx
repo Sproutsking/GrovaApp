@@ -504,7 +504,7 @@ const ReactionPanel = ({
           border-radius: 12px;
           background: transparent;
           border: none;
-          color: #a3a3a3;
+          color: var(--text-secondary);
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
@@ -516,14 +516,14 @@ const ReactionPanel = ({
           justify-content: center;
         }
         .rp-panel--compact .rp-btn { padding: 5px 8px; font-size: 12px; border-radius: 10px; }
-        .rp-btn:hover:not(:disabled)  { background: rgba(255,255,255,0.06); color: #e5e5e5; }
+        .rp-btn:hover:not(:disabled)  { background: var(--surface-highlight); color: var(--text); }
         .rp-btn:active:not(:disabled) { transform: scale(0.93); }
         .rp-btn:disabled { opacity: 0.6; cursor: default; }
 
-        .rp-btn--liked { color: #ef4444 !important; }
-        .rp-btn--liked:hover { background: rgba(239,68,68,0.08) !important; }
-        .rp-btn--saved { color: #fbbf24 !important; }
-        .rp-btn--saved:hover { background: rgba(251,191,36,0.08) !important; }
+        .rp-btn--liked { color: var(--danger) !important; }
+        .rp-btn--liked:hover { background: var(--danger-bg) !important; }
+        .rp-btn--saved { color: var(--brand-warning) !important; }
+        .rp-btn--saved:hover { background: var(--brand-warning-bg) !important; }
 
         .rp-pop svg {
           animation: rpBtnPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
@@ -564,7 +564,7 @@ const ReactionPanel = ({
           gap: 4px;
           padding: 6px 8px;
           border-radius: 10px;
-          color: #525252;
+          color: var(--text-muted);
           font-size: 12px;
           font-weight: 600;
           flex: 0 0 auto;
@@ -575,9 +575,9 @@ const ReactionPanel = ({
           bottom: 80px;
           left: 50%;
           transform: translateX(-50%);
-          background: #18181b;
-          border: 1px solid rgba(239,68,68,0.4);
-          color: rgba(255,255,255,0.82);
+          background: var(--surface-elevated);
+          border: 1px solid var(--danger-border);
+          color: var(--text);
           padding: 8px 18px;
           border-radius: 10px;
           font-size: 13px;

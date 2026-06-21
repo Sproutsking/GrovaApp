@@ -518,18 +518,6 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
     }
   };
 
-  const handleSave = async (key, value) => {
-    setSaving(true);
-    try {
-      await update(key, value);
-      setAlert({ type: "success", msg: "Platform setting updated." });
-    } catch (e) {
-      setAlert({ type: "error", msg: e.message });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const activeMembers = (teamMgmt.team || []).filter((m) => m.status === "active");
   const s = stats || {};
 

@@ -377,7 +377,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
   const boxBg       = hasBoosted && tierColor ? `${tierColor}07` : "rgba(255,255,255,0.02)";
 
   return `
-    .mh-header { position: sticky; top: 0; z-index: 100; background: #000; border-bottom: 1px solid rgba(255,255,255,0.08); margin: 0; padding: 0; }
+    .mh-header { position: sticky; top: 0; z-index: 100; background: var(--bg-strong); border-bottom: 1px solid var(--border); margin: 0; padding: 0; }
     .mh-content { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; gap: 8px; margin: 0; }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
     .mh-greeting-box { display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 22px; padding: 2px 8px; background: ${boxBg}; border: 1px solid ${boxBorder}; border-radius: 7px; overflow: hidden; transition: background 0.4s, border-color 0.4s; }
@@ -387,23 +387,23 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
     @keyframes mhBlink { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
 
     .mh-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-    .mh-btn { position: relative; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); color: #6b7280; }
+    .mh-btn { position: relative; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s; border: 1px solid var(--surface-border); background: var(--surface-muted); color: var(--text-muted); }
     .mh-btn.trending     { border-color: rgba(132,204,22,0.2);  background: rgba(132,204,22,0.04);  color: #84cc16; }
     .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.03); }
     .mh-btn.notification { border-color: rgba(132,204,22,0.14); color: #84cc16; }
     .mh-btn.support      { color: #60a5fa; border-color: rgba(96,165,250,0.14); }
     .mh-btn:active       { transform: scale(0.9); }
 
-    .mh-badge { position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; font-size: 9.5px; font-weight: 900; display: flex; align-items: center; justify-content: center; border: 2.5px solid #000; line-height: 1; z-index: 2; letter-spacing: -0.2px; animation: mhBadgePop 0.35s cubic-bezier(.34,1.56,.64,1), mhBadgePulse 2.5s ease-in-out 0.35s infinite; }
+    .mh-badge { position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; font-size: 9.5px; font-weight: 900; display: flex; align-items: center; justify-content: center; border: 2.5px solid var(--bg-strong); line-height: 1; z-index: 2; letter-spacing: -0.2px; animation: mhBadgePop 0.35s cubic-bezier(.34,1.56,.64,1), mhBadgePulse 2.5s ease-in-out 0.35s infinite; }
     .mh-badge--msg   { background: #ff3b30; color: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6); }
     .mh-badge--notif { background: #ff3b30; color: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 2px 8px rgba(255,59,48,0.6); }
     @keyframes mhBadgePop   { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
     @keyframes mhBadgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
 
     /* [4-TAB] Tab bar */
-    .mh-tab-bar { display: flex; border-top: 1px solid rgba(255,255,255,0.06); background: #000; }
-    .mh-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 38px; background: transparent; border: none; color: rgba(255,255,255,0.35); font-size: 11px; font-weight: 700; cursor: pointer; transition: color 0.18s ease, background 0.18s ease; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
-    .mh-tab:hover { color: rgba(255,255,255,0.7); }
+    .mh-tab-bar { display: flex; border-top: 1px solid var(--border); background: var(--bg-strong); }
+    .mh-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 38px; background: transparent; border: none; color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: color 0.18s ease, background 0.18s ease; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
+    .mh-tab:hover { color: var(--text-secondary); }
     .mh-tab--active { color: #84cc16; border-bottom-color: #84cc16; background: rgba(132,204,22,0.04); }
     /* News tab uses blue accent */
     .mh-tab--news.mh-tab--active { color: #60a5fa; border-bottom-color: #60a5fa; background: rgba(59,130,246,0.06); }
