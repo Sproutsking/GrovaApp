@@ -22,7 +22,7 @@
   background: rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(132, 204, 22, 0.4);
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 6px var(--shadow);
   position: relative;
 }
 
@@ -33,7 +33,7 @@
   background: rgba(239, 68, 68, 0.2);
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 4px;
-  color: #ef4444;
+  color: var(--danger);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,7 +43,7 @@
 
 .tt-cancel-btn:hover {
   background: rgba(239, 68, 68, 0.3);
-  border-color: #ef4444;
+  border-color: var(--danger);
   transform: scale(1.1);
 }
 
@@ -52,7 +52,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 15px;
   font-weight: 800;
@@ -73,7 +73,7 @@
 
 .tt-chevron {
   opacity: 0.5;
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 /* Color Picker Dropdown */
@@ -84,11 +84,11 @@
   display: flex;
   gap: 4px;
   padding: 6px;
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--glass-strong);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px var(--shadow);
   z-index: 100;
   animation: slideDown 0.2s ease;
 }
@@ -112,19 +112,19 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px var(--shadow);
 }
 
 .tt-color-option:hover {
   transform: scale(1.15);
   border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 3px 10px var(--shadow);
 }
 
 .tt-active-symbol {
   font-size: 14px;
   font-weight: 800;
-  color: #000;
+  color: var(--accent-contrast);
   line-height: 1;
 }
 
@@ -139,10 +139,10 @@
   width: 32px;
   height: 32px;
   min-width: 32px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  background: var(--accent-gradient);
   border: none;
   border-radius: 8px;
-  color: #000;
+  color: var(--accent-contrast);
   font-size: 15px;
   font-weight: 800;
   display: flex;
@@ -150,12 +150,12 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+  box-shadow: 0 2px 6px var(--accent-shadow);
 }
 
 .tt-recent-btn:hover {
   transform: scale(1.12) translateY(-1px);
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.5);
+  box-shadow: 0 4px 12px var(--accent-shadow);
 }
 
 .tt-recent-btn:active {
@@ -173,21 +173,21 @@
   width: 32px;
   height: 32px;
   min-width: 32px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  background: var(--accent-gradient);
   border: none;
   border-radius: 8px;
-  color: #000;
+  color: var(--accent-contrast);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+  box-shadow: 0 2px 6px var(--accent-shadow);
 }
 
 .tt-menu-btn:hover {
   transform: scale(1.12) translateY(-1px);
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.5);
+  box-shadow: 0 4px 12px var(--accent-shadow);
 }
 
 .tt-menu-btn:active {
@@ -212,9 +212,8 @@
   backdrop-filter: blur(20px);
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 14px;
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.7),
-    0 4px 12px rgba(132, 204, 22, 0.2);
+  box-shadow: 0 10px 35px var(--shadow),
+    0 4px 12px var(--accent-shadow);
   z-index: 9999;
   overflow: visible;
   animation: panelSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -256,7 +255,7 @@
 
 .tt-category {
   padding: 5px 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 7px;
   color: #a3a3a3;
@@ -273,21 +272,21 @@
 .tt-category:hover {
   background: rgba(132, 204, 22, 0.15);
   border-color: rgba(132, 204, 22, 0.3);
-  color: #84cc16;
+  color: var(--accent);
 }
 
 .tt-category.active {
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  border-color: #84cc16;
-  color: #000;
-  box-shadow: 0 2px 6px rgba(132, 204, 22, 0.4);
+  background: var(--accent-gradient);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 2px 6px var(--accent-shadow);
 }
 
 .tt-close-btn {
   width: 28px;
   height: 28px;
   min-width: 28px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 7px;
   color: #a3a3a3;
@@ -301,7 +300,7 @@
 .tt-close-btn:hover {
   background: rgba(239, 68, 68, 0.2);
   border-color: rgba(239, 68, 68, 0.5);
-  color: #ef4444;
+  color: var(--danger);
 }
 
 /* ── PANEL CONTENT ──────────────────────────────────────────────────────── */
@@ -321,7 +320,7 @@
 }
 
 .tt-panel-content::-webkit-scrollbar-thumb {
-  background: #84cc16;
+  background: var(--accent);
   border-radius: 3px;
 }
 
@@ -359,9 +358,9 @@
     rgba(132, 204, 22, 0.2) 0%,
     rgba(132, 204, 22, 0.1) 100%
   );
-  border-color: #84cc16;
+  border-color: var(--accent);
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 14px rgba(132, 204, 22, 0.25);
+  box-shadow: 0 4px 14px var(--accent-shadow);
 }
 
 .tt-tool-btn:active {
@@ -371,7 +370,7 @@
 .tt-symbol {
   font-size: 22px;
   font-weight: 800;
-  color: #84cc16;
+  color: var(--accent);
   text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
 }
 
@@ -390,7 +389,7 @@
 .tt-number-label {
   font-size: 12px;
   font-weight: 800;
-  color: #84cc16;
+  color: var(--accent);
   letter-spacing: -0.02em;
   text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
 }

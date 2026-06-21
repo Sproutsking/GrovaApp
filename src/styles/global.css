@@ -66,6 +66,7 @@ html {
   --glass-border: rgba(255,255,255,0.18);
   --overlay: rgba(0,0,0,0.95);
   --overlay-secondary: rgba(0,0,0,0.18);
+  --modal-overlay: rgba(0,0,0,0.85);
   --deck-border: rgba(148,163,184,0.15);
   --home-tab-active-bg: linear-gradient(136deg, rgba(0,0,0,0.2), #65a30d, rgba(0,0,0,0.2));
   --danger: #ff4444;
@@ -73,6 +74,8 @@ html {
   --danger-border: rgba(255,68,68,0.3);
   --modal-bg: #000000;
   --shadow: rgba(0,0,0,0.35);
+  --brand-warning: #fbbf24;
+  --brand-warning-bg: rgba(251,191,36,0.15);
   --elite-rank-1-bg: linear-gradient(135deg, #fbbf24, #f59e0b);
   --elite-rank-2-bg: linear-gradient(135deg, #d1d5db, #9ca3af);
   --elite-rank-3-bg: linear-gradient(135deg, #f97316, #ea580c);
@@ -120,6 +123,7 @@ html {
   --glass-border: rgba(15,23,42,0.12);
   --overlay: rgba(255,255,255,0.96);
   --overlay-secondary: rgba(0,0,0,0.12);
+  --modal-overlay: rgba(0,0,0,0.85);
   --deck-border: rgba(148,163,184,0.15);
   --home-tab-active-bg: linear-gradient(136deg, rgba(15,23,42,0.12), #65a30d, rgba(15,23,42,0.12));
   --danger: #ff4444;
@@ -640,7 +644,7 @@ img, video {
 .modal-overlay  { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 60; }
 .modal-content  { background: var(--modal-bg); border: 1px solid var(--accent-border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px; width: 80%; max-width: 400px; }
 .modal-content input  { background: var(--panel); border: 1px solid var(--surface-border); color: var(--text); padding: 12px; border-radius: 8px; }
-.modal-content button { background: var(--accent); color: #000; padding: 12px; border-radius: 8px; border: none; cursor: pointer; }
+.modal-content button { background: var(--accent); color: var(--accent-contrast); padding: 12px; border-radius: 8px; border: none; cursor: pointer; }
 .modal-content button:disabled { opacity: 0.5; cursor: not-allowed; }
 .modal-content button:last-child { background: var(--danger); }
 

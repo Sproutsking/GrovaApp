@@ -33,7 +33,7 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #84cc16;
+  color: var(--accent);
 }
 
 .upload-btn:hover:not(:disabled) {
@@ -50,10 +50,10 @@
 .create-video-btn-compact {
   width: 100%;
   padding: 10px 16px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  background: var(--accent-gradient);
   border: none;
   border-radius: 10px;
-  color: #000;
+  color: var(--accent-contrast);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -66,7 +66,7 @@
 
 .create-video-btn-compact:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(132, 204, 22, 0.4);
+  box-shadow: 0 6px 20px var(--accent-shadow);
 }
 
 .create-video-btn-compact:disabled {
@@ -85,7 +85,7 @@
 .progress-bar {
   width: 100%;
   height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-strong);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 6px;
@@ -93,7 +93,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+  background: var(--accent-gradient);
   transition: width 0.3s ease;
 }
 
@@ -102,7 +102,7 @@
   text-align: center;
   font-size: 11px;
   font-weight: 600;
-  color: #84cc16;
+  color: var(--accent);
 }
 
 /* ── Media Grid ── */
@@ -153,7 +153,7 @@
   background: rgba(132, 204, 22, 0.95);
   backdrop-filter: blur(10px);
   border: none;
-  color: #000;
+  color: var(--accent-contrast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,30 +168,30 @@
 }
 
 .video-play-btn:hover {
-  background: #84cc16;
+  background: var(--accent);
   transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 4px 16px rgba(132, 204, 22, 0.5);
+  box-shadow: 0 4px 16px var(--accent-shadow);
 }
 
 .video-badge {
   position: absolute;
   bottom: 6px;
   left: 6px;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--glass);
   backdrop-filter: blur(10px);
   padding: 3px 6px;
   border-radius: 5px;
   display: flex;
   align-items: center;
   gap: 3px;
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 10px;
   font-weight: 600;
   z-index: 2;
 }
 
 .video-badge svg {
-  color: #84cc16;
+  color: var(--accent);
 }
 
 .media-remove-btn {
@@ -233,7 +233,7 @@
   background: rgba(132, 204, 22, 0.95);
   backdrop-filter: blur(4px);
   border: none;
-  color: #000;
+  color: var(--accent-contrast);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -277,7 +277,7 @@
 
 .move-btn:hover:not(:disabled) {
   background: #3a3a3a;
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .move-btn:disabled {
@@ -288,7 +288,7 @@
 .item-number {
   font-size: 11px;
   font-weight: 600;
-  color: #84cc16;
+  color: var(--accent);
   min-width: 18px;
   text-align: center;
 }
@@ -297,10 +297,10 @@
 .post-now-btn {
   width: 100%;
   padding: 12px 20px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  background: var(--accent-gradient);
   border: none;
   border-radius: 10px;
-  color: #000;
+  color: var(--accent-contrast);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -313,7 +313,7 @@
 
 .post-now-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(132, 204, 22, 0.4);
+  box-shadow: 0 6px 20px var(--accent-shadow);
 }
 
 /* ── Video Preview Modal ── */
@@ -323,7 +323,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--glass-strong);
   z-index: 3000;
   display: flex;
   align-items: center;
@@ -337,11 +337,11 @@
   width: 100%;
   max-width: 420px;
   max-height: 65vh;
-  background: #000;
+  background: var(--bg-strong);
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(132, 204, 22, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 32px var(--shadow);
   display: flex;
   flex-direction: column;
 }
@@ -356,7 +356,7 @@
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -367,7 +367,7 @@
 
 .preview-close-btn:hover {
   background: rgba(239, 68, 68, 0.95);
-  border-color: #ef4444;
+  border-color: var(--danger);
   transform: scale(1.08);
 }
 
@@ -387,7 +387,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--glass-strong);
   z-index: 3000;
   display: flex;
   align-items: center;
@@ -420,7 +420,7 @@
 .template-modal-header h3 {
   font-size: 17px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-inverse);
   margin: 0;
 }
 
@@ -434,13 +434,13 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #fff;
+  color: var(--text-inverse);
   transition: all 0.2s ease;
 }
 
 .template-modal-header button:hover {
   background: rgba(239, 68, 68, 0.9);
-  border-color: #ef4444;
+  border-color: var(--danger);
   transform: scale(1.1);
 }
 
@@ -468,7 +468,7 @@
 
 .template-option:hover {
   background: rgba(132, 204, 22, 0.2);
-  border-color: #84cc16;
+  border-color: var(--accent);
   transform: translateY(-2px);
 }
 
@@ -479,7 +479,7 @@
 .template-name {
   font-size: 11px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-inverse);
   text-align: center;
 }
 

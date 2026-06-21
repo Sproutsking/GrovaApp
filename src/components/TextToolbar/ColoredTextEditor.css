@@ -5,10 +5,10 @@
 .colored-text-editor {
   width: 100%;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(132, 204, 22, 0.2);
   border-radius: 10px;
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 14px;
   font-family: inherit;
   line-height: 1.6;
@@ -22,7 +22,7 @@
 
 .colored-text-editor:focus,
 .colored-text-editor.focused {
-  border-color: #84cc16;
+  border-color: var(--accent);
 }
 
 .colored-text-editor:empty:before {

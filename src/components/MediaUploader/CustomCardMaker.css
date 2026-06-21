@@ -1,7 +1,7 @@
 .ccm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--glass-strong);
   backdrop-filter: blur(8px);
   z-index: 5000;
   display: flex;
@@ -20,9 +20,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(132, 204, 22, 0.2);
+  box-shadow: 0 24px 80px var(--shadow),
+    0 0 0 1px var(--accent-shadow);
 }
 
 /* ── HEADER ─────────────────────────────────────────────────────────────────── */
@@ -46,13 +45,13 @@
 }
 
 .ccm-icon {
-  color: #84cc16;
+  color: var(--accent);
 }
 
 .ccm-header h2 {
   font-size: 20px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-inverse);
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -61,9 +60,9 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,8 +72,8 @@
 
 .ccm-close:hover {
   background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
-  color: #ef4444;
+  border-color: var(--danger);
+  color: var(--danger);
   transform: scale(1.05);
 }
 
@@ -95,7 +94,7 @@
   background: rgba(0, 0, 0, 0.3);
 }
 .ccm-body::-webkit-scrollbar-thumb {
-  background: #84cc16;
+  background: var(--accent);
   border-radius: 3px;
 }
 
@@ -108,7 +107,7 @@
 .ccm-label {
   font-size: 13px;
   font-weight: 700;
-  color: #84cc16;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   display: flex;
@@ -136,7 +135,7 @@
   border-radius: 16px;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 40px var(--shadow);
   transition: height 0.1s ease;
 }
 
@@ -226,14 +225,14 @@
 .ccm-drag-line {
   width: 60px;
   height: 3px;
-  background: #84cc16;
+  background: var(--accent);
   border-radius: 2px;
-  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.5);
+  box-shadow: 0 2px 8px var(--accent-shadow);
 }
 
 .ccm-drag-handle:active .ccm-drag-line {
-  background: #a3e635;
-  box-shadow: 0 2px 12px rgba(132, 204, 22, 0.8);
+  background: var(--accent-strong);
+  box-shadow: 0 2px 12px var(--accent-shadow);
 }
 
 /* ── HEIGHT CONTROLS ────────────────────────────────────────────────────────── */
@@ -250,7 +249,7 @@
   background: rgba(132, 204, 22, 0.1);
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 8px;
-  color: #84cc16;
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,17 +259,17 @@
 
 .ccm-height-btn:hover {
   background: rgba(132, 204, 22, 0.2);
-  border-color: #84cc16;
+  border-color: var(--accent);
   transform: scale(1.05);
 }
 
 .ccm-height-input {
   flex: 1;
   height: 36px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 14px;
   font-weight: 600;
   text-align: center;
@@ -281,13 +280,13 @@
 .ccm-height-input:focus {
   outline: none;
   background: rgba(132, 204, 22, 0.1);
-  border-color: #84cc16;
+  border-color: var(--accent);
 }
 
 .ccm-height-unit {
   font-size: 13px;
   font-weight: 600;
-  color: #84cc16;
+  color: var(--accent);
   white-space: nowrap;
   min-width: 24px;
 }
@@ -313,7 +312,7 @@
 
 .ccm-cat {
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   color: #a3a3a3;
@@ -327,12 +326,12 @@
 
 .ccm-cat:hover {
   background: rgba(132, 204, 22, 0.1);
-  color: #84cc16;
+  color: var(--accent);
 }
 .ccm-cat.active {
   background: rgba(132, 204, 22, 0.2);
-  border-color: #84cc16;
-  color: #84cc16;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── QUICK MESSAGES ──────────────────────────────────────────────────────────── */
@@ -344,7 +343,7 @@
 
 .ccm-quick-btn {
   padding: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   cursor: pointer;
@@ -380,7 +379,7 @@
 .ccm-fontsize-btn {
   flex: 1;
   padding: 10px 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   color: #a3a3a3;
@@ -394,13 +393,13 @@
 .ccm-fontsize-btn:hover {
   background: rgba(132, 204, 22, 0.1);
   border-color: rgba(132, 204, 22, 0.3);
-  color: #84cc16;
+  color: var(--accent);
 }
 
 .ccm-fontsize-btn.active {
   background: rgba(132, 204, 22, 0.2);
-  border-color: #84cc16;
-  color: #84cc16;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .ccm-fontsize-fine {
@@ -417,7 +416,7 @@
   background: rgba(132, 204, 22, 0.1);
   border: 1px solid rgba(132, 204, 22, 0.3);
   border-radius: 8px;
-  color: #84cc16;
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -433,7 +432,7 @@
 .ccm-fontsize-value {
   font-size: 13px;
   font-weight: 700;
-  color: #84cc16;
+  color: var(--accent);
   white-space: nowrap;
   min-width: 36px;
   text-align: right;
@@ -455,7 +454,7 @@
 }
 
 .ccm-gradient-preset:hover {
-  border-color: #84cc16;
+  border-color: var(--accent);
   transform: scale(1.05);
 }
 
@@ -513,9 +512,9 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #84cc16;
+  background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.5);
+  box-shadow: 0 2px 8px var(--accent-shadow);
 }
 
 /* ── ALIGN BUTTONS ───────────────────────────────────────────────────────────── */
@@ -527,7 +526,7 @@
 .ccm-align-btn {
   flex: 1;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   color: #a3a3a3;
@@ -541,29 +540,29 @@
 .ccm-align-btn:hover {
   background: rgba(132, 204, 22, 0.1);
   border-color: rgba(132, 204, 22, 0.3);
-  color: #84cc16;
+  color: var(--accent);
 }
 
 .ccm-align-btn.active {
   background: rgba(132, 204, 22, 0.2);
-  border-color: #84cc16;
-  color: #84cc16;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── FOOTER ──────────────────────────────────────────────────────────────────── */
 .ccm-footer {
   padding: 20px 28px;
-  border-top: 1px solid rgba(132, 204, 22, 0.1);
+  border-top: 1px solid var(--accent-border);
   background: rgba(0, 0, 0, 0.3);
 }
 
 .ccm-apply {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  background: var(--accent-gradient);
   border: none;
   border-radius: 14px;
-  color: #000;
+  color: var(--accent-contrast);
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
@@ -573,7 +572,7 @@
 
 .ccm-apply:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(132, 204, 22, 0.6);
+  box-shadow: 0 8px 28px var(--accent-shadow);
 }
 
 /* ── ANIMATION ───────────────────────────────────────────────────────────────── */

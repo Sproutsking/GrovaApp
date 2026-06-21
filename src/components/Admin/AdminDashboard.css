@@ -15,8 +15,8 @@
   display: block;
   width: 100%;
   min-height: 100vh;
-  background: #000;
-  color: #fff;
+  background: var(--bg-strong);
+  color: var(--text-inverse);
   /* REMOVED: all: initial — this was nuking position/display/box-model and
      causing the dashboard to render offset from the viewport edge */
 }
@@ -52,7 +52,7 @@
   background: #141414;
   border: 1px solid #222;
   border-radius: 8px;
-  color: #fff;
+  color: var(--text-inverse);
   font-family: inherit;
   font-size: 13px;
   outline: none;
@@ -62,13 +62,13 @@
 .admin-dashboard-root input:focus,
 .admin-dashboard-root textarea:focus,
 .admin-dashboard-root select:focus {
-  border-color: #a3e635;
-  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.08);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 3px var(--accent-shadow);
 }
 
 .admin-dashboard-root input[type="checkbox"],
 .admin-dashboard-root input[type="radio"] {
-  accent-color: #a3e635;
+  accent-color: var(--accent-strong);
   width: 15px;
   height: 15px;
 }
