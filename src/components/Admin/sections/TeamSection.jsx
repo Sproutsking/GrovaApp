@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Shield, UserPlus, Trash2, Edit2, RefreshCw, Crown,
-  Users, CheckCircle2, Star,
+  Users, CheckCircle2, Star, Save,
 } from "lucide-react";
 import {
   Section, DataTable, Btn, Badge, StatusBadge, Modal,
@@ -499,6 +499,18 @@ export function CEOPanel({ adminData, stats, teamMgmt, platformSettings }) {
       const payload = Array.isArray(agents) ? JSON.stringify(agents) : agents;
       await update("notification_agents", payload);
       setAlert({ type: "success", msg: "Notification agents saved." });
+    } catch (e) {
+      setAlert({ type: "error", msg: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async (key, value) => {
+    setSaving(true);
+    try {
+      await update(key, value);
+      setAlert({ type: "success", msg: "Platform setting updated." });
     } catch (e) {
       setAlert({ type: "error", msg: e.message });
     } finally {
