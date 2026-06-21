@@ -159,16 +159,10 @@
   color: var(--accent-contrast);
   border-color: var(--accent);
 }
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  border: 2px solid transparent;
-}
+/* removed invalid duplicate selector block */
 
 .draft-card:hover {
-  background: #333;
+  background: var(--surface);
   border-color: var(--accent);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px var(--accent-shadow);
