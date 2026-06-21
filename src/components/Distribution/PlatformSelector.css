@@ -44,7 +44,7 @@
 }
 
 .settings-btn:hover {
-  background-color: var(--text);
+  background-color: #f0f0f0;
   color: #333;
 }
 
@@ -72,13 +72,13 @@
 
 .platform-card:hover:not(.disconnected) {
   border-color: #84cc16;
-  box-shadow: 0 2px 8px var(--accent-glow);
+  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.1);
   transform: translateY(-2px);
 }
 
 .platform-card.selected {
   border-color: #84cc16;
-  background: linear-gradient(135deg, var(--accent-glow), rgba(101, 163, 13, 0.05));
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.05), rgba(101, 163, 13, 0.05));
 }
 
 .platform-card.disconnected {
@@ -100,7 +100,7 @@
 }
 
 .platform-card.selected .platform-icon {
-  background: linear-gradient(135deg, var(--accent-glow), rgba(101, 163, 13, 0.1));
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.1), rgba(101, 163, 13, 0.1));
 }
 
 .text-icon {
@@ -169,8 +169,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--accent-glow);
-  border: 1px solid var(--accent-bg-strong);
+  background: rgba(132, 204, 22, 0.05);
+  border: 1px solid rgba(132, 204, 22, 0.2);
   border-radius: 8px;
   font-size: 13px;
   color: #55a630;
@@ -357,7 +357,7 @@
 
 .save-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--accent-border-strong);
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3);
 }
 
 .save-btn:active {

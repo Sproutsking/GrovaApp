@@ -44,9 +44,9 @@
 }
 
 .badge.success {
-  background-color: var(--accent-glow);
+  background-color: rgba(132, 204, 22, 0.1);
   color: #55a630;
-  border: 1px solid var(--accent-bg-strong);
+  border: 1px solid rgba(132, 204, 22, 0.2);
 }
 
 .badge.error {
@@ -129,7 +129,7 @@
 }
 
 .status-badge.success {
-  background: var(--accent-glow-strong);
+  background: rgba(132, 204, 22, 0.15);
   color: #55a630;
 }
 
@@ -152,7 +152,7 @@
   margin-left: 22px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--text);
+  border-top: 1px solid #f0f0f0;
 }
 
 .post-id-row {
@@ -204,7 +204,7 @@
 }
 
 .copy-btn.copied {
-  background: var(--accent-glow);
+  background: rgba(132, 204, 22, 0.1);
   color: #84cc16;
   border-color: #84cc16;
 }
@@ -233,7 +233,7 @@
 
 .view-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px var(--accent-border-strong);
+  box-shadow: 0 4px 8px rgba(132, 204, 22, 0.3);
 }
 
 /* Error Details */
@@ -351,8 +351,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, var(--accent-glow), rgba(101, 163, 13, 0.05));
-  border: 1px solid var(--accent-bg-strong);
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.05), rgba(101, 163, 13, 0.05));
+  border: 1px solid rgba(132, 204, 22, 0.2);
   border-radius: 8px;
 }
 
