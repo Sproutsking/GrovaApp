@@ -19,7 +19,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--panel-strong);
   border: 1px solid rgba(132, 204, 22, 0.4);
   border-radius: 8px;
   box-shadow: 0 2px 6px var(--shadow);
@@ -62,13 +62,13 @@
 }
 
 .tt-active-symbol-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--glass-border);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
 .tt-active-symbol-btn span {
   line-height: 1;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 1px 2px var(--panel));
 }
 
 .tt-chevron {
@@ -86,7 +86,7 @@
   padding: 6px;
   background: var(--glass-strong);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(132, 204, 22, 0.3);
+  border: 1px solid var(--accent-border-strong);
   border-radius: 8px;
   box-shadow: 0 4px 12px var(--shadow);
   z-index: 100;
@@ -207,10 +207,10 @@
   background: linear-gradient(
     135deg,
     rgba(15, 15, 15, 0.98) 0%,
-    rgba(0, 0, 0, 0.96) 100%
+    var(--overlay) 100%
   );
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(132, 204, 22, 0.3);
+  border: 1px solid var(--accent-border-strong);
   border-radius: 14px;
   box-shadow: 0 10px 35px var(--shadow),
     0 4px 12px var(--accent-shadow);
@@ -237,8 +237,8 @@
   justify-content: space-between;
   gap: 6px;
   padding: 10px;
-  background: rgba(132, 204, 22, 0.08);
-  border-bottom: 1px solid rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-soft);
+  border-bottom: 1px solid var(--accent-bg-strong);
 }
 
 .tt-categories {
@@ -270,8 +270,8 @@
 }
 
 .tt-category:hover {
-  background: rgba(132, 204, 22, 0.15);
-  border-color: rgba(132, 204, 22, 0.3);
+  background: var(--accent-glow-strong);
+  border-color: var(--accent-border-strong);
   color: var(--accent);
 }
 
@@ -315,7 +315,7 @@
 }
 
 .tt-panel-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-secondary);
   border-radius: 3px;
 }
 
@@ -339,10 +339,10 @@
   padding: 10px 14px;
   background: linear-gradient(
     135deg,
-    rgba(132, 204, 22, 0.1) 0%,
-    rgba(132, 204, 22, 0.05) 100%
+    var(--accent-glow) 0%,
+    var(--accent-glow) 100%
   );
-  border: 1px solid rgba(132, 204, 22, 0.2);
+  border: 1px solid var(--accent-bg-strong);
   border-radius: 9px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -355,8 +355,8 @@
 .tt-tool-btn:hover {
   background: linear-gradient(
     135deg,
-    rgba(132, 204, 22, 0.2) 0%,
-    rgba(132, 204, 22, 0.1) 100%
+    var(--accent-bg-strong) 0%,
+    var(--accent-glow) 100%
   );
   border-color: var(--accent);
   transform: translateY(-1px) scale(1.02);
@@ -371,7 +371,7 @@
   font-size: 22px;
   font-weight: 800;
   color: var(--accent);
-  text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+  text-shadow: 0 2px 6px var(--accent-border-strong);
 }
 
 .tt-label {
@@ -391,7 +391,7 @@
   font-weight: 800;
   color: var(--accent);
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 6px rgba(132, 204, 22, 0.3);
+  text-shadow: 0 2px 6px var(--accent-border-strong);
 }
 
 /* ── CHAR BUTTONS ───────────────────────────────────────────────────────── */
@@ -402,7 +402,7 @@
 
 .tt-char {
   font-size: 24px;
-  filter: drop-shadow(0 2px 6px rgba(132, 204, 22, 0.3));
+  filter: drop-shadow(0 2px 6px var(--accent-border-strong));
 }
 
 /* ── RESPONSIVE ─────────────────────────────────────────────────────────── */

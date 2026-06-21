@@ -22,7 +22,7 @@
 
 .upload-btn {
   padding: 12px 16px;
-  background: rgba(132, 204, 22, 0.08);
+  background: var(--accent-bg-soft);
   border: 2px dashed rgba(132, 204, 22, 0.4);
   border-radius: 10px;
   cursor: pointer;
@@ -37,7 +37,7 @@
 }
 
 .upload-btn:hover:not(:disabled) {
-  background: rgba(132, 204, 22, 0.15);
+  background: var(--accent-glow-strong);
   border-color: rgba(132, 204, 22, 0.6);
   transform: translateY(-1px);
 }
@@ -77,7 +77,7 @@
 /* ── Creation Progress ── */
 .creation-progress-compact {
   padding: 10px 12px;
-  background: rgba(132, 204, 22, 0.1);
+  background: var(--accent-glow);
   border-radius: 10px;
   margin-bottom: 14px;
 }
@@ -150,7 +150,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(132, 204, 22, 0.95);
+  background: var(--accent);
   backdrop-filter: blur(10px);
   border: none;
   color: var(--accent-contrast);
@@ -230,7 +230,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(132, 204, 22, 0.95);
+  background: var(--accent);
   backdrop-filter: blur(4px);
   border: none;
   color: var(--accent-contrast);
@@ -258,7 +258,7 @@
   justify-content: space-between;
   padding: 6px;
   gap: 3px;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-secondary);
 }
 
 .move-btn {
@@ -340,7 +340,7 @@
   background: var(--bg-strong);
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(132, 204, 22, 0.3);
+  border: 1px solid var(--accent-border-strong);
   box-shadow: 0 8px 32px var(--shadow);
   display: flex;
   flex-direction: column;
@@ -353,7 +353,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--panel-strong);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: var(--text-inverse);
@@ -405,7 +405,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(132, 204, 22, 0.3);
+  border: 1px solid var(--accent-border-strong);
 }
 
 .template-modal-header {
@@ -413,8 +413,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px;
-  border-bottom: 1px solid rgba(132, 204, 22, 0.2);
-  background: rgba(132, 204, 22, 0.05);
+  border-bottom: 1px solid var(--accent-bg-strong);
+  background: var(--accent-glow);
 }
 
 .template-modal-header h3 {
@@ -425,7 +425,7 @@
 }
 
 .template-modal-header button {
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--panel);
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: 32px;
   height: 32px;
@@ -459,15 +459,15 @@
   justify-content: center;
   gap: 6px;
   padding: 14px;
-  background: rgba(132, 204, 22, 0.1);
-  border: 2px solid rgba(132, 204, 22, 0.2);
+  background: var(--accent-glow);
+  border: 2px solid var(--accent-bg-strong);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .template-option:hover {
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   transform: translateY(-2px);
 }

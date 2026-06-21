@@ -82,13 +82,13 @@
   justify-content: center;
   background: linear-gradient(
     135deg,
-    rgba(132, 204, 22, 0.1) 0%,
-    rgba(132, 204, 22, 0.05) 100%
+    var(--accent-glow) 0%,
+    var(--accent-glow) 100%
   );
 }
 
 .hero-icon {
-  color: rgba(132, 204, 22, 0.3);
+  color: var(--accent-border-strong);
   animation: float 3s ease-in-out infinite;
 }
 
@@ -206,7 +206,7 @@
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(132, 204, 22, 0.1);
+  border-bottom: 1px solid var(--accent-glow);
 }
 
 /* ============================================================================
@@ -246,7 +246,7 @@
 }
 
 .story-action-btn.read-compact:hover {
-  background: rgba(132, 204, 22, 0.25);
+  background: var(--accent-border);
   border-color: var(--accent);
   transform: translateY(-2px);
 }
@@ -310,7 +310,7 @@
   right: 0;
   width: 100px;
   height: 1.7em;
-  background: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.3) 70%);
+  background: linear-gradient(to right, transparent 0%, var(--overlay-secondary) 70%);
   pointer-events: none;
 }
 
@@ -441,8 +441,8 @@
   .story-hero-placeholder {
     background: linear-gradient(
       135deg,
-      rgba(132, 204, 22, 0.08) 0%,
-      rgba(132, 204, 22, 0.03) 100%
+      var(--accent-bg-soft) 0%,
+      var(--accent-glow) 100%
     );
   }
 }

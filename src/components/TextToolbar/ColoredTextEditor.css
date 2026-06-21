@@ -6,7 +6,7 @@
   width: 100%;
   padding: 12px;
   background: var(--surface);
-  border: 1px solid rgba(132, 204, 22, 0.2);
+  border: 1px solid var(--accent-bg-strong);
   border-radius: 10px;
   color: var(--text-inverse);
   font-size: 14px;
@@ -47,7 +47,7 @@
 /* Style for colored symbols */
 .colored-text-editor span[style*="color"] {
   font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 3px var(--overlay-secondary);
 }
 
 /* Scrollbar styling */
@@ -61,10 +61,10 @@
 }
 
 .colored-text-editor::-webkit-scrollbar-thumb {
-  background: rgba(132, 204, 22, 0.3);
+  background: var(--accent-border-strong);
   border-radius: 3px;
 }
 
 .colored-text-editor::-webkit-scrollbar-thumb:hover {
-  background: rgba(132, 204, 22, 0.5);
+  background: var(--accent-border-strong);
 }

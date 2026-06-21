@@ -22,7 +22,7 @@
   z-index: 4001;
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 -10px 40px var(--shadow);
-  border: 1px solid rgba(132, 204, 22, 0.2);
+  border: 1px solid var(--accent-bg-strong);
   border-bottom: none;
 }
 
@@ -38,7 +38,7 @@
     width: 90%;
     max-width: 500px;
     border-radius: 16px;
-    border: 1px solid rgba(132, 204, 22, 0.3);
+    border: 1px solid var(--accent-border-strong);
     padding-bottom: 20px;
   }
 }
@@ -80,7 +80,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px 16px;
-  border-bottom: 1px solid rgba(132, 204, 22, 0.15);
+  border-bottom: 1px solid var(--accent-glow-strong);
 }
 
 .share-modal-header h3 {
@@ -125,7 +125,7 @@
   gap: 10px;
   padding: 16px 12px;
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -189,7 +189,7 @@
 
 .share-modal-footer {
   padding: 12px 20px 0;
-  border-top: 1px solid rgba(132, 204, 22, 0.15);
+  border-top: 1px solid var(--accent-glow-strong);
 }
 
 .share-watermark-notice {
@@ -201,7 +201,7 @@
   color: var(--accent);
   margin: 0;
   padding: 8px 12px;
-  background: rgba(132, 204, 22, 0.08);
+  background: var(--accent-bg-soft);
   border-radius: 8px;
 }
 

@@ -55,8 +55,8 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: rgba(132, 204, 22, 0.08);
-  border: 1px solid rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-soft);
+  border: 1px solid var(--accent-bg-strong);
   display: flex;
   align-items: center;
   justify-content: center;

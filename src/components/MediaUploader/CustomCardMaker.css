@@ -12,7 +12,7 @@
 }
 
 .ccm-modal {
-  background: #0a0a0a;
+  background: var(--panel-strong);
   border-radius: 24px;
   width: 100%;
   max-width: 540px;
@@ -30,10 +30,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px 28px;
-  border-bottom: 1px solid rgba(132, 204, 22, 0.1);
+  border-bottom: 1px solid var(--accent-glow);
   background: linear-gradient(
     180deg,
-    rgba(132, 204, 22, 0.05) 0%,
+    var(--accent-glow) 0%,
     transparent 100%
   );
 }
@@ -91,7 +91,7 @@
   width: 6px;
 }
 .ccm-body::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-secondary);
 }
 .ccm-body::-webkit-scrollbar-thumb {
   background: var(--accent);
@@ -158,7 +158,7 @@
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.16) 0%,
-    rgba(255, 255, 255, 0.04) 35%,
+    var(--surface) 35%,
     transparent 55%,
     rgba(0, 0, 0, 0.06) 100%
   );
@@ -208,7 +208,7 @@
   top: 0;
   background: linear-gradient(
     to bottom,
-    rgba(132, 204, 22, 0.3) 0%,
+    var(--accent-border-strong) 0%,
     transparent 100%
   );
 }
@@ -217,7 +217,7 @@
   bottom: 0;
   background: linear-gradient(
     to top,
-    rgba(132, 204, 22, 0.3) 0%,
+    var(--accent-border-strong) 0%,
     transparent 100%
   );
 }
@@ -246,8 +246,8 @@
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  background: rgba(132, 204, 22, 0.1);
-  border: 1px solid rgba(132, 204, 22, 0.3);
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-border-strong);
   border-radius: 8px;
   color: var(--accent);
   display: flex;
@@ -258,7 +258,7 @@
 }
 
 .ccm-height-btn:hover {
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   transform: scale(1.05);
 }
@@ -279,7 +279,7 @@
 
 .ccm-height-input:focus {
   outline: none;
-  background: rgba(132, 204, 22, 0.1);
+  background: var(--accent-glow);
   border-color: var(--accent);
 }
 
@@ -325,11 +325,11 @@
 }
 
 .ccm-cat:hover {
-  background: rgba(132, 204, 22, 0.1);
+  background: var(--accent-glow);
   color: var(--accent);
 }
 .ccm-cat.active {
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -344,7 +344,7 @@
 .ccm-quick-btn {
   padding: 12px;
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -354,8 +354,8 @@
 }
 
 .ccm-quick-btn:hover {
-  background: rgba(132, 204, 22, 0.1);
-  border-color: rgba(132, 204, 22, 0.3);
+  background: var(--accent-glow);
+  border-color: var(--accent-border-strong);
   transform: translateY(-2px);
 }
 
@@ -391,13 +391,13 @@
 }
 
 .ccm-fontsize-btn:hover {
-  background: rgba(132, 204, 22, 0.1);
-  border-color: rgba(132, 204, 22, 0.3);
+  background: var(--accent-glow);
+  border-color: var(--accent-border-strong);
   color: var(--accent);
 }
 
 .ccm-fontsize-btn.active {
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -413,8 +413,8 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  background: rgba(132, 204, 22, 0.1);
-  border: 1px solid rgba(132, 204, 22, 0.3);
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-border-strong);
   border-radius: 8px;
   color: var(--accent);
   display: flex;
@@ -425,7 +425,7 @@
 }
 
 .ccm-fontsize-nudge:hover {
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   transform: scale(1.05);
 }
 
@@ -502,7 +502,7 @@
   width: 100%;
   height: 6px;
   border-radius: 3px;
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   outline: none;
   -webkit-appearance: none;
 }
@@ -538,13 +538,13 @@
 }
 
 .ccm-align-btn:hover {
-  background: rgba(132, 204, 22, 0.1);
-  border-color: rgba(132, 204, 22, 0.3);
+  background: var(--accent-glow);
+  border-color: var(--accent-border-strong);
   color: var(--accent);
 }
 
 .ccm-align-btn.active {
-  background: rgba(132, 204, 22, 0.2);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -553,7 +553,7 @@
 .ccm-footer {
   padding: 20px 28px;
   border-top: 1px solid var(--accent-border);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-secondary);
 }
 
 .ccm-apply {

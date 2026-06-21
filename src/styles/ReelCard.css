@@ -8,7 +8,7 @@
   background: #080808;
   border-radius: 20px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--surface-border);
   transition:
     transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
     border-color 0.25s ease,
@@ -19,7 +19,7 @@
 
 .xv-reel-card.hovered {
   transform: translateY(-2px) scale(1.003);
-  border-color: rgba(132, 204, 22, 0.2);
+  border-color: var(--accent-bg-strong);
   box-shadow: 0 0 24px var(--accent-shadow),
     0 16px 48px var(--shadow);
 }
@@ -72,8 +72,8 @@
     rgba(0, 0, 0, 0.35) 0%,
     transparent 18%,
     transparent 55%,
-    rgba(0, 0, 0, 0.5) 78%,
-    rgba(0, 0, 0, 0.88) 100%
+    var(--panel) 78%,
+    var(--panel-strong) 100%
   );
   pointer-events: none;
   z-index: 2;
@@ -91,7 +91,7 @@
 .xv-spinner {
   width: 44px;
   height: 44px;
-  border: 3px solid rgba(132, 204, 22, 0.15);
+  border: 3px solid var(--accent-glow-strong);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: xv-spin 0.9s linear infinite;
@@ -110,7 +110,7 @@
   background:
     radial-gradient(
       ellipse at 30% 30%,
-      rgba(132, 204, 22, 0.08) 0%,
+      var(--accent-bg-soft) 0%,
       transparent 60%
     ),
     linear-gradient(135deg, #111 0%, #080808 100%);
@@ -172,7 +172,7 @@
   height: 36px;
   border-radius: 50%;
   background: var(--glass);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--glass-border);
   color: rgba(255, 255, 255, 0.88);
   cursor: pointer;
   transition:
@@ -185,7 +185,7 @@
   flex-shrink: 0;
 }
 .xv-icon-btn:hover {
-  background: rgba(132, 204, 22, 0.15);
+  background: var(--accent-glow-strong);
   border-color: rgba(132, 204, 22, 0.4);
   color: var(--accent-strong);
   transform: scale(1.08);
@@ -228,8 +228,8 @@
     border-color 0.2s;
 }
 .xv-play-area:hover .xv-play-ring {
-  background: rgba(132, 204, 22, 0.2);
-  border-color: rgba(132, 204, 22, 0.5);
+  background: var(--accent-bg-strong);
+  border-color: var(--accent-border-strong);
   transform: scale(1.06);
 }
 
@@ -263,7 +263,7 @@
 .xv-progress-track {
   flex: 1;
   height: 3px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--glass-border);
   border-radius: 99px;
   cursor: pointer;
   position: relative;
@@ -322,7 +322,7 @@
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--panel);
   padding: 2px 7px;
   border-radius: 6px;
 }
@@ -387,7 +387,7 @@
 }
 .xv-follow-btn:hover {
   background: rgba(132, 204, 22, 0.18);
-  border-color: rgba(132, 204, 22, 0.5);
+  border-color: var(--accent-border-strong);
   color: var(--accent-strong);
   transform: scale(1.04);
 }
@@ -427,7 +427,7 @@
   right: 0;
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.96) 0%,
+    var(--overlay) 0%,
     rgba(0, 0, 0, 0.8) 100%
   );
   backdrop-filter: blur(12px);
@@ -518,7 +518,7 @@
 .xv-reel-footer {
   padding: 0;
   background: #080808;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--surface);
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────────────────── */
@@ -528,7 +528,7 @@
     border-left: none;
     border-right: none;
     border-top: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--panel-soft);
     max-height: 98vh;
   }
 
