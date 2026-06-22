@@ -30,6 +30,23 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
 
+// Quick shim: allow calling Image() without `new` by delegating to
+// the original constructor. This mitigates runtime errors from
+// third-party code or incorrect calls that use `Image()` instead of
+// `new Image()` (the browser throws in that case). It preserves
+// prototype so `instanceof` checks still work.
+if (typeof window !== "undefined" && window.Image) {
+  const _OriginalImage = window.Image;
+  if (typeof _OriginalImage === "function") {
+    const ImageWrapper = function(...args) {
+      return new _OriginalImage(...args);
+    };
+    ImageWrapper.prototype = _OriginalImage.prototype;
+    try { Object.defineProperty(ImageWrapper, "name", { value: "Image" }); } catch (e) {}
+    window.Image = ImageWrapper;
+  }
+}
+
 // ── [1] ATTACH SW MESSAGE BRIDGE BEFORE REACT RENDERS ────────────────────────
 // This is synchronous and safe to call before the DOM is ready.
 // It sets up the navigator.serviceWorker message listener immediately so
