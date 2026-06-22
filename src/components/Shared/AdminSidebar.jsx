@@ -480,7 +480,15 @@ export default function AdminSidebar({
 
         {/* Nav */}
         <nav className="xv-nav">
-          <SectionHeader icon={MenuGridIcon} iconColor="#94a3b8" iconBg="rgba(148,163,184,0.06)" iconBorder="rgba(148,163,184,0.12)" title="Navigation" />
+          <SectionHeader
+            className="xv-section-header"
+            icon={MenuGridIcon}
+            iconColor="#94a3b8"
+            iconBg="rgba(148,163,184,0.06)"
+            iconBorder="rgba(148,163,184,0.12)"
+            title="Navigation"
+            subtitle="Admin console links"
+          />
 
           {NAV_ITEMS.map((item) => {
             const Icon     = item.icon;
@@ -539,7 +547,15 @@ export default function AdminSidebar({
           </button>
 
           {/* Admin section */}
-          <SectionHeader icon={ShieldIcon} iconColor={role.color} iconBg={`${role.color}18`} iconBorder={`${role.color}28`} title="Administration" />
+          <SectionHeader
+            className="xv-section-header"
+            icon={ShieldIcon}
+            iconColor={role.color}
+            iconBg={`${role.color}18`}
+            iconBorder={`${role.color}28`}
+            title="Administration"
+            subtitle="Platform actions"
+          />
 
           <button
             className="xv-admin-btn"
