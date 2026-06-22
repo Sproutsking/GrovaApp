@@ -142,6 +142,7 @@ const FeedTab = React.forwardRef(({
   const feedItems = useMemo(() => mergeFeedItems(posts, reels), [posts, reels]);
   const containerRef = useRef(null);
   const observerRef = useRef(null);
+  const resizeObserverRef = useRef(null);
   const heightsRef = useRef({});
 
   // ── Visible window ─────────────────────────────────────────────────────────
@@ -169,17 +170,26 @@ const FeedTab = React.forwardRef(({
   // ── IntersectionObserver for anchor detection ───────────────────────────────
   useEffect(() => {
     if (!containerRef.current || !isActive) return;
+
+    // Cleanup any existing observer before creating a new one
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
     const io = new IntersectionObserver(
       entries => {
         let best = anchorIdx, bestRatio = 0;
         entries.forEach(e => {
           const idx = parseInt(e.target.dataset.feedIdx, 10);
-          if (e.isIntersecting && e.intersectionRatio > bestRatio) {
+          if (!isNaN(idx) && e.isIntersecting && e.intersectionRatio > bestRatio) {
             bestRatio = e.intersectionRatio;
             best = idx;
           }
         });
-        setAnchorIdx(best);
+        if (best !== anchorIdx) {
+          setAnchorIdx(best);
+        }
         // Trigger load more at 70% scroll
         if (best > feedItems.length * 0.7 && hasMore && !isLoadingMore) {
           onLoadMore?.();
@@ -188,14 +198,45 @@ const FeedTab = React.forwardRef(({
       { threshold: [0.1, 0.5, 0.9] }
     );
 
-    const cards = containerRef.current.querySelectorAll("[data-feed-idx]");
-    cards.forEach(c => io.observe(c));
-    return () => io.disconnect();
-  }, [isActive, anchorIdx, feedItems.length, hasMore, isLoadingMore, onLoadMore]);
+    observerRef.current = io;
+
+    // Observe cards that exist in the DOM
+    const cards = containerRef.current?.querySelectorAll("[data-feed-idx]");
+    if (cards) {
+      cards.forEach(c => {
+        try {
+          io.observe(c);
+        } catch (e) {
+          // Silently skip if card is invalid
+        }
+      });
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+    };
+  }, [isActive, feedItems.length, hasMore, isLoadingMore, onLoadMore]);
 
   // ── ResizeObserver for accurate heights ──────────────────────────────────
   useLayoutEffect(() => {
-    if (!containerRef.current || !isActive) return;
+    if (!containerRef.current || !isActive) {
+      // Clean up resize observer when inactive
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+      return;
+    }
+
+    // Cleanup existing observer before creating a new one
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+
     const ro = new ResizeObserver(entries => {
       const updates = {};
       entries.forEach(e => {
@@ -210,20 +251,46 @@ const FeedTab = React.forwardRef(({
       }
     });
 
-    const cards = containerRef.current.querySelectorAll("[data-feed-idx]");
-    cards.forEach(c => ro.observe(c));
-    return () => ro.disconnect();
-  }, [isActive, visibleStart, visibleEnd]);
+    resizeObserverRef.current = ro;
+
+    // Observe cards that exist
+    const cards = containerRef.current?.querySelectorAll("[data-feed-idx]");
+    if (cards) {
+      cards.forEach(c => {
+        try {
+          ro.observe(c);
+        } catch (e) {
+          // Skip invalid cards
+        }
+      });
+    }
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+    };
+  }, [isActive]);
 
   // ── Scroll to top FAB ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!containerRef.current || !isActive) return;
-    const checkScroll = () => {
+    if (!containerRef.current || !isActive) {
+      setScrollFabVisible(false);
+      return;
+    }
+
+    const handleScroll = () => {
       setScrollFabVisible((containerRef.current?.scrollTop || 0) > 500);
     };
+
     const container = containerRef.current;
-    container?.addEventListener("scroll", checkScroll);
-    return () => container?.removeEventListener("scroll", checkScroll);
+    container?.addEventListener("scroll", handleScroll, { passive: true });
+    
+    return () => {
+      container?.removeEventListener("scroll", handleScroll);
+      setScrollFabVisible(false);
+    };
   }, [isActive]);
 
   // ── Exposed methods ────────────────────────────────────────────────────────
