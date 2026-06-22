@@ -550,16 +550,15 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     <aside className={isMobile ? "trending-mobile-fullscreen" : "trending-sidebar"}>
       {isMobile && <MobileHeader onClose={onClose} />}
       {!isMobile && (
-        <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--bg-strong)", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--border)" }}>
-          <SectionHeader
-            icon={TrendingUp}
-            iconColor="#84cc16"
-            iconBg="rgba(132,204,22,.12)"
-            iconBorder="rgba(132,204,22,.25)"
-            title="Trending"
-            right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
-          />
-        </div>
+        <SectionHeader
+          className="ts-page-header"
+          icon={TrendingUp}
+          iconColor="#84cc16"
+          iconBg="rgba(132,204,22,.12)"
+          iconBorder="rgba(132,204,22,.25)"
+          title="Trending"
+          right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
+        />
       )}
       <div style={{ padding: "12px" }}>
         <UnifiedLoader type="section" message="Loading trending…" />
@@ -620,6 +619,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .ts-refresh { width:26px; height:26px; border-radius:7px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#888; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; }
         .ts-refresh:hover { background:rgba(132,204,22,.12); color:#84cc16; border-color:rgba(132,204,22,.3); }
         .spin { animation:spin 1s linear infinite; }
+        .ts-page-header { position: sticky; top: 0; z-index: 15; margin-bottom: 0; padding: 12px 14px 12px 14px; background: var(--surface-strong); border-bottom: 1px solid var(--surface-border); }
         @keyframes spin { to{transform:rotate(360deg);} }
 
         /* ── STREAMER ROWS ── */
@@ -777,8 +777,8 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
         {/* Desktop sticky top label */}
         {!isMobile && (
-          <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--bg-strong)", padding: "10px 12px 10px 12px", marginBottom: 0, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <SectionHeader
+            className="ts-page-header"
             icon={TrendingUp}
             iconColor="#84cc16"
             iconBg="rgba(132,204,22,.12)"
@@ -786,7 +786,6 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
             title="Trending"
             right={<button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing} title="Refresh"><RefreshCw size={11} className={refreshing ? "spin" : ""} /></button>}
           />
-        </div>
         )}
 
         {/* Inner content wrapper */}

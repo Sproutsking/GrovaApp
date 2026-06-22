@@ -131,9 +131,11 @@ const Sidebar = ({
             iconBg="rgba(148,163,184,0.08)"
             iconBorder="rgba(148,163,184,0.12)"
             title="Navigation"
+            subtitle="Main app sidebar"
+            className="sidebar-nav-header"
           />
 
-          {/* Nav */
+          {/* Nav */}
           <nav className="nav-container">
             {navItems.map((item, idx) => {
               const Icon     = item.icon;
