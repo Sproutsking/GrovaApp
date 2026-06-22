@@ -123,9 +123,16 @@ const FullScreenReels = ({
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("fullscreen-opened"));
     GlobalVideoState.setGlobalPlayState(true);
+    // Lock body scroll during full-screen
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
     return () => {
       window.dispatchEvent(new CustomEvent("fullscreen-closed"));
       GlobalVideoState.setGlobalPlayState(false);
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
     };
   }, []);
 
@@ -456,22 +463,14 @@ const FullScreenReels = ({
       <style jsx>{`
         .fullscreen-reels-container {
           position: fixed;
-          /* Center vertically in the available space below the top nav (57px) */
-          top: -20px;
-          left: 50%;
-          transform: translate(-50%, 0%);
-          width: 100%;
-          max-width: 580px;
-          /* Height = viewport minus top nav, with a little breathing room */
-          height: 87vh;
-          max-height: 92vh;
+          inset: 0;
+          z-index: 9999;
           background: #000;
-          z-index: 999;
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          border-radius: 12px;
+          overscroll-behavior: contain;
         }
 
         .fullscreen-close-btn {
@@ -506,12 +505,14 @@ const FullScreenReels = ({
           align-items: center;
           justify-content: center;
           background: #000;
+          max-width: 100vw;
+          max-height: 100vh;
         }
 
         .reel-video {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
           cursor: pointer;
           background: #000;
           display: block;
@@ -704,12 +705,9 @@ const FullScreenReels = ({
 
         @media (max-width: 768px) {
           .fullscreen-reels-container {
-            top: 57px;
-            left: 0;
-            transform: none;
-            max-width: 100%;
+            inset: 0;
             width: 100%;
-            height: calc(100vh - 57px - 60px);
+            height: 100%;
             border-radius: 0;
           }
 
@@ -722,6 +720,18 @@ const FullScreenReels = ({
           .fullscreen-close-btn { top: 16px; right: 16px; width: 40px; height: 40px; }
           .fullscreen-mute-btn  { top: 16px; left: 16px;  width: 40px; height: 40px; }
         }
+
+        @media (max-width: 480px) {
+          .reel-left-info { bottom: 10px; left: 10px; right: 60px; }
+          .reel-caption-text { font-size: 11px; padding: 4px 6px; }
+          .action-menu-btn { width: 40px; height: 40px; }
+          .reel-right-actions { right: 10px; bottom: 10px; gap: 6px; }
+          .fullscreen-close-btn { top: 12px; right: 12px; width: 36px; height: 36px; font-size: 18px; }
+          .fullscreen-mute-btn  { top: 12px; left: 12px;  width: 36px; height: 36px; font-size: 16px; }
+        }
+
+        /* Ensure no scrollbar shows */
+        ::-webkit-scrollbar { display: none; }
       `}</style>
     </>
   );

@@ -105,12 +105,24 @@ const NewsIcon = ({ active }) => (
   </svg>
 );
 
-// ── [4-TAB] Nav tabs array ────────────────────────────────────────────────────
+// ── Culture icon (globe + hearts) ──────────────────────────────────────────
+const CultureIcon = ({ active }) => (
+  <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+    <circle cx="8.5" cy="8.5" r="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    <path d="M8.5 2.5 Q 10.5 5 10.5 8.5 Q 10.5 12 8.5 14.5" stroke="currentColor" strokeWidth="1" fill="none" />
+    <path d="M8.5 2.5 Q 6.5 5 6.5 8.5 Q 6.5 12 8.5 14.5" stroke="currentColor" strokeWidth="1" fill="none" />
+    <line x1="2" y1="8.5" x2="15" y2="8.5" stroke="currentColor" strokeWidth="1" />
+    <circle cx="5" cy="5" r="0.9" fill={active ? "currentColor" : "#ff6b9d"} opacity={active ? 1 : 0.8} />
+    <circle cx="12" cy="6" r="0.9" fill={active ? "currentColor" : "#ff6b9d"} opacity={active ? 1 : 0.8} />
+  </svg>
+);
+
+// ── [4-TAB] Nav tabs array — unified feed + stories + news + culture ──────
 const NAV_TABS = [
-  { id: "posts",   Icon: PostsIcon,   label: "Posts"   },
-  { id: "reels",   Icon: ReelsIcon,   label: "Reels"   },
+  { id: "feed",    Icon: PostsIcon,   label: "Feed"    },
   { id: "stories", Icon: StoriesIcon, label: "Stories" },
   { id: "news",    Icon: NewsIcon,    label: "News"    },
+  { id: "culture", Icon: CultureIcon, label: "Culture" },
 ];
 
 // ── Fetch unread data ─────────────────────────────────────────────────────────

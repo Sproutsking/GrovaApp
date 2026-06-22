@@ -43,6 +43,7 @@ import "./styles/ReelCard.css";
 import "./styles/StoryCard.css";
 import "./styles/ProfileModal.css";
 import "./styles/Draft.css";
+import "./styles/lightTheme.css";
 
 import { supabase }               from "./services/config/supabase";
 import mediaUrlService             from "./services/shared/mediaUrlService";

@@ -38,11 +38,10 @@ import {
   Image, Film, BookOpen, RefreshCw, X, Hash, FileText, Newspaper,
 } from "lucide-react";
 
-import PostTab          from "./PostTab";
+import FeedTab          from "./FeedTab";
 import NewsTab          from "./NewsTab";
-import ReelsTab         from "./ReelsTab";
 import StoryTab         from "./StoryTab";
-import DiscoveryTab     from "./DiscoveryTab";
+import CultureTab       from "./CultureTab";
 import LiveStreamersRow from "../Stream/LiveStreamersRow";
 
 import postService     from "../../services/home/postService";
@@ -65,7 +64,7 @@ import EditPostModal       from "../Modals/EditPostModal";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const POSTS_PAGE = 26;   // [ULTRA-1] matches PostTab render window
+const POSTS_PAGE = 30;   // increased for aggressive preloading
 const REELS_PAGE = 24;
 const NEWS_PAGE  = 30;
 const SWR_TTL    = 120_000; // [ULTRA-5] 2 minutes
@@ -302,10 +301,10 @@ const HomeView = ({
 
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
 
-  const postTabRef     = useRef(null);
-  const reelTabRef     = useRef(null);  // [ULTRA-3]
+  const feedTabRef     = useRef(null);
   const newsTabRef     = useRef(null);
   const storyTabRef    = useRef(null);
+  const cultureTabRef  = useRef(null);
   const hasLoaded      = useRef(false);
   const rtCleanup      = useRef([]);
   const currentUserRef = useRef(null);
@@ -317,9 +316,9 @@ const HomeView = ({
   const hasMoreReelsRef = useRef(true);
   const hasMoreNewsRef  = useRef(true);
   const loadingMoreRef  = useRef(false);
-  const tabFetchedAt   = useRef({ posts:0, reels:0, stories:0, news:0 });
+  const tabFetchedAt   = useRef({ feed:0, stories:0, news:0, culture:0 });
 
-  const currentTab   = activeHomeTab || "posts";
+  const currentTab   = activeHomeTab || "feed";
   const savedFolders = ["Favorites", "Inspiration", "Later"];
   const resolvedUser = currentUser || currentUserProp;
 
@@ -384,7 +383,7 @@ const HomeView = ({
       swrSet("news",    safeNews);
 
       const now = Date.now();
-      tabFetchedAt.current = { posts:now, reels:now, stories:now, news:now };
+      tabFetchedAt.current = { feed:now, stories:now, news:now, culture:now };
 
       // Single setState batch — no double render
       startTransition(() => {
@@ -420,27 +419,21 @@ const HomeView = ({
     if (!mountedRef.current) return;
     try {
       switch (tab) {
-        case "posts": {
-          const d = await postService.getPosts({}, 0, POSTS_PAGE).catch(() => null);
-          if (!d || !mountedRef.current) return;
-          const safe = Array.isArray(d) ? d : [];
-          swrSet("posts", safe); tabFetchedAt.current.posts = Date.now();
-          preloadFirstPaintImages(safe);
-          setPosts(prev => {
-            const ids = new Set(prev.map(p => p.id));
-            const newRows = safe.filter(p => !ids.has(p.id));
-            if (!newRows.length) return prev;
-            if (postTabRef.current?.prependPost) { newRows.forEach(p => postTabRef.current.prependPost(p)); return prev; }
-            return [...newRows, ...prev];
-          });
-          break;
-        }
-        case "reels": {
-          const d = await reelService.getReels({ limit: REELS_PAGE }).catch(() => null);
-          if (!d || !mountedRef.current) return;
-          swrSet("reels", Array.isArray(d) ? d : []);
-          tabFetchedAt.current.reels = Date.now();
-          setReels(Array.isArray(d) ? d : []);
+        case "feed": {
+          const [pd, rd] = await Promise.all([
+            postService.getPosts({}, 0, POSTS_PAGE).catch(() => null),
+            reelService.getReels({ limit: REELS_PAGE }).catch(() => null),
+          ]);
+          if (!mountedRef.current) return;
+          const safePosts = Array.isArray(pd) ? pd : [];
+          const safeReels = Array.isArray(rd) ? rd : [];
+          swrSet("posts", safePosts);
+          swrSet("reels", safeReels);
+          tabFetchedAt.current.feed = Date.now();
+          preloadFirstPaintImages(safePosts);
+          preloadReelThumbs(safeReels, 0);
+          setPosts(safePosts);
+          setReels(safeReels);
           break;
         }
         case "stories": {
@@ -457,6 +450,11 @@ const HomeView = ({
           swrSet("news", Array.isArray(d) ? d : []);
           tabFetchedAt.current.news = Date.now();
           setNewsPosts(Array.isArray(d) ? d : []);
+          break;
+        }
+        case "culture": {
+          // Culture tab fetches on demand when category changes
+          tabFetchedAt.current.culture = Date.now();
           break;
         }
         default: break;
@@ -715,13 +713,14 @@ const HomeView = ({
 
         {!filterLoading && (
           <div className="feed-container">
-            {/* ── POSTS TAB ── */}
-            <div style={{ display: currentTab==="posts" ? "block" : "none" }}>
-              {showSkeleton && currentTab==="posts" ? <FeedSkeletons /> :
-               posts.length > 0 ? (
-                <PostTab
-                  ref={postTabRef}
+            {/* ── FEED TAB (Posts & Reels Merged) ── */}
+            <div style={{ display: currentTab==="feed" ? "block" : "none" }}>
+              {showSkeleton && currentTab==="feed" ? <FeedSkeletons /> :
+               (posts.length > 0 || reels.length > 0) ? (
+                <FeedTab
+                  ref={feedTabRef}
                   posts={posts}
+                  reels={reels}
                   currentUser={resolvedUser}
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
@@ -729,38 +728,14 @@ const HomeView = ({
                   onLoadMore={loadMorePosts}
                   hasMore={hasMorePosts}
                   isLoadingMore={loadingMore}
-                  isActive={currentTab==="posts"}
+                  isActive={currentTab==="feed"}
                   setActiveHomeTab={handlePipelineNavigate}
                 />
               ) : !showSkeleton ? (
                 <EmptyState icon={<Image size={38} />}
-                  title={feedFilter ? `No posts in #${feedFilter.value}` : "No posts yet"}
-                  text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to create a post!"} />
+                  title="No content yet"
+                  text="Follow creators to see their posts and reels in your feed!" />
               ) : null}
-            </div>
-
-            {/* ── REELS TAB ── */}
-            <div style={{ display: currentTab==="reels" ? "block" : "none" }}>
-              {reels.length > 0 ? (
-                <ReelsTab
-                  ref={reelTabRef}
-                  reels={reels}
-                  currentUser={resolvedUser}
-                  onAuthorClick={handleAuthorClick}
-                  onActionMenu={handleActionMenu}
-                  onComment={handleComment}
-                  isActive={currentTab==="reels"}
-                  hasMore={hasMoreReels}
-                  isLoadingMore={reelsLoading}
-                  onLoadMore={loadMoreReels}
-                />
-              ) : !showSkeleton ? (
-                <EmptyState icon={<Film size={38} />}
-                  title={feedFilter ? `No reels in #${feedFilter.value}` : "No reels yet"}
-                  text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to create a reel!"} />
-              ) : (
-                currentTab==="reels" ? <GridSkeletons /> : null
-              )}
             </div>
 
             {/* ── STORIES TAB ── */}
@@ -797,12 +772,15 @@ const HomeView = ({
               />
             </div>
 
-            {/* ── DISCOVERY TAB ── */}
-            <div style={{ display: currentTab==="discovery" ? "block" : "none" }}>
-              <DiscoveryTab
+            {/* ── CULTURE TAB ── */}
+            <div style={{ display: currentTab==="culture" ? "block" : "none" }}>
+              <CultureTab
+                ref={cultureTabRef}
                 currentUser={resolvedUser}
-                isActive={currentTab==="discovery"}
-                initialCategory={discoveryCategory}
+                onAuthorClick={handleAuthorClick}
+                onActionMenu={handleActionMenu}
+                onComment={handleComment}
+                isActive={currentTab==="culture"}
               />
             </div>
           </div>

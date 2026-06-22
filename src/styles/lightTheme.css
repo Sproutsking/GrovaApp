@@ -1,0 +1,275 @@
+/* src/styles/lightTheme.css
+  ────────────────────────────────────────────────────────────────────────────
+  LIGHT THEME FOR ALL CARDS
+  Applied when data-light-theme="true" or [data-theme="light"]
+  ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── PostCard Light Theme ────────────────────────────────────────────────── */
+[data-theme="light"] .post-card,
+[data-light-theme="true"] .post-card {
+  background: #ffffff;
+  border-color: #e5e5e5;
+}
+
+[data-theme="light"] .post-card-header,
+[data-light-theme="true"] .post-card-header {
+  background: transparent;
+}
+
+[data-theme="light"] .post-author-name,
+[data-light-theme="true"] .post-author-name {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] .post-author-handle,
+[data-light-theme="true"] .post-author-handle {
+  color: #666666;
+}
+
+[data-theme="light"] .post-timestamp,
+[data-light-theme="true"] .post-timestamp {
+  color: #999999;
+}
+
+[data-theme="light"] .post-content-text,
+[data-light-theme="true"] .post-content-text {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] .post-category-badge,
+[data-light-theme="true"] .post-category-badge {
+  background: #f0f0f0;
+  border-color: #d0d0d0;
+  color: #333333;
+}
+
+[data-theme="light"] .post-card-footer,
+[data-light-theme="true"] .post-card-footer {
+  background: transparent;
+  border-color: #f0f0f0;
+}
+
+[data-theme="light"] .post-action-btn,
+[data-light-theme="true"] .post-action-btn {
+  color: #666666;
+  background: transparent;
+}
+
+[data-theme="light"] .post-action-btn:hover,
+[data-light-theme="true"] .post-action-btn:hover {
+  background: #f5f5f5;
+  color: #333333;
+}
+
+[data-theme="light"] .post-action-count,
+[data-light-theme="true"] .post-action-count {
+  color: #666666;
+}
+
+[data-theme="light"] .post-action-btn.active,
+[data-light-theme="true"] .post-action-btn.active {
+  color: #84cc16;
+}
+
+/* ── ReelCard Light Theme ────────────────────────────────────────────────── */
+[data-theme="light"] .reel-card,
+[data-light-theme="true"] .reel-card {
+  background: #ffffff;
+  border-color: #e5e5e5;
+}
+
+[data-theme="light"] .reel-card-header,
+[data-light-theme="true"] .reel-card-header {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+}
+
+[data-theme="light"] .reel-author-info,
+[data-light-theme="true"] .reel-author-info {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] .reel-author-handle,
+[data-light-theme="true"] .reel-author-handle {
+  color: #666666;
+}
+
+[data-theme="light"] .reel-category-tag,
+[data-light-theme="true"] .reel-category-tag {
+  background: rgba(0,0,0,0.08);
+  color: #333333;
+}
+
+[data-theme="light"] .reel-caption,
+[data-light-theme="true"] .reel-caption {
+  color: #1a1a1a;
+  background: transparent;
+}
+
+[data-theme="light"] .reel-card-footer,
+[data-light-theme="true"] .reel-card-footer {
+  background: transparent;
+  border-color: #f0f0f0;
+}
+
+[data-theme="light"] .reel-action-btn,
+[data-light-theme="true"] .reel-action-btn {
+  color: #666666;
+  background: transparent;
+}
+
+[data-theme="light"] .reel-action-btn:hover,
+[data-light-theme="true"] .reel-action-btn:hover {
+  background: #f5f5f5;
+  color: #333333;
+}
+
+[data-theme="light"] .reel-action-count,
+[data-light-theme="true"] .reel-action-count {
+  color: #666666;
+}
+
+/* ── StoryCard Light Theme ───────────────────────────────────────────────── */
+[data-theme="light"] .story-card,
+[data-light-theme="true"] .story-card {
+  background: #ffffff;
+  border-color: #e5e5e5;
+}
+
+[data-theme="light"] .story-card-overlay,
+[data-light-theme="true"] .story-card-overlay {
+  background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+}
+
+[data-theme="light"] .story-title,
+[data-light-theme="true"] .story-title {
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+[data-theme="light"] .story-author,
+[data-light-theme="true"] .story-author {
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+[data-theme="light"] .story-unlock-badge,
+[data-light-theme="true"] .story-unlock-badge {
+  background: rgba(0,0,0,0.6);
+  color: #ffffff;
+}
+
+/* ── NewsCard Light Theme ────────────────────────────────────────────────── */
+[data-theme="light"] .news-card,
+[data-light-theme="true"] .news-card {
+  background: #ffffff;
+  border-color: #e5e5e5;
+}
+
+[data-theme="light"] .news-headline,
+[data-light-theme="true"] .news-headline {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] .news-description,
+[data-light-theme="true"] .news-description {
+  color: #666666;
+}
+
+[data-theme="light"] .news-source,
+[data-light-theme="true"] .news-source {
+  color: #999999;
+}
+
+[data-theme="light"] .news-category-tag,
+[data-light-theme="true"] .news-category-tag {
+  background: #f0f0f0;
+  color: #333333;
+  border-color: #d0d0d0;
+}
+
+[data-theme="light"] .news-timestamp,
+[data-light-theme="true"] .news-timestamp {
+  color: #999999;
+}
+
+[data-theme="light"] .news-action-btn,
+[data-light-theme="true"] .news-action-btn {
+  color: #666666;
+}
+
+[data-theme="light"] .news-action-btn:hover,
+[data-light-theme="true"] .news-action-btn:hover {
+  background: #f5f5f5;
+  color: #333333;
+}
+
+/* ── Text-only adjustments ───────────────────────────────────────────────── */
+[data-theme="light"] .text-card,
+[data-light-theme="true"] .text-card {
+  background: #ffffff;
+  border-color: #e5e5e5;
+}
+
+[data-theme="light"] .text-card-content,
+[data-light-theme="true"] .text-card-content {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] .text-card-bg,
+[data-light-theme="true"] .text-card-bg {
+  background: linear-gradient(135deg, #f0f0f0 0%, #e5e5e5 100%);
+}
+
+/* ── Increased visibility in light theme ────────────────────────────────── */
+[data-theme="light"] .text,
+[data-light-theme="true"] .text {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] .text-secondary,
+[data-light-theme="true"] .text-secondary {
+  color: #666666;
+}
+
+[data-theme="light"] .text-tertiary,
+[data-light-theme="true"] .text-tertiary {
+  color: #999999;
+}
+
+/* ── Icons in light theme (1px brighter, darker outline) ───────────────── */
+[data-theme="light"] svg,
+[data-light-theme="true"] svg {
+  filter: brightness(0.9);
+}
+
+[data-theme="light"] .icon-button,
+[data-light-theme="true"] .icon-button {
+  background: rgba(0,0,0,0.04);
+}
+
+[data-theme="light"] .icon-button:hover,
+[data-light-theme="true"] .icon-button:hover {
+  background: rgba(0,0,0,0.08);
+}
+
+/* ── Action buttons brighter/darker visibility ───────────────────────────── */
+[data-theme="light"] [class*="action"] button,
+[data-light-theme="true"] [class*="action"] button {
+  color: #333333;
+  fill: #333333;
+}
+
+[data-theme="light"] [class*="action"] button:hover,
+[data-light-theme="true"] [class*="action"] button:hover {
+  color: #000000;
+  fill: #000000;
+}
+
+/* ── Accent color (green) stays bright in both themes ───────────────────── */
+[data-theme="light"] .accent,
+[data-light-theme="true"] .accent,
+[data-theme="light"] .active,
+[data-light-theme="true"] .active {
+  color: #84cc16;
+  fill: #84cc16;
+}

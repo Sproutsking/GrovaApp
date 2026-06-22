@@ -41,6 +41,18 @@ const MessengerIcon = ({ size = 17, color = "#a3e635" }) => (
   </svg>
 );
 
+  // ── Culture tab icon (globe + hearts for Africa-first) ─────────────────────
+  const CultureTabIcon = ({ active }) => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <circle cx="7.5" cy="7.5" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M7.5 1.5 Q 10 4 10 7.5 Q 10 11 7.5 13.5" fill="none" stroke="currentColor" strokeWidth="1.1"/>
+      <path d="M7.5 1.5 Q 5 4 5 7.5 Q 5 11 7.5 13.5" fill="none" stroke="currentColor" strokeWidth="1.1"/>
+      <line x1="1.5" y1="7.5" x2="13.5" y2="7.5" stroke="currentColor" strokeWidth="1.1"/>
+      <circle cx="4" cy="5" r="0.8" fill={active ? "currentColor" : "#ff6b9d"} opacity={active ? 1 : 0.7}/>
+      <circle cx="11" cy="6" r="0.8" fill={active ? "currentColor" : "#ff6b9d"} opacity={active ? 1 : 0.7}/>
+    </svg>
+  );
+
 // ── Custom tab icons ──────────────────────────────────────────────────────────
 const PostsTabIcon = ({ active }) => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -90,10 +102,10 @@ const NewsTabIcon = ({ active }) => (
 
 // ── [4-TAB] Home tabs array ───────────────────────────────────────────────────
 const HOME_TABS = [
-  { id: "posts",     Icon: PostsTabIcon,     label: "Posts"     },
-  { id: "reels",     Icon: ReelsTabIcon,     label: "Reels"     },
+  { id: "feed",      Icon: PostsTabIcon,     label: "Feed"      },
   { id: "stories",   Icon: StoriesTabIcon,   label: "Stories"   },
   { id: "news",      Icon: NewsTabIcon,      label: "News"      },
+  { id: "culture",   Icon: CultureTabIcon,   label: "Culture"   },
 
 ];
 
