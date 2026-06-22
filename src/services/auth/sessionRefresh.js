@@ -18,7 +18,7 @@
 //       AuthContext owns all sign-out logic exclusively.
 // ============================================================================
 
-"use strict";
+
 
 import { supabase } from "../config/supabase";
 

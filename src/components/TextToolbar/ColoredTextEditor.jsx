@@ -127,7 +127,7 @@ function formatTextWithColors(text) {
     .map((line) => {
       // Match indented symbols (bullets, numbers, arrows)
       const symbolMatch = line.match(
-        /^(\s*)(•|→|←|↑|↓|★|✓|◆|○|▪|▸|↳|↲|⇒|⤷|\d+[.)\]])(  )/,
+        /^(\s*)(•|→|←|↑|↓|★|✓|◆|○|▪|▸|↳|↲|⇒|⤷|\d+[.)\]])( {2})/,
       );
 
       if (symbolMatch) {

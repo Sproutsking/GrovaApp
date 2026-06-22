@@ -302,6 +302,7 @@ const HomeView = ({
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
 
   const feedTabRef     = useRef(null);
+  const reelTabRef     = useRef(null);
   const newsTabRef     = useRef(null);
   const storyTabRef    = useRef(null);
   const cultureTabRef  = useRef(null);
@@ -594,7 +595,7 @@ const HomeView = ({
     const myId = user?.id || currentUserRef.current?.id;
     const u1 = realtimeService.subscribeToNewPosts(p => {
       if (p.user_id === myId) return;
-      if (postTabRef.current?.prependPost) postTabRef.current.prependPost(p);
+      if (feedTabRef.current?.prependPost) feedTabRef.current.prependPost(p);
       else setPosts(prev => prev.some(x => x.id===p.id) ? prev : [p, ...prev]);
     });
     const u2 = realtimeService.subscribeToNewReels(r => {

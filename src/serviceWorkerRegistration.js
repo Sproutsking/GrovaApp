@@ -25,7 +25,7 @@
 //   is ever saved to the database.
 // ============================================================================
 
-"use strict";
+
 
 export function register(config) {
   if (!("serviceWorker" in navigator)) {

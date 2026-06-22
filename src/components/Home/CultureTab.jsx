@@ -19,13 +19,8 @@
 //              Shows cross-category trending topics.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import React, {
-  useState, useEffect, useRef, useCallback, useMemo,
-} from "react";
-import {
-  Compass, RefreshCw, ChevronLeft, ChevronRight,
-  TrendingUp, BookOpen,
-} from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Compass, ChevronLeft, ChevronRight } from "lucide-react";
 import SectionHeader from "../Shared/SectionHeader";
 import PostCard from "./PostCard";
 import ReelCard from "./ReelCard";
@@ -109,7 +104,7 @@ const CultureTab = React.forwardRef(({
 
         setContent(off === 0 ? items : [...content, ...items]);
       setOffset(off + 20);
-      setHasMore(mockContent.length === 20);
+      setHasMore(items.length === 20);
     } catch (e) {
       console.error("[CultureTab] Load failed:", e.message);
     } finally {

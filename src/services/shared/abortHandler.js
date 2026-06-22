@@ -20,7 +20,7 @@
 //   - Zero external dependencies
 // ============================================================================
 
-"use strict";
+
 
 // ── 1. Exhaustive pattern list ────────────────────────────────────────────────
 // Every string variant observed across:

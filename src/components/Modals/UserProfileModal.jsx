@@ -305,8 +305,8 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
       // Parallel counts + follow status
       const [postsR, reelsR, storiesR, followersR, followingR] =
         await Promise.allSettled([
-          supabase.from("posts")  .select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
-          supabase.from("reels")  .select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
+          supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
+          supabase.from("reels").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("stories").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", targetId),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id",  targetId),
