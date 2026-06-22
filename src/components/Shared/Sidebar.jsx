@@ -10,49 +10,49 @@ const navItems = [
     id: "home",
     icon: Home,
     label: "Home",
-    color: "#a3e635",
-    bg: "rgba(132,204,22,0.15)",
-    glow: "rgba(132,204,22,0.35)",
+    color: "var(--accent)",
+    bg: "var(--accent-bg-soft)",
+    glow: "var(--accent-shadow)",
   },
   {
     id: "search",
     icon: Search,
     label: "Explore",
-    color: "#22d3ee",
-    bg: "rgba(6,182,212,0.12)",
-    glow: "rgba(6,182,212,0.35)",
+    color: "var(--brand-info)",
+    bg: "var(--brand-info-bg)",
+    glow: "var(--brand-info-shadow)",
   },
   {
     id: "create",
     icon: PlusSquare,
     label: "Create",
-    color: "#fbbf24",
-    bg: "rgba(245,158,11,0.12)",
-    glow: "rgba(245,158,11,0.35)",
+    color: "var(--brand-warning)",
+    bg: "var(--brand-warning-bg)",
+    glow: "var(--brand-warning-shadow)",
   },
   {
     id: "community",
     icon: Users,
     label: "Community",
-    color: "#a78bfa",
-    bg: "rgba(139,92,246,0.12)",
-    glow: "rgba(139,92,246,0.35)",
+    color: "var(--brand-purple)",
+    bg: "var(--brand-purple-bg)",
+    glow: "var(--brand-purple-shadow)",
   },
   {
     id: "wallet",
     icon: Wallet,
     label: "Wallet",
-    color: "#34d399",
-    bg: "rgba(16,185,129,0.12)",
-    glow: "rgba(16,185,129,0.35)",
+    color: "var(--brand-success)",
+    bg: "var(--brand-success-bg)",
+    glow: "var(--brand-success-shadow)",
   },
   {
     id: "menu",
     icon: LayoutGrid,
     label: "Menu",
-    color: "#94a3b8",
-    bg: "rgba(148,163,184,0.1)",
-    glow: "rgba(148,163,184,0.2)",
+    color: "var(--text-secondary)",
+    bg: "var(--surface-strong)",
+    glow: "var(--surface-border)",
     isMenu: true,
   },
 ];
@@ -95,9 +95,9 @@ const Sidebar = ({
                   strokeDasharray="40 142" strokeLinecap="round" />
                 <defs>
                   <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%"   stopColor="#84cc16" stopOpacity="0" />
-                    <stop offset="40%"  stopColor="#a3e635" stopOpacity="1" />
-                    <stop offset="100%" stopColor="#84cc16" stopOpacity="0" />
+                    <stop offset="0%"   stopColor="var(--accent)" stopOpacity="0" />
+                    <stop offset="40%"  stopColor="var(--accent-strong)" stopOpacity="1" />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -111,7 +111,7 @@ const Sidebar = ({
                     onError={(e) => {
                       e.target.style.display = "none";
                       e.target.parentElement.innerHTML =
-                        '<span style="font-size:26px;font-weight:900;color:#000;">X</span>';
+                        '<span style="font-size:26px;font-weight:900;color:var(--accent-contrast);">X</span>';
                     }}
                   />
                 </div>
@@ -127,9 +127,9 @@ const Sidebar = ({
           {/* Nav section label */}
           <SectionHeader
             icon={LayoutGrid}
-            iconColor="#94a3b8"
-            iconBg="rgba(148,163,184,0.08)"
-            iconBorder="rgba(148,163,184,0.12)"
+            iconColor="var(--text-secondary)"
+            iconBg="var(--surface)"
+            iconBorder="var(--surface-border)"
             title="Navigation"
             subtitle="Main app sidebar"
             className="sidebar-nav-header"
@@ -142,8 +142,8 @@ const Sidebar = ({
               const isActive  = activeTab === item.id;
               const isHovered = hoveredItem === item.id;
 
-              const iconColor = isActive || isHovered ? item.color : item.color + "99";
-              const iconBg    = isActive ? item.bg.replace("0.15", "0.22").replace("0.12", "0.2").replace("0.1", "0.18") : item.bg;
+              const iconColor = item.color;
+              const iconBg    = item.bg;
 
               if (item.isMenu) {
                 return (
@@ -161,7 +161,7 @@ const Sidebar = ({
                     <div className="icon-container"
                       style={{ background: isHovered ? iconBg : item.bg, borderRadius: 7 }}>
                       <div className={`icon-halo${isHovered ? " icon-halo-visible" : ""}`}
-                        style={{ background: `radial-gradient(circle, ${item.color}33 0%, transparent 70%)` }} />
+                        style={{ background: `radial-gradient(circle, ${item.bg} 0%, transparent 70%)` }} />
                       <Icon size={15} strokeWidth={2} color={iconColor} />
                     </div>
                     <span className="item-label" style={isHovered ? { color: item.color } : {}}>
@@ -189,15 +189,15 @@ const Sidebar = ({
                   }}
                 >
                   <div className={`item-glass${isActive || isHovered ? " item-glass-active" : ""}`}
-                    style={(isActive || isHovered) ? { borderColor: `${item.color}28` } : {}} />
+                    style={(isActive || isHovered) ? { borderColor: item.glow } : {}} />
                   {isActive && (
                     <>
                       <div className="active-beam"
-                        style={{ background: `linear-gradient(180deg, rgba(255,255,255,0.1), ${item.color}, rgba(255,255,255,0.1))`, boxShadow: `0 0 8px ${item.glow}, 0 0 18px ${item.color}33` }} />
+                        style={{ background: `linear-gradient(180deg, ${item.bg}, ${item.bg})`, boxShadow: `0 0 8px ${item.glow}` }} />
                       <div className="active-glow"
-                        style={{ background: `radial-gradient(ellipse at 0% 50%, ${item.color}20 0%, transparent 65%)` }} />
+                        style={{ background: `radial-gradient(ellipse at 0% 50%, ${item.bg} 0%, transparent 65%)` }} />
                       <div className="active-dot"
-                        style={{ background: item.color, boxShadow: `0 0 6px ${item.glow}, 0 0 12px ${item.color}55` }} />
+                        style={{ background: item.color, boxShadow: `0 0 6px ${item.glow}` }} />
                     </>
                   )}
                   <div className="icon-container"
@@ -205,10 +205,10 @@ const Sidebar = ({
                       background: isActive ? iconBg : isHovered ? item.bg : item.bg,
                       borderRadius: 7,
                       transition: "all 0.2s ease",
-                      boxShadow: (isActive || isHovered) ? `0 0 10px ${item.color}25` : "none",
+                      boxShadow: (isActive || isHovered) ? `0 0 10px ${item.glow}` : "none",
                     }}>
                     <div className={`icon-halo${isActive || isHovered ? " icon-halo-visible" : ""}`}
-                      style={{ background: `radial-gradient(circle, ${item.color}33 0%, transparent 70%)` }} />
+                      style={{ background: `radial-gradient(circle, ${item.bg} 0%, transparent 70%)` }} />
                     <Icon size={15} strokeWidth={isActive ? 2.5 : 2} color={iconColor} />
                   </div>
                   <span className="item-label"
@@ -264,8 +264,9 @@ const Sidebar = ({
           bottom: 0;
           width: 300px;
           overflow: hidden;
-          border-left: 1px solid rgba(255,255,255,0.08);
-          border-right: 1px solid rgba(255,255,255,0.06);
+          background: var(--bg);
+          border-left: 1px solid var(--surface-border);
+          border-right: 1px solid var(--surface-border);
           font-family: "Manrope", sans-serif;
           z-index: 50;
         }
@@ -273,32 +274,33 @@ const Sidebar = ({
         .ambient-bg {
           position: absolute;
           inset: 0;
-          background: #0a0a0a;
+          background: radial-gradient(circle, var(--accent) 0%, transparent 62%);
           overflow: hidden;
           pointer-events: none;
+          opacity: 0.3;
         }
         .ambient-orb {
           position: absolute;
           border-radius: 50%;
           filter: blur(70px);
-          opacity: 0.45;
+          opacity: 0.35;
           animation: orbFloat 20s ease-in-out infinite;
           pointer-events: none;
         }
         .orb-1 {
           width: 280px; height: 280px;
-          background: radial-gradient(circle, #84cc16 0%, transparent 70%);
+          background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
           top: -120px; left: -100px;
         }
         .orb-2 {
           width: 220px; height: 220px;
-          background: radial-gradient(circle, #65a30d 0%, transparent 70%);
+          background: radial-gradient(circle, var(--accent-strong) 0%, transparent 70%);
           bottom: -80px; right: -70px;
           animation-delay: -7s;
         }
         .orb-3 {
           width: 180px; height: 180px;
-          background: radial-gradient(circle, #a3e635 0%, transparent 70%);
+          background: radial-gradient(circle, var(--accent-bg-strong) 0%, transparent 70%);
           top: 42%; left: 50%;
           transform: translate(-50%, -50%);
           animation-delay: -14s;
@@ -314,15 +316,15 @@ const Sidebar = ({
           height: 100%;
           display: flex;
           flex-direction: column;
-          background: rgba(12, 12, 12, 0.93);
+          background: var(--surface-strong);
           backdrop-filter: blur(24px) saturate(180%);
-          border-right: 1px solid rgba(132, 204, 22, 0.14);
+          border-right: 1px solid var(--surface-border);
           z-index: 1;
         }
 
         .top-accent-bar {
           height: 2px;
-          background: linear-gradient(90deg, #84cc16 0%, #a3e635 40%, transparent 100%);
+          background: var(--accent-gradient);
           flex-shrink: 0;
         }
 
@@ -332,15 +334,16 @@ const Sidebar = ({
           align-items: center;
           gap: 12px;
           padding: 14px 14px 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+          border-bottom: 1px solid var(--surface-border);
           flex-shrink: 0;
           overflow: hidden;
+          background: var(--surface);
         }
         .logo-backdrop {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, rgba(18,18,18,0.95), rgba(101,163,13,0.08));
-          border-bottom: 1px solid rgba(132, 204, 22, 0.18);
+          background: linear-gradient(135deg, var(--surface-overlay), var(--accent-bg-soft));
+          border-bottom: 1px solid var(--surface-border);
           pointer-events: none;
         }
         .logo-ring-wrap {
@@ -354,7 +357,7 @@ const Sidebar = ({
           width: calc(100% + 10px);
           height: calc(100% + 10px);
           animation: ringSpin 6s linear infinite;
-          filter: drop-shadow(0 0 3px rgba(132,204,22,0.6));
+          filter: drop-shadow(0 0 3px var(--accent-shadow));
         }
         @keyframes ringSpin { to { transform: rotate(360deg); } }
         .logo-wrapper {
@@ -365,7 +368,7 @@ const Sidebar = ({
         .logo-pulse {
           position: absolute;
           inset: -6px;
-          background: radial-gradient(circle, rgba(78,48,2,0.5), transparent 50%);
+          background: radial-gradient(circle, var(--accent-shadow), transparent 50%);
           border-radius: 50%;
           animation: logoPulse 3s ease-in-out infinite;
           pointer-events: none;
@@ -378,14 +381,14 @@ const Sidebar = ({
           position: relative;
           width: 48px; height: 48px;
           border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
+          background: linear-gradient(135deg, var(--accent), var(--accent-strong));
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #000;
+          color: var(--accent-contrast);
           overflow: hidden;
-          box-shadow: 0 0 0 1px rgba(132,204,22,0.3), 0 4px 18px rgba(132,204,22,0.35);
-          border: 1px solid rgba(80,49,3,0.6);
+          box-shadow: 0 0 0 1px var(--accent-border), 0 4px 18px var(--accent-shadow);
+          border: 1px solid var(--accent-border-strong);
         }
         .logo-image {
           width: 100%; height: 100%;
@@ -398,17 +401,14 @@ const Sidebar = ({
           font-weight: 800;
           margin: 0;
           letter-spacing: 1px;
-          background: linear-gradient(135deg, #fff 0%, #d4f08e 50%, #84cc16 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          color: var(--text);
         }
         .logo-text p {
           font-size: 8.5px;
           font-weight: 600;
           letter-spacing: 0.5px;
           margin: 2px 0 0;
-          color: #7a8a6a;
+          color: var(--text-secondary);
           text-transform: uppercase;
           font-family: "JetBrains Mono", monospace;
         }
@@ -423,16 +423,16 @@ const Sidebar = ({
         .nav-label-line {
           flex: 1;
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(132,204,22,0.3));
+          background: linear-gradient(90deg, transparent, var(--accent-border));
         }
         .nav-label-line:last-child {
-          background: linear-gradient(90deg, rgba(132,204,22,0.3), transparent);
+          background: linear-gradient(90deg, var(--accent-border), transparent);
         }
         .nav-label-text {
           font-size: 8.5px;
           font-weight: 700;
           letter-spacing: 1.4px;
-          color: rgba(132, 204, 22, 0.55);
+          color: var(--text-secondary);
           white-space: nowrap;
           font-family: "JetBrains Mono", monospace;
         }
@@ -453,10 +453,10 @@ const Sidebar = ({
           align-items: center;
           gap: 11px;
           padding: 9px 10px;
-          background: transparent;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 8px;
-          color: #7a7a7a;
+          color: var(--text-secondary);
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
@@ -467,14 +467,14 @@ const Sidebar = ({
           text-align: left;
           font-family: "Manrope", sans-serif;
           flex-shrink: 0;
-          /* ── 3px gap between items — tight but breathable ── */
           margin-bottom: 3px;
         }
         @keyframes itemSlide {
           from { opacity: 0; transform: translateX(-20px); }
         }
         .nav-item:hover:not(.nav-item-active) {
-          border-color: rgba(255,255,255,0.1);
+          border-color: var(--surface-border);
+          background: var(--surface-strong);
           transform: translateX(2px);
         }
 
@@ -489,8 +489,8 @@ const Sidebar = ({
         .item-glass-active {
           opacity: 1;
           background: linear-gradient(105deg,
-            rgba(255,255,255,0.05) 0%,
-            rgba(255,255,255,0.02) 60%,
+            var(--surface-highlight) 0%,
+            var(--surface-highlight-strong) 60%,
             transparent 100%
           );
         }
@@ -558,7 +558,7 @@ const Sidebar = ({
         .hover-shimmer {
           position: absolute;
           top: 0; left: -100%; width: 100%; height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+          background: linear-gradient(90deg, transparent, var(--surface-highlight-strong), transparent);
           animation: shimmer 1.1s ease-in-out;
           pointer-events: none;
         }
@@ -567,14 +567,15 @@ const Sidebar = ({
         .footer-section {
           position: relative;
           padding: 10px 8px 12px;
-          border-top: 1px solid rgba(255,255,255,0.07);
+          border-top: 1px solid var(--surface-border);
+          background: var(--surface);
           flex-shrink: 0;
           overflow: hidden;
         }
         .footer-glass {
           position: absolute;
           inset: 0;
-          background: rgba(132, 204, 22, 0.04);
+          background: var(--surface-highlight);
           pointer-events: none;
         }
         .social-grid {
@@ -586,13 +587,13 @@ const Sidebar = ({
           gap: 8px;
         }
         .footer-title {
-          background: rgba(255,255,255,0.05);
+          background: var(--surface);
           padding: 3px 10px;
           border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.08);
+          border: 1px solid var(--surface-border);
           font-size: 11px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--text-secondary);
           margin: 0;
           font-family: "Manrope", sans-serif;
         }
@@ -600,22 +601,22 @@ const Sidebar = ({
         .social-item {
           width: 38px; height: 38px;
           border-radius: 10px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #555;
+          color: var(--text-secondary);
           font-size: 16px;
           cursor: pointer;
           transition: all 0.25s cubic-bezier(0.34, 1.1, 0.64, 1);
         }
         .social-item:hover {
-          background: rgba(132, 204, 22, 0.12);
-          border-color: rgba(132, 204, 22, 0.35);
-          color: #a3e635;
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border);
+          color: var(--accent);
           transform: translateY(-3px) scale(1.05);
-          box-shadow: 0 6px 16px rgba(132, 204, 22, 0.18);
+          box-shadow: 0 6px 16px var(--accent-shadow);
         }
       `}</style>
     </>

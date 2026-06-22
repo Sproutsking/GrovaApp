@@ -10,9 +10,9 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    background: #0f0f0f;
-    border-left: 1px solid rgba(255,255,255,0.1);
-    border-right: 1px solid rgba(255,255,255,0.1);
+    background: var(--bg);
+    border-left: 1px solid var(--surface-border);
+    border-right: 1px solid var(--surface-border);
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -30,11 +30,12 @@ const STYLES = `
 
   .xv-logo {
     padding: 18px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid var(--surface-border);
     display: flex;
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
+    background: var(--surface);
   }
 
   .xv-logo-icon {
@@ -46,14 +47,14 @@ const STYLES = `
     justify-content: center;
     font-size: 18px;
     font-weight: 900;
-    color: #000;
+    color: var(--accent-contrast);
     flex-shrink: 0;
   }
 
   .xv-logo-name {
     font-size: 16px;
     font-weight: 800;
-    color: #f0f0f0;
+    color: var(--text);
     letter-spacing: 0.5px;
     line-height: 1.1;
   }
@@ -80,7 +81,7 @@ const STYLES = `
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #6b7280;
+    color: var(--text-secondary);
     padding: 0 10px 8px;
     font-family: 'DM Mono', monospace;
   }
@@ -93,9 +94,9 @@ const STYLES = `
     gap: 11px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: transparent;
-    border: 1px solid transparent;
-    color: #9ca3af;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    color: var(--text-secondary);
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
@@ -107,8 +108,9 @@ const STYLES = `
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .xv-nav-btn:hover {
-    background: rgba(255,255,255,0.07);
-    color: #f0f0f0;
+    background: var(--surface-strong);
+    color: var(--text);
+    border-color: var(--surface-border);
   }
   .xv-nav-btn--active { font-weight: 700; }
 
@@ -142,9 +144,9 @@ const STYLES = `
     gap: 11px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.12);
-    color: #9ca3af;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    color: var(--text-secondary);
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
@@ -154,9 +156,9 @@ const STYLES = `
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .xv-menu-btn:hover {
-    background: rgba(255,255,255,0.07);
-    color: #f0f0f0;
-    border-color: rgba(255,255,255,0.2);
+    background: var(--surface-strong);
+    color: var(--text);
+    border-color: var(--surface-border);
   }
 
   .xv-admin-btn {
@@ -172,6 +174,9 @@ const STYLES = `
     transition: background 0.15s, box-shadow 0.15s;
     text-align: left;
     font-family: 'Syne', sans-serif;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    color: var(--text);
   }
   .xv-admin-btn:hover { filter: brightness(1.1); }
   .xv-admin-btn-label { flex: 1; }
@@ -179,7 +184,8 @@ const STYLES = `
 
   .xv-footer {
     padding: 12px 12px 18px;
-    border-top: 1px solid rgba(255,255,255,0.1);
+    border-top: 1px solid var(--surface-border);
+    background: var(--surface);
     flex-shrink: 0;
   }
 
@@ -188,7 +194,7 @@ const STYLES = `
     align-items: center;
     gap: 11px;
     padding: 12px;
-    background: rgba(255,255,255,0.07);
+    background: var(--surface-strong);
     border-radius: 12px;
     margin-bottom: 10px;
   }
@@ -208,7 +214,7 @@ const STYLES = `
   .xv-profile-name {
     font-size: 13px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -221,6 +227,7 @@ const STYLES = `
     letter-spacing: 0.04em;
     margin-top: 3px;
     font-family: 'DM Mono', monospace;
+    color: var(--text-secondary);
   }
 
   .xv-signout-btn {
@@ -230,10 +237,10 @@ const STYLES = `
     justify-content: center;
     gap: 8px;
     padding: 10px;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: 10px;
-    color: #888;
+    color: var(--text-secondary);
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
@@ -241,16 +248,16 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
   }
   .xv-signout-btn:hover {
-    background: rgba(239,68,68,0.12);
-    color: #f87171;
-    border-color: rgba(239,68,68,0.35);
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: var(--danger-border);
   }
 
   .xv-credits {
     text-align: center;
     margin-top: 12px;
     font-size: 9.5px;
-    color: #4b5563;
+    color: var(--text-secondary);
     letter-spacing: 0.06em;
     font-style: italic;
     font-family: 'DM Mono', monospace;
@@ -261,10 +268,10 @@ const STYLES = `
 // ROLE CONFIG
 // ─────────────────────────────────────────────
 const ROLE_CONFIG = {
-  ceo_owner: { label: "CEO / Owner", color: "#f59e0b", glow: "rgba(245,158,11,0.3)"  },
-  a_admin:   { label: "Admin A",     color: "#a3e635", glow: "rgba(163,230,53,0.3)"  },
-  b_admin:   { label: "Admin B",     color: "#60a5fa", glow: "rgba(96,165,250,0.3)"  },
-  support:   { label: "Support",     color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
+  ceo_owner: { label: "CEO / Owner", color: "var(--brand-warning)", bg: "var(--brand-warning-bg)", border: "var(--brand-warning-border)", glow: "var(--brand-warning-shadow)" },
+  a_admin:   { label: "Admin A",     color: "var(--accent)", bg: "var(--accent-bg-soft)", border: "var(--accent-border)", glow: "var(--accent-shadow)" },
+  b_admin:   { label: "Admin B",     color: "var(--brand-info)", bg: "var(--brand-info-bg)", border: "var(--brand-info-border)", glow: "var(--brand-info-shadow)" },
+  support:   { label: "Support",     color: "var(--brand-purple)", bg: "var(--brand-purple-bg)", border: "var(--brand-purple-border)", glow: "var(--brand-purple-shadow)" },
 };
 
 // ─────────────────────────────────────────────
@@ -275,43 +282,43 @@ const NAV_ITEMS = [
   {
     id: "home",
     label: "Home",
-    iconColor: "#a3e635",
-    iconBg: "rgba(132,204,22,0.13)",
+    iconColor: "var(--accent)",
+    iconBg: "var(--accent-bg-soft)",
     icon: HomeIcon,
   },
   {
     id: "search",
     label: "Explore",
-    iconColor: "#22d3ee",
-    iconBg: "rgba(6,182,212,0.11)",
+    iconColor: "var(--brand-info)",
+    iconBg: "var(--brand-info-bg)",
     icon: SearchIcon,
   },
   {
     id: "create",
     label: "Create",
-    iconColor: "#fbbf24",
-    iconBg: "rgba(245,158,11,0.11)",
+    iconColor: "var(--brand-warning)",
+    iconBg: "var(--brand-warning-bg)",
     icon: PlusSquareIcon,
   },
   {
     id: "community",
     label: "Community",
-    iconColor: "#a78bfa",
-    iconBg: "rgba(139,92,246,0.11)",
+    iconColor: "var(--brand-purple)",
+    iconBg: "var(--brand-purple-bg)",
     icon: UsersIcon,
   },
   {
     id: "wallet",
     label: "Wallet",
-    iconColor: "#34d399",
-    iconBg: "rgba(16,185,129,0.11)",
+    iconColor: "var(--brand-success)",
+    iconBg: "var(--brand-success-bg)",
     icon: WalletIcon,
   },
   {
     id: "account",
     label: "Account",
-    iconColor: "#fb7185",
-    iconBg: "rgba(251,113,133,0.11)",
+    iconColor: "var(--brand-pink)",
+    iconBg: "var(--brand-pink-bg)",
     icon: UserIcon,
   },
 ];
@@ -372,7 +379,7 @@ function UserIcon({ color, strokeWidth = 2 }) {
 }
 function MenuGridIcon() {
   return (
-    <svg style={{ width: 15, height: 15 }} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ width: 15, height: 15 }} viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1"/>
       <rect x="14" y="3" width="7" height="7" rx="1"/>
       <rect x="3" y="14" width="7" height="7" rx="1"/>
@@ -483,9 +490,9 @@ export default function AdminSidebar({
           <SectionHeader
             className="xv-section-header"
             icon={MenuGridIcon}
-            iconColor="#94a3b8"
-            iconBg="rgba(148,163,184,0.06)"
-            iconBorder="rgba(148,163,184,0.12)"
+            iconColor="var(--text-secondary)"
+            iconBg="var(--surface)"
+            iconBorder="var(--surface-border)"
             title="Navigation"
             subtitle="Admin console links"
           />
@@ -496,7 +503,7 @@ export default function AdminSidebar({
 
             // Active → role color. Inactive → item's own personality color.
             const iconColor = isActive ? role.color : item.iconColor;
-            const iconBg    = isActive ? `${role.color}20` : item.iconBg;
+            const iconBg    = isActive ? role.bg : item.iconBg;
             const iconGlow  = isActive ? `0 0 10px ${role.glow}` : "none";
 
             return (
@@ -504,8 +511,8 @@ export default function AdminSidebar({
                 key={item.id}
                 className={`xv-nav-btn${isActive ? " xv-nav-btn--active" : ""}`}
                 style={isActive ? {
-                  background:  `${role.color}15`,
-                  border:      `1px solid ${role.color}35`,
+                  background:  role.bg,
+                  border:      `1px solid ${role.border}`,
                   color:       role.color,
                 } : {}}
                 onClick={() => setActiveTab(item.id)}
@@ -540,7 +547,7 @@ export default function AdminSidebar({
             onMouseLeave={() => setHovered(null)}
             aria-label="Open menu"
           >
-            <div className="xv-icon-wrap" style={{ background: "rgba(148,163,184,0.09)" }}>
+            <div className="xv-icon-wrap" style={{ background: "var(--surface)" }}>
               <MenuGridIcon />
             </div>
             <span>Menu</span>
