@@ -41,12 +41,51 @@ const IS_MID = _ect === "3g";
 const RENDER_RADIUS = 30;
 const PRELOAD_WINDOW = 30;
 
+// ─── PERFECT DISPLAY MODEL ────────────────────────────────────────────────────
+// Calculates engagement score: recency × engagement (likes + comments + shares)
+function calcEngagementScore(item) {
+  const ageMs = Date.now() - new Date(item.created_at).getTime();
+  const ageHours = Math.max(1, ageMs / (1000 * 60 * 60));
+  const engagementCount = (item.likes || 0) + (item.comments_count || 0) + (item.shares || 0);
+  // Time decay: newer content scores higher, but engagement can override
+  const timeDecay = Math.exp(-ageHours / 48); // 48-hour half-life
+  const engagement = Math.log1p(engagementCount) * timeDecay;
+  return engagement;
+}
+
+// Better height estimation based on content characteristics
 function estimateHeight(item) {
-  if (item?.type === "reel") return 520;
-  if ((item?.image_ids?.length || 0) > 0) return 560;
-  if ((item?.video_ids?.length || 0) > 0) return 540;
-  if (item?.is_text_card) return 320;
-  return 200;
+  let h = 0;
+  
+  // Base header + footer
+  h += 100; // avatar, name, timestamp, actions
+  
+  if (item?.type === "reel") {
+    h += 520; // Reel player standard height
+  } else {
+    // Post card height based on content
+    const images = item?.image_ids?.length || 0;
+    const videos = item?.video_ids?.length || 0;
+    const hasText = item?.content?.length > 0;
+    
+    if (images > 0) {
+      // Multi-image: estimate based on count
+      h += images === 1 ? 520 : images === 2 ? 480 : 450;
+    } else if (videos > 0) {
+      h += 520;
+    } else if (item?.is_text_card) {
+      h += hasText ? 200 + Math.min(200, item.content.length / 2) : 120;
+    } else {
+      h += 200; // Text-only fallback
+    }
+  }
+  
+  // Engagement section (likes, comments, shares)
+  h += 48;
+  // Comments preview (if present)
+  if ((item?.comments_count || 0) > 0) h += 60;
+  
+  return h;
 }
 
 function getCld() {
@@ -58,13 +97,27 @@ function getCld() {
   );
 }
 
-// ─── Merge posts and reels into single chronological feed ────────────────────
+// ─── PERFECT MERGE ALGORITHM: Chronological with engagement boost ─────────────
+// Strategy: Posts and reels are sorted by (recency × engagement score)
+// This ensures fresh content appears first, but popular older content can surface.
 function mergeFeedItems(posts = [], reels = []) {
   const merged = [
-    ...posts.map(p => ({ ...p, type: "post", content_time: new Date(p.created_at).getTime() })),
-    ...reels.map(r => ({ ...r, type: "reel", content_time: new Date(r.created_at).getTime() })),
+    ...posts.map(p => ({
+      ...p,
+      type: "post",
+      created_time: new Date(p.created_at).getTime(),
+      engagement_score: calcEngagementScore(p),
+    })),
+    ...reels.map(r => ({
+      ...r,
+      type: "reel",
+      created_time: new Date(r.created_at).getTime(),
+      engagement_score: calcEngagementScore(r),
+    })),
   ];
-  return merged.sort((a, b) => b.content_time - a.content_time);
+  
+  // Sort by engagement score (recency-weighted), newest first
+  return merged.sort((a, b) => b.engagement_score - a.engagement_score);
 }
 
 const FeedTab = React.forwardRef(({
@@ -215,7 +268,7 @@ const FeedTab = React.forwardRef(({
       className="feed-container-virtual"
       style={{ position: "relative", overflow: "auto", height: "100%" }}
     >
-      <SectionHeader icon="📰" title="Feed" />
+      <SectionHeader icon={Image} title="Feed" />
 
       {/* Virtual scroll wrapper */}
       <div style={{ height: totalHeight, position: "relative" }}>

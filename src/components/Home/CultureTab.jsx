@@ -122,7 +122,7 @@ const CultureTab = React.forwardRef(({
   return (
     <div className="culture-tab">
       {/* Section header */}
-      <SectionHeader icon="🌍" title="Culture" />
+      <SectionHeader icon={Compass} title="Culture" />
 
       {/* Category pills with navigation */}
       <div className="culture-header">
