@@ -23,7 +23,7 @@ import React, {
   useState, useCallback, useRef, useEffect, useImperativeHandle,
   useMemo, useLayoutEffect,
 } from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Image } from "lucide-react";
 import PostCard from "./PostCard";
 import ReelCard from "./ReelCard";
 import SectionHeader from "../Shared/SectionHeader";
