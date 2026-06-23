@@ -374,13 +374,14 @@ html.theme-light .story-lock-floating,
 html.theme-light .story-content-section,
 [data-theme="light"] .story-content-section,
 [data-light-theme="true"] .story-content-section {
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
 }
 
 html.theme-light .story-author-header,
 [data-theme="light"] .story-author-header,
 [data-light-theme="true"] .story-author-header {
-  border-bottom-color: rgba(148, 163, 184, 0.16);
+  border-bottom: 1.5px solid #e5e7eb !important;
+  background: rgba(248, 250, 252, 0.5) !important;
 }
 
 html.theme-light .story-title-premium,
@@ -453,7 +454,8 @@ html.theme-light .content-card,
 html.theme-light .nc-source-name,
 [data-theme="light"] .nc-source-name,
 [data-light-theme="true"] .nc-source-name {
-  color: #0f172a;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 
 html.theme-light .nc-ts,
@@ -462,15 +464,17 @@ html.theme-light .nc-ts,
 html.theme-light .nc-region,
 [data-theme="light"] .nc-region,
 [data-light-theme="true"] .nc-region {
-  color: #64748b;
+  color: #0f172a !important;
+  font-weight: 500 !important;
 }
 
 html.theme-light .nc-live-badge,
 [data-theme="light"] .nc-live-badge,
 [data-light-theme="true"] .nc-live-badge {
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.25);
-  color: #b91c1c;
+  background: rgba(248, 113, 113, 0.16) !important;
+  border: 1.5px solid rgba(248, 113, 113, 0.35) !important;
+  color: #991b1b !important;
+  font-weight: 700 !important;
 }
 
 html.theme-light .nc-img-wrap,
@@ -509,6 +513,17 @@ html.theme-light .nc-btn-read,
   border: 1.5px solid #84cc16 !important;
   color: #84cc16 !important;
   font-weight: 700 !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+html.theme-light .nc-btn-read:hover,
+[data-theme="light"] .nc-btn-read:hover,
+[data-light-theme="true"] .nc-btn-read:hover {
+  background: rgba(132, 204, 22, 0.2) !important;
+  border-color: #84cc16 !important;
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.18) !important;
 }
 
 html.theme-light .nc-btn-share,
@@ -518,6 +533,18 @@ html.theme-light .nc-btn-share,
   border: 1.5px solid #d1d5db !important;
   color: #0f172a !important;
   font-weight: 600 !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+html.theme-light .nc-btn-share:hover,
+[data-theme="light"] .nc-btn-share:hover,
+[data-light-theme="true"] .nc-btn-share:hover {
+  background: #e5e7eb !important;
+  border-color: #84cc16 !important;
+  color: #84cc16 !important;
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.12) !important;
 }
 
 html.theme-light .nc-btn-src,
@@ -587,9 +614,9 @@ html.theme-light .rp-panel--horizontal,
 html.theme-light .rp-btn,
 [data-theme="light"] .rp-btn,
 [data-light-theme="true"] .rp-btn {
-  background: #f3f4f6 !important;
+  background: transparent !important;
   color: #0f172a !important;
-  border: 1.5px solid #d1d5db !important;
+  border: none !important;
   font-weight: 600 !important;
   padding: 8px 12px !important;
   border-radius: 8px !important;
@@ -611,16 +638,16 @@ html.theme-light .rp-btn:focus,
 html.theme-light .rp-btn:hover:not(:disabled),
 [data-theme="light"] .rp-btn:hover:not(:disabled),
 [data-light-theme="true"] .rp-btn:hover:not(:disabled) {
-  background: #e5e7eb !important;
+  background: rgba(132, 204, 22, 0.08) !important;
   color: #84cc16 !important;
-  border-color: #84cc16 !important;
-  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.15) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(132, 204, 22, 0.12) !important;
 }
 
 html.theme-light .rp-btn:active:not(:disabled),
 [data-theme="light"] .rp-btn:active:not(:disabled),
 [data-light-theme="true"] .rp-btn:active:not(:disabled) {
-  background: #d1d5db !important;
+  background: rgba(132, 204, 22, 0.12) !important;
   transform: scale(0.98) !important;
 }
 
@@ -841,4 +868,80 @@ html.theme-light ::-webkit-scrollbar-thumb:hover,
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover,
 [data-light-theme="true"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 23, 42, 0.28);
+}
+
+/* ── NewsCard Footer & Complete Styling ────────────────────────────────── */
+html.theme-light .nc-footer,
+[data-theme="light"] .nc-footer,
+[data-light-theme="true"] .nc-footer {
+  display: flex !important;
+  gap: 8px !important;
+  padding: 12px 14px !important;
+  background: rgba(248, 250, 252, 0.92) !important;
+  border-top: 1.5px solid #e5e7eb !important;
+  justify-content: flex-end !important;
+}
+
+html.theme-light .nc-btn-src,
+[data-theme="light"] .nc-btn-src,
+[data-light-theme="true"] .nc-btn-src {
+  background: #f3f4f6 !important;
+  border: 1.5px solid #d1d5db !important;
+  color: #0f172a !important;
+  font-weight: 600 !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+html.theme-light .nc-btn-src:hover,
+[data-theme="light"] .nc-btn-src:hover,
+[data-light-theme="true"] .nc-btn-src:hover {
+  background: #e5e7eb !important;
+  border-color: #84cc16 !important;
+  color: #84cc16 !important;
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.12) !important;
+}
+
+/* ── StoryCard Footer & Complete Styling ─────────────────────────────── */
+html.theme-light .story-footer,
+[data-theme="light"] .story-footer,
+[data-light-theme="true"] .story-footer,
+html.theme-light .story-action-footer,
+[data-theme="light"] .story-action-footer,
+[data-light-theme="true"] .story-action-footer {
+  display: flex !important;
+  gap: 8px !important;
+  padding: 12px 14px !important;
+  background: rgba(248, 250, 252, 0.92) !important;
+  border-top: 1.5px solid #e5e7eb !important;
+  justify-content: space-between !important;
+}
+
+html.theme-light .story-unlock-btn,
+[data-theme="light"] .story-unlock-btn,
+[data-light-theme="true"] .story-unlock-btn,
+html.theme-light .story-action-btn,
+[data-theme="light"] .story-action-btn,
+[data-light-theme="true"] .story-action-btn {
+  background: rgba(132, 204, 22, 0.12) !important;
+  border: 1.5px solid #84cc16 !important;
+  color: #84cc16 !important;
+  font-weight: 700 !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+html.theme-light .story-unlock-btn:hover,
+[data-theme="light"] .story-unlock-btn:hover,
+[data-light-theme="true"] .story-unlock-btn:hover,
+html.theme-light .story-action-btn:hover,
+[data-theme="light"] .story-action-btn:hover,
+[data-light-theme="true"] .story-action-btn:hover {
+  background: rgba(132, 204, 22, 0.2) !important;
+  border-color: #84cc16 !important;
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.18) !important;
+  transform: translateY(-1px) !important;
 }
