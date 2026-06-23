@@ -20,7 +20,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Compass, ChevronLeft, ChevronRight } from "lucide-react";
+import { Compass, ChevronDown } from "lucide-react";
 import SectionHeader from "../Shared/SectionHeader";
 import PostCard from "./PostCard";
 import ReelCard from "./ReelCard";
@@ -65,7 +65,8 @@ const CultureTab = React.forwardRef(({
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
-  const categoryScrollRef = useRef(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   // ── Load culture content for a category ────────────────────────────────────
   useEffect(() => {
@@ -112,52 +113,59 @@ const CultureTab = React.forwardRef(({
     }
   }, [content]);
 
-  // ── Scroll category pills ──────────────────────────────────────────────────
-  const scrollCategories = useCallback((direction) => {
-    if (!categoryScrollRef.current) return;
-    const scroll = direction === "left" ? -200 : 200;
-    categoryScrollRef.current.scrollBy({ left: scroll, behavior: "smooth" });
-  }, []);
+  // ── Close dropdown on outside click ────────────────────────────────────────
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [dropdownOpen]);
 
   return (
     <div className="culture-tab">
       {/* Section header */}
       <SectionHeader icon={Compass} title="Culture" />
 
-      {/* Category pills with navigation */}
+      {/* Category dropdown — premium top-right positioning */}
       <div className="culture-header">
-        <button
-          className="cat-scroll-btn cat-scroll-left"
-          onClick={() => scrollCategories("left")}
-          aria-label="Scroll categories left"
-        >
-          <ChevronLeft size={18} />
-        </button>
+        <div className="culture-dropdown-wrapper" ref={dropdownRef}>
+          <button
+            className="culture-dropdown-trigger"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            aria-expanded={dropdownOpen}
+          >
+            <span className="culture-dropdown-label">
+              {CULTURE_CATEGORIES.find(c => c.id === selectedCategory)?.emoji} {CULTURE_CATEGORIES.find(c => c.id === selectedCategory)?.name}
+            </span>
+            <ChevronDown size={16} className={`culture-dropdown-icon ${dropdownOpen ? "open" : ""}`} />
+          </button>
 
-        <div className="culture-categories-scroll" ref={categoryScrollRef}>
-          {CULTURE_CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              className={`culture-cat-pill ${selectedCategory === cat.id ? "active" : ""}`}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-                setContent([]);
-                setOffset(0);
-              }}
-            >
-              <span className="cat-emoji">{cat.emoji}</span>
-              <span className="cat-name">{cat.name}</span>
-            </button>
-          ))}
+          {dropdownOpen && (
+            <div className="culture-dropdown-menu">
+              {CULTURE_CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`culture-dropdown-item ${selectedCategory === cat.id ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedCategory(cat.id);
+                    setContent([]);
+                    setOffset(0);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  <span className="cat-emoji">{cat.emoji}</span>
+                  <span className="cat-name">{cat.name}</span>
+                  {selectedCategory === cat.id && <span className="checkmark">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-
-        <button
-          className="cat-scroll-btn cat-scroll-right"
-          onClick={() => scrollCategories("right")}
-          aria-label="Scroll categories right"
-        >
-          <ChevronRight size={18} />
-        </button>
       </div>
 
       {/* Content feed */}
@@ -229,6 +237,7 @@ const CultureTab = React.forwardRef(({
         .culture-header {
           display: flex;
           align-items: center;
+          justify-content: flex-end;
           gap: 10px;
           padding: 16px;
           background: rgba(255,255,255,0.02);
@@ -236,73 +245,146 @@ const CultureTab = React.forwardRef(({
           margin-bottom: 16px;
         }
 
-        .cat-scroll-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(132,204,22,0.1);
-          border: 1px solid rgba(132,204,22,0.3);
-          color: #84cc16;
-          cursor: pointer;
+        /* ═══════════════════════════════════════════════════════════
+           CULTURE DROPDOWN — Premium Top-Right Menu
+        ═══════════════════════════════════════════════════════════ */
+        .culture-dropdown-wrapper {
+          position: relative;
+          z-index: 100;
+        }
+
+        .culture-dropdown-trigger {
           display: flex;
           align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-
-        .cat-scroll-btn:hover {
-          background: rgba(132,204,22,0.2);
-          transform: scale(1.05);
-        }
-
-        .culture-categories-scroll {
-          flex: 1;
-          display: flex;
           gap: 8px;
-          overflow-x: auto;
-          scroll-behavior: smooth;
-          padding: 4px 0;
-          -webkit-overflow-scrolling: touch;
+          padding: 10px 16px;
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.15), rgba(101, 163, 13, 0.08));
+          border: 1px solid rgba(132, 204, 22, 0.4);
+          border-radius: 12px;
+          color: #84cc16;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
         }
 
-        .culture-categories-scroll::-webkit-scrollbar {
-          display: none;
+        .culture-dropdown-trigger:hover {
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.22), rgba(101, 163, 13, 0.12));
+          border-color: rgba(132, 204, 22, 0.6);
+          transform: translateY(-1px);
         }
 
-        .culture-cat-pill {
+        .culture-dropdown-trigger:active {
+          transform: translateY(0);
+        }
+
+        .culture-dropdown-label {
           display: flex;
           align-items: center;
           gap: 6px;
-          padding: 8px 14px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 20px;
-          color: rgba(255,255,255,0.7);
+        }
+
+        .culture-dropdown-icon {
+          transition: transform 0.3s ease;
+          width: 16px;
+          height: 16px;
+        }
+
+        .culture-dropdown-icon.open {
+          transform: rotate(180deg);
+        }
+
+        .culture-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          background: rgba(20, 24, 35, 0.98);
+          border: 1px solid rgba(132, 204, 22, 0.3);
+          border-radius: 14px;
+          box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(12px);
+          max-height: 400px;
+          overflow-y: auto;
+          width: 220px;
+          z-index: 101;
+          animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .culture-dropdown-menu::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .culture-dropdown-menu::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .culture-dropdown-menu::-webkit-scrollbar-thumb {
+          background: rgba(132, 204, 22, 0.3);
+          border-radius: 3px;
+        }
+
+        .culture-dropdown-menu::-webkit-scrollbar-thumb:hover {
+          background: rgba(132, 204, 22, 0.5);
+        }
+
+        .culture-dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 12px 16px;
+          background: transparent;
+          border: none;
+          border-left: 3px solid transparent;
+          color: rgba(255, 255, 255, 0.65);
+          font-size: 13px;
+          font-weight: 500;
           cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.2s;
-          flex-shrink: 0;
+          transition: all 0.15s ease;
+          text-align: left;
         }
 
-        .culture-cat-pill:hover {
-          background: rgba(255,255,255,0.08);
-          color: #fff;
+        .culture-dropdown-item:hover {
+          background: rgba(132, 204, 22, 0.1);
+          color: rgba(255, 255, 255, 0.95);
+          padding-left: 14px;
         }
 
-        .culture-cat-pill.active {
-          background: rgba(132,204,22,0.2);
-          border-color: rgba(132,204,22,0.5);
+        .culture-dropdown-item.active {
+          background: rgba(132, 204, 22, 0.15);
+          border-left-color: #84cc16;
           color: #84cc16;
+        }
+
+        .culture-dropdown-item .checkmark {
+          margin-left: auto;
+          font-weight: 700;
+          font-size: 14px;
         }
 
         .cat-emoji {
           font-size: 16px;
+          min-width: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .cat-name {
-          font-size: 12px;
-          font-weight: 600;
+          font-size: 13px;
+          font-weight: 500;
         }
 
         .culture-feed {

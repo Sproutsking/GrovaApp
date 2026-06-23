@@ -118,6 +118,12 @@ function buildVideoUrl(id) {
   const cld = getCldCloud();
   const out = [];
 
+  if (cld) {
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_auto,f_mp4/${clean}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_${q},f_mp4/${clean}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/${clean}.mp4`);
+  }
+
   try {
     const raw = mediaUrlService.getVideoUrl(clean, { quality:q, format:"mp4" });
     if (raw && typeof raw === "string" && raw.startsWith("http")) {
@@ -128,10 +134,6 @@ function buildVideoUrl(id) {
     }
   } catch {}
 
-  if (cld) {
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_${q},f_mp4/${clean}.mp4`);
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/${clean}.mp4`);
-  }
   if (clean.startsWith("http")) out.push(clean);
 
   return [...new Set(out)];
@@ -440,11 +442,10 @@ const ReelStyleVideo = ({ item, idx, isActive, inVP, muted, onMuteToggle }) => {
     else { setVidFail(true); hookError(); }
   }, [vidIdx, item.candidates.length, hookError]);
 
-  // Proximity-aware preload:
+  // Proximity-aware preload (match ReelCard strategy):
   //   in viewport + active  → buffer (preload="auto")
-  //   adjacent carousel     → metadata only
-  //   outside viewport      → none  (VideoPreloadRunway already got metadata)
-  const preload  = !inVP ? "none" : isActive ? "auto" : idx === 1 ? "metadata" : "none";
+  //   otherwise             → metadata (ensure quick availability like reels)
+  const preload = inVP && isActive ? "auto" : "metadata";
   const src      = item.candidates[vidIdx];
 
   return (
@@ -675,10 +676,14 @@ const PostCard = ({
     return unsub;
   }, []);
 
-  // Viewport detection for video autoplay
+  // Viewport detection for video autoplay — match ReelCard sensitivity
   useEffect(() => {
     if (!contRef.current) return;
-    const obs = new IntersectionObserver(([e]) => setInVP(e.isIntersecting), { threshold:0.4 });
+    const obs = new IntersectionObserver((entries) => {
+      const e = entries[0];
+      const visible = e.isIntersecting && e.intersectionRatio >= 0.75;
+      setInVP(visible);
+    }, { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: "-10% 0px -10% 0px" });
     obs.observe(contRef.current);
     return () => { if (contRef.current) obs.unobserve(contRef.current); }; // eslint-disable-line
   }, []);

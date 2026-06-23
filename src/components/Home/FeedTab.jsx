@@ -29,7 +29,11 @@ import ReelCard from "./ReelCard";
 import SectionHeader from "../Shared/SectionHeader";
 import FullScreenPost from "./FullScreenPost";
 import FullScreenReels from "./FullScreenReels";
-import mediaUrlService from "../../services/shared/mediaUrlService";
+import {
+  preloadFirstPaintImages,
+  preloadBatch,
+  VideoPreloadRunway,
+} from "./preloadEngine";
 
 // ─── Connection profile ───────────────────────────────────────────────────────
 const _conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection;
@@ -144,6 +148,12 @@ const FeedTab = React.forwardRef(({
   const observerRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const heightsRef = useRef({});
+
+  useEffect(() => {
+    if (!feedItems.length) return;
+    preloadFirstPaintImages(feedItems);
+    preloadBatch(feedItems, anchorIdx);
+  }, [feedItems, anchorIdx]);
 
   // ── Visible window ─────────────────────────────────────────────────────────
   const visibleStart = Math.max(0, anchorIdx - RENDER_RADIUS);
@@ -367,6 +377,7 @@ const FeedTab = React.forwardRef(({
                   onAuthorClick={onAuthorClick}
                   onActionMenu={onActionMenu}
                   onComment={onComment}
+                  feedIndex={actualIdx}
                   onOpenFullScreen={() => handleFullScreenOpen(item, actualIdx)}
                   isActive={isActive}
                 />
@@ -415,6 +426,13 @@ const FeedTab = React.forwardRef(({
           onActionMenu={onActionMenu}
         />
       )}
+
+      <VideoPreloadRunway
+        items={feedItems}
+        anchorIndex={anchorIdx}
+        preloadWindow={PRELOAD_WINDOW}
+        renderRadius={RENDER_RADIUS}
+      />
 
       {fullScreenItem?.type === "reel" && (
         <FullScreenReels
