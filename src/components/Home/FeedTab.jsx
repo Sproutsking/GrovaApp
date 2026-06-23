@@ -161,21 +161,22 @@ const FeedTab = React.forwardRef(({
 
   const ITEM_GAP = isMobile ? 0 : 10;
 
-  const totalHeight = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < feedItems.length; i++) {
-      h += (heightsRef.current[i] || estimateHeight(feedItems[i])) + ITEM_GAP;
-    }
-    return h;
-  }, [feedItems, isMobile]);
+  const itemHeights = useMemo(() => {
+    return feedItems.map((item, index) => (
+      (heightsRef.current[index] ?? estimateHeight(item)) + ITEM_GAP
+    ));
+  }, [feedItems, heightMap, isMobile]);
 
-  const offsetHeight = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < visibleStart; i++) {
-      h += (heightsRef.current[i] || estimateHeight(feedItems[i])) + ITEM_GAP;
+  const cumulativeHeights = useMemo(() => {
+    const heights = [0];
+    for (let i = 0; i < itemHeights.length; i++) {
+      heights.push(heights[i] + itemHeights[i]);
     }
-    return h;
-  }, [feedItems, visibleStart, isMobile]);
+    return heights;
+  }, [itemHeights]);
+
+  const totalHeight = cumulativeHeights[cumulativeHeights.length - 1] || 0;
+  const offsetHeight = cumulativeHeights[visibleStart] || 0;
 
   // ── IntersectionObserver for anchor detection ───────────────────────────────
   useEffect(() => {
@@ -228,7 +229,7 @@ const FeedTab = React.forwardRef(({
         observerRef.current = null;
       }
     };
-  }, [feedItems.length, hasMore, isLoadingMore, onLoadMore]);
+  }, [feedItems.length, visibleStart, hasMore, isLoadingMore, onLoadMore]);
 
   // ── ResizeObserver for accurate heights ──────────────────────────────────
   useLayoutEffect(() => {
@@ -348,23 +349,16 @@ const FeedTab = React.forwardRef(({
 
       {/* Virtual scroll wrapper */}
       <div style={{ height: totalHeight, position: "relative" }}>
+        <div style={{ height: offsetHeight }} />
         {visibleItems.map((item, idx) => {
           const actualIdx = visibleStart + idx;
           const itemKey = `${item.type}-${item.id}`;
-          const itemHeight = heightsRef.current[actualIdx] || estimateHeight(item);
 
           return (
             <div
               key={itemKey}
               data-feed-idx={actualIdx}
-              style={{
-                position: "absolute",
-                top: offsetHeight + visibleItems.slice(0, idx).reduce((h, _, i) => h + ((heightsRef.current[visibleStart + i] || estimateHeight(visibleItems[i])) + ITEM_GAP), 0),
-                left: 0,
-                right: 0,
-                height: itemHeight,
-                paddingBottom: ITEM_GAP,
-              }}
+              style={{ marginBottom: ITEM_GAP }}
             >
               {item.type === "post" ? (
                 <PostCard
