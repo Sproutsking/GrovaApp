@@ -151,25 +151,35 @@ const FeedTab = React.forwardRef(({
   const visibleItems = feedItems.slice(visibleStart, visibleEnd);
 
   // ── Virtual scroll height calculation ──────────────────────────────────────
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 768 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const ITEM_GAP = isMobile ? 0 : 10;
+
   const totalHeight = useMemo(() => {
     let h = 0;
     for (let i = 0; i < feedItems.length; i++) {
-      h += heightsRef.current[i] || estimateHeight(feedItems[i]);
+      h += (heightsRef.current[i] || estimateHeight(feedItems[i])) + ITEM_GAP;
     }
     return h;
-  }, [feedItems]);
+  }, [feedItems, isMobile]);
 
   const offsetHeight = useMemo(() => {
     let h = 0;
     for (let i = 0; i < visibleStart; i++) {
-      h += heightsRef.current[i] || estimateHeight(feedItems[i]);
+      h += (heightsRef.current[i] || estimateHeight(feedItems[i])) + ITEM_GAP;
     }
     return h;
-  }, [feedItems, visibleStart]);
+  }, [feedItems, visibleStart, isMobile]);
 
   // ── IntersectionObserver for anchor detection ───────────────────────────────
   useEffect(() => {
-    if (!containerRef.current || !isActive) return;
+    if (!containerRef.current) return;
 
     // Cleanup any existing observer before creating a new one
     if (observerRef.current) {
@@ -218,12 +228,11 @@ const FeedTab = React.forwardRef(({
         observerRef.current = null;
       }
     };
-  }, [isActive, feedItems.length, hasMore, isLoadingMore, onLoadMore]);
+  }, [feedItems.length, hasMore, isLoadingMore, onLoadMore]);
 
   // ── ResizeObserver for accurate heights ──────────────────────────────────
   useLayoutEffect(() => {
-    if (!containerRef.current || !isActive) {
-      // Clean up resize observer when inactive
+    if (!containerRef.current) {
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
         resizeObserverRef.current = null;
@@ -271,7 +280,7 @@ const FeedTab = React.forwardRef(({
         resizeObserverRef.current = null;
       }
     };
-  }, [isActive]);
+  }, [feedItems.length]);
 
   // ── Scroll to top FAB ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -350,10 +359,10 @@ const FeedTab = React.forwardRef(({
               data-feed-idx={actualIdx}
               style={{
                 position: "absolute",
-                top: offsetHeight + visibleItems.slice(0, idx).reduce((h, _, i) => h + (heightsRef.current[visibleStart + i] || estimateHeight(visibleItems[i])), 0),
+                top: offsetHeight + visibleItems.slice(0, idx).reduce((h, _, i) => h + ((heightsRef.current[visibleStart + i] || estimateHeight(visibleItems[i])) + ITEM_GAP), 0),
                 left: 0,
                 right: 0,
-                height: itemHeight,
+                height: itemHeight + ITEM_GAP,
               }}
             >
               {item.type === "post" ? (
@@ -363,7 +372,7 @@ const FeedTab = React.forwardRef(({
                   onAuthorClick={onAuthorClick}
                   onActionMenu={onActionMenu}
                   onComment={onComment}
-                  onFullScreen={() => handleFullScreenOpen(item, actualIdx)}
+                  onOpenFullScreen={() => handleFullScreenOpen(item, actualIdx)}
                   isActive={isActive}
                 />
               ) : (
@@ -373,7 +382,8 @@ const FeedTab = React.forwardRef(({
                   onAuthorClick={onAuthorClick}
                   onActionMenu={onActionMenu}
                   onComment={onComment}
-                  onFullScreen={() => handleFullScreenOpen(item, actualIdx)}
+                  index={actualIdx}
+                  onOpenFullScreen={() => handleFullScreenOpen(item, actualIdx)}
                   isActive={isActive}
                 />
               )}
