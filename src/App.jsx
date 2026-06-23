@@ -248,7 +248,7 @@ const MainApp = memo(() => {
   const [feedFilter,    setFeedFilter]    = useState(null);
   const [streamSession, setStreamSession] = useState(null);
 
-  const [activeHomeTab, setActiveHomeTab] = useState("posts");
+  const [activeHomeTab, setActiveHomeTab] = useState("feed");
 
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
