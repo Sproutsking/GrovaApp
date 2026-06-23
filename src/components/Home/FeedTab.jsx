@@ -362,7 +362,8 @@ const FeedTab = React.forwardRef(({
                 top: offsetHeight + visibleItems.slice(0, idx).reduce((h, _, i) => h + ((heightsRef.current[visibleStart + i] || estimateHeight(visibleItems[i])) + ITEM_GAP), 0),
                 left: 0,
                 right: 0,
-                height: itemHeight + ITEM_GAP,
+                height: itemHeight,
+                paddingBottom: ITEM_GAP,
               }}
             >
               {item.type === "post" ? (
