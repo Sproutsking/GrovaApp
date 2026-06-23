@@ -1,318 +1,743 @@
 /* src/styles/lightTheme.css
   ────────────────────────────────────────────────────────────────────────────
   LIGHT THEME FOR ALL CARDS
-  Applied when data-light-theme="true" or [data-theme="light"]
+  Applied when html.theme-light on root, data-light-theme="true", or [data-theme="light"]
   ──────────────────────────────────────────────────────────────────────────── */
 
-/* ── PostCard Light Theme ────────────────────────────────────────────────── */
+/* ── PostCard / Post feed card Light Theme ────────────────────────────────── */
+html.theme-light .gvp-card,
+[data-theme="light"] .gvp-card,
+[data-light-theme="true"] .gvp-card,
+html.theme-light .post-card,
 [data-theme="light"] .post-card,
 [data-light-theme="true"] .post-card {
-  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
-  border-color: #ececec;
-  box-shadow: 0 8px 30px rgba(16,24,40,0.06);
-  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
+  border-radius: 20px;
 }
 
+html.theme-light .gvp-card:hover,
+[data-theme="light"] .gvp-card:hover,
+[data-light-theme="true"] .gvp-card:hover,
+html.theme-light .post-card:hover,
+[data-theme="light"] .post-card:hover,
+[data-light-theme="true"] .post-card:hover {
+  border-color: rgba(132, 204, 22, 0.25) !important;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light .gvp-card.gvp-hovered,
+[data-theme="light"] .gvp-card.gvp-hovered,
+[data-light-theme="true"] .gvp-card.gvp-hovered {
+  border-color: rgba(132, 204, 22, 0.25) !important;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light .gvp-header,
+[data-theme="light"] .gvp-header,
+[data-light-theme="true"] .gvp-header,
+html.theme-light .post-card-header,
 [data-theme="light"] .post-card-header,
 [data-light-theme="true"] .post-card-header {
   background: transparent;
 }
 
-[data-theme="light"] .post-author-name,
-[data-light-theme="true"] .post-author-name {
-  color: #1a1a1a;
-}
-
-[data-theme="light"] .post-author-handle,
-[data-light-theme="true"] .post-author-handle {
-  color: #666666;
-}
-
-[data-theme="light"] .post-timestamp,
-[data-light-theme="true"] .post-timestamp {
-  color: #999999;
-}
-
+html.theme-light .gvp-text,
+[data-theme="light"] .gvp-text,
+[data-light-theme="true"] .gvp-text,
+html.theme-light .post-content-text,
 [data-theme="light"] .post-content-text,
 [data-light-theme="true"] .post-content-text {
-  color: #1a1a1a;
+  color: #0f172a !important;
 }
 
+html.theme-light .gvp-media-cat,
+[data-theme="light"] .gvp-media-cat,
+[data-light-theme="true"] .gvp-media-cat,
+html.theme-light .post-category-badge,
 [data-theme="light"] .post-category-badge,
 [data-light-theme="true"] .post-category-badge {
-  background: rgba(255,255,255,0.7);
-  border-color: rgba(16,24,40,0.06);
-  color: #222222;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.03) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
-[data-theme="light"] .post-card-footer,
-[data-light-theme="true"] .post-card-footer {
-  background: rgba(255,255,255,0.6);
-  border-color: rgba(16,24,40,0.04);
-  box-shadow: 0 -6px 18px rgba(16,24,40,0.03) inset;
-}
-
-[data-theme="light"] .post-action-btn,
-[data-light-theme="true"] .post-action-btn {
-  color: #444444;
-  background: rgba(255,255,255,0.0);
-}
-
-[data-theme="light"] .post-action-btn:hover,
-[data-light-theme="true"] .post-action-btn:hover {
-  background: rgba(16,24,40,0.03);
-  color: #111111;
-}
-
-[data-theme="light"] .post-action-count,
-[data-light-theme="true"] .post-action-count {
-  color: #666666;
-}
-
-[data-theme="light"] .post-action-btn.active,
-[data-light-theme="true"] .post-action-btn.active {
-  color: #84cc16;
-}
-
-/* ── ReelCard Light Theme ────────────────────────────────────────────────── */
-[data-theme="light"] .reel-card,
-[data-light-theme="true"] .reel-card {
-  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
-  border-color: #ececec;
-  box-shadow: 0 10px 36px rgba(16,24,40,0.06);
-  border-radius: 16px;
-}
-
-[data-theme="light"] .reel-card-header,
-[data-light-theme="true"] .reel-card-header {
-  background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
-}
-
-[data-theme="light"] .reel-author-info,
-[data-light-theme="true"] .reel-author-info {
-  color: #1a1a1a;
-}
-
-[data-theme="light"] .reel-author-handle,
-[data-light-theme="true"] .reel-author-handle {
-  color: #666666;
-}
-
+html.theme-light .xv-category-pill,
+[data-theme="light"] .xv-category-pill,
+[data-light-theme="true"] .xv-category-pill,
+html.theme-light .reel-category-tag,
 [data-theme="light"] .reel-category-tag,
 [data-light-theme="true"] .reel-category-tag {
-  background: rgba(255,255,255,0.75);
-  color: #222222;
-  border: 1px solid rgba(16,24,40,0.04);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #111827 !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06) !important;
 }
 
-[data-theme="light"] .reel-caption,
-[data-light-theme="true"] .reel-caption {
-  color: #1a1a1a;
-  background: transparent;
+html.theme-light .gvp-footer,
+[data-theme="light"] .gvp-footer,
+[data-light-theme="true"] .gvp-footer,
+html.theme-light .post-card-footer,
+[data-theme="light"] .post-card-footer,
+[data-light-theme="true"] .post-card-footer {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
 
+html.theme-light .gvp-expand,
+[data-theme="light"] .gvp-expand,
+[data-light-theme="true"] .gvp-expand,
+html.theme-light .post-action-btn,
+[data-theme="light"] .post-action-btn,
+[data-light-theme="true"] .post-action-btn {
+  color: #334155 !important;
+}
+
+html.theme-light .gvp-expand:hover,
+[data-theme="light"] .gvp-expand:hover,
+[data-light-theme="true"] .gvp-expand:hover,
+html.theme-light .post-action-btn:hover,
+[data-theme="light"] .post-action-btn:hover,
+[data-light-theme="true"] .post-action-btn:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .gvp-icon-btn,
+[data-theme="light"] .gvp-icon-btn,
+[data-light-theme="true"] .gvp-icon-btn {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #1f2937 !important;
+}
+
+html.theme-light .gvp-icon-btn:hover,
+[data-theme="light"] .gvp-icon-btn:hover,
+[data-light-theme="true"] .gvp-icon-btn:hover {
+  background: rgba(243, 244, 246, 0.95) !important;
+}
+html.theme-light .gvp-media-wrap,
+[data-theme="light"] .gvp-media-wrap,
+[data-light-theme="true"] .gvp-media-wrap,
+html.theme-light .gvp-img-box,
+[data-theme="light"] .gvp-img-box,
+[data-light-theme="true"] .gvp-img-box {
+  background: #f8fafc !important;
+}
+
+html.theme-light .xv-reel-video-wrap,
+[data-theme="light"] .xv-reel-video-wrap,
+[data-light-theme="true"] .xv-reel-video-wrap {
+  background: #f8fafc !important;
+}
+
+html.theme-light .xv-reel-placeholder,
+[data-theme="light"] .xv-reel-placeholder,
+[data-light-theme="true"] .xv-reel-placeholder {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.03) 0%,
+    rgba(248, 250, 252, 1) 100%
+  ) !important;
+}
+/* ── ReelCard Light Theme ────────────────────────────────────────────────── */
+html.theme-light .xv-reel-card,
+[data-theme="light"] .xv-reel-card,
+[data-light-theme="true"] .xv-reel-card,
+html.theme-light .reel-card,
+[data-theme="light"] .reel-card,
+[data-light-theme="true"] .reel-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08) !important;
+}
+
+html.theme-light .xv-reel-card:hover,
+[data-theme="light"] .xv-reel-card:hover,
+[data-light-theme="true"] .xv-reel-card:hover,
+html.theme-light .xv-reel-card.hovered,
+[data-theme="light"] .xv-reel-card.hovered,
+[data-light-theme="true"] .xv-reel-card.hovered {
+  border-color: rgba(132, 204, 22, 0.25) !important;
+  box-shadow: 0 20px 52px rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light .xv-category-pill,
+[data-theme="light"] .xv-category-pill,
+[data-light-theme="true"] .xv-category-pill,
+html.theme-light .reel-category-tag,
+[data-theme="light"] .reel-category-tag,
+[data-light-theme="true"] .reel-category-tag {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #111827 !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06) !important;
+}
+
+html.theme-light .xv-category-pill:hover,
+[data-theme="light"] .xv-category-pill:hover,
+[data-light-theme="true"] .xv-category-pill:hover,
+html.theme-light .gvp-media-cat:hover,
+[data-theme="light"] .gvp-media-cat:hover,
+[data-light-theme="true"] .gvp-media-cat:hover {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(132, 204, 22, 0.15) !important;
+}
+
+html.theme-light .xv-reel-footer,
+[data-theme="light"] .xv-reel-footer,
+[data-light-theme="true"] .xv-reel-footer,
+html.theme-light .reel-card-footer,
 [data-theme="light"] .reel-card-footer,
 [data-light-theme="true"] .reel-card-footer {
-  background: rgba(255,255,255,0.6);
-  border-color: rgba(16,24,40,0.04);
-  box-shadow: 0 -6px 18px rgba(16,24,40,0.03) inset;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
 
-[data-theme="light"] .reel-action-btn,
-[data-light-theme="true"] .reel-action-btn {
-  color: #666666;
-  background: transparent;
+html.theme-light .xv-caption-section,
+[data-theme="light"] .xv-caption-section,
+[data-light-theme="true"] .xv-caption-section,
+html.theme-light .reel-caption,
+[data-theme="light"] .reel-caption,
+[data-light-theme="true"] .reel-caption {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #334155 !important;
 }
 
-[data-theme="light"] .reel-action-btn:hover,
-[data-light-theme="true"] .reel-action-btn:hover {
-  background: #f5f5f5;
-  color: #333333;
+html.theme-light .xv-caption-section.expandable:hover,
+[data-theme="light"] .xv-caption-section.expandable:hover,
+[data-light-theme="true"] .xv-caption-section.expandable:hover {
+  background: rgba(226, 232, 240, 0.6) !important;
 }
 
-[data-theme="light"] .reel-action-count,
-[data-light-theme="true"] .reel-action-count {
-  color: #666666;
+html.theme-light .xv-caption-text,
+[data-theme="light"] .xv-caption-text,
+[data-light-theme="true"] .xv-caption-text {
+  color: #334155;
+}
+
+html.theme-light .xv-icon-btn,
+[data-theme="light"] .xv-icon-btn,
+[data-light-theme="true"] .xv-icon-btn {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+}
+
+html.theme-light .xv-icon-btn:hover,
+[data-theme="light"] .xv-icon-btn:hover,
+[data-light-theme="true"] .xv-icon-btn:hover {
+  background: rgba(248, 250, 252, 0.95);
+}
+
+html.theme-light .xv-follow-btn,
+[data-theme="light"] .xv-follow-btn,
+[data-light-theme="true"] .xv-follow-btn {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+}
+
+html.theme-light .xv-follow-btn:hover,
+[data-theme="light"] .xv-follow-btn:hover,
+[data-light-theme="true"] .xv-follow-btn:hover {
+  background: rgba(132, 204, 22, 0.14);
+}
+
+html.theme-light .xv-follow-btn.following,
+[data-theme="light"] .xv-follow-btn.following,
+[data-light-theme="true"] .xv-follow-btn.following {
+  background: rgba(132, 204, 22, 0.12);
+  color: #166534;
+}
+
+html.theme-light .xv-time-badge,
+[data-theme="light"] .xv-time-badge,
+[data-light-theme="true"] .xv-time-badge {
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
 }
 
 /* ── StoryCard Light Theme ───────────────────────────────────────────────── */
+html.theme-light .story-card-premium,
+[data-theme="light"] .story-card-premium,
+[data-light-theme="true"] .story-card-premium,
+html.theme-light .story-card,
 [data-theme="light"] .story-card,
 [data-light-theme="true"] .story-card {
-  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
-  border-color: #ececec;
-  border-radius: 12px;
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
 }
 
-[data-theme="light"] .story-card-overlay,
-[data-light-theme="true"] .story-card-overlay {
-  background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+html.theme-light .story-hero,
+[data-theme="light"] .story-hero,
+[data-light-theme="true"] .story-hero {
+  background: #f8fafc;
 }
 
+html.theme-light .story-hero-placeholder,
+[data-theme="light"] .story-hero-placeholder,
+[data-light-theme="true"] .story-hero-placeholder {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+html.theme-light .story-category-floating,
+[data-theme="light"] .story-category-floating,
+[data-light-theme="true"] .story-category-floating,
+html.theme-light .story-lock-floating,
+[data-theme="light"] .story-lock-floating,
+[data-light-theme="true"] .story-lock-floating {
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+html.theme-light .story-content-section,
+[data-theme="light"] .story-content-section,
+[data-light-theme="true"] .story-content-section {
+  background: #f8fafc;
+}
+
+html.theme-light .story-author-header,
+[data-theme="light"] .story-author-header,
+[data-light-theme="true"] .story-author-header {
+  border-bottom-color: rgba(148, 163, 184, 0.16);
+}
+
+html.theme-light .story-title-premium,
+[data-theme="light"] .story-title-premium,
+[data-light-theme="true"] .story-title-premium,
+html.theme-light .story-title,
 [data-theme="light"] .story-title,
 [data-light-theme="true"] .story-title {
-  color: #ffffff;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  color: #0f172a;
 }
 
-[data-theme="light"] .story-author,
-[data-light-theme="true"] .story-author {
-  color: rgba(255,255,255,0.9);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+html.theme-light .story-preview-text,
+[data-theme="light"] .story-preview-text,
+[data-light-theme="true"] .story-preview-text {
+  color: #475569;
 }
 
-[data-theme="light"] .story-unlock-badge,
-[data-light-theme="true"] .story-unlock-badge {
-  background: rgba(0,0,0,0.6);
-  color: #ffffff;
+html.theme-light .story-category-tag,
+[data-theme="light"] .story-category-tag,
+[data-light-theme="true"] .story-category-tag {
+  background: rgba(226, 232, 240, 0.85);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #0f172a;
+}
+
+html.theme-light .story-footer-premium,
+[data-theme="light"] .story-footer-premium,
+[data-light-theme="true"] .story-footer-premium {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+html.theme-light .story-time-badge,
+[data-theme="light"] .story-time-badge,
+[data-light-theme="true"] .story-time-badge {
+  background: rgba(15, 23, 42, 0.05);
+  color: #475569;
+}
+
+html.theme-light .story-action-btn,
+[data-theme="light"] .story-action-btn,
+[data-light-theme="true"] .story-action-btn {
+  background: rgba(132, 204, 22, 0.12);
+  border-color: rgba(132, 204, 22, 0.22);
+  color: #0f172a;
+}
+
+html.theme-light .story-action-btn:hover,
+[data-theme="light"] .story-action-btn:hover,
+[data-light-theme="true"] .story-action-btn:hover {
+  background: rgba(132, 204, 22, 0.18);
 }
 
 /* ── NewsCard Light Theme ────────────────────────────────────────────────── */
-[data-theme="light"] .news-card,
-[data-light-theme="true"] .news-card {
-  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
-  border-color: #ececec;
-  border-radius: 12px;
+html.theme-light .nc-card,
+[data-theme="light"] .nc-card,
+[data-light-theme="true"] .nc-card,
+html.theme-light .content-card,
+[data-theme="light"] .content-card,
+[data-light-theme="true"] .content-card {
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
 }
 
-[data-theme="light"] .news-headline,
-[data-light-theme="true"] .news-headline {
-  color: #1a1a1a;
+html.theme-light .nc-source-name,
+[data-theme="light"] .nc-source-name,
+[data-light-theme="true"] .nc-source-name {
+  color: #0f172a;
 }
 
-[data-theme="light"] .news-description,
-[data-light-theme="true"] .news-description {
-  color: #666666;
+html.theme-light .nc-ts,
+[data-theme="light"] .nc-ts,
+[data-light-theme="true"] .nc-ts,
+html.theme-light .nc-region,
+[data-theme="light"] .nc-region,
+[data-light-theme="true"] .nc-region {
+  color: #64748b;
 }
 
-[data-theme="light"] .news-source,
-[data-light-theme="true"] .news-source {
-  color: #999999;
+html.theme-light .nc-live-badge,
+[data-theme="light"] .nc-live-badge,
+[data-light-theme="true"] .nc-live-badge {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.25);
+  color: #b91c1c;
 }
 
-[data-theme="light"] .news-category-tag,
-[data-light-theme="true"] .news-category-tag {
-  background: rgba(255,255,255,0.75);
-  color: #222222;
-  border-color: rgba(16,24,40,0.04);
-  backdrop-filter: blur(6px);
+html.theme-light .nc-img-wrap,
+[data-theme="light"] .nc-img-wrap,
+[data-light-theme="true"] .nc-img-wrap {
+  background: #f8fafc;
+}
+
+html.theme-light .nc-title,
+[data-theme="light"] .nc-title,
+[data-light-theme="true"] .nc-title {
+  color: #111827;
+}
+
+html.theme-light .nc-desc,
+[data-theme="light"] .nc-desc,
+[data-light-theme="true"] .nc-desc {
+  color: #475569;
+}
+
+html.theme-light .nc-tag,
+[data-theme="light"] .nc-tag,
+[data-light-theme="true"] .nc-tag {
+  background: rgba(241, 245, 249, 0.95);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #334155;
+}
+
+html.theme-light .nc-btn-read,
+[data-theme="light"] .nc-btn-read,
+[data-light-theme="true"] .nc-btn-read {
+  background: rgba(132, 204, 22, 0.12);
+  border-color: rgba(132, 204, 22, 0.22);
+  color: #166534;
+}
+
+html.theme-light .nc-btn-share,
+[data-theme="light"] .nc-btn-share,
+[data-light-theme="true"] .nc-btn-share {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #92400e;
+}
+
+html.theme-light .nc-btn-src,
+[data-theme="light"] .nc-btn-src,
+[data-light-theme="true"] .nc-btn-src {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+  color: #475569;
+}
+
+/* ── DiscoveryCard Light Theme ───────────────────────────────────────────── */
+html.theme-light .dc-card,
+[data-theme="light"] .dc-card,
+[data-light-theme="true"] .dc-card {
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
+}
+
+html.theme-light .dc-card:hover,
+[data-theme="light"] .dc-card:hover,
+[data-light-theme="true"] .dc-card:hover {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+html.theme-light .dc-media,
+[data-theme="light"] .dc-media,
+[data-light-theme="true"] .dc-media {
+  background: #f8fafc;
+}
+
+html.theme-light .dc-poster,
+[data-theme="light"] .dc-poster,
+[data-light-theme="true"] .dc-poster {
+  opacity: 0.95;
+}
+
+html.theme-light .dc-grad-top,
+[data-theme="light"] .dc-grad-top,
+[data-light-theme="true"] .dc-grad-top,
+html.theme-light .dc-grad-bot,
+[data-theme="light"] .dc-grad-bot,
+[data-light-theme="true"] .dc-grad-bot {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92), transparent);
 }
 
 /* ── ReactionPanel (global) for light theme ─────────────────────────────── */
+html.theme-light .rp-panel,
 [data-theme="light"] .rp-panel,
 [data-light-theme="true"] .rp-panel {
-  background: rgba(255,255,255,0.66);
-  border: 1px solid rgba(16,24,40,0.04);
-  box-shadow: 0 8px 24px rgba(16,24,40,0.05);
-  color: #111111;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05) !important;
+  color: #0f172a !important;
 }
 
+html.theme-light .rp-panel--horizontal,
+[data-theme="light"] .rp-panel--horizontal,
+[data-light-theme="true"] .rp-panel--horizontal {
+  background: transparent !important;
+}
+
+html.theme-light .rp-btn,
 [data-theme="light"] .rp-btn,
 [data-light-theme="true"] .rp-btn {
-  background: transparent;
-  color: #444444;
-  border-radius: 10px;
-  transition: background .15s, color .15s, transform .08s;
+  background: rgba(248, 250, 252, 0.96) !important;
+  color: #475569 !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
 }
 
+html.theme-light .rp-btn:focus,
+[data-theme="light"] .rp-btn:focus,
+[data-light-theme="true"] .rp-btn:focus {
+  outline: 2px solid rgba(132, 204, 22, 0.35) !important;
+  outline-offset: -1px !important;
+}
+
+html.theme-light .rp-btn:hover:not(:disabled),
 [data-theme="light"] .rp-btn:hover:not(:disabled),
 [data-light-theme="true"] .rp-btn:hover:not(:disabled) {
-  background: rgba(16,24,40,0.03);
-  color: #111111;
+  background: rgba(226, 232, 240, 0.98) !important;
+  color: #0f172a !important;
+  border-color: rgba(132, 204, 22, 0.22) !important;
 }
 
+html.theme-light .rp-btn:active:not(:disabled),
+[data-theme="light"] .rp-btn:active:not(:disabled),
+[data-light-theme="true"] .rp-btn:active:not(:disabled) {
+  background: rgba(203, 213, 225, 0.9) !important;
+}
+
+html.theme-light .rp-btn--liked,
 [data-theme="light"] .rp-btn--liked,
 [data-light-theme="true"] .rp-btn--liked {
-  color: #e0245e !important;
+  color: #be123c !important;
 }
 
-
-[data-theme="light"] .news-timestamp,
-[data-light-theme="true"] .news-timestamp {
-  color: #999999;
+html.theme-light .rp-stat,
+[data-theme="light"] .rp-stat,
+[data-light-theme="true"] .rp-stat {
+  background: rgba(241, 245, 249, 0.95) !important;
+  color: #475569 !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
 }
 
+html.theme-light .xv-reel-footer,
+[data-theme="light"] .xv-reel-footer,
+[data-light-theme="true"] .xv-reel-footer {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+/* ── News action buttons ───────────────────────────────────────────────── */
+html.theme-light .news-action-btn,
 [data-theme="light"] .news-action-btn,
 [data-light-theme="true"] .news-action-btn {
-  color: #666666;
+  color: #475569;
 }
 
+html.theme-light .news-action-btn:hover,
 [data-theme="light"] .news-action-btn:hover,
 [data-light-theme="true"] .news-action-btn:hover {
-  background: #f5f5f5;
-  color: #333333;
+  background: rgba(226, 232, 240, 0.95);
+  color: #111827;
 }
 
 /* ── Text-only adjustments ───────────────────────────────────────────────── */
+html.theme-light .text-card,
 [data-theme="light"] .text-card,
 [data-light-theme="true"] .text-card {
   background: #ffffff;
-  border-color: #e5e5e5;
+  border-color: #e5e7eb;
 }
 
+html.theme-light .text-card-content,
 [data-theme="light"] .text-card-content,
 [data-light-theme="true"] .text-card-content {
-  color: #1a1a1a;
+  color: #0f172a;
 }
 
+html.theme-light .text-card-bg,
 [data-theme="light"] .text-card-bg,
 [data-light-theme="true"] .text-card-bg {
-  background: linear-gradient(135deg, #f0f0f0 0%, #e5e5e5 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
 }
 
-/* ── Increased visibility in light theme ────────────────────────────────── */
+/* ── Increased legibility in light theme ───────────────────────────────── */
+html.theme-light .text,
 [data-theme="light"] .text,
 [data-light-theme="true"] .text {
-  color: #1a1a1a;
+  color: #0f172a;
 }
 
+html.theme-light .text-secondary,
 [data-theme="light"] .text-secondary,
 [data-light-theme="true"] .text-secondary {
-  color: #666666;
+  color: #475569;
 }
 
+html.theme-light .text-tertiary,
 [data-theme="light"] .text-tertiary,
 [data-light-theme="true"] .text-tertiary {
-  color: #999999;
+  color: #64748b;
 }
 
-/* ── Icons in light theme (1px brighter, darker outline) ───────────────── */
+/* ── Icons in light theme (subtle darker outline) ───────────────────────── */
+html.theme-light svg,
 [data-theme="light"] svg,
 [data-light-theme="true"] svg {
-  filter: brightness(0.9);
+  filter: brightness(0.95);
 }
 
+html.theme-light .icon-button,
 [data-theme="light"] .icon-button,
 [data-light-theme="true"] .icon-button {
-  background: rgba(0,0,0,0.04);
+  background: rgba(15, 23, 42, 0.04);
 }
 
+html.theme-light .icon-button:hover,
 [data-theme="light"] .icon-button:hover,
 [data-light-theme="true"] .icon-button:hover {
-  background: rgba(0,0,0,0.08);
+  background: rgba(15, 23, 42, 0.08);
 }
 
-/* ── Action buttons brighter/darker visibility ───────────────────────────── */
+/* ── Action button visibility ───────────────────────────────────────────── */
+html.theme-light [class*="action"] button,
 [data-theme="light"] [class*="action"] button,
 [data-light-theme="true"] [class*="action"] button {
-  color: #333333;
-  fill: #333333;
+  color: #111827;
+  fill: #111827;
 }
 
+html.theme-light [class*="action"] button:hover,
 [data-theme="light"] [class*="action"] button:hover,
 [data-light-theme="true"] [class*="action"] button:hover {
-  color: #000000;
-  fill: #000000;
+  color: #0f172a;
+  fill: #0f172a;
 }
 
-/* ── Accent color (green) stays bright in both themes ───────────────────── */
+/* ── Accent color stays bright in light theme ───────────────────────────── */
+html.theme-light .accent,
 [data-theme="light"] .accent,
 [data-light-theme="true"] .accent,
+html.theme-light .active,
 [data-theme="light"] .active,
 [data-light-theme="true"] .active {
   color: #84cc16;
   fill: #84cc16;
+}
+
+/* ── Like button active/liked state ────────────────────────────────────── */
+html.theme-light .rp-btn.liked,
+[data-theme="light"] .rp-btn.liked,
+[data-light-theme="true"] .rp-btn.liked,
+html.theme-light .rp-btn[data-liked="true"],
+[data-theme="light"] .rp-btn[data-liked="true"],
+[data-light-theme="true"] .rp-btn[data-liked="true"],
+html.theme-light .rp-btn.active,
+[data-theme="light"] .rp-btn.active,
+[data-light-theme="true"] .rp-btn.active {
+  color: #84cc16 !important;
+  fill: #84cc16 !important;
+  border-color: rgba(132, 204, 22, 0.25) !important;
+  background: rgba(132, 204, 22, 0.06) !important;
+}
+
+/* ── Input fields and textarea light theme ─────────────────────────────── */
+html.theme-light input[type="text"],
+[data-theme="light"] input[type="text"],
+[data-light-theme="true"] input[type="text"],
+html.theme-light input[type="email"],
+[data-theme="light"] input[type="email"],
+[data-light-theme="true"] input[type="email"],
+html.theme-light input[type="password"],
+[data-theme="light"] input[type="password"],
+[data-light-theme="true"] input[type="password"],
+html.theme-light textarea,
+[data-theme="light"] textarea,
+[data-light-theme="true"] textarea {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+html.theme-light input[type="text"]:focus,
+[data-theme="light"] input[type="text"]:focus,
+[data-light-theme="true"] input[type="text"]:focus,
+html.theme-light input[type="email"]:focus,
+[data-theme="light"] input[type="email"]:focus,
+[data-light-theme="true"] input[type="email"]:focus,
+html.theme-light input[type="password"]:focus,
+[data-theme="light"] input[type="password"]:focus,
+[data-light-theme="true"] input[type="password"]:focus,
+html.theme-light textarea:focus,
+[data-theme="light"] textarea:focus,
+[data-light-theme="true"] textarea:focus {
+  outline: 2px solid rgba(132, 204, 22, 0.35) !important;
+  outline-offset: -1px !important;
+  border-color: rgba(132, 204, 22, 0.25) !important;
+}
+
+html.theme-light input::placeholder,
+[data-theme="light"] input::placeholder,
+[data-light-theme="true"] input::placeholder,
+html.theme-light textarea::placeholder,
+[data-theme="light"] textarea::placeholder,
+[data-light-theme="true"] textarea::placeholder {
+  color: rgba(15, 23, 42, 0.42) !important;
+}
+
+/* ── Disabled button state ──────────────────────────────────────────────── */
+html.theme-light button:disabled,
+[data-theme="light"] button:disabled,
+[data-light-theme="true"] button:disabled {
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: rgba(15, 23, 42, 0.40) !important;
+  cursor: not-allowed !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* ── Scrollbar styling for light theme ──────────────────────────────────── */
+html.theme-light ::-webkit-scrollbar,
+[data-theme="light"] ::-webkit-scrollbar,
+[data-light-theme="true"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.theme-light ::-webkit-scrollbar-track,
+[data-theme="light"] ::-webkit-scrollbar-track,
+[data-light-theme="true"] ::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+html.theme-light ::-webkit-scrollbar-thumb,
+[data-theme="light"] ::-webkit-scrollbar-thumb,
+[data-light-theme="true"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 4px;
+}
+
+html.theme-light ::-webkit-scrollbar-thumb:hover,
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover,
+[data-light-theme="true"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.28);
 }
