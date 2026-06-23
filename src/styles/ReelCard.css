@@ -492,25 +492,30 @@
 
 /* ── Category pill ───────────────────────────────────────────────────────────── */
 .xv-category-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 12;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px 3px 8px;
+  padding: 4px 12px 4px 8px;
   border-radius: 999px;
   border: 1px solid;
-  margin: 0 14px 8px;
-  width: fit-content;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 .xv-category-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 .xv-category-label {
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   line-height: 1;
 }
 

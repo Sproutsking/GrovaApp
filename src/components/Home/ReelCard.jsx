@@ -583,6 +583,27 @@ const ReelCard = ({
             </div>
           )}
 
+          {reel.category && (
+            <div
+              className="xv-category-pill"
+              style={{
+                background: catStyle.bg,
+                borderColor: catStyle.border,
+              }}
+            >
+              <span
+                className="xv-category-dot"
+                style={{ background: catStyle.dot }}
+              />
+              <span
+                className="xv-category-label"
+                style={{ color: catStyle.text }}
+              >
+                {reel.category.toUpperCase()}
+              </span>
+            </div>
+          )}
+
           {/* Bottom bar inside video */}
           <div className="xv-reel-bottom-bar">
             {/* Progress */}
@@ -704,28 +725,6 @@ const ReelCard = ({
                 <span className="xv-caption-more"> ...more</span>
               )}
             </p>
-          </div>
-        )}
-
-        {/* ── CATEGORY TAG ────────────────────────────── */}
-        {reel.category && (
-          <div
-            className="xv-category-pill"
-            style={{
-              background: catStyle.bg,
-              borderColor: catStyle.border,
-            }}
-          >
-            <span
-              className="xv-category-dot"
-              style={{ background: catStyle.dot }}
-            />
-            <span
-              className="xv-category-label"
-              style={{ color: catStyle.text }}
-            >
-              {reel.category.toUpperCase()}
-            </span>
           </div>
         )}
 
