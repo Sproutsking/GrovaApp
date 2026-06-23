@@ -172,10 +172,10 @@ const FeedTab = React.forwardRef(({
   const offsetHeight = useMemo(() => {
     let h = 0;
     for (let i = 0; i < visibleStart; i++) {
-      h += (heightsRef.current[i] || estimateHeight(feedItems[i])) + ITEM_GAP;
+      h += heightsRef.current[i] || estimateHeight(feedItems[i]);
     }
     return h;
-  }, [feedItems, visibleStart, isMobile]);
+  }, [feedItems, visibleStart]);
 
   // ── IntersectionObserver for anchor detection ───────────────────────────────
   useEffect(() => {
@@ -359,7 +359,7 @@ const FeedTab = React.forwardRef(({
               data-feed-idx={actualIdx}
               style={{
                 position: "absolute",
-                top: offsetHeight + visibleItems.slice(0, idx).reduce((h, _, i) => h + ((heightsRef.current[visibleStart + i] || estimateHeight(visibleItems[i])) + ITEM_GAP), 0),
+                top: offsetHeight + visibleItems.slice(0, idx).reduce((h, _, i) => h + (heightsRef.current[visibleStart + i] || estimateHeight(visibleItems[i])), 0),
                 left: 0,
                 right: 0,
                 height: itemHeight,
