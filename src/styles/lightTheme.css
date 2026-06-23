@@ -7,8 +7,10 @@
 /* ── PostCard Light Theme ────────────────────────────────────────────────── */
 [data-theme="light"] .post-card,
 [data-light-theme="true"] .post-card {
-  background: #ffffff;
-  border-color: #e5e5e5;
+  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
+  border-color: #ececec;
+  box-shadow: 0 8px 30px rgba(16,24,40,0.06);
+  border-radius: 16px;
 }
 
 [data-theme="light"] .post-card-header,
@@ -38,27 +40,30 @@
 
 [data-theme="light"] .post-category-badge,
 [data-light-theme="true"] .post-category-badge {
-  background: #f0f0f0;
-  border-color: #d0d0d0;
-  color: #333333;
+  background: rgba(255,255,255,0.7);
+  border-color: rgba(16,24,40,0.06);
+  color: #222222;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 [data-theme="light"] .post-card-footer,
 [data-light-theme="true"] .post-card-footer {
-  background: transparent;
-  border-color: #f0f0f0;
+  background: rgba(255,255,255,0.6);
+  border-color: rgba(16,24,40,0.04);
+  box-shadow: 0 -6px 18px rgba(16,24,40,0.03) inset;
 }
 
 [data-theme="light"] .post-action-btn,
 [data-light-theme="true"] .post-action-btn {
-  color: #666666;
-  background: transparent;
+  color: #444444;
+  background: rgba(255,255,255,0.0);
 }
 
 [data-theme="light"] .post-action-btn:hover,
 [data-light-theme="true"] .post-action-btn:hover {
-  background: #f5f5f5;
-  color: #333333;
+  background: rgba(16,24,40,0.03);
+  color: #111111;
 }
 
 [data-theme="light"] .post-action-count,
@@ -74,8 +79,10 @@
 /* ── ReelCard Light Theme ────────────────────────────────────────────────── */
 [data-theme="light"] .reel-card,
 [data-light-theme="true"] .reel-card {
-  background: #ffffff;
-  border-color: #e5e5e5;
+  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
+  border-color: #ececec;
+  box-shadow: 0 10px 36px rgba(16,24,40,0.06);
+  border-radius: 16px;
 }
 
 [data-theme="light"] .reel-card-header,
@@ -95,8 +102,10 @@
 
 [data-theme="light"] .reel-category-tag,
 [data-light-theme="true"] .reel-category-tag {
-  background: rgba(0,0,0,0.08);
-  color: #333333;
+  background: rgba(255,255,255,0.75);
+  color: #222222;
+  border: 1px solid rgba(16,24,40,0.04);
+  backdrop-filter: blur(8px);
 }
 
 [data-theme="light"] .reel-caption,
@@ -107,8 +116,9 @@
 
 [data-theme="light"] .reel-card-footer,
 [data-light-theme="true"] .reel-card-footer {
-  background: transparent;
-  border-color: #f0f0f0;
+  background: rgba(255,255,255,0.6);
+  border-color: rgba(16,24,40,0.04);
+  box-shadow: 0 -6px 18px rgba(16,24,40,0.03) inset;
 }
 
 [data-theme="light"] .reel-action-btn,
@@ -131,8 +141,9 @@
 /* ── StoryCard Light Theme ───────────────────────────────────────────────── */
 [data-theme="light"] .story-card,
 [data-light-theme="true"] .story-card {
-  background: #ffffff;
-  border-color: #e5e5e5;
+  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
+  border-color: #ececec;
+  border-radius: 12px;
 }
 
 [data-theme="light"] .story-card-overlay,
@@ -161,8 +172,9 @@
 /* ── NewsCard Light Theme ────────────────────────────────────────────────── */
 [data-theme="light"] .news-card,
 [data-light-theme="true"] .news-card {
-  background: #ffffff;
-  border-color: #e5e5e5;
+  background: linear-gradient(180deg,#ffffff 0%, #fbfbfb 100%);
+  border-color: #ececec;
+  border-radius: 12px;
 }
 
 [data-theme="light"] .news-headline,
@@ -182,10 +194,41 @@
 
 [data-theme="light"] .news-category-tag,
 [data-light-theme="true"] .news-category-tag {
-  background: #f0f0f0;
-  color: #333333;
-  border-color: #d0d0d0;
+  background: rgba(255,255,255,0.75);
+  color: #222222;
+  border-color: rgba(16,24,40,0.04);
+  backdrop-filter: blur(6px);
 }
+
+/* ── ReactionPanel (global) for light theme ─────────────────────────────── */
+[data-theme="light"] .rp-panel,
+[data-light-theme="true"] .rp-panel {
+  background: rgba(255,255,255,0.66);
+  border: 1px solid rgba(16,24,40,0.04);
+  box-shadow: 0 8px 24px rgba(16,24,40,0.05);
+  color: #111111;
+  border-radius: 12px;
+}
+
+[data-theme="light"] .rp-btn,
+[data-light-theme="true"] .rp-btn {
+  background: transparent;
+  color: #444444;
+  border-radius: 10px;
+  transition: background .15s, color .15s, transform .08s;
+}
+
+[data-theme="light"] .rp-btn:hover:not(:disabled),
+[data-light-theme="true"] .rp-btn:hover:not(:disabled) {
+  background: rgba(16,24,40,0.03);
+  color: #111111;
+}
+
+[data-theme="light"] .rp-btn--liked,
+[data-light-theme="true"] .rp-btn--liked {
+  color: #e0245e !important;
+}
+
 
 [data-theme="light"] .news-timestamp,
 [data-light-theme="true"] .news-timestamp {
