@@ -265,7 +265,6 @@ const NewsTab = React.forwardRef(function NewsTab(
     <div className="nt-root">
       {/* Banner — portal, strictly gated: isActive AND count > 0 */}
       <NewBanner count={pendingCount} onShow={flushPending} isActive={isActive}/>
-      <SectionHeader icon={Newspaper} title="News" />
 
       <div className="nt-bar" style={{ top: getMeasuredSafeTop() }}>
         {CATEGORIES.map(({id,label,Icon})=>(

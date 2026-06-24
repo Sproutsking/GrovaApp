@@ -127,7 +127,7 @@ const CultureTab = React.forwardRef(({
   }, [dropdownOpen]);
 
   return (
-    <div className="culture-tab">
+    <div className="culture-tab" style={{ position: "relative" }}>
       <SectionHeader icon={Compass} title="Culture" right={
         <div className="culture-dropdown-wrapper" ref={dropdownRef}>
           <button
@@ -253,13 +253,13 @@ const CultureTab = React.forwardRef(({
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 10px 16px;
-          background: linear-gradient(135deg, rgba(132, 204, 22, 0.15), rgba(101, 163, 13, 0.08));
-          border: 1px solid rgba(132, 204, 22, 0.4);
+          padding: 6px 14px;
+          background: linear-gradient(135deg, rgba(132, 204, 22, 0.16), rgba(101, 163, 13, 0.09));
+          border: 1px solid rgba(132, 204, 22, 0.36);
           border-radius: 12px;
           color: #84cc16;
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 700;
           cursor: pointer;
           transition: all 0.2s ease;
           white-space: nowrap;
@@ -293,16 +293,17 @@ const CultureTab = React.forwardRef(({
 
         .culture-dropdown-menu {
           position: absolute;
-          top: calc(100% + 8px);
-          right: 0;
+          top: calc(100% + 6px);
+          left: 0;
           background: rgba(20, 24, 35, 0.98);
           border: 1px solid rgba(132, 204, 22, 0.3);
-          border-radius: 14px;
-          box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
-          backdrop-filter: blur(12px);
-          max-height: 400px;
+          border-radius: 16px;
+          box-shadow: 0 16px 38px rgba(0, 0, 0, 0.38);
+          backdrop-filter: blur(18px);
+          max-height: 420px;
           overflow-y: auto;
-          width: 220px;
+          width: 100vw;
+          margin-left: calc(-1 * (100vw - 100%));
           z-index: 101;
           animation: slideDown 0.2s ease;
         }
@@ -340,13 +341,13 @@ const CultureTab = React.forwardRef(({
           align-items: center;
           gap: 10px;
           width: 100%;
-          padding: 12px 16px;
+          padding: 10px 16px;
           background: transparent;
           border: none;
           border-left: 3px solid transparent;
-          color: rgba(255, 255, 255, 0.65);
+          color: rgba(255, 255, 255, 0.75);
           font-size: 13px;
-          font-weight: 500;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.15s ease;
           text-align: left;

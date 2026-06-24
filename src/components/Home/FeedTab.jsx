@@ -355,8 +355,6 @@ const FeedTab = React.forwardRef(({
       className="feed-container-virtual"
       style={{ position: "relative", overflow: "auto", height: "100%" }}
     >
-      <SectionHeader icon={Image} title="Feed" />
-
       {/* Virtual scroll wrapper */}
       <div style={{ height: totalHeight, position: "relative" }}>
         <div style={{ height: offsetHeight }} />
