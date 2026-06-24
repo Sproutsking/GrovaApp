@@ -475,15 +475,17 @@ export default function AdminSidebar({
             style={{
               background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`,
               boxShadow: `0 4px 16px ${role.glow}`,
+              overflow: "hidden",
+              padding: 0,
             }}
           >
-            X
+            <img src="/logo192.png" alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           </div>
           <div>
             <div className="xv-logo-name">Xeevia</div>
             <div className="xv-logo-sub" style={{ color: role.color }}>Admin Console</div>
           </div>
-        </div>
+        </div> 
 
         {/* Nav */}
         <nav className="xv-nav">

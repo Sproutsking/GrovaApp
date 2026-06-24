@@ -128,11 +128,7 @@ const CultureTab = React.forwardRef(({
 
   return (
     <div className="culture-tab">
-      {/* Section header */}
-      <SectionHeader icon={Compass} title="Culture" />
-
-      {/* Category dropdown — premium top-right positioning */}
-      <div className="culture-header">
+      <SectionHeader icon={Compass} title="Culture" right={
         <div className="culture-dropdown-wrapper" ref={dropdownRef}>
           <button
             className="culture-dropdown-trigger"
@@ -166,7 +162,7 @@ const CultureTab = React.forwardRef(({
             </div>
           )}
         </div>
-      </div>
+      } />
 
       {/* Content feed */}
       <div className="culture-feed">

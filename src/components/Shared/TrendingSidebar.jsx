@@ -725,7 +725,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .empty-text  { font-size:12px; font-weight:600; color: var(--text-secondary); }
 
         /* ── SLIDING PANEL ── */
-        .sp-overlay { position:fixed; left:0; right:0; bottom:0; background:var(--overlay); backdrop-filter:blur(12px); z-index:9998; animation:fadeIn .22s ease; }
+        .sp-overlay { position:fixed; left:0; right:0; bottom:0; background:transparent; backdrop-filter:none; z-index:9998; animation:fadeIn .22s ease; }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         .sp-panel {
           position:fixed; right:0; bottom:0; width:min(440px,92vw);

@@ -265,9 +265,9 @@ const NewsTab = React.forwardRef(function NewsTab(
     <div className="nt-root">
       {/* Banner — portal, strictly gated: isActive AND count > 0 */}
       <NewBanner count={pendingCount} onShow={flushPending} isActive={isActive}/>
-      <SectionHeader icon={Newspaper} title="News" subtitle="Top headlines and live updates" />
+      <SectionHeader icon={Newspaper} title="News" />
 
-      <div className="nt-bar">
+      <div className="nt-bar" style={{ top: getMeasuredSafeTop() }}>
         {CATEGORIES.map(({id,label,Icon})=>(
           <button key={String(id)} className={`nt-chip${activeFilter===id?" nt-chip--on":""}`} onClick={()=>setActiveFilter(id)}>
             <Icon size={11}/>{label}

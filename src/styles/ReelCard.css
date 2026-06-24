@@ -521,10 +521,10 @@
 
 /* ── Footer (reactions) ──────────────────────────────────────────────────────── */
 .xv-reel-footer {
-  padding: 0;
+  padding: 6px 12px;
   background: #080808;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-}
+} 
 
 /* ── Mobile ──────────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {

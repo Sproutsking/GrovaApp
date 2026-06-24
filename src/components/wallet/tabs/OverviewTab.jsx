@@ -279,7 +279,7 @@ function TxDirectionChip({ isIn, isPending }) {
 const CSS = `
   .ov-section-head{display:flex;align-items:center;gap:10px;margin:24px 0 14px;justify-content:center;}
   .ov-section-title{font-size:10.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);white-space:nowrap;flex-shrink:0;}
-  .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);}
+  .ov-section-line{flex:1;height:1px;max-width:100px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);} .ov-section-title:empty{display:none;}
 
   /* ── Action rows ─────────────────────────────────────────────── */
   /* Row 1: 4 primary actions always in one line */
