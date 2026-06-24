@@ -27,7 +27,8 @@
     "react-player": "^3.4.0",
     "react-qr-code": "^2.0.18",
     "react-scripts": "^5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "cross-env": "^7.0.3"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -54,8 +55,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "cross-env": "^7.0.3"
   }
 }

@@ -334,17 +334,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       const totalViews = allViewRows.reduce((s, r) => s + (r.views || 0), 0);
       const totalLikes = storyLikesCount + reelLikesCount + postLikesCount;
 
-      let avatarUrl = null;
-      if (profileData?.avatar_id) {
-        const baseUrl = mediaUrlService.getImageUrl(profileData.avatar_id);
-        if (baseUrl && typeof baseUrl === "string") {
-          const cleanUrl = baseUrl.split("?")[0];
-          avatarUrl = cleanUrl.includes("supabase")
-            ? `${cleanUrl}?quality=100&width=600&height=600&resize=cover&format=webp`
-            : baseUrl;
-        }
-      }
-
       const epBalance = Number(profileData?.engagement_points ?? 0);
       const gtBalance = Number(wallet?.xev_tokens ?? 0);
 
