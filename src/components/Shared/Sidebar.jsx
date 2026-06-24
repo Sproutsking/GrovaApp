@@ -1,7 +1,6 @@
 // src/components/Shared/Sidebar.jsx
 import React, { useState } from "react";
 import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid } from "lucide-react";
-import SectionHeader from "./SectionHeader";
 import Logo from "./Assets/Logo.png";
 import ServicesModal from "./ServicesModal";
 
@@ -123,17 +122,6 @@ const Sidebar = ({
               <p>Every Word Seeds Value</p>
             </div>
           </div>
-
-          {/* Nav section label */}
-          <SectionHeader
-            icon={LayoutGrid}
-            iconColor="var(--text-secondary)"
-            iconBg="var(--surface)"
-            iconBorder="var(--surface-border)"
-            title="Navigation"
-            subtitle="Main app sidebar"
-            className="sidebar-nav-header"
-          />
 
           {/* Nav */}
           <nav className="nav-container">

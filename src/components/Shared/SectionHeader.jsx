@@ -28,7 +28,9 @@ const SectionHeader = ({
       </div>
       {right && <div className="sh-right">{right}</div>}
       <style>{`
-        .sh-root{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:14px;position:relative;background:transparent;}
+        .sh-root{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:12px;position:relative;background:transparent;}
+        .sh-root.sh-root--compact{padding:2px 0;margin-bottom:8px;}
+        .sh-root.sh-root--compact::before{width:32px;height:2px;}
         .sh-root::before{content:"";position:absolute;left:0;bottom:-1px;width:44px;height:4px;background:linear-gradient(90deg,${iconColor},transparent);border-radius:2px;}
         .sh-left{display:flex;align-items:center;gap:12px;min-width:0;}
         .sh-icon{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;border:1px solid currentColor;flex-shrink:0;box-shadow:0 10px 30px rgba(0,0,0,0.12);}

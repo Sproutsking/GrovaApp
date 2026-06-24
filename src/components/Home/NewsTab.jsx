@@ -67,16 +67,17 @@ function mergeVideos(existing, incoming) {
 }
 
 function getMeasuredSafeTop() {
-  let max=0;
+  let max = 0;
   try {
     for (const el of document.querySelectorAll("*")) {
-      const s=window.getComputedStyle(el),p=s.position;
-      if(p!=="fixed"&&p!=="sticky") continue;
-      const r=el.getBoundingClientRect();
-      if(r.top<10&&r.bottom>max&&r.width>60) max=r.bottom;
+      const s = window.getComputedStyle(el);
+      const position = s.position;
+      if (position !== "fixed" && position !== "sticky") continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.top < 10 && rect.bottom > max && rect.width > 60) max = rect.bottom;
     }
   } catch {}
-  return Math.max(max,56)+10;
+  return Math.max(max, 56);
 }
 
 // ── NewBanner — STRICTLY gated by isActive===true ────────────────────────────
@@ -266,7 +267,7 @@ const NewsTab = React.forwardRef(function NewsTab(
       {/* Banner — portal, strictly gated: isActive AND count > 0 */}
       <NewBanner count={pendingCount} onShow={flushPending} isActive={isActive}/>
 
-      <div className="nt-bar" style={{ top: getMeasuredSafeTop() }}>
+      <div className="nt-bar" style={{ top: getMeasuredSafeTop(), padding: "4px 12px", gap: 6 }}>
         {CATEGORIES.map(({id,label,Icon})=>(
           <button key={String(id)} className={`nt-chip${activeFilter===id?" nt-chip--on":""}`} onClick={()=>setActiveFilter(id)}>
             <Icon size={11}/>{label}
@@ -301,6 +302,6 @@ const NewsTab = React.forwardRef(function NewsTab(
   );
 });
 
-const NT_CSS=`.nt-root{width:100%;}.nt-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.05);overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:50;background:rgba(8,8,8,0.98);backdrop-filter:blur(16px);}.nt-bar::-webkit-scrollbar{display:none;}.nt-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.4);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .18s;flex-shrink:0;}.nt-chip:hover{background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.24);color:#60a5fa;}.nt-chip--on{background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.34);color:#60a5fa;}.nt-ref{margin-left:auto;flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.32);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}.nt-ref:hover{background:rgba(59,130,246,0.1);color:#60a5fa;border-color:rgba(59,130,246,0.24);}.nt-ref:disabled{cursor:default;}@keyframes ntRS{to{transform:rotate(360deg)}}.nt-ref--spin svg{animation:ntRS .8s linear infinite;}.nt-dot{width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;animation:ntDP 1s ease-in-out infinite;}@keyframes ntDP{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.28;transform:scale(.55)}}`;
+const NT_CSS=`.nt-root{width:100%;}.nt-bar{display:flex;align-items:center;gap:6px;padding:4px 12px;border-bottom:1px solid rgba(255,255,255,0.06);overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:50;background:rgba(8,8,8,0.98);backdrop-filter:blur(16px);margin-bottom:0;}.nt-bar::-webkit-scrollbar{display:none;}.nt-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.65);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .18s;flex-shrink:0;}.nt-chip:hover{background:rgba(59,130,246,0.11);border-color:rgba(59,130,246,0.28);color:#60a5fa;}.nt-chip--on{background:rgba(59,130,246,0.18);border-color:rgba(59,130,246,0.45);color:#60a5fa;}.nt-ref{margin-left:auto;flex-shrink:0;width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.38);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}.nt-ref:hover{background:rgba(59,130,246,0.14);color:#60a5fa;border-color:rgba(59,130,246,0.28);}.nt-ref:disabled{cursor:default;}@keyframes ntRS{to{transform:rotate(360deg)}}.nt-ref--spin svg{animation:ntRS .8s linear infinite;}.nt-dot{width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;animation:ntDP 1s ease-in-out infinite;}@keyframes ntDP{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.28;transform:scale(.55)}}`;
 
 export default NewsTab;

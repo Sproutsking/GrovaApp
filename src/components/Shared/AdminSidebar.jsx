@@ -70,7 +70,7 @@ const STYLES = `
 
   .xv-nav {
     flex: 1;
-    padding: 14px 12px 8px;
+    padding: 10px 12px 8px;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -84,6 +84,7 @@ const STYLES = `
     color: var(--text-secondary);
     padding: 0 10px 8px;
     font-family: 'DM Mono', monospace;
+    display: none;
   }
   .xv-section-label--spaced { padding-top: 16px; }
 
@@ -100,7 +101,6 @@ const STYLES = `
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
-    /* ── 3px gap — tight but breathable ── */
     margin-bottom: 3px;
     text-align: left;
     position: relative;
@@ -155,6 +155,12 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
+  .xv-nav-divider {
+    height: 1px;
+    margin: 14px 0;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+  }
   .xv-menu-btn:hover {
     background: var(--surface-strong);
     color: var(--text);
@@ -167,16 +173,17 @@ const STYLES = `
     align-items: center;
     gap: 11px;
     padding: 12px 14px;
-    border-radius: 10px;
+    border-radius: 14px;
     font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s, box-shadow 0.15s;
+    transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
     text-align: left;
     font-family: 'Syne', sans-serif;
     background: var(--surface);
-    border: 1px solid var(--surface-border);
+    border: 1px solid rgba(255,255,255,0.08);
     color: var(--text);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
   }
   .xv-admin-btn:hover { filter: brightness(1.1); }
   .xv-admin-btn-label { flex: 1; }
@@ -489,16 +496,6 @@ export default function AdminSidebar({
 
         {/* Nav */}
         <nav className="xv-nav">
-          <SectionHeader
-            className="xv-section-header"
-            icon={MenuGridIcon}
-            iconColor="var(--text-secondary)"
-            iconBg="var(--surface)"
-            iconBorder="var(--surface-border)"
-            title="Navigation"
-            subtitle="Admin console links"
-          />
-
           {NAV_ITEMS.map((item) => {
             const Icon     = item.icon;
             const isActive = activeTab === item.id;
@@ -555,16 +552,8 @@ export default function AdminSidebar({
             <span>Menu</span>
           </button>
 
-          {/* Admin section */}
-          <SectionHeader
-            className="xv-section-header"
-            icon={ShieldIcon}
-            iconColor={role.color}
-            iconBg={`${role.color}18`}
-            iconBorder={`${role.color}28`}
-            title="Administration"
-            subtitle="Platform actions"
-          />
+          <div className="xv-nav-divider" />
+
 
           <button
             className="xv-admin-btn"
@@ -615,8 +604,6 @@ export default function AdminSidebar({
             <LogOutIcon />
             Sign Out
           </button>
-
-          <div className="xv-credits">Platform Administration · Xeevia</div>
         </div>
       </aside>
 
