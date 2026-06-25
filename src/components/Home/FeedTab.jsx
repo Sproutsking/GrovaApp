@@ -543,6 +543,9 @@ const FeedTab = React.forwardRef(function FeedTab(
   return (
     <div className="ft-root">
       <NewPostBanner isActive={isActive} count={pendingCount} onShow={flushPending} />
+      <Suspense fallback={null}>
+        <NewsVideoStrip />
+      </Suspense>
       <VirtualFeed
         items={localItems}
         currentUser={currentUser}
@@ -557,9 +560,6 @@ const FeedTab = React.forwardRef(function FeedTab(
       {!hasMore && <EndOfFeed />}
       <ScrollSentinel onVisible={onLoadMore} disabled={!hasMore || isLoadingMore} />
       <ScrollFAB />
-      <Suspense fallback={null}>
-        <NewsVideoStrip />
-      </Suspense>
       <style>{`
         .ft-root { position: relative; }
       `}</style>
