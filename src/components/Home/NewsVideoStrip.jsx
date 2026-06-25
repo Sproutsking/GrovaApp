@@ -93,6 +93,11 @@ const PROXY_COOLDOWN_MS = 10 * 60_000; // 10 minutes
 
 const PROXIES = [
   {
+    name: "direct",
+    build: (u) => u,
+    parse: async (res) => parseAtomXml(await res.text()),
+  },
+  {
     name: "rss2json",
     build: (u) => `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(u)}&count=8`,
     parse: async (res) => {
@@ -108,11 +113,8 @@ const PROXIES = [
   },
   {
     name: "allorigins",
-    build: (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
-    parse: async (res) => {
-      const j = await res.json();
-      return parseAtomXml(j?.contents || "");
-    },
+    build: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    parse: async (res) => parseAtomXml(await res.text()),
   },
   {
     name: "corsproxy",
@@ -122,6 +124,11 @@ const PROXIES = [
   {
     name: "codetabs",
     build: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    parse: async (res) => parseAtomXml(await res.text()),
+  },
+  {
+    name: "supabase",
+    build: (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
     parse: async (res) => parseAtomXml(await res.text()),
   },
 ];
