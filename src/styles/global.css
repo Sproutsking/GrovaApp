@@ -25,6 +25,34 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
   overscroll-behavior: none;
+  /* Smooth scroll padding for fixed headers */
+  scroll-padding-top: 80px;
+}
+
+/* Ultra-smooth scrolling physics */
+* {
+  scrollbar-color: rgba(132, 204, 22, 0.3) rgba(0, 0, 0, 0.1);
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(132, 204, 22, 0.4) 0%, rgba(132, 204, 22, 0.2) 100%);
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(132, 204, 22, 0.6) 0%, rgba(132, 204, 22, 0.4) 100%);
 }
 
 :root {
@@ -392,22 +420,16 @@ img, video {
 .context-menu                          { z-index: 300; }
 .comment-modal, .share-modal           { z-index: 400; }
 .profile-preview-modal, .profile-modal { z-index: 450 !important; }
-.fullscreen-reels-container            { z-index: 500; }
+.fullscreen-reels-container            { z-index: 9999 !important; }
+.post-fullscreen-container             { z-index: 9998 !important; }
 .toast-container, .notification-popup  { z-index: 1100; }
 .loading-overlay                       { z-index: 1200; }
 .confirm-dialog, .alert-modal          { z-index: 1300; }
 
-@media (min-width: 1024px) {
-  .fullscreen-reels-container {
-    position: relative !important;
-    z-index: 1 !important;
-  }
-}
-
 .fullscreen-reels-container .comment-modal,
 .fullscreen-reels-container .share-modal,
 .fullscreen-reels-container .profile-preview-modal {
-  z-index: 1000 !important;
+  z-index: 10000 !important;
 }
 
 /* ==========================================================================
