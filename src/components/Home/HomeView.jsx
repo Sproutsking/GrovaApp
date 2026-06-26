@@ -905,7 +905,7 @@ const HomeView = ({
       {modals.fullscreenReels && (
         <FullScreenReels
           reels={[modals.fullscreenReels]}
-          currentIndex={0}
+          initialIndex={0}
           currentUser={resolvedUser}
           onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_REELS" })}
         />

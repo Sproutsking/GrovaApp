@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { VolumeX, Volume2, X, MoreVertical } from "lucide-react";
 import ReelProfilePreview from "../Shared/ReelProfilePreview";
 import FullScreenReactionPanel from "../Shared/FullScreenReactionPanel";
@@ -326,7 +327,7 @@ const FullScreenReels = ({
 
   if (!currentReel || !profile) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <>
       <div
         ref={containerRef}
