@@ -22,34 +22,25 @@ const PushPermissionNudge = memo(({ userId }) => {
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
-    // Don't show if already granted or denied
     if (!pushService.isSupported()) return;
     if (Notification.permission !== "default") return;
 
-    // Check if dismissed this session
-    try {
-      if (sessionStorage.getItem("xv_push_nudge_dismissed")) return;
-    } catch {}
-
     const showNudge = () => {
-      if (!visible) {
-        setVisible(true);
-      }
+      setVisible(true);
     };
 
-    // Show after a short delay on the "push:needs_permission" event
     const handler = () => {
       setTimeout(showNudge, 4000);
     };
 
     window.addEventListener("push:needs_permission", handler);
 
-    // If the event already fired before this component mounted, still show the nudge
-    if (window.__pushUserId) {
+    // If the app already knows the user ID or the event fired before this
+    // component mounted, still show the nudge on refresh.
+    if (userId || window.__pushUserId) {
       setTimeout(showNudge, 4000);
     }
 
-    // Also handle grant success — hide the nudge
     const grantHandler = () => {
       setVisible(false);
     };
@@ -59,7 +50,7 @@ const PushPermissionNudge = memo(({ userId }) => {
       window.removeEventListener("push:needs_permission", handler);
       window.removeEventListener("push:permission_granted", grantHandler);
     };
-  }, []);
+  }, [userId]);
 
   const effectiveUserId = userId || window.__pushUserId || null;
 
@@ -80,9 +71,6 @@ const PushPermissionNudge = memo(({ userId }) => {
   const handleDismiss = useCallback(() => {
     setVisible(false);
     setDismissed(true);
-    try {
-      sessionStorage.setItem("xv_push_nudge_dismissed", "1");
-    } catch {}
   }, []);
 
   if (!visible || dismissed) return null;
