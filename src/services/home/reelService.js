@@ -11,6 +11,7 @@ import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
 import pushService from "../notifications/pushService";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 // ── Push helper — never throws ────────────────────────────────────────────────
 async function _sendPush(params) {
@@ -146,6 +147,12 @@ class ReelService {
         .eq("id", reelId)
         .eq("user_id", user.id);
       if (error) throw error;
+
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.reelDeleted(reelId, user.id),
+        user.id,
+      ).catch((err) => console.error("[XRC] reelDeleted record failed:", err));
 
       cacheService.invalidate(`reel:${reelId}`);
       cacheService.invalidatePattern("reels");

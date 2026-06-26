@@ -64,6 +64,7 @@ const Sidebar = ({
   onSignOut,
   user,
   currentUser,
+  xrcService,
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [showServices, setShowServices] = useState(false);
@@ -239,6 +240,7 @@ const Sidebar = ({
           onClose={() => setShowServices(false)}
           setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
           currentUser={currentUser || user}
+          xrcService={xrcService}
         />
       )}
 

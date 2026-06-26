@@ -21,6 +21,7 @@ import {
   Monitor, MapPin, Wifi, Phone,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../../services/xrc";
 import TwoFactorSetupModal from "../Modals/TwoFactorSetupModal";
 import TwoFAModal          from "../Modals/TwoFAModal";
 import StatusModal         from "../Modals/StatusModal";
@@ -279,6 +280,11 @@ const SecuritySection = ({ userId }) => {
         await supabase.from("profiles")
           .update({ security_level: computed, updated_at: new Date().toISOString() })
           .eq("id", userId);
+        xrcService.writeRecord(
+          STREAM_TYPES.XARC,
+          XRC_EVENTS.profileUpdated(userId, ["security_level"]),
+          userId,
+        ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
       }
     } catch (e) {
       console.error("Security load error:", e);
@@ -306,6 +312,12 @@ const SecuritySection = ({ userId }) => {
         await supabase.from("profiles")
           .update({ require_2fa: false, updated_at: new Date().toISOString() })
           .eq("id", userId);
+
+        xrcService.writeRecord(
+          STREAM_TYPES.XARC,
+          XRC_EVENTS.profileUpdated(userId, ["require_2fa"]),
+          userId,
+        ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
 
         await supabase.from("security_events")
           .insert({ user_id: userId, event_type: "2fa_disabled", severity: "warning", metadata: {} });
@@ -365,6 +377,12 @@ const SecuritySection = ({ userId }) => {
         .update({ fingerprint_enabled: true, updated_at: new Date().toISOString() })
         .eq("id", userId);
 
+      xrcService.writeRecord(
+        STREAM_TYPES.XARC,
+        XRC_EVENTS.profileUpdated(userId, ["fingerprint_enabled"]),
+        userId,
+      ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
+
       await supabase.from("security_events")
         .insert({ user_id: userId, event_type: "device_trusted", severity: "info", metadata: { type: "passkey" } });
 
@@ -396,6 +414,12 @@ const SecuritySection = ({ userId }) => {
       await supabase.from("profiles")
         .update({ password_changed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("id", userId);
+
+      xrcService.writeRecord(
+        STREAM_TYPES.XARC,
+        XRC_EVENTS.profileUpdated(userId, ["password_changed_at"]),
+        userId,
+      ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
 
       await supabase.from("security_events")
         .insert({ user_id: userId, event_type: "password_changed", severity: "info", metadata: {} });

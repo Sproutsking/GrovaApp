@@ -2,6 +2,7 @@
 import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import mediaUrlService from "../shared/mediaUrlService";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 class ProfileService {
   // Get user profile
@@ -161,7 +162,9 @@ class ProfileService {
         }
       });
 
-      filteredUpdates.updated_at = new Date().toISOString();
+      const updatedAt = new Date().toISOString();
+      const updatedFields = Object.keys(filteredUpdates);
+      filteredUpdates.updated_at = updatedAt;
 
       const { data, error } = await supabase
         .from("profiles")
@@ -176,6 +179,13 @@ class ProfileService {
       }
 
       console.log("✅ Profile updated successfully");
+      if (updatedFields.length > 0) {
+        xrcService.writeRecord(
+          STREAM_TYPES.XARC,
+          XRC_EVENTS.profileUpdated(userId, updatedFields),
+          userId,
+        ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
+      }
       return data;
     } catch (error) {
       console.error("❌ Update failed:", error);

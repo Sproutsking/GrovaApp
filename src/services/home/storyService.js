@@ -12,6 +12,7 @@ import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
 import pushService from "../notifications/pushService";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 // ── Push helper — never throws ────────────────────────────────────────────────
 async function _sendPush(params) {
@@ -132,6 +133,16 @@ class StoryService {
       const { data, error } = await supabase
         .from("stories").update(updates).eq("id", storyId).select().single();
       if (error) throw error;
+
+      const editedFields = Object.keys(updates);
+      if (editedFields.length > 0) {
+        xrcService.writeRecord(
+          STREAM_TYPES.XCRC,
+          XRC_EVENTS.storyEdited(storyId, data.user_id || null, editedFields),
+          data.user_id || null,
+        ).catch((err) => console.error("[XRC] storyEdited record failed:", err));
+      }
+
       cacheService.invalidate(`story:${storyId}`);
       cacheService.invalidatePattern("stories");
       return data;
@@ -159,6 +170,12 @@ class StoryService {
       const { error } = await supabase
         .from("stories").update({ deleted_at: new Date().toISOString() }).eq("id", storyId);
       if (error) throw error;
+
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.storyDeleted(storyId, user.id),
+        user.id,
+      ).catch((err) => console.error("[XRC] storyDeleted record failed:", err));
 
       cacheService.invalidate(`story:${storyId}`);
       cacheService.invalidatePattern("stories");

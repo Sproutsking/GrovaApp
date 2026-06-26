@@ -381,6 +381,22 @@ export const XRC_EVENTS = {
     user_id: userId,
     edited_fields: fields,
   }),
+  reelEdited: (reelId, userId, fields) => ({
+    event: "reel_edited",
+    content_type: "reel",
+    content_id: reelId,
+    reel_id: reelId,
+    user_id: userId,
+    edited_fields: fields,
+  }),
+  storyEdited: (storyId, userId, fields) => ({
+    event: "story_edited",
+    content_type: "story",
+    content_id: storyId,
+    story_id: storyId,
+    user_id: userId,
+    edited_fields: fields,
+  }),
   postDeleted: (postId, userId) => ({
     event: "post_deleted",
     content_type: "post",

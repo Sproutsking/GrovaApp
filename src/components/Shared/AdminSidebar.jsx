@@ -431,6 +431,7 @@ export default function AdminSidebar({
   adminData,
   onOpenDashboard,
   currentUser,
+  xrcService,
 }) {
   const [hovered, setHovered]           = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -612,6 +613,7 @@ export default function AdminSidebar({
           onClose={() => setShowServices(false)}
           setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
           currentUser={currentUser || user}
+          xrcService={xrcService}
         />
       )}
     </>

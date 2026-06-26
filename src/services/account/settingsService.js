@@ -6,6 +6,7 @@
 
 import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 class SettingsService {
   // ── GET USER SETTINGS ──────────────────────────────────────────────────────
@@ -116,9 +117,42 @@ class SettingsService {
         .eq("id", userId);
 
       if (error) throw error;
+      await this._logProfileUpdate(userId, ["preferences"]);
       return { success: true, settings: notificationSettings };
     } catch (error) {
       throw handleError(error, "Failed to update notification settings");
+    }
+  }
+
+  async _logProfileUpdate(userId, fields) {
+    const filteredFields = (fields || []).filter((field) => field !== "updated_at");
+    if (filteredFields.length === 0) return;
+
+    xrcService.writeRecord(
+      STREAM_TYPES.XARC,
+      XRC_EVENTS.profileUpdated(userId, filteredFields),
+      userId,
+    ).catch((err) => console.error("[XRC] profileUpdated record failed:", err));
+  }
+
+  // ── SAVE SETTINGS ───────────────────────────────────────────────────────────────
+
+  async saveSettings(userId, privacySettings, preferences) {
+    try {
+      const updates = {
+        is_private: privacySettings.privateAccount,
+        show_email: privacySettings.showEmail,
+        show_phone: privacySettings.showPhone,
+        preferences,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
+      if (error) throw error;
+      await this._logProfileUpdate(userId, ["is_private", "show_email", "show_phone", "preferences"]);
+      return { success: true };
+    } catch (error) {
+      throw handleError(error, "Failed to save settings");
     }
   }
 
@@ -134,6 +168,7 @@ class SettingsService {
 
       const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
       if (error) throw error;
+      await this._logProfileUpdate(userId, Object.keys(updates));
       return { success: true, settings: privacySettings };
     } catch (error) {
       throw handleError(error, "Failed to update privacy settings");
@@ -151,9 +186,76 @@ class SettingsService {
 
       const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
       if (error) throw error;
+      await this._logProfileUpdate(userId, Object.keys(updates));
       return { success: true };
     } catch (error) {
       throw handleError(error, "Failed to update contact info");
+    }
+  }
+
+  async verifyPassword(password) {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user?.email) return { success: false, message: "Unable to verify password" };
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password,
+      });
+      if (error) return { success: false, message: error.message };
+      return { success: true };
+    } catch (error) {
+      console.error("verifyPassword error:", error);
+      return { success: false, message: error.message || "Unable to verify password" };
+    }
+  }
+
+  async userHas2FA(userId) {
+    try {
+      const { data, error } = await supabase
+        .from("two_factor_auth")
+        .select("enabled")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.enabled || false;
+    } catch (error) {
+      console.error("userHas2FA error:", error);
+      return false;
+    }
+  }
+
+  async sendEmailVerificationCode(userId, email) {
+    try {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log(`🔐 EMAIL VERIFICATION CODE for ${email}: ${code}`);
+      localStorage.setItem(`verify_code_email_${userId}`, code);
+      localStorage.setItem(`verify_email_${userId}`, email);
+      return { success: true, message: "Verification code sent" };
+    } catch (error) {
+      throw handleError(error, "Failed to send verification code");
+    }
+  }
+
+  async verifyAndChangeEmail(userId, email, verificationCode) {
+    try {
+      const storedCode  = localStorage.getItem(`verify_code_email_${userId}`);
+      const storedEmail = localStorage.getItem(`verify_email_${userId}`);
+      if (storedCode !== verificationCode) return { success: false, message: "Invalid verification code" };
+      if (storedEmail !== email) return { success: false, message: "Email mismatch" };
+
+      const { error } = await supabase.from("profiles")
+        .update({ email, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+      if (error) throw error;
+
+      localStorage.removeItem(`verify_code_email_${userId}`);
+      localStorage.removeItem(`verify_email_${userId}`);
+      await this._logProfileUpdate(userId, ["email"]);
+      return { success: true, message: "Email updated successfully" };
+    } catch (error) {
+      throw handleError(error, "Failed to verify email address");
     }
   }
 
@@ -172,6 +274,7 @@ class SettingsService {
         await supabase.from("security_events").insert({
           user_id: user.id, event_type: "password_changed", severity: "info", metadata: {},
         });
+        await this._logProfileUpdate(user.id, ["password_changed_at"]);
       }
       return { success: true, message: "Password changed successfully" };
     } catch (error) {
@@ -234,6 +337,7 @@ class SettingsService {
         .update({ deletion_requested_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("id", userId);
       if (error) throw error;
+      await this._logProfileUpdate(userId, ["deletion_requested_at"]);
       await supabase.from("security_events").insert({
         user_id: userId, event_type: "account_deletion_requested", severity: "warning", metadata: {},
       });
@@ -249,6 +353,7 @@ class SettingsService {
         .update({ deletion_requested_at: null, updated_at: new Date().toISOString() })
         .eq("id", userId);
       if (error) throw error;
+      await this._logProfileUpdate(userId, ["deletion_requested_at"]);
       await supabase.from("security_events").insert({
         user_id: userId, event_type: "account_deletion_cancelled", severity: "info", metadata: {},
       });
@@ -286,12 +391,77 @@ class SettingsService {
 
       localStorage.removeItem(`verify_code_${userId}`);
       localStorage.removeItem(`verify_phone_${userId}`);
+      await this._logProfileUpdate(userId, ["phone", "phone_verified"]);
       return { success: true, message: "Phone number verified" };
     } catch (error) {
       throw handleError(error, "Failed to verify phone number");
     }
   }
 
+  async confirmPhoneVerification(userId, phoneNumber) {
+    try {
+      const updates = {
+        phone:          phoneNumber,
+        phone_verified: true,
+        updated_at:     new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from("profiles")
+        .update(updates)
+        .eq("id", userId);
+      if (error) throw error;
+
+      await this._logProfileUpdate(userId, Object.keys(updates));
+      await supabase.from("security_events").insert({
+        user_id:    userId,
+        event_type: "device_trusted",
+        severity:   "info",
+        metadata:   { action: "phone_verified", phone: phoneNumber.slice(0, -4) + "****" },
+      });
+
+      return { success: true };
+    } catch (error) {
+      throw handleError(error, "Failed to confirm phone verification");
+    }
+  }
+  async enableTwoFactor(userId, secret, backupCodes) {
+    try {
+      const { error: dbError } = await supabase
+        .from("two_factor_auth")
+        .upsert({
+          user_id:      userId,
+          secret,
+          enabled:      true,
+          backup_codes: backupCodes,
+          verified_at:  new Date().toISOString(),
+          last_used:    null,
+        }, {
+          onConflict: "user_id",
+        });
+      if (dbError) throw dbError;
+
+      const { error: profileError } = await supabase.from("profiles")
+        .update({
+          require_2fa:    true,
+          security_level: 5,
+          updated_at:     new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (profileError) throw profileError;
+
+      await supabase.from("security_events").insert({
+        user_id:    userId,
+        event_type: "2fa_enabled",
+        severity:   "info",
+        metadata:   { timestamp: new Date().toISOString() },
+      });
+
+      await this._logProfileUpdate(userId, ["require_2fa", "security_level"]);
+      return { success: true };
+    } catch (error) {
+      throw handleError(error, "Failed to enable two-factor authentication");
+    }
+  }
   // ── PAYMENT METHODS (stubs) ────────────────────────────────────────────────
 
   async getPaymentMethods(userId)                    { return []; }

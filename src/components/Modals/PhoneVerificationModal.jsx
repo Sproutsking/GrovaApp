@@ -23,6 +23,7 @@ import {
   ArrowLeft, Eye, EyeOff, Lock, KeyRound, AlertCircle,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import settingsService from "../../services/account/settingsService";
 
 const STYLES = `
   @keyframes pvmSpin    { to { transform: rotate(360deg); } }
@@ -343,20 +344,7 @@ export default function PhoneVerificationModal({
         return;
       }
 
-      // Update profiles table — phone + phone_verified
-      await supabase.from("profiles").update({
-        phone:          phone,
-        phone_verified: true,
-        updated_at:     new Date().toISOString(),
-      }).eq("id", userId);
-
-      // Log security event
-      await supabase.from("security_events").insert({
-        user_id:    userId,
-        event_type: "device_trusted", // closest available type
-        severity:   "info",
-        metadata:   { action: "phone_verified", phone: phone.slice(0, -4) + "****" },
-      }).catch(() => {});
+      await settingsService.confirmPhoneVerification(userId, phone);
 
       setSuccess(true);
       setTimeout(() => {

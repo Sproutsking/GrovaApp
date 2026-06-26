@@ -76,6 +76,10 @@ import PushPermissionNudge     from "./components/Shared/PushPermissionNudge";
 import PullToRefreshIndicator  from "./components/Shared/PullToRefreshIndicator";
 import NetworkError            from "./components/Shared/NetworkError";
 import IncomingCallToast       from "./components/Messages/IncomingCallToast";
+import xrcService              from "./services/xrc";
+// DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
+// Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
+// This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
 
 // Admin dashboard
 import AdminDashboard from "./components/Admin/AdminDashboard";
@@ -726,7 +730,7 @@ const MainApp = memo(() => {
         id: "search",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <ExploreView {...viewProps} />
+            <ExploreView {...viewProps} xrcService={xrcService} />
           </Suspense>
         ),
       },
@@ -914,6 +918,7 @@ const MainApp = memo(() => {
           user={user}
           adminData={adminData}
           onOpenDashboard={() => setShowAdminDashboard(true)}
+          xrcService={xrcService}
         />
       );
     }
@@ -925,6 +930,7 @@ const MainApp = memo(() => {
         setSidebarOpen={setSidebarOpen}
         onSignOut={handleSignOut}
         user={user}
+        xrcService={xrcService}
       />
     );
   };
@@ -948,6 +954,7 @@ const MainApp = memo(() => {
         <AdminDashboard
           adminData={adminData}
           onClose={() => setShowAdminDashboard(false)}
+          xrcService={xrcService}
         />
       )}
 
@@ -1031,6 +1038,7 @@ const MainApp = memo(() => {
             activeTab={activeTab}
             setActiveTab={handleTabChange}
             currentUser={currentUser}
+            xrcService={xrcService}
           />
         )}
       </div>

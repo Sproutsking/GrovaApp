@@ -15,6 +15,7 @@ import { supabase } from "../config/supabase";
 import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
 import pushService from "../notifications/pushService";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 // ── Push helper — never throws ────────────────────────────────────────────────
 async function _sendPush(params) {
@@ -184,6 +185,15 @@ class PostService {
         .from("posts").update(updateData).eq("id", postId).select().single();
       if (error) throw error;
 
+      const editedFields = Object.keys(updateData).filter((key) => key !== "updated_at");
+      if (editedFields.length > 0) {
+        xrcService.writeRecord(
+          STREAM_TYPES.XCRC,
+          XRC_EVENTS.postEdited(postId, user.id, editedFields),
+          user.id,
+        ).catch((err) => console.error("[XRC] postEdited record failed:", err));
+      }
+
       this._safeInvalidate(`post:${postId}`);
       this._safeInvalidate("posts");
       return data;
@@ -222,6 +232,12 @@ class PostService {
         .eq("user_id", user.id);
 
       if (deleteError) throw deleteError;
+
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.postDeleted(postId, user.id),
+        user.id,
+      ).catch((err) => console.error("[XRC] postDeleted record failed:", err));
 
       this._safeInvalidate(`post:${postId}`);
       this._safeInvalidate("posts");

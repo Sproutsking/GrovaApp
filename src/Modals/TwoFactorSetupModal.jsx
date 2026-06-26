@@ -1,7 +1,7 @@
 // src/components/Modals/TwoFactorSetupModal.jsx
 import React, { useState, useEffect } from 'react';
 import { Shield, Check, Loader, AlertTriangle } from 'lucide-react';
-import { supabase } from '../../services/config/supabase';
+import settingsService from '../../services/account/settingsService';
 
 const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
   const [step, setStep] = useState(1);
@@ -51,40 +51,9 @@ const TwoFactorSetupModal = ({ show, onClose, userId, onSuccess }) => {
       setLoading(true);
       setError('');
 
-      // Generate backup codes
+      // Generate backup codes and enable two-factor auth through the centralized service.
       const codes = generateBackupCodes();
-
-      // Save to database
-      const { error: dbError } = await supabase
-        .from('two_factor_auth')
-        .upsert({
-          user_id: userId,
-          secret: secret,
-          enabled: true,
-          backup_codes: codes,
-          verified_at: new Date().toISOString(),
-          last_used: null
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (dbError) throw dbError;
-
-      // Log security event
-      await supabase.from('security_events').insert({
-        user_id: userId,
-        event_type: '2fa_enabled',
-        severity: 'info',
-        metadata: { timestamp: new Date().toISOString() }
-      });
-
-      // Update profile
-      await supabase.from('profiles').update({
-        require_2fa: true,
-        security_level: 5,
-        updated_at: new Date().toISOString()
-      }).eq('id', userId);
-
+      await settingsService.enableTwoFactor(userId, secret, codes);
       setBackupCodes(codes);
       setStep(2);
       

@@ -26,6 +26,7 @@ import { supabase }                     from "../config/supabase";
 import { epService, computeEPBurn }     from "./epService";
 import { EP_PER_USD, EP_PER_XEV, USD_PER_XEV, epToNgn } from "../../models/WalletModel";
 import { fetchPaywallConfig } from "../auth/paywallDataService";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 // ── Supported chains ──────────────────────────────────────────────
 export const CHAINS = {
@@ -306,7 +307,7 @@ export const walletService = {
     if (!data || data.success === false)
       return { success: false, error: data?.error || "Transaction rejected" };
 
-    return {
+    const result = {
       success:        true,
       transaction_id: data.transaction_id,
       currency:       data.currency,
@@ -314,6 +315,14 @@ export const walletService = {
       ep_burned:      data.ep_burned,
       recipient,
     };
+
+    xrcService.writeRecord(
+      STREAM_TYPES.XTRC,
+      XRC_EVENTS.tokenTransfer(fromUserId, recipient.id || toIdentifier, parseFloat(amount), currency, data.transaction_id),
+      fromUserId,
+    ).catch((err) => console.error("[XRC] tokenTransfer record failed:", err));
+
+    return result;
   },
 
   // ── On-chain send intent ──────────────────────────────────────
@@ -373,6 +382,12 @@ export const walletService = {
         on_chain: true, chain, to_address: toAddress, ep_burn: epBurn, note,
       },
     });
+
+    xrcService.writeRecord(
+      STREAM_TYPES.XTRC,
+      XRC_EVENTS.tokenTransfer(fromUserId, toAddress, amount, "XEV", tx.id),
+      fromUserId,
+    ).catch((err) => console.error("[XRC] tokenTransfer record failed:", err));
 
     return {
       success:        true,
@@ -441,6 +456,13 @@ export const walletService = {
         p_fee:          5,
       });
       if (error) return { success: false, error: error.message };
+
+      xrcService.writeRecord(
+        STREAM_TYPES.XTRC,
+        XRC_EVENTS.tokenTransfer(fromUserId, opayPhone, parseFloat(ngnAmount), "NGN", data?.transaction_id || null),
+        fromUserId,
+      ).catch((err) => console.error("[XRC] tokenTransfer record failed:", err));
+
       return { success: true, data };
     }
     const recipient = await resolveRecipient(toIdentifier);
@@ -451,6 +473,13 @@ export const walletService = {
       p_ngn_amount:   parseFloat(ngnAmount),
     });
     if (error) return { success: false, error: error.message };
+
+    xrcService.writeRecord(
+      STREAM_TYPES.XTRC,
+      XRC_EVENTS.tokenTransfer(fromUserId, recipient.id, parseFloat(ngnAmount), "NGN", data?.transaction_id || null),
+      fromUserId,
+    ).catch((err) => console.error("[XRC] tokenTransfer record failed:", err));
+
     return { success: true, data };
   },
 
