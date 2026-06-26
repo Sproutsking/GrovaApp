@@ -3,7 +3,7 @@
   "outputDirectory": "build",
   "rewrites": [
     {
-      "source": "/((?!service-worker\\.js|manifest\\.json|favicon\\.png|logo192\\.png|logo512\\.png|static/).*)",
+      "source": "/((?!service-worker\\.js|manifest\\.json|favicon\\.png|logo192\\.png|logo512\\.png|OneSignalSDKWorker\\.js|OneSignalSDKUpdaterWorker\\.js|static/).*)",
       "destination": "/index.html"
     }
   ],
