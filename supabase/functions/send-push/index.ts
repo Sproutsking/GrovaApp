@@ -31,7 +31,12 @@ const CORS_HEADERS = {
   ].join(", "),
 };
 
-// ── VAPID config ──────────────────────────────────────────────────────────────
+// ── OneSignal config ───────────────────────────────────────────────────────
+const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID") ?? "";
+const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY") ?? "";
+
+// Legacy VAPID config is intentionally isolated and no longer used by the
+// active notification delivery path.
 const VAPID_PUBLIC_KEY  = Deno.env.get("VAPID_PUBLIC_KEY")  ?? "";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
 const VAPID_SUBJECT     = Deno.env.get("VAPID_SUBJECT")     ?? "mailto:support@xeevia.com";
@@ -243,18 +248,53 @@ async function encryptPayload(
   return { ciphertext, salt, serverPublicKey: serverPublicKeyRaw };
 }
 
-// ── Send single push ──────────────────────────────────────────────────────────
+// ── Send single push via OneSignal ─────────────────────────────────────────
 async function sendPush(
   sub:     { endpoint: string; p256dh: string; auth: string },
   payload: string,
   opts:    { ttl?: number; urgency?: string } = {},
 ): Promise<{ ok: boolean; status: number; expired: boolean; body: string }> {
   try {
+    if (sub.endpoint.startsWith("onesignal://")) {
+      if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
+        console.error("[send-push] OneSignal secrets not configured");
+        return { ok: false, status: 500, expired: false, body: "OneSignal secrets missing" };
+      }
+
+      const playerId = sub.endpoint.replace("onesignal://", "");
+      const parsed = JSON.parse(payload) as Record<string, unknown>;
+      const title = String(parsed.title ?? "Xeevia");
+      const body = String(parsed.body ?? "");
+      const data = (parsed.data as Record<string, unknown>) ?? {};
+
+      const res = await fetch("https://onesignal.com/api/v1/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Authorization": `Basic ${ONESIGNAL_REST_API_KEY}`,
+        },
+        body: JSON.stringify({
+          app_id: ONESIGNAL_APP_ID,
+          include_player_ids: [playerId],
+          headings: { en: title },
+          contents: { en: body },
+          data,
+          url: String(data.url ?? "/"),
+          priority: 10,
+        }),
+      });
+
+      const bodyText = await res.text().catch(() => "");
+      if (!res.ok) {
+        console.error("[send-push] OneSignal HTTP", res.status, bodyText.slice(0, 240));
+      }
+      return { ok: res.ok, status: res.status, expired: false, body: bodyText };
+    }
+
     const ttl     = opts.ttl     ?? 86400;
     const urgency = opts.urgency ?? "normal";
 
     const jwt = await buildVapidJwt(sub.endpoint);
-
     const { ciphertext, salt, serverPublicKey } = await encryptPayload(sub, payload);
 
     const res = await fetch(sub.endpoint, {
@@ -424,37 +464,35 @@ serve(async (req: Request) => {
 
   // Health check — GET request
   if (req.method === "GET") {
-    try {
-      await importVapidPrivateKey();
+    if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       return json({
-        ok:         true,
-        message:    "VAPID keys valid",
-        subject:    VAPID_SUBJECT,
-        key_prefix: VAPID_PUBLIC_KEY.slice(0, 20) + "...",
-      });
-    } catch (err) {
-      return json({ ok: false, error: String(err) }, 500);
+        ok: false,
+        error: "ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY must be set in Edge Function secrets",
+      }, 500);
     }
+    return json({
+      ok: true,
+      message: "OneSignal delivery is configured",
+      app_id: ONESIGNAL_APP_ID.slice(0, 8) + "...",
+    });
   }
 
   let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch { return json({ error: "Invalid JSON body" }, 400); }
 
-  // Health / VAPID test via POST
+  // Health / OneSignal test via POST
   if (body?.health === true || body?.test === true) {
-    try {
-      await importVapidPrivateKey();
-      return json({ ok: true, message: "VAPID keys valid", subject: VAPID_SUBJECT });
-    } catch (err) {
-      return json({ ok: false, error: String(err) }, 500);
+    if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
+      return json({ ok: false, error: "ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY must be set in Edge Function secrets" }, 500);
     }
+    return json({ ok: true, message: "OneSignal delivery is configured" });
   }
 
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.error("[send-push] VAPID keys not configured in Edge Function secrets");
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
+    console.error("[send-push] OneSignal secrets not configured in Edge Function secrets");
     return json({
-      error: "VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be set in Edge Function secrets",
+      error: "ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY must be set in Edge Function secrets",
     }, 500);
   }
 
