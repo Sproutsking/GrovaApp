@@ -1,123 +1,423 @@
 // ============================================================================
-// src/components/Modals/SavedContentModal.jsx — FULL REWRITE
-// No toast dependency. Folder management. Grouped "All" view.
+// src/components/Modals/SavedContentModal.jsx — COMPLETE REWRITE v2
+// Real DB integration + content previews + fullscreen viewing
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { X, Bookmark, Trash2, FolderPlus, Film, Image, BookOpen, ChevronRight, ChevronLeft, FolderOpen, Plus } from "lucide-react";
-
-const STORAGE_KEY = "save_folders";
-const ITEMS_KEY = "saved_content_items";
-
-const getFolders = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '["Favorites"]'); } catch { return ["Favorites"]; }
-};
-
-const getItems = () => {
-  try { return JSON.parse(localStorage.getItem(ITEMS_KEY) || "[]"); } catch { return []; }
-};
-
-const setFoldersStore = (f) => localStorage.setItem(STORAGE_KEY, JSON.stringify(f));
-const setItemsStore = (i) => localStorage.setItem(ITEMS_KEY, JSON.stringify(i));
-
-const typeIcon = (type) => {
-  if (type === "reel") return <Film size={14} />;
-  if (type === "story") return <BookOpen size={14} />;
-  return <Image size={14} />;
-};
-
-const typeColor = (type) => {
-  if (type === "reel") return { bg: "rgba(99,102,241,0.12)", color: "#818cf8" };
-  if (type === "story") return { bg: "rgba(251,191,36,0.12)", color: "#fbbf24" };
-  return { bg: "rgba(132,204,22,0.12)", color: "#84cc16" };
-};
+import { X, Bookmark, Trash2, FolderPlus, Film, Image, BookOpen, ChevronRight, ChevronLeft, Loader } from "lucide-react";
+import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
+import FullScreenPost from "../Home/FullScreenPost";
+import FullScreenReels from "../Home/FullScreenReels";
 
 const SavedContentModal = ({ currentUser, onClose, isMobile = false }) => {
-  const [folders, setFolders] = useState(getFolders);
-  const [items, setItems] = useState(getItems);
-  const [activeFolder, setActiveFolder] = useState("all"); // "all" or folder name
-  const [flash, setFlash] = useState(null);
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(null); // item to delete
+  const [savedItems, setSavedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFolder, setActiveFolder] = useState("all");
+  const [folders, setFolders] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [fullscreenType, setFullscreenType] = useState(null); // 'post', 'reel', 'story'
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  const showFlash = (msg, type = "success") => {
-    setFlash({ msg, type });
-    setTimeout(() => setFlash(null), 2500);
+  // ── Load saved content from DB ──────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const loadSavedContent = async () => {
+      try {
+        setLoading(true);
+
+        // Get all saved_content records for this user
+        const { data: savedRecs, error: saveError } = await supabase
+          .from("saved_content")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .order("created_at", { ascending: false });
+
+        if (saveError) throw saveError;
+
+        // Extract unique folders
+        const uniqueFolders = [...new Set((savedRecs || []).map(s => s.folder || "Favorites"))];
+        setFolders(uniqueFolders.length > 0 ? uniqueFolders : ["Favorites"]);
+
+        // Fetch full content data for each saved item
+        if (savedRecs && savedRecs.length > 0) {
+          const enriched = await Promise.all(
+            savedRecs.map(async (saved) => {
+              try {
+                let contentData = null;
+
+                if (saved.content_type === "post") {
+                  const { data } = await supabase
+                    .from("posts")
+                    .select("*, profiles(*)")
+                    .eq("id", saved.content_id)
+                    .single();
+                  contentData = data;
+                } else if (saved.content_type === "reel") {
+                  const { data } = await supabase
+                    .from("reels")
+                    .select("*, profiles(*)")
+                    .eq("id", saved.content_id)
+                    .single();
+                  contentData = data;
+                } else if (saved.content_type === "story") {
+                  const { data } = await supabase
+                    .from("stories")
+                    .select("*, profiles(*)")
+                    .eq("id", saved.content_id)
+                    .single();
+                  contentData = data;
+                }
+
+                return {
+                  ...saved,
+                  _content: contentData,
+                };
+              } catch (err) {
+                console.error(`Failed to fetch ${saved.content_type}:`, err);
+                return saved;
+              }
+            })
+          );
+
+          setSavedItems(enriched);
+        } else {
+          setSavedItems([]);
+        }
+      } catch (err) {
+        console.error("Failed to load saved content:", err);
+        setSavedItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSavedContent();
+  }, [currentUser?.id]);
+
+  // ── Remove from saved ──────────────────────────────────────────────────
+  const removeFromSaved = async (savedId) => {
+    try {
+      const { error } = await supabase
+        .from("saved_content")
+        .delete()
+        .eq("id", savedId);
+
+      if (error) throw error;
+
+      setSavedItems(prev => prev.filter(item => item.id !== savedId));
+    } catch (err) {
+      console.error("Failed to remove:", err);
+    }
   };
 
-  const removeItem = (itemId) => {
-    const next = items.filter(i => i.id !== itemId);
-    setItems(next);
-    setItemsStore(next);
-    setConfirmDelete(null);
-    showFlash("Removed from saved");
+  // ── Filter items by folder ─────────────────────────────────────────────
+  const filteredItems = activeFolder === "all"
+    ? savedItems
+    : savedItems.filter(item => (item.folder || "Favorites") === activeFolder);
+
+  // ── Get thumbnail URL ─────────────────────────────────────────────────
+  const getThumbnail = (item) => {
+    const content = item._content;
+    if (!content) return null;
+
+    if (item.content_type === "post" && content.primary_media_id) {
+      return mediaUrlService.getImageUrl(content.primary_media_id, { width: 160, quality: "auto:good" });
+    }
+    if (item.content_type === "reel" && content.video_thumbnail_id) {
+      return mediaUrlService.getImageUrl(content.video_thumbnail_id, { width: 160, quality: "auto:good" });
+    }
+    if (item.content_type === "story" && content.cover_image_id) {
+      return mediaUrlService.getStoryImageUrl(content.cover_image_id, 160);
+    }
+
+    return null;
   };
 
-  const createFolder = () => {
-    const name = newFolderName.trim();
-    if (!name) return;
-    if (folders.length >= 10) { showFlash("Max 10 folders", "error"); return; }
-    if (folders.includes(name)) { showFlash("Folder already exists", "error"); return; }
-    const next = [...folders, name];
-    setFolders(next);
-    setFoldersStore(next);
-    setNewFolderName("");
-    setCreatingFolder(false);
-    showFlash(`"${name}" created!`);
+  // ── Handle item click ──────────────────────────────────────────────────
+  const handleItemClick = (item) => {
+    setSelectedItem(item._content || item);
+    setFullscreenType(item.content_type);
   };
 
-  const deleteFolder = (folderName) => {
-    if (folderName === "Favorites") { showFlash("Cannot delete Favorites", "error"); return; }
-    // Move items to Favorites
-    const movedItems = items.map(i => i.folder === folderName ? { ...i, folder: "Favorites" } : i);
-    setItems(movedItems);
-    setItemsStore(movedItems);
-    const nextFolders = folders.filter(f => f !== folderName);
-    setFolders(nextFolders);
-    setFoldersStore(nextFolders);
-    if (activeFolder === folderName) setActiveFolder("all");
-    showFlash(`"${folderName}" deleted, items moved to Favorites`);
+  // ── Render content grid ────────────────────────────────────────────────
+  const renderGrid = () => {
+    if (loading) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 20px", color: "#a3a3a3" }}>
+          <Loader size={32} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+      );
+    }
+
+    if (filteredItems.length === 0) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>
+          <Bookmark size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
+          <p style={{ fontSize: 16, fontWeight: 600 }}>No saved content yet</p>
+          <span style={{ fontSize: 13, opacity: 0.6 }}>Save posts, reels, and stories to view them here</span>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+        gap: "12px",
+        padding: "16px",
+      }}>
+        {filteredItems.map((item) => {
+          const thumb = getThumbnail(item);
+          const icon = item.content_type === "reel" ? <Film size={18} /> : item.content_type === "story" ? <BookOpen size={18} /> : <Image size={18} />;
+          const color = item.content_type === "reel" ? "#818cf8" : item.content_type === "story" ? "#fbbf24" : "#84cc16";
+
+          return (
+            <div
+              key={item.id}
+              onClick={() => handleItemClick(item)}
+              style={{
+                position: "relative",
+                aspectRatio: "1",
+                borderRadius: "12px",
+                overflow: "hidden",
+                cursor: "pointer",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(132,204,22,0.4)";
+                e.currentTarget.style.transform = "scale(1.02)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              {thumb ? (
+                <img src={thumb} alt={item.content_type} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", color }}>
+                  {icon}
+                </div>
+              )}
+
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                background: "linear-gradient(135deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 100%)",
+              }} />
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFromSaved(item.id);
+                }}
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  width: 28,
+                  height: 28,
+                  background: "rgba(0,0,0,0.6)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#f5f5f5",
+                  cursor: "pointer",
+                  opacity: 0,
+                  transition: "opacity 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = "0"; }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
-  // Group items by folder for "all" view
-  const groupedByFolder = () => {
-    const map = {};
-    folders.forEach(f => { map[f] = []; });
-    items.forEach(item => {
-      if (!map[item.folder]) map[item.folder] = [];
-      map[item.folder].push(item);
-    });
-    return map;
-  };
+  // ── Fullscreen view ────────────────────────────────────────────────────
+  if (fullscreenType === "post" && selectedItem) {
+    return ReactDOM.createPortal(
+      <FullScreenPost
+        post={selectedItem}
+        currentUser={currentUser}
+        onClose={() => {
+          setSelectedItem(null);
+          setFullscreenType(null);
+        }}
+      />,
+      document.body
+    );
+  }
 
-  const folderItems = activeFolder === "all" ? [] : items.filter(i => i.folder === activeFolder);
-  const grouped = activeFolder === "all" ? groupedByFolder() : null;
-
-  const formatDate = (ts) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (fullscreenType === "reel" && selectedItem) {
+    return ReactDOM.createPortal(
+      <FullScreenReels
+        reels={[selectedItem]}
+        currentIndex={0}
+        currentUser={currentUser}
+        onClose={() => {
+          setSelectedItem(null);
+          setFullscreenType(null);
+        }}
+      />,
+      document.body
+    );
+  }
 
   return ReactDOM.createPortal(
     <>
       <div onClick={onClose} style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)",
-        backdropFilter: "blur(12px)", zIndex: 9998,
+        backdropFilter: "blur(12px)", zIndex: 9000,
       }} />
 
-      <div onClick={e => e.stopPropagation()} style={{
+      <div onClick={(e) => e.stopPropagation()} style={{
         position: "fixed",
         ...(isMobile
-          ? { bottom: 0, left: 0, right: 0, width: "100%", height: "95vh", borderRadius: "20px 20px 0 0", animation: "slideUp 0.3s ease" }
-          : { top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "min(680px, calc(100vw - 40px))", maxHeight: "86vh", borderRadius: "20px", animation: "fadeScale 0.25s ease" }),
-        background: "#0a0a0a", border: "1px solid rgba(132,204,22,0.2)",
-        zIndex: 9999, display: "flex", flexDirection: "column", overflow: "hidden",
+          ? { bottom: 0, left: 0, right: 0, width: "100%", height: "95vh", borderRadius: "20px 20px 0 0" }
+          : { top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "min(900px, calc(100vw - 40px))", maxHeight: "86vh", borderRadius: "20px" }),
+        background: "#0a0a0a",
+        border: "1px solid rgba(132,204,22,0.2)",
+        zIndex: 9500,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
         boxShadow: "0 32px 100px rgba(0,0,0,0.9)",
       }}>
+        {/* HEADER */}
+        <div style={{
+          padding: "18px 20px 14px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {activeFolder !== "all" && (
+              <button onClick={() => setActiveFolder("all")} style={{
+                width: 32, height: 32, background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)", borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#a3a3a3", cursor: "pointer", transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+            )}
+            <div style={{ width: 38, height: 38, background: "rgba(132,204,22,0.12)", border: "1px solid rgba(132,204,22,0.25)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Bookmark size={18} color="#84cc16" />
+            </div>
+            <div>
+              <div style={{ color: "#f5f5f5", fontSize: "16px", fontWeight: 700 }}>
+                {activeFolder === "all" ? "Saved Content" : activeFolder}
+              </div>
+              <div style={{ color: "#525252", fontSize: "11px" }}>
+                {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 32, height: 32, background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)", borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#a3a3a3", cursor: "pointer", transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* FOLDERS TAB */}
+        {folders.length > 1 && (
+          <div style={{
+            padding: "0 16px",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            display: "flex",
+            gap: "8px",
+            overflow: "auto",
+            scrollBehavior: "smooth",
+            flexShrink: 0,
+          }}>
+            <button
+              onClick={() => setActiveFolder("all")}
+              style={{
+                padding: "10px 14px",
+                background: activeFolder === "all" ? "rgba(132,204,22,0.15)" : "transparent",
+                border: activeFolder === "all" ? "1px solid rgba(132,204,22,0.4)" : "1px solid transparent",
+                color: activeFolder === "all" ? "#84cc16" : "#a3a3a3",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                transition: "all 0.2s",
+              }}
+            >
+              All
+            </button>
+            {folders.map(folder => (
+              <button
+                key={folder}
+                onClick={() => setActiveFolder(folder)}
+                style={{
+                  padding: "10px 14px",
+                  background: activeFolder === folder ? "rgba(132,204,22,0.15)" : "transparent",
+                  border: activeFolder === folder ? "1px solid rgba(132,204,22,0.4)" : "1px solid transparent",
+                  color: activeFolder === folder ? "#84cc16" : "#a3a3a3",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  transition: "all 0.2s",
+                }}
+              >
+                {folder}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* CONTENT GRID */}
+        <div style={{ flex: 1, overflow: "auto", WebkitOverflowScrolling: "touch" }}>
+          {renderGrid()}
+        </div>
+
+        {/* Animations */}
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    </>,
+    document.body
+  );
+};
+
+export default SavedContentModal;
+
         {/* HEADER */}
         <div style={{
           padding: "18px 20px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)",

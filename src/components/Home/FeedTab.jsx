@@ -312,7 +312,7 @@ const ScrollFAB = () => {
 // VirtualFeed — [ARCH-1..7]
 // ═══════════════════════════════════════════════════════════════════════════════
 const VirtualFeed = React.memo(({
-  items, currentUser, onAuthorClick, onActionMenu, onComment,
+  items, currentUser, onAuthorClick, onActionMenu, onComment, onOpenFullScreen,
   onAnchorChange, onPipelineNavigate, injections,
 }) => {
   const [anchorIndex, setAnchorIndex] = useState(0);
@@ -379,13 +379,15 @@ const VirtualFeed = React.memo(({
                   <ReelCard
                     reel={item} currentUser={currentUser}
                     onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                    onComment={onComment} index={index}
+                    onComment={onComment} onOpenFullScreen={onOpenFullScreen}
+                    index={index}
                   />
                 ) : (
                   <PostCard
                     post={item} currentUser={currentUser}
                     onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                    onComment={onComment} feedIndex={index}
+                    onComment={onComment} onOpenFullScreen={onOpenFullScreen}
+                    feedIndex={index}
                   />
                 )
               ) : (
@@ -397,7 +399,7 @@ const VirtualFeed = React.memo(({
       })}
       <style>{`
         .vf-list{display:flex;flex-direction:column;position:relative;}
-        .vf-item{contain:layout style;}
+        .vf-item{contain:layout style;margin-bottom:10px;}
       `}</style>
     </div>
   );
@@ -415,6 +417,7 @@ const FeedTab = React.forwardRef(function FeedTab(
     onAuthorClick,
     onActionMenu,
     onComment,
+    onOpenFullScreen,
     onLoadMore,
     hasMore       = false,
     isLoadingMore = false,
@@ -552,6 +555,7 @@ const FeedTab = React.forwardRef(function FeedTab(
         onAuthorClick={onAuthorClick}
         onActionMenu={onActionMenu}
         onComment={onComment}
+        onOpenFullScreen={onOpenFullScreen}
         onAnchorChange={setAnchorIndex}
         onPipelineNavigate={handlePipelineNavigate}
         injections={injections}

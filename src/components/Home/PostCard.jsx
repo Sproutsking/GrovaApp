@@ -541,6 +541,7 @@ const PostCard = ({
   currentUser,
   onPostUpdate,
   onPostDelete,
+  onOpenFullScreen,
   feedIndex = 99,
 }) => {
   const [post,       setPost]       = useState(initialPost);
@@ -751,20 +752,37 @@ const PostCard = ({
           {!isOwn && currentUser?.id && (
             <button
               className={`gvp-follow-btn${following ? " following" : ""}${followPop ? " pop" : ""}`}
-              onClick={toggleFollow}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFollow(e);
+              }}
             >
               {following
                 ? <><UserCheck size={12}/><span>Following</span></>
                 : <><UserPlus  size={12}/><span>Follow</span></>}
             </button>
           )}
-          <button className="gvp-icon-btn" onClick={openMenu} aria-label="More">
+          <button className="gvp-icon-btn" onClick={(e) => {
+            e.stopPropagation();
+            openMenu(e);
+          }} aria-label="More">
             <MoreVertical size={16} />
           </button>
         </div>
 
         {/* ── BODY ── */}
-        <div className="gvp-body" onTouchEnd={dtap} onDoubleClick={dtap}>
+        <div
+          className="gvp-body"
+          onTouchEnd={dtap}
+          onDoubleClick={dtap}
+          onClick={(e) => {
+            // Only trigger fullscreen if click is not on interactive element
+            if (!e.target.closest("button") && !e.target.closest("a") && onOpenFullScreen) {
+              onOpenFullScreen(post.id);
+            }
+          }}
+          style={{ cursor: onOpenFullScreen ? "pointer" : "default" }}
+        >
           {isTxt ? (
             <>
               <div className="gvp-tcs"><CardPostDisplay post={post} /></div>

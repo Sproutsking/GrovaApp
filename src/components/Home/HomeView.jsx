@@ -40,6 +40,7 @@ import {
 
 import FeedTab          from "./FeedTab";
 import NewsTab          from "./NewsTab";
+import ReelsTab         from "./ReelsTab";
 import StoryTab         from "./StoryTab";
 import CultureTab       from "./CultureTab";
 import LiveStreamersRow from "../Stream/LiveStreamersRow";
@@ -62,6 +63,8 @@ import TwoFAModal          from "../Modals/TwoFAModal";
 import FullContentView     from "./FullContentView";
 import SaveFolderModal     from "../Modals/SaveFolderModal";
 import EditPostModal       from "../Modals/EditPostModal";
+import FullScreenPost      from "./FullScreenPost";
+import FullScreenReels     from "./FullScreenReels";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
 import { walletService }   from "../../services/wallet/walletService";
 import { verifyWithdrawalPin } from "../../services/wallet/withdrawServiceV2";
@@ -168,23 +171,28 @@ function buildOptimisticItem(rawItem, type, currentUser) {
 const MODAL_INIT = {
   profile: null, actionMenu: null, comment: null,
   pin: false, twoFA: false, saveFolder: null, editPost: null, pendingUnlock: null,
+  fullscreenPost: null, fullscreenReels: null,
 };
 function modalReducer(state, action) {
   switch (action.type) {
-    case "OPEN_PROFILE":  return { ...state, profile:    action.payload };
-    case "CLOSE_PROFILE": return { ...state, profile:    null };
-    case "OPEN_ACTION":   return { ...state, actionMenu: action.payload };
-    case "CLOSE_ACTION":  return { ...state, actionMenu: null };
-    case "OPEN_COMMENT":  return { ...state, comment:    action.payload };
-    case "CLOSE_COMMENT": return { ...state, comment:    null };
-    case "OPEN_PIN":      return { ...state, pin: true,  pendingUnlock: action.payload };
+    case "OPEN_PROFILE":  return { ...state, profile:      action.payload };
+    case "CLOSE_PROFILE": return { ...state, profile:      null };
+    case "OPEN_ACTION":   return { ...state, actionMenu:   action.payload };
+    case "CLOSE_ACTION":  return { ...state, actionMenu:   null };
+    case "OPEN_COMMENT":  return { ...state, comment:      action.payload };
+    case "CLOSE_COMMENT": return { ...state, comment:      null };
+    case "OPEN_PIN":      return { ...state, pin: true,    pendingUnlock: action.payload };
     case "CLOSE_PIN":     return { ...state, pin: false };
-    case "OPEN_2FA":      return { ...state, twoFA:      true };
-    case "CLOSE_2FA":     return { ...state, twoFA:      false, pendingUnlock: null };
-    case "OPEN_SAVE":     return { ...state, saveFolder: action.payload };
-    case "CLOSE_SAVE":    return { ...state, saveFolder: null };
-    case "OPEN_EDIT":     return { ...state, editPost:   action.payload };
-    case "CLOSE_EDIT":    return { ...state, editPost:   null };
+    case "OPEN_2FA":      return { ...state, twoFA:        true };
+    case "CLOSE_2FA":     return { ...state, twoFA:        false, pendingUnlock: null };
+    case "OPEN_SAVE":     return { ...state, saveFolder:   action.payload };
+    case "CLOSE_SAVE":    return { ...state, saveFolder:   null };
+    case "OPEN_EDIT":     return { ...state, editPost:     action.payload };
+    case "CLOSE_EDIT":    return { ...state, editPost:     null };
+    case "OPEN_FULLSCREEN_POST": return { ...state, fullscreenPost: action.payload };
+    case "CLOSE_FULLSCREEN_POST": return { ...state, fullscreenPost: null };
+    case "OPEN_FULLSCREEN_REELS": return { ...state, fullscreenReels: action.payload };
+    case "CLOSE_FULLSCREEN_REELS": return { ...state, fullscreenReels: null };
     default:              return state;
   }
 }
@@ -650,6 +658,16 @@ const HomeView = ({
   const handleActionMenu  = useCallback((e, c, own) => { e.stopPropagation(); dispatchModal({ type:"OPEN_ACTION", payload:{ content:c, isOwn:own, pos:{ x:e.clientX, y:e.clientY } } }); }, []);
   const handleComment     = useCallback(c => dispatchModal({ type:"OPEN_COMMENT", payload:c }), []);
   const handleUnlock      = useCallback(s => { if (!resolvedUser) { alert("Please sign in"); return; } dispatchModal({ type:"OPEN_PIN", payload:s }); }, [resolvedUser]);
+  
+  const handleOpenFullScreenPost = useCallback((postId) => {
+    const post = posts.find(p => p.id === postId);
+    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
+  }, [posts]);
+
+  const handleOpenFullScreenReels = useCallback((reelId) => {
+    const reel = reels.find(r => r.id === reelId);
+    if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
+  }, [reels]);
   const handleOpenStory   = useCallback(async (story) => {
     if (!story) return;
     if (story.full_content) {
@@ -783,6 +801,12 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onComment={handleComment}
+                  onOpenFullScreen={(id) => {
+                    const post = posts.find(p => p.id === id);
+                    const reel = reels.find(r => r.id === id);
+                    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
+                    else if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
+                  }}
                   onLoadMore={loadMorePosts}
                   hasMore={hasMorePosts}
                   isLoadingMore={loadingMore}
@@ -818,6 +842,30 @@ const HomeView = ({
               )}
             </div>
 
+            {/* ── REELS TAB ── */}
+            <div style={{ display: currentTab==="reels" ? "block" : "none" }}>
+              {reels.length > 0 ? (
+                <ReelsTab
+                  ref={reelTabRef}
+                  reels={reels}
+                  currentUser={resolvedUser}
+                  onAuthorClick={handleAuthorClick}
+                  onActionMenu={handleActionMenu}
+                  onComment={handleComment}
+                  onLoadMore={loadMoreReels}
+                  hasMore={hasMoreReels}
+                  isLoadingMore={loadingMore}
+                  isActive={currentTab==="reels"}
+                />
+              ) : !showSkeleton ? (
+                <EmptyState icon={<Film size={38} />}
+                  title="No reels yet"
+                  text="Follow creators to see their reels here!" />
+              ) : (
+                currentTab==="reels" ? <GridSkeletons /> : null
+              )}
+            </div>
+
             {/* ── NEWS TAB ── */}
             <div style={{ display: currentTab==="news" ? "block" : "none" }}>
               <NewsTab
@@ -847,6 +895,21 @@ const HomeView = ({
       </div>
 
       {/* ── Modals ── */}
+      {modals.fullscreenPost && (
+        <FullScreenPost
+          post={modals.fullscreenPost}
+          currentUser={resolvedUser}
+          onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_POST" })}
+        />
+      )}
+      {modals.fullscreenReels && (
+        <FullScreenReels
+          reels={[modals.fullscreenReels]}
+          currentIndex={0}
+          currentUser={resolvedUser}
+          onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_REELS" })}
+        />
+      )}
       {modals.profile && (
         <UserProfileModal user={modals.profile} onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })} />
       )}
