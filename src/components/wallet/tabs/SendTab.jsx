@@ -15,7 +15,10 @@ import {
   Sparkles, Shield, ChevronRight,
 } from "lucide-react";
 import { walletService } from "../../../services/wallet/walletService";
+import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
 import { supabase } from "../../../services/config/supabase";
+import TransactionPinModal from "../../Modals/TransactionPinModal";
+import TwoFAModal from "../../Modals/TwoFAModal";
 import UserProfileModal from "../../Modals/UserProfileModal";
 import XevAvatar from "../components/XevAvatar";
 
@@ -239,6 +242,7 @@ function useMobileHeaderOffset(ref) {
 const SendTab = ({
   setActiveTab, balance, userId, onRefresh,
   transactions, setTransactions, username: currentUsername,
+  currentUser,
 }) => {
   const rootRef = useRef(null);
   useMobileHeaderOffset(rootRef);
@@ -258,6 +262,9 @@ const SendTab = ({
   const [txId,         setTxId]         = useState(null);
   const [error,        setError]        = useState("");
   const [toastMsg,     setToastMsg]     = useState("");
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
   const [toastType,    setToastType]    = useState("ok");
   const [toastShow,    setToastShow]    = useState(false);
   const [profileUser,  setProfileUser]  = useState(null);
@@ -359,6 +366,24 @@ const SendTab = ({
     if (currency === "EP" && (balance?.points || 0) < parsed + epBurn)
                                                return setError(`Need ${parsed + epBurn} EP total`);
     setStep(2);
+  };
+
+  const handleConfirmSend = () => {
+    setPendingAction({
+      transactionType: "transfer",
+      amount: parsed,
+      recipient: selectedUser ? `@${selectedUser.username}` : walletAddr,
+      description: currency === "EP"
+        ? `Send ${parsed} EP to ${selectedUser?.username || walletAddr}`
+        : `Send ${parsed} $XEV to ${selectedUser?.username || walletAddr}`,
+    });
+    setShowPinModal(true);
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    setShowPinModal(false);
+    await handleSend();
   };
 
   const handleSend = useCallback(async () => {
@@ -612,7 +637,7 @@ const SendTab = ({
 
         {/* ── Confirm & Send button — properly sized, centred ── */}
         <div className="st-action-row">
-          <button className="st-action-btn" onClick={handleSend}>
+          <button className="st-action-btn" onClick={handleConfirmSend}>
             <Send size={14}/>Confirm &amp; Send
           </button>
         </div>
@@ -625,6 +650,36 @@ const SendTab = ({
         <div className={`st-toast ${toastShow?"show":""}`}>
           <div className={`td ${toastType==="err"?"err":""}`}/>{toastMsg}
         </div>
+
+        {showPinModal && (
+          <TransactionPinModal
+            pendingAction={pendingAction}
+            amount={pendingAction?.amount}
+            transactionType="transfer"
+            recipient={pendingAction?.recipient}
+            description={pendingAction?.description}
+            onConfirm={async (pinValue) => {
+              if (!userId) throw new Error("Please sign in before sending");
+              await verifyWithdrawalPin(userId, pinValue);
+              if (currentUser?.require_2fa) {
+                setShowPinModal(false);
+                setShow2FAModal(true);
+                return;
+              }
+              await handleSend();
+            }}
+            onClose={() => setShowPinModal(false)}
+          />
+        )}
+        {show2FAModal && (
+          <TwoFAModal
+            show={show2FAModal}
+            onClose={() => setShow2FAModal(false)}
+            userId={userId}
+            onSuccess={handleSecuritySuccess}
+            context="sensitive"
+          />
+        )}
       </div>
     );
   }

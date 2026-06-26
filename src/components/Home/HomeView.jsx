@@ -64,6 +64,7 @@ import SaveFolderModal     from "../Modals/SaveFolderModal";
 import EditPostModal       from "../Modals/EditPostModal";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
 import { walletService }   from "../../services/wallet/walletService";
+import { verifyWithdrawalPin } from "../../services/wallet/withdrawServiceV2";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const POSTS_PAGE = 30;   // increased for aggressive preloading
@@ -871,22 +872,32 @@ const HomeView = ({
           transactionType="unlock"
           recipient={modals.pendingUnlock?.title || "story"}
           description={`Unlock for ${modals.pendingUnlock?.unlock_cost || 0} XEV`}
-          onConfirm={() => { dispatchModal({ type:"CLOSE_PIN" }); dispatchModal({ type:"OPEN_2FA" }); }}
+          onConfirm={async (pinValue) => {
+            if (!resolvedUser) throw new Error("Please sign in before unlocking story");
+            if (!modals.pendingUnlock) throw new Error("No story selected");
+            await verifyWithdrawalPin(resolvedUser.id, pinValue);
+            if (resolvedUser?.require_2fa) {
+              dispatchModal({ type:"CLOSE_PIN" });
+              dispatchModal({ type:"OPEN_2FA" });
+              return;
+            }
+            await handleStoryUnlock(modals.pendingUnlock);
+          }}
           onClose={() => dispatchModal({ type:"CLOSE_PIN" })} />
       )}
       {modals.twoFA && (
         <TwoFAModal
-          onConfirm={async () => {
+          show={modals.twoFA}
+          onSuccess={async () => {
             try {
               if (!modals.pendingUnlock) throw new Error("No story selected");
               await handleStoryUnlock(modals.pendingUnlock);
             } catch (err) {
               alert(err.message || "Unable to unlock story");
-            } finally {
-              dispatchModal({ type:"CLOSE_2FA" });
             }
           }}
-          onClose={() => dispatchModal({ type:"CLOSE_2FA" })} />
+          onClose={() => dispatchModal({ type:"CLOSE_2FA" })}
+          context="sensitive" />
       )}
       {readingStory && (
         <FullContentView
