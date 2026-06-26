@@ -54,7 +54,7 @@ const IS_FAST = !IS_SLOW && !IS_MID;
 // [ARCH-2] Render radius + preload window
 const RENDER_RADIUS  = IS_SLOW ? 14 : IS_MID ? 24 : 40;
 const PRELOAD_WINDOW = IS_SLOW ? 10 : IS_MID ? 20 : 36;
-const VIDEO_PRELOAD_W = IS_SLOW ? 4  : IS_MID ?  8 : 18;
+const VIDEO_PRELOAD_W = IS_SLOW ? 4 : IS_MID ? 16 : 30;
 
 // Image quality
 const IMG_W = IS_SLOW ? 480 : IS_MID ? 800 : 1200;

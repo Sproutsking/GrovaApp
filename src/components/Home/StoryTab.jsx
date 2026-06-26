@@ -4,7 +4,9 @@
 
 import React, { useState, useEffect, useRef, useCallback, useImperativeHandle } from "react";
 import ReactDOM from "react-dom";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, BookOpen } from "lucide-react";
+import StoryCard from "../Shared/StoryCard";
+import SectionHeader from "../Shared/SectionHeader";
 
 // ── Shared helper: measure the tallest fixed/sticky element ──────────────────
 function getMeasuredSafeTop() {
@@ -161,42 +163,21 @@ const StoryTab = React.forwardRef(function StoryTab(
         </div>
       ) : (
         <div className="story-tab-feed">
-          {localStories.map((story) => {
-            // Render whatever StoryCard component your codebase uses.
-            // We import it dynamically so this file compiles even if the
-            // original StoryCard is in a sibling directory.
-            const StoryCardComponent = rest.StoryCardComponent || null;
-            if (StoryCardComponent) {
-              return (
-                <StoryCardComponent
-                  key={story.id}
-                  story={story}
-                  currentUser={currentUser}
-                  onAuthorClick={onAuthorClick}
-                  onActionMenu={onActionMenu}
-                  onUnlock={onUnlock}
-                />
-              );
-            }
-            // Fallback: raw story card — replace with your actual component
-            return (
-              <div
-                key={story.id}
-                style={{
-                  background: "#0f0f0f",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: 16,
-                  padding: "16px",
-                  marginBottom: 10,
-                  color: "#eee",
-                  fontSize: 14,
-                }}
-              >
-                <strong>{story.profiles?.full_name || story.author || "Unknown"}</strong>
-                <p style={{ margin: "8px 0 0", opacity: 0.7 }}>{story.content}</p>
-              </div>
-            );
-          })}
+          <SectionHeader
+            icon={BookOpen}
+            title="Stories"
+            subtitle="Read what creators are sharing today"
+          />
+          {localStories.map((story) => (
+            <StoryCard
+              key={story.id}
+              story={story}
+              currentUser={currentUser}
+              onAuthorClick={onAuthorClick}
+              onUnlock={onUnlock}
+              onActionMenu={onActionMenu}
+            />
+          ))}
         </div>
       )}
     </>
