@@ -175,6 +175,7 @@ const StoryTab = React.forwardRef(function StoryTab(
               currentUser={currentUser}
               onAuthorClick={onAuthorClick}
               onUnlock={onUnlock}
+              onOpenFull={onOpenFull}
               onActionMenu={onActionMenu}
             />
           ))}

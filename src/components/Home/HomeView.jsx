@@ -59,9 +59,11 @@ import ActionMenu          from "../Shared/ActionMenu";
 import CommentModal        from "../Modals/CommentModal";
 import TransactionPinModal from "../Modals/TransactionPinModal";
 import TwoFAModal          from "../Modals/TwoFAModal";
+import FullContentView     from "./FullContentView";
 import SaveFolderModal     from "../Modals/SaveFolderModal";
 import EditPostModal       from "../Modals/EditPostModal";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
+import { walletService }   from "../../services/wallet/walletService";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const POSTS_PAGE = 30;   // increased for aggressive preloading
@@ -289,6 +291,7 @@ const HomeView = ({
   const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedPosts);
   const [refreshing,    setRefreshing]    = useState(false);
   const [error,         setError]         = useState(null);
+  const [storyUnlocking,setStoryUnlocking]= useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
 
   const [hasMorePosts,  setHasMorePosts]  = useState(true);
@@ -300,6 +303,7 @@ const HomeView = ({
   const [discoveryCategory, setDiscoveryCategory] = useState("All");
 
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
+  const [readingStory, setReadingStory] = useState(null);
 
   const feedTabRef     = useRef(null);
   const reelTabRef     = useRef(null);
@@ -645,6 +649,58 @@ const HomeView = ({
   const handleActionMenu  = useCallback((e, c, own) => { e.stopPropagation(); dispatchModal({ type:"OPEN_ACTION", payload:{ content:c, isOwn:own, pos:{ x:e.clientX, y:e.clientY } } }); }, []);
   const handleComment     = useCallback(c => dispatchModal({ type:"OPEN_COMMENT", payload:c }), []);
   const handleUnlock      = useCallback(s => { if (!resolvedUser) { alert("Please sign in"); return; } dispatchModal({ type:"OPEN_PIN", payload:s }); }, [resolvedUser]);
+  const handleOpenStory   = useCallback(async (story) => {
+    if (!story) return;
+    if (story.full_content) {
+      setReadingStory(story);
+      return;
+    }
+
+    try {
+      const fetched = await storyService.getStory(story.id);
+      if (fetched) setReadingStory(fetched);
+    } catch (err) {
+      alert(err.message || "Unable to open story");
+    }
+  }, []);
+
+  const handleStoryUnlock = useCallback(async (story) => {
+    if (!story || !resolvedUser) throw new Error("Unable to unlock this story");
+    if (story.unlock_cost <= 0 || story.user_id === resolvedUser.id) {
+      await handleOpenStory(story);
+      return;
+    }
+
+    const alreadyUnlocked = story.unlocked || await storyService.isStoryUnlocked(story.id);
+    if (alreadyUnlocked) {
+      await handleOpenStory(story);
+      return;
+    }
+
+    setStoryUnlocking(true);
+    try {
+      const walletResult = await walletService.handleStoryUnlock(
+        resolvedUser.id,
+        story.user_id,
+        story.id,
+        story.unlock_cost,
+      );
+      if (!walletResult || walletResult.success === false) {
+        throw new Error(walletResult?.error || "Unable to charge EP for unlock");
+      }
+
+      const unlockResult = await storyService.unlockStory(story.id);
+      const fetched = unlockResult?.fullContent
+        ? { ...story, unlocked: true, full_content: unlockResult.fullContent }
+        : await storyService.getStory(story.id);
+      const openStory = { ...fetched, unlocked: true };
+      setReadingStory(openStory);
+
+      setStories((prev) => prev.map((item) => item.id === story.id ? { ...item, unlocked: true } : item));
+    } finally {
+      setStoryUnlocking(false);
+    }
+  }, [resolvedUser, handleOpenStory]);
 
   const handleSave = useCallback(async folder => {
     try {
@@ -749,6 +805,7 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onUnlock={handleUnlock}
+                  onOpenFull={handleOpenStory}
                   isActive={currentTab==="stories"}
                 />
               ) : !showSkeleton ? (
@@ -809,13 +866,37 @@ const HomeView = ({
       )}
       {modals.pin && (
         <TransactionPinModal
+          pendingAction={modals.pendingUnlock}
+          amount={modals.pendingUnlock?.unlock_cost}
+          transactionType="unlock"
+          recipient={modals.pendingUnlock?.title || "story"}
+          description={`Unlock for ${modals.pendingUnlock?.unlock_cost || 0} XEV`}
           onConfirm={() => { dispatchModal({ type:"CLOSE_PIN" }); dispatchModal({ type:"OPEN_2FA" }); }}
           onClose={() => dispatchModal({ type:"CLOSE_PIN" })} />
       )}
       {modals.twoFA && (
         <TwoFAModal
-          onConfirm={async () => { alert(`Unlocked: ${modals.pendingUnlock?.title}`); dispatchModal({ type:"CLOSE_2FA" }); await handleRefresh(); }}
+          onConfirm={async () => {
+            try {
+              if (!modals.pendingUnlock) throw new Error("No story selected");
+              await handleStoryUnlock(modals.pendingUnlock);
+            } catch (err) {
+              alert(err.message || "Unable to unlock story");
+            } finally {
+              dispatchModal({ type:"CLOSE_2FA" });
+            }
+          }}
           onClose={() => dispatchModal({ type:"CLOSE_2FA" })} />
+      )}
+      {readingStory && (
+        <FullContentView
+          story={readingStory}
+          currentUser={resolvedUser}
+          onClose={() => setReadingStory(null)}
+          onAuthorClick={handleAuthorClick}
+          onHashtagClick={(tag) => applyFilter({ type: "tag", value: tag })}
+          onMentionClick={(mention) => console.log("Mention clicked", mention)}
+        />
       )}
       {modals.saveFolder && (
         <SaveFolderModal folders={savedFolders} onSave={handleSave} onClose={() => dispatchModal({ type:"CLOSE_SAVE" })} />
