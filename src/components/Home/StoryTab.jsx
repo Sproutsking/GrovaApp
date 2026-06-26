@@ -76,6 +76,7 @@ const StoryTab = React.forwardRef(function StoryTab(
     onAuthorClick,
     onActionMenu,
     onUnlock,
+    onOpenFull,
     isActive = false,       // <-- gating prop
     // Forward any additional props from the original implementation
     ...rest
