@@ -25,6 +25,7 @@
 import React, {
   useState, useRef, useEffect, useCallback, useMemo,
 } from "react";
+import ReactDOM from "react-dom";
 import {
   X, Volume2, VolumeX, Heart, Share2, MessageCircle,
   ChevronLeft, ChevronRight, Send, MoreVertical, Lock,
@@ -233,7 +234,7 @@ const FullScreenPost = ({
     return comments.filter(c => c.parent_id === parentId);
   }, [comments]);
 
-  return (
+  return ReactDOM.createPortal(
     <div className="fullscreen-post-container">
       {/* Left/Top: Post Content */}
       <div className="fullscreen-post-content">
@@ -459,7 +460,7 @@ const FullScreenPost = ({
         .fullscreen-post-container {
           position: fixed;
           inset: 0;
-          z-index: 9900;
+          z-index: 100000;
           background: #000;
           display: flex;
           overflow: hidden;
