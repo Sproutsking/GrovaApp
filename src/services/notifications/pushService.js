@@ -331,9 +331,16 @@ async function _doSubscribe(userId) {
       const ok = await enableOneSignal(userId);
       if (!ok) return null;
 
-      const playerId = await getOneSignalPlayerId(userId);
+      let playerId = await getOneSignalPlayerId(userId);
       if (!playerId) {
-        console.warn("[Push] OneSignal player ID not available yet");
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          playerId = await getOneSignalPlayerId(userId);
+          if (playerId) break;
+        }
+      }
+      if (!playerId) {
+        console.warn("[Push] OneSignal player ID not available yet after registration");
         return null;
       }
 
