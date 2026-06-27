@@ -73,6 +73,7 @@ import SupportSidebar          from "./components/Shared/SupportSidebar";
 import NotificationSidebar     from "./components/Shared/NotificationSidebar";
 import InAppNotificationToast  from "./components/Shared/InAppNotificationToast";
 import PushPermissionNudge     from "./components/Shared/PushPermissionNudge";
+import AccountSwitchPrompt     from "./components/Shared/AccountSwitchPrompt";
 import PullToRefreshIndicator  from "./components/Shared/PullToRefreshIndicator";
 import NetworkError            from "./components/Shared/NetworkError";
 import IncomingCallToast       from "./components/Messages/IncomingCallToast";
@@ -1116,6 +1117,15 @@ const MainApp = memo(() => {
       />
 
       <PushPermissionNudge userId={user?.id} />
+      <AccountSwitchPrompt
+        userId={user?.id}
+        userName={currentUser?.name || profile?.full_name || null}
+        onSwitchAccount={() => {
+          try {
+            window.dispatchEvent(new CustomEvent("xv:request_account_switch"));
+          } catch {}
+        }}
+      />
 
       {showOfflineBanner && (
         <NetworkError

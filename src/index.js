@@ -328,8 +328,19 @@ let deferredInstallEvent = null;
 let installPromptShown = false;
 let updatePromptShown = false;
 let pushPromptShown = false;
+let promptCooldownUntil = 0;
+
+function canShowPrompt(type) {
+  const now = Date.now();
+  if (now < promptCooldownUntil) return false;
+  if (type === "install" && installPromptShown) return false;
+  if (type === "update" && updatePromptShown) return false;
+  if (type === "push" && pushPromptShown) return false;
+  return true;
+}
 
 function showAppPrompt({ type, message, detail }) {
+  if (!canShowPrompt(type)) return;
   if (type === "install" && installPromptShown) return;
   if (type === "update" && updatePromptShown) return;
   if (type === "push" && pushPromptShown) return;
@@ -396,6 +407,7 @@ function showAppPrompt({ type, message, detail }) {
     }
   });
 
+  promptCooldownUntil = Date.now() + 30_000;
   if (type === "install") installPromptShown = true;
   if (type === "update") updatePromptShown = true;
   if (type === "push") pushPromptShown = true;
@@ -428,6 +440,12 @@ window.addEventListener("appinstalled", () => {
 window.addEventListener("sw:registered", () => {
   if (!updatePromptShown) {
     queuePrompt("update", "A fresh update is available. Refresh now to get the latest experience.");
+  }
+});
+
+window.addEventListener("xv:request_account_switch", () => {
+  if (typeof window.__xvRequestPushPermission === "function") {
+    window.__xvRequestPushPermission();
   }
 });
 
