@@ -505,6 +505,15 @@ if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
 } else {
   serviceWorkerRegistration.register({
     onUpdate: (registration) => {
+      // Don't show update card if we just performed an update
+      try {
+        const updateTime = localStorage.getItem("xv_update_timestamp");
+        if (updateTime && (Date.now() - Number(updateTime)) < 15000) {
+          console.log("[SWReg] Recent update detected, skipping update card");
+          return;
+        }
+      } catch (e) {}
+
       const lastShown = sessionStorage.getItem("xv_update_shown");
       if (lastShown && Date.now() - Number(lastShown) < 60_000) return;
       sessionStorage.setItem("xv_update_shown", String(Date.now()));
