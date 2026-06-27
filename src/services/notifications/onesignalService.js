@@ -30,11 +30,12 @@ function getOneSignalApi() {
 
 async function _readPlayerIdFromSdk() {
   const api = getOneSignalApi();
-  if (!api) return null;
+  const sdk = window.OneSignal || api;
+  if (!sdk) return null;
 
   try {
-    if (typeof api?.getUserId === "function") {
-      const id = await api.getUserId();
+    if (typeof sdk?.getUserId === "function") {
+      const id = await sdk.getUserId();
       if (id) return id;
     }
   } catch (err) {
@@ -42,8 +43,8 @@ async function _readPlayerIdFromSdk() {
   }
 
   try {
-    if (typeof api?.getDeviceState === "function") {
-      const state = await api.getDeviceState();
+    if (typeof sdk?.getDeviceState === "function") {
+      const state = await sdk.getDeviceState();
       const id = state?.userId || state?.user_id || state?.pushToken || null;
       if (id) return id;
     }
@@ -52,22 +53,23 @@ async function _readPlayerIdFromSdk() {
   }
 
   try {
-    if (typeof api?.User?.PushSubscription?.id === "function") {
-      const id = await api.User.PushSubscription.id();
-      if (id) return id;
+    if (sdk?.User?.onesignalId) {
+      return sdk.User.onesignalId;
     }
   } catch (err) {
-    console.debug("[OneSignal] PushSubscription.id probe failed:", err);
+    console.debug("[OneSignal] onesignalId probe failed:", err);
   }
 
   try {
-    if (typeof api?.getSubscription === "function") {
-      const sub = await api.getSubscription();
-      const id = sub?.id || sub?.subscriptionId || sub?.onesignal_id || null;
+    if (typeof sdk?.User?.PushSubscription?.id === "function") {
+      const id = await sdk.User.PushSubscription.id();
       if (id) return id;
     }
+    if (sdk?.User?.PushSubscription?.id) {
+      return sdk.User.PushSubscription.id;
+    }
   } catch (err) {
-    console.debug("[OneSignal] getSubscription probe failed:", err);
+    console.debug("[OneSignal] PushSubscription.id probe failed:", err);
   }
 
   return null;
@@ -90,28 +92,21 @@ async function _registerForPushNotifications(api) {
   if (!api) return false;
 
   try {
-    if (typeof api?.registerForPushNotifications === "function") {
-      await api.registerForPushNotifications();
-      return true;
+    if (typeof api?.Notifications?.requestPermission === "function") {
+      const result = await api.Notifications.requestPermission();
+      return result === "granted" || result === true;
     }
   } catch (err) {
-    console.debug("[OneSignal] registerForPushNotifications failed:", err);
+    console.debug("[OneSignal] Notifications.requestPermission failed:", err);
   }
 
   try {
-    if (typeof api?.push === "function") {
-      await new Promise((resolve) => {
-        api.push(() => {
-          if (typeof api.registerForPushNotifications === "function") {
-            api.registerForPushNotifications();
-          }
-          resolve();
-        });
-      });
+    if (typeof api?.Slidedown?.promptPush === "function") {
+      await api.Slidedown.promptPush();
       return true;
     }
   } catch (err) {
-    console.debug("[OneSignal] queued registration failed:", err);
+    console.debug("[OneSignal] Slidedown.promptPush failed:", err);
   }
 
   return false;
@@ -191,20 +186,18 @@ export async function requestPermission(userId = null) {
     if (Notification.permission === "denied") return false;
 
     const api = getOneSignalApi();
-    if (typeof api?.showSlidedownPrompt === "function") {
-      api.showSlidedownPrompt();
-    } else if (typeof api?.showNativePrompt === "function") {
-      api.showNativePrompt();
-    } else if (typeof api?.Notifications?.requestPermission === "function") {
-      await api.Notifications.requestPermission();
+    if (!api) return false;
+
+    if (typeof api?.Notifications?.requestPermission === "function") {
+      const result = await api.Notifications.requestPermission();
+      if (result === "granted" || result === true) return true;
+    }
+    if (typeof api?.Slidedown?.promptPush === "function") {
+      const result = await api.Slidedown.promptPush();
+      return Notification.permission === "granted" || result === "granted" || result === true;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    if (Notification.permission === "granted") {
-      await _registerForPushNotifications(api);
-      return true;
-    }
-    return false;
+    return Notification.permission === "granted";
   } catch (err) {
     console.error("[OneSignal] Permission prompt failed:", err);
     return false;
