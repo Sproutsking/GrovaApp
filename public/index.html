@@ -573,6 +573,12 @@
         );
 
         function doUpdate() {
+          // SET FLAG FIRST - before any async code
+          try { 
+            localStorage.setItem("xv_update_in_progress", "1");
+            localStorage.setItem("xv_update_timestamp", String(Date.now()));
+          } catch(e) {}
+          
           if (navigator.serviceWorker && !isLocalhost) {
             navigator.serviceWorker.getRegistration().then(function (reg) {
               if (reg && reg.waiting) {
@@ -596,16 +602,21 @@
           } else {
             window.location.reload(true);
           }
-          try { localStorage.setItem("xv_update_in_progress", "1"); } catch(e) {}
         }
         (function() {
           try {
-            if (localStorage.getItem("xv_update_in_progress")) {
+            var updateFlag = localStorage.getItem("xv_update_in_progress");
+            var updateTime = localStorage.getItem("xv_update_timestamp");
+            // Check if update happened within last 10 seconds (page load cycle)
+            if (updateFlag && updateTime && (Date.now() - Number(updateTime)) < 10000) {
               localStorage.removeItem("xv_update_in_progress");
-              setTimeout(function() {
-                var card = document.getElementById("xv-update-card");
-                if (card) card.classList.remove("show");
-              }, 300);
+              localStorage.removeItem("xv_update_timestamp");
+              // Hide card immediately
+              var card = document.getElementById("xv-update-card");
+              if (card) {
+                card.classList.remove("show");
+                card.style.display = "none";
+              }
             }
           } catch (e) {}
         })();
@@ -621,6 +632,13 @@
 
         function showUpdateCard() {
           try {
+            // Don't show if update just happened
+            var updateFlag = localStorage.getItem("xv_update_in_progress");
+            var updateTime = localStorage.getItem("xv_update_timestamp");
+            if (updateFlag || (updateTime && (Date.now() - Number(updateTime)) < 5000)) {
+              return;
+            }
+            
             var snoozeUntil = localStorage.getItem(UPDATE_SNOOZE_KEY);
             if (snoozeUntil && Date.now() < Number(snoozeUntil)) return;
             localStorage.removeItem(UPDATE_SNOOZE_KEY);
