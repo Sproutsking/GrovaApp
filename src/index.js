@@ -29,7 +29,7 @@ import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
-import { getPromptPriority } from "./services/notifications/appPromptManager";
+import { getPromptPriority, readPromptState, writePromptState, clearPromptSchedule } from "./services/notifications/appPromptManager";
 
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
@@ -345,6 +345,8 @@ function showAppPrompt({ type, message, detail }) {
   if (type === "update" && updatePromptShown) return;
   if (type === "push" && pushPromptShown) return;
 
+  let isShowingSnoozeOptions = false;
+
   const banner = document.createElement("div");
   banner.id = `xv-${type}-prompt`;
   banner.style.cssText = `
@@ -365,28 +367,61 @@ function showAppPrompt({ type, message, detail }) {
     backdrop-filter: blur(16px);
   `;
 
-  const icon = type === "update" ? "⚡" : type === "push" ? "🔔" : "📲";
+  const logoUrl = "/logo192.png";
   const title = type === "update" ? "Update ready" : type === "push" ? "Enable alerts" : "Install app";
   const subtitle = detail || message || "Tap below to continue.";
 
   banner.innerHTML = `
-    <div style="font-size:22px;flex-shrink:0">${icon}</div>
+    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:rgba(132,204,22,.08);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
+      <img src="${logoUrl}" alt="Xeevia" style="width:20px;height:20px;object-fit:contain"/>
+    </div>
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:800;color:#f7f7f7;margin-bottom:2px">${title}</div>
       <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
     </div>
-    <div style="display:flex;gap:8px;flex-shrink:0">
-      <button id="xv-prompt-dismiss" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">Later</button>
-      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
+    <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
+      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Later</button>
+      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
 
   document.body.appendChild(banner);
-  document.getElementById("xv-prompt-dismiss").addEventListener("click", () => {
-    banner.remove();
-    if (type === "install") installPromptShown = true;
-    if (type === "update") updatePromptShown = true;
-    if (type === "push") pushPromptShown = true;
+
+  function showSnoozeOptions() {
+    isShowingSnoozeOptions = true;
+    const buttonsContainer = document.getElementById("xv-prompt-buttons");
+    const snoozeHours = type === "install" || type === "push" ? [12, 24, 48] : [12, 24];
+    const snoozeLabels = { 12: "12 hrs", 24: "Tomorrow", 48: "In 2 days" };
+    
+    buttonsContainer.innerHTML = snoozeHours.map(hours => 
+      `<button class="xv-snooze-option" data-hours="${hours}" style="border:none;background:rgba(132,204,22,.12);color:#84cc16;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid rgba(132,204,22,.2)">${snoozeLabels[hours]}</button>`
+    ).join("");
+    
+    document.querySelectorAll(".xv-snooze-option").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const hours = Number(e.currentTarget.getAttribute("data-hours"));
+        const nextShowAt = Date.now() + hours * 60 * 60 * 1000;
+        const state = readPromptState();
+        state[type] = nextShowAt;
+        writePromptState(state);
+        banner.remove();
+        if (type === "install") installPromptShown = true;
+        if (type === "update") updatePromptShown = true;
+        if (type === "push") pushPromptShown = true;
+      });
+    });
+  }
+
+  document.getElementById("xv-prompt-later").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!isShowingSnoozeOptions) {
+      showSnoozeOptions();
+    } else {
+      banner.remove();
+      if (type === "install") installPromptShown = true;
+      if (type === "update") updatePromptShown = true;
+      if (type === "push") pushPromptShown = true;
+    }
   });
 
   document.getElementById("xv-prompt-action").addEventListener("click", async () => {
@@ -398,6 +433,8 @@ function showAppPrompt({ type, message, detail }) {
         installPromptShown = true;
       }
     } else if (type === "update") {
+      updatePromptShown = true;
+      clearPromptSchedule("update");
       window.location.reload();
     } else if (type === "push") {
       if (typeof window.__xvRequestPushPermission === "function") {
