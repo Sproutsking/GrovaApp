@@ -131,7 +131,7 @@ async function _ensureInitialized(userId = null) {
         appId: ONESIGNAL_APP_ID,
         safari_web_id: ONESIGNAL_SAFARI_WEB_ID || undefined,
         allowLocalhostAsSecureOrigin: true,
-        autoRegister: false,
+        autoRegister: true,
         notifyButton: { enable: false },
         serviceWorkerParam: { scope: "/" },
         serviceWorkerPath: "/OneSignalSDKWorker.js",

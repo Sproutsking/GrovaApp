@@ -32,7 +32,19 @@ beforeEach(() => {
   window.OneSignal = undefined;
 });
 
-describe('onesignalService getPlayerId', () => {
+describe('onesignalService', () => {
+  it('initializes the SDK with auto-registration enabled', async () => {
+    OneSignal.init.mockResolvedValue(undefined);
+    window.OneSignal = OneSignal;
+
+    const { initializeOneSignal } = await import('./onesignalService');
+    await initializeOneSignal('user-1');
+
+    expect(OneSignal.init).toHaveBeenCalledWith(
+      expect.objectContaining({ appId: 'test-app-id', autoRegister: true }),
+    );
+  });
+
   it('uses the current device state userId when available', async () => {
     OneSignal.init.mockResolvedValue(undefined);
     OneSignal.getUserId.mockResolvedValue(null);
