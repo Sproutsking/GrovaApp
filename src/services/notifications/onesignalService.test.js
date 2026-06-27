@@ -3,6 +3,7 @@ jest.mock('react-onesignal', () => ({
   default: {
     init: jest.fn(),
     getUserId: jest.fn(),
+    getDeviceState: jest.fn(),
     setExternalUserId: jest.fn(),
     showSlidedownPrompt: jest.fn(),
     showNativePrompt: jest.fn(),
@@ -31,9 +32,22 @@ beforeEach(() => {
 });
 
 describe('onesignalService getPlayerId', () => {
+  it('uses the current device state userId when available', async () => {
+    OneSignal.init.mockResolvedValue(undefined);
+    OneSignal.getUserId.mockResolvedValue(null);
+    OneSignal.getDeviceState.mockResolvedValue({ userId: 'device-456' });
+
+    const { getPlayerId } = await import('./onesignalService');
+    const playerId = await getPlayerId('user-1');
+
+    expect(playerId).toBe('device-456');
+    expect(OneSignal.getDeviceState).toHaveBeenCalled();
+  });
+
   it('falls back to OneSignal subscription id when getUserId returns null', async () => {
     OneSignal.init.mockResolvedValue(undefined);
     OneSignal.getUserId.mockResolvedValue(null);
+    OneSignal.getDeviceState.mockResolvedValue(null);
     OneSignal.User.PushSubscription.id.mockResolvedValue('sub-123');
 
     const { getPlayerId } = await import('./onesignalService');

@@ -42,6 +42,16 @@ async function _readPlayerIdFromSdk() {
   }
 
   try {
+    if (typeof api?.getDeviceState === "function") {
+      const state = await api.getDeviceState();
+      const id = state?.userId || state?.user_id || state?.pushToken || null;
+      if (id) return id;
+    }
+  } catch (err) {
+    console.debug("[OneSignal] getDeviceState probe failed:", err);
+  }
+
+  try {
     if (typeof api?.User?.PushSubscription?.id === "function") {
       const id = await api.User.PushSubscription.id();
       if (id) return id;
