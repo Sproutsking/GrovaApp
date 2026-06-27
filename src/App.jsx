@@ -48,7 +48,6 @@ import "./styles/lightTheme.css";
 import { supabase }               from "./services/config/supabase";
 import mediaUrlService             from "./services/shared/mediaUrlService";
 import { pushService }             from "./services/notifications/pushService";
-import { pushInitDebugger }        from "./services/notifications/pushInitDebugger";
 import notificationService         from "./services/notifications/notificationService";
 import MessageNotificationService  from "./services/messages/MessageNotificationService";
 import callService                 from "./services/messages/callService";
@@ -376,9 +375,6 @@ const MainApp = memo(() => {
     MessageNotificationService.init(user.id, (toast) => {
       addToastRef.current?.(toast);
     });
-
-    // Initialize push notification debugger
-    pushInitDebugger.init();
 
     // [PUSH-FIX-1] No setTimeout — bridge is already attached via
     // attachBridgeEarly() in index.js. start() is safe to call immediately.

@@ -1,1 +1,121 @@
-// ============================================================================\n// src/services/notifications/pushInitDebugger.js\n// ============================================================================\n// Enhanced debugging for push notification initialization\n\nimport { pushService } from \"./pushService\";\nimport { isOneSignalConfigured } from \"./onesignalService\";\n\nconst debugLog = [];\n\nfunction log(msg, data = null) {\n  const entry = `[${new Date().toISOString()}] ${msg}`;\n  debugLog.push({ msg, data, time: Date.now() });\n  console.log(`[PushDebug] ${entry}`, data || \"\");\n  window.__pushDebugLog = debugLog;\n}\n\nexport const pushInitDebugger = {\n  init() {\n    log(\"Push debugger initialized\");\n    \n    // Check configuration\n    log(\"Checking push configuration...\");\n    log(`OneSignal configured: ${isOneSignalConfigured()}`);\n    log(`Notification API supported: ${'Notification' in window}`);\n    log(`Service Worker supported: ${'serviceWorker' in navigator}`);\n    log(`Push Manager supported: ${'PushManager' in window}`);\n    log(`Current permission: ${Notification.permission}`);\n    log(`Browser online: ${navigator.onLine}`);\n    \n    // Monitor pushService\n    const originalStart = pushService.start.bind(pushService);\n    pushService.start = async function(userId) {\n      log(`pushService.start called with userId: ${userId}`);\n      try {\n        const result = await originalStart(userId);\n        log(`pushService.start completed`, result);\n        return result;\n      } catch (e) {\n        log(`pushService.start ERROR: ${e.message}`, e);\n        throw e;\n      }\n    };\n    \n    // Monitor subscription\n    const originalSubscribe = pushService.subscribe.bind(pushService);\n    pushService.subscribe = async function(userId) {\n      log(`pushService.subscribe called with userId: ${userId}`);\n      try {\n        const result = await originalSubscribe(userId);\n        log(`pushService.subscribe completed`, result);\n        return result;\n      } catch (e) {\n        log(`pushService.subscribe ERROR: ${e.message}`, e);\n        throw e;\n      }\n    };\n    \n    // Monitor enable\n    const originalEnable = pushService.enablePushNotifications.bind(pushService);\n    pushService.enablePushNotifications = async function(userId) {\n      log(`pushService.enablePushNotifications called with userId: ${userId}`);\n      try {\n        const result = await originalEnable(userId);\n        log(`pushService.enablePushNotifications completed`, result);\n        return result;\n      } catch (e) {\n        log(`pushService.enablePushNotifications ERROR: ${e.message}`, e);\n        throw e;\n      }\n    };\n    \n    // Listen for push events\n    window.addEventListener(\"push:needs_permission\", (e) => {\n      log(\"Event: push:needs_permission\", e.detail);\n    });\n    \n    // Monitor OneSignal SDK\n    if (typeof window.OneSignal !== 'undefined') {\n      log(\"OneSignal SDK detected\");\n      setTimeout(() => {\n        window.OneSignal?.getDeviceState?.().then(state => {\n          log(\"OneSignal device state\", state);\n        }).catch(e => {\n          log(`OneSignal getDeviceState error: ${e.message}`);\n        });\n      }, 1000);\n    } else {\n      log(\"OneSignal SDK NOT detected\");\n    }\n  },\n  \n  getReport() {\n    return {\n      logs: debugLog,\n      config: {\n        oneSignalConfigured: isOneSignalConfigured(),\n        notificationSupported: 'Notification' in window,\n        serviceWorkerSupported: 'serviceWorker' in navigator,\n        pushManagerSupported: 'PushManager' in window,\n        permission: Notification.permission,\n        online: navigator.onLine,\n      },\n      state: {\n        timestamp: Date.now(),\n      },\n    };\n  },\n  \n  exportReport() {\n    const report = this.getReport();\n    const json = JSON.stringify(report, null, 2);\n    return json;\n  },\n};\n\nexport default pushInitDebugger;\n"}}]
+// ============================================================================
+// src/services/notifications/pushInitDebugger.js
+// ============================================================================
+// Enhanced debugging for push notification initialization
+
+import { pushService } from "./pushService";
+import { isOneSignalConfigured } from "./onesignalService";
+
+const debugLog = [];
+
+function log(msg, data = null) {
+  const entry = `[${new Date().toISOString()}] ${msg}`;
+  debugLog.push({ msg, data, time: Date.now() });
+  console.log(`[PushDebug] ${entry}`, data || "");
+  window.__pushDebugLog = debugLog;
+}
+
+export const pushInitDebugger = {
+  init() {
+    log("Push debugger initialized");
+
+    // Check configuration
+    log("Checking push configuration...");
+    log(`OneSignal configured: ${isOneSignalConfigured()}`);
+    log(`Notification API supported: ${'Notification' in window}`);
+    log(`Service Worker supported: ${'serviceWorker' in navigator}`);
+    log(`Push Manager supported: ${'PushManager' in window}`);
+    log(`Current permission: ${Notification.permission}`);
+    log(`Browser online: ${navigator.onLine}`);
+
+    // Monitor pushService
+    const originalStart = pushService.start.bind(pushService);
+    pushService.start = async function(userId) {
+      log(`pushService.start called with userId: ${userId}`);
+      try {
+        const result = await originalStart(userId);
+        log(`pushService.start completed`, result);
+        return result;
+      } catch (e) {
+        log(`pushService.start ERROR: ${e.message}`, e);
+        throw e;
+      }
+    };
+
+    // Monitor subscription
+    const originalSubscribe = pushService.subscribe.bind(pushService);
+    pushService.subscribe = async function(userId) {
+      log(`pushService.subscribe called with userId: ${userId}`);
+      try {
+        const result = await originalSubscribe(userId);
+        log(`pushService.subscribe completed`, result);
+        return result;
+      } catch (e) {
+        log(`pushService.subscribe ERROR: ${e.message}`, e);
+        throw e;
+      }
+    };
+
+    // Monitor enable
+    const originalEnable = pushService.enablePushNotifications.bind(pushService);
+    pushService.enablePushNotifications = async function(userId) {
+      log(`pushService.enablePushNotifications called with userId: ${userId}`);
+      try {
+        const result = await originalEnable(userId);
+        log(`pushService.enablePushNotifications completed`, result);
+        return result;
+      } catch (e) {
+        log(`pushService.enablePushNotifications ERROR: ${e.message}`, e);
+        throw e;
+      }
+    };
+
+    // Listen for push events
+    window.addEventListener("push:needs_permission", (e) => {
+      log("Event: push:needs_permission", e.detail);
+    });
+
+    // Monitor OneSignal SDK
+    if (typeof window.OneSignal !== 'undefined') {
+      log("OneSignal SDK detected");
+      setTimeout(() => {
+        window.OneSignal?.getDeviceState?.().then(state => {
+          log("OneSignal device state", state);
+        }).catch(e => {
+          log(`OneSignal getDeviceState error: ${e.message}`);
+        });
+      }, 1000);
+    } else {
+      log("OneSignal SDK NOT detected");
+    }
+  },
+
+  getReport() {
+    return {
+      logs: debugLog,
+      config: {
+        oneSignalConfigured: isOneSignalConfigured(),
+        notificationSupported: 'Notification' in window,
+        serviceWorkerSupported: 'serviceWorker' in navigator,
+        pushManagerSupported: 'PushManager' in window,
+        permission: Notification.permission,
+        online: navigator.onLine,
+      },
+      state: {
+        timestamp: Date.now(),
+      },
+    };
+  },
+
+  exportReport() {
+    const report = this.getReport();
+    const json = JSON.stringify(report, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `push-debug-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+};
