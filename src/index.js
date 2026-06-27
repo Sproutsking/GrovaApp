@@ -29,6 +29,7 @@ import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
+import { getPromptPriority } from "./services/notifications/appPromptManager";
 
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
@@ -322,7 +323,120 @@ if (process.env.NODE_ENV === "development") {
   root.render(AppTree);
 }
 
-// ── 5. SERVICE WORKER ─────────────────────────────────────────────────────────
+// ── 5. SERVICE WORKER + APP PROMPTS ────────────────────────────────────────
+let deferredInstallEvent = null;
+let installPromptShown = false;
+let updatePromptShown = false;
+let pushPromptShown = false;
+
+function showAppPrompt({ type, message, detail }) {
+  if (type === "install" && installPromptShown) return;
+  if (type === "update" && updatePromptShown) return;
+  if (type === "push" && pushPromptShown) return;
+
+  const banner = document.createElement("div");
+  banner.id = `xv-${type}-prompt`;
+  banner.style.cssText = `
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 2147483647;
+    width: min(92vw, 420px);
+    background: rgba(6, 10, 6, 0.96);
+    border: 1px solid rgba(168, 230, 61, 0.24);
+    border-radius: 18px;
+    padding: 14px 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(16px);
+  `;
+
+  const icon = type === "update" ? "⚡" : type === "push" ? "🔔" : "📲";
+  const title = type === "update" ? "Update ready" : type === "push" ? "Enable alerts" : "Install app";
+  const subtitle = detail || message || "Tap below to continue.";
+
+  banner.innerHTML = `
+    <div style="font-size:22px;flex-shrink:0">${icon}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:800;color:#f7f7f7;margin-bottom:2px">${title}</div>
+      <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button id="xv-prompt-dismiss" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">Later</button>
+      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
+    </div>
+  `;
+
+  document.body.appendChild(banner);
+  document.getElementById("xv-prompt-dismiss").addEventListener("click", () => {
+    banner.remove();
+    if (type === "install") installPromptShown = true;
+    if (type === "update") updatePromptShown = true;
+    if (type === "push") pushPromptShown = true;
+  });
+
+  document.getElementById("xv-prompt-action").addEventListener("click", async () => {
+    banner.remove();
+    if (type === "install" && deferredInstallEvent) {
+      deferredInstallEvent.prompt();
+      const { outcome } = await deferredInstallEvent.userChoice;
+      if (outcome === "accepted") {
+        installPromptShown = true;
+      }
+    } else if (type === "update") {
+      window.location.reload();
+    } else if (type === "push") {
+      if (typeof window.__xvRequestPushPermission === "function") {
+        await window.__xvRequestPushPermission();
+      }
+      pushPromptShown = true;
+    }
+  });
+
+  if (type === "install") installPromptShown = true;
+  if (type === "update") updatePromptShown = true;
+  if (type === "push") pushPromptShown = true;
+}
+
+function queuePrompt(type, detail) {
+  const priority = getPromptPriority({
+    installReady: type === "install",
+    updateReady: type === "update",
+    pushReady: type === "push",
+    isInstalled: window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone,
+  });
+  if (!priority) return;
+  showAppPrompt({ type: priority, message: detail, detail });
+}
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallEvent = event;
+  if (!installPromptShown) {
+    queuePrompt("install", "Install Xeevia to keep it fast and always available.");
+  }
+});
+
+window.addEventListener("appinstalled", () => {
+  installPromptShown = true;
+  deferredInstallEvent = null;
+});
+
+window.addEventListener("sw:registered", () => {
+  if (!updatePromptShown) {
+    queuePrompt("update", "A fresh update is available. Refresh now to get the latest experience.");
+  }
+});
+
+window.addEventListener("push:needs_permission", () => {
+  if (!pushPromptShown) {
+    queuePrompt("push", "Allow notifications for messages, calls, and activity.");
+  }
+});
+
 const isLocalhost = Boolean(
   window.location.hostname === "localhost" ||
   window.location.hostname === "[::1]" ||
@@ -344,6 +458,8 @@ if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
         window.__xvShowUpdate();
         return;
       }
+
+      window.dispatchEvent(new CustomEvent("sw:registered", { detail: { registration } }));
 
       // Fallback banner
       const el = document.createElement("div");
