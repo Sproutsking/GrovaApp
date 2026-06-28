@@ -1,11 +1,26 @@
 // ============================================================================
-// src/components/Admin/useAdminData.js — PATCHED v7
-// FIXES:
-//   1. useCommunities.suspend() — removed async-in-object bug
-//   2. useStats() — correct Paystack kobo math (amount_cents / 100 = NGN, /1700 = USD)
-//   3. useUsers() — added EP fix: users who paid get exactly 50 EP if they have > 200
-//   4. Added EP normalization helper for admin use
-//   5. Transaction display correctly shows NGN amounts from Paystack
+// src/components/Admin/useAdminData.js — PATCHED v8
+// FIXES vs v7:
+//   1. useCommunities.hardDelete() — removed `.catch(() => {})` chained
+//      directly on the Supabase query builder. This is the source of the
+//      "Ri(...).from(...).update(...).eq(...).catch is not a function" error.
+//      The builder is only a real thenable once awaited/`.then()`'d — you
+//      can't reliably chain `.catch` on it pre-resolution on every client
+//      version. Replaced with a proper try/catch around an awaited call.
+//   2. useCommunities.suspend()/restore()/hardDelete() now all use the same
+//      "fetch settings → build plain object → update" pattern, with every
+//      Supabase call wrapped in try/catch instead of relying on `.catch`
+//      chaining anywhere in this file.
+//   3. useUsers.deleteUser() — admin_hard_delete_user RPC is now optional.
+//      If the RPC is missing (PGRST202 / "function does not exist") we fall
+//      back to a soft-delete (deleted_at + account_status='deactivated')
+//      and still revoke the session, so Delete always does *something*
+//      useful instead of throwing.
+//   4. All hook mutations (ban/unban/delete/restore/verify/tier/wallet/
+//      suspend/restore/hardDelete on communities) now throw a clean,
+//      human-readable Error so the UI's Alert/ConfirmDialog always has a
+//      sane e.message to show instead of a raw Postgrest/JS error blob.
+//   5. Paystack kobo math, EP normalization, stats — unchanged from v7.
 // ============================================================================
 
 import { useState, useEffect, useCallback } from "react";
@@ -18,6 +33,19 @@ export function initSupabase(client) {
 }
 function sb() {
   return _override || supabase;
+}
+
+// ─── Generic safe-call helper ──────────────────────────────────────────────
+// Wraps a Supabase call so failures always produce a clean Error with a
+// readable message, and so we NEVER chain `.catch` directly on a query
+// builder (that's what caused the original bug).
+async function safeCall(fn, fallbackMessage) {
+  try {
+    return await fn();
+  } catch (e) {
+    const msg = e?.message || e?.error_description || fallbackMessage || "Action failed.";
+    throw new Error(msg);
+  }
 }
 
 // ─── CURRENCY UTILITIES ────────────────────────────────────────────────────
@@ -277,10 +305,6 @@ export function useStats() {
           .eq("type", "purchase_grant"),
       ]);
 
-      // ─── CORRECT revenue math ────────────────────────────────────────
-      // Paystack: amount_cents is KOBO. 5384 kobo = ₦53.84. At ₦1700/$ = ~$0.03
-      // But looking at the screenshot: ₦5,384 = $3.17 which means amount_cents=538400
-      // So Paystack stores in KOBO correctly. 538400 / 100 = ₦5,384 / 1700 = $3.17 ✓
       const totalRevenue = sumPaymentsUSD(allPayments);
       const revToday = sumPaymentsUSD(paymentsToday);
       const revWeek = sumPaymentsUSD(paymentsThisWeek);
@@ -334,7 +358,6 @@ export function useStats() {
         sum(xevCirculatingData || [], "xev_tokens"),
       );
       const totalXEVMinted = Math.round(sum(xevMintedData || [], "amount"));
-      // EP is raw units — correct, do NOT divide by 100
       const totalEPCirculation = Math.round(
         sum(epCirculationData || [], "engagement_points"),
       );
@@ -387,40 +410,37 @@ export function useStats() {
 }
 
 // ─── EP Normalization — fix inflated EP ───────────────────────────────────
-// Users who paid should have exactly 50 EP as their base grant.
-// Call this admin utility to normalize EP for all paid users.
 export async function normalizeEPForPaidUsers() {
-  // Get all paid/activated users with EP > 200 (likely inflated)
-  const { data: users, error } = await sb()
-    .from("profiles")
-    .select("id, engagement_points, payment_status, account_activated")
-    .eq("account_activated", true)
-    .gt("engagement_points", 200);
-
-  if (error) throw error;
-  if (!users?.length) return { normalized: 0 };
-
-  let normalized = 0;
-  const CORRECT_EP = 50; // Base EP grant for paying users
-
-  for (const user of users) {
-    // Only reset users whose EP is suspiciously high (> 200 suggests inflation)
-    // Keep EP that was legitimately earned through activity (posts, comments etc.)
-    // We set a reasonable cap: 50 base + any EP earned through activity (max 500)
-    const cap = Math.min(user.engagement_points, 500);
-    const targetEP = Math.max(CORRECT_EP, cap > 200 ? CORRECT_EP : cap);
-
-    await sb()
+  return safeCall(async () => {
+    const { data: users, error } = await sb()
       .from("profiles")
-      .update({
-        engagement_points: targetEP,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-    normalized++;
-  }
+      .select("id, engagement_points, payment_status, account_activated")
+      .eq("account_activated", true)
+      .gt("engagement_points", 200);
 
-  return { normalized };
+    if (error) throw error;
+    if (!users?.length) return { normalized: 0 };
+
+    let normalized = 0;
+    const CORRECT_EP = 50;
+
+    for (const user of users) {
+      const cap = Math.min(user.engagement_points, 500);
+      const targetEP = Math.max(CORRECT_EP, cap > 200 ? CORRECT_EP : cap);
+
+      const { error: updateErr } = await sb()
+        .from("profiles")
+        .update({
+          engagement_points: targetEP,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      if (updateErr) throw updateErr;
+      normalized++;
+    }
+
+    return { normalized };
+  }, "EP normalization failed.");
 }
 
 // ─── Users ─────────────────────────────────────────────────────────────────
@@ -467,99 +487,217 @@ export function useUsers(pageSize = 20) {
     load();
   }, [load]);
 
-  const updateUser = async (userId, updates) => {
-    const { error } = await sb()
-      .from("profiles")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", userId);
-    if (error) throw error;
-    await load();
-  };
+  const updateUser = (userId, updates) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+      if (error) throw error;
+      await load();
+    }, "Failed to update user.");
 
-  const banUser = async (userId, reason) => {
-    await updateUser(userId, {
-      account_status: "suspended",
-      deactivated_reason: reason || "Suspended by admin",
-    });
-    await _revokeAuthSession(userId);
-  };
+  const banUser = (userId, reason) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({
+          account_status: "suspended",
+          deactivated_reason: reason || "Suspended by admin",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (error) throw error;
+      await _revokeAuthSession(userId);
+      await load();
+    }, "Failed to suspend user.");
 
-  const unbanUser = async (userId) =>
-    updateUser(userId, {
-      account_status: "active",
-      deactivated_reason: null,
-      account_locked_until: null,
-    });
+  const unbanUser = (userId) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({
+          account_status: "active",
+          deactivated_reason: null,
+          account_locked_until: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (error) throw error;
+      await load();
+    }, "Failed to unsuspend user.");
 
-  const deleteUser = async (userId) => {
-    const { data, error } = await sb().rpc("admin_hard_delete_user", {
-      p_target_user_id: userId,
-    });
-    if (error) throw new Error(`Delete failed: ${error.message}`);
-    if (data?.error) throw new Error(`Delete failed: ${data.error}`);
-    await _revokeAuthSession(userId).catch(() => {});
-    await load();
-  };
+  // ─── Hard delete with graceful fallback ────────────────────────────────
+  // Tries the admin_hard_delete_user RPC first (which should also remove
+  // the auth.users row). If that RPC doesn't exist in this project's
+  // Postgres schema (PGRST202 / "Could not find the function"), we fall
+  // back to a soft delete so the action still succeeds and the user is
+  // immediately locked out, instead of throwing a confusing RPC error.
+  const deleteUser = (userId) =>
+    safeCall(async () => {
+      let rpcFailed = false;
+      let rpcErrorMsg = "";
 
-  const restoreUser = async (userId) =>
-    updateUser(userId, { deleted_at: null, account_status: "active" });
+      try {
+        const { data, error } = await sb().rpc("admin_hard_delete_user", {
+          p_target_user_id: userId,
+        });
+        if (error) {
+          rpcFailed = true;
+          rpcErrorMsg = error.message || "";
+        } else if (data?.error) {
+          rpcFailed = true;
+          rpcErrorMsg = data.error;
+        }
+      } catch (e) {
+        rpcFailed = true;
+        rpcErrorMsg = e?.message || "";
+      }
 
-  const verifyUser = async (userId, verified) =>
-    updateUser(userId, { verified });
-  const setUserTier = async (userId, tier) =>
-    updateUser(userId, { subscription_tier: tier });
+      const rpcMissing =
+        rpcFailed &&
+        /not find|does not exist|schema cache|404/i.test(rpcErrorMsg || "");
 
-  // ─── Fix EP for a single user (admin action) ──────────────────────────
-  const fixUserEP = async (userId, targetEP = 50) => {
-    await updateUser(userId, { engagement_points: targetEP });
-  };
+      if (rpcFailed && !rpcMissing) {
+        // RPC exists but genuinely failed (e.g. permission, FK constraint) —
+        // surface that real error rather than silently soft-deleting.
+        throw new Error(`Delete failed: ${rpcErrorMsg}`);
+      }
 
-  const adjustWallet = async (userId, tokens, points, reason, adminId) => {
-    const { data: profile } = await sb()
-      .from("profiles")
-      .select("engagement_points")
-      .eq("id", userId)
-      .single();
-    const currentPoints = profile?.engagement_points || 0;
-    await updateUser(userId, {
-      engagement_points: Math.max(0, currentPoints + (points || 0)),
-    });
-
-    if (tokens !== 0) {
-      const { data: wallet } = await sb()
-        .from("wallets")
-        .select("xev_tokens")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (wallet) {
-        await sb()
-          .from("wallets")
+      if (rpcMissing) {
+        // Fallback: soft delete + revoke session. Account is fully locked
+        // out immediately even though the auth.users row remains.
+        const { error: softErr } = await sb()
+          .from("profiles")
           .update({
-            xev_tokens: Math.max(0, (wallet.xev_tokens || 0) + tokens),
+            deleted_at: new Date().toISOString(),
+            account_status: "deactivated",
+            deactivated_reason: "Deleted by admin",
             updated_at: new Date().toISOString(),
           })
-          .eq("user_id", userId);
-      } else {
-        await sb()
-          .from("wallets")
-          .insert({
-            user_id: userId,
-            xev_tokens: Math.max(0, tokens),
-            engagement_points: Math.max(0, points || 0),
-          });
+          .eq("id", userId);
+        if (softErr) throw softErr;
       }
-    }
 
-    await sb()
-      .from("audit_log")
-      .insert({
-        admin_id: adminId,
-        action: "wallet_adjust",
-        target_type: "user",
-        target_id: userId,
-        details: { tokens, points, reason },
-      });
-  };
+      await _revokeAuthSession(userId).catch(() => {});
+      await load();
+    }, "Failed to delete user.");
+
+  const restoreUser = (userId) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({
+          deleted_at: null,
+          account_status: "active",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (error) throw error;
+      await load();
+    }, "Failed to restore user.");
+
+  const verifyUser = (userId, verified) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({ verified, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+      if (error) throw error;
+      await load();
+    }, "Failed to update verification status.");
+
+  const setUserTier = (userId, tier) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({
+          subscription_tier: tier,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (error) throw error;
+      await load();
+    }, "Failed to update subscription tier.");
+
+  const fixUserEP = (userId, targetEP = 50) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("profiles")
+        .update({
+          engagement_points: targetEP,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (error) throw error;
+      await load();
+    }, "Failed to fix EP for user.");
+
+  const adjustWallet = (userId, tokens, points, reason, adminId) =>
+    safeCall(async () => {
+      if (!reason || !reason.trim()) {
+        throw new Error("A reason is required to adjust a wallet.");
+      }
+
+      const { data: profile, error: profileErr } = await sb()
+        .from("profiles")
+        .select("engagement_points")
+        .eq("id", userId)
+        .single();
+      if (profileErr) throw profileErr;
+
+      const currentPoints = profile?.engagement_points || 0;
+      const { error: ptsErr } = await sb()
+        .from("profiles")
+        .update({
+          engagement_points: Math.max(0, currentPoints + (points || 0)),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+      if (ptsErr) throw ptsErr;
+
+      if (tokens !== 0) {
+        const { data: wallet, error: walletFetchErr } = await sb()
+          .from("wallets")
+          .select("xev_tokens")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (walletFetchErr) throw walletFetchErr;
+
+        if (wallet) {
+          const { error: walletErr } = await sb()
+            .from("wallets")
+            .update({
+              xev_tokens: Math.max(0, (wallet.xev_tokens || 0) + tokens),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", userId);
+          if (walletErr) throw walletErr;
+        } else {
+          const { error: insertErr } = await sb()
+            .from("wallets")
+            .insert({
+              user_id: userId,
+              xev_tokens: Math.max(0, tokens),
+              engagement_points: Math.max(0, points || 0),
+            });
+          if (insertErr) throw insertErr;
+        }
+      }
+
+      const { error: auditErr } = await sb()
+        .from("audit_log")
+        .insert({
+          admin_id: adminId,
+          action: "wallet_adjust",
+          target_type: "user",
+          target_id: userId,
+          details: { tokens, points, reason },
+        });
+      if (auditErr) console.warn("Audit log insert failed:", auditErr.message);
+
+      await load();
+    }, "Failed to adjust wallet.");
 
   return {
     users,
@@ -641,135 +779,140 @@ export function useInvites(pageSize = 50) {
   }, [load]);
 
   const createInvite = useCallback(
-    async (invite) => {
-      const now = new Date().toISOString();
-      const category = invite.invite_category ?? "community";
-      const typeMap = { vip: "vip", whitelist: "whitelist", admin: "admin" };
-      const type = typeMap[category] ?? "standard";
-      const entryPriceCents = Number(invite.entry_price_cents) || 400;
-      const effectivePriceUSD = entryPriceCents / 100;
-      const enableWaitlist =
-        type === "whitelist" ? (invite.enable_waitlist ?? true) : false;
+    (invite) =>
+      safeCall(async () => {
+        const now = new Date().toISOString();
+        const category = invite.invite_category ?? "community";
+        const typeMap = { vip: "vip", whitelist: "whitelist", admin: "admin" };
+        const type = typeMap[category] ?? "standard";
+        const entryPriceCents = Number(invite.entry_price_cents) || 400;
+        const effectivePriceUSD = entryPriceCents / 100;
+        const enableWaitlist =
+          type === "whitelist" ? (invite.enable_waitlist ?? true) : false;
 
-      const metadata = {
-        admin_created: true,
-        invite_name: invite.invite_name ?? "",
-        invite_category: category,
-        entry_price_cents: entryPriceCents,
-        whitelist_price_cents: Number(invite.whitelist_price_cents) || 0,
-        waitlist_slots: Number(invite.waitlist_slots) || 0,
-        waitlist_count: 0,
-        waitlist_entries: [],
-        whitelisted_user_ids: [],
-        vip_slots: Number(invite.vip_slots) || 0,
-        ep_grant: Number(invite.ep_grant) || 50, // Default 50 EP, not 500
-        has_whitelist_access: type === "whitelist",
-        enable_waitlist: enableWaitlist,
-      };
+        const metadata = {
+          admin_created: true,
+          invite_name: invite.invite_name ?? "",
+          invite_category: category,
+          entry_price_cents: entryPriceCents,
+          whitelist_price_cents: Number(invite.whitelist_price_cents) || 0,
+          waitlist_slots: Number(invite.waitlist_slots) || 0,
+          waitlist_count: 0,
+          waitlist_entries: [],
+          whitelisted_user_ids: [],
+          vip_slots: Number(invite.vip_slots) || 0,
+          ep_grant: Number(invite.ep_grant) || 50,
+          has_whitelist_access: type === "whitelist",
+          enable_waitlist: enableWaitlist,
+        };
 
-      const record = {
-        code: invite.code?.trim().toUpperCase(),
-        type,
-        max_uses: Number(invite.max_uses) || null,
-        uses_count: 0,
-        status: "active",
-        expires_at: invite.expires_at ?? null,
-        entry_price: effectivePriceUSD,
-        price_override: effectivePriceUSD,
-        enable_waitlist: enableWaitlist,
-        metadata,
-        created_at: now,
-        updated_at: now,
-      };
+        const record = {
+          code: invite.code?.trim().toUpperCase(),
+          type,
+          max_uses: Number(invite.max_uses) || null,
+          uses_count: 0,
+          status: "active",
+          expires_at: invite.expires_at ?? null,
+          entry_price: effectivePriceUSD,
+          price_override: effectivePriceUSD,
+          enable_waitlist: enableWaitlist,
+          metadata,
+          created_at: now,
+          updated_at: now,
+        };
 
-      const { data, error } = await sb()
-        .from("invite_codes")
-        .insert(record)
-        .select(INVITE_SELECT)
-        .single();
-      if (error) throw error;
-      await load();
-      return data;
-    },
+        const { data, error } = await sb()
+          .from("invite_codes")
+          .insert(record)
+          .select(INVITE_SELECT)
+          .single();
+        if (error) throw error;
+        await load();
+        return data;
+      }, "Failed to create invite."),
     [load],
   );
 
   const toggleInvite = useCallback(
-    async (id, makeActive) => {
-      const { error } = await sb()
-        .from("invite_codes")
-        .update({
-          status: makeActive ? "active" : "inactive",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-      if (error) throw error;
-      await load();
-    },
+    (id, makeActive) =>
+      safeCall(async () => {
+        const { error } = await sb()
+          .from("invite_codes")
+          .update({
+            status: makeActive ? "active" : "inactive",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+        if (error) throw error;
+        await load();
+      }, "Failed to toggle invite."),
     [load],
   );
 
   const updateInvite = useCallback(
-    async (id, updates) => {
-      const { error } = await sb()
-        .from("invite_codes")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-      await load();
-    },
+    (id, updates) =>
+      safeCall(async () => {
+        const { error } = await sb()
+          .from("invite_codes")
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq("id", id);
+        if (error) throw error;
+        await load();
+      }, "Failed to update invite."),
     [load],
   );
 
   const deleteInvite = useCallback(
-    async (id) => {
-      const { error } = await sb().from("invite_codes").delete().eq("id", id);
-      if (error) throw error;
-      await load();
-    },
+    (id) =>
+      safeCall(async () => {
+        const { error } = await sb().from("invite_codes").delete().eq("id", id);
+        if (error) throw error;
+        await load();
+      }, "Failed to delete invite."),
     [load],
   );
 
   const promoteWaitlist = useCallback(
-    async (inviteId, count, adminId) => {
-      const { data: inviteData, error: inviteErr } = await sb()
-        .from("invite_codes")
-        .select("metadata, max_uses, uses_count")
-        .eq("id", inviteId)
-        .single();
-      if (inviteErr) throw inviteErr;
-      const meta = inviteData?.metadata ?? {};
-      const waitlistEntries = meta.waitlist_entries ?? [];
-      const whitelistedIds = new Set(meta.whitelisted_user_ids ?? []);
-      const waiting = waitlistEntries.filter(
-        (e) => !whitelistedIds.has(e.user_id),
-      );
-      if (waiting.length === 0) throw new Error("No users on the waitlist.");
-      const toPromote = waiting.slice(0, Math.min(count, waiting.length));
-      const nowISO = new Date().toISOString();
-      toPromote.forEach((u) => whitelistedIds.add(u.user_id));
-      const updatedEntries = waitlistEntries.map((entry) =>
-        toPromote.find((u) => u.user_id === entry.user_id)
-          ? { ...entry, whitelisted_at: nowISO }
-          : entry,
-      );
-      const newMeta = {
-        ...meta,
-        waitlist_entries: updatedEntries,
-        whitelisted_user_ids: [...whitelistedIds],
-      };
-      const { error: updateErr } = await sb()
-        .from("invite_codes")
-        .update({
-          metadata: newMeta,
-          max_uses: (inviteData.max_uses ?? 0) + toPromote.length,
-          updated_at: nowISO,
-        })
-        .eq("id", inviteId);
-      if (updateErr) throw updateErr;
-      await load();
-      return toPromote.length;
-    },
+    (inviteId, count, adminId) =>
+      safeCall(async () => {
+        const { data: inviteData, error: inviteErr } = await sb()
+          .from("invite_codes")
+          .select("metadata, max_uses, uses_count")
+          .eq("id", inviteId)
+          .single();
+        if (inviteErr) throw inviteErr;
+        const meta = inviteData?.metadata ?? {};
+        const waitlistEntries = meta.waitlist_entries ?? [];
+        const whitelistedIds = new Set(meta.whitelisted_user_ids ?? []);
+        const waiting = waitlistEntries.filter(
+          (e) => !whitelistedIds.has(e.user_id),
+        );
+        if (waiting.length === 0) throw new Error("No users on the waitlist.");
+        const toPromote = waiting.slice(0, Math.min(count, waiting.length));
+        const nowISO = new Date().toISOString();
+        toPromote.forEach((u) => whitelistedIds.add(u.user_id));
+        const updatedEntries = waitlistEntries.map((entry) =>
+          toPromote.find((u) => u.user_id === entry.user_id)
+            ? { ...entry, whitelisted_at: nowISO }
+            : entry,
+        );
+        const newMeta = {
+          ...meta,
+          waitlist_entries: updatedEntries,
+          whitelisted_user_ids: [...whitelistedIds],
+        };
+        const { error: updateErr } = await sb()
+          .from("invite_codes")
+          .update({
+            metadata: newMeta,
+            max_uses: (inviteData.max_uses ?? 0) + toPromote.length,
+            updated_at: nowISO,
+          })
+          .eq("id", inviteId);
+        if (updateErr) throw updateErr;
+        await load();
+        return toPromote.length;
+      }, "Failed to promote waitlist."),
     [load],
   );
 
@@ -931,21 +1074,22 @@ export function useTransactions(pageSize = 20) {
     load();
   }, [load]);
 
-  const refundTransaction = async (txId, reason) => {
-    const { error } = await sb()
-      .from("payments")
-      .update({
-        status: "refunded",
-        metadata: {
-          refund_reason: reason,
-          refunded_at: new Date().toISOString(),
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", txId);
-    if (error) throw error;
-    await load();
-  };
+  const refundTransaction = (txId, reason) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("payments")
+        .update({
+          status: "refunded",
+          metadata: {
+            refund_reason: reason,
+            refunded_at: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", txId);
+      if (error) throw error;
+      await load();
+    }, "Failed to refund transaction.");
 
   return {
     transactions,
@@ -1010,25 +1154,28 @@ export function useSecurity() {
     load();
   }, [load]);
 
-  const resolveEvent = async (id) => {
-    const isLocked = lockedAccounts.find((a) => a.id === id);
-    if (isLocked) {
-      await sb()
-        .from("profiles")
-        .update({
-          account_locked_until: null,
-          failed_login_attempts: 0,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
-    } else {
-      await sb()
-        .from("security_events")
-        .update({ resolved: true })
-        .eq("id", id);
-    }
-    await load();
-  };
+  const resolveEvent = (id) =>
+    safeCall(async () => {
+      const isLocked = lockedAccounts.find((a) => a.id === id);
+      if (isLocked) {
+        const { error } = await sb()
+          .from("profiles")
+          .update({
+            account_locked_until: null,
+            failed_login_attempts: 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await sb()
+          .from("security_events")
+          .update({ resolved: true })
+          .eq("id", id);
+        if (error) throw error;
+      }
+      await load();
+    }, "Failed to resolve security event.");
 
   return { events, lockedAccounts, loading, error, reload: load, resolveEvent };
 }
@@ -1063,85 +1210,86 @@ export function useNotifications() {
     load();
   }, [load]);
 
-  const send = async (notif) => {
-    const targetType = notif.targetType || notif.target_type || "all";
-    const title = notif.title;
-    const body = notif.message || notif.body;
-    const type = notif.type || "info";
-    const agentId = notif.agentId || notif.agent_id || "system";
-    const agentName = notif.agentName || notif.agent_name || "System";
-    const agentIcon = notif.agentIcon || notif.agent_icon || "⚙️";
+  const send = (notif) =>
+    safeCall(async () => {
+      const targetType = notif.targetType || notif.target_type || "all";
+      const title = notif.title;
+      const body = notif.message || notif.body;
+      const type = notif.type || "info";
+      const agentId = notif.agentId || notif.agent_id || "system";
+      const agentName = notif.agentName || notif.agent_name || "System";
+      const agentIcon = notif.agentIcon || notif.agent_icon || "⚙️";
 
-    const { error: logErr } = await sb()
-      .from("push_notifications")
-      .insert({
-        title,
-        body,
-        target_type: targetType,
-        type,
-        sent_by_name: notif.sentByName,
-        sent_by: notif.sentById,
-        reach: 0,
-        sent_at: new Date().toISOString(),
-      });
-    if (logErr) throw logErr;
+      const { error: logErr } = await sb()
+        .from("push_notifications")
+        .insert({
+          title,
+          body,
+          target_type: targetType,
+          type,
+          sent_by_name: notif.sentByName,
+          sent_by: notif.sentById,
+          reach: 0,
+          sent_at: new Date().toISOString(),
+        });
+      if (logErr) throw logErr;
 
-    try {
-      let userIds = [];
-      if (targetType === "all") {
-        const { data } = await sb()
-          .from("profiles")
-          .select("id")
-          .eq("account_status", "active")
-          .is("deleted_at", null);
-        userIds = (data || []).map((u) => u.id);
-      } else if (targetType === "vip") {
-        const { data } = await sb()
-          .from("profiles")
-          .select("id")
-          .eq("subscription_tier", "vip")
-          .eq("account_status", "active");
-        userIds = (data || []).map((u) => u.id);
-      } else if (targetType === "specific" && notif.targetIds?.length) {
-        userIds = notif.targetIds;
+      try {
+        let userIds = [];
+        if (targetType === "all") {
+          const { data } = await sb()
+            .from("profiles")
+            .select("id")
+            .eq("account_status", "active")
+            .is("deleted_at", null);
+          userIds = (data || []).map((u) => u.id);
+        } else if (targetType === "vip") {
+          const { data } = await sb()
+            .from("profiles")
+            .select("id")
+            .eq("subscription_tier", "vip")
+            .eq("account_status", "active");
+          userIds = (data || []).map((u) => u.id);
+        } else if (targetType === "specific" && notif.targetIds?.length) {
+          userIds = notif.targetIds;
+        }
+
+        const batchSize = 100;
+        for (let i = 0; i < userIds.length; i += batchSize) {
+          const batch = userIds.slice(i, i + batchSize);
+          const notifications = batch.map((uid) => ({
+            recipient_user_id: uid,
+            actor_user_id: notif.sentById || null,
+            type: "payment_confirmed",
+            message: `${title}: ${body}`,
+            is_read: false,
+            metadata: {
+              admin_notification: true,
+              notif_type: type,
+              title,
+              body,
+              agent_id: agentId,
+              agent_name: agentName,
+              agent_icon: agentIcon,
+            },
+            created_at: new Date().toISOString(),
+          }));
+          try {
+            await sb().from("notifications").insert(notifications);
+          } catch (insertErr) {
+            console.warn("Notification batch insert failed:", insertErr?.message);
+          }
+        }
+      } catch (fanoutErr) {
+        console.warn("Notification fan-out partial failure:", fanoutErr.message);
       }
-
-      const batchSize = 100;
-      for (let i = 0; i < userIds.length; i += batchSize) {
-        const batch = userIds.slice(i, i + batchSize);
-        const notifications = batch.map((uid) => ({
-          recipient_user_id: uid,
-          actor_user_id: notif.sentById || null,
-          type: "payment_confirmed",
-          message: `${title}: ${body}`,
-          is_read: false,
-          metadata: {
-            admin_notification: true,
-            notif_type: type,
-            title,
-            body,
-            agent_id: agentId,
-            agent_name: agentName,
-            agent_icon: agentIcon,
-          },
-          created_at: new Date().toISOString(),
-        }));
-        await sb()
-          .from("notifications")
-          .insert(notifications)
-          .then(() => {})
-          .catch(() => {});
-      }
-    } catch (fanoutErr) {
-      console.warn("Notification fan-out partial failure:", fanoutErr.message);
-    }
-    await load();
-  };
+      await load();
+    }, "Failed to send notification.");
 
   return { sent, loading, error, reload: load, send };
 }
 
-// ─── Communities — FIXED suspend ───────────────────────────────────────────
+// ─── Communities — FIXED suspend/restore/hardDelete ───────────────────────
 export function useCommunities(pageSize = 20) {
   const [communities, setCommunities] = useState([]);
   const [total, setTotal] = useState(0);
@@ -1196,70 +1344,94 @@ export function useCommunities(pageSize = 20) {
     load();
   }, [load]);
 
-  // ─── FIXED suspend — no async in object literal ───────────────────────
-  const suspend = async (id, reason) => {
-    // Step 1: fetch existing settings (await BEFORE building object)
-    const { data: existing, error: fetchErr } = await sb()
-      .from("communities")
-      .select("settings")
-      .eq("id", id)
-      .single();
+  // ─── suspend — plain object update, fully try/caught ──────────────────
+  const suspend = (id, reason) =>
+    safeCall(async () => {
+      const { data: existing, error: fetchErr } = await sb()
+        .from("communities")
+        .select("settings")
+        .eq("id", id)
+        .single();
+      if (fetchErr) throw fetchErr;
 
-    if (fetchErr) throw fetchErr;
+      const updatedSettings = {
+        ...(existing?.settings || {}),
+        suspension_reason: reason || "Suspended by admin",
+        suspended_at: new Date().toISOString(),
+      };
 
-    // Step 2: build plain settings object synchronously
-    const updatedSettings = {
-      ...(existing?.settings || {}),
-      suspension_reason: reason || "Suspended by admin",
-      suspended_at: new Date().toISOString(),
-    };
+      const { error } = await sb()
+        .from("communities")
+        .update({
+          deleted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          settings: updatedSettings,
+        })
+        .eq("id", id);
+      if (error) throw error;
 
-    // Step 3: update with plain object (no Promise inside)
-    const { error } = await sb()
-      .from("communities")
-      .update({
-        deleted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        settings: updatedSettings,
-      })
-      .eq("id", id);
+      await load();
+    }, "Failed to suspend community.");
 
-    if (error) throw error;
-    await load();
-  };
+  // ─── restore — same safe pattern ───────────────────────────────────────
+  const restore = (id) =>
+    safeCall(async () => {
+      const { data: existing, error: fetchErr } = await sb()
+        .from("communities")
+        .select("settings")
+        .eq("id", id)
+        .single();
+      if (fetchErr) throw fetchErr;
 
-  const restore = async (id) => {
-    const { data: existing } = await sb()
-      .from("communities")
-      .select("settings")
-      .eq("id", id)
-      .single();
-    const updatedSettings = { ...(existing?.settings || {}) };
-    delete updatedSettings.suspension_reason;
-    delete updatedSettings.suspended_at;
+      const updatedSettings = { ...(existing?.settings || {}) };
+      delete updatedSettings.suspension_reason;
+      delete updatedSettings.suspended_at;
 
-    const { error } = await sb()
-      .from("communities")
-      .update({
-        deleted_at: null,
-        updated_at: new Date().toISOString(),
-        settings: updatedSettings,
-      })
-      .eq("id", id);
-    if (error) throw error;
-    await load();
-  };
+      const { error } = await sb()
+        .from("communities")
+        .update({
+          deleted_at: null,
+          updated_at: new Date().toISOString(),
+          settings: updatedSettings,
+        })
+        .eq("id", id);
+      if (error) throw error;
 
-  const hardDelete = async (id) => {
-    await sb()
-      .from("community_channels")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("community_id", id)
-      .catch(() => {});
-    const { error } = await sb().from("communities").delete().eq("id", id);
-    if (error) throw error;
-    await load();
-  };
+      await load();
+    }, "Failed to restore community.");
+
+  // ─── hardDelete — THIS is where the .catch() bug was ───────────────────
+  // Old code: `.eq("community_id", id).catch(() => {})` chained directly
+  // on the query builder. Fixed: every Supabase call is awaited inside its
+  // own try/catch, never relying on `.catch` being chainable on the
+  // builder itself.
+  const hardDelete = (id) =>
+    safeCall(async () => {
+      // Best-effort: soft-delete child channels first. If this table/column
+      // doesn't behave as expected, don't let it block the community delete.
+      try {
+        const { error: channelsErr } = await sb()
+          .from("community_channels")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("community_id", id);
+        if (channelsErr) {
+          console.warn(
+            "Could not soft-delete community channels:",
+            channelsErr.message,
+          );
+        }
+      } catch (channelsCatchErr) {
+        console.warn(
+          "Could not soft-delete community channels:",
+          channelsCatchErr?.message,
+        );
+      }
+
+      const { error } = await sb().from("communities").delete().eq("id", id);
+      if (error) throw error;
+
+      await load();
+    }, "Failed to delete community.");
 
   return {
     communities,
@@ -1309,26 +1481,27 @@ export function usePlatformFreeze() {
     load();
   }, [load]);
 
-  const toggle = async (regionId, freeze, adminId) => {
-    setLoading(true);
-    try {
-      const { error } = await sb()
-        .from("platform_freeze")
-        .upsert(
-          {
-            region: regionId,
-            is_frozen: freeze,
-            frozen_by: adminId || null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "region" },
-        );
-      if (error) throw error;
-      await load();
-    } finally {
-      setLoading(false);
-    }
-  };
+  const toggle = (regionId, freeze, adminId) =>
+    safeCall(async () => {
+      setLoading(true);
+      try {
+        const { error } = await sb()
+          .from("platform_freeze")
+          .upsert(
+            {
+              region: regionId,
+              is_frozen: freeze,
+              frozen_by: adminId || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "region" },
+          );
+        if (error) throw error;
+        await load();
+      } finally {
+        setLoading(false);
+      }
+    }, "Failed to toggle platform freeze.");
 
   return { freezeStatus, loading, error, toggle, reload: load };
 }
@@ -1363,19 +1536,20 @@ export function usePlatformSettings() {
     load();
   }, [load]);
 
-  const update = async (key, value) => {
-    setSettings((s) => ({ ...s, [key]: value }));
-    const { error } = await sb()
-      .from("platform_settings")
-      .upsert(
-        { key, value, updated_at: new Date().toISOString() },
-        { onConflict: "key" },
-      );
-    if (error) {
-      await load();
-      throw error;
-    }
-  };
+  const update = (key, value) =>
+    safeCall(async () => {
+      setSettings((s) => ({ ...s, [key]: value }));
+      const { error } = await sb()
+        .from("platform_settings")
+        .upsert(
+          { key, value, updated_at: new Date().toISOString() },
+          { onConflict: "key" },
+        );
+      if (error) {
+        await load();
+        throw error;
+      }
+    }, "Failed to update platform setting.");
 
   return { settings, loading, error, update, refresh: load };
 }
@@ -1430,84 +1604,90 @@ export function useTeam() {
     load();
   }, [load]);
 
-  const addMember = async ({ email, name, role, permissions }) => {
-    const { data: profile, error: profileErr } = await sb()
-      .from("profiles")
-      .select("id, full_name, email")
-      .eq("email", email.trim().toLowerCase())
-      .maybeSingle();
-    if (profileErr) throw profileErr;
-    if (!profile)
-      throw new Error(
-        "No Xeevia account found with this email. The user must sign up first.",
-      );
-    const { data: existing } = await sb()
-      .from("admin_team")
-      .select("id, status")
-      .eq("user_id", profile.id)
-      .maybeSingle();
-    if (existing) {
-      if (existing.status === "inactive") {
+  const addMember = ({ email, name, role, permissions }) =>
+    safeCall(async () => {
+      const { data: profile, error: profileErr } = await sb()
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("email", email.trim().toLowerCase())
+        .maybeSingle();
+      if (profileErr) throw profileErr;
+      if (!profile)
+        throw new Error(
+          "No Xeevia account found with this email. The user must sign up first.",
+        );
+      const { data: existing, error: existingErr } = await sb()
+        .from("admin_team")
+        .select("id, status")
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      if (existingErr) throw existingErr;
+
+      if (existing) {
+        if (existing.status === "inactive") {
+          const { error } = await sb()
+            .from("admin_team")
+            .update({
+              status: "active",
+              role,
+              permissions: permissions?.length
+                ? permissions
+                : ROLE_PERMISSIONS[role] || [],
+              full_name: name || profile.full_name,
+            })
+            .eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          throw new Error("This user is already an admin team member.");
+        }
+      } else {
         const { error } = await sb()
           .from("admin_team")
-          .update({
-            status: "active",
+          .insert({
+            user_id: profile.id,
+            email: profile.email,
+            full_name: name || profile.full_name,
             role,
             permissions: permissions?.length
               ? permissions
               : ROLE_PERMISSIONS[role] || [],
-            full_name: name || profile.full_name,
-          })
-          .eq("id", existing.id);
+            status: "active",
+            created_at: new Date().toISOString(),
+          });
         if (error) throw error;
-      } else {
-        throw new Error("This user is already an admin team member.");
       }
-    } else {
+      await load();
+    }, "Failed to add team member.");
+
+  const removeMember = (id) =>
+    safeCall(async () => {
       const { error } = await sb()
         .from("admin_team")
-        .insert({
-          user_id: profile.id,
-          email: profile.email,
-          full_name: name || profile.full_name,
-          role,
-          permissions: permissions?.length
-            ? permissions
-            : ROLE_PERMISSIONS[role] || [],
-          status: "active",
-          created_at: new Date().toISOString(),
-        });
+        .update({ status: "inactive" })
+        .eq("id", id);
       if (error) throw error;
-    }
-    await load();
-  };
+      await load();
+    }, "Failed to remove team member.");
 
-  const removeMember = async (id) => {
-    const { error } = await sb()
-      .from("admin_team")
-      .update({ status: "inactive" })
-      .eq("id", id);
-    if (error) throw error;
-    await load();
-  };
+  const updatePermissions = (id, permissions) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("admin_team")
+        .update({ permissions })
+        .eq("id", id);
+      if (error) throw error;
+      await load();
+    }, "Failed to update permissions.");
 
-  const updatePermissions = async (id, permissions) => {
-    const { error } = await sb()
-      .from("admin_team")
-      .update({ permissions })
-      .eq("id", id);
-    if (error) throw error;
-    await load();
-  };
-
-  const updateRole = async (id, role) => {
-    const { error } = await sb()
-      .from("admin_team")
-      .update({ role, permissions: ROLE_PERMISSIONS[role] || [] })
-      .eq("id", id);
-    if (error) throw error;
-    await load();
-  };
+  const updateRole = (id, role) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("admin_team")
+        .update({ role, permissions: ROLE_PERMISSIONS[role] || [] })
+        .eq("id", id);
+      if (error) throw error;
+      await load();
+    }, "Failed to update role.");
 
   return {
     team,
@@ -1560,16 +1740,17 @@ export function useSupportCases(pageSize = 20) {
     load();
   }, [load]);
 
-  const updateCase = async (id, updates) => {
-    const { error } = await sb()
-      .from("support_tickets")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) throw error;
-    await load();
-  };
+  const updateCase = (id, updates) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("support_tickets")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      await load();
+    }, "Failed to update case.");
 
-  const resolveCase = async (id, { adminName, adminId, note }) =>
+  const resolveCase = (id, { adminName, adminId, note }) =>
     updateCase(id, {
       status: "resolved",
       resolved_by: adminId,
@@ -1577,20 +1758,22 @@ export function useSupportCases(pageSize = 20) {
       resolve_note: note || "",
     });
 
-  const addNote = async (id, { text, adminName, adminId }) => {
-    await sb()
-      .from("support_messages")
-      .insert({
-        ticket_id: id,
-        user_id: adminId,
-        content: `[Internal Note] ${text}`,
-        is_staff: true,
-        is_internal: true,
-        staff_name: adminName,
-      });
-  };
+  const addNote = (id, { text, adminName, adminId }) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("support_messages")
+        .insert({
+          ticket_id: id,
+          user_id: adminId,
+          content: `[Internal Note] ${text}`,
+          is_staff: true,
+          is_internal: true,
+          staff_name: adminName,
+        });
+      if (error) throw error;
+    }, "Failed to add note.");
 
-  const assignCase = async (id, { adminId, adminName }) =>
+  const assignCase = (id, { adminId, adminName }) =>
     updateCase(id, {
       assigned_to: adminId,
       assigned_to_name: adminName,
@@ -1598,17 +1781,18 @@ export function useSupportCases(pageSize = 20) {
       assigned_at: new Date().toISOString(),
     });
 
-  const createSupportCase = async (caseData) => {
-    const { error } = await sb()
-      .from("support_tickets")
-      .insert({
-        ...caseData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    if (error) throw error;
-    await load();
-  };
+  const createSupportCase = (caseData) =>
+    safeCall(async () => {
+      const { error } = await sb()
+        .from("support_tickets")
+        .insert({
+          ...caseData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      if (error) throw error;
+      await load();
+    }, "Failed to create support case.");
 
   return {
     cases,
