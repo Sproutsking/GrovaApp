@@ -181,11 +181,13 @@ const SourceIcon = ({
   );
 };
 
-// ── CORS proxy waterfall for full article fetch ───────────────────────────────
+// ── CORS proxy waterfall for full article fetch — use browser-friendly proxies first and Supabase only as a last resort
 const PROXIES = [
-  (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
+  (u) => u,
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
 ];
 
 async function fetchArticleText(url) {

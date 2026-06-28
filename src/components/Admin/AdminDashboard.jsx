@@ -41,6 +41,7 @@ import { FreezeSection, SystemSection } from "./sections/SystemSection.jsx";
 import TeamSection, { CEOPanel } from "./sections/TeamSection.jsx";
 import AmbassadorSection from "./sections/AmbassadorSection.jsx";
 import LiquiditySection  from "./sections/LiquiditySection.jsx";
+import ServicesModal     from "../Shared/ServicesModal";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -234,7 +235,7 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
 }
 
 // ─── Dashboard Overview ────────────────────────────────────────────────────
-function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, overviewPanelCols, quickActionCols, economyCols }) {
+function DashboardOverview({ stats, onNavigate, onOpenOracle, team, adminData, dashboardCols, overviewPanelCols, quickActionCols, economyCols }) {
   const s         = stats || {};
   const openCases = s.openCases || 0;
   const firstName = (adminData?.full_name || "Admin").split(" ")[0];
@@ -300,6 +301,13 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
                 <span style={{ fontSize: 10, fontWeight: 600, color: C.text2 }}>{qa.label}</span>
               </button>
             ))}
+            <button onClick={onOpenOracle}
+              style={{ padding: "14px 10px", background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all .15s", fontFamily: "inherit" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.12)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.4)"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.08)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.2)"; }}>
+              <span style={{ fontSize: 19, color: "#a855f7" }}>⛓</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: C.text2 }}>XRC Oracle</span>
+            </button>
           </div>
 
           <div style={{ display: "flex", gap: 16, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
@@ -477,10 +485,11 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────
-export default function AdminDashboard({ adminData, onClose }) {
+export default function AdminDashboard({ adminData, onClose, xrcService }) {
   const [activeSection,    setActiveSection]    = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileAdmin,    setIsMobileAdmin]    = useState(false);
+  const [showOracle,       setShowOracle]       = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobileAdmin(window.innerWidth <= 900);
@@ -542,6 +551,7 @@ export default function AdminDashboard({ adminData, onClose }) {
         return <DashboardOverview
           stats={stats}
           onNavigate={navigate}
+          onOpenOracle={() => setShowOracle(true)}
           team={teamHook.team || []}
           adminData={adminData}
           dashboardCols={dashboardCols}
@@ -650,6 +660,15 @@ export default function AdminDashboard({ adminData, onClose }) {
           {renderSection()}
         </div>
       </div>
+
+      {showOracle && (
+        <ServicesModal
+          onClose={() => setShowOracle(false)}
+          setActiveTab={() => {}}
+          currentUser={{ id: adminData?.user_id || adminData?.id, username: adminData?.username || adminData?.email }}
+          xrcService={xrcService}
+        />
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap');

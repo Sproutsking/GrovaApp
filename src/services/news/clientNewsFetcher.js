@@ -17,10 +17,12 @@
 
 import { supabase } from "../config/supabase";
 
-// ── CORS proxies — prefer our server-side proxy; fall back to direct fetch
+// ── CORS proxies — prefer direct and public proxy fetches first, use server-side proxy only as a last resort
 const PROXIES = [
+  (u) => u,
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
-  (u) => u, // direct fetch — works for CORS-enabled RSS feeds
 ];
 
 // ── 80+ RSS Sources ───────────────────────────────────────────────────────────

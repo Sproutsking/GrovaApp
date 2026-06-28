@@ -73,9 +73,14 @@ import SupportSidebar          from "./components/Shared/SupportSidebar";
 import NotificationSidebar     from "./components/Shared/NotificationSidebar";
 import InAppNotificationToast  from "./components/Shared/InAppNotificationToast";
 import PushPermissionNudge     from "./components/Shared/PushPermissionNudge";
+import AccountSwitchPrompt     from "./components/Shared/AccountSwitchPrompt";
 import PullToRefreshIndicator  from "./components/Shared/PullToRefreshIndicator";
 import NetworkError            from "./components/Shared/NetworkError";
 import IncomingCallToast       from "./components/Messages/IncomingCallToast";
+import xrcService              from "./services/xrc";
+// DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
+// Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
+// This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
 
 // Admin dashboard
 import AdminDashboard from "./components/Admin/AdminDashboard";
@@ -248,7 +253,7 @@ const MainApp = memo(() => {
   const [feedFilter,    setFeedFilter]    = useState(null);
   const [streamSession, setStreamSession] = useState(null);
 
-  const [activeHomeTab, setActiveHomeTab] = useState("posts");
+  const [activeHomeTab, setActiveHomeTab] = useState("feed");
 
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
@@ -726,7 +731,7 @@ const MainApp = memo(() => {
         id: "search",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <ExploreView {...viewProps} />
+            <ExploreView {...viewProps} xrcService={xrcService} />
           </Suspense>
         ),
       },
@@ -914,6 +919,7 @@ const MainApp = memo(() => {
           user={user}
           adminData={adminData}
           onOpenDashboard={() => setShowAdminDashboard(true)}
+          xrcService={xrcService}
         />
       );
     }
@@ -925,6 +931,7 @@ const MainApp = memo(() => {
         setSidebarOpen={setSidebarOpen}
         onSignOut={handleSignOut}
         user={user}
+        xrcService={xrcService}
       />
     );
   };
@@ -948,6 +955,7 @@ const MainApp = memo(() => {
         <AdminDashboard
           adminData={adminData}
           onClose={() => setShowAdminDashboard(false)}
+          xrcService={xrcService}
         />
       )}
 
@@ -1031,6 +1039,7 @@ const MainApp = memo(() => {
             activeTab={activeTab}
             setActiveTab={handleTabChange}
             currentUser={currentUser}
+            xrcService={xrcService}
           />
         )}
       </div>
@@ -1108,6 +1117,15 @@ const MainApp = memo(() => {
       />
 
       <PushPermissionNudge userId={user?.id} />
+      <AccountSwitchPrompt
+        userId={user?.id}
+        userName={currentUser?.name || profile?.full_name || null}
+        onSwitchAccount={() => {
+          try {
+            window.dispatchEvent(new CustomEvent("xv:request_account_switch"));
+          } catch {}
+        }}
+      />
 
       {showOfflineBanner && (
         <NetworkError

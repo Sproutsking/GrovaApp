@@ -10,18 +10,24 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { walletService } from "../../../services/wallet/walletService";
+import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
+import TransactionPinModal from "../../Modals/TransactionPinModal";
+import TwoFAModal from "../../Modals/TwoFAModal";
 
 // Swap only between EP and XEV
 const SWAP_RATE = 10; // 10 EP = 1 XEV (platform rate)
 const EP_BURN_SWAP = 5; // 5 EP burned per swap (platform revenue)
 
-const SwapTab = ({ setActiveTab, balance, userId, onRefresh }) => {
+const SwapTab = ({ setActiveTab, balance, userId, onRefresh, currentUser }) => {
   const [direction, setDirection] = useState("EP_TO_XEV"); // EP_TO_XEV | XEV_TO_EP
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
 
   const isEPtoXEV = direction === "EP_TO_XEV";
 
@@ -65,6 +71,22 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmSwap = () => {
+    setPendingAction({
+      transactionType: "swap",
+      amount: parseFloat(amount),
+      recipient: direction === "EP_TO_XEV" ? "EP → $XEV" : "$XEV → EP",
+      description: `Swap ${parseFloat(amount) || 0} ${direction === "EP_TO_XEV" ? "EP" : "$XEV"}`,
+    });
+    setShowPinModal(true);
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    setShowPinModal(false);
+    await handleSwap();
   };
 
   if (done) {
@@ -304,7 +326,7 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh }) => {
       <button
         className="btn-xev"
         disabled={!amount || parseFloat(amount) <= 0 || insufficient || loading}
-        onClick={handleSwap}
+        onClick={handleConfirmSwap}
       >
         {loading ? (
           "Swapping..."
@@ -314,6 +336,36 @@ const SwapTab = ({ setActiveTab, balance, userId, onRefresh }) => {
           </>
         )}
       </button>
+
+      {showPinModal && (
+        <TransactionPinModal
+          pendingAction={pendingAction}
+          amount={pendingAction?.amount}
+          transactionType="swap"
+          recipient={pendingAction?.recipient}
+          description={pendingAction?.description}
+          onConfirm={async (pinValue) => {
+            if (!userId) throw new Error("Please sign in before swapping");
+            await verifyWithdrawalPin(userId, pinValue);
+            if (currentUser?.require_2fa) {
+              setShowPinModal(false);
+              setShow2FAModal(true);
+              return;
+            }
+            await handleSwap();
+          }}
+          onClose={() => setShowPinModal(false)}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => setShow2FAModal(false)}
+          userId={userId}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
+      )}
     </div>
   );
 };

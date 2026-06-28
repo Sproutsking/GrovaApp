@@ -598,10 +598,10 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         }
 
         /* ── SECTIONS ── */
-        .ts-section { margin-bottom:22px; }
+        .ts-section { margin-bottom:18px; }
         .ts-section:last-child { margin-bottom:0; }
-        .ts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding-bottom:9px; border-bottom:1px solid var(--surface-border); position:relative; }
-        .ts-header::before { content:""; position:absolute; left:0; bottom:-1px; width:28px; height:2px; background:linear-gradient(90deg,var(--ha,var(--accent)),transparent); border-radius:1px; }
+        .ts-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.08); position:relative; }
+        .ts-header::before { content:""; position:absolute; left:0; bottom:-1px; width:32px; height:2px; background:linear-gradient(90deg,var(--ha,var(--accent)),transparent); border-radius:1px; }
         .ts-header-left { display:flex; align-items:center; gap:9px; }
 
         .ts-icon-pill { width:26px; height:26px; border-radius:8px; background:var(--accent-bg-soft); border:1px solid var(--accent-border); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -668,6 +668,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
         /* ── TAG ROWS ── */
         .tag-list { display:flex; flex-direction:column; gap:5px; }
+        .ts-divider { height:1px; background: rgba(255,255,255,0.06); margin: 8px 0 10px; border-radius: 999px; }
+        .ts-section { margin-bottom:12px; }
+        .ts-section:last-child { margin-bottom:0; }
         .tag-row {
           display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px;
           background: var(--surface);
@@ -725,7 +728,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         .empty-text  { font-size:12px; font-weight:600; color: var(--text-secondary); }
 
         /* ── SLIDING PANEL ── */
-        .sp-overlay { position:fixed; left:0; right:0; bottom:0; background:var(--overlay); backdrop-filter:blur(12px); z-index:9998; animation:fadeIn .22s ease; }
+        .sp-overlay { position:fixed; left:0; right:0; bottom:0; background:transparent; backdrop-filter:none; z-index:9998; animation:fadeIn .22s ease; }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         .sp-panel {
           position:fixed; right:0; bottom:0; width:min(440px,92vw);
@@ -799,13 +802,13 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
               iconBg="var(--danger-bg)"
               iconBorder="var(--danger-border)"
               title="Top Streamers"
-              subtitle="Ranked by peak viewers"
               right={isMobile ? (
                 <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
                   <RefreshCw size={12} className={refreshing ? "spin" : ""} />
                 </button>
               ) : null}
             />
+            <div className="ts-divider" />
             {topStreamers.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">📡</div>
@@ -836,9 +839,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
                 iconBg="var(--danger-bg)"
                 iconBorder="var(--danger-border)"
                 title="Live Now"
-                subtitle="Tap a circle to join"
                 right={<div className="ts-live-count"><span className="ts-live-dot" />{liveSessions.length}</div>}
               />
+              <div className="ts-divider" />
               <div className="sc-scroll">
                 {liveSessions.map((s) => <StreamerCircle key={s.id} session={s} onJoin={handleJoin} isOwn={s.profiles?.id === currentUser?.id} />)}
               </div>
@@ -852,14 +855,14 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
               iconColor="var(--accent)"
               iconBg="var(--accent-bg-soft)"
               iconBorder="var(--accent-border)"
-              title="Trending Now"
-              subtitle="What's hot on Xeevia"
+              title="Trending"
               right={isMobile ? (
                 <button className="ts-refresh" onClick={() => { setRefreshing(true); loadAll(false); }} disabled={refreshing}>
                   <RefreshCw size={12} className={refreshing ? "spin" : ""} />
                 </button>
               ) : null}
             />
+            <div className="ts-divider" />
             {topTags.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">🔥</div><p className="empty-text">No trending tags yet</p></div>
             ) : (
@@ -880,8 +883,8 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
               iconBg="var(--brand-warning-bg)"
               iconBorder="var(--brand-warning-border)"
               title="Top Creators"
-              subtitle="This week's stars"
             />
+            <div className="ts-divider" />
             {topCreators.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">👑</div><p className="empty-text">No creators this week</p></div>
             ) : (
@@ -900,7 +903,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {/* ══ Streamers panel ══ */}
       {streamersPanel && (
         <SlidingPanel isMobile={isMobile} onClose={() => setStreamersPanel(false)}
-          title="Top Streamers" subtitle={`${topStreamers.length} streamers · ranked by peak viewers`}
+          title="Top Streamers"
           icon={Tv} iconColor="var(--danger)" iconBg="var(--danger-bg)" iconBorder="var(--danger-border)">
           <div className="streamer-list">
             {topStreamers.map((s) => (
@@ -913,7 +916,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {/* ══ Tags panel ══ */}
       {tagsPanel && (
         <SlidingPanel isMobile={isMobile} onClose={() => setTagsPanel(false)}
-          title="Trending Tags" subtitle="Top 30 · click label to explore, arrow to preview posts" icon={Flame}
+          title="Trending Tags" icon={Flame}
           iconColor="var(--accent)" iconBg="var(--accent-bg-soft)" iconBorder="var(--accent-border)">
           <div className="tag-list">{trendingTags.map((tag, i) => <TagRow key={tag.label} tag={tag} index={i} />)}</div>
         </SlidingPanel>
@@ -922,7 +925,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       {/* ══ Creators panel ══ */}
       {creatorsPanel && (
         <SlidingPanel isMobile={isMobile} onClose={() => setCreatorsPanel(false)}
-          title="Top Creators" subtitle="This week's top 30"
+          title="Top Creators"
           icon={Crown} iconColor="var(--brand-warning)" iconBg="var(--brand-warning-bg)" iconBorder="var(--brand-warning-border)">
           <div className="creator-list">{eliteCreators.map((c) => <CreatorRow key={c.userId} creator={c} />)}</div>
         </SlidingPanel>

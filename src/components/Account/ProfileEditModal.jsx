@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Loader, Save, User, FileText, Check, AlertCircle, Camera, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/config/supabase';
 import uploadService from '../../services/upload/uploadService';
+import profileService from '../../services/account/profileService';
 
 const HEADER_H     = 56;
 const BOTTOM_H_MOB = 58;
@@ -142,16 +143,14 @@ const ProfileEditModal = ({ userId, currentProfile, onClose, onSuccess }) => {
         } catch { alert('Avatar upload failed, other changes will still be saved'); }
       }
 
-      const { error } = await supabase
-        .from('profiles').update(updateData).eq('id', userId);
-      if (error) throw error;
+      const updated = await profileService.updateProfile(userId, updateData);
 
       setSaved(true);
       setTimeout(() => {
         const updatedProfile = {
-          fullName: formData.fullName,
-          username: formData.username,
-          bio:      formData.bio,
+          fullName: updated.full_name || formData.fullName,
+          username: updated.username || formData.username,
+          bio:      updated.bio || formData.bio,
           avatar:   updateData.avatar_id
             ? uploadService.getImageUrl(updateData.avatar_id, { width: 400, height: 400, crop: 'fill', gravity: 'face' })
             : currentProfile?.avatar,

@@ -89,10 +89,23 @@ function _registerSW(swUrl, config) {
       // Waiting SW found on page load — notify app, let user decide
       if (registration.waiting) {
         console.log("[SWReg] Waiting SW found on load");
-        if (typeof config?.onUpdate === "function") {
-          config.onUpdate(registration);
-        } else if (typeof window.__xvShowUpdate === "function") {
-          window.__xvShowUpdate();
+        
+        // Don't show update card if we just performed an update
+        let skipUpdate = false;
+        try {
+          const updateTime = localStorage.getItem("xv_update_timestamp");
+          if (updateTime && (Date.now() - Number(updateTime)) < 15000) {
+            console.log("[SWReg] Recent update detected, skipping update card");
+            skipUpdate = true;
+          }
+        } catch (e) {}
+        
+        if (!skipUpdate) {
+          if (typeof config?.onUpdate === "function") {
+            config.onUpdate(registration);
+          } else if (typeof window.__xvShowUpdate === "function") {
+            window.__xvShowUpdate();
+          }
         }
         // Do NOT auto-post SKIP_WAITING — let the user tap the update banner.
       }
@@ -109,10 +122,23 @@ function _registerSW(swUrl, config) {
 
           if (navigator.serviceWorker.controller) {
             console.log("[SWReg] New SW installed, waiting to activate");
-            if (typeof config?.onUpdate === "function") {
-              config.onUpdate(registration);
-            } else if (typeof window.__xvShowUpdate === "function") {
-              window.__xvShowUpdate();
+            
+            // Don't show update card if we just performed an update
+            let skipUpdate = false;
+            try {
+              const updateTime = localStorage.getItem("xv_update_timestamp");
+              if (updateTime && (Date.now() - Number(updateTime)) < 15000) {
+                console.log("[SWReg] Recent update detected, skipping update card");
+                skipUpdate = true;
+              }
+            } catch (e) {}
+            
+            if (!skipUpdate) {
+              if (typeof config?.onUpdate === "function") {
+                config.onUpdate(registration);
+              } else if (typeof window.__xvShowUpdate === "function") {
+                window.__xvShowUpdate();
+              }
             }
           } else {
             console.log("[SWReg] First install — offline cache ready");

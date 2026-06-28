@@ -9,6 +9,7 @@ import {
   AlertTriangle, BadgeCheck, CheckCircle, ChevronDown, Zap,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import settingsService from "../../services/account/settingsService";
 import StatusModal from "../Modals/StatusModal";
 import ConfirmModal from "../Modals/ConfirmModal";
 import PhoneVerificationModal from "../Modals/PhoneVerificationModal";
@@ -325,16 +326,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
         theme_mode:            themeMode === "light" ? "light" : "dark",
         themeMode:             themeMode === "light" ? "light" : "dark",
       };
-      const { error } = await supabase.from("profiles")
-        .update({
-          is_private: privacy.privateAccount,
-          show_email: privacy.showEmail,
-          show_phone: privacy.showPhone,
-          preferences,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-      if (error) throw error;
+      await settingsService.saveSettings(userId, privacy, preferences);
       setHasChanges(false);
       showSt("success", "Settings saved!");
     } catch (err) {

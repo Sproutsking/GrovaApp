@@ -118,6 +118,12 @@ function buildVideoUrl(id) {
   const cld = getCldCloud();
   const out = [];
 
+  if (cld) {
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_auto,f_mp4/${clean}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_${q},f_mp4/${clean}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/${clean}.mp4`);
+  }
+
   try {
     const raw = mediaUrlService.getVideoUrl(clean, { quality:q, format:"mp4" });
     if (raw && typeof raw === "string" && raw.startsWith("http")) {
@@ -128,10 +134,6 @@ function buildVideoUrl(id) {
     }
   } catch {}
 
-  if (cld) {
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_${q},f_mp4/${clean}.mp4`);
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/${clean}.mp4`);
-  }
   if (clean.startsWith("http")) out.push(clean);
 
   return [...new Set(out)];
@@ -440,11 +442,10 @@ const ReelStyleVideo = ({ item, idx, isActive, inVP, muted, onMuteToggle }) => {
     else { setVidFail(true); hookError(); }
   }, [vidIdx, item.candidates.length, hookError]);
 
-  // Proximity-aware preload:
+  // Proximity-aware preload (match ReelCard strategy):
   //   in viewport + active  → buffer (preload="auto")
-  //   adjacent carousel     → metadata only
-  //   outside viewport      → none  (VideoPreloadRunway already got metadata)
-  const preload  = !inVP ? "none" : isActive ? "auto" : idx === 1 ? "metadata" : "none";
+  //   otherwise             → metadata (ensure quick availability like reels)
+  const preload = inVP && isActive ? "auto" : "metadata";
   const src      = item.candidates[vidIdx];
 
   return (
@@ -540,6 +541,7 @@ const PostCard = ({
   currentUser,
   onPostUpdate,
   onPostDelete,
+  onOpenFullScreen,
   feedIndex = 99,
 }) => {
   const [post,       setPost]       = useState(initialPost);
@@ -675,10 +677,14 @@ const PostCard = ({
     return unsub;
   }, []);
 
-  // Viewport detection for video autoplay
+  // Viewport detection for video autoplay — match ReelCard sensitivity
   useEffect(() => {
     if (!contRef.current) return;
-    const obs = new IntersectionObserver(([e]) => setInVP(e.isIntersecting), { threshold:0.4 });
+    const obs = new IntersectionObserver((entries) => {
+      const e = entries[0];
+      const visible = e.isIntersecting && e.intersectionRatio >= 0.75;
+      setInVP(visible);
+    }, { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: "-10% 0px -10% 0px" });
     obs.observe(contRef.current);
     return () => { if (contRef.current) obs.unobserve(contRef.current); }; // eslint-disable-line
   }, []);
@@ -746,20 +752,37 @@ const PostCard = ({
           {!isOwn && currentUser?.id && (
             <button
               className={`gvp-follow-btn${following ? " following" : ""}${followPop ? " pop" : ""}`}
-              onClick={toggleFollow}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFollow(e);
+              }}
             >
               {following
                 ? <><UserCheck size={12}/><span>Following</span></>
                 : <><UserPlus  size={12}/><span>Follow</span></>}
             </button>
           )}
-          <button className="gvp-icon-btn" onClick={openMenu} aria-label="More">
+          <button className="gvp-icon-btn" onClick={(e) => {
+            e.stopPropagation();
+            openMenu(e);
+          }} aria-label="More">
             <MoreVertical size={16} />
           </button>
         </div>
 
         {/* ── BODY ── */}
-        <div className="gvp-body" onTouchEnd={dtap} onDoubleClick={dtap}>
+        <div
+          className="gvp-body"
+          onTouchEnd={dtap}
+          onDoubleClick={dtap}
+          onClick={(e) => {
+            // Only trigger fullscreen if click is not on interactive element
+            if (!e.target.closest("button") && !e.target.closest("a") && onOpenFullScreen) {
+              onOpenFullScreen(post.id);
+            }
+          }}
+          style={{ cursor: onOpenFullScreen ? "pointer" : "default" }}
+        >
           {isTxt ? (
             <>
               <div className="gvp-tcs"><CardPostDisplay post={post} /></div>

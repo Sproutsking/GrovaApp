@@ -16,29 +16,36 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import {
+  enablePushNotifications as enableOneSignal,
+  getPlayerId as getOneSignalPlayerId,
+  isOneSignalSupported,
+  requestPermission as requestOneSignalPermission,
+  unsubscribe as unsubscribeOneSignal,
+} from "./onesignalService";
 
-// ── VAPID key ─────────────────────────────────────────────────────────────────
+// ── Legacy VAPID path (kept only for reference / diagnostics) ─────────────
+// The active provider is now OneSignal. Any older VAPID-based browser push
+// logic remains isolated here and is not used by the app's public API.
 function getVapidKey() {
   const k = process.env.REACT_APP_VAPID_PUBLIC_KEY;
   if (!k) {
-    console.error(
-      "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY is not set.\n" +
-        "Add it to your .env file and restart the dev server.\n" +
-        "It MUST exactly match the VAPID_PUBLIC_KEY in your Supabase Edge Function secrets\n" +
-        "(Note: In .env use REACT_APP_VAPID_PUBLIC_KEY, in Supabase Secrets use VAPID_PUBLIC_KEY)",
+    console.warn(
+      "[Push] Legacy VAPID config missing. OneSignal is the active provider.",
     );
     return null;
   }
   if (k.length < 80) {
-    console.error(
-      "[Push] ❌ REACT_APP_VAPID_PUBLIC_KEY looks too short (" +
-        k.length +
-        " chars).\n" +
-        "A valid VAPID public key is ~87 characters of base64url.",
+    console.warn(
+      "[Push] Legacy VAPID config looks incomplete. OneSignal is the active provider.",
     );
     return null;
   }
   return k;
+}
+
+function isOneSignalConfigured() {
+  return Boolean(process.env.REACT_APP_ONESIGNAL_APP_ID);
 }
 
 // ── Edge function invoker ─────────────────────────────────────────────────────
@@ -210,7 +217,39 @@ function _attachVisibilityCheck() {
 
 // ── Save subscription to Supabase ─────────────────────────────────────────────
 async function _saveSubscription(userId, subscription) {
-  const json = subscription.toJSON();
+  const playerId = subscription?.playerId || subscription?.onesignal_player_id;
+
+  if (playerId) {
+    const record = {
+      user_id: userId,
+      endpoint: `onesignal://${playerId}`,
+      p256dh: null,
+      auth: null,
+      user_agent: navigator.userAgent.slice(0, 500),
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", userId)
+      .eq("endpoint", record.endpoint)
+      .eq("is_active", false);
+
+    const { error: upsertErr } = await supabase
+      .from("push_subscriptions")
+      .upsert(record, { onConflict: "user_id,endpoint" });
+
+    if (!upsertErr) return;
+
+    await supabase.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", record.endpoint);
+    const { error: insertErr } = await supabase.from("push_subscriptions").insert(record);
+    if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
+    return;
+  }
+
+  const json = subscription?.toJSON?.();
   if (!json?.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
     throw new Error("Subscription is missing endpoint, p256dh, or auth fields");
   }
@@ -282,6 +321,34 @@ async function _doSubscribe(userId) {
   _subscribing = true;
 
   try {
+    if (isOneSignalSupported() && isOneSignalConfigured()) {
+      const granted = await requestOneSignalPermission(userId);
+      if (!granted) {
+        console.warn("[Push] OneSignal permission not granted");
+        return null;
+      }
+
+      const ok = await enableOneSignal(userId);
+      if (!ok) return null;
+
+      let playerId = await getOneSignalPlayerId(userId);
+      if (!playerId) {
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          playerId = await getOneSignalPlayerId(userId);
+          if (playerId) break;
+        }
+      }
+      if (!playerId) {
+        console.warn("[Push] OneSignal player ID not available yet after registration");
+        return null;
+      }
+
+      await _saveWithRetry(userId, { playerId });
+      console.log("[Push] ✅ OneSignal subscription registered");
+      return { provider: "onesignal", playerId };
+    }
+
     const vapidKey = getVapidKey();
     if (!vapidKey) return null;
 
@@ -291,10 +358,8 @@ async function _doSubscribe(userId) {
       return null;
     }
 
-    // Check for existing subscription
     let sub = await reg.pushManager.getSubscription().catch(() => null);
 
-    // If the existing subscription was created with a different VAPID key it will 401.
     if (sub) {
       const existingKey = sub.options?.applicationServerKey;
       if (existingKey) {
@@ -319,7 +384,6 @@ async function _doSubscribe(userId) {
       return sub;
     }
 
-    // Create new subscription
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
@@ -386,7 +450,7 @@ export const pushService = {
 
   // ── Feature detection ──────────────────────────────────────────────────────
   isSupported() {
-    return (
+    return isOneSignalSupported() || (
       "Notification" in window &&
       "serviceWorker" in navigator &&
       "PushManager" in window
@@ -400,6 +464,9 @@ export const pushService = {
   async isSubscribed() {
     try {
       if (!this.isSupported()) return false;
+      if (isOneSignalSupported() && isOneSignalConfigured()) {
+        return Notification.permission === "granted";
+      }
       const reg = await _getReg();
       return !!(await reg?.pushManager.getSubscription());
     } catch {
@@ -411,6 +478,9 @@ export const pushService = {
   async requestPermission() {
     try {
       if (!this.isSupported()) return false;
+      if (isOneSignalSupported() && isOneSignalConfigured()) {
+        return requestOneSignalPermission(_userId);
+      }
       if (Notification.permission === "granted") return true;
       if (Notification.permission === "denied") return false;
       return (await Notification.requestPermission()) === "granted";
@@ -440,12 +510,25 @@ export const pushService = {
 
   async unsubscribe(userId) {
     try {
+      const uid = userId || _userId;
+      if (isOneSignalSupported() && isOneSignalConfigured()) {
+        await unsubscribeOneSignal(uid);
+        if (uid) {
+          await supabase
+            .from("push_subscriptions")
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq("user_id", uid)
+            .like("endpoint", "onesignal:%");
+        }
+        console.log("[Push] ✅ Unsubscribed from OneSignal");
+        return;
+      }
+
       const reg = await _getReg();
       const sub = await reg?.pushManager.getSubscription();
       if (!sub) return;
       const endpoint = sub.endpoint;
       await sub.unsubscribe();
-      const uid = userId || _userId;
       if (uid) {
         await supabase
           .from("push_subscriptions")
@@ -527,13 +610,11 @@ export const pushService = {
     _userId = userId;
     _started = true;
 
-    // SYNCHRONOUS — listener must be attached before any awaits
     _attachBridge();
     _attachVisibilityCheck();
 
     const perm = this.getPermission();
     if (perm === "granted") {
-      // If offline, wait for connectivity before trying to subscribe
       if (!navigator.onLine) {
         console.log("[Push] Offline at start — will subscribe when online");
         const onOnline = () => {
@@ -577,15 +658,13 @@ export const pushService = {
   async diagnose() {
     console.group("🔍 Push Diagnosis Report");
     const vapidKey = getVapidKey();
+    console.log("Provider:           ", isOneSignalConfigured() ? "OneSignal" : "legacy fallback");
     console.log("Supported:           ", this.isSupported());
     console.log("Permission:          ", this.getPermission());
+    console.log("OneSignal App ID:   ", process.env.REACT_APP_ONESIGNAL_APP_ID ? "✅ configured" : "❌ missing");
     console.log(
-      "VAPID key (.env):    ",
-      vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ MISSING",
-    );
-    console.log(
-      "VAPID key length:    ",
-      vapidKey ? vapidKey.length + " chars (expect 87)" : "❌",
+      "Legacy VAPID key (.env):",
+      vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ not used",
     );
     console.log("User ID:             ", _userId || "not set");
     console.log("Bridge attached:     ", _bridgeAttached);
@@ -600,133 +679,40 @@ export const pushService = {
       navigator.serviceWorker?.controller ? "✅" : "❌ null",
     );
 
-    if (reg) {
-      const sub = await reg.pushManager.getSubscription().catch(() => null);
-      console.log(
-        "Browser sub:         ",
-        sub ? "✅ " + sub.endpoint.slice(0, 65) + "…" : "❌ NONE",
-      );
-      if (sub?.options?.applicationServerKey) {
-        const keyBytes = new Uint8Array(sub.options.applicationServerKey);
-        const keyB64 = btoa(String.fromCharCode(...keyBytes))
-          .replace(/\+/g, "-")
-          .replace(/\//g, "_")
-          .replace(/=/g, "");
-        console.log("Sub key prefix:      ", keyB64.slice(0, 25) + "…");
-        console.log(
-          ".env key prefix:     ",
-          vapidKey ? vapidKey.slice(0, 25) + "…" : "❌",
+    if (_userId) {
+      const { data, error } = await supabase
+        .from("push_subscriptions")
+        .select("id, endpoint, is_active, updated_at")
+        .eq("user_id", _userId);
+      if (error) {
+        console.log("DB subs:             ❌", error.message);
+      } else {
+        console.log("DB subs:             ", data?.length || 0, "row(s)");
+        data?.forEach((r, i) =>
+          console.log(
+            `  [${i}] active=${r.is_active} updated=${r.updated_at?.slice(0, 16)} ep=${r.endpoint?.slice(0, 55)}…`,
+          ),
         );
-        if (vapidKey && keyB64 !== vapidKey) {
-          console.error(
-            "⚠️  KEY MISMATCH — subscription was created with a different VAPID key.",
-          );
-          console.error(
-            "   Fix: call pushService.unsubscribe() then pushService.subscribe() to recreate.",
-          );
-        } else if (vapidKey) {
-          console.log("✅ Keys match");
-        }
-      }
-
-      if (_userId) {
-        const { data, error } = await supabase
-          .from("push_subscriptions")
-          .select("id, endpoint, is_active, updated_at")
-          .eq("user_id", _userId);
-        if (error) {
-          console.log("DB subs:             ❌", error.message);
-        } else {
-          console.log("DB subs:             ", data?.length || 0, "row(s)");
-          data?.forEach((r, i) =>
-            console.log(
-              `  [${i}] active=${r.is_active} updated=${r.updated_at?.slice(0, 16)} ep=${r.endpoint?.slice(0, 55)}…`,
-            ),
-          );
-        }
-      }
-
-      try {
-        const { data, error } = await supabase.functions.invoke("send-push", {
-          body: { health: true },
-        });
-        console.log(
-          "Edge Function:       ",
-          error ? "❌ " + error.message : "✅ reachable",
-          data || "",
-        );
-        // Log the edge function's VAPID key prefix for easy comparison
-        if (data?.key_prefix) {
-          const edgePrefix = data.key_prefix.replace("...", "");
-          console.log("Edge VAPID prefix:   ", data.key_prefix);
-          if (vapidKey && !vapidKey.startsWith(edgePrefix)) {
-            console.error(
-              "⚠️  VAPID KEY MISMATCH between .env and Supabase secret!\n" +
-                "   .env REACT_APP_VAPID_PUBLIC_KEY starts with: " +
-                (vapidKey?.slice(0, 20) ?? "N/A") +
-                "\n" +
-                "   Supabase VAPID_PUBLIC_KEY starts with:        " +
-                edgePrefix +
-                "\n" +
-                "   These must be IDENTICAL.\n" +
-                "   Fix: In Supabase Secrets, set VAPID_PUBLIC_KEY = " +
-                (vapidKey ?? "") +
-                "\n" +
-                "   Make sure the secret is named VAPID_PUBLIC_KEY (no REACT_APP_ prefix)",
-            );
-          } else {
-            console.log("✅ .env key matches Edge Function secret");
-          }
-        } else if (data?.error?.includes("Missing secrets")) {
-          // [FIX-CRITICAL] New clear message for the most common error
-          console.error(
-            "❌ EDGE FUNCTION SECRETS NOT CONFIGURED CORRECTLY\n" +
-              "   The Edge Function cannot find VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY.\n" +
-              "\n" +
-              "   YOUR CURRENT PROBLEM: You likely added secrets named\n" +
-              "     REACT_APP_VAPID_PUBLIC_KEY  ← WRONG for Edge Functions\n" +
-              "     REACT_APP_VAPID_PRIVATE_KEY ← WRONG for Edge Functions\n" +
-              "\n" +
-              "   FIX: In Supabase → Edge Functions → Secrets, add:\n" +
-              "     VAPID_PUBLIC_KEY  = " +
-              (vapidKey ?? "<your public key>") +
-              "\n" +
-              "     VAPID_PRIVATE_KEY = DWuL6M8VtzowMyXrcAj8cPZu_drE1WrtfZhwqvRncQI\n" +
-              "     VAPID_SUBJECT     = mailto:support@xeevia.com\n" +
-              "\n" +
-              "   The REACT_APP_ prefix is only for .env files (browser bundle).\n" +
-              "   Edge Functions run on Deno and use plain secret names.",
-          );
-        }
-      } catch (e) {
-        console.log("Edge Function:       ❌ fetch failed:", e.message);
       }
     }
 
+    try {
+      const { data, error } = await supabase.functions.invoke("send-push", {
+        body: { health: true },
+      });
+      console.log(
+        "Edge Function:       ",
+        error ? "❌ " + error.message : "✅ reachable",
+        data || "",
+      );
+    } catch (e) {
+      console.log("Edge Function:       ❌ fetch failed:", e.message);
+    }
+
     console.log("\n⚠️  CHECKLIST:");
-    console.log(
-      "  1. In .env:              REACT_APP_VAPID_PUBLIC_KEY  (with REACT_APP_ prefix)",
-    );
-    console.log(
-      "  2. In Supabase Secrets:  VAPID_PUBLIC_KEY            (NO REACT_APP_ prefix)",
-    );
-    console.log("  3. Both keys above must be the SAME value");
-    console.log(
-      "  4. In .env:              REACT_APP_VAPID_PRIVATE_KEY  (with REACT_APP_ prefix) — only needed locally",
-    );
-    console.log(
-      "  5. In Supabase Secrets:  VAPID_PRIVATE_KEY            (NO REACT_APP_ prefix) — REQUIRED",
-    );
-    console.log(
-      "  6. push_subscriptions has UNIQUE(user_id, endpoint) constraint",
-    );
-    console.log("  7. notification_dedup table exists with UNIQUE(dedup_key)");
-    console.log(
-      "  8. REACT_APP_SW_LOCALHOST=true in .env if testing on localhost",
-    );
-    console.log(
-      "  9. pushService.attachBridgeEarly() is called in src/index.js before React renders",
-    );
+    console.log("  1. Add REACT_APP_ONESIGNAL_APP_ID to your .env file");
+    console.log("  2. Ensure the Supabase edge function has ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY");
+    console.log("  3. Keep pushService.attachBridgeEarly() enabled in src/index.js");
     console.groupEnd();
   },
 };

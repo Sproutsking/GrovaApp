@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { VolumeX, Volume2, X, MoreVertical } from "lucide-react";
 import ReelProfilePreview from "../Shared/ReelProfilePreview";
 import FullScreenReactionPanel from "../Shared/FullScreenReactionPanel";
@@ -326,7 +327,7 @@ const FullScreenReels = ({
 
   if (!currentReel || !profile) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <>
       <div
         ref={containerRef}
@@ -471,31 +472,43 @@ const FullScreenReels = ({
           justify-content: center;
           overflow: hidden;
           overscroll-behavior: contain;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw;
+          height: 100vh;
         }
 
         .fullscreen-close-btn {
-          position: absolute;
+          position: fixed;
           top: 20px;
           right: 20px;
           z-index: 10001;
-          background: rgb(0, 0, 0);
+          background: rgba(0, 0, 0, 0.7);
           backdrop-filter: blur(10px);
-          border: 1px solid #444444e1;
+          border: 1px solid rgba(255, 255, 255, 0.2);
           color: white;
-          width: 36px;
-          height: 36px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: all 0.3s;
+          transition: all 0.3s ease;
           opacity: 0;
           pointer-events: none;
         }
 
-        .fullscreen-close-btn.visible { opacity: 1; pointer-events: all; }
-        .fullscreen-close-btn:hover { background: rgba(0,0,0,0.8); transform: scale(1.05); }
+        .fullscreen-close-btn.visible { 
+          opacity: 1; 
+          pointer-events: all; 
+        }
+        
+        .fullscreen-close-btn:hover { 
+          background: rgba(0,0,0,0.9); 
+          transform: scale(1.05);
+          border-color: rgba(255, 255, 255, 0.3);
+        }
 
         .reel-slide {
           width: 100%;
@@ -709,6 +722,7 @@ const FullScreenReels = ({
             width: 100%;
             height: 100%;
             border-radius: 0;
+            padding: 0;
           }
 
           .reel-left-info { bottom: 12px; left: 12px; right: 70px; }

@@ -46,29 +46,57 @@ const ACCOUNT_CSS = `
   }
 
   /* ═══════════════════════════════
-     TAB BAR
+     TAB BAR — Theme-aware styles
   ═══════════════════════════════ */
   .account-tabs {
     display:flex; align-items:center;
-    background:rgba(7,8,10,0.97);
-    border-bottom:1px solid rgba(255,255,255,0.07);
     padding:8px 10px; gap:5px;
     overflow-x:auto; overflow-y:visible;
     scrollbar-width:none; -webkit-overflow-scrolling:touch;
     flex-shrink:0; position:sticky; top:0; z-index:20;
   }
+  .account-tabs.account-tabs--light {
+    background:linear-gradient(180deg,rgba(249,250,251,0.98),rgba(243,244,246,0.95));
+    border-bottom:1px solid rgba(132,204,22,0.15);
+    color: rgba(51,65,85,0.75);
+  }
+  .account-tabs.account-tabs--dark {
+    background: var(--surface-strong);
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
   .account-tabs::-webkit-scrollbar { display:none; }
 
-  /* ── Tab button ── */
+  /* ── Tab button — Light mode ── */
   .account-tab {
     display:flex; align-items:center; justify-content:center; gap:7px;
     padding:9px 12px; border-radius:11px;
     border:1px solid transparent; background:transparent;
-    color:rgba(255,255,255,0.35); font-size:12.5px; font-weight:600;
+    color:rgba(51,65,85,0.65); font-size:12.5px; font-weight:600;
     cursor:pointer; white-space:nowrap; flex-shrink:1; flex-grow:1;
     transition:background 0.17s,border-color 0.17s,color 0.17s,transform 0.12s;
     letter-spacing:0.015em; line-height:1; font-family:inherit;
     min-width:0;
+  }
+  .account-tabs.account-tabs--light .account-tab:hover {
+    background: rgba(132, 204, 22, 0.08);
+    color: rgba(51, 65, 85, 0.9);
+    border-color: rgba(132, 204, 22, 0.2);
+  }
+  .account-tabs.account-tabs--dark .account-tab {
+    color: rgba(255,255,255,0.68);
+  }
+  .account-tabs.account-tabs--dark .account-tab:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.92);
+    border-color: rgba(255,255,255,0.12);
+  }
+  .account-tabs.account-tabs--dark {
+    background: var(--surface-strong);
+  }
+  .account-tabs.account-tabs--dark .account-tab-active {
+    background: rgba(132,204,22,0.14) !important;
+    border-color: rgba(132,204,22,0.38) !important;
+    color: #d9f99d !important;
   }
 
   .account-tab svg {
@@ -77,10 +105,15 @@ const ACCOUNT_CSS = `
     flex-shrink: 0;
   }
 
-  .account-tab:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.7);
-    border-color: rgba(255, 255, 255, 0.09);
+  .account-tabs.account-tabs--light .account-tab:hover {
+    background: rgba(132, 204, 22, 0.08);
+    color: rgba(51, 65, 85, 0.85);
+    border-color: rgba(132, 204, 22, 0.2);
+  }
+  .account-tabs.account-tabs--dark .account-tab:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.92);
+    border-color: rgba(255,255,255,0.12);
   }
 
   .account-tab:active {
@@ -90,14 +123,14 @@ const ACCOUNT_CSS = `
 
   /* ── Active state — lime highlight ── */
   .account-tab-active {
-    background: rgba(132, 204, 22, 0.1) !important;
-    border-color: rgba(132, 204, 22, 0.3) !important;
-    color: #a3e635 !important;
+    background: rgba(132, 204, 22, 0.12) !important;
+    border-color: rgba(132, 204, 22, 0.4) !important;
+    color: #65a30d !important;
   }
 
   .account-tab-active:hover {
-    background: rgba(132, 204, 22, 0.15) !important;
-    border-color: rgba(132, 204, 22, 0.42) !important;
+    background: rgba(132, 204, 22, 0.18) !important;
+    border-color: rgba(132, 204, 22, 0.5) !important;
   }
 
   /* ═══════════════════════════════
@@ -252,7 +285,7 @@ const AccountView = ({
       <style>{ACCOUNT_CSS}</style>
 
       {/* ── Tab Navigation ── */}
-      <div className="account-tabs" role="tablist">
+      <div className={`account-tabs account-tabs--${themeMode === "dark" ? "dark" : "light"}`} role="tablist">
         {TABS.map(({ id, icon, label }) => (
           <button
             key={id}

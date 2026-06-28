@@ -6,9 +6,12 @@ import {
   ChevronRight, X,
 } from "lucide-react";
 import { Header, CopyField, PlainField } from "../components/UI";
-import { PinModal, SendTypeModal } from "../modals/index";
+import { SendTypeModal } from "../modals/index";
+import TransactionPinModal from "../../../Modals/TransactionPinModal";
+import TwoFAModal from "../../../Modals/TwoFAModal";
 import { supabase } from "../../../../services/config/supabase";
 import { useAuth } from "../../../../components/Auth/AuthContext";
+import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
 
 const fmtNGN = (n) =>
   Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,30 +23,29 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
   const [amount,    setAmount]    = useState("");
   const [sendTo,    setSendTo]    = useState(null);
   const [typeModal, setTypeModal] = useState(false);
-  const [pin,       setPin]       = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
   const [loading,   setLoading]   = useState(false);
 
   const parsedAmt = parseFloat(amount) || 0;
   const canSend   = recipient && parsedAmt > 0 && parsedAmt <= pwBalance && sendTo;
 
-  const verify = async (p) => {
-    if (p !== "1234") return alert("Wrong PIN");
-    setPin(false);
+  const submitSend = async () => {
     setLoading(true);
     try {
       if (sendTo === "paywave") {
         const { data: recipUser } = await supabase
           .from("profiles").select("id,full_name,username")
           .eq("username", recipient.replace("@", "")).maybeSingle();
-        if (!recipUser) { alert("User not found. Check the username and try again."); setLoading(false); return; }
-        if (recipUser.id === profile?.id) { alert("You cannot send money to yourself."); setLoading(false); return; }
+        if (!recipUser) { alert("User not found. Check the username and try again."); return; }
+        if (recipUser.id === profile?.id) { alert("You cannot send money to yourself."); return; }
         const { data, error } = await supabase.rpc("paywave_transfer", {
           p_from_user_id: profile.id,
           p_to_user_id:   recipUser.id,
           p_amount:       parsedAmt,
           p_note:         `PayWave transfer to @${recipUser.username}`,
         });
-        if (error || !data?.success) { alert(data?.error || error?.message || "Transfer failed. Please try again."); setLoading(false); return; }
+        if (error || !data?.success) { alert(data?.error || error?.message || "Transfer failed. Please try again."); return; }
         onRefresh?.();
         onSuccess(`₦${fmtNGN(parsedAmt)} sent to @${recipUser.username}`);
       } else {
@@ -53,7 +55,7 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
           p_recipient:    recipient,
           p_note:         `OPay transfer to ${recipient}`,
         });
-        if (error || !data?.success) { alert(data?.error || error?.message || "Transfer failed. Please try again."); setLoading(false); return; }
+        if (error || !data?.success) { alert(data?.error || error?.message || "Transfer failed. Please try again."); return; }
         onRefresh?.();
         onSuccess(`₦${fmtNGN(parsedAmt)} sent to ${recipient} via OPay`);
       }
@@ -61,6 +63,22 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
       console.error("PayWave send error:", err);
       alert("An unexpected error occurred. Please try again.");
     } finally { setLoading(false); }
+  };
+
+  const verify = async (p) => {
+    if (!profile?.id) throw new Error("Please sign in before sending");
+    await verifyWithdrawalPin(profile.id, p);
+    if (profile?.require_2fa) {
+      setShowPinModal(false);
+      setShow2FAModal(true);
+      return;
+    }
+    await submitSend();
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    await submitSend();
   };
 
   return (
@@ -128,7 +146,7 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
           ))}
         </div>
 
-        <button className="btn-p full" disabled={!canSend || loading} onClick={() => setPin(true)}>
+        <button className="btn-p full" disabled={!canSend || loading} onClick={() => setShowPinModal(true)}>
           {loading ? "Sending…" : <><Send size={12} /> Send ₦{parsedAmt > 0 ? fmtNGN(parsedAmt) : ""}</>}
         </button>
       </div>
@@ -136,7 +154,25 @@ function SendView({ pwBalance, onBack, onSuccess, userId, onRefresh }) {
       {typeModal && (
         <SendTypeModal onClose={() => setTypeModal(false)} onSelect={t => { setSendTo(t); setTypeModal(false); }} />
       )}
-      {pin && <PinModal onClose={() => setPin(false)} onVerify={verify} />}
+      {showPinModal && (
+        <TransactionPinModal
+          amount={parsedAmt}
+          recipient={sendTo === "paywave" ? recipient.replace("@", "") : recipient}
+          transactionType="transfer"
+          description={sendTo === "paywave" ? `PayWave transfer to ${recipient}` : `OPay transfer to ${recipient}`}
+          onConfirm={verify}
+          onClose={() => setShowPinModal(false)}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => setShow2FAModal(false)}
+          userId={profile?.id}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
+      )}
     </div>
   );
 }

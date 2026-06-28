@@ -9,6 +9,9 @@ import {
 import { supabase } from "../../../../services/config/supabase";
 import { opayService } from "../../../../services/wallet/opayService";
 import { useAuth } from "../../../../components/Auth/AuthContext";
+import TransactionPinModal from "../../../Modals/TransactionPinModal";
+import TwoFAModal from "../../../Modals/TwoFAModal";
+import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
 
 const fmtNGN = (n) =>
   Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -103,19 +106,53 @@ function AirtimeView({ onBack, onSuccess }) {
   const [phone,   setPhone]   = useState("");
   const [amount,  setAmount]  = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
   const QUICK = [100, 200, 500, 1000, 2000];
   const parsed = parseFloat(amount) || 0;
   const canBuy = network && phone.replace(/\D/g, "").length >= 10 && parsed >= 50;
 
   const handleBuy = async () => {
     if (!canBuy) return;
+    setPendingAction({ type: "airtime", network, phone, amount: parsed });
+    setShowPinModal(true);
+  };
+
+  const executePendingAction = async () => {
+    if (!pendingAction || !profile?.id) return;
     setLoading(true);
     try {
-      const res = await opayService.buyAirtime({ userId: profile.id, network, phone, amount: parsed });
+      const res = await opayService.buyAirtime({
+        userId: profile.id,
+        network: pendingAction.network,
+        phone: pendingAction.phone,
+        amount: pendingAction.amount,
+      });
       if (!res || !res.success) throw new Error(res?.error || "Airtime purchase failed");
-      onSuccess(`₦${fmtNGN(parsed)} airtime sent to ${phone} (${network.toUpperCase()})`);
-    } catch { alert("Airtime purchase failed. Please try again."); }
-    finally { setLoading(false); }
+      onSuccess(`₦${fmtNGN(pendingAction.amount)} airtime sent to ${pendingAction.phone} (${pendingAction.network.toUpperCase()})`);
+    } catch (err) {
+      alert(err?.message || "Airtime purchase failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  };
+
+  const handleSecureConfirm = async (pin) => {
+    if (!profile?.id) throw new Error("Please sign in before continuing");
+    await verifyWithdrawalPin(profile.id, pin);
+    if (profile?.require_2fa) {
+      setShowPinModal(false);
+      setShow2FAModal(true);
+      return;
+    }
+    await executePendingAction();
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    await executePendingAction();
   };
 
   return (
@@ -173,6 +210,25 @@ function AirtimeView({ onBack, onSuccess }) {
           {loading ? "Processing…" : <><Smartphone size={12} /> Buy Airtime</>}
         </button>
       </div>
+      {showPinModal && pendingAction && (
+        <TransactionPinModal
+          amount={pendingAction.amount}
+          recipient="Airtime purchase"
+          transactionType="purchase"
+          description={`Buy airtime for ${pendingAction.phone}`}
+          onConfirm={handleSecureConfirm}
+          onClose={() => { setShowPinModal(false); setPendingAction(null); }}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => { setShow2FAModal(false); setPendingAction(null); }}
+          userId={profile?.id}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
+      )}
     </div>
   );
 }
@@ -219,18 +275,61 @@ function DataView({ onBack, onSuccess }) {
   const [phone,   setPhone]   = useState("");
   const [selPlan, setSelPlan] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
   const plans  = DATA_PLANS[network] || [];
   const canBuy = network && phone.replace(/\D/g, "").length >= 10 && selPlan;
 
   const handleBuy = async () => {
     if (!canBuy) return;
+    setPendingAction({
+      type: "data",
+      network,
+      phone,
+      amount: selPlan.price,
+      planId: selPlan.id,
+      label: selPlan.label,
+      validity: selPlan.validity,
+    });
+    setShowPinModal(true);
+  };
+
+  const executePendingAction = async () => {
+    if (!pendingAction || !profile?.id) return;
     setLoading(true);
     try {
-      const res = await opayService.buyData({ userId: profile.id, network, phone, planId: selPlan.id, amount: selPlan.price });
+      const res = await opayService.buyData({
+        userId: profile.id,
+        network: pendingAction.network,
+        phone: pendingAction.phone,
+        planId: pendingAction.planId,
+        amount: pendingAction.amount,
+      });
       if (!res || !res.success) throw new Error(res?.error || "Data purchase failed");
-      onSuccess(`${selPlan.label} data sent to ${phone} (${network.toUpperCase()})\n${selPlan.validity} validity`);
-    } catch { alert("Data purchase failed. Please try again."); }
-    finally { setLoading(false); }
+      onSuccess(`${pendingAction.label} data sent to ${pendingAction.phone} (${pendingAction.network.toUpperCase()})\n${pendingAction.validity} validity`);
+    } catch (err) {
+      alert(err?.message || "Data purchase failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  };
+
+  const handleSecureConfirm = async (pin) => {
+    if (!profile?.id) throw new Error("Please sign in before continuing");
+    await verifyWithdrawalPin(profile.id, pin);
+    if (profile?.require_2fa) {
+      setShowPinModal(false);
+      setShow2FAModal(true);
+      return;
+    }
+    await executePendingAction();
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    await executePendingAction();
   };
 
   return (
@@ -307,6 +406,25 @@ function DataView({ onBack, onSuccess }) {
           {loading ? "Processing…" : selPlan ? `Buy ${selPlan.label} — ₦${selPlan.price.toLocaleString()}` : "Select a Plan"}
         </button>
       </div>
+      {showPinModal && pendingAction && (
+        <TransactionPinModal
+          amount={pendingAction.amount}
+          recipient="Data purchase"
+          transactionType="purchase"
+          description={`Buy ${pendingAction.label} for ${pendingAction.phone}`}
+          onConfirm={handleSecureConfirm}
+          onClose={() => { setShowPinModal(false); setPendingAction(null); }}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => { setShow2FAModal(false); setPendingAction(null); }}
+          userId={profile?.id}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
+      )}
     </div>
   );
 }
@@ -329,18 +447,53 @@ function ElectricityView({ onBack, onSuccess }) {
   const [meterType, setMeterType] = useState("prepaid");
   const [amount,    setAmount]    = useState("");
   const [loading,   setLoading]   = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
   const parsed = parseFloat(amount) || 0;
   const canPay = provider && meterNum.length >= 11 && parsed >= 500;
 
   const handlePay = async () => {
     if (!canPay) return;
+    setPendingAction({ type: "electricity", provider, meterNumber: meterNum, meterType, amount: parsed });
+    setShowPinModal(true);
+  };
+
+  const executePendingAction = async () => {
+    if (!pendingAction || !profile?.id) return;
     setLoading(true);
     try {
-      const res = await opayService.buyElectricity({ userId: profile.id, provider, meterNumber: meterNum, meterType, amount: parsed });
+      const res = await opayService.buyElectricity({
+        userId: profile.id,
+        provider: pendingAction.provider,
+        meterNumber: pendingAction.meterNumber,
+        meterType: pendingAction.meterType,
+        amount: pendingAction.amount,
+      });
       if (!res || !res.success) throw new Error(res?.error || "Electricity payment failed");
-      onSuccess(`₦${fmtNGN(parsed)} electricity payment\nMeter: ${meterNum}`);
-    } catch { alert("Payment failed. Please try again."); }
-    finally { setLoading(false); }
+      onSuccess(`₦${fmtNGN(pendingAction.amount)} electricity payment\nMeter: ${pendingAction.meterNumber}`);
+    } catch (err) {
+      alert(err?.message || "Payment failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  };
+
+  const handleSecureConfirm = async (pin) => {
+    if (!profile?.id) throw new Error("Please sign in before continuing");
+    await verifyWithdrawalPin(profile.id, pin);
+    if (profile?.require_2fa) {
+      setShowPinModal(false);
+      setShow2FAModal(true);
+      return;
+    }
+    await executePendingAction();
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    await executePendingAction();
   };
 
   return (
@@ -396,6 +549,25 @@ function ElectricityView({ onBack, onSuccess }) {
           {loading ? "Processing…" : <><Zap size={12} /> Pay ₦{parsed > 0 ? fmtNGN(parsed) : ""}</>}
         </button>
       </div>
+      {showPinModal && pendingAction && (
+        <TransactionPinModal
+          amount={pendingAction.amount}
+          recipient="Electricity payment"
+          transactionType="purchase"
+          description={`Pay electricity bill for meter ${pendingAction.meterNumber}`}
+          onConfirm={handleSecureConfirm}
+          onClose={() => { setShowPinModal(false); setPendingAction(null); }}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => { setShow2FAModal(false); setPendingAction(null); }}
+          userId={profile?.id}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
+      )}
     </div>
   );
 }
@@ -440,18 +612,53 @@ function CableTVView({ onBack, onSuccess }) {
   const [selPlan,   setSelPlan]   = useState(null);
   const [smartCard, setSmartCard] = useState("");
   const [loading,   setLoading]   = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
   const prov   = TV_PROVIDERS.find(p => p.id === provider);
   const canPay = provider && selPlan && smartCard.replace(/\D/g, "").length >= 10;
 
   const handlePay = async () => {
     if (!canPay) return;
+    setPendingAction({ type: "cable", provider, packageId: selPlan.id, smartCard, amount: selPlan.price, label: selPlan.name });
+    setShowPinModal(true);
+  };
+
+  const executePendingAction = async () => {
+    if (!pendingAction || !profile?.id) return;
     setLoading(true);
     try {
-      const res = await opayService.buyCable({ userId: profile.id, provider, smartCard, packageId: selPlan.id, amount: selPlan.price });
+      const res = await opayService.buyCable({
+        userId: profile.id,
+        provider: pendingAction.provider,
+        smartCard: pendingAction.smartCard,
+        packageId: pendingAction.packageId,
+        amount: pendingAction.amount,
+      });
       if (!res || !res.success) throw new Error(res?.error || "Cable payment failed");
-      onSuccess(`${prov.name} ${selPlan.name} renewed\nSmart card: ${smartCard}`);
-    } catch { alert("Payment failed. Please try again."); }
-    finally { setLoading(false); }
+      onSuccess(`${prov.name} ${pendingAction.label} renewed\nSmart card: ${pendingAction.smartCard}`);
+    } catch (err) {
+      alert(err?.message || "Payment failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  };
+
+  const handleSecureConfirm = async (pin) => {
+    if (!profile?.id) throw new Error("Please sign in before continuing");
+    await verifyWithdrawalPin(profile.id, pin);
+    if (profile?.require_2fa) {
+      setShowPinModal(false);
+      setShow2FAModal(true);
+      return;
+    }
+    await executePendingAction();
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    await executePendingAction();
   };
 
   return (
@@ -505,6 +712,25 @@ function CableTVView({ onBack, onSuccess }) {
           {loading ? "Processing…" : selPlan ? `Pay ₦${selPlan.price.toLocaleString()} — ${prov?.name} ${selPlan.name}` : "Select a Plan"}
         </button>
       </div>
+      {showPinModal && pendingAction && (
+        <TransactionPinModal
+          amount={pendingAction.amount}
+          recipient="Cable payment"
+          transactionType="purchase"
+          description={`Renew ${prov?.name} ${pendingAction.label} on ${pendingAction.smartCard}`}
+          onConfirm={handleSecureConfirm}
+          onClose={() => { setShowPinModal(false); setPendingAction(null); }}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => { setShow2FAModal(false); setPendingAction(null); }}
+          userId={profile?.id}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
+      )}
     </div>
   );
 }

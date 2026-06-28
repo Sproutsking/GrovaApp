@@ -1,0 +1,58 @@
+/**
+ * Z-INDEX LAYER SYSTEM — Centralized stacking context
+ * All z-index values defined here to prevent conflicts
+ */
+
+/* LAYER 1: BASE CONTENT (0-10) */
+.card-base { z-index: 1; }
+.card-hover-effect { z-index: 2; }
+
+/* LAYER 2: SIDEBARS & NAVIGATION (40-60) */
+.sidebar { z-index: 50; }
+.sidebar-left { z-index: 50; }
+.sidebar-right { z-index: 50; }
+.trending-sidebar { z-index: 50; }
+.community-sidebar { z-index: 50; }
+
+/* LAYER 3: STICKY HEADERS (90-110) */
+.explore-header { z-index: 100; }
+.sticky-header { z-index: 100; }
+
+/* LAYER 4: FIXED NAVIGATION (240-260) */
+.navbar { z-index: 250; }
+.mobile-nav { z-index: 250; }
+.mobile-header { z-index: 250; }
+.desktop-header { z-index: 250; }
+.mobile-bottom-nav { z-index: 250; }
+
+/* LAYER 5: FLOATING ELEMENTS (300-400) */
+.floating-action-button { z-index: 350; }
+.floating-badge { z-index: 360; }
+.floating-tooltip { z-index: 370; }
+
+/* LAYER 6: DROPDOWN MENUS (500-600) */
+.dropdown-menu { z-index: 550; }
+.context-menu { z-index: 550; }
+.popover { z-index: 550; }
+
+/* LAYER 7: MODALS - BACKDROP (900-950) */
+.modal-overlay { z-index: 9000; }
+.modal-backdrop { z-index: 9000; }
+.fullscreen-overlay { z-index: 9000; }
+
+/* LAYER 8: MODALS - CONTENT (950-1000) */
+.modal-content { z-index: 9500; }
+.modal-dialog { z-index: 9500; }
+.fullscreen-post-container { z-index: 9500; }
+.fullscreen-reels-container { z-index: 9500; }
+.fullscreen-story-container { z-index: 9500; }
+.saved-content-modal { z-index: 9500; }
+
+/* LAYER 9: TOOLTIPS & POPOVERS OVER MODALS (1000-1050) */
+.modal-tooltip { z-index: 10000; }
+.modal-popover { z-index: 10000; }
+
+/* LAYER 10: CRITICAL ALERTS (1050+) */
+.alert-critical { z-index: 10100; }
+.notification-critical { z-index: 10100; }
+.error-boundary { z-index: 10100; }

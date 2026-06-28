@@ -15,7 +15,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Image, Film, BookOpen, Sparkles, DollarSign, Users, Plus, Minus, Loader,
   Infinity, Palette, Save, FileText, CheckCircle, Eye, Lock, Wand2, Type,
-  Send,
+  Send, Compass,
 } from "lucide-react";
 import { supabase }       from "../../services/config/supabase";
 import createService      from "../../services/create/createService";
@@ -91,9 +91,36 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const [titleColor,        setTitleColor]        = useState("#ffffff");
   const [textColor,         setTextColor]         = useState("#d4d4d4");
 
+  const [cultureCaption,  setCultureCaption]  = useState("");
+  const [cultureMedia,    setCultureMedia]    = useState(null);
+  const [cultureCategory, setCultureCategory] = useState("trending");
+
   const effectiveUserId = initialUserId || currentUser?.id || initialCurrentUser?.id;
   const distribution = useDistribution(effectiveUserId);          // [D4]
   const isPublishing = loading || distribution.isDistributing;
+
+  const cultureCategories = [
+    { id: "trending", name: "Trending" },
+    { id: "afro-music", name: "Afro Music" },
+    { id: "african-art", name: "African Art" },
+    { id: "west-africa", name: "West Africa" },
+    { id: "east-africa", name: "East Africa" },
+    { id: "south-africa", name: "South Africa" },
+    { id: "north-africa", name: "North Africa" },
+    { id: "african-food", name: "African Cuisine" },
+    { id: "african-fashion", name: "African Fashion" },
+    { id: "african-festivals", name: "Festivals" },
+    { id: "african-history", name: "History & Heritage" },
+    { id: "african-languages", name: "Languages" },
+    { id: "african-spirituality", name: "Spirituality" },
+    { id: "asian-culture", name: "Asian Culture" },
+    { id: "european-culture", name: "European Culture" },
+    { id: "americas-culture", name: "Americas Culture" },
+    { id: "middle-east", name: "Middle East" },
+    { id: "indigenous", name: "Indigenous" },
+    { id: "world-music", name: "World Music" },
+    { id: "global-food", name: "Global Food" },
+  ];
 
   const postCategories = [
     "General","Technology","Art","Music","Photography","Lifestyle","Food","Travel",
@@ -146,7 +173,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     const hasContent =
       (activeTab === "post" && (postContent.trim() || postCaption.trim() || postMedia.length > 0)) ||
       (activeTab === "reel" && (reelCaption.trim() || reelMedia)) ||
-      (activeTab === "story" && (storyTitle.trim() || storyPreview.trim() || storyContent.trim()));
+      (activeTab === "story" && (storyTitle.trim() || storyPreview.trim() || storyContent.trim())) ||
+      (activeTab === "culture" && (cultureCaption.trim() || cultureMedia));
     setHasUnsavedChanges(hasContent);
     if (hasContent && currentUser) {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -155,7 +183,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   }, [ // eslint-disable-line
     activeTab, postContent, postCaption, postMedia,
     reelCaption, reelMedia, storyTitle, storyPreview, storyContent,
-    postCategory, reelCategory, storyCategory,
+    cultureCaption, cultureMedia,
+    postCategory, reelCategory, storyCategory, cultureCategory,
     unlockPrice, maxAccesses, isUnlimitedAccess, titleColor, textColor, currentUser,
   ]);
 
@@ -195,6 +224,9 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         draftData.maxAccesses = isUnlimitedAccess ? 999999 : maxAccesses;
         draftData.titleColor  = titleColor;
         draftData.textColor   = textColor;
+      } else if (activeTab === "culture") {
+        draftData.caption  = cultureCaption;
+        draftData.category = cultureCategory;
       }
       const savedDraft = await draftsService.saveDraft(draftData, currentUser.id);
       setCurrentDraftId(savedDraft.id);
@@ -212,6 +244,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const getDraftTitle = () => {
     if (activeTab === "story" && storyTitle) return storyTitle;
     if (activeTab === "reel"  && reelCaption) return reelCaption.substring(0, 50) || "Untitled Reel";
+    if (activeTab === "culture" && cultureCaption) return cultureCaption.substring(0, 50) || "Untitled Culture";
     if (activeTab === "post"  && (postContent || postCaption))
       return (useTextCard ? postContent : postCaption).substring(0, 50) || "Untitled Post";
     return `Untitled ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`;
@@ -243,6 +276,30 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     }
   };
 
+  const handleCultureMediaReady = (mediaData) => {
+    if (!mediaData) return;
+    if ((mediaData.type === "video" || mediaData.type === "created") && mediaData.url) {
+      setCultureMedia({ type: "created", url: mediaData.url, duration: mediaData.duration || null });
+      return;
+    }
+    if (mediaData.items?.length === 1) {
+      const item = mediaData.items[0];
+      if (item.url && typeof item.url === "string" && item.url.startsWith("http")) {
+        setCultureMedia({ type: "created", url: item.url, duration: item.duration || null });
+      } else if (item.file) {
+        setCultureMedia({ type: "items", items: mediaData.items });
+      }
+      return;
+    }
+    if (mediaData.url && typeof mediaData.url === "string" && mediaData.url.startsWith("http")) {
+      setCultureMedia({ type: "created", url: mediaData.url, duration: mediaData.duration || null });
+      return;
+    }
+    if (mediaData.items?.length > 0) {
+      setCultureMedia({ type: "items", items: mediaData.items });
+    }
+  };
+
   // [D5] Added distribution.reset() so selected platforms don't bleed between publishes
   const clearForm = () => {
     if (activeTab === "post") {
@@ -257,6 +314,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       setUnlockPrice(10); setMaxAccesses(1000);
       setIsUnlimitedAccess(false); setStoryCover(null);
       setTitleColor("#ffffff"); setTextColor("#d4d4d4");
+    } else if (activeTab === "culture") {
+      setCultureCaption(""); setCultureMedia(null); setCultureCategory("trending");
     }
     setHasUnsavedChanges(false);
     setCurrentDraftId(null);
@@ -439,6 +498,50 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     } finally { setLoading(false); }
   };
 
+  const handlePublishCulture = async () => {
+    try {
+      setLoading(true); setUploadProgress(0);
+      if (securityService?.updateActivity) securityService.updateActivity();
+      if (!currentUser || !userProfile) throw new Error("Please complete your profile setup");
+      if (!cultureCaption.trim()) throw new Error("Caption is required");
+      if (!cultureMedia) throw new Error("Image or video is required");
+
+      let mediaToUpload;
+      if (cultureMedia.type === "created" && cultureMedia.url) {
+        mediaToUpload = cultureMedia.url;
+      } else if (cultureMedia.type === "items" && cultureMedia.items?.length > 0) {
+        const item = cultureMedia.items[0];
+        mediaToUpload = (item.url && item.url.startsWith("http")) ? item.url : item.file;
+      }
+      if (!mediaToUpload) throw new Error("Could not resolve media. Please re-attach and try again.");
+
+      const newPost = await createService.createPost(
+        { 
+          media: [{ url: mediaToUpload, type: cultureMedia.type === "created" ? "video" : "image" }], 
+          caption: cultureCaption.trim(), 
+          category: cultureCategory,
+          isCulturePost: true
+        },
+        currentUser.id,
+        (progress) => setUploadProgress(progress)
+      );
+      dispatchPublish(newPost, "post");
+      if (onPublishSuccess) onPublishSuccess(newPost, "post");
+
+      try {
+        await distribution.distributePost(newPost.id);
+      } catch (distErr) {
+        console.warn("Culture post created but distribution failed:", distErr);
+      }
+
+      if (currentDraftId) await draftsService.deleteDraft(currentDraftId, currentUser.id).catch(() => {});
+      clearForm(); setUploadProgress(0);
+    } catch (err) {
+      console.error("Failed to publish culture post:", err);
+      alert(err.message || "Failed to publish culture post. Please try again.");
+    } finally { setLoading(false); }
+  };
+
   const handleCoverUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.size <= 5 * 1024 * 1024) setStoryCover(file);
@@ -480,6 +583,9 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       setIsUnlimitedAccess(draft.story_max_accesses >= 999999);
       setTitleColor(draft.story_title_color   || "#ffffff");
       setTextColor(draft.story_text_color     || "#d4d4d4");
+    } else if (draft.content_type === "culture") {
+      setCultureCaption(draft.caption || "");
+      setCultureCategory(draft.category || "trending");
     }
     setShowDrafts(false);
     setHasUnsavedChanges(true);
@@ -568,6 +674,9 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
           </button>
           <button className={`content-tab${activeTab === "reel"  ? " active" : ""}`} onClick={() => handleTabChange("reel")}>
             <Film size={14} /> Reel
+          </button>
+          <button className={`content-tab${activeTab === "culture" ? " active" : ""}`} onClick={() => handleTabChange("culture")}>
+            <Compass size={14} /> Culture
           </button>
           <button className={`content-tab${activeTab === "story" ? " active" : ""}`} onClick={() => handleTabChange("story")}>
             <BookOpen size={14} /> Story
@@ -923,6 +1032,57 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                 {loading
                   ? <><Loader size={15} className="spinner" /> Publishing…</>
                   : <><Send size={15} /> Publish Story</>}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ════ CULTURE TAB ════ */}
+        {activeTab === "culture" && (
+          <div className="create-form">
+
+            <div className="form-group">
+              <label className="form-label"><Compass size={12} /> Culture Category</label>
+              <select className="category-select" value={cultureCategory}
+                onChange={(e) => setCultureCategory(e.target.value)} disabled={loading}>
+                {cultureCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label"><Sparkles size={12} /> Culture Media (Image or Video)</label>
+              <MediaUploader
+                onMediaReady={handleCultureMediaReady}
+                acceptedTypes={["image", "video"]}
+                maxFiles={1}
+                maxDuration={300}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label"><Type size={12} /> Caption</label>
+              <SmartTextarea
+                ref={reelCaptionRef}
+                value={cultureCaption}
+                onChange={(e) => setCultureCaption(e.target.value)}
+                placeholder="Describe this culture content… (share the story, context, or significance)"
+                maxLength={500}
+                disabled={loading}
+              />
+              <div className="char-count">{cultureCaption.length} / 500</div>
+            </div>
+
+            {/* Distribution — culture tab */}
+            <DistributionBlock label="culture" />
+
+            <div className="publish-btn-wrapper">
+              <button className="publish-btn" onClick={handlePublishCulture}
+                disabled={loading || !cultureCaption.trim() || !cultureMedia || !currentUser}>
+                {loading
+                  ? <><Loader size={15} className="spinner" /> Publishing…</>
+                  : <><Send size={15} /> Publish Culture Post</>}
               </button>
             </div>
           </div>

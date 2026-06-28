@@ -134,15 +134,34 @@ export function bustAndRefetch() {
   return _runPrefetch();
 }
 
-// ── RSS fetch ─────────────────────────────────────────────────────────────────
+// ── Shared fetch helper — direct first, Supabase proxy only as fallback
+async function fetchText(url, timeout = 12_000) {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(timeout),
+    headers: {
+      Accept: "application/xml, text/xml, text/html, */*",
+      "Cache-Control": "no-cache",
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.text();
+}
+
 async function fetchRss(url) {
-  try {
-    const proxy = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxy, { signal: AbortSignal.timeout(12_000) });
-    if (!res.ok) return null;
-    const txt = await res.text();
-    if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
-  } catch { /* failed */ }
+  const candidates = [
+    url,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`,
+  ];
+  for (const candidate of candidates) {
+    try {
+      const txt = await fetchText(candidate, 12_000);
+      if (txt.length > 300 && (txt.includes("<item") || txt.includes("<entry"))) return txt;
+    } catch {
+      /* try next fallback */
+    }
+  }
   return null;
 }
 
@@ -158,15 +177,23 @@ async function fetchYtRss(channelId) {
       const j = await res.json();
       if (j?.status === "ok" && j?.items?.length) return { type: "json", data: j };
     }
-  } catch { /* fallback */ }
-  try {
-    const proxy = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(ytUrl)}`;
-    const res = await fetch(proxy, { signal: AbortSignal.timeout(14_000) });
-    if (res.ok) {
-      const txt = await res.text();
+  } catch {
+    /* fallback */
+  }
+
+  const candidates = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(ytUrl)}`,
+    `https://corsproxy.io/?${encodeURIComponent(ytUrl)}`,
+    `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(ytUrl)}`,
+  ];
+  for (const candidate of candidates) {
+    try {
+      const txt = await fetchText(candidate, 14_000);
       if (txt && txt.includes("<entry")) return { type: "xml", data: txt };
+    } catch {
+      /* try next fallback */
     }
-  } catch { /* failed */ }
+  }
   return null;
 }
 

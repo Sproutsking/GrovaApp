@@ -16,6 +16,7 @@ import { supabase } from "../config/supabase";
 import uploadService from "../upload/uploadService";
 import { handleError } from "../shared/errorHandler";
 import cacheService from "../shared/cacheService";
+import xrcService, { XRC_EVENTS, STREAM_TYPES } from "../xrc";
 
 class CreateService {
   // ── Helper: fetch created row with profile ────────────────────────────────
@@ -132,6 +133,11 @@ class CreateService {
       if (error) { console.error("❌ Post insert error:", error); throw error; }
 
       const full = await this._withProfile("posts", data.id);
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.postCreated(full.id, userId, full.content || full.card_caption || ""),
+        userId,
+      ).catch((err) => console.error("[XRC] postCreated record failed:", err));
       cacheService.invalidate("posts");
       console.log("✅ Post created:", full.id);
       return full;
@@ -210,6 +216,11 @@ class CreateService {
       if (error) { console.error("❌ Reel insert error:", error); throw error; }
 
       const full = await this._withProfile("reels", data.id);
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.reelCreated(full.id, userId),
+        userId,
+      ).catch((err) => console.error("[XRC] reelCreated record failed:", err));
       cacheService.invalidate("reels");
       console.log("✅ Reel created:", full.id);
       return full;
@@ -294,6 +305,11 @@ class CreateService {
       if (error) { console.error("❌ Story insert error:", error); throw error; }
 
       const full = await this._withProfile("stories", data.id);
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.storyCreated(full.id, userId, title.trim()),
+        userId,
+      ).catch((err) => console.error("[XRC] storyCreated record failed:", err));
       cacheService.invalidate("stories");
       console.log("✅ Story created:", full.id);
       return full;
@@ -312,6 +328,11 @@ class CreateService {
         .eq("id", postId)
         .eq("user_id", userId);
       if (error) throw error;
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.postDeleted(postId, userId),
+        userId,
+      ).catch((err) => console.error("[XRC] postDeleted record failed:", err));
       cacheService.invalidate("posts");
       return { success: true };
     } catch (error) {
@@ -327,6 +348,11 @@ class CreateService {
         .eq("id", reelId)
         .eq("user_id", userId);
       if (error) throw error;
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.reelDeleted(reelId, userId),
+        userId,
+      ).catch((err) => console.error("[XRC] reelDeleted record failed:", err));
       cacheService.invalidate("reels");
       return { success: true };
     } catch (error) {
@@ -342,6 +368,11 @@ class CreateService {
         .eq("id", storyId)
         .eq("user_id", userId);
       if (error) throw error;
+      xrcService.writeRecord(
+        STREAM_TYPES.XCRC,
+        XRC_EVENTS.storyDeleted(storyId, userId),
+        userId,
+      ).catch((err) => console.error("[XRC] storyDeleted record failed:", err));
       cacheService.invalidate("stories");
       return { success: true };
     } catch (error) {

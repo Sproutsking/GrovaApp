@@ -262,6 +262,27 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         setActiveThemeId(profileData.boost_selections?.themeId ?? null);
       }
 
+      // Build avatar URL — enhanced with multiple fallback strategies
+      let avatarUrl = null;
+      if (profileData?.avatar_id) {
+        try {
+          const baseUrl = mediaUrlService.getImageUrl(profileData.avatar_id);
+          if (baseUrl && typeof baseUrl === "string") {
+            const cleanUrl = baseUrl.split("?")[0];
+            // Enhance Supabase URLs with quality params; use other URLs as-is
+            if (cleanUrl.includes("supabase")) {
+              avatarUrl = `${cleanUrl}?quality=100&width=600&height=600&resize=cover&format=webp`;
+            } else if (cleanUrl.includes("cloudinary") || cleanUrl.startsWith("http")) {
+              avatarUrl = cleanUrl; // Trust mediaUrlService for non-Supabase URLs
+            } else {
+              avatarUrl = baseUrl; // Fallback to raw mediaUrlService result
+            }
+          }
+        } catch (err) {
+          console.warn("Avatar URL generation failed:", err?.message);
+        }
+      }
+
       const getContentIds = async (table) => {
         const { data } = await supabase.from(table).select("id").eq("user_id", userId).is("deleted_at", null);
         return (data || []).map(r => r.id);
@@ -313,17 +334,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       const totalViews = allViewRows.reduce((s, r) => s + (r.views || 0), 0);
       const totalLikes = storyLikesCount + reelLikesCount + postLikesCount;
 
-      let avatarUrl = null;
-      if (profileData?.avatar_id) {
-        const baseUrl = mediaUrlService.getImageUrl(profileData.avatar_id);
-        if (baseUrl && typeof baseUrl === "string") {
-          const cleanUrl = baseUrl.split("?")[0];
-          avatarUrl = cleanUrl.includes("supabase")
-            ? `${cleanUrl}?quality=100&width=600&height=600&resize=cover&format=webp`
-            : baseUrl;
-        }
-      }
-
       const epBalance = Number(profileData?.engagement_points ?? 0);
       const gtBalance = Number(wallet?.xev_tokens ?? 0);
 
@@ -331,7 +341,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         id:               profileData?.id,
         fullName:         profileData?.full_name        || "User",
         username:         profileData?.username         || "user",
-        avatar:           avatarUrl,
+        avatar:           avatarUrl,  // Use the enhanced avatarUrl constructed above
         avatarId:         profileData?.avatar_id,
         bio:              profileData?.bio,
         verified:         profileData?.verified         || false,

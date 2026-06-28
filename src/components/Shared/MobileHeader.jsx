@@ -380,9 +380,7 @@ const MobileHeader = ({
 const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOnHome) => {
   const textStyle = hasBoosted && tierColor
     ? `color: ${tierColor}; text-shadow: 0 0 10px ${tierColor}55;`
-    : `background: linear-gradient(135deg,#84cc16 0%,#65a30d 100%);
-       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-       background-clip: text;`;
+    : `color: var(--text);`;
   const cursorColor = hasBoosted && tierColor ? tierColor : "#84cc16";
   const iconColor   = hasBoosted && tierColor ? tierColor : "#84cc16";
   const boxBorder   = hasBoosted && tierColor ? `${tierColor}22` : "rgba(255,255,255,0.07)";

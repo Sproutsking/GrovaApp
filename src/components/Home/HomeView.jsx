@@ -40,6 +40,7 @@ import {
 
 import FeedTab          from "./FeedTab";
 import NewsTab          from "./NewsTab";
+import ReelsTab         from "./ReelsTab";
 import StoryTab         from "./StoryTab";
 import CultureTab       from "./CultureTab";
 import LiveStreamersRow from "../Stream/LiveStreamersRow";
@@ -59,9 +60,14 @@ import ActionMenu          from "../Shared/ActionMenu";
 import CommentModal        from "../Modals/CommentModal";
 import TransactionPinModal from "../Modals/TransactionPinModal";
 import TwoFAModal          from "../Modals/TwoFAModal";
+import FullContentView     from "./FullContentView";
 import SaveFolderModal     from "../Modals/SaveFolderModal";
 import EditPostModal       from "../Modals/EditPostModal";
+import FullScreenPost      from "./FullScreenPost";
+import FullScreenReels     from "./FullScreenReels";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
+import { walletService }   from "../../services/wallet/walletService";
+import { verifyWithdrawalPin } from "../../services/wallet/withdrawServiceV2";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const POSTS_PAGE = 30;   // increased for aggressive preloading
@@ -165,23 +171,28 @@ function buildOptimisticItem(rawItem, type, currentUser) {
 const MODAL_INIT = {
   profile: null, actionMenu: null, comment: null,
   pin: false, twoFA: false, saveFolder: null, editPost: null, pendingUnlock: null,
+  fullscreenPost: null, fullscreenReels: null,
 };
 function modalReducer(state, action) {
   switch (action.type) {
-    case "OPEN_PROFILE":  return { ...state, profile:    action.payload };
-    case "CLOSE_PROFILE": return { ...state, profile:    null };
-    case "OPEN_ACTION":   return { ...state, actionMenu: action.payload };
-    case "CLOSE_ACTION":  return { ...state, actionMenu: null };
-    case "OPEN_COMMENT":  return { ...state, comment:    action.payload };
-    case "CLOSE_COMMENT": return { ...state, comment:    null };
-    case "OPEN_PIN":      return { ...state, pin: true,  pendingUnlock: action.payload };
+    case "OPEN_PROFILE":  return { ...state, profile:      action.payload };
+    case "CLOSE_PROFILE": return { ...state, profile:      null };
+    case "OPEN_ACTION":   return { ...state, actionMenu:   action.payload };
+    case "CLOSE_ACTION":  return { ...state, actionMenu:   null };
+    case "OPEN_COMMENT":  return { ...state, comment:      action.payload };
+    case "CLOSE_COMMENT": return { ...state, comment:      null };
+    case "OPEN_PIN":      return { ...state, pin: true,    pendingUnlock: action.payload };
     case "CLOSE_PIN":     return { ...state, pin: false };
-    case "OPEN_2FA":      return { ...state, twoFA:      true };
-    case "CLOSE_2FA":     return { ...state, twoFA:      false, pendingUnlock: null };
-    case "OPEN_SAVE":     return { ...state, saveFolder: action.payload };
-    case "CLOSE_SAVE":    return { ...state, saveFolder: null };
-    case "OPEN_EDIT":     return { ...state, editPost:   action.payload };
-    case "CLOSE_EDIT":    return { ...state, editPost:   null };
+    case "OPEN_2FA":      return { ...state, twoFA:        true };
+    case "CLOSE_2FA":     return { ...state, twoFA:        false, pendingUnlock: null };
+    case "OPEN_SAVE":     return { ...state, saveFolder:   action.payload };
+    case "CLOSE_SAVE":    return { ...state, saveFolder:   null };
+    case "OPEN_EDIT":     return { ...state, editPost:     action.payload };
+    case "CLOSE_EDIT":    return { ...state, editPost:     null };
+    case "OPEN_FULLSCREEN_POST": return { ...state, fullscreenPost: action.payload };
+    case "CLOSE_FULLSCREEN_POST": return { ...state, fullscreenPost: null };
+    case "OPEN_FULLSCREEN_REELS": return { ...state, fullscreenReels: action.payload };
+    case "CLOSE_FULLSCREEN_REELS": return { ...state, fullscreenReels: null };
     default:              return state;
   }
 }
@@ -289,6 +300,7 @@ const HomeView = ({
   const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedPosts);
   const [refreshing,    setRefreshing]    = useState(false);
   const [error,         setError]         = useState(null);
+  const [storyUnlocking,setStoryUnlocking]= useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
 
   const [hasMorePosts,  setHasMorePosts]  = useState(true);
@@ -300,6 +312,7 @@ const HomeView = ({
   const [discoveryCategory, setDiscoveryCategory] = useState("All");
 
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
+  const [readingStory, setReadingStory] = useState(null);
 
   const feedTabRef     = useRef(null);
   const reelTabRef     = useRef(null);
@@ -645,6 +658,68 @@ const HomeView = ({
   const handleActionMenu  = useCallback((e, c, own) => { e.stopPropagation(); dispatchModal({ type:"OPEN_ACTION", payload:{ content:c, isOwn:own, pos:{ x:e.clientX, y:e.clientY } } }); }, []);
   const handleComment     = useCallback(c => dispatchModal({ type:"OPEN_COMMENT", payload:c }), []);
   const handleUnlock      = useCallback(s => { if (!resolvedUser) { alert("Please sign in"); return; } dispatchModal({ type:"OPEN_PIN", payload:s }); }, [resolvedUser]);
+  
+  const handleOpenFullScreenPost = useCallback((postId) => {
+    const post = posts.find(p => p.id === postId);
+    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
+  }, [posts]);
+
+  const handleOpenFullScreenReels = useCallback((reelId) => {
+    const reel = reels.find(r => r.id === reelId);
+    if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
+  }, [reels]);
+  const handleOpenStory   = useCallback(async (story) => {
+    if (!story) return;
+    if (story.full_content) {
+      setReadingStory(story);
+      return;
+    }
+
+    try {
+      const fetched = await storyService.getStory(story.id);
+      if (fetched) setReadingStory(fetched);
+    } catch (err) {
+      alert(err.message || "Unable to open story");
+    }
+  }, []);
+
+  const handleStoryUnlock = useCallback(async (story) => {
+    if (!story || !resolvedUser) throw new Error("Unable to unlock this story");
+    if (story.unlock_cost <= 0 || story.user_id === resolvedUser.id) {
+      await handleOpenStory(story);
+      return;
+    }
+
+    const alreadyUnlocked = story.unlocked || await storyService.isStoryUnlocked(story.id);
+    if (alreadyUnlocked) {
+      await handleOpenStory(story);
+      return;
+    }
+
+    setStoryUnlocking(true);
+    try {
+      const walletResult = await walletService.handleStoryUnlock(
+        resolvedUser.id,
+        story.user_id,
+        story.id,
+        story.unlock_cost,
+      );
+      if (!walletResult || walletResult.success === false) {
+        throw new Error(walletResult?.error || "Unable to charge EP for unlock");
+      }
+
+      const unlockResult = await storyService.unlockStory(story.id);
+      const fetched = unlockResult?.fullContent
+        ? { ...story, unlocked: true, full_content: unlockResult.fullContent }
+        : await storyService.getStory(story.id);
+      const openStory = { ...fetched, unlocked: true };
+      setReadingStory(openStory);
+
+      setStories((prev) => prev.map((item) => item.id === story.id ? { ...item, unlocked: true } : item));
+    } finally {
+      setStoryUnlocking(false);
+    }
+  }, [resolvedUser, handleOpenStory]);
 
   const handleSave = useCallback(async folder => {
     try {
@@ -726,6 +801,12 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onComment={handleComment}
+                  onOpenFullScreen={(id) => {
+                    const post = posts.find(p => p.id === id);
+                    const reel = reels.find(r => r.id === id);
+                    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
+                    else if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
+                  }}
                   onLoadMore={loadMorePosts}
                   hasMore={hasMorePosts}
                   isLoadingMore={loadingMore}
@@ -749,6 +830,7 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onUnlock={handleUnlock}
+                  onOpenFull={handleOpenStory}
                   isActive={currentTab==="stories"}
                 />
               ) : !showSkeleton ? (
@@ -757,6 +839,30 @@ const HomeView = ({
                   text={feedFilter ? "Try a different tag or clear the filter." : "Be the first to share a story!"} />
               ) : (
                 currentTab==="stories" ? <GridSkeletons /> : null
+              )}
+            </div>
+
+            {/* ── REELS TAB ── */}
+            <div style={{ display: currentTab==="reels" ? "block" : "none" }}>
+              {reels.length > 0 ? (
+                <ReelsTab
+                  ref={reelTabRef}
+                  reels={reels}
+                  currentUser={resolvedUser}
+                  onAuthorClick={handleAuthorClick}
+                  onActionMenu={handleActionMenu}
+                  onComment={handleComment}
+                  onLoadMore={loadMoreReels}
+                  hasMore={hasMoreReels}
+                  isLoadingMore={loadingMore}
+                  isActive={currentTab==="reels"}
+                />
+              ) : !showSkeleton ? (
+                <EmptyState icon={<Film size={38} />}
+                  title="No reels yet"
+                  text="Follow creators to see their reels here!" />
+              ) : (
+                currentTab==="reels" ? <GridSkeletons /> : null
               )}
             </div>
 
@@ -789,6 +895,21 @@ const HomeView = ({
       </div>
 
       {/* ── Modals ── */}
+      {modals.fullscreenPost && (
+        <FullScreenPost
+          post={modals.fullscreenPost}
+          currentUser={resolvedUser}
+          onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_POST" })}
+        />
+      )}
+      {modals.fullscreenReels && (
+        <FullScreenReels
+          reels={[modals.fullscreenReels]}
+          initialIndex={0}
+          currentUser={resolvedUser}
+          onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_REELS" })}
+        />
+      )}
       {modals.profile && (
         <UserProfileModal user={modals.profile} onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })} />
       )}
@@ -809,13 +930,47 @@ const HomeView = ({
       )}
       {modals.pin && (
         <TransactionPinModal
-          onConfirm={() => { dispatchModal({ type:"CLOSE_PIN" }); dispatchModal({ type:"OPEN_2FA" }); }}
+          pendingAction={modals.pendingUnlock}
+          amount={modals.pendingUnlock?.unlock_cost}
+          transactionType="unlock"
+          recipient={modals.pendingUnlock?.title || "story"}
+          description={`Unlock for ${modals.pendingUnlock?.unlock_cost || 0} XEV`}
+          onConfirm={async (pinValue) => {
+            if (!resolvedUser) throw new Error("Please sign in before unlocking story");
+            if (!modals.pendingUnlock) throw new Error("No story selected");
+            await verifyWithdrawalPin(resolvedUser.id, pinValue);
+            if (resolvedUser?.require_2fa) {
+              dispatchModal({ type:"CLOSE_PIN" });
+              dispatchModal({ type:"OPEN_2FA" });
+              return;
+            }
+            await handleStoryUnlock(modals.pendingUnlock);
+          }}
           onClose={() => dispatchModal({ type:"CLOSE_PIN" })} />
       )}
       {modals.twoFA && (
         <TwoFAModal
-          onConfirm={async () => { alert(`Unlocked: ${modals.pendingUnlock?.title}`); dispatchModal({ type:"CLOSE_2FA" }); await handleRefresh(); }}
-          onClose={() => dispatchModal({ type:"CLOSE_2FA" })} />
+          show={modals.twoFA}
+          onSuccess={async () => {
+            try {
+              if (!modals.pendingUnlock) throw new Error("No story selected");
+              await handleStoryUnlock(modals.pendingUnlock);
+            } catch (err) {
+              alert(err.message || "Unable to unlock story");
+            }
+          }}
+          onClose={() => dispatchModal({ type:"CLOSE_2FA" })}
+          context="sensitive" />
+      )}
+      {readingStory && (
+        <FullContentView
+          story={readingStory}
+          currentUser={resolvedUser}
+          onClose={() => setReadingStory(null)}
+          onAuthorClick={handleAuthorClick}
+          onHashtagClick={(tag) => applyFilter({ type: "tag", value: tag })}
+          onMentionClick={(mention) => console.log("Mention clicked", mention)}
+        />
       )}
       {modals.saveFolder && (
         <SaveFolderModal folders={savedFolders} onSave={handleSave} onClose={() => dispatchModal({ type:"CLOSE_SAVE" })} />

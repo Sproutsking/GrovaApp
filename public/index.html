@@ -426,7 +426,9 @@
         id="xvc-main"
         style="display: flex; align-items: center; gap: 14px; width: 100%"
       >
-        <div class="xvi-icon" aria-hidden="true">✦</div>
+        <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
+          <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain"/>
+        </div>
         <div class="xvi-text">
           <div class="xvi-title">Update available for Xeevia</div>
         </div>
@@ -471,12 +473,14 @@
 
     <!-- Subtle install nudge — never blocks the app -->
     <div id="xv-install" role="complementary" aria-label="Install Xeevia">
-      <div class="xvi-icon" aria-hidden="true">X</div>
+      <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
+        <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain"/>
+      </div>
       <div class="xvi-text">
         <div class="xvi-title">Add Xeevia to your home screen</div>
       </div>
       <button id="xvi-btn" class="xvi-btn">Install</button>
-      <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss">
+      <button id="xvi-dismiss" class="xvi-dismiss" aria-label="Dismiss" style="display:none">
         ✕
       </button>
     </div>
@@ -569,6 +573,12 @@
         );
 
         function doUpdate() {
+          // SET FLAG FIRST - before any async code
+          try { 
+            localStorage.setItem("xv_update_in_progress", "1");
+            localStorage.setItem("xv_update_timestamp", String(Date.now()));
+          } catch(e) {}
+          
           if (navigator.serviceWorker && !isLocalhost) {
             navigator.serviceWorker.getRegistration().then(function (reg) {
               if (reg && reg.waiting) {
@@ -593,6 +603,23 @@
             window.location.reload(true);
           }
         }
+        (function() {
+          try {
+            var updateFlag = localStorage.getItem("xv_update_in_progress");
+            var updateTime = localStorage.getItem("xv_update_timestamp");
+            // Check if update happened within last 10 seconds (page load cycle)
+            if (updateFlag && updateTime && (Date.now() - Number(updateTime)) < 10000) {
+              localStorage.removeItem("xv_update_in_progress");
+              localStorage.removeItem("xv_update_timestamp");
+              // Hide card immediately
+              var card = document.getElementById("xv-update-card");
+              if (card) {
+                card.classList.remove("show");
+                card.style.display = "none";
+              }
+            }
+          } catch (e) {}
+        })();
 
         function hideUpdateCard() {
           var card = document.getElementById("xv-update-card");
@@ -605,6 +632,13 @@
 
         function showUpdateCard() {
           try {
+            // Don't show if update just happened
+            var updateFlag = localStorage.getItem("xv_update_in_progress");
+            var updateTime = localStorage.getItem("xv_update_timestamp");
+            if (updateFlag || (updateTime && (Date.now() - Number(updateTime)) < 5000)) {
+              return;
+            }
+            
             var snoozeUntil = localStorage.getItem(UPDATE_SNOOZE_KEY);
             if (snoozeUntil && Date.now() < Number(snoozeUntil)) return;
             localStorage.removeItem(UPDATE_SNOOZE_KEY);

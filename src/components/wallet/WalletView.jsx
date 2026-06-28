@@ -696,6 +696,7 @@ const WalletView = ({
               <WithdrawTab
                 userId={userId}
                 balance={balance}
+                currentUser={profile}
                 setActiveTab={handleTabChange}
               />
             )}

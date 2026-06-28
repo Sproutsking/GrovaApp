@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import { useAuth } from "../../../../components/Auth/AuthContext";
+import TransactionPinModal from "../../../Modals/TransactionPinModal";
+import TwoFAModal from "../../../Modals/TwoFAModal";
+import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
 
 const fmtNGN = (n) =>
   Number(n||0).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -30,9 +33,9 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
   const [loading,  setLoading]      = useState(false);
   const [existing, setExisting]     = useState(null);
   const [fetching, setFetching]     = useState(true);
-  const [pin,      setPin]          = useState(false);
-  const [pinVal,   setPinVal]       = useState("");
-  const [pinError, setPinError]     = useState("");
+  const [pendingAction, setPendingAction] = useState(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
 
   const DURATIONS = [
     { days:30,  label:"30 Days",  tier:"Starter",   bonus:"Early Access",    color:"#a3e635" },
@@ -57,24 +60,72 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
   const selDur    = DURATIONS.find(d=>d.days===duration);
   const unlockDate= duration ? new Date(Date.now()+duration*86400000).toLocaleDateString("en-NG",{day:"numeric",month:"short",year:"numeric"}) : null;
 
-  const handleStake = async (p) => {
-    if (p!=="1234") { setPinError("Wrong PIN. Try again."); return; }
-    setPinError(""); setLoading(true); setPin(false); setPinVal("");
+  const handleStake = async () => {
+    setPendingAction({
+      type: "stake",
+      amount: parsed,
+      description: `Stake-2-Earn lock: ${selDur.label}`,
+    });
+    setShowPinModal(true);
+  };
+
+  const executePendingAction = async () => {
+    if (!pendingAction || !profile?.id) return;
+    setLoading(true);
     try {
-      await supabase.rpc("paywave_transfer",{
-        p_from_user_id:profile.id, p_to_user_id:profile.id,
-        p_amount:parsed, p_note:`Stake-2-Earn lock: ${selDur.label}`,
-      });
-      await supabase.from("staking_positions").insert({
-        user_id:profile.id, amount:parsed, duration_days:selDur.days,
-        rate_pct:0, status:"active",
-        matures_at:new Date(Date.now()+selDur.days*86400000).toISOString(),
-        est_return:0,
-      });
-      onSuccess(`₦${fmtNGN(parsed)} staked for ${selDur.label}!\nTier: ${selDur.tier}`);
-      fetchStake();
-    } catch { alert("Staking failed. Please try again."); }
-    finally { setLoading(false); }
+      if (pendingAction.type === "stake") {
+        await supabase.rpc("paywave_transfer",{
+          p_from_user_id:profile.id, p_to_user_id:profile.id,
+          p_amount:pendingAction.amount, p_note:pendingAction.description,
+        });
+        await supabase.from("staking_positions").insert({
+          user_id:profile.id, amount:pendingAction.amount, duration_days:selDur.days,
+          rate_pct:0, status:"active",
+          matures_at:new Date(Date.now()+selDur.days*86400000).toISOString(),
+          est_return:0,
+        });
+        onSuccess(`₦${fmtNGN(pendingAction.amount)} staked for ${selDur.label}!\nTier: ${selDur.tier}`);
+        fetchStake();
+      } else if (pendingAction.type === "createSavings" && pendingAction.plan) {
+        const maturesAt = pendingAction.plan.id === "lock"
+          ? new Date(Date.now() + pendingAction.lockDays * 86400000).toISOString() : null;
+        await supabase.from("savings_plans").insert({
+          user_id:profile.id, plan_type:pendingAction.plan.id, plan_name:pendingAction.plan.name,
+          goal_name:pendingAction.goalName || pendingAction.plan.name, amount:pendingAction.amount,
+          rate_pct:0, lock_days:pendingAction.plan.id === "lock" ? pendingAction.lockDays : 0,
+          matures_at:maturesAt, is_active:true,
+        });
+        await supabase.rpc("paywave_transfer",{
+          p_from_user_id:profile.id, p_to_user_id:profile.id,
+          p_amount:pendingAction.amount, p_note:pendingAction.description,
+        });
+        onSuccess(`Savings plan created!\n${pendingAction.goalName || pendingAction.plan.name} — ₦${fmtNGN(pendingAction.amount)}`);
+        fetchPlans();
+        setView("list"); setAmount(""); setGoalName("");
+      }
+    } catch (err) {
+      console.error("Finance action failed", err);
+      alert("Operation failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  };
+
+  const handleSecureConfirm = async (pin) => {
+    if (!profile?.id) throw new Error("Please sign in before continuing");
+    await verifyWithdrawalPin(profile.id, pin);
+    if (profile?.require_2fa) {
+      setShowPinModal(false);
+      setShow2FAModal(true);
+      return;
+    }
+    await executePendingAction();
+  };
+
+  const handleSecuritySuccess = async () => {
+    setShow2FAModal(false);
+    await executePendingAction();
   };
 
   if (!fetching && existing) {
@@ -232,32 +283,30 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
 
         <button className="btn-p full"
           disabled={!parsed||!duration||parsed>pwBalance||loading}
-          onClick={()=>setPin(true)}>
+          onClick={handleStake}>
           {loading?"Staking…":<><Zap size={12}/> Stake ₦{parsed>0?fmtNGN(parsed):""}</>}
         </button>
         {parsed>pwBalance && <div style={{ color:"#f87171", fontSize:11, textAlign:"center" }}>Insufficient balance</div>}
       </div>
 
-      {/* PIN Modal */}
-      {pin && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.82)",
-          backdropFilter:"blur(14px)", display:"flex", alignItems:"center", justifyContent:"center",
-          zIndex:999, padding:18 }}>
-          <div className="xg" style={{ padding:20, width:"100%", maxWidth:300, borderColor:"rgba(168,85,247,0.28)" }}>
-            <div style={{ fontFamily:"var(--fd)", fontSize:15, fontWeight:800, marginBottom:3 }}>Confirm Stake</div>
-            <div style={{ color:"var(--t2)", fontSize:11.5, marginBottom:16 }}>Enter PIN to stake ₦{fmtNGN(parsed)}</div>
-            <input type="password" maxLength={4} value={pinVal}
-              onChange={e=>setPinVal(e.target.value)}
-              placeholder="••••" className="xf-wrap xf-in"
-              style={{ textAlign:"center", fontSize:22, letterSpacing:8, padding:"12px 14px",
-                width:"100%", marginBottom:pinError?7:14 }} />
-            {pinError && <div style={{ color:"#f87171", fontSize:11, marginBottom:11 }}>{pinError}</div>}
-            <div style={{ display:"flex", gap:7 }}>
-              <button className="btn-g" style={{ flex:1 }} onClick={()=>{setPin(false);setPinVal("");setPinError("");}}>Cancel</button>
-              <button className="btn-p" style={{ flex:1 }} onClick={()=>handleStake(pinVal)}>Confirm</button>
-            </div>
-          </div>
-        </div>
+      {showPinModal && pendingAction && (
+        <TransactionPinModal
+          amount={pendingAction.amount}
+          recipient={pendingAction.description}
+          transactionType="deposit"
+          description={pendingAction.description}
+          onConfirm={handleSecureConfirm}
+          onClose={() => { setShowPinModal(false); setPendingAction(null); }}
+        />
+      )}
+      {show2FAModal && (
+        <TwoFAModal
+          show={show2FAModal}
+          onClose={() => { setShow2FAModal(false); setPendingAction(null); }}
+          userId={profile?.id}
+          onSuccess={handleSecuritySuccess}
+          context="sensitive"
+        />
       )}
     </div>
   );
