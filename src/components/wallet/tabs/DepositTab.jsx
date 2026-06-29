@@ -791,13 +791,14 @@ function ImportMode({ resolvedUserId, resolvedEmail, currency, onRefresh, onBack
 
 // ── RECEIVE mode ──────────────────────────────────────────────────────────────
 function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
-  const [net,      setNet]      = useState(NETWORKS[0]);
-  const [txHash,   setTxHash]   = useState("");
-  const [naira,    setNaira]    = useState("");
-  const [copied,   setCopied]   = useState(false);
-  const [busy,     setBusy]     = useState(false);
-  const [status,   setStatus]   = useState(null);
-  const [statusMsg,setStatusMsg]= useState("");
+  const [net,         setNet]         = useState(NETWORKS[0]);
+  const [txHash,      setTxHash]      = useState("");
+  const [senderWallet,setSenderWallet]= useState("");
+  const [naira,       setNaira]       = useState("");
+  const [copied,      setCopied]      = useState(false);
+  const [busy,        setBusy]        = useState(false);
+  const [status,      setStatus]      = useState(null);
+  const [statusMsg,   setStatusMsg]   = useState("");
 
   const copy = async (t) => {
     try { await navigator.clipboard.writeText(t); setCopied(true); setTimeout(()=>setCopied(false),2000); } catch {}
@@ -805,9 +806,10 @@ function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
 
   const verify = async () => {
     if (!txHash.trim()) return;
+    if (!senderWallet.trim()) return;
     setBusy(true); setStatus(null);
     try {
-      const r = await depositCryptoVerify({ userId:resolvedUserId, txHash:txHash.trim(), tokenId:net.id, network:net.net, nairaEquivalent:parseFloat(naira)||0, currency });
+      const r = await depositCryptoVerify({ userId:resolvedUserId, txHash:txHash.trim(), tokenId:net.id, network:net.net, nairaEquivalent:parseFloat(naira)||0, currency, senderWallet: senderWallet.trim() });
       if (r.success) {
         const amt = currency==="XEV" ? nairaToXEV(parseFloat(naira)||0) : nairaToEP(parseFloat(naira)||0,rate);
         setStatusMsg(`Verified! +${amt} ${currency} credited.`); setStatus("ok");
@@ -822,7 +824,7 @@ function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
       <div className="dt-ngrid">
         {NETWORKS.map(n => (
           <button key={n.id} className={`dt-nbtn${net.id===n.id?" on":""}`}
-            onClick={()=>{setNet(n);setCopied(false);setTxHash("");setStatus(null);}}>
+            onClick={()=>{setNet(n);setCopied(false);setTxHash("");setSenderWallet("");setStatus(null);}}>
             <span className="dt-nbtn-tk" style={net.id===n.id?{color:n.col}:{}}>{n.label}</span>
             <span className="dt-nbtn-std">{n.std}</span>
           </button>
@@ -856,6 +858,12 @@ function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
         <label className="dt-label">Transaction Hash (TXID)</label>
         <input className="dt-input" placeholder={net.net==="Tron"?"transaction hash…":"0x…"}
           value={txHash} onChange={e=>{setTxHash(e.target.value);setStatus(null);}}/>
+        <label className="dt-label" style={{marginTop:12}}>Your Wallet Address</label>
+        <input className="dt-input" placeholder={net.net==="Tron"?"T…":"0x…"}
+          value={senderWallet} onChange={e=>{setSenderWallet(e.target.value);setStatus(null);}}/>
+        <div style={{fontSize:10,color:"rgba(255,255,255,.25)",marginTop:4,fontFamily:"'JetBrains Mono',monospace"}}>
+          The wallet you sent from (must match transaction sender)
+        </div>
         <label className="dt-label" style={{marginTop:12}}>₦ Equivalent (for preview)</label>
         <div style={{position:"relative"}}>
           <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:13,fontWeight:700,color:"rgba(255,255,255,.3)",fontFamily:"'JetBrains Mono',monospace",pointerEvents:"none"}}>₦</span>
@@ -874,7 +882,7 @@ function ReceiveMode({ resolvedUserId, currency, onRefresh, rate }) {
       </div>
 
       <div style={{paddingTop:16}}>
-        <button className="dt-cta" disabled={!txHash.trim()||busy} onClick={verify}>
+        <button className="dt-cta" disabled={!txHash.trim()||!senderWallet.trim()||busy} onClick={verify}>
           {busy ? <Loader size={15} className="dt-spin"/> : <Shield size={15} color="#070809"/>}
           {busy ? "Verifying…" : "Verify & Credit Wallet"}
         </button>

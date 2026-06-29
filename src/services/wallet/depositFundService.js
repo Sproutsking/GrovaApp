@@ -399,7 +399,7 @@ export async function depositPaystackOpen({
 }
 
 // ─── Crypto receive verification ──────────────────────────────────────────────
-export async function depositCryptoVerify({ userId, txHash, tokenId, network, nairaEquivalent, currency }) {
+export async function depositCryptoVerify({ userId, txHash, tokenId, network, nairaEquivalent, currency, senderWallet }) {
   let session;
   try {
     const { data } = await supabase.auth.getSession();
@@ -411,6 +411,23 @@ export async function depositCryptoVerify({ userId, txHash, tokenId, network, na
   const token = session?.access_token;
   if (!token) throw new Error("Not authenticated");
 
+  // Determine chain type based on network
+  let chainType = "EVM";
+  if (network === "solana") chainType = "SOLANA";
+  else if (network === "cardano") chainType = "CARDANO";
+  else if (network === "tron") chainType = "TRON";
+
+  // Validate sender wallet format for the chain
+  if (!senderWallet || !senderWallet.trim()) {
+    throw new Error("Sender wallet address required");
+  }
+
+  const normalizedSender = senderWallet.trim();
+  const isValidAddress = _validateWalletAddressFormat(normalizedSender, chainType);
+  if (!isValidAddress) {
+    throw new Error(`Invalid ${chainType} wallet address format`);
+  }
+
   const rate   = await getLiveUSDNGN();
   const amtUSD = parseFloat(((parseFloat(nairaEquivalent) || 0) / rate).toFixed(4));
 
@@ -419,10 +436,10 @@ export async function depositCryptoVerify({ userId, txHash, tokenId, network, na
     method:  "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      chainType:           network === "Tron" ? "TRON" : "EVM",
+      chainType,
       chain:               network.toLowerCase(),
       txHash,
-      claimedSenderWallet: "",
+      claimedSenderWallet: normalizedSender,
       productId:           tokenId,
       idempotencyKey:      crypto.randomUUID(),
       amountOverrideUSD:   amtUSD,
@@ -432,6 +449,28 @@ export async function depositCryptoVerify({ userId, txHash, tokenId, network, na
   const result = await res.json();
   if (!res.ok) throw new Error(result?.error ?? `Verify error ${res.status}`);
   return result;
+}
+
+// ─── Validate wallet address format by chain type ────────────────────────────
+function _validateWalletAddressFormat(address, chainType) {
+  if (!address) return false;
+  const addr = String(address).trim();
+
+  if (chainType === "EVM") {
+    // EVM: 0x followed by 40 hex characters
+    return /^0x[a-fA-F0-9]{40}$/.test(addr);
+  } else if (chainType === "SOLANA") {
+    // Solana: base58, 32-44 chars, no 0x prefix
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr) && !addr.startsWith("0x");
+  } else if (chainType === "CARDANO") {
+    // Cardano: bech32, starts with addr1, 50+ chars
+    return addr.startsWith("addr1") && addr.length >= 50;
+  } else if (chainType === "TRON") {
+    // Tron: starts with T followed by 33 base58 chars
+    return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr);
+  }
+
+  return false;
 }
 
 // ─── Paystack script loader ───────────────────────────────────────────────────
