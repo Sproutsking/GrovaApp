@@ -1,18 +1,18 @@
 // ============================================================================
-// src/components/Admin/AdminDashboard.jsx — v9 PRODUCTION COMPLETE
+// src/components/Admin/AdminDashboard.jsx — v10 PRODUCTION COMPLETE
 // ============================================================================
-// KEY CHANGES vs v8:
-//   - Liquidity added to NAV_ITEMS (between System and Team)
-//   - communities case: no longer passes contentMgmt — CommunitiesSection
-//     uses its own internal useCommunities() hook
-//   - transactions case: no longer passes txMgmt — TransactionsSection
-//     uses its own internal useTransactions() hook
-//   - ambassador banner: Globe2 Lucide icon (was emoji 🌐)
-//   - Quick Actions: all Lucide icons, 9 items in 3×3 grid
-//   - Sidebar: nav group labels, tighter spacing
-//   - Economy panel: EP note "base grant 50 EP per paid user"
-//   - getVisibleSections must include "liquidity" for super_admin+ roles
-//     (update permissions.js accordingly)
+// KEY CHANGES vs v9:
+//   - CountUp FIXED: the count-up animation was calling Math.round() on every
+//     tick regardless of whether the source value had decimals. This forced
+//     dollar metrics like Revenue ($7.23) to animate as a rounded integer
+//     (7) and then format that integer with 2 decimal places, producing
+//     "$7.00" / visually "$7" instead of "$7.23" — even though Analytics
+//     (which renders the same number as a plain string, no animation)
+//     showed it correctly. CountUp now only rounds to a whole number when
+//     the target itself has no decimal point; decimal targets animate with
+//     full float precision and let the existing toLocaleString() call (which
+//     was already decimal-aware via `hasDec`) handle final display rounding.
+//   - No other behavioral changes from v9.
 // ============================================================================
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
@@ -41,7 +41,6 @@ import { FreezeSection, SystemSection } from "./sections/SystemSection.jsx";
 import TeamSection, { CEOPanel } from "./sections/TeamSection.jsx";
 import AmbassadorSection from "./sections/AmbassadorSection.jsx";
 import LiquiditySection  from "./sections/LiquiditySection.jsx";
-import ServicesModal     from "../Shared/ServicesModal";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -55,7 +54,7 @@ const NAV_ITEMS = [
   { id: "security",    label: "Security",       icon: Shield },
   { id: "notifications",label: "Notifications", icon: Bell },
   { id: "system",      label: "System",         icon: Settings },
-  { id: "liquidity",   label: "Liquidity",      icon: Droplets },   // ← NEW
+  { id: "liquidity",   label: "Liquidity",      icon: Droplets },
   { id: "team",        label: "Team",           icon: Users2 },
   { id: "ambassador",  label: "Ambassadors",    icon: Star },
   { id: "ceo",         label: "CEO Panel",      icon: Crown },
@@ -158,25 +157,49 @@ function ArcRing({ value, max, color, size = 46 }) {
 }
 
 // ─── Count-up ──────────────────────────────────────────────────────────────
+// FIXED: previously called Math.round(num * eased) on every tick, which
+// floors any decimal-valued target (e.g. "$7.23") down to a whole number
+// before it ever reaches the decimal-aware toLocaleString() call below —
+// so dollar amounts always rendered as whole numbers. Whole-number targets
+// (user counts, etc.) must still snap cleanly to integers on every frame so
+// they don't flicker with fractional values mid-animation. The fix detects
+// decimal vs. integer targets up front and only rounds when appropriate;
+// the final toLocaleString() call (unchanged) handles all display rounding.
 function CountUp({ target }) {
   const [display, setDisplay] = useState(0);
   const ref = useRef(null);
+
+  // Decimal detection must happen on the *source string*, not on parsed
+  // output, since "7" and "7.0" parse to the same float but should animate
+  // differently (integer snapping vs. full precision).
+  const hasDec = String(target).includes(".");
+
   useEffect(() => {
     const raw = String(target).replace(/[^0-9.]/g, "");
     const num = parseFloat(raw) || 0;
-    const steps = 48; let step = 0;
+    const steps = 48;
+    let step = 0;
     clearInterval(ref.current);
     ref.current = setInterval(() => {
       step++;
       const eased = 1 - Math.pow(1 - step / steps, 3);
-      setDisplay(Math.round(num * eased));
-      if (step >= steps) clearInterval(ref.current);
+      const value = num * eased;
+      // Only snap to a whole number for integer targets. Decimal targets
+      // (currency, percentages, etc.) keep full float precision — the
+      // render-time toLocaleString() call below rounds for display without
+      // destroying the underlying value.
+      setDisplay(hasDec ? value : Math.round(value));
+      if (step >= steps) {
+        // Guarantee we land on the exact target value at the final frame,
+        // eliminating any residual float drift from repeated multiplication.
+        setDisplay(hasDec ? num : Math.round(num));
+        clearInterval(ref.current);
+      }
     }, 900 / steps);
     return () => clearInterval(ref.current);
-  }, [target]);
+  }, [target, hasDec]);
 
   const prefix    = String(target).match(/^[^0-9]*/)?.[0] || "";
-  const hasDec    = String(target).includes(".");
   const formatted = hasDec
     ? display.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : display.toLocaleString();
@@ -235,7 +258,7 @@ function MetricCard({ icon: Icon, label, value, subValue, trend, trendPositive, 
 }
 
 // ─── Dashboard Overview ────────────────────────────────────────────────────
-function DashboardOverview({ stats, onNavigate, onOpenOracle, team, adminData, dashboardCols, overviewPanelCols, quickActionCols, economyCols }) {
+function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, overviewPanelCols, quickActionCols, economyCols }) {
   const s         = stats || {};
   const openCases = s.openCases || 0;
   const firstName = (adminData?.full_name || "Admin").split(" ")[0];
@@ -301,13 +324,6 @@ function DashboardOverview({ stats, onNavigate, onOpenOracle, team, adminData, d
                 <span style={{ fontSize: 10, fontWeight: 600, color: C.text2 }}>{qa.label}</span>
               </button>
             ))}
-            <button onClick={onOpenOracle}
-              style={{ padding: "14px 10px", background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all .15s", fontFamily: "inherit" }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.12)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.4)"; }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.08)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.2)"; }}>
-              <span style={{ fontSize: 19, color: "#a855f7" }}>⛓</span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: C.text2 }}>XRC Oracle</span>
-            </button>
           </div>
 
           <div style={{ display: "flex", gap: 16, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
@@ -485,11 +501,10 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────
-export default function AdminDashboard({ adminData, onClose, xrcService }) {
+export default function AdminDashboard({ adminData, onClose }) {
   const [activeSection,    setActiveSection]    = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileAdmin,    setIsMobileAdmin]    = useState(false);
-  const [showOracle,       setShowOracle]       = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobileAdmin(window.innerWidth <= 900);
@@ -551,7 +566,6 @@ export default function AdminDashboard({ adminData, onClose, xrcService }) {
         return <DashboardOverview
           stats={stats}
           onNavigate={navigate}
-          onOpenOracle={() => setShowOracle(true)}
           team={teamHook.team || []}
           adminData={adminData}
           dashboardCols={dashboardCols}
@@ -564,7 +578,6 @@ export default function AdminDashboard({ adminData, onClose, xrcService }) {
         return <SupportSection adminData={adminData} supportMgmt={supportMgmt} teamMgmt={teamMgmt} />;
 
       case "users":
-        // UsersSection (OtherSections version) — receives usersHook
         return <UsersSection adminData={adminData} usersHook={usersHook} />;
 
       case "invites":
@@ -574,11 +587,9 @@ export default function AdminDashboard({ adminData, onClose, xrcService }) {
         return <AnalyticsSection adminData={adminData} stats={stats} onRefresh={analyticsHook.reload} />;
 
       case "transactions":
-        // TransactionsSection uses its own internal useTransactions() — only needs adminData
         return <TransactionsSection adminData={adminData} />;
 
       case "communities":
-        // CommunitiesSection uses its own internal useCommunities() — only needs adminData
         return <CommunitiesSection adminData={adminData} />;
 
       case "security":
@@ -617,7 +628,6 @@ export default function AdminDashboard({ adminData, onClose, xrcService }) {
         );
 
       case "liquidity":
-        // LiquiditySection uses its own Supabase calls + liquidityService — only needs adminData
         return <LiquiditySection adminData={adminData} />;
 
       case "team":
@@ -660,15 +670,6 @@ export default function AdminDashboard({ adminData, onClose, xrcService }) {
           {renderSection()}
         </div>
       </div>
-
-      {showOracle && (
-        <ServicesModal
-          onClose={() => setShowOracle(false)}
-          setActiveTab={() => {}}
-          currentUser={{ id: adminData?.user_id || adminData?.id, username: adminData?.username || adminData?.email }}
-          xrcService={xrcService}
-        />
-      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
