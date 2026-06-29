@@ -29,26 +29,45 @@ export default function TransactionsTab({ setPage }) {
     if (!profile?.id) return;
     setLoading(true); setError(null);
     try {
+      // Fetch ONLY PayWave transactions (airtime, data, bills, transfers, deposits, withdrawals)
       const { data, error:err } = await supabase
-        .from("wallet_history").select("*")
+        .from("paywave_transactions").select("*")
         .eq("user_id",profile.id)
-        .order("created_at",{ascending:false}).limit(50);
+        .order("created_at",{ascending:false}).limit(100);
       if (err) throw err;
-      const mapped = (data||[]).map(tx=>({
-        id:    tx.id,
-        type:  tx.change_type,
-        title: tx.reason||(tx.change_type==="credit"?"Received ₦":"Sent ₦"),
-        amount:Number(tx.amount),
-        date:  new Date(tx.created_at).toLocaleDateString("en-NG",{
-          month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",
-        }),
-      }));
+      
+      const mapped = (data||[]).map(tx=>{
+        const isCredit = ["deposit","receive"].includes(tx.transaction_type);
+        return {
+          id:    tx.id,
+          type:  isCredit?"credit":"debit",
+          title: {
+            airtime: "Airtime",
+            data: "Data",
+            electricity: "Electricity",
+            cable: "Cable TV",
+            transfer: "Transfer",
+            deposit: "Deposit",
+            withdrawal: "Withdrawal",
+            receive: "Received"
+          }[tx.transaction_type] || tx.transaction_type,
+          amount: Number(tx.net_amount || tx.amount),
+          fee: Number(tx.fee_amount || 0),
+          status: tx.status,
+          date: new Date(tx.created_at).toLocaleDateString("en-NG",{
+            month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",
+          }),
+          provider: tx.provider,
+        };
+      });
+      
       setTxs(mapped);
       const totalIn  = mapped.filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
       const totalOut = mapped.filter(t=>t.type==="debit").reduce((s,t)=>s+t.amount,0);
       setSummary({in:totalIn,out:totalOut});
     } catch(err) {
-      setError("Could not load transactions.");
+      console.error("PayWave transaction fetch error:", err);
+      setError("Could not load PayWave transactions.");
     } finally { setLoading(false); }
   }, [profile?.id]);
 
