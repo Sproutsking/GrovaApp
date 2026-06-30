@@ -55,7 +55,7 @@ function resolveTab(id) {
 }
 
 const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenSaved }) => {
-  const [visible,    setVisible]    = useState(false);
+  const [closing,    setClosing]    = useState(false);
   const [query,      setQuery]      = useState("");
   const [hovered,    setHovered]    = useState(null);
   const [showOracle, setShowOracle] = useState(false);
@@ -81,23 +81,9 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
   }, []);
 
   useEffect(() => {
-    let rafId;
-    let scrollLocked = false;
-    
-    const lockScroll = () => {
-      document.body.style.overflow = "hidden";
-      scrollLocked = true;
-    };
-    
-    rafId = requestAnimationFrame(() => {
-      setVisible(true);
-      lockScroll();
-    });
-    
+    document.body.style.overflow = "hidden";
     return () => {
-      cancelAnimationFrame(rafId);
-      // Only unlock if we locked it and it's still locked
-      if (scrollLocked && document.body.style.overflow === "hidden") {
+      if (document.body.style.overflow === "hidden") {
         document.body.style.overflow = "";
       }
     };
@@ -105,11 +91,11 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
 
   // Focus search on desktop only
   useEffect(() => {
-    if (!isMobile && visible) {
+    if (!isMobile) {
       const t = setTimeout(() => inputRef.current?.focus(), 200);
       return () => clearTimeout(t);
     }
-  }, [visible, isMobile]);
+  }, [isMobile]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -138,36 +124,36 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
     if (document.body.style.overflow === "hidden") {
       document.body.style.overflow = "";
     }
-    setVisible(false);
+    setClosing(true);
     // Clear any pending close timer
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(onClose, 280);
+    closeTimerRef.current = setTimeout(onClose, 180);
   };
 
   const navigate = (id) => {
-    // Unlock scroll before navigation
-    if (document.body.style.overflow === "hidden") {
-      document.body.style.overflow = "";
-    }
-    
     if (id === "saved") {
-      setVisible(false);
+      setActiveTab("account");
+      setClosing(true);
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       closeTimerRef.current = setTimeout(() => {
         if (typeof onOpenSaved === "function") onOpenSaved();
-        else setActiveTab("account");
-      }, 200);
+        onClose();
+      }, 120);
       return;
     }
+
     if (id === "oracle") {
-      setVisible(false);
+      setShowOracle(true);
+      setClosing(true);
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = setTimeout(() => setShowOracle(true), 200);
+      closeTimerRef.current = setTimeout(onClose, 120);
       return;
     }
-    setVisible(false);
+
+    setActiveTab(resolveTab(id));
+    setClosing(true);
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => setActiveTab(resolveTab(id)), 200);
+    closeTimerRef.current = setTimeout(onClose, 120);
   };
 
   // ── Desktop tile ──────────────────────────────────────────────────────────
@@ -261,11 +247,11 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
             0 24px 60px rgba(0,0,0,0.7),
             0 8px 24px rgba(0,0,0,0.5);
 
-          animation: dsmPanIn 0.3s cubic-bezier(0.34,1.1,0.64,1) both;
+          animation: dsmPanIn 0.22s cubic-bezier(0.34,1.1,0.64,1) both;
           font-family: 'Manrope', sans-serif;
         }
         .dsm-panel.out {
-          animation: dsmPanOut 0.28s ease forwards;
+          animation: dsmPanOut 0.22s ease forwards;
         }
 
         /* Top lime accent line */
@@ -492,9 +478,9 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           border-radius: 24px 24px 0 0;
           padding: 0 0 calc(88px + env(safe-area-inset-bottom));
           max-height: 88vh; overflow-y: auto;
-          animation: smPanInMob 0.3s cubic-bezier(0.34,1.12,0.64,1) both;
+          animation: smPanInMob 0.22s cubic-bezier(0.34,1.12,0.64,1) both;
         }
-        .sm-panel.out { animation: smPanOutMob 0.28s ease forwards; }
+        .sm-panel.out { animation: smPanOutMob 0.22s ease forwards; }
         .sm-panel::-webkit-scrollbar { display: none; }
 
         @media (max-width: 768px) {
@@ -539,8 +525,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
       {/* ── DESKTOP ── */}
       {!isMobile && (
         <>
-          <div className={`dsm-bg${!visible ? " out" : ""}`} onClick={close} />
-          <div className={`dsm-panel${!visible ? " out" : ""}`} ref={panelRef}>
+          <div className={`dsm-bg${closing ? " out" : ""}`} onClick={close} />
+          <div className={`dsm-panel${closing ? " out" : ""}`} ref={panelRef}>
             <div className="dsm-top-accent" />
 
             {/* Header */}
@@ -602,8 +588,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
       {/* ── MOBILE BOTTOM SHEET ── */}
       {isMobile && (
         <>
-          <div className={`sm-bg${!visible ? " out" : ""}`} onClick={close} />
-          <div ref={panelRef} className={`sm-panel${!visible ? " out" : ""}`}>
+          <div className={`sm-bg${closing ? " out" : ""}`} onClick={close} />
+          <div ref={panelRef} className={`sm-panel${closing ? " out" : ""}`}>
             <div className="sm-handle"><div className="sm-handle-bar" /></div>
             <div className="sm-glow-line" />
             <div className="sm-hdr">
