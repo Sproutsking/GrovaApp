@@ -11,7 +11,7 @@ import TransactionPinModal from "../../../Modals/TransactionPinModal";
 import TwoFAModal from "../../../Modals/TwoFAModal";
 import { supabase } from "../../../../services/config/supabase";
 import { useAuth } from "../../../../components/Auth/AuthContext";
-import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
+import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
 
 const fmtNGN = (n) =>
   Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
