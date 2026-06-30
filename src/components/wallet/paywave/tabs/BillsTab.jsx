@@ -166,7 +166,7 @@ function AirtimeView({ onBack, onSuccess }) {
         }}>
           <span style={{ fontSize: 14 }}>💰</span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: "var(--fb)" }}>
-            Cashback <span style={{ color: "var(--lime)", fontWeight: 700 }}>₦1–₦30</span> on every purchase
+            Cashback coming soon
           </span>
         </div>
         <div>
@@ -343,7 +343,7 @@ function DataView({ onBack, onSuccess }) {
         }}>
           <span style={{ fontSize: 14 }}>💰</span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: "var(--fb)" }}>
-            Earn up to <span style={{ color: "var(--lime)", fontWeight: 700 }}>₦30</span> cashback on data purchases
+            Cashback coming soon
           </span>
         </div>
         <div>

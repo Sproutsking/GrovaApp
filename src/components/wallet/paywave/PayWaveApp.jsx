@@ -11,6 +11,7 @@ import { Home, Zap, TrendingUp, History, User, ArrowLeft } from "lucide-react";
 import HomeTab from "./tabs/HomeTab";
 import ServicesTab from "./tabs/ServicesTab";
 import FinanceTab, { FinanceSubView } from "./tabs/FinanceTab";
+import WalletTab from "./tabs/WalletTab";
 import TransactionsTab from "./tabs/TransactionsTab";
 import AccountTab from "./tabs/AccountTab";
 import BillsTab from "./tabs/BillsTab";
@@ -649,7 +650,8 @@ export const GLOBAL_STYLES = `
 
 const MAIN_TABS = new Set(["home","services","finance","transactions","account"]);
 const BILLS_VIEWS = new Set(["airtime","data","tv","electricity","betting","giftcards","bills","services"]);
-const WALLET_VIEWS = new Set(["send","receive","invest","save","cards"]);
+const WALLET_ACTIONS = new Set(["send","receive"]);
+const FINANCE_VIEWS = new Set(["invest","save","cards"]);
 
 const BACK_MAP = {
   airtime:"home", data:"home", tv:"services", electricity:"home",
@@ -732,7 +734,10 @@ export default function PayWaveApp({ onBack, userId }) {
       return <AccountTab setPage={setPage} onSuccess={handleSuccess} />;
     if (BILLS_VIEWS.has(page))
       return <BillsTab view={page} onBack={goBack} onSuccess={handleSuccess} setPage={setPage} />;
-    if (WALLET_VIEWS.has(page))
+    if (WALLET_ACTIONS.has(page))
+      return <WalletTab view={page} pwBalance={pwBalance} onBack={goBack}
+        onSuccess={handleSuccess} userId={profile?.id} onRefresh={fetchBalance} />;
+    if (FINANCE_VIEWS.has(page))
       return <FinanceSubView view={page} pwBalance={pwBalance} onBack={goBack}
         onSuccess={handleSuccess} userId={profile?.id} onRefresh={fetchBalance} />;
     if (page === "notifications")

@@ -179,7 +179,7 @@ export default function PayWaveWrapper({ onBack, userId }) {
     return () => clearInterval(t);
   }, [fetchRates]);
 
-  const [activity, setActivity]     = useState({ transfersToday:"—",received:"—",cashback:"—",billsMonth:"—" });
+  const [activity, setActivity]     = useState({ transfersToday:"—",received:"—",cashback:"Coming soon",billsMonth:"—" });
   const [actLoading, setActLoading] = useState(false);
 
   const fetchActivity = useCallback(async () => {
@@ -198,11 +198,6 @@ export default function PayWaveWrapper({ onBack, userId }) {
         .eq("to_user_id",profile.id).gte("created_at",monthStart.toISOString());
       const totalReceived = (recvData||[]).reduce((s,r)=>s+Number(r.amount),0);
 
-      const { data:cbData } = await supabase
-        .from("cashback_transactions").select("amount")
-        .eq("user_id",profile.id).gte("created_at",monthStart.toISOString());
-      const totalCashback = (cbData||[]).reduce((s,r)=>s+Number(r.amount),0);
-
       const { data:billData } = await supabase
         .from("bill_payments").select("amount")
         .eq("user_id",profile.id).gte("created_at",monthStart.toISOString());
@@ -211,7 +206,7 @@ export default function PayWaveWrapper({ onBack, userId }) {
       setActivity({
         transfersToday:String(txToday??0),
         received:totalReceived>0?`₦${fmtNGN(totalReceived)}`:"₦0.00",
-        cashback:totalCashback>0?`₦${fmtNGN(totalCashback)}`:"₦0.00",
+        cashback:"Coming soon",
         billsMonth:totalBills>0?`₦${fmtNGN(totalBills)}`:"₦0.00",
       });
     } catch {}
@@ -246,8 +241,8 @@ export default function PayWaveWrapper({ onBack, userId }) {
   // Register back handler so popstate closes PayWave and allows native history
   useRegisterBack(() => {
     if (typeof onBack === "function") onBack();
-    // Return false so BackNavigationContext allows native navigation (go back)
-    return false;
+    // Return true to indicate the back event was handled by closing PayWave.
+    return true;
   }, [onBack]);
 
   const RefreshBtn = ({ onClick, loading, color = "rgba(163,230,53,0.55)" }) => (
@@ -354,7 +349,7 @@ export default function PayWaveWrapper({ onBack, userId }) {
             {[
               { label:"Transfers Today", val:activity.transfersToday, color:"rgba(255,255,255,0.5)" },
               { label:"Money Received",  val:activity.received,       color:"#a3e635" },
-              { label:"Cashback Earned", val:activity.cashback,       color:"#d4a847" },
+              { label:"Cashback",        val:activity.cashback,       color:"#d4a847" },
               { label:"Bills Month",     val:activity.billsMonth,     color:"rgba(255,255,255,0.38)" },
             ].map(({label,val,color}) => (
               <div key={label} className="stat-row">
