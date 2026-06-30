@@ -64,26 +64,26 @@ import BoostStyles               from "./components/Boost/BoostStyles";
 import { canAccessApp } from "./services/auth/paymentGate";
 
 // Shared UI
-import DesktopHeader           from "./components/Shared/DesktopHeader";
-import MobileHeader            from "./components/Shared/MobileHeader";
-import MobileBottomNav         from "./components/Shared/MobileBottomNav";
-import Sidebar                 from "./components/Shared/Sidebar";
-import AdminSidebar            from "./components/Shared/AdminSidebar";
-import SupportSidebar          from "./components/Shared/SupportSidebar";
-import NotificationSidebar     from "./components/Shared/NotificationSidebar";
-import InAppNotificationToast  from "./components/Shared/InAppNotificationToast";
-import PushPermissionNudge     from "./components/Shared/PushPermissionNudge";
-import AccountSwitchPrompt     from "./components/Shared/AccountSwitchPrompt";
-import PullToRefreshIndicator  from "./components/Shared/PullToRefreshIndicator";
-import NetworkError            from "./components/Shared/NetworkError";
-import IncomingCallToast       from "./components/Messages/IncomingCallToast";
+const DesktopHeader = lazy(() => import("./components/Shared/DesktopHeader"));
+const MobileHeader = lazy(() => import("./components/Shared/MobileHeader"));
+const MobileBottomNav = lazy(() => import("./components/Shared/MobileBottomNav"));
+const Sidebar = lazy(() => import("./components/Shared/Sidebar"));
+const AdminSidebar = lazy(() => import("./components/Shared/AdminSidebar"));
+const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
+const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
+const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
+const PushPermissionNudge = lazy(() => import("./components/Shared/PushPermissionNudge"));
+const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitchPrompt"));
+const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
+const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
+const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
 import xrcService              from "./services/xrc";
 // DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
 // Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
 // This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
 
 // Admin dashboard
-import AdminDashboard from "./components/Admin/AdminDashboard";
+const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboard"));
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
 const HomeView        = lazy(() => import("./components/Home/HomeView"));
@@ -910,29 +910,33 @@ const MainApp = memo(() => {
     if (isMobile || showAdminDashboard) return null;
     if (isAdmin) {
       return (
-        <AdminSidebar
+        <Suspense fallback={null}>
+          <AdminSidebar
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            onSignOut={handleSignOut}
+            user={user}
+            adminData={adminData}
+            onOpenDashboard={() => setShowAdminDashboard(true)}
+            xrcService={xrcService}
+          />
+        </Suspense>
+      );
+    }
+    return (
+      <Suspense fallback={null}>
+        <Sidebar
           activeTab={activeTab}
           setActiveTab={handleTabChange}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onSignOut={handleSignOut}
           user={user}
-          adminData={adminData}
-          onOpenDashboard={() => setShowAdminDashboard(true)}
           xrcService={xrcService}
         />
-      );
-    }
-    return (
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={handleTabChange}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        onSignOut={handleSignOut}
-        user={user}
-        xrcService={xrcService}
-      />
+      </Suspense>
     );
   };
 
@@ -969,6 +973,7 @@ const MainApp = memo(() => {
         }}
       >
         {!isMobile && (
+        <Suspense fallback={null}>
           <DesktopHeader
             activeTab={activeTab}
             setActiveTab={handleTabChange}
@@ -984,8 +989,10 @@ const MainApp = memo(() => {
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
           />
-        )}
-        {isMobile && (
+        </Suspense>
+      )}
+      {isMobile && (
+        <Suspense fallback={null}>
           <MobileHeader
             userBalance={userBalance}
             getGreeting={getGreeting}
@@ -1000,49 +1007,54 @@ const MainApp = memo(() => {
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
           />
-        )}
+        </Suspense>
+      )}
 
-        {renderSidebar()}
+      {renderSidebar()}
 
-        {!isMobile && (
-          <div className="desktop-layout">
-            {sidebarOpen && <div className="left-sidebar-placeholder" />}
-            <main ref={containerRef} className="main-content-desktop">
-              {renderContent()}
-            </main>
-            {showTrending && (
-              <Suspense fallback={null}>
-                <TrendingSidebar
-                  currentUser={currentUser}
-                  isMobile={false}
-                  setActiveTab={handleTabChange}
-                  setFeedFilter={setFeedFilter}
-                  onJoinStream={handleJoinStream}
-                />
-              </Suspense>
-            )}
-          </div>
-        )}
+      {!isMobile && (
+        <div className="desktop-layout">
+          {sidebarOpen && <div className="left-sidebar-placeholder" />}
+          <main ref={containerRef} className="main-content-desktop">
+            {renderContent()}
+          </main>
+          {showTrending && (
+            <Suspense fallback={null}>
+              <TrendingSidebar
+                currentUser={currentUser}
+                isMobile={false}
+                setActiveTab={handleTabChange}
+                setFeedFilter={setFeedFilter}
+                onJoinStream={handleJoinStream}
+              />
+            </Suspense>
+          )}
+        </div>
+      )}
 
-        {isMobile && (
-          <main ref={containerRef} className="main-content-mobile">
+      {isMobile && (
+        <main ref={containerRef} className="main-content-mobile">
+          <Suspense fallback={null}>
             <PullToRefreshIndicator
               pullDistance={pullDistance}
               isRefreshing={isRefreshing || isPulling}
             />
-            {renderContent()}
-          </main>
-        )}
+          </Suspense>
+          {renderContent()}
+        </main>
+      )}
 
-        {isMobile && (
+      {isMobile && (
+        <Suspense fallback={null}>
           <MobileBottomNav
             activeTab={activeTab}
             setActiveTab={handleTabChange}
             currentUser={currentUser}
             xrcService={xrcService}
           />
-        )}
-      </div>
+        </Suspense>
+      )}
+    </div>
 
       {showExitPrompt && (
         <div
@@ -1066,18 +1078,22 @@ const MainApp = memo(() => {
         </div>
       )}
 
-      <NotificationSidebar
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        userId={user?.id}
-        currentUser={currentUser}
-        onNavigate={handleNotificationNavigate}
-      />
-      <SupportSidebar
-        isOpen={showSupport}
-        onClose={() => setShowSupport(false)}
-        isMobile={isMobile}
-      />
+      <Suspense fallback={null}>
+        <NotificationSidebar
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          userId={user?.id}
+          currentUser={currentUser}
+          onNavigate={handleNotificationNavigate}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SupportSidebar
+          isOpen={showSupport}
+          onClose={() => setShowSupport(false)}
+          isMobile={isMobile}
+        />
+      </Suspense>
 
       {showMessages && (
         <Suspense fallback={null}>
@@ -1101,39 +1117,49 @@ const MainApp = memo(() => {
         </div>
       )}
 
-      <IncomingCallToast
-        onAccept={(callData) => {
-          setAcceptedCallData({ ...callData, outgoing: false });
-          setShowActiveCall(true);
-        }}
-        onDecline={(callId) => {
-          callService.declineCall(callId);
-        }}
-      />
-
-      <InAppNotificationToast
-        navigate={handleNotificationNavigate}
-        addToastRef={addToastRef}
-      />
-
-      <PushPermissionNudge userId={user?.id} />
-      <AccountSwitchPrompt
-        userId={user?.id}
-        userName={currentUser?.name || profile?.full_name || null}
-        onSwitchAccount={() => {
-          try {
-            window.dispatchEvent(new CustomEvent("xv:request_account_switch"));
-          } catch {}
-        }}
-      />
-
-      {showOfflineBanner && (
-        <NetworkError
-          onRetry={() => {
-            setShowOfflineBanner(false);
-            handleRefresh();
+      <Suspense fallback={null}>
+        <IncomingCallToast
+          onAccept={(callData) => {
+            setAcceptedCallData({ ...callData, outgoing: false });
+            setShowActiveCall(true);
+          }}
+          onDecline={(callId) => {
+            callService.declineCall(callId);
           }}
         />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <InAppNotificationToast
+          navigate={handleNotificationNavigate}
+          addToastRef={addToastRef}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <PushPermissionNudge userId={user?.id} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <AccountSwitchPrompt
+          userId={user?.id}
+          userName={currentUser?.name || profile?.full_name || null}
+          onSwitchAccount={() => {
+            try {
+              window.dispatchEvent(new CustomEvent("xv:request_account_switch"));
+            } catch {}
+          }}
+        />
+      </Suspense>
+
+      {showOfflineBanner && (
+        <Suspense fallback={null}>
+          <NetworkError
+            onRetry={() => {
+              setShowOfflineBanner(false);
+              handleRefresh();
+            }}
+          />
+        </Suspense>
       )}
 
       <style>{`
