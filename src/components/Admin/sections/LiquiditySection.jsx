@@ -1,17 +1,23 @@
 // src/components/Admin/sections/LiquiditySection.jsx
 // ============================================================================
-// ADMIN — LIQUIDITY ENGINE PANEL
+// ADMIN — LIQUIDITY ENGINE PANEL  (v2 — rebuilt against real schema/rules)
 //
-// Full admin control surface for the Xeevia Liquidity Engine:
-//   • Live system state badge (Healthy / Warning / Critical)
-//   • Key metrics: ratio, outstanding EP, net flow, velocity, queue length
-//   • 24h ratio sparkline chart (pure CSS + SVG)
-//   • Fee tier configuration (tier1/2/3 fee %, thresholds)
-//   • System state thresholds (warning / critical ratio)
-//   • Liquidity injection form
-//   • Release batched withdrawals button
-//   • Snapshot history table (last 10)
-//   • Real-time live subscription
+// CHANGES vs v1:
+//   • Controls tab fully replaced. The old per-tier fee model
+//     (tier1/2/3_fee_pct, tier1/2_max_ep, ecosystem_fee_pct) does not match
+//     the confirmed business rules and has been removed entirely:
+//       - Platform fee is a SINGLE flat rate (default 2%), burned on every
+//         withdrawal — not three separate tier fees.
+//       - Withdrawal limits are gated by profiles.reward_level (silver/
+//         gold/diamond), expressed in USD, converted to EP via the
+//         ep_per_usd peg (default 100) — not raw EP cutoffs.
+//   • Queue breakdown now labels tiers by their reward-level meaning
+//     ("Tier 1 · Silver", "Tier 2 · Gold", "Tier 3 · Diamond") instead of
+//     showing opaque tier numbers.
+//   • Everything else (sparkline, metric cards, state banner, history,
+//     injection form, snapshot/refresh buttons) is unchanged — those were
+//     already correctly designed; only the data contract underneath them
+//     was broken, which liquidityService.js v2 now fixes.
 // ============================================================================
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -42,6 +48,8 @@ import { supabase } from "../../../services/config/supabase";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtEP = (n) =>
   Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const fmtUSD = (n) =>
+  `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtPct = (n) => `${(Number(n || 0) * 100).toFixed(1)}%`;
 const fmtNum = (n) => Number(n || 0).toLocaleString();
 function timeAgo(iso) {
@@ -51,6 +59,13 @@ function timeAgo(iso) {
   if (d < 60) return `${d}m ago`;
   return `${Math.floor(d / 60)}h ago`;
 }
+
+const TIER_LABELS = {
+  1: "Tier 1 · Silver",
+  2: "Tier 2 · Gold",
+  3: "Tier 3 · Diamond",
+};
+const TIER_COLORS = { 1: "#f87171", 2: "#fbbf24", 3: "#34d399" };
 
 // ── Sparkline chart ───────────────────────────────────────────────────────────
 function Sparkline({ data, color, h = 48, w = 220 }) {
@@ -94,9 +109,7 @@ function Sparkline({ data, color, h = 48, w = 220 }) {
           <stop offset="100%" stopColor={color} stopOpacity="0.02" />
         </linearGradient>
       </defs>
-      {/* Fill */}
       <polygon points={`0,${h} ${points} ${w},${h}`} fill="url(#sparkGrad)" />
-      {/* Line */}
       <polyline
         points={points}
         fill="none"
@@ -105,7 +118,6 @@ function Sparkline({ data, color, h = 48, w = 220 }) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {/* Last dot */}
       <circle
         cx={((ratios.length - 1) / (ratios.length - 1)) * w}
         cy={h - ((ratios[ratios.length - 1] - min) / range) * h}
@@ -318,7 +330,6 @@ function HistoryRow({ snap }) {
         borderBottom: "1px solid #0e0e0e",
       }}
     >
-      {/* State dot */}
       <div
         style={{
           width: 8,
@@ -329,13 +340,9 @@ function HistoryRow({ snap }) {
           boxShadow: `0 0 6px ${cfg.color}`,
         }}
       />
-
-      {/* Time */}
       <div style={{ fontSize: 11, color: C.muted, flexShrink: 0, width: 70 }}>
         {timeAgo(snap.snapshot_at)}
       </div>
-
-      {/* Ratio bar */}
       <div style={{ flex: 1 }}>
         <div
           style={{
@@ -367,8 +374,6 @@ function HistoryRow({ snap }) {
           />
         </div>
       </div>
-
-      {/* Net flow */}
       <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11 }}>
         <div
           style={{
@@ -382,8 +387,6 @@ function HistoryRow({ snap }) {
         </div>
         <div style={{ fontSize: 9, color: C.muted }}>net flow</div>
       </div>
-
-      {/* Queue */}
       <div style={{ width: 36, textAlign: "center", flexShrink: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
           {snap.queue_length || 0}
@@ -405,19 +408,18 @@ export default function LiquiditySection({ adminData }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [toast, setToast] = useState(null);
 
-  // Config edit state
+  // Config edit state — field names now match the REAL liquidity_config
+  // schema: ep_per_usd, platform_fee_pct, silver/gold/diamond_max_usd,
+  // warning_threshold, critical_threshold. No more tier1/2/3_fee_pct.
   const [cfg, setCfg] = useState({});
   const [savingCfg, setSavingCfg] = useState(false);
 
-  // Injection state
   const [injectAmt, setInjectAmt] = useState("");
   const [injectReason, setInjectReason] = useState("");
   const [injecting, setInjecting] = useState(false);
 
-  // Batch release state
   const [releasing, setReleasing] = useState(false);
 
-  // Queue stats
   const [queueStats, setQueueStats] = useState(null);
 
   const showToast = (text, ok = true) => {
@@ -436,16 +438,19 @@ export default function LiquiditySection({ adminData }) {
         (async () => {
           const { data } = await supabase
             .from("withdrawal_queue")
-            .select("status,processing_tier,ep_amount");
+            .select("status,processing_tier,net_ep");
           if (!data) return null;
           const queued = data.filter((r) => r.status === "queued").length;
           const batched = data.filter((r) => r.status === "batched").length;
           const totalEP = data
             .filter((r) => ["queued", "batched"].includes(r.status))
-            .reduce((s, r) => s + Number(r.ep_amount || 0), 0);
+            .reduce((s, r) => s + Number(r.net_ep || 0), 0);
           const byTier = { 1: 0, 2: 0, 3: 0 };
           data.forEach((r) => {
-            if (byTier[r.processing_tier] !== undefined)
+            if (
+              byTier[r.processing_tier] !== undefined &&
+              ["queued", "batched"].includes(r.status)
+            )
               byTier[r.processing_tier]++;
           });
           return { queued, batched, totalEP, byTier };
@@ -456,17 +461,16 @@ export default function LiquiditySection({ adminData }) {
       setHistory(hist);
       setQueueStats(qStats);
 
-      // Initialise config edit state
+      // Initialise config edit state with the REAL field names
       if (dash?.config) {
         setCfg({
+          ep_per_usd: dash.config.ep_per_usd,
+          platform_fee_pct: dash.config.platform_fee_pct,
+          silver_max_usd: dash.config.silver_max_usd,
+          gold_max_usd: dash.config.gold_max_usd,
+          diamond_max_usd: dash.config.diamond_max_usd,
           warning_threshold: dash.config.warning_threshold,
           critical_threshold: dash.config.critical_threshold,
-          tier1_max_ep: dash.config.tier1_max_ep,
-          tier2_max_ep: dash.config.tier2_max_ep,
-          tier1_fee_pct: dash.config.tier1_fee_pct,
-          tier2_fee_pct: dash.config.tier2_fee_pct,
-          tier3_fee_pct: dash.config.tier3_fee_pct,
-          ecosystem_fee_pct: dash.config.ecosystem_fee_pct,
         });
       }
     } catch (e) {
@@ -517,14 +521,13 @@ export default function LiquiditySection({ adminData }) {
       await liquidityService.updateLiquidityConfig(
         adminData?.user_id || adminData?.id,
         {
+          ep_per_usd: parseFloat(cfg.ep_per_usd),
+          platform_fee_pct: parseFloat(cfg.platform_fee_pct),
+          silver_max_usd: parseFloat(cfg.silver_max_usd),
+          gold_max_usd: parseFloat(cfg.gold_max_usd),
+          diamond_max_usd: parseFloat(cfg.diamond_max_usd),
           warning_threshold: parseFloat(cfg.warning_threshold),
           critical_threshold: parseFloat(cfg.critical_threshold),
-          tier1_max_ep: parseFloat(cfg.tier1_max_ep),
-          tier2_max_ep: parseFloat(cfg.tier2_max_ep),
-          tier1_fee_pct: parseFloat(cfg.tier1_fee_pct),
-          tier2_fee_pct: parseFloat(cfg.tier2_fee_pct),
-          tier3_fee_pct: parseFloat(cfg.tier3_fee_pct),
-          ecosystem_fee_pct: parseFloat(cfg.ecosystem_fee_pct),
         },
       );
       showToast("✓ Config saved");
@@ -566,16 +569,8 @@ export default function LiquiditySection({ adminData }) {
   const handleReleaseBatch = async () => {
     setReleasing(true);
     try {
-      const { data, error } = await supabase
-        .from("withdrawal_queue")
-        .update({ status: "queued" })
-        .eq("status", "batched")
-        .select("id");
-
-      if (error) throw new Error(error.message);
-      showToast(
-        `✓ Released ${(data || []).length} batched withdrawals to queue`,
-      );
+      const { released } = await liquidityService.releaseBatchedWithdrawals();
+      showToast(`✓ Released ${released} batched withdrawals to queue`);
       await load();
     } catch (e) {
       showToast(e.message, false);
@@ -589,6 +584,15 @@ export default function LiquiditySection({ adminData }) {
   const state = snap?.system_state || "healthy";
   const stCfg = SYSTEM_STATE_CONFIG[state] || SYSTEM_STATE_CONFIG.healthy;
   const ratio = Number(snap?.liquidity_ratio || 0);
+  const epPerUsd = Number(dashboard?.config?.ep_per_usd) || 100;
+
+  // Live EP equivalents for the reward-level limits, recalculated as the
+  // admin edits cfg fields so they see the EP impact immediately.
+  const liveLimitsEP = {
+    silver: (parseFloat(cfg.silver_max_usd) || 0) * (parseFloat(cfg.ep_per_usd) || epPerUsd),
+    gold: (parseFloat(cfg.gold_max_usd) || 0) * (parseFloat(cfg.ep_per_usd) || epPerUsd),
+    diamond: (parseFloat(cfg.diamond_max_usd) || 0) * (parseFloat(cfg.ep_per_usd) || epPerUsd),
+  };
 
   const TABS = [
     { id: "overview", label: "Overview", icon: "📊" },
@@ -648,7 +652,6 @@ export default function LiquiditySection({ adminData }) {
             >
               Liquidity Engine
             </h2>
-            {/* Live indicator */}
             <div
               style={{
                 display: "flex",
@@ -683,8 +686,9 @@ export default function LiquiditySection({ adminData }) {
             </div>
           </div>
           <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>
-            Monitor EP liquidity health · Control withdrawal tiers · Inject
-            liquidity
+            Every EP is backed by real deposits · 1 USD = {epPerUsd} EP · Flat{" "}
+            {fmtPct((dashboard?.config?.platform_fee_pct || 2) / 100)} burn fee
+            on withdrawals
           </p>
         </div>
         <div style={{ display: "flex", gap: 7 }}>
@@ -745,7 +749,6 @@ export default function LiquiditySection({ adminData }) {
         </div>
       )}
 
-      {/* ── State banner ── */}
       {!loading && (
         <div style={{ marginBottom: 20 }}>
           <StateBanner state={state} />
@@ -766,28 +769,28 @@ export default function LiquiditySection({ adminData }) {
             icon={BarChart3}
             label="Liquidity Ratio"
             value={`${(ratio * 100).toFixed(1)}%`}
-            sub="Available / Outstanding"
+            sub="Reserve / Outstanding EP"
             color={stCfg.color}
           />
           <MetricCard
             icon={Zap}
             label="Outstanding EP"
             value={fmtEP(snap.outstanding_ep)}
-            sub="All user wallets"
+            sub={`≈ ${fmtUSD(snap.outstanding_ep / epPerUsd)} liability`}
             color={C.info}
           />
           <MetricCard
             icon={TrendingUp}
             label="Net Flow (7d)"
             value={`${Number(snap.net_flow_ep) >= 0 ? "+" : ""}${fmtEP(snap.net_flow_ep)}`}
-            sub="Deposits − Withdrawals"
+            sub="Backed deposits − payouts"
             color={Number(snap.net_flow_ep) >= 0 ? C.success : C.danger}
           />
           <MetricCard
             icon={Activity}
             label="Withdrawal Vel."
             value={fmtEP(snap.withdrawal_velocity_24h)}
-            sub="EP withdrawn / 24h"
+            sub="Net EP paid out / 24h"
             color={C.warn}
           />
           <MetricCard
@@ -843,7 +846,6 @@ export default function LiquiditySection({ adminData }) {
       ══════════════════════════════════════════════════════════════════ */}
       {activeTab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Sparkline card */}
           <div
             style={{
               background: "#0f0f0f",
@@ -878,7 +880,6 @@ export default function LiquiditySection({ adminData }) {
               </div>
             </div>
             <Sparkline data={history} color={stCfg.color} />
-            {/* Threshold markers */}
             <div
               style={{
                 display: "flex",
@@ -890,14 +891,14 @@ export default function LiquiditySection({ adminData }) {
             >
               {[
                 {
-                  label: "Healthy threshold",
-                  val: dashboard?.config?.warning_threshold || 0.3,
-                  color: C.success,
+                  label: "Warning below",
+                  val: dashboard?.config?.warning_threshold ?? 0.3,
+                  color: C.warn,
                 },
                 {
-                  label: "Warning threshold",
-                  val: dashboard?.config?.critical_threshold || 0.15,
-                  color: C.warn,
+                  label: "Critical below",
+                  val: dashboard?.config?.critical_threshold ?? 0.15,
+                  color: C.danger,
                 },
               ].map((m) => (
                 <div
@@ -923,7 +924,7 @@ export default function LiquiditySection({ adminData }) {
             </div>
           </div>
 
-          {/* Withdrawal queue breakdown */}
+          {/* Withdrawal queue breakdown — now labeled by reward level */}
           {queueStats && (
             <div
               style={{
@@ -938,42 +939,68 @@ export default function LiquiditySection({ adminData }) {
                   fontSize: 13,
                   fontWeight: 800,
                   color: C.text,
-                  marginBottom: 14,
+                  marginBottom: 4,
                 }}
               >
                 Withdrawal Queue
               </div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 14 }}>
+                Tier is derived from each user's reward level at request time
+              </div>
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 10,
+                  marginBottom: 10,
+                }}
+              >
+                {[1, 2, 3].map((tier) => (
+                  <div
+                    key={tier}
+                    style={{
+                      background: "#0a0a0a",
+                      border: "1px solid #141414",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      borderTop: `3px solid ${TIER_COLORS[tier]}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: C.muted,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {TIER_LABELS[tier]}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 900,
+                        color: TIER_COLORS[tier],
+                      }}
+                    >
+                      {queueStats.byTier[tier] || 0}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
                   gap: 10,
                 }}
               >
                 {[
                   { label: "Queued", value: queueStats.queued, color: C.info },
+                  { label: "Batched", value: queueStats.batched, color: C.warn },
                   {
-                    label: "Batched",
-                    value: queueStats.batched,
-                    color: C.warn,
-                  },
-                  {
-                    label: "Tier 1",
-                    value: queueStats.byTier[1],
-                    color: "#f87171",
-                  },
-                  {
-                    label: "Tier 2",
-                    value: queueStats.byTier[2],
-                    color: "#fbbf24",
-                  },
-                  {
-                    label: "Tier 3",
-                    value: queueStats.byTier[3],
-                    color: "#34d399",
-                  },
-                  {
-                    label: "Total EP Pending",
+                    label: "Net EP Pending",
                     value: fmtEP(queueStats.totalEP) + " EP",
                     color: C.accent,
                   },
@@ -1009,7 +1036,6 @@ export default function LiquiditySection({ adminData }) {
                 ))}
               </div>
 
-              {/* Release batch button */}
               {queueStats.batched > 0 && (
                 <button
                   onClick={handleReleaseBatch}
@@ -1043,7 +1069,7 @@ export default function LiquiditySection({ adminData }) {
             </div>
           )}
 
-          {/* Engagement flow */}
+          {/* Engagement flow + backing explainer */}
           {snap && (
             <div
               style={{
@@ -1065,8 +1091,8 @@ export default function LiquiditySection({ adminData }) {
                   Engagement flow (24h):
                 </strong>{" "}
                 {fmtEP(snap.engagement_flow_24h)} EP spent on
-                likes/comments/shares. This EP stays in the ecosystem and
-                supports liquidity. Net flow (7d):{" "}
+                likes/comments/shares — stays in the ecosystem, doesn't draw
+                on the reserve. Net flow (7d):{" "}
                 <strong
                   style={{
                     color: Number(snap.net_flow_ep) >= 0 ? C.success : C.danger,
@@ -1074,7 +1100,10 @@ export default function LiquiditySection({ adminData }) {
                 >
                   {Number(snap.net_flow_ep) >= 0 ? "+" : ""}
                   {fmtEP(snap.net_flow_ep)} EP
-                </strong>
+                </strong>{" "}
+                · Every EP minted is backed by a real deposit — the ratio
+                falls only when unbacked EP (bonuses, invite grants) is
+                issued or withdrawals outpace new deposits.
               </div>
             </div>
           )}
@@ -1082,13 +1111,13 @@ export default function LiquiditySection({ adminData }) {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          CONTROLS TAB
+          CONTROLS TAB — rebuilt around the real model
       ══════════════════════════════════════════════════════════════════ */}
       {activeTab === "controls" && (
         <div
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
         >
-          {/* Fee config */}
+          {/* Withdrawal limits + flat fee */}
           <div
             style={{
               background: "#0f0f0f",
@@ -1105,65 +1134,72 @@ export default function LiquiditySection({ adminData }) {
                 marginBottom: 4,
               }}
             >
-              Fee Configuration
+              Withdrawal Limits & Fee
             </div>
             <div style={{ fontSize: 10, color: C.muted, marginBottom: 18 }}>
-              Withdrawal tier fees and ecosystem fee
+              Limits are gated by reward level (silver/gold/diamond), not raw
+              EP cutoffs. A single flat fee is burned on every withdrawal.
             </div>
 
             <ConfigField
-              label="Ecosystem fee (all EP transactions)"
-              value={cfg.ecosystem_fee_pct || ""}
-              onChange={(v) => setCfg((p) => ({ ...p, ecosystem_fee_pct: v }))}
+              label="EP per USD (mint/redeem peg)"
+              value={cfg.ep_per_usd ?? ""}
+              onChange={(v) => setCfg((p) => ({ ...p, ep_per_usd: v }))}
+              suffix="EP / $1"
+              note="Default: 100"
+            />
+            <ConfigField
+              label="Platform fee (burned, not routed to treasury)"
+              value={cfg.platform_fee_pct ?? ""}
+              onChange={(v) => setCfg((p) => ({ ...p, platform_fee_pct: v }))}
               suffix="%"
-              note="Flat 2% recommended"
+              note="Default: 2% flat, all tiers"
             />
             <div
               style={{ height: 1, background: "#1a1a1a", margin: "14px 0" }}
             />
             <ConfigField
-              label="Tier 1 max EP (lower bound for Tier 2)"
-              value={cfg.tier1_max_ep || ""}
-              onChange={(v) => setCfg((p) => ({ ...p, tier1_max_ep: v }))}
-              suffix="EP"
-              note="Default: 1,000"
+              label="Silver max withdrawal (per request)"
+              value={cfg.silver_max_usd ?? ""}
+              onChange={(v) => setCfg((p) => ({ ...p, silver_max_usd: v }))}
+              suffix="USD"
+              note={`≈ ${fmtEP(liveLimitsEP.silver)} EP`}
             />
             <ConfigField
-              label="Tier 2 max EP (lower bound for Tier 3)"
-              value={cfg.tier2_max_ep || ""}
-              onChange={(v) => setCfg((p) => ({ ...p, tier2_max_ep: v }))}
-              suffix="EP"
-              note="Default: 10,000"
+              label="Gold max withdrawal (per request)"
+              value={cfg.gold_max_usd ?? ""}
+              onChange={(v) => setCfg((p) => ({ ...p, gold_max_usd: v }))}
+              suffix="USD"
+              note={`≈ ${fmtEP(liveLimitsEP.gold)} EP`}
             />
+            <ConfigField
+              label="Diamond max withdrawal (per request)"
+              value={cfg.diamond_max_usd ?? ""}
+              onChange={(v) => setCfg((p) => ({ ...p, diamond_max_usd: v }))}
+              suffix="USD"
+              note={`≈ ${fmtEP(liveLimitsEP.diamond)} EP`}
+            />
+
             <div
-              style={{ height: 1, background: "#1a1a1a", margin: "14px 0" }}
-            />
-            <ConfigField
-              label="Tier 1 fee (100–1,000 EP) · Lowest priority"
-              value={cfg.tier1_fee_pct || ""}
-              onChange={(v) => setCfg((p) => ({ ...p, tier1_fee_pct: v }))}
-              suffix="%"
-              note="Default: 4%"
-            />
-            <ConfigField
-              label="Tier 2 fee (1,001–10,000 EP) · Normal priority"
-              value={cfg.tier2_fee_pct || ""}
-              onChange={(v) => setCfg((p) => ({ ...p, tier2_fee_pct: v }))}
-              suffix="%"
-              note="Default: 3%"
-            />
-            <ConfigField
-              label="Tier 3 fee (10,001+ EP) · Highest priority"
-              value={cfg.tier3_fee_pct || ""}
-              onChange={(v) => setCfg((p) => ({ ...p, tier3_fee_pct: v }))}
-              suffix="%"
-              note="Default: 2%"
-            />
+              style={{
+                padding: "10px 13px",
+                borderRadius: 10,
+                background: "rgba(52,211,153,.04)",
+                border: "1px solid rgba(52,211,153,.14)",
+                fontSize: 10,
+                color: "#5a8a72",
+                lineHeight: 1.65,
+                marginTop: 8,
+              }}
+            >
+              <strong style={{ color: C.success }}>Diamond priority:</strong>{" "}
+              Tier 3 (Diamond) withdrawals continue processing even during a
+              Critical liquidity state — Tier 1/2 are batched until recovery.
+            </div>
           </div>
 
           {/* Threshold config + inject */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Threshold config */}
             <div
               style={{
                 background: "#0f0f0f",
@@ -1188,7 +1224,7 @@ export default function LiquiditySection({ adminData }) {
 
               <ConfigField
                 label="Warning threshold (ratio below → WARNING)"
-                value={cfg.warning_threshold || ""}
+                value={cfg.warning_threshold ?? ""}
                 onChange={(v) =>
                   setCfg((p) => ({ ...p, warning_threshold: v }))
                 }
@@ -1196,7 +1232,7 @@ export default function LiquiditySection({ adminData }) {
               />
               <ConfigField
                 label="Critical threshold (ratio below → CRITICAL)"
-                value={cfg.critical_threshold || ""}
+                value={cfg.critical_threshold ?? ""}
                 onChange={(v) =>
                   setCfg((p) => ({ ...p, critical_threshold: v }))
                 }
@@ -1223,7 +1259,6 @@ export default function LiquiditySection({ adminData }) {
               </div>
             </div>
 
-            {/* Save button */}
             <button
               onClick={handleSaveCfg}
               disabled={savingCfg}
@@ -1249,7 +1284,6 @@ export default function LiquiditySection({ adminData }) {
               {savingCfg ? "Saving…" : "Save Configuration"}
             </button>
 
-            {/* Liquidity injection */}
             <div
               style={{
                 background: "#0f0f0f",
@@ -1269,8 +1303,9 @@ export default function LiquiditySection({ adminData }) {
                 💉 Inject Liquidity
               </div>
               <div style={{ fontSize: 10, color: C.muted, marginBottom: 16 }}>
-                Credit EP to the reserve treasury. This increases
-                available_liquidity_ep and improves the system state ratio.
+                Manually credits the reserve. This EP is unbacked unless you
+                separately record a matching real-world transfer — use only
+                for emergency stabilization.
               </div>
 
               <ConfigField
@@ -1278,9 +1313,9 @@ export default function LiquiditySection({ adminData }) {
                 value={injectAmt}
                 onChange={setInjectAmt}
                 suffix="EP"
-                note="Min 100 EP"
+                note={`≈ ${fmtUSD((parseFloat(injectAmt) || 0) / epPerUsd)}`}
               />
-              <div className="wd-field" style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
                     fontSize: 10,
@@ -1289,12 +1324,12 @@ export default function LiquiditySection({ adminData }) {
                     marginBottom: 6,
                   }}
                 >
-                  Reason / notes
+                  Reason / notes (required)
                 </div>
                 <input
                   value={injectReason}
                   onChange={(e) => setInjectReason(e.target.value)}
-                  placeholder="e.g. Liquidity rebalancing Q1…"
+                  placeholder="e.g. Emergency stabilization, Q1 promo backing…"
                   style={{
                     width: "100%",
                     background: "#0c0c0c",
@@ -1316,20 +1351,26 @@ export default function LiquiditySection({ adminData }) {
 
               <button
                 onClick={handleInject}
-                disabled={injecting || !injectAmt}
+                disabled={injecting || !injectAmt || !injectReason.trim()}
                 style={{
                   width: "100%",
                   padding: "11px",
                   borderRadius: 11,
                   border: "none",
                   background:
-                    injecting || !injectAmt
+                    injecting || !injectAmt || !injectReason.trim()
                       ? "#1a1a1a"
                       : `linear-gradient(135deg, ${C.success}, #059669)`,
-                  color: injecting || !injectAmt ? "#333" : "#001a0d",
+                  color:
+                    injecting || !injectAmt || !injectReason.trim()
+                      ? "#333"
+                      : "#001a0d",
                   fontWeight: 800,
                   fontSize: 12,
-                  cursor: injecting || !injectAmt ? "not-allowed" : "pointer",
+                  cursor:
+                    injecting || !injectAmt || !injectReason.trim()
+                      ? "not-allowed"
+                      : "pointer",
                   fontFamily: "inherit",
                   display: "flex",
                   alignItems: "center",
@@ -1410,7 +1451,6 @@ export default function LiquiditySection({ adminData }) {
             </div>
           ) : (
             <>
-              {/* Column headers */}
               <div
                 style={{
                   display: "flex",
@@ -1419,15 +1459,7 @@ export default function LiquiditySection({ adminData }) {
                   borderBottom: "1px solid #111",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    color: "#333",
-                    textTransform: "uppercase",
-                    width: 8,
-                  }}
-                />
+                <div style={{ width: 8 }} />
                 <div
                   style={{
                     fontSize: 9,
@@ -1473,8 +1505,8 @@ export default function LiquiditySection({ adminData }) {
                   QUEUE
                 </div>
               </div>
-              {history.slice(0, 50).map((snap, i) => (
-                <HistoryRow key={snap.id || i} snap={snap} />
+              {history.slice(0, 50).map((s, i) => (
+                <HistoryRow key={s.id || i} snap={s} />
               ))}
             </>
           )}

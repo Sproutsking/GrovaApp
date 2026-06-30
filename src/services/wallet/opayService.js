@@ -76,11 +76,12 @@ export async function withdrawToBank({
   bankAccount,
   bankCode,
   accountName,
+  withdrawalPin,
 }) {
   const acc = String(bankAccount || "").replace(/\D/g, "");
   const amt = cleanNumber(amount);
 
-  if (!userId || !amt || !acc || !bankCode) {
+  if (!userId || !amt || !acc || !bankCode || !withdrawalPin) {
     return { success: false, error: "Invalid parameters" };
   }
 
@@ -97,11 +98,11 @@ export async function withdrawToBank({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId,
           amount: amt,
           bankAccount: acc,
           bankCode,
           accountName,
+          withdrawalPin,
         }),
       }
     );
@@ -122,11 +123,11 @@ export async function withdrawToBank({
   }
 }
 
-export async function withdrawToOPayWallet({ userId, opayPhone, amount }) {
+export async function withdrawToOPayWallet({ userId, opayPhone, amount, withdrawalPin }) {
   const phone = cleanPhone(opayPhone);
   const amt = cleanNumber(amount);
 
-  if (!userId || !phone || !amt) {
+  if (!userId || !phone || !amt || !withdrawalPin) {
     return { success: false, error: "Invalid parameters" };
   }
 
@@ -143,9 +144,9 @@ export async function withdrawToOPayWallet({ userId, opayPhone, amount }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId,
           amount: amt,
           opayPhone: phone,
+          withdrawalPin,
         }),
       }
     );

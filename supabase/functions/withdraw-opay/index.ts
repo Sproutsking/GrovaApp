@@ -2,6 +2,13 @@
 // OPay withdrawal: Send to bank account or OPay wallet
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import {
+  getCorsHeaders,
+  requireAuth,
+  validateEnv,
+  jsonResponse,
+  errorResponse,
+} from "../_shared/payments.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -13,16 +20,17 @@ const opayMerchantId = Deno.env.get("OPAY_MERCHANT_ID")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 serve(async (req) => {
+  const headers = getCorsHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers });
+  }
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return errorResponse("Method not allowed", 405, "METHOD_NOT_ALLOWED", req);
   }
 
   try {
     const {
-      userId,
+      userId: bodyUserId,
       amount,
       bankAccount,
       bankCode,
@@ -31,12 +39,55 @@ serve(async (req) => {
       withdrawalPin,
     } = await req.json();
 
-    if (!userId || !amount) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing required fields: userId, amount",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+    const authResult = await requireAuth(req);
+    const userId = authResult.userId;
+
+    if (bodyUserId && bodyUserId !== userId) {
+      return errorResponse(
+        "Unauthorized: mismatched user identity",
+        401,
+        "UNAUTHORIZED",
+        req,
+      );
+    }
+
+    if (!amount) {
+      return errorResponse(
+        "Missing required field: amount",
+        400,
+        "INVALID_REQUEST",
+        req,
+      );
+    }
+
+    if (!withdrawalPin) {
+      return errorResponse(
+        "Withdrawal PIN required",
+        400,
+        "PIN_REQUIRED",
+        req,
+      );
+    }
+
+    const {
+      data: pinValidation,
+      error: pinValidationError,
+    } = await supabase.rpc("verify_withdrawal_pin", {
+      p_user_id: userId,
+      p_pin: withdrawalPin,
+    });
+
+    const validPin =
+      pinValidation === true ||
+      pinValidation?.success === true ||
+      (typeof pinValidation === "object" && pinValidation?.success === true);
+
+    if (pinValidationError || !validPin) {
+      return errorResponse(
+        pinValidationError?.message || "Invalid withdrawal PIN",
+        401,
+        "PIN_INVALID",
+        req,
       );
     }
 
@@ -61,7 +112,7 @@ serve(async (req) => {
           available: walletData.paywave_balance,
           requested: amount,
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers },
       );
     }
 
@@ -156,12 +207,11 @@ serve(async (req) => {
         .update({ status: "failed" })
         .eq("id", txData.id);
 
-      return new Response(
-        JSON.stringify({
-          error: error.message || "OPay disbursement failed",
-          provider_error: error,
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+      return errorResponse(
+        error.message || "OPay disbursement failed",
+        400,
+        "OPAY_DISBURSEMENT_FAILED",
+        req,
       );
     }
 
@@ -205,9 +255,11 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("[withdraw-opay] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+    return errorResponse(
+      error instanceof Error ? error.message : "Internal server error",
+      500,
+      "INTERNAL_ERROR",
+      req,
     );
   }
 });

@@ -56,6 +56,65 @@ const STATUS_COLOR = {
   EXPIRED: "#4b5563",
 };
 
+const TRADE_STEPS = {
+  buyer: [
+    {
+      title: "Escrow secured",
+      description: "Seller funds are locked in escrow. Do not pay outside the app.",
+    },
+    {
+      title: "Send payment",
+      description: "Pay the seller using the agreed method and keep the receipt.",
+    },
+    {
+      title: "Confirm payment sent",
+      description: "Tell the seller you have sent payment so they can verify it.",
+    },
+    {
+      title: "Wait for release",
+      description: "Seller releases asset once payment is confirmed.",
+    },
+  ],
+  seller: [
+    {
+      title: "Escrow secured",
+      description: "Your asset is safely locked in escrow for this trade.",
+    },
+    {
+      title: "Wait for payment",
+      description: "Buyer needs to send payment before you release funds.",
+    },
+    {
+      title: "Confirm receipt",
+      description: "Verify buyer payment and only then release escrow.",
+    },
+    {
+      title: "Release escrow",
+      description: "Release the asset to complete the trade.",
+    },
+  ],
+};
+
+function getTradeStage(role, status) {
+  if (status === "ESCROW_LOCKED" || status === "PAYMENT_PENDING") return 2;
+  if (status === "PAYMENT_SENT") return role === "buyer" ? 4 : 3;
+  if (status === "COMPLETED") return 5;
+  return 1;
+}
+
+function buildTradeSteps(role, status) {
+  const steps = TRADE_STEPS[role] || TRADE_STEPS.buyer;
+  const stage = getTradeStage(role, status);
+  return steps.map((step, index) => {
+    const stepNumber = index + 1;
+    let state = "pending";
+    if (status === "COMPLETED") state = "complete";
+    else if (stepNumber < stage) state = "complete";
+    else if (stepNumber === stage) state = "active";
+    return { ...step, state };
+  });
+}
+
 function initials(n) {
   return (
     (n || "")
@@ -2641,10 +2700,100 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
               </div>
 
               <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: 10,
+                  marginTop: 18,
+                }}
+              >
+                {buildTradeSteps(
+                  activeTrade?.buyer_id === userId ? "buyer" : "seller",
+                  activeTrade?.status || "ESCROW_LOCKED",
+                ).map((step, index) => (
+                  <div
+                    key={step.title}
+                    style={{
+                      borderRadius: 18,
+                      padding: 14,
+                      background:
+                        step.state === "complete"
+                          ? "rgba(34,197,94,0.08)"
+                          : step.state === "active"
+                          ? "rgba(59,130,246,0.08)"
+                          : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${
+                        step.state === "complete"
+                          ? "rgba(34,197,94,0.2)"
+                          : step.state === "active"
+                          ? "rgba(59,130,246,0.2)"
+                          : "rgba(255,255,255,0.05)"
+                      }`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: "50%",
+                          display: "grid",
+                          placeItems: "center",
+                          background:
+                            step.state === "complete"
+                              ? "#16a34a"
+                              : step.state === "active"
+                              ? "#2563eb"
+                              : "rgba(255,255,255,0.08)",
+                          color: step.state === "pending" ? "#888" : "#fff",
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {step.state === "complete" ? "✓" : index + 1}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color:
+                            step.state === "active"
+                              ? "#2563eb"
+                              : step.state === "complete"
+                              ? "#16a34a"
+                              : "#999",
+                        }}
+                      >
+                        {step.state === "active"
+                          ? "Current"
+                          : step.state === "complete"
+                          ? "Done"
+                          : "Pending"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                      {step.title}
+                    </div>
+                    <div style={{ fontSize: 12, lineHeight: 1.5, color: "#aaa" }}>
+                      {step.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div
                 className="summary-card"
                 style={{
                   background: "rgba(132,204,22,0.05)",
                   borderColor: "rgba(132,204,22,0.2)",
+                  marginTop: 12,
                 }}
               >
                 <div className="summary-title" style={{ color: "#84cc16" }}>
@@ -2674,8 +2823,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                   <div className="summary-detail">
                     <span className="summary-detail-label">Price</span>
                     <span className="summary-detail-value">
-                      {selectedOffer.price.toLocaleString()}{" "}
-                      {selectedOffer.currency}/{selectedOffer.asset}
+                      {selectedOffer.price.toLocaleString()} {selectedOffer.currency}/{selectedOffer.asset}
                     </span>
                   </div>
                   <div className="summary-detail">
@@ -2688,10 +2836,7 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                         fontFamily: "JetBrains Mono,monospace",
                       }}
                     >
-                      {(
-                        parseFloat(tradeAmount) * selectedOffer.price
-                      ).toLocaleString()}{" "}
-                      {selectedOffer.currency}
+                      {(parseFloat(tradeAmount) * selectedOffer.price).toLocaleString()} {selectedOffer.currency}
                     </span>
                   </div>
                   <div className="summary-detail">
@@ -2716,137 +2861,178 @@ const TradeTab = ({ setActiveTab, userId, balance }) => {
                 </div>
               </div>
 
-              <div className="summary-card">
-                <div className="summary-title">
-                  {subTab === "buy"
-                    ? "Buyer Instructions"
-                    : "Seller Instructions"}
-                </div>
+              {(activeTrade?.status === "COMPLETED" || activeTrade?.status === "CANCELLED" || activeTrade?.status === "DISPUTED" || activeTrade?.status === "EXPIRED") ? (
                 <div
+                  className="summary-card"
                   style={{
-                    fontSize: 13,
-                    color: "#ccc",
-                    lineHeight: 1.8,
-                    fontFamily: "Syne,sans-serif",
+                    background:
+                      activeTrade?.status === "COMPLETED"
+                        ? "rgba(34,197,94,0.08)"
+                        : activeTrade?.status === "CANCELLED" || activeTrade?.status === "EXPIRED"
+                        ? "rgba(239,68,68,0.08)"
+                        : "rgba(251,191,36,0.08)",
+                    borderColor:
+                      activeTrade?.status === "COMPLETED"
+                        ? "rgba(34,197,94,0.2)"
+                        : activeTrade?.status === "CANCELLED" || activeTrade?.status === "EXPIRED"
+                        ? "rgba(239,68,68,0.2)"
+                        : "rgba(251,191,36,0.2)",
+                    marginTop: 10,
                   }}
                 >
-                  {subTab === "buy" ? (
-                    <>
-                      <p style={{ marginBottom: 10 }}>
-                        1. Send{" "}
-                        <strong style={{ color: "#84cc16" }}>
-                          {(
-                            parseFloat(tradeAmount) * selectedOffer.price
-                          ).toLocaleString()}{" "}
-                          {selectedOffer.currency}
-                        </strong>{" "}
-                        via <strong>{selectedOffer.method}</strong>
-                      </p>
-                      <p style={{ marginBottom: 10 }}>
-                        2. Get seller's payment details from the chat
-                      </p>
-                      <p style={{ marginBottom: 10 }}>
-                        3. After sending, click "Confirm Payment Sent"
-                      </p>
-                      <p
-                        style={{
-                          color: "#555",
-                          fontSize: 12,
-                          fontFamily: "JetBrains Mono,monospace",
-                        }}
-                      >
-                        ⚠ Seller releases {selectedOffer.asset} after payment
-                        confirmed
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p style={{ marginBottom: 10 }}>
-                        1. Share your payment details in chat
-                      </p>
-                      <p style={{ marginBottom: 10 }}>
-                        2. Wait for buyer to send{" "}
-                        <strong style={{ color: "#84cc16" }}>
-                          {(
-                            parseFloat(tradeAmount) * selectedOffer.price
-                          ).toLocaleString()}{" "}
-                          {selectedOffer.currency}
-                        </strong>
-                      </p>
-                      <p style={{ marginBottom: 10 }}>
-                        3. Confirm payment received in your account
-                      </p>
-                      <p style={{ marginBottom: 10 }}>
-                        4. Click "Confirm Received &amp; Release"
-                      </p>
-                      <p
-                        style={{
-                          color: "#555",
-                          fontSize: 12,
-                          fontFamily: "JetBrains Mono,monospace",
-                        }}
-                      >
-                        ⚠ Never release before verifying payment
-                      </p>
-                    </>
-                  )}
+                  <div className="summary-title">
+                    {activeTrade?.status === "COMPLETED"
+                      ? "🎉 Trade Completed"
+                      : activeTrade?.status === "DISPUTED"
+                      ? "⚠ Dispute Opened"
+                      : "❌ Trade Cancelled"}
+                  </div>
+                  <div style={{ color: "#ccc", fontSize: 13, lineHeight: 1.7 }}>
+                    {activeTrade?.status === "COMPLETED"
+                      ? `This trade is fully settled. ${selectedOffer.asset} has been delivered and ${selectedOffer.currency} has been released.`
+                      : activeTrade?.status === "DISPUTED"
+                      ? "A dispute has been opened. Our team will review the evidence and update you shortly."
+                      : "This trade was cancelled and escrow has been refunded or restored."}
+                  </div>
+                  <button
+                    className="btn-secondary"
+                    style={{ marginTop: 14, width: "100%" }}
+                    onClick={() => {
+                      setTradeInitiated(false);
+                      setSelectedOffer(null);
+                      setActiveTrade(null);
+                      setTradeAmount("");
+                    }}
+                  >
+                    Close
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="summary-card">
+                    <div className="summary-title">
+                      {subTab === "buy"
+                        ? "Buyer Instructions"
+                        : "Seller Instructions"}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: "#ccc",
+                        lineHeight: 1.8,
+                        fontFamily: "Syne,sans-serif",
+                      }}
+                    >
+                      {subTab === "buy" ? (
+                        <>
+                          <p style={{ marginBottom: 10 }}>
+                            1. Send <strong style={{ color: "#84cc16" }}>
+                              {(parseFloat(tradeAmount) * selectedOffer.price).toLocaleString()} {selectedOffer.currency}
+                            </strong> via <strong>{selectedOffer.method}</strong>
+                          </p>
+                          <p style={{ marginBottom: 10 }}>
+                            2. Get seller's payment details from the chat
+                          </p>
+                          <p style={{ marginBottom: 10 }}>
+                            3. After sending, click "Confirm Payment Sent"
+                          </p>
+                          <p
+                            style={{
+                              color: "#555",
+                              fontSize: 12,
+                              fontFamily: "JetBrains Mono,monospace",
+                            }}
+                          >
+                            ⚠ Seller releases {selectedOffer.asset} after payment
+                            confirmed
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p style={{ marginBottom: 10 }}>
+                            1. Share your payment details in chat
+                          </p>
+                          <p style={{ marginBottom: 10 }}>
+                            2. Wait for buyer to send <strong style={{ color: "#84cc16" }}>
+                              {(parseFloat(tradeAmount) * selectedOffer.price).toLocaleString()} {selectedOffer.currency}
+                            </strong>
+                          </p>
+                          <p style={{ marginBottom: 10 }}>
+                            3. Confirm payment received in your account
+                          </p>
+                          <p style={{ marginBottom: 10 }}>
+                            4. Click "Confirm Received &amp; Release"
+                          </p>
+                          <p
+                            style={{
+                              color: "#555",
+                              fontSize: 12,
+                              fontFamily: "JetBrains Mono,monospace",
+                            }}
+                          >
+                            ⚠ Never release before verifying payment
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 10 }}
-              >
-                {subTab === "buy" ? (
-                  <button
-                    className="btn-buy"
-                    onClick={() => handleConfirm(true)}
-                    disabled={actionLoading}
-                    style={{ width: "100%", padding: 14, fontSize: 14 }}
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 10 }}
                   >
-                    {actionLoading ? (
-                      "Processing…"
+                    {subTab === "buy" ? (
+                      <button
+                        className="btn-buy"
+                        onClick={() => handleConfirm(true)}
+                        disabled={actionLoading}
+                        style={{ width: "100%", padding: 14, fontSize: 14 }}
+                      >
+                        {actionLoading ? (
+                          "Processing…"
+                        ) : (
+                          <>
+                            <Check size={16} /> Confirm Payment Sent
+                          </>
+                        )}
+                      </button>
                     ) : (
-                      <>
-                        <Check size={16} /> Confirm Payment Sent
-                      </>
+                      <button
+                        className="btn-primary"
+                        onClick={() => handleConfirm(false)}
+                        disabled={actionLoading}
+                        style={{ width: "100%" }}
+                      >
+                        {actionLoading ? (
+                          "Processing…"
+                        ) : (
+                          <>
+                            <Check size={16} /> Confirm Received &amp; Release
+                          </>
+                        )}
+                      </button>
                     )}
-                  </button>
-                ) : (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleConfirm(false)}
-                    disabled={actionLoading}
-                    style={{ width: "100%" }}
-                  >
-                    {actionLoading ? (
-                      "Processing…"
-                    ) : (
-                      <>
-                        <Check size={16} /> Confirm Received &amp; Release
-                      </>
-                    )}
-                  </button>
-                )}
-                <button
-                  className="btn-secondary"
-                  style={{
-                    background: "rgba(239,68,68,0.07)",
-                    borderColor: "rgba(239,68,68,0.2)",
-                    color: "#ef4444",
-                  }}
-                  onClick={handleOpenDispute}
-                  disabled={actionLoading}
-                >
-                  <AlertTriangle size={16} /> Open Dispute
-                </button>
-                <button
-                  className="btn-secondary"
-                  onClick={handleCancelTrade}
-                  disabled={actionLoading}
-                >
-                  Cancel Trade
-                </button>
-              </div>
+                    <button
+                      className="btn-secondary"
+                      style={{
+                        background: "rgba(239,68,68,0.07)",
+                        borderColor: "rgba(239,68,68,0.2)",
+                        color: "#ef4444",
+                      }}
+                      onClick={handleOpenDispute}
+                      disabled={actionLoading}
+                    >
+                      <AlertTriangle size={16} /> Open Dispute
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={handleCancelTrade}
+                      disabled={actionLoading}
+                    >
+                      Cancel Trade
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

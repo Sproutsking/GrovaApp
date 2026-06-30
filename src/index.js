@@ -29,7 +29,7 @@ import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
-import { getPromptPriority, readPromptState, writePromptState, clearPromptSchedule } from "./services/notifications/appPromptManager";
+import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt } from "./services/notifications/appPromptManager";
 
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
@@ -324,15 +324,25 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // ── 5. SERVICE WORKER + APP PROMPTS ────────────────────────────────────────
+const UPDATE_SKIP_WINDOW_MS = 60_000;
+const UPDATE_SHOWN_STORAGE_KEY = "xv_update_shown";
 let deferredInstallEvent = null;
 let installPromptShown = false;
 let updatePromptShown = false;
 let pushPromptShown = false;
 let promptCooldownUntil = 0;
 
+function isPwaInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone
+    || localStorage.getItem("xv_pwa_installed") === "1";
+}
+
 function canShowPrompt(type) {
+  if (type === "install" && isPwaInstalled()) return false;
   const now = Date.now();
   if (now < promptCooldownUntil) return false;
+  if (!isPromptDue(type)) return false;
   if (type === "install" && installPromptShown) return false;
   if (type === "update" && updatePromptShown) return false;
   if (type === "push" && pushPromptShown) return false;
@@ -380,7 +390,7 @@ function showAppPrompt({ type, message, detail }) {
       <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
-      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Later</button>
+      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Ignore</button>
       <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
@@ -412,16 +422,22 @@ function showAppPrompt({ type, message, detail }) {
     });
   }
 
+  function dismissPrompt(hours = 24) {
+    schedulePrompt(type, hours);
+    banner.remove();
+    if (type === "install") installPromptShown = true;
+    if (type === "update") updatePromptShown = true;
+    if (type === "push") pushPromptShown = true;
+  }
+
   document.getElementById("xv-prompt-later").addEventListener("click", (e) => {
     e.stopPropagation();
     if (!isShowingSnoozeOptions) {
       showSnoozeOptions();
-    } else {
-      banner.remove();
-      if (type === "install") installPromptShown = true;
-      if (type === "update") updatePromptShown = true;
-      if (type === "push") pushPromptShown = true;
+      return;
     }
+
+    dismissPrompt(24);
   });
 
   document.getElementById("xv-prompt-action").addEventListener("click", async () => {
@@ -431,10 +447,13 @@ function showAppPrompt({ type, message, detail }) {
       const { outcome } = await deferredInstallEvent.userChoice;
       if (outcome === "accepted") {
         installPromptShown = true;
+        localStorage.setItem("xv_pwa_installed", "1");
+        clearPromptSchedule("install");
       }
     } else if (type === "update") {
       updatePromptShown = true;
       clearPromptSchedule("update");
+      localStorage.setItem("xv_update_timestamp", String(Date.now()));
       window.location.reload();
     } else if (type === "push") {
       if (typeof window.__xvRequestPushPermission === "function") {
@@ -446,7 +465,12 @@ function showAppPrompt({ type, message, detail }) {
 
   promptCooldownUntil = Date.now() + 30_000;
   if (type === "install") installPromptShown = true;
-  if (type === "update") updatePromptShown = true;
+  if (type === "update") {
+    updatePromptShown = true;
+    try {
+      sessionStorage.setItem(UPDATE_SHOWN_STORAGE_KEY, String(Date.now()));
+    } catch (e) {}
+  }
   if (type === "push") pushPromptShown = true;
 }
 
@@ -455,7 +479,7 @@ function queuePrompt(type, detail) {
     installReady: type === "install",
     updateReady: type === "update",
     pushReady: type === "push",
-    isInstalled: window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone,
+    isInstalled: isPwaInstalled(),
   });
   if (!priority) return;
   showAppPrompt({ type: priority, message: detail, detail });
@@ -464,18 +488,38 @@ function queuePrompt(type, detail) {
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallEvent = event;
-  if (!installPromptShown) {
-    queuePrompt("install", "Install Xeevia to keep it fast and always available.");
+  if (isPwaInstalled() || installPromptShown || !isPromptDue("install")) {
+    return;
   }
+  queuePrompt("install", "Install Xeevia to keep it fast and always available.");
 });
 
 window.addEventListener("appinstalled", () => {
   installPromptShown = true;
   deferredInstallEvent = null;
+  localStorage.setItem("xv_pwa_installed", "1");
+  clearPromptSchedule("install");
 });
 
-window.addEventListener("sw:registered", () => {
-  if (!updatePromptShown) {
+window.addEventListener("sw:registered", (event) => {
+  const registration = event?.detail?.registration;
+  if (!registration?.waiting) return;
+
+  try {
+    const updateTime = localStorage.getItem("xv_update_timestamp");
+    if (updateTime && (Date.now() - Number(updateTime)) < UPDATE_SKIP_WINDOW_MS) {
+      console.log("[App] Recent update detected, skipping update prompt on reload");
+      return;
+    }
+
+    const lastShown = sessionStorage.getItem(UPDATE_SHOWN_STORAGE_KEY);
+    if (lastShown && Date.now() - Number(lastShown) < UPDATE_SKIP_WINDOW_MS) {
+      console.log("[App] Update card already shown recently this session, skipping duplicate prompt");
+      return;
+    }
+  } catch (e) {}
+
+  if (!updatePromptShown && isPromptDue("update")) {
     queuePrompt("update", "A fresh update is available. Refresh now to get the latest experience.");
   }
 });
@@ -524,59 +568,7 @@ if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
       }
 
       window.dispatchEvent(new CustomEvent("sw:registered", { detail: { registration } }));
-
-      // Fallback banner
-      const el = document.createElement("div");
-      el.style.cssText = `
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--bg-strong);
-        color: var(--text);
-        padding: 14px 20px;
-        border-radius: 16px;
-        border: 1.5px solid var(--accent-border);
-        box-shadow: 0 8px 40px var(--shadow), 0 0 0 1px var(--accent-shadow);
-        z-index: 99999;
-        max-width: 320px;
-        width: calc(100vw - 48px);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        backdrop-filter: blur(10px);
-        animation: xvUpdateIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
-      `;
-      el.innerHTML = `
-        <style>@keyframes xvUpdateIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}</style>
-        <span style="font-size:22px;flex-shrink:0">⚡</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">Update ready</div>
-          <div style="font-size:11px;color:var(--text-secondary)">A new version of Xeevia is available</div>
-        </div>
-        <button id="xv-update-btn" style="
-          background:linear-gradient(135deg,var(--accent),var(--accent-strong));
-          color:var(--accent-contrast);border:none;padding:9px 16px;
-          border-radius:10px;font-weight:800;cursor:pointer;
-          font-size:12px;white-space:nowrap;flex-shrink:0;
-          font-family:inherit;
-        ">Update</button>
-      `;
-      document.body.appendChild(el);
-      document.getElementById("xv-update-btn").addEventListener("click", () => {
-        if (registration.waiting) {
-          registration.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-        setTimeout(() => window.location.reload(), 300);
-      });
-      setTimeout(() => {
-        if (el.parentNode) {
-          el.style.opacity = "0";
-          el.style.transition = "opacity 0.4s";
-          setTimeout(() => el.remove(), 400);
-        }
-      }, 12_000);
+      return;
     },
 
     onSuccess: () => {

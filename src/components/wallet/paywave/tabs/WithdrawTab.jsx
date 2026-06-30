@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import { opayService } from "../../../../services/wallet/opayService";
+import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
 import { useAuth } from "../../../../components/Auth/AuthContext";
 import TransactionPinModal from "../../../Modals/TransactionPinModal";
 import TwoFAModal from "../../../Modals/TwoFAModal";
@@ -122,16 +123,18 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
     setShowPinModal(true);
   };
 
-  const executeWithdraw = async () => {
+  const executeWithdraw = async (pinValue) => {
     if (!profile?.id || !canWithdraw) return;
     setLoading(true);
     try {
+      await verifyWithdrawalPin(profile.id, pinValue);
       const result = await opayService.withdrawToBank({
         userId: profile.id,
         accountNumber,
         accountName,
         bankName,
         amount: parsedAmt,
+        withdrawalPin: pinValue,
       });
 
       if (result.success) {
@@ -143,7 +146,7 @@ function BankWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
       }
     } catch (err) {
       console.error("Bank withdrawal error:", err);
-      alert("An error occurred. Please try again.");
+      alert(err.message || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -332,14 +335,16 @@ function OPayWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
     setShowPinModal(true);
   };
 
-  const executeWithdraw = async () => {
+  const executeWithdraw = async (pinValue) => {
     if (!profile?.id || !canWithdraw) return;
     setLoading(true);
     try {
+      await verifyWithdrawalPin(profile.id, pinValue);
       const result = await opayService.withdrawToOPayWallet({
         userId: profile.id,
         opayPhone: cleanPhone,
         amount: parsedAmt,
+        withdrawalPin: pinValue,
       });
 
       if (result.success) {
@@ -351,7 +356,7 @@ function OPayWithdraw({ onBack, onSuccess, onRefresh, pwBalance }) {
       }
     } catch (err) {
       console.error("OPay withdrawal error:", err);
-      alert("An error occurred. Please try again.");
+      alert(err.message || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
