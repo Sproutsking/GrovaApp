@@ -82,18 +82,53 @@ function swrSet(key, val) { _swr.set(key, { val, ts: Date.now() }); }
 function swrFresh(key)    { const e = _swr.get(key); return !!e && Date.now() - e.ts < SWR_TTL; }
 function swrVal(key)      { return _swr.get(key)?.val || null; }
 
-// ─── Head-preload injector ─────────────────────────────────────────────────────
-const _headPreloaded = new Set();
-function injectHeadPreload(url) {
-  if (!url || _headPreloaded.has(url)) return;
-  _headPreloaded.add(url);
+const HOME_CACHE_PREFIX = "xv_home_cache_v1:";
+const HOME_CACHE_TTL = 120_000;
+function readHomeCache(key) {
+  if (typeof window === "undefined") return null;
   try {
-    const link         = document.createElement("link");
-    link.rel           = "preload";
-    link.as            = "image";
-    link.href          = url;
-    link.fetchPriority = "high";
-    document.head.appendChild(link);
+    const raw = window.localStorage.getItem(HOME_CACHE_PREFIX + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (Date.now() - (parsed.ts || 0) > HOME_CACHE_TTL) {
+      window.localStorage.removeItem(HOME_CACHE_PREFIX + key);
+      return null;
+    }
+    return parsed.data || null;
+  } catch {
+    return null;
+  }
+}
+function writeHomeCache(key, data) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      HOME_CACHE_PREFIX + key,
+      JSON.stringify({ ts: Date.now(), data }),
+    );
+  } catch {}
+}
+
+// ─── Head-preload injector ─────────────────────────────────────────────────────
+const _preloadedMedia = new Set();
+function preloadImageUrl(url, priority = "high") {
+  if (!url || _preloadedMedia.has(url) || typeof document === "undefined") return;
+  _preloadedMedia.add(url);
+  try {
+    if (priority === "high") {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = url;
+      link.fetchPriority = "high";
+      document.head.appendChild(link);
+    }
+  } catch {}
+  try {
+    const img = new Image();
+    if (priority === "high") img.fetchPriority = "high";
+    img.src = url;
   } catch {}
 }
 
@@ -104,16 +139,54 @@ function preloadFirstPaintImages(posts) {
     window.__CLD_CLOUD__ ||
     window.__CLOUDINARY_CLOUD__ ||
     process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || null;
-  posts.slice(0, 10).forEach(post => {
-    (post.image_ids || []).slice(0, 1).filter(Boolean).forEach(id => {
-      if (cld) injectHeadPreload(`https://res.cloudinary.com/${cld}/image/upload/w_800,q_auto:good,f_auto,c_limit/${id.trim()}`);
+  posts.slice(0, 10).forEach((post, index) => {
+    (post.image_ids || []).slice(0, 2).filter(Boolean).forEach((id, idx) => {
+      const priority = idx === 0 ? "high" : "low";
+      const quality = idx === 0 ? "auto:best" : "auto:good";
+      if (cld) {
+        preloadImageUrl(`https://res.cloudinary.com/${cld}/image/upload/w_800,q_${quality},f_auto,c_limit/${id.trim()}`, priority);
+      }
       try {
-        const u = mediaUrlService.getImageUrl(id, { width:800, quality:"auto:good", format:"auto" });
-        if (u?.startsWith("http")) injectHeadPreload(u);
+        const u = mediaUrlService.getImageUrl(id, { width: 800, quality, format: "auto" });
+        if (u?.startsWith("http")) preloadImageUrl(u, priority);
       } catch {}
     });
+
     const avatarId = post.profiles?.avatar_id;
-    if (avatarId && cld) injectHeadPreload(`https://res.cloudinary.com/${cld}/image/upload/w_128,h_128,c_thumb,g_face,q_auto:best,f_auto/${avatarId}`);
+    if (avatarId) {
+      const url = cld
+        ? `https://res.cloudinary.com/${cld}/image/upload/w_128,h_128,c_thumb,g_face,q_auto:best,f_auto/${avatarId}`
+        : mediaUrlService.getAvatarUrl?.(avatarId, 128);
+      if (url) preloadImageUrl(url, "high");
+    }
+  });
+}
+
+function preloadStoryAssets(stories, priority = "high") {
+  if (!Array.isArray(stories) || stories.length === 0) return;
+  stories.slice(0, 12).forEach((story) => {
+    if (story.cover_image_id) {
+      try {
+        const url = mediaUrlService.getStoryImageUrl(story.cover_image_id, 800);
+        if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority });
+      } catch {}
+    }
+    const avatarId = story.profiles?.avatar_id;
+    if (avatarId) {
+      try {
+        const url = mediaUrlService.getAvatarUrl(avatarId, 128);
+        if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "low" });
+      } catch {}
+    }
+  });
+}
+
+function preloadNewsAssets(newsItems, priority = "high") {
+  if (!Array.isArray(newsItems) || newsItems.length === 0) return;
+  newsItems.slice(0, 12).forEach((item) => {
+    if (item?.image_url) {
+      mediaUrlService.preloadMediaUrl(item.image_url, { type: "image", priority });
+    }
   });
 }
 
@@ -135,11 +208,7 @@ function preloadReelThumbs(reels, anchorIdx = 0) {
       const url = reel.thumbnail_id
         ? mediaUrlService.getImageUrl(thumbId, { width: 480, quality: "auto:good", format: "webp" })
         : mediaUrlService.getVideoThumbnail(thumbId, { width: 480, height: 711 });
-      if (url) {
-        const img = new Image();
-        img.fetchPriority = i <= anchorIdx + 4 ? "high" : "low";
-        img.src = url;
-      }
+      if (url) preloadImageUrl(url, i <= anchorIdx + 4 ? "high" : "low");
     } catch {}
   }
 }
@@ -290,13 +359,13 @@ const HomeView = ({
   setActiveHomeTab,
 }) => {
   // [ULTRA-5] Pre-seed from SWR synchronously — frame 0 shows stale content
-  const [posts,     setPosts]     = useState(() => swrVal("posts")   || []);
-  const [newsPosts, setNewsPosts] = useState(() => swrVal("news")    || []);
-  const [reels,     setReels]     = useState(() => swrVal("reels")   || []);
-  const [stories,   setStories]   = useState(() => swrVal("stories") || []);
+  const [posts,     setPosts]     = useState(() => swrVal("posts")   || readHomeCache("posts")   || []);
+  const [newsPosts, setNewsPosts] = useState(() => swrVal("news")    || readHomeCache("news")    || []);
+  const [reels,     setReels]     = useState(() => swrVal("reels")   || readHomeCache("reels")   || []);
+  const [stories,   setStories]   = useState(() => swrVal("stories") || readHomeCache("stories") || []);
   const [currentUser, setCurrentUser] = useState(null);
 
-  const hasCachedPosts = (swrVal("posts") || []).length > 0;
+  const hasCachedPosts = (swrVal("posts") || readHomeCache("posts") || []).length > 0;
   const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedPosts);
   const [refreshing,    setRefreshing]    = useState(false);
   const [error,         setError]         = useState(null);
@@ -390,11 +459,17 @@ const HomeView = ({
       // [ULTRA-6] Preload images BEFORE setState (paint synchronization)
       preloadFirstPaintImages(safePosts);
       preloadReelThumbs(safeReels, 0);
+      preloadStoryAssets(safeStories);
+      preloadNewsAssets(safeNews);
 
       swrSet("posts",   safePosts);
       swrSet("reels",   safeReels);
       swrSet("stories", safeStories);
       swrSet("news",    safeNews);
+      writeHomeCache("posts",   safePosts);
+      writeHomeCache("reels",   safeReels);
+      writeHomeCache("stories", safeStories);
+      writeHomeCache("news",    safeNews);
 
       const now = Date.now();
       tabFetchedAt.current = { feed:now, stories:now, news:now, culture:now };
@@ -453,17 +528,21 @@ const HomeView = ({
         case "stories": {
           const d = await storyService.getStories({ limit: 20 }).catch(() => null);
           if (!d || !mountedRef.current) return;
-          swrSet("stories", Array.isArray(d) ? d : []);
+          const safe = Array.isArray(d) ? d : [];
+          swrSet("stories", safe);
           tabFetchedAt.current.stories = Date.now();
-          setStories(Array.isArray(d) ? d : []);
+          preloadStoryAssets(safe);
+          setStories(safe);
           break;
         }
         case "news": {
           const d = await newsService.getNewsPosts({ limit: NEWS_PAGE, offset: 0 }).catch(() => null);
           if (!d || !mountedRef.current) return;
-          swrSet("news", Array.isArray(d) ? d : []);
+          const safe = Array.isArray(d) ? d : [];
+          swrSet("news", safe);
           tabFetchedAt.current.news = Date.now();
-          setNewsPosts(Array.isArray(d) ? d : []);
+          preloadNewsAssets(safe);
+          setNewsPosts(safe);
           break;
         }
         case "culture": {
@@ -532,6 +611,7 @@ const HomeView = ({
       const next = await newsService.getNewsPosts({ limit: NEWS_PAGE, offset: off }).catch(() => []);
       const safe = Array.isArray(next) ? next : [];
       if (safe.length) {
+        preloadNewsAssets(safe);
         setNewsPosts(prev => { const ids = new Set(prev.map(n => n.id)); return [...prev, ...safe.filter(n => !ids.has(n.id))]; });
         newsOffRef.current = off + NEWS_PAGE;
         if (safe.length < NEWS_PAGE) { hasMoreNewsRef.current = false; setHasMoreNews(false); }
@@ -552,6 +632,7 @@ const HomeView = ({
       if (!mountedRef.current) return;
       const safe = Array.isArray(pd) ? pd : [];
       preloadFirstPaintImages(safe);
+      preloadStoryAssets(Array.isArray(sd) ? sd : []);
       setPosts(safe);
       setReels(Array.isArray(rd) ? rd : []);
       setStories(Array.isArray(sd) ? sd : []);
@@ -584,6 +665,8 @@ const HomeView = ({
     const safeNews  = Array.isArray(nd) ? nd : [];
     preloadFirstPaintImages(safePosts);
     preloadReelThumbs(safeReels, 0);
+    preloadStoryAssets(Array.isArray(sd) ? sd : []);
+    preloadNewsAssets(safeNews);
     setPosts(safePosts); setReels(safeReels); setStories(Array.isArray(sd)?sd:[]); setNewsPosts(safeNews);
     postsOffRef.current = POSTS_PAGE; newsOffRef.current = NEWS_PAGE; reelsOffRef.current = REELS_PAGE;
     hasMorePostsRef.current = safePosts.length === POSTS_PAGE;

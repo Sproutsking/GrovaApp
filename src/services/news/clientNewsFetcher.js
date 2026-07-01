@@ -17,14 +17,6 @@
 
 import { supabase } from "../config/supabase";
 
-// ── CORS proxies — prefer direct and public proxy fetches first, use server-side proxy only as a last resort
-const PROXIES = [
-  (u) => u,
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
-];
-
 // ── 80+ RSS Sources ───────────────────────────────────────────────────────────
 export const RSS_SOURCES = [
   // ── GLOBAL / INTERNATIONAL ──────────────────────────────────────────────────
@@ -580,31 +572,51 @@ function setCooldown(url) {
 
 // ── [P1] Parallel proxy race — Promise.any picks first valid XML ───────────────
 async function fetchXml(url) {
-  try {
-    const xml = await Promise.any(
-      PROXIES.map(async (makeProxy) => {
-        const res = await fetch(makeProxy(url), {
-          signal: AbortSignal.timeout(10_000),
-          headers: {
-            Accept: "application/json, application/xml, text/xml, */*",
-            "Cache-Control": "no-cache",
-          },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const ct = res.headers.get("content-type") || "";
-        const txt = ct.includes("json")
-          ? (await res.json())?.contents || ""
-          : await res.text();
-        if (!txt || txt.length < 100) throw new Error("empty");
-        if (!txt.includes("<item") && !txt.includes("<entry"))
-          throw new Error("no items");
-        return txt;
-      }),
-    );
-    return xml;
-  } catch {
-    return null;
+  async function tryFetch(target) {
+    try {
+      const res = await fetch(target, {
+        signal: AbortSignal.timeout(10_000),
+        headers: {
+          Accept: "application/json, application/xml, text/xml, */*",
+          "Cache-Control": "no-cache",
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ct = res.headers.get("content-type") || "";
+      const txt = ct.includes("json")
+        ? (await res.json())?.contents || ""
+        : await res.text();
+      if (!txt || txt.length < 100) throw new Error("empty");
+      if (!txt.includes("<item") && !txt.includes("<entry")) throw new Error("no items");
+      return txt;
+    } catch {
+      return null;
+    }
   }
+
+  // Try direct URL first, then public proxies, then server-side proxy as last resort.
+  const direct = await tryFetch(url);
+  if (direct) return direct;
+
+  const publicProxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  ];
+  const controller = new AbortController();
+  const proxyPromises = publicProxies.map(async (target) => {
+    if (controller.signal.aborted) return null;
+    const result = await tryFetch(target);
+    if (result) controller.abort();
+    return result;
+  });
+
+  const settled = await Promise.all(proxyPromises);
+  const fallback = settled.find((result) => result);
+  if (fallback) return fallback;
+
+  return tryFetch(
+    `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`,
+  );
 }
 
 // ── XML helpers ───────────────────────────────────────────────────────────────
@@ -698,9 +710,7 @@ function extractDate(block, articleUrl = "") {
     if (!isNaN(ts) && ts > 0 && ts < Date.now() + 3_600_000) return ts;
   }
   // Try URL date pattern: /YYYY/MM/DD/ or /YYYY-MM-DD
-  const urlDate = articleUrl.match(
-    /\/(20\d{2})[\/\-](\d{2})[\/\-](\d{2})[\/\-]/,
-  );
+  const urlDate = articleUrl.match(/\/(20\d{2})[/-](\d{2})[/-](\d{2})[/-]/);
   if (urlDate) {
     const ts = new Date(
       `${urlDate[1]}-${urlDate[2]}-${urlDate[3]}T12:00:00Z`,

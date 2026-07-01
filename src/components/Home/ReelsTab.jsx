@@ -74,13 +74,18 @@ function preloadReelThumbs(reels, anchorIdx = 0) {
     if (!thumbId) continue;
     try {
       const url = r.thumbnail_id
-        ? mediaUrlService.getImageUrl(thumbId, { width: 400, quality: "auto:good", format: "webp" })
+        ? mediaUrlService.getImageUrl(thumbId, {
+            width: 400,
+            quality: i <= anchorIdx + 4 ? "auto:best" : "auto:good",
+            format: "webp",
+          })
         : mediaUrlService.getVideoThumbnail(thumbId, { width: 400, height: 711 });
       if (url && !_preloaded.has(url)) {
         _preloaded.add(url);
-        const img = new Image();
-        img.fetchPriority = i <= anchorIdx + 4 ? "high" : "low";
-        img.src = url;
+        mediaUrlService.preloadMediaUrl(url, {
+          type: "image",
+          priority: i <= anchorIdx + 4 ? "high" : "low",
+        });
       }
     } catch {}
   }

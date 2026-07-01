@@ -24,3 +24,6 @@ yarn-error.log*
 
 .env
 .env.production
+
+# Ignore Supabase export SQL
+supabase_export.sql

@@ -64,11 +64,11 @@ import BoostStyles               from "./components/Boost/BoostStyles";
 import { canAccessApp } from "./services/auth/paymentGate";
 
 // Shared UI
-const DesktopHeader = lazy(() => import("./components/Shared/DesktopHeader"));
-const MobileHeader = lazy(() => import("./components/Shared/MobileHeader"));
-const MobileBottomNav = lazy(() => import("./components/Shared/MobileBottomNav"));
-const Sidebar = lazy(() => import("./components/Shared/Sidebar"));
-const AdminSidebar = lazy(() => import("./components/Shared/AdminSidebar"));
+import DesktopHeader from "./components/Shared/DesktopHeader";
+import MobileHeader from "./components/Shared/MobileHeader";
+import MobileBottomNav from "./components/Shared/MobileBottomNav";
+import Sidebar from "./components/Shared/Sidebar";
+import AdminSidebar from "./components/Shared/AdminSidebar";
 const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
@@ -86,13 +86,13 @@ import xrcService              from "./services/xrc";
 const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboard"));
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
-const HomeView        = lazy(() => import("./components/Home/HomeView"));
+import HomeView from "./components/Home/HomeView";
 const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
 const CreateView      = lazy(() => import("./components/Create/CreateView"));
 const AccountView     = lazy(() => import("./components/Account/AccountView"));
 const WalletView      = lazy(() => import("./components/wallet/WalletView"));
 const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
-const TrendingSidebar = lazy(() => import("./components/Shared/TrendingSidebar"));
+import TrendingSidebar from "./components/Shared/TrendingSidebar";
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
 const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
@@ -182,16 +182,9 @@ const OfflineBanner = memo(({ visible }) => {
 });
 OfflineBanner.displayName = "OfflineBanner";
 
-// ── Preload tabs ──────────────────────────────────────────────────────────────
+// ── Preload lazy overlays ─────────────────────────────────────────────────────────
 function preloadTabs() {
   [
-    () => import("./components/Home/HomeView"),
-    () => import("./components/Explore/ExploreView"),
-    () => import("./components/wallet/WalletView"),
-    () => import("./components/Account/AccountView"),
-    () => import("./components/Community/CommunityView"),
-    () => import("./components/Create/CreateView"),
-    () => import("./components/Shared/TrendingSidebar"),
     () => import("./components/Analytics/AnalyticsView"),
     () => import("./components/Upgrade/UpgradeView"),
     () => import("./components/Rewards/RewardsView"),
@@ -200,7 +193,23 @@ function preloadTabs() {
     () => import("./components/Messages/DMMessagesView"),
     () => import("./components/Messages/ActiveCall"),
     () => import("./components/Ambassador/AmbassadorView"),
-  ].forEach((fn, i) => setTimeout(() => fn().catch(() => {}), 300 + i * 250));
+    () => import("./components/Shared/SupportSidebar"),
+    () => import("./components/Shared/NotificationSidebar"),
+    () => import("./components/Shared/InAppNotificationToast"),
+    () => import("./components/Shared/PushPermissionNudge"),
+    () => import("./components/Shared/AccountSwitchPrompt"),
+    () => import("./components/Shared/PullToRefreshIndicator"),
+    () => import("./components/Shared/NetworkError"),
+    () => import("./components/Messages/IncomingCallToast"),
+  ].forEach((fn) => fn().catch(() => {}));
+}
+
+function scheduleTabPrefetch() {
+  if (typeof requestIdleCallback !== "undefined") {
+    requestIdleCallback(preloadTabs, { timeout: 3000 });
+  } else {
+    setTimeout(preloadTabs, 1200);
+  }
 }
 
 // ── MainApp ───────────────────────────────────────────────────────────────────
@@ -399,7 +408,7 @@ const MainApp = memo(() => {
     };
 
     loadWalletAndAvatar(user.id, profile).catch(() => {});
-    preloadTabs();
+    scheduleTabPrefetch();
 
     setTimeout(() => {
       try {

@@ -7,6 +7,7 @@ import ReactDOM from "react-dom";
 import { ArrowUp, BookOpen } from "lucide-react";
 import StoryCard from "../Shared/StoryCard";
 import SectionHeader from "../Shared/SectionHeader";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 // ── Shared helper: measure the tallest fixed/sticky element ──────────────────
 function getMeasuredSafeTop() {
@@ -89,6 +90,21 @@ const StoryTab = React.forwardRef(function StoryTab(
 
   // Keep in sync with parent
   useEffect(() => { setLocalStories(initialStories); }, [initialStories]);
+
+  useEffect(() => {
+    if (!localStories?.length) return;
+    localStories.slice(0, 12).forEach((story) => {
+      if (story.cover_image_id) {
+        const url = mediaUrlService.getStoryImageUrl(story.cover_image_id, 800);
+        if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "high" });
+      }
+      const avatarId = story.profiles?.avatar_id;
+      if (avatarId) {
+        const avatarUrl = mediaUrlService.getAvatarUrl(avatarId, 128);
+        if (avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "low" });
+      }
+    });
+  }, [localStories]);
 
   useImperativeHandle(ref, () => ({
     // Called by HomeView / realtime handlers

@@ -69,6 +69,11 @@ function makeLCG(seed) {
   return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
 }
 const _SESSION_SEED = Math.floor(Math.random() * 2147483646) + 1;
+const _conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection;
+const _ect = _conn?.effectiveType || "4g";
+const _save = _conn?.saveData || false;
+const THUMB_QUALITY = _save || _ect === "slow-2g" || _ect === "2g" ? "auto:good" : "auto:best";
+const TOP_THUMB_QUALITY = _save || _ect === "slow-2g" || _ect === "2g" ? "auto:good" : "auto:best";
 
 // ─── [FIX-5] Per-category cinematic gradients (self-contained) ───────────────
 const CATEGORY_GRADIENTS = {
@@ -103,8 +108,9 @@ function preloadPipelineReelThumbs(reels) {
     if (_pipelineReelThumbsPreloaded.has(cacheKey)) return;
     _pipelineReelThumbsPreloaded.add(cacheKey);
     try {
+      const quality = i < 6 ? TOP_THUMB_QUALITY : THUMB_QUALITY;
       const url = reel.thumbnail_id
-        ? mediaUrlService.getImageUrl(thumbId, { width: 240, quality: "auto:good", format: "webp" })
+        ? mediaUrlService.getImageUrl(thumbId, { width: 240, quality, format: "webp" })
         : mediaUrlService.getVideoThumbnail(thumbId, { width: 240, height: 355 });
       if (url) {
         const img = new Image();
@@ -306,7 +312,7 @@ const FollowCard = React.memo(({ user, currentUserId }) => {
       <div className="fp-fc-cover" style={{ background: grad }}>
         {showImg && (
           <img
-            src={avatarUrl} alt="" className="fp-fc-img" loading="lazy" decoding="async"
+            src={avatarUrl} alt="" className="fp-fc-img" loading="eager" fetchPriority="high" decoding="async"
             style={{ opacity: imgLoaded ? 1 : 0, transition: "opacity 0.22s" }}
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgFailed(true)}
@@ -421,16 +427,17 @@ export const FollowsPipeline = ({ currentUser }) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // [PIPELINE-REELS] — [FIX-3] gradient base, thumbnail fades over it
 // ═══════════════════════════════════════════════════════════════════════════════
-const ReelThumb = React.memo(({ reel, onNavigate }) => {
+const ReelThumb = React.memo(({ reel, index = 0, onNavigate }) => {
   const [loaded, setLoaded] = useState(false);
   const [imgErr, setImgErr] = useState(false);
+  const isHighPriority = index <= 3;
 
   const thumbUrl = (() => {
     try {
       if (reel.thumbnail_id)
         return mediaUrlService.getImageUrl(reel.thumbnail_id, {
           width: 220, height: 320, crop: "fill", gravity: "auto",
-          quality: "auto:good", format: "webp",
+          quality: isHighPriority ? TOP_THUMB_QUALITY : THUMB_QUALITY, format: "webp",
         });
       if (reel.video_id && typeof mediaUrlService.getVideoThumbnail === "function")
         return mediaUrlService.getVideoThumbnail(reel.video_id, { width: 220, height: 320, time: "0" });
@@ -453,7 +460,10 @@ const ReelThumb = React.memo(({ reel, onNavigate }) => {
       <div className="fp-rt-wrap" style={{ background: grad }}>
         {thumbUrl && !imgErr && (
           <img
-            src={thumbUrl} alt="" className="fp-rt-img" loading="lazy" decoding="async"
+            src={thumbUrl} alt="" className="fp-rt-img"
+            loading={isHighPriority ? "eager" : "lazy"}
+            fetchPriority={isHighPriority ? "high" : "auto"}
+            decoding="async"
             style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.22s" }}
             onLoad={() => setLoaded(true)}
             onError={() => setImgErr(true)}
@@ -521,7 +531,7 @@ export const ReelsPipeline = ({ onNavigate }) => {
     >
       {loading
         ? [1,2,3,4,5].map(i => <Skel key={i} w={120} h={190} tint="rgba(168,85,247,0.07)" />)
-        : reels.map(r => <ReelThumb key={r.id} reel={r} onNavigate={onNavigate} />)}
+        : reels.map((r, i) => <ReelThumb key={r.id} reel={r} index={i} onNavigate={onNavigate} />)}
     </PipelineShell>
   );
 };
@@ -565,10 +575,11 @@ const MOOD_GRAD = {
 };
 const DEFAULT_MOOD_GRAD = "linear-gradient(90deg,#84cc16,#22d3ee)";
 
-const DiscoveryThumb = React.memo(({ clip, onNavigate }) => {
+const DiscoveryThumb = React.memo(({ clip, index = 0, onNavigate }) => {
   const [thumbLoaded, setThumbLoaded] = useState(false);
   const [thumbErr,    setThumbErr]    = useState(false);
   const [isHovered,   setIsHovered]   = useState(false);
+  const isHighPriority = index <= 3;
   const videoRef   = useRef(null);
   const hoverTimer = useRef(null);
 
@@ -630,7 +641,10 @@ const DiscoveryThumb = React.memo(({ clip, onNavigate }) => {
         {clip.thumbnailUrl && (
           <img
             src={clip.thumbnailUrl} alt={clip.title}
-            className="fp-dc-img" loading="lazy" decoding="async"
+            className="fp-dc-img"
+            loading={isHighPriority ? "eager" : "lazy"}
+            fetchPriority={isHighPriority ? "high" : "auto"}
+            decoding="async"
             style={{ opacity: (thumbLoaded && !thumbErr) ? 1 : 0, transition: "opacity 0.25s" }}
             onLoad={() => setThumbLoaded(true)}
             onError={() => setThumbErr(true)}
@@ -715,7 +729,7 @@ export const DiscoveryPipeline = ({ onNavigate }) => {
     >
       {loading
         ? [1,2,3,4,5,6].map(i => <Skel key={i} w={158} h={224} tint="rgba(132,204,22,0.06)" />)
-        : clips.map(c => <DiscoveryThumb key={c.id} clip={c} onNavigate={onNavigate} />)}
+        : clips.map((c, i) => <DiscoveryThumb key={c.id} clip={c} index={i} onNavigate={onNavigate} />)}
     </PipelineShell>
   );
 };

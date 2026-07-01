@@ -96,9 +96,12 @@ const Av = memo(({ user, size=32 }) => {
   const id  = user?.avatar_id || user?.avatarId;
   const url = !err && id ? mediaUrlService.getAvatarUrl(id, 200) : null;
   const ini = (user?.full_name||user?.name||"?").charAt(0).toUpperCase();
+  useEffect(()=>{
+    if(url) mediaUrlService.preloadMediaUrl(url, { type: 'image', priority: 'high' });
+  },[url]);
   return (
     <div style={{width:size,height:size,borderRadius:"50%",background:"linear-gradient(135deg,#0d1a00,#1a3300)",border:"1.5px solid rgba(132,204,22,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.38,fontWeight:700,color:"#84cc16",overflow:"hidden",flexShrink:0}}>
-      {url ? <img src={url} alt={ini} onError={()=>setErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : ini}
+      {url ? <img src={url} alt={ini} loading="eager" fetchPriority="high" onError={()=>setErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : ini}
     </div>
   );
 });

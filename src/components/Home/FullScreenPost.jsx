@@ -32,6 +32,27 @@ import {
 } from "lucide-react";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
+// Preload the main full-screen media when the viewer opens.
+function useFullScreenMediaPreload(post) {
+  useEffect(() => {
+    if (!post) return;
+    const imageId = post.image_ids?.[0];
+    const videoId = post.video_ids?.[0];
+    try {
+      if (videoId) {
+        const url = mediaUrlService.getVideoUrl(videoId, { quality: "auto:best", format: "mp4" });
+        if (url) mediaUrlService.preloadMediaUrl(url, { type: "video", priority: "high" });
+      }
+    } catch {}
+    try {
+      if (imageId) {
+        const url = mediaUrlService.getImageUrl(imageId, { width: 1200, quality: "auto:best", format: "auto" });
+        if (url) mediaUrlService.preloadMediaUrl(url, { type: "image", priority: "high" });
+      }
+    } catch {}
+  }, [post]);
+}
+
 const FullScreenPost = ({
   post,
   allPosts = [],
@@ -42,6 +63,7 @@ const FullScreenPost = ({
   onAuthorClick,
   onActionMenu,
 }) => {
+  useFullScreenMediaPreload(post);
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(false);
   const [comments, setComments] = useState([]);
@@ -254,6 +276,7 @@ const FullScreenPost = ({
               ref={videoRef}
               src={mediaUrlService.getVideoUrl(post.video_ids[0])}
               poster={post.image_ids?.[0] ? mediaUrlService.getImageUrl(post.image_ids[0], { width: 640 }) : undefined}
+              preload="auto"
               muted={muted}
               loop
               playsInline
@@ -266,6 +289,8 @@ const FullScreenPost = ({
               src={mediaUrlService.getImageUrl(post.image_ids[0], { width: 1200, quality: "auto:best" })}
               alt={post.content}
               className="fs-image"
+                loading="eager"
+                fetchPriority="high"
               onClick={togglePlay}
             />
           ) : (

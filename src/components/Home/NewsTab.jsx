@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, u
 import ReactDOM from "react-dom";
 import { Globe, Bitcoin, MapPin, Newspaper, ArrowUp, RefreshCw, Zap } from "lucide-react";
 import SectionHeader from "../Shared/SectionHeader";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import { supabase } from "../../services/config/supabase";
 import {
   getNewsEngine, TIER, getTier, detectLiveStatus,
@@ -198,7 +199,15 @@ const NewsTab = React.forwardRef(function NewsTab(
     const timer=setTimeout(()=>setInitialDone(true),5000);
     return()=>{cancelled=true;clearTimeout(timer);};
   },[]); // eslint-disable-line
-
+  useEffect(() => {
+    if (!articles?.length) return;
+    articles.slice(0, 12).forEach((item) => {
+      if (item?._type === "video") return;
+      if (item?.image_url) {
+        mediaUrlService.preloadMediaUrl(item.image_url, { type: "image", priority: "high" });
+      }
+    });
+  }, [articles]);
   useEffect(()=>{
     const engine=getNewsEngine();
     const unsubArt=engine.on("newArticles",items=>{

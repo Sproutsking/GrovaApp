@@ -19,6 +19,7 @@ import {
   isSavedDiscovery,
   toggleSavedDiscovery,
 } from "../../services/discovery/discoveryService";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 const SAVE_TIERS = new Set(["silver","gold","diamond"]);
 function canSave(userProfile) {
@@ -56,6 +57,15 @@ const DiscoveryFullScreen = ({
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (item.thumbnailUrl) {
+      mediaUrlService.preloadMediaUrl(item.thumbnailUrl, { type: "image", priority: "high" });
+    }
+    if (item.videoUrl) {
+      mediaUrlService.preloadMediaUrl(item.videoUrl, { type: "video", priority: "high" });
+    }
+  }, [item.thumbnailUrl, item.videoUrl]);
 
   // Lock body scroll
   useEffect(() => {

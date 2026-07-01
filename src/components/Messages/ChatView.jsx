@@ -216,6 +216,9 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
   const onTouchMove=e=>{const dx=e.touches[0].clientX-(touchX.current||0);const dy=Math.abs(e.touches[0].clientY-(touchY.current||0));if(dy>12){clearTimeout(lpTimer.current);return;}if(Math.abs(dx)>8){clearTimeout(lpTimer.current);setSw(true);setSX(Math.max(-90,Math.min(90,dx)));}};
   const onTouchEnd=()=>{clearTimeout(lpTimer.current);if(swiping){if(Math.abs(swipeX)>=TH){setRAnim(true);setTimeout(()=>setRAnim(false),400);onReply?.(msg);}setSw(false);setSX(0);}};
   const onContextMenu=e=>{e.preventDefault();openCtx(e.clientX,e.clientY);};
+  useEffect(()=>{
+    if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
+  },[avatarUrl]);
   const handleCopy=()=>navigator.clipboard?.writeText(msg.content||"").catch(()=>{});
   const handleDelete=async()=>{if(!isMe)return;try{await supabase.from("messages").delete().eq("id",msg.id);}catch(e){console.warn(e);}};
   const renderContent=c=>{
@@ -232,7 +235,7 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
       {hovered&&!swiping&&!ctxOpen&&<button className={`cv-desktop-reply${isMe?" cv-dr-left":" cv-dr-right"}`} onClick={()=>onReply?.(msg)} title="Reply"><Ic.Reply/></button>}
-      {!isMe&&(showAv?(<div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherName}/>:(otherName||"U").charAt(0)}</div>):<div className="cv-avatar-sp"/>)}
+      {!isMe&&(showAv?(<div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherName} loading="eager" fetchPriority="high"/>:(otherName||"U").charAt(0)}</div>):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showAv&&!isMe?"cv-tail-l":"",showAv&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         <div className="cv-content">{renderContent(msg.content)}</div>
@@ -455,6 +458,9 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
 
   const fmtTime=d=>{if(!d)return"";const dt=new Date(d);const h=dt.getHours()%12||12;const m=dt.getMinutes().toString().padStart(2,"0");return`${h}:${m} ${dt.getHours()>=12?"PM":"AM"}`;};
   const avatarUrl=otherUser?.avatar_id?mediaUrlService.getAvatarUrl(otherUser.avatar_id,200):null;
+  useEffect(()=>{
+    if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
+  },[avatarUrl]);
 
   return (
     <div className="cv-root">
@@ -463,7 +469,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
         <button className="cv-back-btn" onClick={onBack}><Ic.Back/></button>
         <div className="cv-head-info">
           <div className="cv-head-av-wrap">
-            <div className="cv-head-av">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name}/>:(otherUser?.full_name||"U").charAt(0).toUpperCase()}</div>
+            <div className="cv-head-av">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name} loading="eager" fetchPriority="high"/>:(otherUser?.full_name||"U").charAt(0).toUpperCase()}</div>
             <div className={`cv-head-dot${status.online?" cv-dot-on":""}`}/>
           </div>
           <div className="cv-head-text">
@@ -512,7 +518,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">
-              <div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name}/>:(otherUser?.full_name||"U").charAt(0)}</div>
+              <div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name} loading="eager" fetchPriority="high"/>:(otherUser?.full_name||"U").charAt(0)}</div>
               <div className="cv-bubble cv-bthem cv-tail-l cv-typing-bubble"><div className="cv-dots"><span/><span/><span/></div></div>
             </div>
           )}

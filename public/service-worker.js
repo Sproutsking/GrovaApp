@@ -28,6 +28,8 @@
 // ============================================================================
 
 const CACHE_NAME = "xeevia-v2026-sw13";
+const CLOUDINARY_CACHE = "xeevia-cloudinary-v1";
+const CLOUDINARY_DOMAINS = ["res.cloudinary.com"];
 const SW_VERSION = "xeevia-1.0.13";
 const DB_NAME = "xeevia-sw-db";
 const DB_VERSION = 1;
@@ -167,8 +169,45 @@ self.addEventListener("activate", (event) => {
 });
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
+function isCloudinaryRequest(request) {
+  try {
+    const url = new URL(request.url);
+    return CLOUDINARY_DOMAINS.some(
+      (domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  if (isCloudinaryRequest(event.request)) {
+    event.respondWith(
+      caches.open(CLOUDINARY_CACHE).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        const networkFetch = fetch(event.request)
+          .then((res) => {
+            if (res && (res.ok || res.type === "opaque")) {
+              cache.put(event.request, res.clone()).catch(() => {});
+            }
+            return res;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          event.waitUntil(networkFetch.catch(() => {}));
+          return cached;
+        }
+
+        const networkResponse = await networkFetch;
+        return networkResponse || cached || new Response("", { status: 404 });
+      }),
+    );
+    return;
+  }
+
   if (!event.request.url.startsWith(self.location.origin)) return;
 
   if (event.request.mode === "navigate") {

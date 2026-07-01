@@ -13,6 +13,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import {
   ExternalLink,
   Globe,
@@ -778,9 +779,19 @@ const NewsCard = ({ post, currentUser }) => {
     published_at,
   } = post;
 
+  useEffect(() => {
+    if (!image_url) return;
+    mediaUrlService.preloadMediaUrl(image_url, { type: "image", priority: "high" });
+  }, [image_url]);
+
   const c = cat(category);
   const hasImg = Boolean(image_url && !imgErr);
   const hasDesc = (description || "").trim().length > 0;
+
+  useEffect(() => {
+    if (!image_url) return;
+    mediaUrlService.preloadMediaUrl(image_url, { type: "image", priority: "low" });
+  }, [image_url]);
 
   // [T1] Live-ticking timestamp
   const ts = useRelTime(published_at);
@@ -870,7 +881,8 @@ const NewsCard = ({ post, currentUser }) => {
               alt={title}
               className="nc-img"
               onError={() => setImgErr(true)}
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
             />
             <div className="nc-img-hover">
               <span className="nc-hover-pill">

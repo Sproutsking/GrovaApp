@@ -313,7 +313,7 @@ const VideoCard = ({ video, allVideos }) => {
           onKeyDown={(e) => !playing && e.key === "Enter" && openFull(e)}>
           {!playing ? (
             <>
-              <img src={thumb} alt={video.title} className="xvc-thumb" loading="lazy"
+              <img src={thumb} alt={video.title} className="xvc-thumb" loading="eager" fetchPriority="high" decoding="async"
                 onError={() => !thumbErr && setThumbErr(true)} />
               <div className="xvc-grad" />
               <div className="xvc-play-wrap">

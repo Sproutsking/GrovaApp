@@ -268,6 +268,15 @@ const ConversationList = ({
   });
   const filteredGroups = groups.filter(g => !sl || (g?.name || "").toLowerCase().includes(sl));
   const isEmpty = !loading && filteredConvs.length === 0 && filteredGroups.length === 0;
+  useEffect(()=>{
+    try{
+      (filteredConvs||[]).slice(0,8).forEach(c=>{
+        const other = c.user1_id === currentUserId ? c.user2 : c.user1;
+        const a = getAvatar(other);
+        if(a) mediaUrlService.preloadMediaUrl(a, { type: 'image', priority: 'high' });
+      });
+    }catch(e){}
+  },[filteredConvs,currentUserId]);
 
   return (
     <div className="cl-root">
@@ -363,7 +372,7 @@ const ConversationList = ({
               <div className="cl-av-wrap">
                 <div className="cl-avatar">
                   {avatarUrl
-                    ? <img src={avatarUrl} alt={other?.full_name || "User"}/>
+                    ? <img src={avatarUrl} alt={other?.full_name || "User"} loading="eager" fetchPriority="high"/>
                     : (other?.full_name || "U").charAt(0).toUpperCase()
                   }
                 </div>

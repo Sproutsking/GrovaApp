@@ -405,6 +405,7 @@ export default function AuthProvider({ children }) {
         if (data) {
           lastGoodProfile.current = data;
           setProfile(data);
+          writeProfileCache(data);
 
           if (isPaidProfileData(data)) setPaid(true);
 
@@ -579,6 +580,13 @@ export default function AuthProvider({ children }) {
         if (session?.user) {
           lastGoodUser.current = session.user;
           setUser(session.user);
+
+          const cachedProfile = readProfileCache();
+          if (cachedProfile && cachedProfile.id === session.user.id) {
+            lastGoodProfile.current = cachedProfile;
+            setProfile(cachedProfile);
+          }
+
           loadProfile(session.user.id);
           startSessionGuard(session.user.id);
           if (!initDoneRef.current) {
@@ -712,6 +720,7 @@ export default function AuthProvider({ children }) {
       lastGoodUser.current = null;
       lastFetchedUserId.current = null;
     }
+    clearProfileCache();
 
     try {
       await supabase.auth.signOut({ scope: "local" });
@@ -742,6 +751,7 @@ export default function AuthProvider({ children }) {
       lastGoodUser.current = null;
       lastFetchedUserId.current = null;
     }
+    clearProfileCache();
 
     try {
       await supabase.auth.signOut({ scope: "global" });

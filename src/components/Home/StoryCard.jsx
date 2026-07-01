@@ -68,6 +68,11 @@ const StoryCard = ({
     ? mediaUrlService.getStoryImageUrl(story.cover_image_id, 1200)
     : null;
 
+  useEffect(() => {
+    if (!coverImageUrl) return;
+    mediaUrlService.preloadMediaUrl(coverImageUrl, { type: "image", priority: "high" });
+  }, [coverImageUrl]);
+
   // [1] Check follow status on mount — mirrors UserProfileModal.checkFollowStatus()
   useEffect(() => {
     if (!currentUser?.id || isOwnStory) return;

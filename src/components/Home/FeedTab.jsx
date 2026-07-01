@@ -466,8 +466,8 @@ const FeedTab = React.forwardRef(function FeedTab(
   useLayoutEffect(() => {
     if (!localItems.length) return;
     preloadPost(localItems[0], TIER.CRITICAL);
-    for (let i = 1; i < 12 && i < localItems.length; i++) {
-      preloadPost(localItems[i], i < 6 ? TIER.CRITICAL : TIER.URGENT);
+    for (let i = 1; i < 18 && i < localItems.length; i++) {
+      preloadPost(localItems[i], i < 8 ? TIER.CRITICAL : TIER.URGENT);
     }
     lastBatchLen.current = localItems.length;
   }, []);
@@ -476,7 +476,7 @@ const FeedTab = React.forwardRef(function FeedTab(
   useEffect(() => {
     const prev = lastBatchLen.current;
     if (localItems.length <= prev) return;
-    for (let i = prev; i < localItems.length && i < prev + 20; i++) {
+    for (let i = prev; i < localItems.length && i < prev + 24; i++) {
       const tier = i - prev < 8 ? TIER.URGENT : TIER.BATCH;
       preloadPost(localItems[i], tier);
     }

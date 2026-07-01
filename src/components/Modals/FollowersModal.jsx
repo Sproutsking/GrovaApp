@@ -74,6 +74,15 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase())
   );
 
+  useEffect(()=>{
+    try{
+      (filtered||[]).slice(0,10).forEach(u=>{
+        const av = resolveAvatar(u.avatar_id);
+        if(av) mediaUrlService.preloadMediaUrl(av, { type: 'image', priority: 'high' });
+      });
+    }catch(e){}
+  },[filtered]);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -206,7 +215,7 @@ const FollowersModal = ({ currentUser, onClose, isMobile, defaultTab = "follower
                 <div key={user.id} className="fm-item">
                   <div className="fm-avatar-wrap">
                     <div className="fm-avatar">
-                      {avatarUrl ? <img src={avatarUrl} alt={user.full_name} crossOrigin="anonymous" /> : (user.full_name?.charAt(0)?.toUpperCase() || "U")}
+                      {avatarUrl ? <img src={avatarUrl} alt={user.full_name} crossOrigin="anonymous" loading="eager" fetchPriority="high" /> : (user.full_name?.charAt(0)?.toUpperCase() || "U")}
                     </div>
                     {user.is_pro && <div className="fm-pro"><Crown size={8} color="#000" /></div>}
                     {user.verified && !user.is_pro && <div className="fm-verified"><Shield size={8} color="#000" /></div>}

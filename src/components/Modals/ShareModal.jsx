@@ -32,6 +32,9 @@ const Avatar = ({ profile, size = 40 }) => {
   const letter = (profile?.full_name ||
     profile?.username ||
     "?")[0]?.toUpperCase();
+  React.useEffect(()=>{
+    if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: 'image', priority: 'high' });
+  },[avatarUrl]);
 
   return (
     <div
@@ -39,7 +42,7 @@ const Avatar = ({ profile, size = 40 }) => {
       style={{ width: size, height: size, fontSize: size * 0.38 }}
     >
       {avatarUrl ? (
-        <img src={avatarUrl} alt={profile?.full_name} />
+        <img src={avatarUrl} alt={profile?.full_name} loading="eager" fetchPriority="high" />
       ) : (
         <span>{letter}</span>
       )}

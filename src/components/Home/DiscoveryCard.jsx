@@ -38,6 +38,7 @@ import {
   toggleSavedDiscovery,
   CATEGORY_GRADIENTS,
 } from "../../services/discovery/discoveryService";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 export { CATEGORY_GRADIENTS };
 export { getSavedDiscovery } from "../../services/discovery/discoveryService";
@@ -132,6 +133,13 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
   const hasVideo   = !!(adaptedUrl && adaptedUrl.length > 0) && !vidError;
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  useEffect(() => {
+    if (!hasThumb) return;
+    try {
+      mediaUrlService.preloadMediaUrl(item.thumbnailUrl, { type: "image", priority: "high" });
+    } catch {}
+  }, [hasThumb, item.thumbnailUrl]);
 
   // Preload slot
   useEffect(() => {
@@ -367,7 +375,8 @@ const DiscoveryCard = React.memo(function DiscoveryCard({
             src={item.thumbnailUrl}
             alt={item.title}
             className={`dc-poster${posterOk ? " dc-poster--ready" : " dc-poster--loading"}`}
-            loading="lazy"
+            loading="eager"
+            fetchPriority="high"
             decoding="async"
             crossOrigin="anonymous"
             onLoad={() => setPosterOk(true)}

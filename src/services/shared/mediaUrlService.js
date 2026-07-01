@@ -7,10 +7,84 @@ class MediaUrlService {
   constructor() {
     this.cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
     this.urlCache = new Map();
+    this._preloadedMedia = new Set();
     
     if (!this.cloudName) {
       console.error('❌ REACT_APP_CLOUDINARY_CLOUD_NAME not set in .env');
     }
+  }
+
+  _markPreloaded(url) {
+    if (!url) return;
+    this._preloadedMedia.add(url);
+  }
+
+  _isPreloaded(url) {
+    return !!url && this._preloadedMedia.has(url);
+  }
+
+  _appendLink(url, as, rel, type, priority) {
+    try {
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.as = as;
+      link.href = url;
+      if (type) link.type = type;
+      if (priority === 'high') link.fetchPriority = 'high';
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    } catch {}
+  }
+
+  preloadMediaUrl(url, options = {}) {
+    if (!url || typeof url !== 'string' || typeof document === 'undefined') return;
+    const type = options.type === 'video' ? 'video' : 'image';
+    const priority = options.priority || 'high';
+    if (this._isPreloaded(url)) return;
+    this._markPreloaded(url);
+
+    const rel = priority === 'low' ? 'prefetch' : 'preload';
+    const as = type === 'video' ? 'video' : 'image';
+    const mimeType = type === 'video' ? 'video/mp4' : 'image/*';
+    this._appendLink(url, as, rel, mimeType, priority);
+
+    if (type === 'image') {
+      try {
+        const img = new Image();
+        img.src = url;
+        if (priority === 'high') img.fetchPriority = 'high';
+      } catch {}
+    } else if (type === 'video') {
+      try {
+        const video = document.createElement('video');
+        video.preload = priority === 'high' ? 'auto' : 'metadata';
+        video.muted = true;
+        video.playsInline = true;
+        video.src = url;
+        video.style.display = 'none';
+        document.body.appendChild(video);
+        setTimeout(() => {
+          if (video.parentNode) video.parentNode.removeChild(video);
+        }, 20000);
+      } catch {}
+    }
+  }
+
+  preloadMediaUrls(items = [], options = {}) {
+    if (!Array.isArray(items)) return;
+    items.forEach((item) => {
+      if (!item) return;
+      if (typeof item === 'string') {
+        this.preloadMediaUrl(item, options);
+        return;
+      }
+      if (typeof item.url === 'string') {
+        this.preloadMediaUrl(item.url, {
+          type: item.type || options.type || 'image',
+          priority: item.priority || options.priority || 'high',
+        });
+      }
+    });
   }
 
   // ==================== GET CLOUDINARY IMAGE URL ====================
@@ -229,19 +303,14 @@ class MediaUrlService {
   // ==================== PRELOAD URLS ====================
   
   preloadUrls(publicIds, resourceType = 'image') {
-    publicIds.forEach(id => {
-      const url = resourceType === 'video' 
+    if (!Array.isArray(publicIds)) return;
+    const items = publicIds.map((id) => {
+      const url = resourceType === 'video'
         ? this.getVideoUrl(id)
         : this.getImageUrl(id);
-        
-      if (url) {
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.as = resourceType;
-        link.href = url;
-        document.head.appendChild(link);
-      }
-    });
+      return url ? { url, type: resourceType, priority: 'low' } : null;
+    }).filter(Boolean);
+    this.preloadMediaUrls(items, { priority: 'low' });
   }
 
   // ==================== UTILITY METHODS ====================

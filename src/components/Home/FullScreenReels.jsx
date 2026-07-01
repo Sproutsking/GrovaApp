@@ -115,6 +115,15 @@ const FullScreenReels = ({
     : null;
 
   useEffect(() => {
+    if (thumbnailUrl) {
+      mediaUrlService.preloadMediaUrl(thumbnailUrl, { type: "image", priority: "high" });
+    }
+    if (videoUrl) {
+      mediaUrlService.preloadMediaUrl(videoUrl, { type: "video", priority: "high" });
+    }
+  }, [thumbnailUrl, videoUrl]);
+
+  useEffect(() => {
     const unsubscribe = GlobalVideoState.subscribe(() => {
       setMuted(GlobalVideoState.globalMuteState);
     });
@@ -348,6 +357,7 @@ const FullScreenReels = ({
                 className="reel-video"
                 src={videoUrl}
                 poster={thumbnailUrl}
+                preload="auto"
                 loop playsInline muted={muted} preload="auto"
                 onClick={togglePlay}
                 onLoadStart={() => setIsLoading(true)}

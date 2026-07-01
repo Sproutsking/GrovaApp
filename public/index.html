@@ -73,6 +73,8 @@
     <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://res.cloudinary.com" />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
@@ -134,6 +136,62 @@
         min-height: 100dvh;
         background: #000000;
       }
+
+      .xv-shell {
+        width: 100%;
+        min-height: 100dvh;
+        background: #050706;
+        color: #f4f8f2;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 20px;
+      }
+      .xv-shell-header {
+        height: 62px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.04);
+      }
+      .xv-shell-body {
+        display: grid;
+        grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(220px, 280px);
+        gap: 14px;
+        flex: 1;
+      }
+      .xv-shell-sidebar,
+      .xv-shell-trending {
+        border-radius: 20px;
+        background: rgba(255,255,255,0.04);
+        min-height: 420px;
+      }
+      .xv-shell-main {
+        display: grid;
+        gap: 14px;
+      }
+      .xv-shell-row {
+        height: 160px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.03);
+      }
+      .xv-shell-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .xv-shell-card {
+        height: 120px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.04);
+      }
+      @media (max-width: 960px) {
+        .xv-shell-body {
+          grid-template-columns: 1fr;
+        }
+        .xv-shell-trending {
+          display: none;
+        }
+      }
+    </style>
 
       @keyframes xv_slideUp {
         from {
@@ -418,7 +476,23 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run Xeevia.</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <div class="xv-shell" aria-hidden="true">
+        <div class="xv-shell-header"></div>
+        <div class="xv-shell-body">
+          <div class="xv-shell-sidebar"></div>
+          <div class="xv-shell-main">
+            <div class="xv-shell-row"></div>
+            <div class="xv-shell-grid">
+              <div class="xv-shell-card"></div>
+              <div class="xv-shell-card"></div>
+            </div>
+            <div class="xv-shell-row"></div>
+          </div>
+          <div class="xv-shell-trending"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Update card — smart snooze flow -->
     <div id="xv-update-card" role="complementary" aria-label="Update Xeevia">

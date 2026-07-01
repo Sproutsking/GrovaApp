@@ -16,6 +16,7 @@ import ReactionPanel  from "../Shared/ReactionPanel";
 import CommentModal   from "../Modals/CommentModal";
 import ShareModal     from "../Modals/ShareModal";
 import ParsedText     from "../Shared/ParsedText";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 // ── Breakpoint ────────────────────────────────────────────────────────────────
 const isMobileWidth = () => window.innerWidth <= 768;
@@ -110,6 +111,13 @@ const FullScreenPostView = ({
   // Determine effective image URL (news passes newsImageUrl; posts use their own)
   const heroImageUrl = newsImageUrl || null;
 
+  useEffect(() => {
+    if (!heroImageUrl) return;
+    try {
+      mediaUrlService.preloadMediaUrl(heroImageUrl, { type: "image", priority: "high" });
+    } catch {}
+  }, [heroImageUrl]);
+
   const postContent = (
     <>
       <div className="fspv-header">
@@ -123,7 +131,7 @@ const FullScreenPostView = ({
         {/* News hero image */}
         {heroImageUrl && (
           <div className="fspv-news-hero">
-            <img src={heroImageUrl} alt="Article" className="fspv-news-hero-img" loading="lazy" />
+            <img src={heroImageUrl} alt="Article" className="fspv-news-hero-img" loading="eager" fetchPriority="high" />
           </div>
         )}
 
