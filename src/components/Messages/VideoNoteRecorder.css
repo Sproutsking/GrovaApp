@@ -1,0 +1,256 @@
+/* ============================================================================
+   src/components/Messages/VideoNoteRecorder.css — ELITE VIDEO NOTES STYLING
+   ============================================================================ */
+
+.vnrecorder-root {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+}
+
+/* ─── Video Button ─── */
+.vnrecorder-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.18) 0%, rgba(132, 204, 22, 0.06) 100%);
+  border: 1px solid rgba(132, 204, 22, 0.28);
+  color: #84cc16;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.vnrecorder-btn:hover {
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.28) 0%, rgba(132, 204, 22, 0.12) 100%);
+  transform: scale(1.05);
+}
+
+.vnrecorder-btn:active {
+  transform: scale(0.95);
+}
+
+.vnrecorder-video {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3);
+}
+
+.vnrecorder-video:hover {
+  box-shadow: 0 12px 32px rgba(14, 165, 233, 0.4);
+}
+
+/* ─── Preview State ─── */
+.vnrecorder-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, transparent 100%);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  border-radius: 12px;
+  flex: 1;
+  align-items: center;
+}
+
+.vnrecorder-video-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-width: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+}
+
+.vnrecorder-video-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* ─── Shape Selector ─── */
+.vnrecorder-shapes {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.vnrecorder-shape {
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(132, 204, 22, 0.22);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.vnrecorder-shape:hover {
+  border-color: rgba(132, 204, 22, 0.5);
+  background: rgba(132, 204, 22, 0.08);
+}
+
+.vnrecorder-shape.active {
+  border-color: #84cc16;
+  background: rgba(132, 204, 22, 0.18);
+  box-shadow: 0 0 12px rgba(132, 204, 22, 0.3);
+}
+
+/* ─── Controls ─── */
+.vnrecorder-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.vnrecorder-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.vnrecorder-cancel:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.vnrecorder-rec {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+}
+
+.vnrecorder-rec:hover {
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4);
+}
+
+/* ─── Recording State ─── */
+.vnrecorder-recording {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, transparent 100%);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 20px;
+  flex: 1;
+  min-height: 44px;
+  animation: vnrecorderPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vnrecorderPulse {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.28);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  }
+}
+
+.vnrecorder-timer {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+  min-width: 40px;
+}
+
+.vnrecorder-stop {
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+}
+
+.vnrecorder-stop:hover {
+  background: #ff6b6b;
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4);
+}
+
+/* ─── Recorded State ─── */
+.vnrecorder-recorded {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, transparent 100%);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  border-radius: 20px;
+  flex: 1;
+  min-height: 44px;
+}
+
+.vnrecorder-duration {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0ea5e9;
+  padding: 0 8px;
+}
+
+.vnrecorder-send {
+  background: linear-gradient(135deg, #84cc16 0%, #6fa30f 100%);
+  color: #000;
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.3);
+}
+
+.vnrecorder-send:hover {
+  box-shadow: 0 12px 32px rgba(132, 204, 22, 0.4);
+}
+
+.vnrecorder-delete {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #ef4444;
+}
+
+.vnrecorder-delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .vnrecorder-root {
+    gap: 8px;
+    padding: 6px 2px;
+  }
+
+  .vnrecorder-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .vnrecorder-preview {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .vnrecorder-video-container {
+    max-width: 250px;
+  }
+
+  .vnrecorder-shapes {
+    gap: 6px;
+  }
+
+  .vnrecorder-shape {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+}

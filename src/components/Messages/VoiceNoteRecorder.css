@@ -1,0 +1,202 @@
+/* ============================================================================
+   src/components/Messages/VoiceNoteRecorder.css — ELITE VOICE NOTES STYLING
+   ============================================================================ */
+
+.vnr-root {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+}
+
+/* ─── Microphone Button ─── */
+.vnr-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.18) 0%, rgba(132, 204, 22, 0.06) 100%);
+  border: 1px solid rgba(132, 204, 22, 0.28);
+  color: #84cc16;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.vnr-btn:hover {
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.28) 0%, rgba(132, 204, 22, 0.12) 100%);
+  transform: scale(1.05);
+}
+
+.vnr-btn:active {
+  transform: scale(0.95);
+}
+
+.vnr-mic {
+  background: linear-gradient(135deg, #84cc16 0%, #6fa30f 100%);
+  color: #000;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.3);
+}
+
+.vnr-mic:hover {
+  box-shadow: 0 12px 32px rgba(132, 204, 22, 0.4);
+}
+
+/* ─── Recording State ─── */
+.vnr-recording {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, transparent 100%);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 20px;
+  flex: 1;
+  min-height: 44px;
+  animation: vnrPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vnrPulse {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.28);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  }
+}
+
+.vnr-stop {
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+}
+
+.vnr-stop:hover {
+  background: #ff6b6b;
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4);
+}
+
+.vnr-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.vnr-cancel:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+/* ─── Waveform ─── */
+.vnr-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+}
+
+.vnr-bar {
+  width: 3px;
+  background: linear-gradient(180deg, #84cc16 0%, #6fa30f 100%);
+  border-radius: 2px;
+  animation: vnrBar 0.3s ease-in-out;
+  min-height: 4px;
+  box-shadow: 0 0 8px rgba(132, 204, 22, 0.5);
+}
+
+@keyframes vnrBar {
+  0% {
+    height: 4px;
+  }
+}
+
+.vnr-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* ─── Recorded State ─── */
+.vnr-recorded {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(132, 204, 22, 0.08) 0%, transparent 100%);
+  border: 1px solid rgba(132, 204, 22, 0.22);
+  border-radius: 20px;
+  flex: 1;
+  min-height: 44px;
+}
+
+.vnr-duration {
+  font-size: 13px;
+  font-weight: 600;
+  color: #84cc16;
+  padding: 0 8px;
+}
+
+.vnr-send {
+  background: linear-gradient(135deg, #84cc16 0%, #6fa30f 100%);
+  color: #000;
+  box-shadow: 0 8px 24px rgba(132, 204, 22, 0.3);
+}
+
+.vnr-send:hover {
+  box-shadow: 0 12px 32px rgba(132, 204, 22, 0.4);
+}
+
+.vnr-delete {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #ef4444;
+}
+
+.vnr-delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .vnr-root {
+    gap: 8px;
+    padding: 6px 2px;
+  }
+
+  .vnr-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .vnr-wave {
+    gap: 2px;
+    height: 28px;
+    padding: 0 6px;
+  }
+
+  .vnr-bar {
+    width: 2px;
+  }
+
+  .vnr-time {
+    font-size: 12px;
+    min-width: 35px;
+  }
+
+  .vnr-duration {
+    font-size: 12px;
+    padding: 0 6px;
+  }
+}

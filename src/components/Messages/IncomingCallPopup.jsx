@@ -174,7 +174,7 @@ const IncomingCallPopup = memo(({ call, onAccept, onDecline }) => {
     <div style={{
       position:"absolute", inset:0, zIndex:9999,
       display:"flex", alignItems:"center", justifyContent:"center",
-      background:"rgba(0,0,0,.88)", backdropFilter:"blur(32px) saturate(1.3)",
+      background:"linear-gradient(180deg, rgba(0,0,0,.94) 0%, rgba(5,5,5,.92) 100%)", backdropFilter:"blur(34px) saturate(1.3)",
       animation:"icpIn .42s cubic-bezier(.34,1.56,.64,1)",
     }}>
       <style>{`
@@ -187,10 +187,10 @@ const IncomingCallPopup = memo(({ call, onAccept, onDecline }) => {
 
       <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 65% 55% at 50% 38%,rgba(132,204,22,.07) 0%,transparent 70%)",pointerEvents:"none"}}/>
 
-      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,maxWidth:360,width:"100%",padding:"0 28px",animation:"icpFloat .5s cubic-bezier(.22,1,.36,1)"}}>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0,maxWidth:390,width:"100%",padding:"0 28px",animation:"icpFloat .5s cubic-bezier(.22,1,.36,1)"}}>
 
         {/* Badge */}
-        <div style={{marginBottom:28,display:"flex",alignItems:"center",gap:7,background:"rgba(132,204,22,.1)",border:"1px solid rgba(132,204,22,.22)",borderRadius:22,padding:"6px 18px"}}>
+        <div style={{marginBottom:28,display:"flex",alignItems:"center",gap:7,background:"rgba(132,204,22,.12)",border:"1px solid rgba(132,204,22,.22)",borderRadius:999,padding:"7px 16px",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
           <span style={{fontSize:13}}>{isVideo?"📹":"📞"}</span>
           <span style={{fontSize:11,fontWeight:800,color:"#84cc16",textTransform:"uppercase",letterSpacing:".7px"}}>
             Incoming {isVideo?"Video":"Voice"} Call

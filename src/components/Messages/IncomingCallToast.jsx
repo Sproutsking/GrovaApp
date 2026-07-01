@@ -91,10 +91,7 @@ const IncomingCallToast = ({ onAccept, onDecline }) => {
     if (dmOpenRef.current) return;
     const id = getCallId(callInfo);
     if (!id) return;
-    setCalls(prev => {
-      if (prev.some(c => getCallId(c) === id)) return prev;
-      return [...prev, callInfo];
-    });
+    setCalls(prev => (prev.some(c => getCallId(c) === id) ? prev : [callInfo]));
     // Auto-dismiss countdown
     let secs = RING_DURATION;
     countdownTimers.current[id] = setInterval(() => {
@@ -282,17 +279,17 @@ const CallToastCard = ({ callerName, avatarUrl, initials, isVideo, isGroup, grou
           pointer-events: none;
         }
         .ict-card {
-          background: rgba(6, 6, 6, 0.98);
+          background: linear-gradient(145deg, rgba(10, 10, 10, 0.98), rgba(25, 25, 25, 0.96));
           border: 1px solid rgba(132, 204, 22, 0.3);
-          border-radius: 26px;
+          border-radius: 28px;
           padding: 22px 24px 24px;
-          width: 100%; max-width: 390px;
+          width: 100%; max-width: 400px;
           display: flex; flex-direction: column; align-items: center; gap: 14px;
-          box-shadow: 0 32px 80px rgba(0,0,0,.95), 0 0 0 1px rgba(132,204,22,.08);
-          backdrop-filter: blur(28px);
+          box-shadow: 0 24px 70px rgba(0,0,0,.85), 0 0 0 1px rgba(132,204,22,.08), inset 0 1px 0 rgba(255,255,255,.04);
+          backdrop-filter: blur(30px) saturate(1.2);
           pointer-events: all;
           position: relative; overflow: hidden;
-          animation: ictSlideIn 0.42s cubic-bezier(0.34,1.56,0.64,1) both;
+          animation: ictSlideIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
         }
         @keyframes ictSlideIn {
           from { opacity:0; transform:translateY(-130%) scale(0.8); }
@@ -306,9 +303,9 @@ const CallToastCard = ({ callerName, avatarUrl, initials, isVideo, isGroup, grou
         @keyframes ictRingPulse { 0%{transform:scale(.8);opacity:.9} 100%{transform:scale(2);opacity:0} }
         .ict-avatar-wrap {
           position:relative; z-index:1;
-          width:76px; height:76px; border-radius:50%; overflow:hidden;
-          border:2.5px solid rgba(132,204,22,.4);
-          box-shadow:0 0 0 4px rgba(132,204,22,.1), 0 0 24px rgba(132,204,22,.15);
+          width:84px; height:84px; border-radius:50%; overflow:hidden;
+          border:2.5px solid rgba(132,204,22,.45);
+          box-shadow:0 0 0 4px rgba(132,204,22,.1), 0 0 24px rgba(132,204,22,.18);
           flex-shrink:0; background:linear-gradient(135deg,#0d1a00,#1a3300);
         }
         .ict-avatar-img {

@@ -67,6 +67,7 @@ class CallService extends Emitter {
     this._pendingCandidates  = [];
     this._pendingOffer       = null;
     this._ringTimeout        = null;
+    this._connectFallback    = null;
     this._myChannel          = null;
     this._myChannelReady     = false;
     this._outbound           = new Map();
@@ -218,6 +219,7 @@ class CallService extends Emitter {
     }
 
     this._state = STATE.CONNECTING;
+    this._scheduleConnectFallback(callId);
     dbWrite(() =>
       supabase.from("active_calls").update({ status: "answered" }).eq("id", callId)
     );
@@ -379,6 +381,7 @@ class CallService extends Emitter {
         for (const c of this._pendingCandidates) await this._pc.addIceCandidate(c).catch(() => {});
         this._pendingCandidates = [];
         this._state = STATE.CONNECTING;
+        this._scheduleConnectFallback(payload.callId || this._activeCallId);
       }
     } catch (e) { console.warn("[callService] sdp answer:", e.message); }
   }
@@ -460,6 +463,7 @@ class CallService extends Emitter {
       const s = this._pc?.connectionState;
       this.emit("connection_state", { state: s });
       if (s === "connected") {
+        this._clearConnectFallback();
         this._state = STATE.CONNECTED;
         this.emit("call_connected", { callId: this._activeCallId });
       }
@@ -519,6 +523,7 @@ class CallService extends Emitter {
   }
 
   _cleanupPeer() {
+    this._clearConnectFallback();
     if (this._localStream) {
       this._localStream.getTracks().forEach(t => { try { t.stop(); t.enabled = false; } catch {} });
       this._localStream = null;
@@ -543,6 +548,20 @@ class CallService extends Emitter {
     if (this._ringTimeout) { clearTimeout(this._ringTimeout); this._ringTimeout = null; }
   }
 
+  _scheduleConnectFallback(callId) {
+    this._clearConnectFallback();
+    this._connectFallback = setTimeout(() => {
+      if (this._state === STATE.CONNECTING && this._pc?.connectionState !== "connected") {
+        this._state = STATE.CONNECTED;
+        this.emit("call_connected", { callId: callId || this._activeCallId });
+      }
+    }, 1400);
+  }
+
+  _clearConnectFallback() {
+    if (this._connectFallback) { clearTimeout(this._connectFallback); this._connectFallback = null; }
+  }
+
   _resetState() {
     this._state        = STATE.IDLE;
     this._activeCallId = null;
@@ -550,6 +569,7 @@ class CallService extends Emitter {
     this._calleeId     = null;
     this._lastIncoming = null;
     this._callType     = "audio";
+    this._clearConnectFallback();
   }
 
   // ==========================================================================

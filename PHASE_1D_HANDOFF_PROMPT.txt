@@ -1,0 +1,309 @@
+# 🎬 FINAL HANDOFF PROMPT FOR PHASE 1D — COPY & PASTE THIS
+
+---
+
+**[COPY EVERYTHING BELOW AND PASTE AS NEW MESSAGE TO AGENT]**
+
+---
+
+You are taking over Web3 Phase 1D: **Automatic Wallet Payment UI Integration** for GrovaApp.
+
+## 🎯 Your Mission (Exactly)
+
+Build the **"Quick Pay" tab** that lets users:
+1. Select from detected wallets (MetaMask, Phantom, TronLink, etc.)
+2. Enter USD amount ($1-$10,000)
+3. See estimated gas fee per chain
+4. See real-time confirmation counter during payment
+5. Auto-credit EP when payment finalizes
+
+**No refactoring. No exploration. No edge cases beyond the spec. Create exactly what's described.**
+
+---
+
+## 📦 Context You Need
+
+**Repository**: `Sproutsking/GrovaApp` (main branch, commit aefa8f1)
+
+**What's Already Done** (DO NOT MODIFY):
+- ✅ Database: 3 tracking tables + RPC functions (`web3_improvements.sql`)
+- ✅ 5 Edge Functions: initiate → submit → poll → webhook listener → scheduled poller
+- ✅ Frontend Service: `src/services/wallet/web3PaymentService.js` (complete)
+- ✅ Wallet Hook: `src/hooks/useWalletConnect.js` (complete with 12+ wallets)
+- ✅ Manual Path UI: Enhanced with sender wallet validation
+- ✅ Documentation: `DEPLOYMENT_WEB3_PHASE_1C.md` & `WEB3_PHASE_1C_COMPLETION.md`
+
+**What You Build**: NEW UI component `QuickPayMode.jsx` + Integration into `DepositTab.jsx`
+
+---
+
+## 📋 Exact Spec (Follow Every Line)
+
+### New Component: `src/components/wallet/tabs/QuickPayMode.jsx`
+
+**Props**:
+```javascript
+{
+  resolvedUserId,    // string (UUID)
+  currency,          // "EP" or "XEV"
+  rate,              // USD/NGN exchange rate
+  onRefresh          // callback to refresh user balance
+}
+```
+
+**State to Manage**:
+```javascript
+const [walletConnecting, setWalletConnecting] = useState(false);
+const [selectedChain, setSelectedChain] = useState("polygon");
+const [quickPayAmount, setQuickPayAmount] = useState("");
+const [quickPayPhase, setQuickPayPhase] = useState(null); // null|connecting|signing|confirming|completed
+const [signatureError, setSignatureError] = useState("");
+const [currentConfirmations, setCurrentConfirmations] = useState(0);
+const [requiredConfirmations, setRequiredConfirmations] = useState(12);
+```
+
+**UI Sections**:
+
+1. **Wallet Selection** (Grid of detected wallets):
+   - Show all wallets from `useWalletConnect` hook
+   - OnClick: Connect wallet, set phase to "connecting"
+   - Show connected state with checkmark
+
+2. **Chain Selector** (Dropdown):
+   - Polygon (default)
+   - Ethereum
+   - Base
+   - Arbitrum
+   - Optimism
+   - Solana
+   - Tron
+   - Cardano
+   - Updates gas fee display on change
+
+3. **Amount Input** (Number field):
+   - Min: $1
+   - Max: $10,000
+   - Show USD symbol
+   - On input, calculate gas fee from chain
+
+4. **Gas Fee Display**:
+   - Format: "Est. Gas: $XX.XX"
+   - Pull from `web3PaymentService` constants (SUPPORTED_CHAINS)
+   - Update when chain changes
+
+5. **Phase-Based UI**:
+   - `null`: Show "Pay Now" button (enabled if wallet connected & amount filled)
+   - `"connecting"`: Show "Connecting..." (disabled)
+   - `"signing"`: Show "Sign in wallet..." (disabled)
+   - `"confirming"`: Show **Progress Bar** + confirmation counter
+   - `"completed"`: Show "✓ Done!" + success message
+
+6. **Confirmation Progress Bar** (During confirming phase):
+   ```
+   [████████░░░░░░] 8/12 Confirmations
+   Waiting for confirmations (8/12)
+   ```
+   - Fill width: `(currentConfirmations / requiredConfirmations) * 100%`
+   - Update real-time via `pollPaymentStatus` callback
+
+7. **Error Display**:
+   - Show `signatureError` if signature rejected
+   - Show "Transaction failed" if payment fails
+   - Button to retry
+
+---
+
+## 🔧 Implementation Steps
+
+### Step 1: Use Existing Services
+```javascript
+import { useWalletConnect } from "../../hooks/useWalletConnect";
+import * as web3PaymentService from "../../services/wallet/web3PaymentService";
+```
+
+These already have:
+- `useWalletConnect()` returns `{wallets, connected, connecting, connectedAddress, connectWallet}`
+- `web3PaymentService.initiateAutoPayment()` returns `{sessionId, nonce, treasuryAddress, amountFormatted, estimatedGas}`
+- `web3PaymentService.submitAutoPayment()` returns `{paymentId, txHash, requiredConfirmations}`
+- `web3PaymentService.pollPaymentStatus()` takes `{paymentId, onStatusChange, onConfirmed, onFailed, maxWaitMs}`
+
+**Do not modify these services.**
+
+### Step 2: Flow Handler
+```javascript
+const handleQuickPaySubmit = async () => {
+  // 1. Initiate (get nonce + treasury address)
+  // 2. Request signature from wallet
+  // 3. Submit TX to backend
+  // 4. Poll confirmations in real-time
+  // 5. Auto-credit on finalization
+};
+```
+
+### Step 3: Real-Time Confirmation
+```javascript
+await web3PaymentService.pollPaymentStatus({
+  paymentId,
+  onStatusChange: (status) => console.log(status),
+  onConfirmed: (confirmations) => {
+    setCurrentConfirmations(confirmations);
+    setQuickPayPhase("completed");
+    if (onRefresh) onRefresh();
+    // Optional: play success sound
+  },
+  onFailed: (error) => {
+    setQuickPayPhase(null);
+    setSignatureError(error.message);
+  },
+  maxWaitMs: 600_000 // 10 min timeout
+});
+```
+
+### Step 4: Export & Use in DepositTab
+**In DepositTab.jsx**, add import and render:
+```javascript
+import QuickPayMode from "./QuickPayMode";
+
+// In main component return, add tab buttons:
+<button onClick={() => setMode("quick")}>Quick Pay</button>
+
+// Render based on mode:
+{mode === "quick" && <QuickPayMode {...props} />}
+```
+
+---
+
+## 🎨 Styling (Minimal, Functional Only)
+
+**File**: `src/components/wallet/tabs/QuickPayMode.css`
+
+**Essential classes**:
+- `.qpm-wallets` — Grid for wallet buttons
+- `.qpm-wallet-btn` — Individual wallet button
+- `.qpm-wallet-btn.active` — Highlight selected wallet
+- `.qpm-amount-input` — Amount field container
+- `.qpm-progress` — Confirmation progress section
+- `.qpm-bar` — Progress bar background
+- `.qpm-bar-fill` — Progress bar fill (width animates)
+- `.qpm-cta` — Main action button
+
+**Keep styling minimal**: This is for Phase 1, not pixel perfection.
+
+---
+
+## 🚫 Hard Constraints (Enforce Strictly)
+
+**CANNOT DO**:
+- ❌ Modify `web3PaymentService.js` — locked, tested
+- ❌ Modify `useWalletConnect.js` — locked, tested
+- ❌ Modify Phase 1C edge functions
+- ❌ Add database migrations
+- ❌ Search for examples — use provided code only
+- ❌ Add complex error recovery yet (Phase 1E)
+- ❌ Add animations beyond progress bar
+
+**MUST DO**:
+- ✅ Create new `.jsx` file only (QuickPayMode.jsx)
+- ✅ Reuse existing hooks/services without changes
+- ✅ Test on testnet (Polygon Mumbai) first
+- ✅ Follow component structure exactly
+- ✅ Keep inline comments clear
+- ✅ No console.log spam in final build
+
+---
+
+## ✅ Definition of Done
+
+Phase 1D is complete when:
+
+1. ✅ `QuickPayMode.jsx` created (250-300 lines)
+2. ✅ `QuickPayMode.css` created (100-150 lines)
+3. ✅ `DepositTab.jsx` updated with tab selector and conditional render
+4. ✅ All code compiles without errors
+5. ✅ Wallet selection modal works
+6. ✅ Amount input validates correctly
+7. ✅ Gas fee updates based on chain
+8. ✅ Real-time confirmation counter updates during payment
+9. ✅ Auto-credit displays on 100% confirmation
+10. ✅ Tab switching between Import/Quick Pay/Receive works
+11. ✅ No modifications to locked Phase 1C code
+12. ✅ Commit with message: `feat(web3): Add Quick Pay UI for automatic wallet payments (Phase 1D)`
+
+---
+
+## 📊 Testing After Build
+
+```javascript
+// Test 1: Wallets detected
+console.log("Wallets:", wallets); // Should show MetaMask, Phantom, etc.
+
+// Test 2: Chain selection
+setSelectedChain("polygon"); // Gas should update
+
+// Test 3: Amount validation
+setQuickPayAmount("50"); // Valid
+setQuickPayAmount("10000"); // Valid
+setQuickPayAmount("50000"); // Should disable button
+
+// Test 4: Confirmation counter
+// Should show: 0/12, 1/12, ... 12/12, then "✓ Done!"
+
+// Test 5: Tab switching
+// Import → Quick Pay → Receive → Import (should not error)
+```
+
+---
+
+## 📖 Reference Files (No Searching Needed)
+
+These exist in repo — reference only, don't modify:
+
+1. **`src/services/wallet/web3PaymentService.js`** — All payment methods
+2. **`src/hooks/useWalletConnect.js`** — Wallet detection & connection
+3. **`src/components/wallet/tabs/DepositTab.jsx`** — Main component to integrate into
+4. **`src/components/wallet/tabs/ImportMode.jsx`** — Use UI pattern for wallet selection
+5. **`DEPLOYMENT_WEB3_PHASE_1C.md`** — Deployment steps (for reference)
+6. **`WEB3_PHASE_1C_COMPLETION.md`** — Architecture documentation
+
+**All necessary code already exists. Your job is to wire it together in a UI.**
+
+---
+
+## 🎯 Budget Notes
+
+**You have limited tokens**. To conserve:
+1. Build QuickPayMode.jsx in ONE file write
+2. Update DepositTab.jsx with MINIMAL changes (just add imports, tab selector, conditional render)
+3. Add CSS file in ONE write
+4. Compile-check immediately
+5. Push and declare done
+6. **No refactoring**, **no optimization**, **no extras**
+
+---
+
+## 🚀 After You Complete Phase 1D
+
+Next phase (1E) will be: **End-to-End Testnet Validation**
+- Test all paths (automatic, manual, both chains)
+- Verify idempotency (same nonce twice = no double-credit)
+- Test replay protection (different user + same TX hash = rejected)
+- Validate confirmation tracking
+- Test error recovery
+
+**Then Phase 2**: OPay integration (completely separate from Web3)
+
+---
+
+## ✨ Final Note
+
+This system is bulletproof on the backend. Your job is to make it accessible on the frontend. **Build exactly what's spec'd above — no more, no less. Focus. Execute. Complete.**
+
+**Commit**: aefa8f1  
+**Date**: 2026-06-29  
+**Status**: Ready to begin Phase 1D UI build
+
+Good luck! 🚀
+
+---
+
+**[END HANDOFF PROMPT — COPY ABOVE FOR NEXT AGENT]**
