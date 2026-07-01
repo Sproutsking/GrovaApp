@@ -526,13 +526,52 @@ export default function AuthProvider({ children }) {
 
     const hasPKCECode = new URLSearchParams(window.location.search).has("code");
 
+    // ── PKCE retry logic: OAuth callback can take 600-1500ms ─────────────────
+    const waitForPKCESession = async () => {
+      const maxRetries = 10;
+      const delays = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500];
+
+      for (let i = 0; i < maxRetries; i++) {
+        if (!isMounted.current) return null;
+
+        await new Promise((r) => setTimeout(r, delays[i] || 1500));
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              `[AuthContext] PKCE getSession error (retry ${i + 1}):`,
+              error.message
+            );
+          }
+          continue;
+        }
+
+        if (session?.user) {
+          if (process.env.NODE_ENV === "development") {
+            console.log(
+              `[AuthContext] PKCE session found after retry ${i + 1} (delay: ${delays[i]}ms)`
+            );
+          }
+          return session;
+        }
+
+        if (process.env.NODE_ENV === "development" && i === 0) {
+          console.log("[AuthContext] PKCE code detected, waiting for session...");
+        }
+      }
+
+      console.warn(
+        "[AuthContext] PKCE session not found after 10 retries — OAuth may have failed"
+      );
+      return null;
+    };
+
     const init = async () => {
       try {
         if (hasPKCECode) {
-          await new Promise((r) => setTimeout(r, 800));
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
+          const session = await waitForPKCESession();
           if (session?.user && isMounted.current) {
             cleanPKCEParams();
             lastGoodUser.current = session.user;
@@ -546,6 +585,7 @@ export default function AuthProvider({ children }) {
             resolve();
             return;
           }
+          // PKCE code existed but session couldn't be recovered — fall through to regular flow
         }
 
         const {
