@@ -108,7 +108,17 @@ class SocialConnectService {
             .select()
             .maybeSingle();
 
-          if (conn) imported[platformKey] = true;
+          if (conn) {
+            imported[platformKey] = true;
+            try {
+              const { syncUserConnectorEvidence } = await import("../evidence/connectorService");
+              await syncUserConnectorEvidence(userId, platformKey).catch((err) => {
+                console.warn(`[SocialConnect] Evidence sync failed for imported ${platformKey}:`, err?.message);
+              });
+            } catch (importErr) {
+              console.warn("[SocialConnect] Evidence service not available:", importErr?.message);
+            }
+          }
         } else {
           imported[platformKey] = true;
         }
@@ -162,6 +172,16 @@ class SocialConnectService {
         try {
           // Store connection + token in DB
           await this._storeConnection(userId, platformKey, platformUserId, accessToken, refreshToken);
+
+          try {
+            const { syncUserConnectorEvidence } = await import("../evidence/connectorService");
+            await syncUserConnectorEvidence(userId, platformKey).catch((err) => {
+              console.warn(`[SocialConnect] Evidence sync failed for ${platformKey}:`, err?.message);
+            });
+          } catch (importErr) {
+            console.warn("[SocialConnect] Evidence service not available:", importErr?.message);
+          }
+
           resolve({ platform: platformKey, platformUserId });
         } catch (err) {
           reject(err);

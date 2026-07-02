@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
+import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegistry";
 
 // Safe import
 const safeTimeout = (promise, ms = 12000) => {
@@ -33,62 +34,7 @@ const safeTimeout = (promise, ms = 12000) => {
 };
 
 // ── Platform definitions (single source of truth) ────────────────────────────
-export const PLATFORMS = {
-  // Live: real OAuth flows available
-  x: {
-    name: "X (Twitter)", letter: "𝕏",
-    color: "#e2e2e2", bg: "rgba(226,226,226,0.08)", border: "rgba(226,226,226,0.16)",
-    desc: "Posts, threads & media to your X audience",
-    category: "Social", live: true,
-    connectNote: "Authorize via X to enable cross-posting",
-  },
-  facebook: {
-    name: "Facebook", letter: "f",
-    color: "#5b9ef9", bg: "rgba(91,158,249,0.08)", border: "rgba(91,158,249,0.16)",
-    desc: "Publish to your Facebook profile and pages",
-    category: "Social", live: true,
-    connectNote: "Authorize via Facebook to enable cross-posting",
-  },
-  instagram: {
-    name: "Instagram", letter: "✦",
-    color: "#f472b6", bg: "rgba(244,114,182,0.08)", border: "rgba(244,114,182,0.16)",
-    desc: "Distribute photo & video content visually",
-    category: "Social", live: true,
-    connectNote: "Uses Facebook authorization — requires IG Business/Creator account",
-  },
-  linkedin: {
-    name: "LinkedIn", letter: "in",
-    color: "#60a5fa", bg: "rgba(96,165,250,0.08)", border: "rgba(96,165,250,0.16)",
-    desc: "Reach your professional network instantly",
-    category: "Professional", live: true,
-    connectNote: "Authorize via LinkedIn to enable cross-posting",
-  },
-  // Coming soon
-  tiktok: {
-    name: "TikTok", letter: "♪",
-    color: "#fb7185", bg: "rgba(251,113,133,0.07)", border: "rgba(251,113,133,0.14)",
-    desc: "Short-form video reach across TikTok's global audience",
-    category: "Video", live: false,
-  },
-  youtube: {
-    name: "YouTube", letter: "▶",
-    color: "#f87171", bg: "rgba(248,113,113,0.07)", border: "rgba(248,113,113,0.14)",
-    desc: "Publish long-form video, shorts & community posts",
-    category: "Video", live: false,
-  },
-  threads: {
-    name: "Threads", letter: "@",
-    color: "#a78bfa", bg: "rgba(167,139,250,0.07)", border: "rgba(167,139,250,0.14)",
-    desc: "Text-first conversations via Meta Threads",
-    category: "Social", live: false,
-  },
-  pinterest: {
-    name: "Pinterest", letter: "P",
-    color: "#f87171", bg: "rgba(248,113,113,0.07)", border: "rgba(248,113,113,0.14)",
-    desc: "Visual discovery and idea distribution at scale",
-    category: "Visual", live: false,
-  },
-};
+export const PLATFORMS = CONNECTOR_DEFINITIONS;
 
 const STATUS_CFG = {
   active:  { label: "Connected",     color: "#84cc16", Icon: CheckCircle },

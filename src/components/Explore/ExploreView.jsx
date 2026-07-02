@@ -27,7 +27,8 @@ import PostCard from "../Home/PostCard";
 import ReelCard from "../Home/ReelCard";
 import StoryCard from "../Home/StoryCard";
 import ProfilePreview from "../Shared/ProfilePreview";
-import { STREAM_REGISTRY, listStreams } from "../../services/xrc/streamRegistry";
+import XRCOracleExplorer from "../Oracle/XRCOracleExplorer";
+import evidenceService from "../../services/evidence/evidenceService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => (n || 0).toLocaleString();
@@ -262,378 +263,70 @@ const VerifyResult = ({ result, onClose }) => {
   );
 };
 
-// ── XRC Oracle Panel ──────────────────────────────────────────────────────────
-const XRCOraclePanel = ({ xrcService, currentUserId }) => {
-  const [oracleMode, setOracleMode]         = useState("feed");      // feed | streams | search | actor | validate
-  const [chainStats, setChainStats]         = useState(null);
-  const [streamHeads, setStreamHeads]       = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [loading, setLoading]               = useState(false);
-  const [searchParams, setSearchParams]     = useState({ streamType: "", actorId: "", eventType: "", searchTerm: "", fromDate: "", toDate: "" });
-  const [searchResults, setSearchResults]   = useState(null);
-  const [traceResult, setTraceResult]       = useState(null);
-  const [verifyResult, setVerifyResult]     = useState(null);
-  const [validateResult, setValidateResult] = useState(null);
-  const [selectedStream, setSelectedStream] = useState("");
-  const [actorQuery, setActorQuery]         = useState("");
-  const [traceId, setTraceId]               = useState("");
-  const [verifyId, setVerifyId]             = useState("");
-  const [chainValidating, setChainValidating] = useState(false);
+const EvidenceGraphPanel = ({ graph, loading }) => {
+  const items = graph?.items || [];
+  const edges = graph?.edges || [];
 
-  // Load initial data
-  useEffect(() => {
-    if (!xrcService) return;
-    loadOverview();
-  }, [xrcService]);
+  if (loading) {
+    return (
+      <div className="xpl-loading">
+        <Loader size={32} className="xpl-spinner" />
+        <p className="xpl-loading-text">Loading evidence graph…</p>
+      </div>
+    );
+  }
 
-  const loadOverview = async () => {
-    if (!xrcService) return;
-    setLoading(true);
-    try {
-      const [stats, heads, recent] = await Promise.all([
-        xrcService.getChainStats().catch(() => null),
-        xrcService.getAllStreamHeads().catch(() => []),
-        xrcService.getRecentActivity(30).catch(() => []),
-      ]);
-      setChainStats(stats);
-      setStreamHeads(heads);
-      setRecentActivity(recent);
-    } catch (e) {
-      console.error("[Oracle] loadOverview:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const doSearch = async () => {
-    if (!xrcService) return;
-    setLoading(true);
-    try {
-      const params = {
-        streamType: searchParams.streamType || undefined,
-        actorId:    searchParams.actorId    || undefined,
-        eventType:  searchParams.eventType  || undefined,
-        searchTerm: searchParams.searchTerm || undefined,
-        fromTimestamp: searchParams.fromDate ? new Date(searchParams.fromDate).getTime() : undefined,
-        toTimestamp:   searchParams.toDate   ? new Date(searchParams.toDate).getTime()   : undefined,
-        limit: 50,
-      };
-      const results = await xrcService.searchRecords(params);
-      setSearchResults(results);
-    } catch (e) {
-      console.error("[Oracle] search:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const doTrace = async (id = traceId) => {
-    if (!xrcService || !id) return;
-    setLoading(true);
-    try {
-      const result = await xrcService.traceHistory(id.trim(), 30);
-      setTraceResult(result);
-    } catch (e) {
-      console.error("[Oracle] trace:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const doVerify = async (id = verifyId) => {
-    if (!xrcService || !id) return;
-    setLoading(true);
-    try {
-      const result = await xrcService.verifyRecord(id.trim());
-      setVerifyResult(result);
-    } catch (e) {
-      console.error("[Oracle] verify:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const doValidateChain = async () => {
-    if (!xrcService || !selectedStream) return;
-    setChainValidating(true);
-    try {
-      const result = await xrcService.validateChain(selectedStream, 500);
-      setValidateResult(result);
-    } catch (e) {
-      console.error("[Oracle] validate:", e);
-    } finally {
-      setChainValidating(false);
-    }
-  };
-
-  const doActorSearch = async () => {
-    if (!xrcService || !actorQuery.trim()) return;
-    setLoading(true);
-    try {
-      const results = await xrcService.getActorHistory(actorQuery.trim(), 50);
-      setSearchResults({ records: results, total: results.length, fromActor: true });
-    } catch (e) {
-      console.error("[Oracle] actorSearch:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const streams = listStreams();
-
-  const modes = [
-    { id: "feed",     label: "Live Feed",  icon: Activity },
-    { id: "streams",  label: "Streams",    icon: Database },
-    { id: "search",   label: "Search",     icon: Search },
-    { id: "actor",    label: "Actor Trace",icon: User },
-    { id: "validate", label: "Validate",   icon: Shield },
-  ];
+  if (!items.length) {
+    return (
+      <div className="xpl-empty">
+        <div className="xpl-empty-icon">🧠</div>
+        <h3 className="xpl-empty-title">No evidence found</h3>
+        <p className="xpl-empty-text">Connect a platform or refresh your profile to ingest evidence into the graph.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="xo-oracle">
-      {/* Oracle Header */}
-      <div className="xo-header">
-        <div className="xo-header-top">
-          <div className="xo-oracle-title">
-            <Link2 size={20} />
-            <span>XRC Oracle</span>
-            <span className="xo-oracle-sub">Chain of Chains Explorer</span>
+    <>
+      <div className="xpl-results">Found <strong>{items.length}</strong> evidence item{items.length !== 1 ? "s" : ""} · <strong>{edges.length}</strong> relation{edges.length !== 1 ? "s" : ""}</div>
+      <div className="xpl-section">
+        <h2 className="xpl-section-title"><Database size={18} /> Evidence Items <span className="xpl-badge">{items.length}</span></h2>
+        {items.map((item) => (
+          <div key={item.id} className="xpl-evidence-card">
+            <div className="xpl-evidence-card-title">
+              <div>
+                <strong>{item.title || item.external_id || item.evidence_type}</strong>
+                <div className="xpl-evidence-meta">
+                  <span>{item.provider}</span>
+                  <span>{item.evidence_type}</span>
+                  {item.source && <span>{item.source}</span>}
+                  {item.created_at && <span>{new Date(item.created_at).toLocaleDateString()}</span>}
+                </div>
+              </div>
+              <span className="xpl-badge">{item.confidence}</span>
+            </div>
+            <div className="xpl-evidence-summary">{item.summary || item.description || "No description available."}</div>
+            {item.url && <a href={item.url} className="xpl-evidence-link" target="_blank" rel="noreferrer">View original evidence</a>}
           </div>
-          <button className="xo-refresh-btn" onClick={loadOverview} disabled={loading}>
-            <RefreshCw size={14} className={loading ? "xo-spin" : ""} />
-          </button>
-        </div>
-
-        {/* Stats bar */}
-        {chainStats && (
-          <div className="xo-stats-bar">
-            <div className="xo-stat"><span>{fmt(chainStats.totalRecords || chainStats.total_records)}</span><label>Total Records</label></div>
-            <div className="xo-stat"><span>{chainStats.streams || Object.keys(chainStats.byStream || chainStats.by_stream || {}).length}</span><label>Active Streams</label></div>
-            <div className="xo-stat"><span>{timeAgo(chainStats.lastActivity || chainStats.last_activity)}</span><label>Last Activity</label></div>
-            <div className="xo-stat xo-stat-health"><CheckCircle size={14} color="#84cc16" /><label>Chain Healthy</label></div>
-          </div>
-        )}
-
-        {/* Mode tabs */}
-        <div className="xo-mode-tabs">
-          {modes.map(m => (
-            <button key={m.id} className={`xo-mode-tab ${oracleMode === m.id ? "active" : ""}`} onClick={() => setOracleMode(m.id)}>
-              <m.icon size={14} /> {m.label}
-            </button>
+        ))}
+      </div>
+      {edges.length > 0 && (
+        <div className="xpl-section">
+          <h2 className="xpl-section-title"><Link2 size={18} /> Evidence Relationships <span className="xpl-badge">{edges.length}</span></h2>
+          {edges.map((edge) => (
+            <div key={edge.id} className="xpl-edge-card">
+              <div className="xpl-edge-title">{edge.relation}</div>
+              <div className="xpl-edge-detail">{edge.source_id} → {edge.target_id}</div>
+              {edge.metadata && Object.keys(edge.metadata).length > 0 && <div className="xpl-edge-detail">{JSON.stringify(edge.metadata)}</div>}
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* Oracle Content */}
-      <div className="xo-body">
-
-        {/* ── LIVE FEED ── */}
-        {oracleMode === "feed" && (
-          <div className="xo-feed">
-            <div className="xo-feed-title"><Activity size={15} /> Real-Time Activity</div>
-            {loading ? (
-              <div className="xo-loading"><Loader size={24} className="xo-spin" /></div>
-            ) : recentActivity.length === 0 ? (
-              <div className="xo-empty-state">No chain activity yet. Records will appear here once users interact with the platform in production.</div>
-            ) : (
-              <div className="xo-feed-list">
-                {recentActivity.map(rec => (
-                  <XRCRecordCard key={rec.record_id} record={rec} onTrace={doTrace} onVerify={doVerify} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STREAMS ── */}
-        {oracleMode === "streams" && (
-          <div className="xo-streams">
-            <div className="xo-streams-title"><Database size={15} /> Chain of Chains — 7 Streams</div>
-            <div className="xo-streams-grid">
-              {streamHeads.length > 0
-                ? streamHeads.map(s => <StreamHealthCard key={s.stream_type} stream={s} onClick={(st) => { setSelectedStream(st); setOracleMode("validate"); }} />)
-                : streams.map(s => (
-                  <StreamHealthCard key={s.type} stream={{ stream_type: s.type, record_count: 0, is_genesis: true }} onClick={(st) => { setSelectedStream(st); setOracleMode("validate"); }} />
-                ))
-              }
-            </div>
-
-            {/* Chain HEAD detail */}
-            {streamHeads.length > 0 && (
-              <div className="xo-chain-heads">
-                <div className="xo-ch-title">Stream HEAD Hashes</div>
-                {streamHeads.map(s => {
-                  const meta = STREAM_REGISTRY[s.stream_type] || {};
-                  return (
-                    <div key={s.stream_type} className="xo-ch-row">
-                      <span className="xo-ch-stream" style={{ color: meta.color }}>{meta.icon} {s.stream_type}</span>
-                      <code className="xo-ch-hash">{truncHash(s.current_head_hash, 12)}</code>
-                      <CopyButton text={s.current_head_hash} />
-                      <span className="xo-ch-count">{fmt(s.record_count)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── SEARCH ── */}
-        {oracleMode === "search" && (
-          <div className="xo-search-panel">
-            <div className="xo-sp-title"><Search size={15} /> Oracle Search</div>
-            <div className="xo-search-grid">
-              <div className="xo-field">
-                <label>Stream</label>
-                <select value={searchParams.streamType} onChange={e => setSearchParams(p => ({ ...p, streamType: e.target.value }))} className="xo-select">
-                  <option value="">All Streams</option>
-                  {streams.map(s => <option key={s.type} value={s.type}>{s.icon} {s.type} — {s.label}</option>)}
-                </select>
-              </div>
-              <div className="xo-field">
-                <label>Event Type</label>
-                <input className="xo-input" placeholder="e.g. post_created" value={searchParams.eventType} onChange={e => setSearchParams(p => ({ ...p, eventType: e.target.value }))} />
-              </div>
-              <div className="xo-field">
-                <label>Actor UUID</label>
-                <input className="xo-input" placeholder="User UUID (partial OK)" value={searchParams.actorId} onChange={e => setSearchParams(p => ({ ...p, actorId: e.target.value }))} />
-              </div>
-              <div className="xo-field">
-                <label>Payload Search</label>
-                <input className="xo-input" placeholder="Search inside payload JSON" value={searchParams.searchTerm} onChange={e => setSearchParams(p => ({ ...p, searchTerm: e.target.value }))} />
-              </div>
-              <div className="xo-field">
-                <label>From Date</label>
-                <input className="xo-input" type="date" value={searchParams.fromDate} onChange={e => setSearchParams(p => ({ ...p, fromDate: e.target.value }))} />
-              </div>
-              <div className="xo-field">
-                <label>To Date</label>
-                <input className="xo-input" type="date" value={searchParams.toDate} onChange={e => setSearchParams(p => ({ ...p, toDate: e.target.value }))} />
-              </div>
-            </div>
-            <button className="xo-action-btn" onClick={doSearch} disabled={loading}>
-              {loading ? <Loader size={14} className="xo-spin" /> : <Search size={14} />} Search Chain
-            </button>
-
-            {searchResults && (
-              <div className="xo-search-results">
-                <div className="xo-sr-header">
-                  {searchResults.total > 0
-                    ? <span>{fmt(searchResults.total)} record{searchResults.total !== 1 ? "s" : ""} found</span>
-                    : <span>No records match your query</span>
-                  }
-                </div>
-                <div className="xo-feed-list">
-                  {(searchResults.records || []).map(rec => (
-                    <XRCRecordCard key={rec.record_id} record={rec} onTrace={doTrace} onVerify={doVerify} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── ACTOR TRACE ── */}
-        {oracleMode === "actor" && (
-          <div className="xo-actor-panel">
-            <div className="xo-sp-title"><User size={15} /> Actor Chain Trace</div>
-            <div className="xo-actor-search">
-              <input
-                className="xo-input xo-input-wide"
-                placeholder="Paste User UUID to see their full chain history…"
-                value={actorQuery}
-                onChange={e => setActorQuery(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && doActorSearch()}
-              />
-              <button className="xo-action-btn" onClick={doActorSearch} disabled={loading || !actorQuery}>
-                {loading ? <Loader size={14} className="xo-spin" /> : <ArrowRight size={14} />} Trace Actor
-              </button>
-            </div>
-            {currentUserId && (
-              <button className="xo-my-history-btn" onClick={() => { setActorQuery(currentUserId); doActorSearch(); }}>
-                <Eye size={13} /> View My Chain History
-              </button>
-            )}
-
-            <div className="xo-record-trace-section">
-              <div className="xo-sp-title" style={{ marginTop: 20 }}><Link2 size={15} /> Record Trace (by Record ID)</div>
-              <div className="xo-actor-search">
-                <input className="xo-input xo-input-wide" placeholder="Paste Record ID to trace its chain history…" value={traceId} onChange={e => setTraceId(e.target.value)} onKeyDown={e => e.key === "Enter" && doTrace()} />
-                <button className="xo-action-btn" onClick={() => doTrace()} disabled={loading || !traceId}>
-                  {loading ? <Loader size={14} className="xo-spin" /> : <Link2 size={14} />} Trace Record
-                </button>
-              </div>
-            </div>
-
-            {searchResults?.fromActor && (
-              <div className="xo-search-results">
-                <div className="xo-sr-header">{fmt(searchResults.total)} records by this actor</div>
-                <div className="xo-feed-list">
-                  {searchResults.records.map(rec => (
-                    <XRCRecordCard key={rec.record_id} record={rec} onTrace={doTrace} onVerify={doVerify} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {traceResult && (
-              <ChainTrace chain={traceResult.chain} reachedGenesis={traceResult.reachedGenesis} onClose={() => setTraceResult(null)} />
-            )}
-          </div>
-        )}
-
-        {/* ── VALIDATE ── */}
-        {oracleMode === "validate" && (
-          <div className="xo-validate-panel">
-            <div className="xo-sp-title"><Shield size={15} /> Chain Integrity Validation</div>
-
-            <div className="xo-validate-section">
-              <div className="xo-val-label">Validate Full Stream</div>
-              <div className="xo-actor-search">
-                <select className="xo-select xo-select-wide" value={selectedStream} onChange={e => setSelectedStream(e.target.value)}>
-                  <option value="">Select a stream…</option>
-                  {streams.map(s => <option key={s.type} value={s.type}>{s.icon} {s.type} — {s.label}</option>)}
-                </select>
-                <button className="xo-action-btn xo-validate-btn" onClick={doValidateChain} disabled={chainValidating || !selectedStream}>
-                  {chainValidating ? <><Loader size={14} className="xo-spin" /> Validating…</> : <><Shield size={14} /> Validate Chain</>}
-                </button>
-              </div>
-              {validateResult && (
-                <div className={`xo-validate-result ${validateResult.valid ? "valid" : "invalid"}`}>
-                  <div className="xo-vr-status">
-                    {validateResult.valid
-                      ? <><CheckCircle size={16} color="#84cc16" /> Chain integrity confirmed</>
-                      : <><AlertTriangle size={16} color="#f87171" /> Chain integrity issues detected</>
-                    }
-                  </div>
-                  <div className="xo-vr-detail">{validateResult.message}</div>
-                  {validateResult.invalidRecords?.length > 0 && (
-                    <div className="xo-vr-errors">
-                      {validateResult.invalidRecords.map((r, i) => (
-                        <div key={i} className="xo-vr-error">{r.reason}: {truncHash(r.id)}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="xo-validate-section" style={{ marginTop: 20 }}>
-              <div className="xo-val-label">Verify Single Record Hash</div>
-              <div className="xo-actor-search">
-                <input className="xo-input xo-input-wide" placeholder="Paste Record ID to verify its hash…" value={verifyId} onChange={e => setVerifyId(e.target.value)} onKeyDown={e => e.key === "Enter" && doVerify()} />
-                <button className="xo-action-btn" onClick={() => doVerify()} disabled={loading || !verifyId}>
-                  {loading ? <Loader size={14} className="xo-spin" /> : <Shield size={14} />} Verify
-                </button>
-              </div>
-              {verifyResult && <VerifyResult result={verifyResult} onClose={() => setVerifyResult(null)} />}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </>
   );
 };
+
+// XRC Oracle panel is now opened through the modal quick-action button in the Explore header.
 
 // ── MAIN ExploreView ──────────────────────────────────────────────────────────
 const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcService }) => {
@@ -644,7 +337,10 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   const [showTabsPanel, setShowTabsPanel]     = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [loading, setLoading]                 = useState(false);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceGraph, setEvidenceGraph]     = useState({ items: [], edges: [] });
   const [content, setContent] = useState({ stories: [], posts: [], reels: [], users: [], tags: [], mentions: [], userContext: null, searchType: null });
+  const [showOracleModal, setShowOracleModal] = useState(false);
 
   const searchRef = useRef(null);
   const tabsRef   = useRef(null);
@@ -657,7 +353,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
     { id: "reels",   label: "Reels" },
     { id: "users",   label: "People" },
     { id: "tags",    label: "Tags" },
-    { id: "oracle",  label: "⛓ Oracle" },  // ← NEW
+    { id: "evidence", label: "Evidence" },
   ];
 
   const categories = ["All","Folklore","Life Journey","Philosophy","Innovation","Romance","Adventure","Mystery","Wisdom","Entertainment"];
@@ -673,19 +369,35 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   }, []);
 
   useEffect(() => {
-    if (!searchQuery && activeTab !== "oracle") loadContent();
+    if (activeTab === "evidence") {
+      loadEvidenceGraph();
+      return;
+    }
+    if (!searchQuery) loadContent();
   }, [activeTab, selectedCategory]);
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
-      const t = setTimeout(performSearch, 350);
+      const t = setTimeout(() => {
+        if (activeTab === "evidence") {
+          loadEvidenceGraph(searchQuery);
+        } else {
+          performSearch();
+        }
+      }, 350);
       return () => clearTimeout(t);
     }
-    if (searchQuery.length === 0) loadContent();
-  }, [searchQuery]);
+    if (searchQuery.length === 0) {
+      if (activeTab === "evidence") {
+        loadEvidenceGraph();
+      } else {
+        loadContent();
+      }
+    }
+  }, [searchQuery, activeTab]);
 
   const loadContent = async () => {
-    if (activeTab === "oracle") return;
+    if (activeTab === "evidence") return;
     try {
       setLoading(true);
       const data = await exploreService.getTrending(activeTab, 50, userId);
@@ -695,13 +407,30 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   };
 
   const performSearch = async () => {
-    if (activeTab === "oracle") return;
+    if (activeTab === "evidence") return;
     try {
       setLoading(true);
       const results = await exploreService.searchAll(searchQuery, { category: selectedCategory === "All" ? null : selectedCategory }, userId);
       setContent(results);
     } catch (err) { console.error("Search failed:", err); }
     finally { setLoading(false); }
+  };
+
+  const loadEvidenceGraph = async (query = "") => {
+    if (activeTab !== "evidence") return;
+
+    try {
+      setEvidenceLoading(true);
+      const graph = query?.trim().length >= 2
+        ? await evidenceService.searchEvidenceGraph(userId, query, { limit: 100 })
+        : await evidenceService.getEvidenceGraph(userId, { limit: 100 });
+      setEvidenceGraph(graph);
+    } catch (err) {
+      console.error("Evidence graph failed:", err);
+      setEvidenceGraph({ items: [], edges: [] });
+    } finally {
+      setEvidenceLoading(false);
+    }
   };
 
   const getDisplayContent = () => {
@@ -717,7 +446,9 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   };
 
   const displayContent = getDisplayContent();
-  const totalCount = (displayContent.stories?.length||0) + (displayContent.posts?.length||0) + (displayContent.reels?.length||0) + (displayContent.users?.length||0) + (displayContent.tags?.length||0);
+  const totalCount = activeTab === "evidence"
+    ? evidenceGraph.items.length
+    : (displayContent.stories?.length||0) + (displayContent.posts?.length||0) + (displayContent.reels?.length||0) + (displayContent.users?.length||0) + (displayContent.tags?.length||0);
   const currentTabLabel = tabs.find(t => t.id === activeTab)?.label || "All";
 
   const getSearchTypeInfo = () => {
@@ -797,6 +528,18 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-tag-count { font-size:12px; color:#666; }
 
         .xpl-reels-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+
+        .xpl-evidence-card { background:rgba(132,204,22,.04); border:1px solid rgba(132,204,22,.12); border-radius:12px; padding:14px; margin-bottom:12px; }
+        .xpl-evidence-card-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
+        .xpl-evidence-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; font-size:12px; color:#999; }
+        .xpl-evidence-card-title strong { display:block; font-size:15px; color:#fff; margin-bottom:4px; }
+        .xpl-evidence-summary { font-size:13px; color:#d5d5d5; line-height:1.6; margin-bottom:10px; }
+        .xpl-evidence-link { display:inline-block; font-size:12px; color:#84cc16; text-decoration:none; font-weight:700; }
+        .xpl-evidence-link:hover { text-decoration:underline; }
+
+        .xpl-edge-card { background:rgba(59,130,246,.05); border:1px solid rgba(59,130,246,.18); border-radius:12px; padding:12px; margin-bottom:10px; }
+        .xpl-edge-title { font-size:13px; font-weight:700; color:#3b82f6; margin-bottom:4px; }
+        .xpl-edge-detail { font-size:12px; color:#888; line-height:1.4; }
 
         /* User Context Panel */
         .xpl-user-ctx { background:rgba(132,204,22,.02); border:1px solid rgba(132,204,22,.2); border-radius:12px; margin-bottom:24px; overflow:hidden; }
@@ -1001,6 +744,14 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
       `}</style>
 
       <div className="xpl-wrapper">
+        {showOracleModal && xrcService && (
+          <XRCOracleExplorer
+            xrcService={xrcService}
+            currentUser={currentUser}
+            onClose={() => setShowOracleModal(false)}
+          />
+        )}
+
         {/* ── HEADER ── */}
         <div className="xpl-header">
           <div className="xpl-controls">
@@ -1024,14 +775,14 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
             {/* Tabs */}
             <div ref={tabsRef} style={{ position: "relative", flex: 1 }}>
-              <button className={`xpl-btn xpl-tabs-btn ${showTabsPanel ? "active" : ""} ${activeTab === "oracle" ? "xpl-oracle-tab" : ""}`} onClick={() => { setShowTabsPanel(p => !p); setShowSearchPanel(false); setShowFilterPanel(false); }}>
+              <button className={`xpl-btn xpl-tabs-btn ${showTabsPanel ? "active" : ""}`} onClick={() => { setShowTabsPanel(p => !p); setShowSearchPanel(false); setShowFilterPanel(false); }}>
                 <span>{currentTabLabel}</span>
                 <ChevronDown size={15} />
               </button>
               {showTabsPanel && (
                 <div className="xpl-tabs-dd">
                   {tabs.map(tab => (
-                    <button key={tab.id} className={`xpl-tab-opt ${activeTab === tab.id ? "active" : ""} ${tab.id === "oracle" ? "oracle-opt" : ""}`} onClick={() => { setActiveTab(tab.id); setShowTabsPanel(false); }}>
+                    <button key={tab.id} className={`xpl-tab-opt ${activeTab === tab.id ? "active" : ""}`} onClick={() => { setActiveTab(tab.id); setShowTabsPanel(false); }}>
                       {tab.label}
                     </button>
                   ))}
@@ -1040,7 +791,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
             </div>
 
             {/* Filter */}
-            {activeTab !== "oracle" && (
+            {activeTab !== "evidence" && (
               <div ref={filterRef} style={{ position: "relative" }}>
                 <button className={`xpl-btn ${showFilterPanel ? "active" : ""}`} onClick={() => { setShowFilterPanel(p => !p); setShowSearchPanel(false); setShowTabsPanel(false); }}>
                   <Filter size={15} /> Filter
@@ -1059,6 +810,12 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
                 )}
               </div>
             )}
+
+            {xrcService && (
+              <button className="xpl-btn xpl-oracle-action" onClick={() => setShowOracleModal(true)}>
+                <Link2 size={15} /> XRC Oracle
+              </button>
+            )}
           </div>
         </div>
 
@@ -1066,8 +823,8 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         <div className="xpl-content">
 
           {/* ── ORACLE TAB ── */}
-          {activeTab === "oracle" ? (
-            <XRCOraclePanel xrcService={xrcService} currentUserId={userId} />
+          {activeTab === "evidence" ? (
+            <EvidenceGraphPanel graph={evidenceGraph} loading={evidenceLoading} />
           ) : loading ? (
             <div className="xpl-loading">
               <Loader size={32} className="xpl-spinner" />

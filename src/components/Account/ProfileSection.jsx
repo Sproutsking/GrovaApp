@@ -24,6 +24,7 @@ import SavedContentModal   from "../Modals/SavedContentModal";
 import CommunitiesModal    from "../Modals/CommunitiesModal";
 import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
+import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
 
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
@@ -695,6 +696,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             <span style={{ fontSize:9,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
           </div>
         </div>
+
+        <VerificationLedgerCard
+          userId={userId}
+          currentUser={currentUser}
+          onOpenOracle={() => {
+            if (typeof onNavigate === "function") {
+              onNavigate("oracle");
+            }
+          }}
+        />
 
         {/* ACTION BUTTONS */}
         <div className="actions-card">

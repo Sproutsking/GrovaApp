@@ -21,6 +21,7 @@ import PostTab from "../Home/PostTab";
 import StoryTab from "../Home/StoryTab";
 import ReelsTab from "../Home/ReelsTab";
 import MyContentSection from "../Account/MyContentSection";
+import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
 
 // ── Simple inline flash (no external toast needed) ────────────────────────────
 const FlashBanner = ({ flash }) => {
@@ -333,6 +334,16 @@ const UserProfileModal = ({ user, onClose, currentUser, onAuthorClick, onActionM
                 <span className="engagement-label">Engagement</span>
               </div>
             </div>
+
+            <VerificationLedgerCard
+              userId={userId}
+              currentUser={currentUser}
+              onOpenOracle={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("open-oracle"));
+                }
+              }}
+            />
 
             <div className="profile-achievements-banner">
               <div className="achievement-icon"><Award size={24} /></div>
