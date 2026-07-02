@@ -14,6 +14,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
   Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard,
+  Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
 import { supabase } from "../../services/config/supabase";
@@ -25,6 +26,7 @@ import CommunitiesModal    from "../Modals/CommunitiesModal";
 import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
 import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
+import { buildVerificationDashboardSections } from "../../services/evidence/verificationDashboardModel";
 
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
@@ -205,6 +207,9 @@ const FourStatRow = ({ stats }) => {
 //         ambassador view in App.jsx (same pattern as DashboardSection → wallet)
 const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, currentUser }) => {
   const [profile,               setProfile]               = useState(null);
+  const [verificationItems,     setVerificationItems]     = useState([]);
+  const [selectedSection,       setSelectedSection]       = useState(null);
+  const [verificationLoading,   setVerificationLoading]   = useState(true);
   const [tierInfo,              setTierInfo]              = useState(null);
   const [loading,               setLoading]               = useState(true);
   const [error,                 setError]                 = useState(null);
@@ -230,6 +235,12 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
     if (userId) loadProfileData();
   }, [userId]);
 
+  useEffect(() => {
+    if (userId) {
+      loadVerificationItems();
+    }
+  }, [userId]);
+
   // [AMB-4] Fetch ambassador profile separately so it doesn't block main load
   useEffect(() => {
     if (!userId) return;
@@ -246,6 +257,44 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   }, [userId]);
 
   const { isAdmin } = useAuth() || {};
+
+  const verificationSections = buildVerificationDashboardSections(verificationItems, { username: profile?.username });
+  const selectedSectionData = verificationSections.find((section) => section.id === selectedSection) || null;
+  const verifiedCount = verificationItems.filter((item) => item?.verified).length;
+  const highTrustCount = verificationItems.filter((item) => {
+    const level = item?.metadata?.verificationLevel || item?.metadata?.verification_level;
+    return item?.verified && (level === "high" || level === "critical");
+  }).length;
+  const sourceCount = new Set(verificationItems.map((item) => item?.provider).filter(Boolean)).size;
+  const sectionIconMap = {
+    bio: Shield,
+    socials: Users,
+    portfolio: Briefcase,
+    reports: FileText,
+    comments: MessageSquare,
+    replies: MessageCircleReply,
+    likes: ThumbsUp,
+  };
+
+  const loadVerificationItems = async () => {
+    try {
+      setVerificationLoading(true);
+      const { data, error } = await supabase
+        .from("evidence_items")
+        .select("*")
+        .eq("profile_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setVerificationItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn("Verification items load failed:", err?.message || err);
+      setVerificationItems([]);
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
 
   const loadProfileData = async () => {
     try {
@@ -706,6 +755,82 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             }
           }}
         />
+
+        <div style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: 18, boxShadow: "0 16px 45px rgba(0,0,0,0.22)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                <div style={{ padding: "5px 9px", borderRadius: 999, background: "rgba(132,204,22,0.14)", color: "#84cc16", fontSize: 10, fontWeight: 800, border: "1px solid rgba(132,204,22,0.18)" }}>
+                  {verificationLoading ? "Loading" : `${verificationSections.length} modules`}
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.5 }}>A next-generation identity surface that combines proof-backed sections, verified anchors, and cross-platform context.</div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <span style={{ padding: "6px 9px", borderRadius: 999, background: "rgba(132,204,22,0.12)", color: "#84cc16", fontSize: 10, fontWeight: 800, border: "1px solid rgba(132,204,22,0.2)" }}>Verified {verifiedCount}</span>
+              <span style={{ padding: "6px 9px", borderRadius: 999, background: "rgba(96,165,250,0.12)", color: "#60a5fa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(96,165,250,0.2)" }}>High trust {highTrustCount}</span>
+              <span style={{ padding: "6px 9px", borderRadius: 999, background: "rgba(167,139,250,0.12)", color: "#a78bfa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(167,139,250,0.2)" }}>Sources {sourceCount}</span>
+            </div>
+          </div>
+
+          {selectedSectionData ? (
+            <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.26)", padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
+                  <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
+                </div>
+                <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <ArrowLeft size={13} /> Back
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>{selectedSectionData.summary}</div>
+              {selectedSectionData.items.length === 0 ? (
+                <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 13 }}>This section is ready and will populate as evidence arrives. Connect a platform or refresh the verification flow to bring in richer proof.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {selectedSectionData.items.map((item) => (
+                    <div key={item.id || item.title} style={{ padding: "12px 13px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
+                          <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 3 }}>{item.provider} · {item.evidence_type}</div>
+                        </div>
+                        <div style={{ color: item.verified ? "#84cc16" : "#9ca3af", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                          {item.verified ? "Verified" : "Tracked"}
+                        </div>
+                      </div>
+                      {item.summary ? <div style={{ fontSize: 12, color: "#cfcfcf", marginTop: 6 }}>{item.summary}</div> : null}
+                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                        <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#84cc16", background: "rgba(132,204,22,0.14)", border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
+                        {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#60a5fa", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+              {verificationSections.map((section) => {
+                const Icon = sectionIconMap[section.id] || Sparkles;
+                return (
+                  <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 18, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer", boxShadow: "0 10px 26px rgba(0,0,0,0.14)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{section.title}</div>
+                      <div style={{ width: 30, height: 30, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icon size={15} style={{ color: section.accent }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
+                    <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* ACTION BUTTONS */}
         <div className="actions-card">

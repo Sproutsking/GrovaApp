@@ -32,6 +32,11 @@ import { BOOST_VISUAL, getTierBadge } from "../../services/account/profileTierSe
 import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
+import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import {
+  Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
+  ShieldCheck, Users, MessageSquare,
+} from "lucide-react";
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
@@ -66,7 +71,61 @@ const fmt = (n) => {
   if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
   return String(Math.floor(v));
 };
+const parseMediaIds = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string") {
+    if (value.startsWith("http")) return [value];
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch {}
+    return [value];
+  }
+  return [];
+};
 
+const resolveMediaThumbnail = (item) => {
+  if (!item) return null;
+  const httpUrl = (url) => typeof url === "string" && url.startsWith("http") ? url : null;
+
+  const imageIds = parseMediaIds(item.image_ids);
+  if (imageIds.length) {
+    const first = imageIds[0];
+    return httpUrl(first) || mediaUrlService.getImageUrl(first, {
+      width: 400,
+      height: 400,
+      crop: "fill",
+      gravity: "auto",
+      quality: "auto:best",
+      format: "auto",
+    });
+  }
+
+  if (item.cover_image_id) {
+    return httpUrl(item.cover_image_id) || mediaUrlService.getStoryImageUrl(item.cover_image_id, 400);
+  }
+
+  const thumbnailId = item.thumbnail_id || item.video_id || parseMediaIds(item.video_ids)[0];
+  if (thumbnailId) {
+    const candidate = httpUrl(thumbnailId) || mediaUrlService.getVideoThumbnail(thumbnailId, {
+      width: 400,
+      height: 400,
+      time: "0",
+    });
+    if (candidate) return candidate;
+  }
+
+  const fallback = item.thumbnail_url || item.cover_url || item.preview || item.poster;
+  if (fallback) return httpUrl(fallback) || String(fallback);
+
+  if (item.video_metadata) {
+    const { thumbnail_url, poster, preview, poster_url } = item.video_metadata;
+    return httpUrl(thumbnail_url || poster || preview || poster_url);
+  }
+
+  return null;
+};
 // ── Robust ID resolvers ───────────────────────────────────────────────────────
 
 const resolveTargetId = (user) =>
@@ -112,14 +171,7 @@ const TierBadgePill = ({ tier, paymentStatus }) => {
 // ── Content grid card ─────────────────────────────────────────────────────────
 
 const ContentCard = ({ item, type }) => {
-  const imgUrl =
-    item.image_ids?.[0]
-      ? mediaUrlService.getImageUrl(item.image_ids[0], { width: 200 })
-      : item.cover_image_id
-        ? mediaUrlService.getStoryImageUrl(item.cover_image_id, 200)
-        : item.thumbnail_id
-          ? mediaUrlService.getVideoThumbnail(item.thumbnail_id, { width: 200 })
-          : null;
+  const imgUrl = resolveMediaThumbnail(item);
 
   return (
     <div style={{
@@ -185,6 +237,10 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
   const [reels,          setReels]          = useState([]);
   const [stories,        setStories]        = useState([]);
   const [contentLoading, setContentLoading] = useState(false);
+  const [verificationItems, setVerificationItems] = useState([]);
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(true);
   const [stats,          setStats]          = useState({
     posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
   });
@@ -212,6 +268,23 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
 
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
   const nameColor  = hasBoosted ? getTierColor(tier, themeId) : "#ffffff";
+  const dashboard = buildPublicProfileDashboard(profile, verificationItems);
+  const selectedSectionData = dashboard.sections.find((section) => section.id === selectedSection) || null;
+  const verifiedCount = verificationItems.filter((item) => item?.verified).length;
+  const highTrustCount = verificationItems.filter((item) => {
+    const level = item?.metadata?.verificationLevel || item?.metadata?.verification_level;
+    return item?.verified && (level === "high" || level === "critical");
+  }).length;
+  const sourceCount = new Set(verificationItems.map((item) => item?.provider).filter(Boolean)).size;
+  const sectionIconMap = {
+    bio: ShieldCheck,
+    socials: Users,
+    portfolio: Briefcase,
+    reports: FileText,
+    comments: MessageSquare,
+    replies: MessageCircleReply,
+    likes: ThumbsUp,
+  };
   const glowColor  = hasBoosted ? `${nameColor}50` : "transparent";
   const v          = hasBoosted ? BOOST_VISUAL?.[tier] : null;
 
@@ -303,16 +376,17 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
         });
 
       // Parallel counts + follow status
-      const [postsR, reelsR, storiesR, followersR, followingR] =
+      const [postsR, reelsR, storiesR, followersR, followingR, evidenceR] =
         await Promise.allSettled([
           supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("reels").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("stories").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", targetId),
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id",  targetId),
+          supabase.from("evidence_items").select("*").eq("profile_id", targetId).order("created_at", { ascending: false }).limit(50),
         ]);
 
-      if (mounted.current)
+      if (mounted.current) {
         setStats({
           posts:     postsR.status     === "fulfilled" ? (postsR.value.count     ?? 0) : 0,
           reels:     reelsR.status     === "fulfilled" ? (reelsR.value.count     ?? 0) : 0,
@@ -320,6 +394,8 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
           followers: followersR.status === "fulfilled" ? (followersR.value.count ?? 0) : 0,
           following: followingR.status === "fulfilled" ? (followingR.value.count ?? 0) : 0,
         });
+        setVerificationItems(Array.isArray(evidenceR?.value?.data) ? evidenceR.value.data : []);
+      }
 
       // Follow status — only when viewing another user
       if (myId && targetId && String(myId) !== String(targetId)) {
@@ -333,7 +409,10 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
     } catch (e) {
       console.warn("[UserProfileModal]", e?.message);
     } finally {
-      if (mounted.current) setLoading(false);
+      if (mounted.current) {
+        setVerificationLoading(false);
+        setLoading(false);
+      }
     }
   };
 
@@ -516,8 +595,112 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
               </div>
             )}
 
+            <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Open the full proof-driven dashboard from the profile.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDashboard(true);
+                    setSelectedSection(null);
+                  }}
+                  style={{
+                    border: "1px solid rgba(132,204,22,0.3)",
+                    background: "rgba(132,204,22,0.12)",
+                    color: "#84cc16",
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  Open Dashboard
+                </button>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.12)", color: "#84cc16", fontSize: 10, fontWeight: 800, border: "1px solid rgba(132,204,22,0.18)" }}>Verified {verifiedCount}</span>
+                <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.12)", color: "#60a5fa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(96,165,250,0.18)" }}>High {highTrustCount}</span>
+                <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(167,139,250,0.12)", color: "#a78bfa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(167,139,250,0.18)" }}>Sources {sourceCount}</span>
+              </div>
+            </div>
+
+            {showDashboard ? (
+              <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}>{verificationLoading ? "Loading sections…" : "Tap a section to inspect verified evidence."}</div>
+                  </div>
+                  <button type="button" onClick={() => { setShowDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    Close
+                  </button>
+                </div>
+
+                {selectedSectionData ? (
+                  <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.2)", padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
+                      </div>
+                      <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                        Back
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#cfcfcf", marginBottom: 12 }}>{selectedSectionData.summary}</div>
+                    {selectedSectionData.items.length === 0 ? (
+                      <div style={{ padding: "12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 12 }}>No verified evidence found for this section yet.</div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {selectedSectionData.items.map((item) => (
+                          <div key={item.id || item.title} style={{ padding: "12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
+                                <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 2 }}>{item.provider || "Unknown source"} · {item.evidence_type}</div>
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: item.verified ? "#84cc16" : "#9ca3af" }}>{item.verified ? "Verified" : "Tracked"}</div>
+                            </div>
+                            {item.summary ? <div style={{ fontSize: 12, color: "#d1d5db", marginTop: 8 }}>{item.summary}</div> : null}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                              <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.14)", color: "#84cc16", fontSize: 10, fontWeight: 700, border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
+                              {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.12)", color: "#60a5fa", fontSize: 10, fontWeight: 700, border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+                    {dashboard.sections.map((section) => {
+                      const Icon = sectionIconMap[section.id] || Sparkles;
+                      return (
+                        <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 16, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{section.title}</div>
+                            <div style={{ width: 28, height: 28, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Icon size={14} style={{ color: section.accent }} />
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
+                          <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : null}
+
             {/* ── Tabs ── */}
-            <div className="upm-tabs">
+            {!showDashboard && (
+              <>
+                <div className="upm-tabs">
               {[
                 { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
                 { id: "reels",   icon: <Film     size={14} />, label: "Reels",   count: stats.reels   },

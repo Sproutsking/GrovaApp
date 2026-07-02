@@ -40,6 +40,25 @@ const fmt = (n) => {
   return String(Math.floor(v));
 };
 
+const parseMediaIds = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("http")) return [trimmed];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch {}
+    if (trimmed.includes(",")) {
+      return trimmed.split(",").map((part) => part.trim()).filter(Boolean);
+    }
+    return [trimmed];
+  }
+  return [];
+};
+
 const timeAgo = (d) => {
   if (!d) return "";
   const s = (Date.now() - new Date(d)) / 1000;
@@ -187,7 +206,7 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
       const candidates = [];
 
       if (tab === "posts") {
-        const ids = item.image_ids || [];
+        const ids = parseMediaIds(item.image_ids);
         for (const id of ids.slice(0, 3)) {
           const u = buildUrl(id, {
             width: 640,
