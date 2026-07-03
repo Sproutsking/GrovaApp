@@ -1239,8 +1239,8 @@ function AppRouter() {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
 
-  if (!forceResolve && (loading || oauthInProgress)) return <Splash />;
-  if (!user)                                          return <AuthWall />;
+  if (!forceResolve && loading) return <Splash />;
+  if (!user)                     return <AuthWall />;
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
   if (!profile) {
     const paidCache = getIsPaidCached ? getIsPaidCached() : false;

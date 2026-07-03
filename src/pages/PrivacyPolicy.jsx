@@ -214,76 +214,124 @@ export default function PrivacyPolicy() {
 
         <h2>1. Introduction</h2>
         <p>
-          Xeevia ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our service.
+          Xeevia ("we," "our," or "us") is committed to protecting your privacy and ensuring transparency about how we handle your data. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our mobile application, and engage with our platform.
         </p>
 
         <h2>2. Information We Collect</h2>
-        <p>We may collect information about you in a variety of ways. The information we may collect on the site includes:</p>
+        <p>We collect information about you in the following ways:</p>
         <ul>
           <li>
-            <strong>Personal Data:</strong> Name, email address, phone number, and other information you provide during registration
+            <strong>Account Registration Data:</strong> Name, email address, phone number, username, profile information, and any other data you provide during account creation or profile updates
           </li>
           <li>
-            <strong>OAuth Data:</strong> Information from your OAuth provider accounts (Google, Facebook, X, Discord) such as your public profile information
+            <strong>OAuth Provider Information:</strong> When you sign in using Google, X (Twitter), Facebook, Discord, or TikTok, we collect your public profile information, email address, and authentication tokens as permitted by your OAuth provider settings
           </li>
           <li>
-            <strong>Usage Data:</strong> Information about how you interact with our service, including IP address, browser type, and pages visited
+            <strong>Wallet & Transaction Data:</strong> Cryptocurrency wallet addresses, transaction history, balance information, and payment data related to your use of Xeevia's financial features
           </li>
           <li>
-            <strong>Device Data:</strong> Information about the device you use to access our service
+            <strong>Content Data:</strong> Posts, stories, videos, comments, messages, and any other user-generated content you share on the platform
+          </li>
+          <li>
+            <strong>Usage & Analytics Data:</strong> Information about how you interact with Xeevia, including IP address, browser type, device type, pages visited, time spent, search queries, and click patterns
+          </li>
+          <li>
+            <strong>Device Data:</strong> Mobile device identifiers, push notification tokens, operating system, and device settings
+          </li>
+          <li>
+            <strong>Location Data:</strong> Approximate location data based on IP address (not precise GPS location unless you explicitly grant permission)
+          </li>
+          <li>
+            <strong>Communication Data:</strong> Messages, support tickets, and any communications you send to our support team or other users
           </li>
         </ul>
 
         <h2>3. How We Use Your Information</h2>
-        <p>Xeevia uses the information we collect or receive for various purposes:</p>
+        <p>Xeevia uses the information we collect for the following purposes:</p>
         <ul>
-          <li>To provide and maintain our service</li>
-          <li>To process your transactions and send related information</li>
-          <li>To email you regarding your account or subscription</li>
-          <li>To fulfill and manage your requests, orders, and payments</li>
-          <li>To generate a personal profile about you</li>
-          <li>To increase the efficiency and operation of our site</li>
-          <li>To monitor and analyze trends, usage, and activities</li>
-          <li>To detect, prevent, and address technical and security issues</li>
+          <li>To provide, maintain, and improve the Xeevia platform and our services</li>
+          <li>To authenticate your identity and secure your account against unauthorized access</li>
+          <li>To process transactions, payments, and cryptocurrency operations</li>
+          <li>To send you service updates, announcements, and administrative notices</li>
+          <li>To respond to your inquiries, support requests, and feedback</li>
+          <li>To personalize your experience and deliver content tailored to your interests</li>
+          <li>To monitor and analyze platform usage trends, user behavior, and service performance</li>
+          <li>To detect, prevent, and investigate fraud, abuse, security incidents, and policy violations</li>
+          <li>To send push notifications and in-app messages (with your consent)</li>
+          <li>To comply with legal obligations and enforce our Terms of Service</li>
+          <li>To conduct research and analytics to improve our services</li>
         </ul>
 
-        <h2>4. Disclosure of Your Information</h2>
-        <p>
-          We do not sell, trade, or rent users' personally identifiable information to others. We may share your information in the following situations:
-        </p>
+        <h2>4. Data Sharing & Disclosure</h2>
+        <p>Xeevia does not sell, trade, or rent your personally identifiable information to third parties. However, we may share your information in the following circumstances:</p>
         <ul>
           <li>
-            <strong>By Law or to Protect Rights:</strong> If we believe the release of information is necessary to comply with the law
+            <strong>Service Providers:</strong> We share data with third-party service providers (payment processors, analytics providers, hosting services, email services) that assist us in operating the platform. These providers are contractually bound to use your data only for the services they provide.
           </li>
           <li>
-            <strong>Third-Party Service Providers:</strong> We may share your information with third parties who perform services for us, including payment processing, data analysis, email delivery, and customer service
+            <strong>Legal Requirements:</strong> We may disclose your information if required by law, court order, government request, or to protect the legal rights, privacy, safety, or property of Xeevia, our users, or the public.
           </li>
           <li>
-            <strong>Business Transfers:</strong> Your information may be transferred as part of a merger, acquisition, or sale of assets
+            <strong>Business Transfers:</strong> In the event of a merger, acquisition, bankruptcy, or sale of assets, your information may be transferred as part of that transaction. You will be notified of any material changes.
+          </li>
+          <li>
+            <strong>With Your Consent:</strong> We may share your information for purposes beyond those listed above only with your explicit consent.
+          </li>
+          <li>
+            <strong>Blockchain/Public Data:</strong> Some of your data (public profiles, posts, wallet addresses) may be recorded on blockchain networks and become permanently public by design.
           </li>
         </ul>
 
-        <h2>5. Security of Your Information</h2>
+        <h2>5. Security & Data Protection</h2>
         <p>
-          We use administrative, technical, and physical security measures to help protect your personal information. However, no method of transmission over the Internet is 100% secure, and we cannot guarantee absolute security of your information.
+          Xeevia implements industry-standard security measures including encryption, secure authentication, regular security audits, and access controls to protect your personal information. However, no method of transmission over the internet is 100% secure. We cannot guarantee absolute security, and you use the platform at your own risk. We are not responsible for unauthorized access due to factors beyond our control.
         </p>
 
-        <h2>6. Contact Us</h2>
+        <h2>6. Data Retention</h2>
         <p>
-          If you have questions or comments about this Privacy Policy, please contact us at:
+          We retain your information for as long as your account is active or as needed to provide services. You can request deletion of your account and associated data, though some information may be retained for legal, compliance, or fraud prevention purposes. Certain data may remain in backups for a limited period.
+        </p>
+
+        <h2>7. Your Privacy Rights</h2>
+        <p>Depending on your location, you may have the following rights:</p>
+        <ul>
+          <li><strong>Right to Access:</strong> You can request a copy of the personal information we hold about you</li>
+          <li><strong>Right to Correction:</strong> You can request corrections to inaccurate or incomplete data</li>
+          <li><strong>Right to Deletion:</strong> You can request deletion of your data (subject to legal retention requirements)</li>
+          <li><strong>Right to Data Portability:</strong> You can request your data in a machine-readable format</li>
+          <li><strong>Right to Opt-Out:</strong> You can opt out of marketing communications and certain data processing</li>
+          <li><strong>Right to Withdraw Consent:</strong> You can withdraw consent for data processing at any time</li>
+        </ul>
+        <p>To exercise these rights, contact us at <strong>privacy@xeevia.com</strong>.</p>
+
+        <h2>8. Third-Party Links & Services</h2>
+        <p>
+          Xeevia may contain links to third-party websites and services that are not operated by us. This Privacy Policy does not apply to third-party sites, and we are not responsible for their privacy practices. We encourage you to review their privacy policies before sharing any information.
+        </p>
+
+        <h2>9. Children's Privacy</h2>
+        <p>
+          Xeevia is not intended for children under 13 years of age, and we do not knowingly collect personal information from children. If we become aware that a child under 13 has provided us with personal information, we will delete such information promptly and terminate the child's account. Parents or guardians who believe their child has provided information to Xeevia should contact us immediately.
+        </p>
+
+        <h2>10. International Data Transfers</h2>
+        <p>
+          Your information may be transferred to, stored in, and processed in countries other than your country of residence. These countries may have data protection laws different from your home country. By using Xeevia, you consent to the transfer of your information to countries outside your country of residence.
+        </p>
+
+        <h2>11. Changes to This Privacy Policy</h2>
+        <p>
+          Xeevia reserves the right to modify this Privacy Policy at any time. Changes will be effective immediately upon posting to the platform. If we make material changes, we will notify you via email or a prominent notice on our website. Your continued use of Xeevia constitutes acceptance of the updated Privacy Policy.
+        </p>
+
+        <h2>12. Contact Us</h2>
+        <p>
+          If you have questions, concerns, or requests regarding this Privacy Policy or our privacy practices, please contact us at:
         </p>
         <p>
           Email: <strong>privacy@xeevia.com</strong>
-        </p>
-
-        <h2>7. Changes to This Privacy Policy</h2>
-        <p>
-          Xeevia reserves the right to modify this privacy policy at any time. Changes and clarifications will take effect immediately upon their posting to the website. If we make material changes to this policy, we will notify you here that it has been updated.
-        </p>
-
-        <h2>8. California Privacy Rights</h2>
-        <p>
-          California residents have the right to know what personal information is collected, used, shared, or sold. If you are a California resident, you may have additional rights under the California Consumer Privacy Act (CCPA). For more information about your privacy rights, please contact us at privacy@xeevia.com.
+          <br />
+          Mailing Address: Xeevia Privacy Team, [Your Address]
         </p>
 
         <div className="privacy-footer">

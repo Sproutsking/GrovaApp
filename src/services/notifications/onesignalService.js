@@ -1,14 +1,22 @@
 // ============================================================================
-// src/services/notifications/onesignalService.js
+// src/services/notifications/onesignalService.js — PUSH NOTIFICATION SERVICE
 // ============================================================================
-// Lightweight OneSignal wrapper that preserves the app's existing pushService
-// API while moving delivery to OneSignal. The older VAPID path remains in
-// pushService.js but is no longer used by the public methods.
+// OneSignal integration for push notifications. OneSignal SDK is loaded via
+// script tag in public/index.html (production) and from window.OneSignal.
+// This ensures:
+//   • Push notifications work reliably across all browsers
+//   • No npm dependency issues
+//   • SDK is loaded early before React renders
+//   • Fallback to window.OneSignal if needed
+//
+// CRITICAL: Do NOT remove OneSignal integration without understanding the
+// push notification system. This is the PRIMARY notification delivery method.
+// ============================================================================
 
-// OneSignal is loaded via script tag in HTML, not as npm package
+// OneSignal SDK is loaded via script tag in HTML
 let OneSignal = null;
-if (typeof window !== "undefined") {
-  OneSignal = window.OneSignal || null;
+if (typeof window !== "undefined" && window.OneSignal) {
+  OneSignal = window.OneSignal;
 }
 
 const ONESIGNAL_APP_ID = process.env.REACT_APP_ONESIGNAL_APP_ID || "";
