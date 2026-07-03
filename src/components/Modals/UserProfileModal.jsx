@@ -699,55 +699,57 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
 
             {/* ── Tabs ── */}
             {!showDashboard && (
-              <>
-                <div className="upm-tabs">
-              {[
-                { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
-                { id: "reels",   icon: <Film     size={14} />, label: "Reels",   count: stats.reels   },
-                { id: "stories", icon: <BookOpen size={14} />, label: "Stories", count: stats.stories },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  className={`upm-tab${activeTab === t.id ? " active" : ""}`}
-                  onClick={() => handleTabChange(t.id)}
-                  style={
-                    activeTab === t.id && hasBoosted
-                      ? { color: nameColor, borderBottomColor: nameColor, background: `${nameColor}10` }
-                      : {}
-                  }
-                >
-                  {t.icon}
-                  <span>{t.label}</span>
-                  {t.count > 0 && <span className="upm-tc">{fmt(t.count)}</span>}
-                </button>
-              ))}
-            </div>
+              <div className="upm-tabs">
+                {[
+                  { id: "posts",   icon: <Image    size={14} />, label: "Posts",   count: stats.posts   },
+                  { id: "reels",   icon: <Film     size={14} />, label: "Reels",   count: stats.reels   },
+                  { id: "stories", icon: <BookOpen size={14} />, label: "Stories", count: stats.stories },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    className={`upm-tab${activeTab === t.id ? " active" : ""}`}
+                    onClick={() => handleTabChange(t.id)}
+                    style={
+                      activeTab === t.id && hasBoosted
+                        ? { color: nameColor, borderBottomColor: nameColor, background: `${nameColor}10` }
+                        : {}
+                    }
+                  >
+                    {t.icon}
+                    <span>{t.label}</span>
+                    {t.count > 0 && <span className="upm-tc">{fmt(t.count)}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* ── Content grid ── */}
-            <div className="upm-cnt">
-              {contentLoading ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
-                  <div className="upm-spin-sm" />
-                </div>
-              ) : currentContent.length > 0 ? (
-                <div className="upm-grid">
-                  {currentContent.map((item) => (
-                    <ContentCard
-                      key={item.id}
-                      item={item}
-                      type={activeTab === "reels" ? "reel" : activeTab === "stories" ? "story" : "post"}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="upm-empty">
-                  {activeTab === "posts"  ? <Image    size={32} opacity={0.2} />
-                  : activeTab === "reels" ? <Film     size={32} opacity={0.2} />
-                  :                         <BookOpen size={32} opacity={0.2} />}
-                  <p>No {activeTab} yet</p>
-                </div>
-              )}
-            </div>
+            {!showDashboard && (
+              <div className="upm-cnt">
+                {contentLoading ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: 28 }}>
+                    <div className="upm-spin-sm" />
+                  </div>
+                ) : currentContent.length > 0 ? (
+                  <div className="upm-grid">
+                    {currentContent.map((item) => (
+                      <ContentCard
+                        key={item.id}
+                        item={item}
+                        type={activeTab === "reels" ? "reel" : activeTab === "stories" ? "story" : "post"}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="upm-empty">
+                    {activeTab === "posts"  ? <Image    size={32} opacity={0.2} />
+                    : activeTab === "reels" ? <Film     size={32} opacity={0.2} />
+                    :                         <BookOpen size={32} opacity={0.2} />}
+                    <p>No {activeTab} yet</p>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
