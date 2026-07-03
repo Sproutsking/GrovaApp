@@ -77,7 +77,7 @@ html {
   --input-border-focus: rgba(132,204,22,0.45);
   --text: #f5f5f5;
   --text-secondary: #a3a3a3;
-  --text-muted: #6b7280;
+  --text-muted: #9aa3b0;
   --border: #1a1a1a;
   --accent: #84cc16;
   --accent-strong: #65a30d;
@@ -169,7 +169,7 @@ html {
   --input-border-focus: rgba(22,163,74,0.45);
   --text: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --border: #e2e8f0;
   --accent: #16a34a;
   --accent-strong: #15803d;
