@@ -5,7 +5,11 @@
 // API while moving delivery to OneSignal. The older VAPID path remains in
 // pushService.js but is no longer used by the public methods.
 
-import OneSignal from "react-onesignal";
+// OneSignal is loaded via script tag in HTML, not as npm package
+let OneSignal = null;
+if (typeof window !== "undefined") {
+  OneSignal = window.OneSignal || null;
+}
 
 const ONESIGNAL_APP_ID = process.env.REACT_APP_ONESIGNAL_APP_ID || "";
 const ONESIGNAL_SAFARI_WEB_ID = process.env.REACT_APP_ONESIGNAL_SAFARI_WEB_ID || "";

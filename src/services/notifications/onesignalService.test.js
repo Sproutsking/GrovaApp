@@ -1,22 +1,24 @@
-jest.mock('react-onesignal', () => ({
-  __esModule: true,
-  default: {
-    init: jest.fn(),
-    getUserId: jest.fn(),
-    getDeviceState: jest.fn(),
-    setExternalUserId: jest.fn(),
-    Notifications: { requestPermission: jest.fn() },
-    Slidedown: { promptPush: jest.fn() },
-    User: {
-      onesignalId: null,
-      PushSubscription: {
-        id: jest.fn(),
-      },
+// Mock OneSignal globally on window
+const mockOneSignal = {
+  init: jest.fn(),
+  getUserId: jest.fn(),
+  getDeviceState: jest.fn(),
+  setExternalUserId: jest.fn(),
+  Notifications: { requestPermission: jest.fn() },
+  Slidedown: { promptPush: jest.fn() },
+  User: {
+    onesignalId: null,
+    PushSubscription: {
+      id: jest.fn(),
     },
   },
-}));
+};
 
-import OneSignal from 'react-onesignal';
+Object.defineProperty(window, 'OneSignal', {
+  configurable: true,
+  writable: true,
+  value: mockOneSignal,
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
