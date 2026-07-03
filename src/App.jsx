@@ -85,6 +85,10 @@ import xrcService              from "./services/xrc";
 // Admin dashboard
 const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboard"));
 
+// ── Public Pages (no auth required) ──────────────────────────────────────────
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
 import HomeView from "./components/Home/HomeView";
 const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
@@ -1195,6 +1199,23 @@ function AppRouter() {
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
   const oauthInProgress = hasOAuthCodeInUrl();
+
+  // ── Handle public pages (no auth required) ────────────────────────────────
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  if (pathname === "/terms") {
+    return (
+      <Suspense fallback={<Splash />}>
+        <TermsOfService />
+      </Suspense>
+    );
+  }
+  if (pathname === "/privacy") {
+    return (
+      <Suspense fallback={<Splash />}>
+        <PrivacyPolicy />
+      </Suspense>
+    );
+  }
 
   useEffect(() => {
     if (!loading) return;

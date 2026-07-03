@@ -221,13 +221,19 @@ const CSS = `
     .xv-right {
       flex:1 1 100% !important;
       padding:0 !important;
-      align-items:flex-start !important;
+      align-items:center !important;
+      justify-content:center !important;
       border-left:none !important;
+      min-height:100dvh;
     }
     .xv-right-inner {
       width:100% !important;
       max-width:100% !important;
-      padding:40px 24px 48px !important;
+      padding:24px 24px !important;
+      display:flex !important;
+      flex-direction:column !important;
+      justify-content:center !important;
+      align-items:center !important;
     }
   }
 
@@ -1554,16 +1560,14 @@ function LoginView() {
   }, []);
 
   const go = useCallback(
-    async (p) => {
+    (p) => {
       if (status === "loading") return;
       setErrMsg("");
       setProvider(p);
       setStatus("loading");
-      try {
-        // Use the popup-based OAuth flow for interactive sign-in so the
-        // main window is not redirected away and app state is preserved.
-        await authService.signInOAuth({ provider: p, usePopup: true });
-      } catch (e) {
+      
+      // Directly call provider without awaiting — no intermediate screen
+      authService.signInOAuth({ provider: p, usePopup: true }).catch((e) => {
         if (!mounted.current) return;
         const msg = e?.message || "";
         if (/cancel|denied|access_denied|closed|popup/i.test(msg)) {
@@ -1574,7 +1578,7 @@ function LoginView() {
           setStatus("idle");
           setProvider(null);
         }
-      }
+      });
     },
     [status],
   );
@@ -1734,25 +1738,39 @@ function LoginView() {
         }}
       >
         By continuing you agree to our{" "}
-        <span
+        <a
+          href="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
-            color: "#253025",
-            textDecoration: "underline",
+            color: "#a8e63d",
+            textDecoration: "none",
             cursor: "pointer",
+            borderBottom: "1px solid rgba(168,230,61,0.3)",
+            transition: "border-color 0.2s",
           }}
+          onMouseEnter={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.8)"}
+          onMouseLeave={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.3)"}
         >
           Terms
-        </span>
+        </a>
         {" & "}
-        <span
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
-            color: "#253025",
-            textDecoration: "underline",
+            color: "#a8e63d",
+            textDecoration: "none",
             cursor: "pointer",
+            borderBottom: "1px solid rgba(168,230,61,0.3)",
+            transition: "border-color 0.2s",
           }}
+          onMouseEnter={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.8)"}
+          onMouseLeave={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.3)"}
         >
           Privacy
-        </span>
+        </a>
       </div>
     </div>
   );
