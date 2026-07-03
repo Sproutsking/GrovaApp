@@ -70,13 +70,13 @@ const css = `
 .sin{width:100%;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;color:#fff;font-size:12.5px;box-sizing:border-box;outline:none;transition:border .15s}
 .sin:focus{border-color:rgba(132,204,22,.5)}
 
-.bl{padding:8px 14px;border-radius:9px;border:none;background:linear-gradient(135deg,#84cc16,#65a30d);color:#000;font-size:11.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
-.bl:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 2px 10px rgba(132,204,22,.28)}
-.bl:disabled{opacity:.45;cursor:not-allowed}
-.bg{padding:8px 12px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#5a5a5a;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
-.bg:hover{background:rgba(255,255,255,.08);color:#999}
-.br{padding:8px 12px;border-radius:9px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.17);color:#ef4444;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
-.br:hover{background:rgba(239,68,68,.13)}
+.bl{padding:10px 14px;border-radius:12px;border:1px solid rgba(132,204,22,.3);background:rgba(132,204,22,.08);color:#111;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.bl:hover:not(:disabled){background:rgba(132,204,22,.16);border-color:rgba(132,204,22,.45)}
+.bl:disabled{opacity:.5;cursor:not-allowed}
+.bg{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#f5f5f5;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.bg:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.br{padding:10px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.08);color:#ef4444;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.br:hover:not(:disabled){background:rgba(239,68,68,.14)}
 
 .sess-card{display:flex;gap:10px;padding:10px;border-bottom:1px solid rgba(255,255,255,.04);align-items:flex-start}
 .sess-card:last-child{border-bottom:none}
@@ -611,7 +611,7 @@ const SecuritySection = ({ userId }) => {
           </span>
           {!has2FA
             ? <button className="bl" onClick={() => set2FASetup(true)} disabled={saving}>Enable</button>
-            : <button className="br" style={{ padding: "5px 9px", fontSize: 10 }} onClick={disable2FA} disabled={saving}><XCircle size={10} /> Disable</button>
+            : <button className="br" style={{ padding: "10px 14px", fontSize: 11 }} onClick={disable2FA} disabled={saving}>Disable</button>
           }
         </div>
 
@@ -626,7 +626,7 @@ const SecuritySection = ({ userId }) => {
           </span>
           {!hasKey && (
             <button className="bl" onClick={enablePasskey} disabled={saving}>
-              {saving ? "…" : "Enable"}
+              {saving ? "Saving…" : "Enable"}
             </button>
           )}
         </div>
@@ -641,7 +641,7 @@ const SecuritySection = ({ userId }) => {
             {phoneVer ? <CheckCircle size={7} /> : <AlertTriangle size={7} />} {phoneVer ? "Verified" : "Pending"}
           </span>
           {!phoneVer && (
-            <button className="bl" onClick={(e) => { e.stopPropagation(); setMPhone(true); }} disabled={saving} style={{ fontSize: 10, padding: "5px 9px" }}>
+            <button className="bl" onClick={(e) => { e.stopPropagation(); setMPhone(true); }} disabled={saving} style={{ fontSize: 11, padding: "10px 14px" }}>
               Verify
             </button>
           )}
@@ -723,10 +723,7 @@ const SecuritySection = ({ userId }) => {
               ))}
               <div style={{ display: "flex", gap: 7, marginTop: 6 }}>
                 <button className="bl" onClick={changePwd} disabled={saving || !cp || !np || !cfp}>
-                  {saving
-                    ? <><Loader size={10} style={{ animation: "ssSpin 1s linear infinite" }} /> Saving…</>
-                    : <><CheckCircle size={10} /> Update Password</>
-                  }
+                  {saving ? "Saving…" : "Update Password"}
                 </button>
                 <button className="bg" onClick={() => { setOpen(null); setCp(""); setNp(""); setCfp(""); }}>Cancel</button>
               </div>
@@ -804,7 +801,7 @@ const SecuritySection = ({ userId }) => {
                   {sessions.length > 1 && (
                     <button className="br" style={{ margin: "8px 10px 4px", width: "calc(100% - 20px)", justifyContent: "center" }}
                       onClick={endAllSessions} disabled={saving}>
-                      <Trash2 size={10} /> End All Other Sessions
+                      End All Other Sessions
                     </button>
                   )}
                 </div>

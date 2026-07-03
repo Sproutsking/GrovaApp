@@ -172,27 +172,18 @@ const CSS = `
 
   /* ── Action buttons ── */
   .idBtn {
-    flex-shrink:0; display:inline-flex; align-items:center; gap:5px;
-    padding:8px 14px; border-radius:9px; border:1px solid;
+    flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+    padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.07); color:#f5f5f5;
     font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
-    font-family:inherit; transition:background .14s, transform .1s, box-shadow .14s;
+    font-family:inherit; transition:background .14s, transform .1s, border-color .14s;
   }
-  .idBtn:active { transform:scale(0.95); }
-  .idBtn:disabled { opacity:.4; cursor:not-allowed; }
-  .idBtn.btnLink {
-    background:rgba(139,92,246,.1); border-color:rgba(139,92,246,.38); color:#c4b5fd;
-  }
-  .idBtn.btnLink:hover:not(:disabled) {
-    background:rgba(139,92,246,.18); box-shadow:0 0 14px rgba(139,92,246,.18);
-  }
-  .idBtn.btnDisconnect {
-    background:rgba(239,68,68,.07); border-color:rgba(239,68,68,.28); color:#f87171;
-  }
-  .idBtn.btnDisconnect:hover:not(:disabled) { background:rgba(239,68,68,.13); }
-  .idBtn.btnReconnect {
-    background:rgba(245,158,11,.09); border-color:rgba(245,158,11,.33); color:#fbbf24;
-  }
-  .idBtn.btnReconnect:hover:not(:disabled) { background:rgba(245,158,11,.16); }
+  .idBtn:hover:not(:disabled) { background:rgba(255,255,255,.12); }
+  .idBtn:active { transform:scale(0.98); }
+  .idBtn:disabled { opacity:.45; cursor:not-allowed; }
+  .idBtn.btnLink { border-color:rgba(132,204,22,.24); color:#d7ffd9; }
+  .idBtn.btnDisconnect { border-color:rgba(239,68,68,.28); color:#fbb0b0; }
+  .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
   .idSoonBadge {
     padding:3px 9px; border-radius:7px; font-size:10px; font-weight:800;
     background:rgba(255,255,255,.04); color:#3a3a3a;
@@ -583,8 +574,7 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleDisconnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isBusy ? <RefreshCw size={11} className="idSpin" /> : <Unlink size={11} />}
-                        Unlink
+                        {isBusy ? "Working…" : "Unlink"}
                       </button>
                     ) : status === "expired" ? (
                       <button
@@ -592,8 +582,7 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleConnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isConnecting ? <RefreshCw size={11} className="idSpin" /> : <RefreshCw size={11} />}
-                        Reconnect
+                        {isConnecting ? "Working…" : "Reconnect"}
                       </button>
                     ) : (
                       <button
@@ -601,8 +590,7 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleConnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isConnecting ? <RefreshCw size={11} className="idSpin" /> : <Link2 size={11} />}
-                        Link
+                        {isConnecting ? "Connecting…" : "Link"}
                       </button>
                     )}
                   </div>
