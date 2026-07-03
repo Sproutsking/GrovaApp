@@ -1669,12 +1669,14 @@ function LoginView() {
         </div>
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 400,
-            color: "var(--dim)",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#c8f56a",
             marginTop: 8,
             animation: "XV_riseIn .65s ease .13s both",
             opacity: 0,
+            textShadow: "0 0 12px rgba(200,245,106,0.2)",
+            letterSpacing: "0.3px",
           }}
         >
           Sign in to continue to Xeevia
@@ -1740,13 +1742,15 @@ function LoginView() {
       {/* ── Terms ── */}
       <div
         style={{
-          marginTop: 16,
-          fontSize: 10,
-          color: "#192019",
-          lineHeight: 2,
+          marginTop: 24,
+          fontSize: 11,
+          fontWeight: 500,
+          color: "#8fb88f",
+          lineHeight: 1.9,
           textAlign: "center",
           animation: "XV_fadeIn 1s ease .55s both",
           opacity: 0,
+          letterSpacing: "0.2px",
         }}
       >
         By continuing you agree to our{" "}
@@ -1755,14 +1759,22 @@ function LoginView() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: "#a8e63d",
+            color: "#d4fc72",
+            fontWeight: 700,
             textDecoration: "none",
             cursor: "pointer",
-            borderBottom: "1px solid rgba(168,230,61,0.3)",
-            transition: "border-color 0.2s",
+            borderBottom: "1.5px solid rgba(212,252,114,0.4)",
+            transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            textShadow: "0 0 8px rgba(212,252,114,0.15)",
           }}
-          onMouseEnter={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.8)"}
-          onMouseLeave={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.3)"}
+          onMouseEnter={(e) => {
+            e.target.style.borderBottomColor = "rgba(212,252,114,0.8)";
+            e.target.style.textShadow = "0 0 16px rgba(212,252,114,0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.borderBottomColor = "rgba(212,252,114,0.4)";
+            e.target.style.textShadow = "0 0 8px rgba(212,252,114,0.15)";
+          }}
         >
           Terms
         </a>
@@ -1772,14 +1784,22 @@ function LoginView() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: "#a8e63d",
+            color: "#d4fc72",
+            fontWeight: 700,
             textDecoration: "none",
             cursor: "pointer",
-            borderBottom: "1px solid rgba(168,230,61,0.3)",
-            transition: "border-color 0.2s",
+            borderBottom: "1.5px solid rgba(212,252,114,0.4)",
+            transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            textShadow: "0 0 8px rgba(212,252,114,0.15)",
           }}
-          onMouseEnter={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.8)"}
-          onMouseLeave={(e) => e.target.style.borderBottomColor = "rgba(168,230,61,0.3)"}
+          onMouseEnter={(e) => {
+            e.target.style.borderBottomColor = "rgba(212,252,114,0.8)";
+            e.target.style.textShadow = "0 0 16px rgba(212,252,114,0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.borderBottomColor = "rgba(212,252,114,0.4)";
+            e.target.style.textShadow = "0 0 8px rgba(212,252,114,0.15)";
+          }}
         >
           Privacy
         </a>

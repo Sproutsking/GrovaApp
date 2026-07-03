@@ -55,27 +55,41 @@ export default function TermsOfService() {
         .terms-back-btn {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 8px;
-          padding: 10px 14px;
+          padding: 12px 16px;
           border-radius: 10px;
-          border: 1.5px solid rgba(168, 230, 61, 0.3);
-          background: rgba(168, 230, 61, 0.08);
-          color: #a8e63d;
+          border: 1.5px solid rgba(168, 230, 61, 0.4);
+          background: rgba(168, 230, 61, 0.12);
+          color: #d4fc72;
           cursor: pointer;
           text-decoration: none;
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 700;
           transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           user-select: none;
+          min-width: 120px;
+          min-height: 44px;
+          text-shadow: 0 0 8px rgba(212, 252, 114, 0.2);
+          box-shadow: 0 4px 16px rgba(168, 230, 61, 0.08);
         }
         .terms-back-btn:hover {
-          background: rgba(168, 230, 61, 0.15);
-          border-color: rgba(168, 230, 61, 0.6);
+          background: rgba(168, 230, 61, 0.2);
+          border-color: rgba(212, 252, 114, 0.8);
           transform: translateX(-3px);
-          box-shadow: 0 8px 24px rgba(168, 230, 61, 0.15);
+          box-shadow: 0 12px 32px rgba(168, 230, 61, 0.25);
+          text-shadow: 0 0 16px rgba(212, 252, 114, 0.4);
         }
         .terms-back-btn:active {
           transform: translateX(-1px);
+        }
+        @media (max-width: 480px) {
+          .terms-back-btn {
+            min-height: 48px;
+            min-width: 100%;
+            font-size: 14px;
+            padding: 14px 18px;
+          }
         }
         .terms-header-title {
           font-size: 15px;
@@ -94,7 +108,11 @@ export default function TermsOfService() {
           margin-bottom: 8px;
           color: #ffffff;
           letter-spacing: "-0.8px";
-          text-shadow: 0 0 20px rgba(168, 230, 61, 0.15);
+          text-shadow: 0 0 24px rgba(168, 230, 61, 0.2);
+          background: linear-gradient(135deg, #ffffff 0%, #d4fc72 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
         .terms-container .updated-date {
           font-size: 13px;
@@ -124,7 +142,7 @@ export default function TermsOfService() {
         .terms-container p, .terms-container li {
           font-size: 14px;
           line-height: 1.8;
-          color: #b8d8a0;
+          color: #c8d8b0;
           margin-bottom: 14px;
           font-weight: 500;
         }
@@ -146,10 +164,14 @@ export default function TermsOfService() {
         .terms-footer {
           margin-top: 48px;
           padding-top: 24px;
-          border-top: 1px solid rgba(168, 230, 61, 0.1);
-          color: #5a7a5a;
+          padding-bottom: 24px;
+          border-top: 1px solid rgba(168, 230, 61, 0.2);
+          border-bottom: 1px solid rgba(168, 230, 61, 0.1);
+          color: #7a9a7a;
           font-size: 12px;
           text-align: center;
+          font-weight: 500;
+          letter-spacing: "0.2px";
         }
         @media (max-width: 640px) {
           .terms-header {
