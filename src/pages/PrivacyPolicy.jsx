@@ -1,78 +1,194 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
 
 export default function PrivacyPolicy() {
+  // Secure back button handling - prevents bridging into the app
+  const handleBackClick = () => {
+    // Clear any app state when going back
+    if (window.localStorage) {
+      const tempData = {
+        ...JSON.parse(localStorage.getItem("grova_auth_temp") || "{}"),
+        auth_wall_return: true,
+      };
+      localStorage.setItem("grova_auth_temp", JSON.stringify(tempData));
+    }
+    // Navigate back to auth wall, not into app
+    window.location.href = "/";
+  };
+
+  useEffect(() => {
+    // Prevent any accidental navigation into the app
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        handleBackClick();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div
       style={{
         minHeight: "100dvh",
-        background: "#050706",
-        color: "#dde8dd",
+        background: "linear-gradient(135deg, #020804 0%, #050706 100%)",
+        color: "#d4e1d4",
         fontFamily: "'DM Sans', sans-serif",
-        padding: "40px 24px",
+        padding: "24px 20px",
       }}
     >
       <style>{`
-        .privacy-container {
-          max-width: 720px;
-          margin: 0 auto;
+        .privacy-header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: rgba(5, 7, 6, 0.95);
+          backdrop-filter: blur(8px);
+          border-bottom: 1px solid rgba(168, 230, 61, 0.1);
+          padding: 16px 20px;
+          z-index: 200;
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
-        .privacy-container h1 {
-          font-size: 32px;
-          font-weight: 700;
-          margin-bottom: 12px;
-          color: #a8e63d;
-        }
-        .privacy-container h2 {
-          font-size: 20px;
-          font-weight: 600;
-          margin-top: 32px;
-          margin-bottom: 12px;
-          color: #c8f56a;
-        }
-        .privacy-container p, .privacy-container li {
-          font-size: 14px;
-          line-height: 1.8;
-          color: #dde8dd;
-          margin-bottom: 12px;
-        }
-        .privacy-container ul {
-          margin: 12px 0 12px 24px;
-          padding: 0;
-        }
-        .privacy-container li {
-          margin-bottom: 8px;
-        }
-        .back-btn {
-          display: inline-block;
-          margin-bottom: 32px;
-          padding: 10px 16px;
-          border-radius: 8px;
-          border: 1px solid rgba(168, 230, 61, 0.2);
-          background: rgba(168, 230, 61, 0.05);
+        .privacy-back-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1.5px solid rgba(168, 230, 61, 0.3);
+          background: rgba(168, 230, 61, 0.08);
           color: #a8e63d;
           cursor: pointer;
           text-decoration: none;
           font-size: 13px;
-          font-weight: 500;
-          transition: all 0.2s;
+          font-weight: 600;
+          transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+          user-select: none;
         }
-        .back-btn:hover {
-          background: rgba(168, 230, 61, 0.1);
-          border-color: rgba(168, 230, 61, 0.4);
+        .privacy-back-btn:hover {
+          background: rgba(168, 230, 61, 0.15);
+          border-color: rgba(168, 230, 61, 0.6);
+          transform: translateX(-3px);
+          box-shadow: 0 8px 24px rgba(168, 230, 61, 0.15);
+        }
+        .privacy-back-btn:active {
+          transform: translateX(-1px);
+        }
+        .privacy-header-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #ffffff;
+          letter-spacing: "-0.3px";
+        }
+        .privacy-container {
+          max-width: 780px;
+          margin: 0 auto;
+          padding-top: 80px;
+        }
+        .privacy-container h1 {
+          font-size: 36px;
+          font-weight: 900;
+          margin-bottom: 8px;
+          color: #ffffff;
+          letter-spacing: "-0.8px";
+          text-shadow: 0 0 20px rgba(168, 230, 61, 0.15);
+        }
+        .privacy-container .updated-date {
+          font-size: 13px;
+          color: #5a7a5a;
+          margin-bottom: 32px;
+          font-weight: 500;
+        }
+        .privacy-container h2 {
+          font-size: 20px;
+          font-weight: 700;
+          margin-top: 36px;
+          margin-bottom: 14px;
+          color: #c8f56a;
+          letter-spacing: "-0.3px";
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .privacy-container h2::before {
+          content: '';
+          display: inline-block;
+          width: 4px;
+          height: 4px;
+          background: #a8e63d;
+          border-radius: 50%;
+        }
+        .privacy-container p, .privacy-container li {
+          font-size: 14px;
+          line-height: 1.8;
+          color: #b8d8a0;
+          margin-bottom: 14px;
+          font-weight: 500;
+        }
+        .privacy-container strong {
+          color: #d4fc72;
+          font-weight: 700;
+        }
+        .privacy-container ul {
+          margin: 14px 0 14px 24px;
+          padding: 0;
+        }
+        .privacy-container li {
+          margin-bottom: 10px;
+          color: #b8d8a0;
+        }
+        .privacy-container li::marker {
+          color: #a8e63d;
+        }
+        .privacy-footer {
+          margin-top: 48px;
+          padding-top: 24px;
+          border-top: 1px solid rgba(168, 230, 61, 0.1);
+          color: #5a7a5a;
+          font-size: 12px;
+          text-align: center;
+        }
+        @media (max-width: 640px) {
+          .privacy-header {
+            padding: 14px 16px;
+          }
+          .privacy-header-title {
+            font-size: 13px;
+          }
+          .privacy-container {
+            padding-top: 70px;
+            padding-bottom: 24px;
+          }
+          .privacy-container h1 {
+            font-size: 28px;
+          }
+          .privacy-container h2 {
+            font-size: 18px;
+          }
+          .privacy-container p, .privacy-container li {
+            font-size: 13px;
+          }
         }
       `}</style>
-      <div className="privacy-container">
-        <button
-          className="back-btn"
-          onClick={() => (window.location.href = "/login")}
-        >
-          ← Back to Login
-        </button>
 
+      <div className="privacy-header">
+        <button
+          className="privacy-back-btn"
+          onClick={handleBackClick}
+          title="Return to Authentication"
+        >
+          <ArrowLeft size={16} />
+          Back to Auth
+        </button>
+        <div className="privacy-header-title">Privacy Policy</div>
+      </div>
+
+      <div className="privacy-container">
         <h1>Privacy Policy</h1>
-        <p style={{ color: "#a8a8a8", marginBottom: 28 }}>
-          Last updated: January 2026
-        </p>
+        <div className="updated-date">Last updated: January 2026</div>
 
         <h2>1. Introduction</h2>
         <p>
@@ -135,7 +251,7 @@ export default function PrivacyPolicy() {
           If you have questions or comments about this Privacy Policy, please contact us at:
         </p>
         <p>
-          Email: privacy@xeevia.com
+          Email: <strong>privacy@xeevia.com</strong>
         </p>
 
         <h2>7. Changes to This Privacy Policy</h2>
@@ -148,19 +264,8 @@ export default function PrivacyPolicy() {
           California residents have the right to know what personal information is collected, used, shared, or sold. If you are a California resident, you may have additional rights under the California Consumer Privacy Act (CCPA). For more information about your privacy rights, please contact us at privacy@xeevia.com.
         </p>
 
-        <h2>9. Children's Privacy</h2>
-        <p>
-          Xeevia does not knowingly collect personal information from children under the age of 13. If we become aware that a child under 13 has provided us with personal information, we will delete such information and terminate the child's account.
-        </p>
-
-        <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid rgba(168,230,61,0.1)" }}>
-          <button
-            className="back-btn"
-            onClick={() => (window.location.href = "/login")}
-            style={{ marginBottom: 0 }}
-          >
-            ← Back to Login
-          </button>
+        <div className="privacy-footer">
+          <p>© 2026 Xeevia. All rights reserved. This policy is binding and protected.</p>
         </div>
       </div>
     </div>

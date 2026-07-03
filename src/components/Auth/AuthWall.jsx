@@ -1006,12 +1006,13 @@ function LeftPanel() {
           <h1
             style={{
               fontFamily: "'Syne',sans-serif",
-              fontSize: "clamp(20px,2.2vw,31px)",
+              fontSize: "clamp(24px,2.8vw,38px)",
               fontWeight: 900,
               lineHeight: 1.05,
               letterSpacing: "-1.6px",
-              margin: "0 0 7px",
-              color: "#edf5ed",
+              margin: "0 0 10px",
+              color: "#ffffff",
+              textShadow: "0 0 20px rgba(168, 230, 61, 0.25)",
             }}
           >
             Your social life,
@@ -1020,11 +1021,12 @@ function LeftPanel() {
           </h1>
           <p
             style={{
-              fontSize: 10.5,
-              color: "#2e4a2e",
-              lineHeight: 1.72,
+              fontSize: 12.5,
+              color: "#d4e1d4",
+              lineHeight: 1.8,
               maxWidth: 310,
               margin: 0,
+              fontWeight: 500,
             }}
           >
             A private social experience built for people who want more — real
@@ -1098,30 +1100,38 @@ function LeftPanel() {
         >
           {FEATURES.map(({ n, icon, title, sub }) => (
             <div key={n} className="lp-feat-card">
-              <div style={{ fontSize: 16, marginBottom: 4 }}>{icon}</div>
               <div
                 style={{
-                  fontSize: 8.5,
-                  color: "#4a6a3a",
-                  fontWeight: 800,
-                  letterSpacing: "1.2px",
-                  marginBottom: 3,
+                  fontSize: 14,
+                  fontWeight: 900,
+                  color: "#a8e63d",
+                  fontFamily: "'Syne',sans-serif",
+                  marginBottom: 2,
+                  textShadow: "0 0 8px rgba(168, 230, 61, 0.3)",
                 }}
               >
                 {n}
               </div>
+              <div style={{ fontSize: 16, marginBottom: 3 }}>{icon}</div>
               <div
                 style={{
-                  fontSize: 10,
-                  color: "#90c040",
-                  fontWeight: 700,
-                  lineHeight: 1.3,
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: "#d4e1d4",
+                  lineHeight: 1.25,
                   marginBottom: 2,
                 }}
               >
                 {title}
               </div>
-              <div style={{ fontSize: 9, color: "#2e4a2e", lineHeight: 1.4 }}>
+              <div
+                style={{
+                  fontSize: 7.5,
+                  fontWeight: 500,
+                  color: "#8abe3a",
+                  letterSpacing: "0.5px",
+                }}
+              >
                 {sub}
               </div>
             </div>
@@ -1150,17 +1160,18 @@ function LeftPanel() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: 800,
-                    color: "#b8d870",
-                    marginBottom: 2,
+                    color: "#c8f56a",
+                    marginBottom: 3,
                     lineHeight: 1.3,
+                    textShadow: "0 0 6px rgba(168, 230, 61, 0.2)",
                   }}
                 >
                   {title}
                 </div>
                 <div
-                  style={{ fontSize: 9.5, color: "#2e4a2e", lineHeight: 1.6 }}
+                  style={{ fontSize: 10, color: "#b8d8a0", lineHeight: 1.7, fontWeight: 500 }}
                 >
                   {body}
                 </div>
@@ -1185,21 +1196,22 @@ function LeftPanel() {
               <div
                 style={{
                   fontFamily: "'Syne',sans-serif",
-                  fontSize: "clamp(9px,.9vw,12px)",
+                  fontSize: "clamp(10px,1vw,13px)",
                   fontWeight: 900,
-                  color: "#a8e63d",
+                  color: "#d4fc72",
                   letterSpacing: "-0.3px",
                   lineHeight: 1,
                   marginBottom: 2,
+                  textShadow: "0 0 8px rgba(168, 230, 61, 0.25)",
                 }}
               >
                 {value}
               </div>
               <div
                 style={{
-                  fontSize: 7.5,
+                  fontSize: 8,
                   fontWeight: 800,
-                  color: "#7aaa4a",
+                  color: "#a8d86a",
                   textTransform: "uppercase",
                   letterSpacing: "0.7px",
                   marginBottom: 1,
@@ -1207,7 +1219,7 @@ function LeftPanel() {
               >
                 {label}
               </div>
-              <div style={{ fontSize: 7.5, color: "#1e2e1e" }}>{note}</div>
+              <div style={{ fontSize: 7.5, color: "#5a7a4a", fontWeight: 500 }}>{note}</div>
             </div>
           ))}
         </div>

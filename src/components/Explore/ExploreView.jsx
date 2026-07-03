@@ -475,9 +475,56 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         ═══════════════════════════════════════════════════════════════ */
         .xpl-wrapper { max-width:1200px; margin:0 auto; }
 
-        .xpl-header { position:sticky; top:0; background:#000; z-index:100; border-bottom:1px solid rgba(132,204,22,.12); }
-        .xpl-controls { display:flex; align-items:center; gap:6px; padding:6px 10px; }
-        .xpl-btn { display:flex; align-items:center; gap:6px; padding:7px 12px; background:transparent; border:1px solid rgba(132,204,22,.25); border-radius:6px; color:#84cc16; font-size:13px; font-weight:600; cursor:pointer; transition:all .12s; }
+        .xpl-header { position:sticky; top:0; background:#000; z-index:101; border-bottom:1px solid rgba(132,204,22,.12); }
+        .xpl-controls { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; flex-wrap:wrap; }
+        .xpl-btn { 
+          display:flex; 
+          align-items:center; 
+          gap:6px; 
+          padding:8px 13px; 
+          background:rgba(132,204,22,.05); 
+          border:1.2px solid rgba(132,204,22,.25); 
+          border-radius:8px; 
+          color:#84cc16; 
+          font-size:13px; 
+          font-weight:600; 
+          cursor:pointer; 
+          transition:all .15s cubic-bezier(0.34, 1.56, 0.64, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        .xpl-btn::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(132,204,22,.15), transparent);
+          opacity: 0;
+          transition: opacity .2s;
+        }
+        .xpl-btn:hover { 
+          background:rgba(132,204,22,.12); 
+          border-color:rgba(132,204,22,.5);
+          color: #d4fc72;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(132,204,22,.15);
+        }
+        .xpl-btn:hover::before { opacity: 1; }
+        .xpl-btn.active { 
+          background:rgba(132,204,22,.2); 
+          border-color:rgba(132,204,22,.6);
+          color: #ffffff;
+        }
+        .xpl-btn.xpl-oracle-action { 
+          background:rgba(168,85,247,.08);
+          border-color:rgba(168,85,247,.3);
+          color: #e9d5ff;
+        }
+        .xpl-btn.xpl-oracle-action:hover {
+          background:rgba(168,85,247,.15);
+          border-color:rgba(168,85,247,.6);
+          color: #ffffff;
+          box-shadow: 0 6px 16px rgba(168,85,247,.15);
+        }
         .xpl-btn:hover  { background:rgba(132,204,22,.06); border-color:rgba(132,204,22,.4); }
         .xpl-btn.active { background:rgba(132,204,22,.12); border-color:#84cc16; }
         .xpl-tabs-btn   { flex:1; justify-content:space-between; }
@@ -503,12 +550,81 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-tab-opt.oracle-opt:hover { background:rgba(168,85,247,.08); }
         .xpl-tab-opt.oracle-opt.active { background:rgba(168,85,247,.15); }
 
-        .xpl-filter-dd { position:absolute; top:calc(100% + 4px); right:10px; background:#0a0a0a; border:1px solid rgba(132,204,22,.2); border-radius:10px; padding:12px; min-width:260px; box-shadow:0 12px 48px rgba(0,0,0,.9); animation:dropIn .15s ease; z-index:150; }
-        .xpl-filter-label { font-size:10px; font-weight:700; color:#84cc16; text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
-        .xpl-cat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:5px; }
-        .xpl-cat-btn { padding:7px 10px; background:transparent; border:1px solid rgba(132,204,22,.15); border-radius:5px; color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .12s; text-align:center; }
-        .xpl-cat-btn:hover  { background:rgba(132,204,22,.06); border-color:rgba(132,204,22,.3); }
-        .xpl-cat-btn.active { background:#84cc16; color:#000; border-color:#84cc16; }
+        .xpl-filter-dd { 
+          position:absolute; 
+          top:calc(100% + 6px); 
+          right:0px; 
+          background:linear-gradient(135deg, rgba(10,10,10,0.98) 0%, rgba(15,15,15,0.95) 100%);
+          border:1.5px solid rgba(168,230,61,.3); 
+          border-radius:12px; 
+          padding:14px; 
+          min-width:280px; 
+          box-shadow:0 16px 56px rgba(0,0,0,.95), 0 0 40px rgba(168,230,61,.12); 
+          animation:dropIn .18s cubic-bezier(0.34, 1.56, 0.64, 1); 
+          z-index:150;
+          backdrop-filter: blur(10px);
+        }
+        .xpl-filter-label { 
+          font-size:11px; 
+          font-weight:800; 
+          color:#d4fc72; 
+          text-transform:uppercase; 
+          letter-spacing:.8px; 
+          margin-bottom:10px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .xpl-filter-label::before {
+          content: '';
+          display: inline-block;
+          width: 3px;
+          height: 3px;
+          background: #a8e63d;
+          border-radius: 50%;
+        }
+        .xpl-cat-grid { 
+          display:grid; 
+          grid-template-columns:repeat(2,1fr); 
+          gap:6px; 
+        }
+        .xpl-cat-btn { 
+          padding:9px 11px; 
+          background:rgba(168,230,61,.04); 
+          border:1.2px solid rgba(168,230,61,.2); 
+          border-radius:8px; 
+          color:#b8d8a0; 
+          font-size:12px; 
+          font-weight:600; 
+          cursor:pointer; 
+          transition:all .15s cubic-bezier(0.34, 1.56, 0.64, 1); 
+          text-align:center;
+          position: relative;
+          overflow: hidden;
+        }
+        .xpl-cat-btn::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, transparent, rgba(168,230,61,.1), transparent);
+          opacity: 0;
+          transition: opacity .2s;
+        }
+        .xpl-cat-btn:hover  { 
+          background:rgba(168,230,61,.1); 
+          border-color:rgba(168,230,61,.5);
+          color: #d4fc72;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(168,230,61,.15);
+        }
+        .xpl-cat-btn:hover::before { opacity: 1; }
+        .xpl-cat-btn.active { 
+          background:linear-gradient(135deg, #a8e63d, #84cc16);
+          color:#000; 
+          border-color:#a8e63d;
+          font-weight: 700;
+          box-shadow: 0 8px 20px rgba(168,230,61,.3);
+        }
 
         .xpl-content { padding:10px; }
         .xpl-results { margin-bottom:12px; padding:0 2px; font-size:13px; color:#666; }
