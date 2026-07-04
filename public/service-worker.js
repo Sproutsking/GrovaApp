@@ -27,10 +27,10 @@
 //   handler, _focusOrOpen) preserved exactly.
 // ============================================================================
 
-const CACHE_NAME = "xeevia-v2026-sw13";
+const CACHE_NAME = "xeevia-v2026-sw14";
 const CLOUDINARY_CACHE = "xeevia-cloudinary-v1";
 const CLOUDINARY_DOMAINS = ["res.cloudinary.com"];
-const SW_VERSION = "xeevia-1.0.13";
+const SW_VERSION = "xeevia-1.0.14";
 const DB_NAME = "xeevia-sw-db";
 const DB_VERSION = 1;
 const STORE_NAME = "pending-payloads";
