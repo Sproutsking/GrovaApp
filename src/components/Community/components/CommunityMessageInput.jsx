@@ -231,8 +231,8 @@ const CommunityMessageInput = ({
         .comm-msg-input-wrapper {
           position: relative;
           width: 100%;
-          background: #0a0a0a;
-          border-top: 1px solid rgba(156, 255, 0, 0.12);
+          background: var(--panel);
+          border-top: 1px solid var(--surface-border);
           z-index: 1;
         }
 
@@ -245,8 +245,8 @@ const CommunityMessageInput = ({
 
         .comm-typing-bubble {
           padding: 4px 8px;
-          background: rgba(26, 26, 26, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 12px;
         }
 
@@ -259,7 +259,7 @@ const CommunityMessageInput = ({
           width: 5px;
           height: 5px;
           border-radius: 50%;
-          background: #666;
+          background: var(--text-muted);
           animation: bounce 1.2s ease infinite;
         }
 
@@ -273,7 +273,7 @@ const CommunityMessageInput = ({
 
         .comm-typing-text {
           font-size: 11px;
-          color: #666;
+          color: var(--text-secondary);
           font-style: italic;
         }
 
@@ -282,25 +282,25 @@ const CommunityMessageInput = ({
           align-items: center;
           justify-content: space-between;
           padding: 6px 12px;
-          background: rgba(156, 255, 0, 0.08);
-          border-bottom: 1px solid rgba(156, 255, 0, 0.15);
+          background: var(--accent-bg-soft);
+          border-bottom: 1px solid var(--accent-border);
           font-size: 12px;
-          color: #9cff00;
+          color: var(--accent);
         }
 
         .comm-edit-banner button {
           padding: 3px 10px;
           background: transparent;
-          border: 1px solid rgba(156, 255, 0, 0.3);
+          border: 1px solid var(--accent-border);
           border-radius: 6px;
-          color: #9cff00;
+          color: var(--accent);
           font-size: 11px;
           cursor: pointer;
           transition: all 0.2s;
         }
 
         .comm-edit-banner button:hover {
-          background: rgba(156, 255, 0, 0.15);
+          background: var(--accent-bg-soft);
         }
 
         /* PREVIEW CARDS - Above input */
@@ -309,7 +309,7 @@ const CommunityMessageInput = ({
           flex-wrap: wrap;
           gap: 6px;
           padding: 8px 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          border-bottom: 1px solid var(--surface-border);
           max-height: 180px;
           overflow-y: auto;
           scrollbar-width: thin;
@@ -323,8 +323,8 @@ const CommunityMessageInput = ({
           align-items: center;
           gap: 6px;
           padding: 6px 10px;
-          background: rgba(26, 26, 26, 0.8);
-          border: 1px solid rgba(156, 255, 0, 0.25);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 10px;
           max-width: 180px;
           animation: slideIn 0.2s ease-out;
@@ -357,7 +357,7 @@ const CommunityMessageInput = ({
         .comm-preview-title {
           font-size: 11px;
           font-weight: 600;
-          color: #fff;
+          color: var(--text);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -365,7 +365,7 @@ const CommunityMessageInput = ({
 
         .comm-preview-size {
           font-size: 9px;
-          color: #666;
+          color: var(--text-secondary);
           margin-top: 1px;
         }
 
@@ -373,9 +373,9 @@ const CommunityMessageInput = ({
           width: 18px;
           height: 18px;
           border-radius: 50%;
-          background: rgba(255, 59, 48, 0.2);
-          border: 1px solid rgba(255, 59, 48, 0.3);
-          color: #ff3b30;
+          background: var(--danger-bg);
+          border: 1px solid var(--danger-border);
+          color: var(--danger);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -385,7 +385,7 @@ const CommunityMessageInput = ({
         }
 
         .comm-preview-remove:hover {
-          background: rgba(255, 59, 48, 0.3);
+          background: var(--danger-bg-strong);
           transform: scale(1.1);
         }
 
@@ -400,9 +400,9 @@ const CommunityMessageInput = ({
           width: 38px;
           height: 38px;
           border-radius: 50%;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: #666;
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
+          color: var(--text-secondary);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -412,26 +412,26 @@ const CommunityMessageInput = ({
         }
 
         .comm-plus-btn:hover {
-          background: rgba(156, 255, 0, 0.12);
-          border-color: rgba(156, 255, 0, 0.3);
-          color: #9cff00;
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border);
+          color: var(--accent);
         }
 
         .comm-plus-btn.active {
-          background: rgba(156, 255, 0, 0.2);
-          border-color: rgba(156, 255, 0, 0.5);
-          color: #9cff00;
-          box-shadow: 0 0 12px rgba(156, 255, 0, 0.25);
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border-strong);
+          color: var(--accent);
+          box-shadow: 0 0 12px var(--accent-shadow);
         }
 
         .comm-textarea {
           flex: 1;
           min-width: 0;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 20px;
           padding: 10px 16px;
-          color: #fff;
+          color: var(--text);
           font-size: 14px;
           font-family: inherit;
           resize: none;
@@ -439,24 +439,25 @@ const CommunityMessageInput = ({
           line-height: 1.5;
           max-height: 120px;
           overflow-y: auto;
-          transition: border-color 0.2s;
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .comm-textarea:focus {
-          border-color: rgba(156, 255, 0, 0.35);
+          border-color: var(--accent-border-strong);
+          box-shadow: 0 0 0 3px var(--accent-glow-strong);
         }
 
         .comm-textarea::placeholder {
-          color: #444;
+          color: var(--text-muted);
         }
 
         .comm-send-btn {
           width: 38px;
           height: 38px;
           border-radius: 50%;
-          background: rgba(156, 255, 0, 0.15);
-          border: 1px solid rgba(156, 255, 0, 0.2);
-          color: #555;
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
+          color: var(--text-secondary);
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -466,10 +467,10 @@ const CommunityMessageInput = ({
         }
 
         .comm-send-btn.active {
-          background: linear-gradient(135deg, #9cff00, #7acc00);
+          background: var(--accent-gradient);
           border-color: transparent;
-          color: #000;
-          box-shadow: 0 3px 12px rgba(156, 255, 0, 0.4);
+          color: var(--accent-contrast);
+          box-shadow: 0 3px 12px var(--accent-shadow);
         }
 
         .comm-send-btn.active:hover {
