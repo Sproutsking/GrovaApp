@@ -52,7 +52,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
           position: fixed; top: 0; right: 0;
           width: 100%; max-width: ${isMobile ? "100%" : "440px"};
           height: 100dvh;
-          background: #060606;
+          background: var(--panel);
           border-left: 1px solid rgba(132,204,22,0.14);
           z-index: 1000;
           display: flex;
@@ -115,16 +115,16 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
               <HelpCircle size={18} color="#000" strokeWidth={2.5} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", lineHeight: 1.1, letterSpacing: "-.2px" }}>{headerTitle}</div>
-              <div style={{ fontSize: 11, color: "#484848", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1.1, letterSpacing: "-.2px" }}>{headerTitle}</div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
                 <Sparkles size={9} color="#84cc16" /> Xeevia Support Center
               </div>
             </div>
             <button onClick={onClose} className="ss-close" style={{
               width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              background: "var(--surface)", border: "1px solid var(--surface-border)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "#6b7280",
+              cursor: "pointer", color: "var(--text-secondary)",
             }}>
               <X size={16} />
             </button>
@@ -138,9 +138,9 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
                   onClick={() => { setActiveTab(tab.key); if (tab.key === "help") setHelpView("topics"); }}
                   style={{
                     flex: 1, padding: "8px 4px", borderRadius: 10,
-                    border: `1px solid ${isActive ? "rgba(132,204,22,0.4)" : "rgba(255,255,255,0.06)"}`,
-                    background: isActive ? "rgba(132,204,22,0.1)" : "rgba(255,255,255,0.02)",
-                    color: isActive ? "#a3e635" : "#525252",
+                    border: `1px solid ${isActive ? "rgba(132,204,22,0.4)" : "var(--surface-border)"}`,
+                    background: isActive ? "rgba(132,204,22,0.1)" : "var(--surface)",
+                    color: isActive ? "#a3e635" : "var(--text-secondary)",
                     fontSize: 12, fontWeight: 700, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     boxShadow: isActive ? "0 2px 12px rgba(132,204,22,.1)" : "none",

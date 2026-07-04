@@ -365,8 +365,9 @@ const HomeView = ({
   const [stories,   setStories]   = useState(() => swrVal("stories") || readHomeCache("stories") || []);
   const [currentUser, setCurrentUser] = useState(null);
 
-  const hasCachedPosts = (swrVal("posts") || readHomeCache("posts") || []).length > 0;
-  const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedPosts);
+  const hasCachedFeed = ((swrVal("posts") || readHomeCache("posts") || []).length > 0) ||
+                        ((swrVal("reels") || readHomeCache("reels") || []).length > 0);
+  const [showSkeleton,  setShowSkeleton]  = useState(!hasCachedFeed);
   const [refreshing,    setRefreshing]    = useState(false);
   const [error,         setError]         = useState(null);
   const [storyUnlocking,setStoryUnlocking]= useState(false);
@@ -435,11 +436,7 @@ const HomeView = ({
     const cr = swrVal("reels");
     const cs = swrVal("stories");
     const cn = swrVal("news");
-    if (cp?.length) setShowSkeleton(false);
-
-    try {
-      // [ULTRA-2] Single Promise.all — auth + all 4 data sources
-      const [user, postsData, reelsData, storiesData, newsData] = await Promise.all([
+      if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
         authService.getCurrentUser().catch(() => null),
         postService.getPosts({}, 0, POSTS_PAGE).catch(() => []),
         reelService.getReels({ limit: REELS_PAGE }).catch(() => []),

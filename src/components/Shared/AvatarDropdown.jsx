@@ -33,30 +33,30 @@ const LogoutConfirm = ({ onConfirm, onCancel }) =>
     <>
       <div onClick={onCancel} style={{
         position:"fixed", inset:0,
-        background:"rgba(0,0,0,0.82)", backdropFilter:"blur(8px)",
+        background:"var(--modal-overlay, rgba(0,0,0,0.82))", backdropFilter:"blur(8px)",
         zIndex:999998, animation:"adFadeIn 0.15s ease",
       }}/>
       <div style={{
         position:"fixed", top:"50%", left:"50%",
         transform:"translate(-50%,-50%)",
-        zIndex:999999, background:"#0d0d0d",
-        border:"1px solid rgba(239,68,68,0.25)", borderRadius:"22px",
+        zIndex:999999, background:"var(--panel)",
+        border:"1px solid var(--surface-border)", borderRadius:"22px",
         padding:"28px 24px", width:"min(300px, calc(100vw - 32px))",
-        boxShadow:"0 32px 80px rgba(0,0,0,0.95), 0 0 0 1px rgba(239,68,68,0.08)",
+        boxShadow:"0 32px 80px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.08)",
         animation:"adSlideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)",
         fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
       }}>
         <div style={{ width:52,height:52, background:"radial-gradient(circle at 30% 30%,rgba(239,68,68,0.2),rgba(239,68,68,0.04))", border:"1px solid rgba(239,68,68,0.3)", borderRadius:"16px", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", boxShadow:"0 4px 20px rgba(239,68,68,0.15)" }}>
           <LogOut size={22} color="#ef4444"/>
         </div>
-        <p style={{ color:"#fff", fontSize:"17px", fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Sign out?</p>
-        <p style={{ color:"#555", fontSize:"13px", textAlign:"center", margin:"0 0 22px", lineHeight:1.5 }}>You'll be returned to the sign-in screen.</p>
+        <p style={{ color:"var(--text)", fontSize:"17px", fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Sign out?</p>
+        <p style={{ color:"var(--text-secondary)", fontSize:"13px", textAlign:"center", margin:"0 0 22px", lineHeight:1.5 }}>You'll be returned to the sign-in screen.</p>
         <div style={{ display:"flex", gap:10 }}>
           <button
             onClick={onCancel}
-            style={{ flex:1, padding:"12px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"13px", color:"#a3a3a3", fontSize:"14px", fontWeight:700, cursor:"pointer", transition:"all 0.18s", fontFamily:"inherit" }}
-            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.1)";e.currentTarget.style.color="#fff";}}
-            onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="#a3a3a3";}}>
+            style={{ flex:1, padding:"12px", background:"var(--surface)", border:"1px solid var(--surface-border)", borderRadius:"13px", color:"var(--text-secondary)", fontSize:"14px", fontWeight:700, cursor:"pointer", transition:"all 0.18s", fontFamily:"inherit" }}
+            onMouseEnter={e=>{e.currentTarget.style.background="var(--surface-strong)";e.currentTarget.style.color="var(--text)";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="var(--surface)";e.currentTarget.style.color="var(--text-secondary)";}}>
             Stay
           </button>
           <button
@@ -392,15 +392,15 @@ const AvatarDropdown = ({
         .ad-avatar-inner { position:absolute; inset:0; border-radius:50%; overflow:hidden; }
         .ad-avatar-letter { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; color:#000; z-index:1; }
         .ad-avatar-inner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; transition:opacity 0.35s; }
-        .ad-chevron { position:absolute; bottom:-3px; right:-3px; width:15px; height:15px; background:#0a0a0a; border:1.5px solid rgba(132,204,22,0.55); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10; transition:transform 0.25s; pointer-events:none; }
+        .ad-chevron { position:absolute; bottom:-3px; right:-3px; width:15px; height:15px; background:var(--surface); border:1.5px solid rgba(132,204,22,0.55); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10; transition:transform 0.25s; pointer-events:none; }
         .ad-chevron.open { transform:rotate(180deg); }
 
         .ad-panel {
           position:fixed; width:240px;
-          background:#111;
+          background:var(--panel);
           border:1px solid rgba(132,204,22,0.18);
           border-radius:18px; overflow:hidden;
-          box-shadow: 0 24px 70px rgba(0,0,0,0.95), 0 0 0 1px rgba(132,204,22,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+          box-shadow: 0 24px 70px rgba(0,0,0,0.15), 0 0 0 1px rgba(132,204,22,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
           animation:adDropIn 0.28s cubic-bezier(0.34,1.4,0.64,1) both;
           z-index:999990;
         }
@@ -435,19 +435,19 @@ const AvatarDropdown = ({
         .ad-acc-chevron { flex-shrink:0; transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1); margin-left:2px; }
         .ad-acc-chevron.open { transform:rotate(180deg); }
 
-        .ad-switcher { max-height:0; overflow:hidden; transition:max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; opacity:0; background:rgba(0,0,0,0.4); border-top:1px solid transparent; }
+        .ad-switcher { max-height:0; overflow:hidden; transition:max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; opacity:0; background:var(--panel); border-top:1px solid transparent; }
         .ad-switcher.open { max-height:280px; opacity:1; border-top-color:rgba(132,204,22,0.1); }
         .ad-switcher-inner { padding:10px 10px 6px; }
-        .ad-switcher-title { display:flex; align-items:center; gap:5px; font-size:9px; font-weight:800; color:#525252; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding:0 2px; }
+        .ad-switcher-title { display:flex; align-items:center; gap:5px; font-size:9px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; padding:0 2px; }
         .ad-switcher-count { margin-left:auto; background:rgba(132,204,22,0.1); border:1px solid rgba(132,204,22,0.2); color:#84cc16; border-radius:8px; padding:0 5px; font-size:9px; }
-        .ad-switcher-sep { height:1px; background:rgba(255,255,255,0.05); margin:6px 0; }
+        .ad-switcher-sep { height:1px; background:var(--surface-border); margin:6px 0; }
 
         .ad-acc-row { display:flex; align-items:center; gap:9px; padding:8px 6px; border-radius:10px; transition:background 0.18s; animation:adAccIn 0.2s ease both; }
-        .ad-acc-row:hover { background:rgba(255,255,255,0.04); }
+        .ad-acc-row:hover { background:var(--surface-strong); }
         .ad-acc-avatar { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#000; flex-shrink:0; overflow:hidden; position:relative; border:1.5px solid rgba(132,204,22,0.25); }
         .ad-acc-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
         .ad-acc-avatar span { position:relative; z-index:1; }
-        .ad-acc-active-dot { position:absolute; bottom:-2px; right:-2px; width:8px; height:8px; background:#84cc16; border-radius:50%; border:1.5px solid #0d0d0d; box-shadow:0 0 6px rgba(132,204,22,0.6); }
+        .ad-acc-active-dot { position:absolute; bottom:-2px; right:-2px; width:8px; height:8px; background:#84cc16; border-radius:50%; border:1.5px solid var(--panel); box-shadow:0 0 6px rgba(132,204,22,0.6); }
         .ad-acc-info { flex:1; min-width:0; }
         .ad-acc-name { font-size:12px; font-weight:700; color:#e5e5e5; margin:0 0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .ad-acc-user { font-size:10px; color:#525252; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -458,7 +458,7 @@ const AvatarDropdown = ({
         .ad-acc-remove-btn { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:7px; color:#ef444480; cursor:pointer; transition:all 0.18s; }
         .ad-acc-remove-btn:hover { background:rgba(239,68,68,0.14); color:#ef4444; }
 
-        .ad-add-account { width:100%; display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:10px; border:1px dashed rgba(132,204,22,0.2); background:transparent; cursor:pointer; transition:all 0.2s; margin-top:4px; color:#525252; font-size:11px; font-weight:700; }
+        .ad-add-account { width:100%; display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:10px; border:1px dashed rgba(132,204,22,0.2); background:transparent; cursor:pointer; transition:all 0.2s; margin-top:4px; color:var(--text-secondary); font-size:11px; font-weight:700; }
         .ad-add-account:hover:not(:disabled) { border-color:rgba(132,204,22,0.4); background:rgba(132,204,22,0.05); color:#84cc16; }
         .ad-add-account:disabled { opacity:0.3; cursor:not-allowed; }
         .ad-add-icon { width:22px; height:22px; border-radius:7px; background:rgba(132,204,22,0.08); border:1px solid rgba(132,204,22,0.2); display:flex; align-items:center; justify-content:center; }

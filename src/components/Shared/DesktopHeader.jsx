@@ -159,12 +159,14 @@ const DesktopHeader = ({
   onNotificationClick,
   onSupportClick,
   setActiveTab,
+  activeTab,
   profile,
   userId,
   onSignOut,
   activeHomeTab,
   setActiveHomeTab,
 }) => {
+  const isOnHome = activeTab === "home";
   const [displayedText,  setDisplayedText]  = useState("");
   const [isTyping,       setIsTyping]        = useState(false);
   const [greetingText,   setGreetingText]    = useState(getGreeting());
@@ -329,24 +331,26 @@ const DesktopHeader = ({
             </div>
           </div>
 
-          {/* CENTRE — [4-TAB] now 4 tabs */}
-          <nav className="dh-nav-strip" aria-label="Feed navigation">
-            {NAV_TABS.map(({ id, Icon, label }) => {
-              const isActive = activeHomeTab === id;
-              return (
-                <button
-                  key={id}
-                  className={`dh-nav-tab${isActive ? " dh-nav-tab--active" : ""}`}
-                  onClick={() => setActiveHomeTab?.(id)}
-                  aria-label={label}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <span className="dh-tab-icon"><Icon active={isActive} /></span>
-                  <span className="dh-tab-label">{label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {/* CENTRE — [4-TAB] now 4 tabs (only visible on Home) */}
+          {isOnHome && (
+            <nav className="dh-nav-strip" aria-label="Feed navigation">
+              {NAV_TABS.map(({ id, Icon, label }) => {
+                const isActive = activeHomeTab === id;
+                return (
+                  <button
+                    key={id}
+                    className={`dh-nav-tab${isActive ? " dh-nav-tab--active" : ""}`}
+                    onClick={() => setActiveHomeTab?.(id)}
+                    aria-label={label}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <span className="dh-tab-icon"><Icon active={isActive} /></span>
+                    <span className="dh-tab-label">{label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
 
           {/* RIGHT */}
           <div className="dh-right">

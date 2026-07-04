@@ -490,13 +490,21 @@ const FeedTab = React.forwardRef(function FeedTab(
     if (!localItems.length) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      const start = Math.max(0, anchorIndex - 6);
+      const start = Math.max(0, anchorIndex - 20);
       const end   = Math.min(localItems.length - 1, anchorIndex + PRELOAD_WINDOW);
       for (let i = start; i <= end; i++) {
         const item = localItems[i];
-        if (item?.type === "post" && item?.image_ids?.length) {
+        if (!item) continue;
+        if (item.type === "post" && item.image_ids?.length) {
           const dist = Math.abs(i - anchorIndex);
-          preloadPost(item, dist <= 6 ? TIER.CRITICAL : dist <= 16 ? TIER.URGENT : TIER.BATCH);
+          preloadPost(item, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
+        }
+        if (item.type === "reel" && item.thumbnail_id) {
+          const dist = Math.abs(i - anchorIndex);
+          const url = mediaUrlService.getImageUrl(item.thumbnail_id, { width: IMG_W, quality: IMG_Q, format: "webp" });
+          if (url) {
+            preloadPost({ image_ids: [item.thumbnail_id] }, dist <= 8 ? TIER.CRITICAL : dist <= 18 ? TIER.URGENT : TIER.BATCH);
+          }
         }
       }
       const visible = localItems[anchorIndex];

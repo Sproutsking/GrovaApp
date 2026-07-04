@@ -550,12 +550,12 @@ const CSS = `
   .ns {
     position:fixed; top:0; right:0;
     width:36%; max-width:100vw; height:100vh;
-    background:#0a0a0a;
+    background:var(--panel);
     border-left:1px solid rgba(132,204,22,.15);
     display:flex; flex-direction:column;
     z-index:10001;
     animation:nsSlideIn .28s cubic-bezier(.22,1,.36,1);
-    box-shadow:-20px 0 60px rgba(0,0,0,.7);
+    box-shadow:-20px 0 60px rgba(0,0,0,.15);
   }
   @keyframes nsSlideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
 
@@ -573,14 +573,15 @@ const CSS = `
   .ns__head {
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 16px 12px;
-    border-bottom:1px solid rgba(255,255,255,.06);
+    border-bottom:1px solid var(--surface-border);
     flex-shrink:0;
-    background:rgba(10,10,10,.96); backdrop-filter:blur(10px);
+    background:color-mix(in srgb, var(--surface) 90%, white 10%);
+    backdrop-filter:blur(10px);
     position:sticky; top:0; z-index:2;
   }
   .ns__head-left  { display:flex; align-items:center; gap:8px; }
   .ns__head-icon  { color:#84cc16; }
-  .ns__title      { font-size:16px; font-weight:800; color:#fff; letter-spacing:-.3px; }
+  .ns__title      { font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.3px; }
   .ns__badge {
     padding:2px 8px;
     background:rgba(132,204,22,.15); border:1px solid rgba(132,204,22,.35);
@@ -598,17 +599,17 @@ const CSS = `
   .ns__mark-btn:hover { background:rgba(132,204,22,.16); border-color:rgba(132,204,22,.4); }
   .ns__close-btn {
     width:32px; height:32px; border-radius:8px;
-    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    background:var(--surface); border:1px solid var(--surface-border);
     display:flex; align-items:center; justify-content:center;
-    color:#737373; cursor:pointer; transition:all .15s;
+    color:var(--text-secondary); cursor:pointer; transition:all .15s;
   }
-  .ns__close-btn:hover { background:rgba(255,255,255,.09); color:#fff; }
+  .ns__close-btn:hover { background:var(--surface-strong); color:var(--text); }
 
   /* ── Category filter strip ── */
   .ns__cats {
     display:flex; gap:5px;
     padding:10px 12px;
-    border-bottom:1px solid rgba(255,255,255,.05);
+    border-bottom:1px solid var(--surface-border);
     overflow-x:auto; scrollbar-width:none; flex-shrink:0;
   }
   .ns__cats::-webkit-scrollbar { display:none; }
@@ -617,11 +618,11 @@ const CSS = `
     display:inline-flex; align-items:center; gap:5px;
     padding:5px 11px; border-radius:20px; flex-shrink:0;
     font-size:11.5px; font-weight:600; cursor:pointer;
-    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
-    color:rgba(255,255,255,.38); transition:all .15s;
+    background:var(--surface); border:1px solid var(--surface-border);
+    color:var(--text-secondary); transition:all .15s;
   }
   .ns__cat-btn:hover {
-    background:rgba(255,255,255,.07); color:rgba(255,255,255,.65);
+    background:var(--surface-strong); color:var(--text);
   }
   .ns__cat-btn--on {
     background:color-mix(in srgb, var(--cat-color) 12%, transparent);
@@ -631,7 +632,7 @@ const CSS = `
   .ns__cat-cnt {
     padding:1px 5px; border-radius:10px;
     font-size:9px; font-weight:700;
-    background:rgba(255,255,255,.1); color:inherit;
+    background:var(--surface-strong); color:inherit;
   }
   .ns__cat-btn--on .ns__cat-cnt {
     background:color-mix(in srgb, var(--cat-color) 22%, transparent);
@@ -641,7 +642,7 @@ const CSS = `
   .ns__section-label {
     padding:8px 14px 4px;
     font-size:10px; font-weight:700;
-    text-transform:uppercase; letter-spacing:.8px; color:#3a3a3a;
+    text-transform:uppercase; letter-spacing:.8px; color:var(--text-secondary);
     flex-shrink:0;
   }
 
@@ -705,7 +706,7 @@ const CSS = `
   .ni__msg-wrap       { overflow:hidden; max-height:3.2em; transition:max-height .3s cubic-bezier(.4,0,.2,1); }
   .ni__msg-wrap--open { max-height:600px; }
   .ni__msg {
-    font-size:12.5px; color:#c4c4c4; line-height:1.5; margin:0 0 4px;
+    font-size:12.5px; color:var(--text-secondary); line-height:1.5; margin:0 0 4px;
     word-break:break-word;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
   }
@@ -713,12 +714,12 @@ const CSS = `
   .ni--unread .ni__msg{ color:#e8e8e8; font-weight:500; }
 
   .ni__preview {
-    font-size:11.5px; color:#525252; font-style:italic;
+    font-size:11.5px; color:var(--text-secondary); font-style:italic;
     margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
 
   .ni__foot { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-  .ni__time { font-size:10px; color:#484848; flex-shrink:0; }
+  .ni__time { font-size:10px; color:var(--text-secondary); flex-shrink:0; }
   .ni__expand-btn {
     display:inline-flex; align-items:center; gap:3px;
     font-size:10px; color:#84cc16; font-weight:600;
@@ -751,8 +752,8 @@ const CSS = `
   .ni__btn--primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 12px rgba(132,204,22,.35); }
   .ni__btn--primary:disabled { opacity:.65; cursor:default; }
   .ni__btn--done { background:rgba(132,204,22,.1); color:#84cc16; border:1px solid rgba(132,204,22,.25); box-shadow:none; }
-  .ni__btn--ghost { background:rgba(255,255,255,.05); color:#a3a3a3; border:1px solid rgba(255,255,255,.1); }
-  .ni__btn--ghost:hover { background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.2); }
+  .ni__btn--ghost { background:var(--surface); color:var(--text-secondary); border:1px solid var(--surface-border); }
+  .ni__btn--ghost:hover { background:var(--surface-strong); color:var(--text); border-color:var(--surface-border); }
 
   /* Skeleton */
   .ns__skeletons { padding:6px 2px; }
@@ -773,8 +774,8 @@ const CSS = `
   }
   .ns__state-bell       { font-size:44px; opacity:.18; margin-bottom:6px; filter:grayscale(1); }
   .ns__state-icon--error{ color:#404040; margin-bottom:8px; }
-  .ns__state-title      { color:#a3a3a3; font-size:14px; font-weight:700; }
-  .ns__state-hint       { color:#4a4a4a; font-size:12px; line-height:1.6; max-width:260px; }
+  .ns__state-title      { color:var(--text-secondary); font-size:14px; font-weight:700; }
+  .ns__state-hint       { color:var(--text-secondary); font-size:12px; line-height:1.6; max-width:260px; }
   .ns__retry-btn {
     margin-top:12px; padding:8px 20px;
     background:rgba(132,204,22,.08); border:1px solid rgba(132,204,22,.25);

@@ -318,6 +318,12 @@ const Sidebar = ({
           flex-shrink: 0;
         }
 
+        .nav-container {
+          flex: 1;
+          padding-top: 14px;
+          overflow-y: auto;
+        }
+
         .logo-section {
           position: relative;
           display: flex;

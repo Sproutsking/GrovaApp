@@ -70,7 +70,7 @@ const STYLES = `
 
   .xv-nav {
     flex: 1;
-    padding: 10px 12px 8px;
+    padding: 18px 12px 8px;
     overflow-y: auto;
     scrollbar-width: none;
   }
