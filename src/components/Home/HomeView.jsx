@@ -436,7 +436,10 @@ const HomeView = ({
     const cr = swrVal("reels");
     const cs = swrVal("stories");
     const cn = swrVal("news");
-      if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
+    if ((cp?.length || cr?.length) && !hasLoaded.current) setShowSkeleton(false);
+
+    try {
+      const [user, postsData, reelsData, storiesData, newsData] = await Promise.all([
         authService.getCurrentUser().catch(() => null),
         postService.getPosts({}, 0, POSTS_PAGE).catch(() => []),
         reelService.getReels({ limit: REELS_PAGE }).catch(() => []),
