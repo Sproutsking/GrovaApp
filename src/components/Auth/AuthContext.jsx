@@ -133,6 +133,32 @@ function writePaidCache(val) {
   } catch {}
 }
 
+// ── Profile cache (dual storage) ───────────────────────────────────────────
+const PROFILE_LS_KEY = "xv_profile";
+
+function readProfileCache() {
+  try {
+    const raw = localStorage.getItem(PROFILE_LS_KEY) || sessionStorage.getItem(PROFILE_LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeProfileCache(profile) {
+  try {
+    if (!profile) {
+      localStorage.removeItem(PROFILE_LS_KEY);
+      sessionStorage.removeItem(PROFILE_LS_KEY);
+      return;
+    }
+    const str = JSON.stringify(profile);
+    try { sessionStorage.setItem(PROFILE_LS_KEY, str); } catch {}
+    try { localStorage.setItem(PROFILE_LS_KEY, str); } catch {}
+  } catch {}
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
