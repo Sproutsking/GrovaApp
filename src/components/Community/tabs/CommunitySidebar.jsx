@@ -95,8 +95,8 @@ const CommunitySidebar = ({
       <style jsx>{`
         .community-sidebar {
           width: 72px;
-          background: rgba(15, 15, 15, 0.95);
-          border-right: 2px solid rgba(156, 255, 0, 0.1);
+          background: linear-gradient(180deg, var(--panel-strong) 0%, var(--panel) 100%);
+          border-right: 2px solid var(--surface-border);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -104,6 +104,7 @@ const CommunitySidebar = ({
           gap: 8px;
           overflow-y: auto;
           overflow-x: hidden;
+          box-shadow: inset -1px 0 0 rgba(255,255,255,0.02);
         }
 
         .community-sidebar::-webkit-scrollbar {
@@ -115,7 +116,7 @@ const CommunitySidebar = ({
         }
 
         .community-sidebar::-webkit-scrollbar-thumb {
-          background: rgba(156, 255, 0, 0.3);
+          background: var(--accent-bg-strong);
           border-radius: 2px;
         }
 
@@ -141,35 +142,36 @@ const CommunitySidebar = ({
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
           flex-shrink: 0;
+          border: 1px solid transparent;
         }
 
         .community-icon.home {
-          background: rgba(26, 26, 26, 0.8);
-          color: #999;
+          background: var(--surface);
+          color: var(--text-secondary);
         }
 
         .community-icon.home:hover {
-          background: rgba(156, 255, 0, 0.15);
-          color: #9cff00;
+          background: var(--accent-bg-soft);
+          color: var(--accent);
           border-radius: 12px;
         }
 
         .community-icon.home.active {
-          background: linear-gradient(135deg, #9cff00 0%, #667eea 100%);
-          color: #000;
+          background: var(--accent-gradient);
+          color: var(--accent-contrast);
           border-radius: 12px;
-          box-shadow: 0 0 20px rgba(156, 255, 0, 0.4);
+          box-shadow: 0 0 20px var(--accent-shadow);
         }
 
         .community-icon:not(.home):not(.create):hover {
           border-radius: 12px;
           transform: translateX(-4px);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 8px 24px var(--shadow);
         }
 
         .community-icon.active:not(.home):not(.create) {
           border-radius: 12px;
-          box-shadow: 0 0 20px rgba(156, 255, 0, 0.3);
+          box-shadow: 0 0 20px var(--accent-shadow);
         }
 
         .community-icon.active:not(.home):not(.create)::before {
@@ -178,19 +180,19 @@ const CommunitySidebar = ({
           left: -12px;
           width: 4px;
           height: 24px;
-          background: #9cff00;
+          background: var(--accent);
           border-radius: 0 4px 4px 0;
         }
 
         .community-icon.create {
-          background: rgba(26, 26, 26, 0.8);
-          color: #9cff00;
-          border: 2px dashed rgba(156, 255, 0, 0.4);
+          background: var(--surface);
+          color: var(--accent);
+          border: 2px dashed var(--accent-border);
         }
 
         .community-icon.create:hover {
-          background: rgba(156, 255, 0, 0.15);
-          border-color: rgba(156, 255, 0, 0.8);
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border-strong);
           border-radius: 12px;
           transform: scale(1.05);
         }
@@ -198,7 +200,7 @@ const CommunitySidebar = ({
         .community-divider {
           width: 32px;
           height: 2px;
-          background: rgba(156, 255, 0, 0.2);
+          background: var(--accent-bg-strong);
           border-radius: 1px;
           margin: 4px 0;
           flex-shrink: 0;
@@ -206,13 +208,13 @@ const CommunitySidebar = ({
 
         .context-menu {
           position: fixed;
-          background: rgba(15, 15, 15, 0.98);
-          border: 2px solid rgba(156, 255, 0, 0.3);
+          background: var(--glass-strong);
+          border: 2px solid var(--accent-border);
           border-radius: 12px;
           padding: 8px;
           min-width: 200px;
           z-index: 10000;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+          box-shadow: 0 8px 32px var(--shadow);
           animation: contextMenuSlide 0.2s ease;
         }
 
@@ -234,15 +236,15 @@ const CommunitySidebar = ({
           padding: 12px;
           cursor: pointer;
           border-radius: 8px;
-          color: #fff;
+          color: var(--text);
           font-size: 14px;
           font-weight: 600;
           transition: all 0.2s;
         }
 
         .context-item:hover {
-          background: rgba(156, 255, 0, 0.15);
-          color: #9cff00;
+          background: var(--accent-bg-soft);
+          color: var(--accent);
         }
 
         .context-item span {
@@ -252,8 +254,8 @@ const CommunitySidebar = ({
         @media (max-width: 768px) {
           .community-sidebar {
             width: 54px;
-            border-right: 1px solid rgba(156, 255, 0, 0.1);
-            border-top: 1px solid rgba(156, 255, 0, 0.1);
+            border-right: 1px solid var(--surface-border);
+            border-top: 1px solid var(--surface-border);
             padding: 8px 0px;
             padding-bottom: 15px;
           }
@@ -265,7 +267,7 @@ const CommunitySidebar = ({
           .community-icon {
             width: 40px;
             height: 40px;
-            border: 1px solid #444444;
+            border: 1px solid var(--surface-border);
           }
 
           .community-icon.active:not(.home):not(.create)::before {

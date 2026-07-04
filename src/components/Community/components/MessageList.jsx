@@ -139,8 +139,8 @@ const MessageList = ({
         .msg-spinner {
           width: 20px;
           height: 20px;
-          border: 2px solid rgba(156, 255, 0, 0.2);
-          border-top-color: #9cff00;
+          border: 2px solid var(--accent-glow);
+          border-top-color: var(--accent);
           border-radius: 50%;
           animation: spin 0.6s linear infinite;
         }
@@ -185,11 +185,11 @@ const MessageList = ({
           width: 36px;
           height: 36px;
           border-radius: 50%;
-          border: 2px solid rgba(156, 255, 0, 0.2);
+          border: 2px solid var(--accent-border);
           overflow: hidden;
           flex-shrink: 0;
           position: relative;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 2px 8px var(--shadow);
         }
 
         .msg-avatar img {
@@ -202,13 +202,13 @@ const MessageList = ({
         .msg-avatar-fallback {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, #1a1a1a, #222);
+          background: linear-gradient(135deg, var(--surface-elevated), var(--surface));
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 14px;
           font-weight: 700;
-          color: #9cff00;
+          color: var(--accent);
         }
 
         .msg-avatar-spacer {
@@ -226,33 +226,26 @@ const MessageList = ({
 
         /* Base bubble styles WITHOUT tails */
         .msg-bubble.them {
-          background: rgba(26, 26, 26, 0.95);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--surface-elevated);
+          border: 1px solid var(--surface-border);
           border-bottom-left-radius: 4px;
         }
 
-        /* DARKER "me" bubble for better blending */
+        /* "me" bubble for better blending */
         .msg-bubble.me {
           background: linear-gradient(
             135deg,
-            rgba(156, 255, 0, 0.18),
-            rgba(156, 255, 0, 0.12)
+            var(--accent-bg-soft),
+            rgba(255,255,255,0.04)
           );
-          border: 1px solid rgba(156, 255, 0, 0.25);
+          border: 1px solid var(--accent-border);
           border-bottom-right-radius: 4px;
         }
 
-        /* ============================================
-           GEOMETRIC & SLEEK TAIL ⚡
-           SHIFTED 0.5PX RIGHT AND 0.5PX UP
-        ============================================ */
-        
-        /* LEFT SIDE TAIL (them) - Points DOWN from bottom-left */
         .msg-bubble.them.has-tail {
           border-bottom-left-radius: 3px;
         }
 
-        /* Main tail triangle */
         .msg-bubble.them.has-tail::before {
           content: '';
           position: absolute;
@@ -262,10 +255,9 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 10px 8px;
-          border-color: transparent transparent rgba(26, 26, 26, 0.95) transparent;
+          border-color: transparent transparent var(--surface-elevated) transparent;
         }
 
-        /* Tail border/outline */
         .msg-bubble.them.has-tail::after {
           content: '';
           position: absolute;
@@ -275,16 +267,14 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 11px 9px;
-          border-color: transparent transparent rgba(255, 255, 255, 0.1) transparent;
+          border-color: transparent transparent var(--surface-border) transparent;
           z-index: -1;
         }
 
-        /* RIGHT SIDE TAIL (me) - SHIFTED 0.5PX RIGHT & 0.5PX UP */
         .msg-bubble.me.has-tail {
           border-bottom-right-radius: 3px;
         }
 
-        /* Main tail triangle - SHIFTED right and up */
         .msg-bubble.me.has-tail::before {
           content: '';
           position: absolute;
@@ -294,11 +284,10 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 10px 8px;
-          border-color: transparent transparent rgba(156, 255, 0, 0.15) transparent;
+          border-color: transparent transparent var(--accent-bg-soft) transparent;
           transform: scaleX(-1);
         }
 
-        /* Tail border/outline - SHIFTED right and up */
         .msg-bubble.me.has-tail::after {
           content: '';
           position: absolute;
@@ -308,7 +297,7 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 11px 9px;
-          border-color: transparent transparent rgba(156, 255, 0, 0.25) transparent;
+          border-color: transparent transparent var(--accent-border) transparent;
           z-index: -1;
           transform: scaleX(-1);
         }
@@ -316,13 +305,13 @@ const MessageList = ({
         .msg-user-name {
           font-size: 12px;
           font-weight: 700;
-          color: #9cff00;
+          color: var(--accent);
           margin-bottom: 3px;
         }
 
         .msg-content {
           font-size: 14px;
-          color: #fff;
+          color: var(--text);
           line-height: 1.5;
           word-break: break-word;
         }
@@ -336,12 +325,12 @@ const MessageList = ({
 
         .msg-time {
           font-size: 10px;
-          color: #666;
+          color: var(--text-muted);
         }
 
         .msg-edited {
           font-size: 10px;
-          color: #555;
+          color: var(--text-secondary);
           font-style: italic;
         }
 
@@ -354,22 +343,25 @@ const MessageList = ({
 
         .reaction-btn {
           padding: 2px 6px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 12px;
           font-size: 11px;
           cursor: pointer;
           transition: all 0.2s;
+          color: var(--text-secondary);
         }
 
         .reaction-btn:hover {
-          background: rgba(156, 255, 0, 0.15);
-          border-color: rgba(156, 255, 0, 0.3);
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border);
+          color: var(--accent);
         }
 
         .reaction-btn.reacted {
-          background: rgba(156, 255, 0, 0.2);
-          border-color: rgba(156, 255, 0, 0.4);
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border-strong);
+          color: var(--accent);
         }
 
         @media (max-width: 768px) {
@@ -400,7 +392,6 @@ const MessageList = ({
             font-size: 13px;
           }
 
-          /* Mobile tail adjustments */
           .msg-bubble.them.has-tail::before {
             border-width: 0 0 9px 7px;
             left: -6px;

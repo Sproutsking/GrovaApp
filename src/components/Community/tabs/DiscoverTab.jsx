@@ -309,17 +309,18 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           overflow-y: auto;
           padding: 10px 12px 20px;
           position: relative;
-          background: #000;
+          background: var(--bg);
+          color: var(--text);
           font-family: 'Outfit', sans-serif;
         }
         .disc-root::-webkit-scrollbar { width: 4px; }
-        .disc-root::-webkit-scrollbar-thumb { background: rgba(156,255,0,.15); border-radius: 2px; }
+        .disc-root::-webkit-scrollbar-thumb { background: var(--accent-bg-strong); border-radius: 2px; }
 
         .disc-bg {
-          position: absolute; inset: 0; opacity: .018; pointer-events: none;
+          position: absolute; inset: 0; opacity: .035; pointer-events: none;
           background-image:
-            repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(156,255,0,.1) 2px,rgba(156,255,0,.1) 4px),
-            repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(102,126,234,.08) 2px,rgba(102,126,234,.08) 4px);
+            repeating-linear-gradient(0deg,transparent,transparent 2px,var(--accent-bg-soft) 2px,var(--accent-bg-soft) 4px),
+            repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(22,163,74,.08) 2px,rgba(22,163,74,.08) 4px);
         }
 
         /* Topbar */
@@ -328,30 +329,30 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           gap: 8px; margin-bottom: 10px; position: relative; z-index: 10;
         }
         .disc-stats-row { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-        .disc-stat-chip { display: flex; align-items: center; gap: 3px; color: #3a3a3a; font-size: 11px; font-weight: 700; }
-        .disc-stat-dot { color: #2a2a2a; font-size: 11px; }
+        .disc-stat-chip { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+        .disc-stat-dot { color: var(--text-muted); font-size: 11px; }
         .disc-controls { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 
         .disc-ctrl {
           display: flex; align-items: center; gap: 4px;
           padding: 5px 8px; border-radius: 8px;
-          background: rgba(14,14,14,.98); border: 1px solid rgba(34,34,34,.9);
-          color: #666; font-size: 11px; font-weight: 700; cursor: pointer;
+          background: var(--surface); border: 1px solid var(--surface-border);
+          color: var(--text-secondary); font-size: 11px; font-weight: 700; cursor: pointer;
           transition: all .14s; line-height: 1; font-family: 'Outfit', sans-serif;
         }
         .disc-ctrl:hover, .disc-ctrl.on {
-          background: rgba(156,255,0,.07);
-          border-color: rgba(156,255,0,.28); color: #9cff00;
+          background: var(--accent-bg-soft);
+          border-color: var(--accent-border); color: var(--accent);
         }
         .disc-ctrl.has-lbl { gap: 5px; }
 
         .disc-dd { position: relative; }
         .disc-dd-menu {
           position: absolute; top: calc(100% + 5px); left: 0;
-          min-width: 155px; background: rgba(10,10,10,.99);
-          border: 1px solid rgba(34,34,34,.9); border-radius: 10px;
+          min-width: 155px; background: var(--glass-strong);
+          border: 1px solid var(--surface-border); border-radius: 10px;
           padding: 5px; z-index: 200;
-          box-shadow: 0 10px 28px rgba(0,0,0,.8);
+          box-shadow: 0 10px 28px var(--shadow);
           animation: ddIn .14s ease;
         }
         .disc-dd-right { left: auto; right: 0; }
@@ -359,23 +360,23 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-dd-item {
           width: 100%; display: flex; align-items: center; gap: 7px;
           padding: 8px 10px; background: transparent; border: none; border-radius: 7px;
-          color: #888; font-size: 11.5px; font-weight: 700; cursor: pointer;
+          color: var(--text-secondary); font-size: 11.5px; font-weight: 700; cursor: pointer;
           transition: all .12s; text-align: left; font-family: 'Outfit', sans-serif;
         }
-        .disc-dd-item:hover { background: rgba(156,255,0,.07); color: #ddd; }
-        .disc-dd-item.on { background: rgba(156,255,0,.1); color: #9cff00; }
+        .disc-dd-item:hover { background: var(--accent-bg-soft); color: var(--text); }
+        .disc-dd-item.on { background: var(--accent-bg-soft); color: var(--accent); }
 
         /* Search */
         .disc-search-bar {
           display: flex; align-items: center; gap: 7px;
           padding: 9px 11px; border-radius: 10px; margin-bottom: 10px;
-          background: rgba(10,10,10,.98); border: 1px solid rgba(34,34,34,.9);
+          background: var(--surface-elevated); border: 1px solid var(--surface-border);
           animation: ddIn .18s ease; position: relative; z-index: 9;
         }
-        .disc-search-inp { flex:1; background:transparent; border:none; color:#fff; font-size:13px; outline:none; font-family:'Outfit',sans-serif; }
-        .disc-search-inp::placeholder { color:#3a3a3a; }
-        .disc-search-x { background:none; border:none; color:#555; cursor:pointer; display:flex; align-items:center; padding:0; transition:color .12s; }
-        .disc-search-x:hover { color:#9cff00; }
+        .disc-search-inp { flex:1; background:transparent; border:none; color:var(--text); font-size:13px; outline:none; font-family:'Outfit',sans-serif; }
+        .disc-search-inp::placeholder { color:var(--text-muted); }
+        .disc-search-x { background:none; border:none; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; padding:0; transition:color .12s; }
+        .disc-search-x:hover { color:var(--accent); }
 
         /* Grid */
         .disc-grid {
@@ -390,17 +391,18 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-card {
           position: relative; overflow: hidden;
           border-radius: 14px;
-          background: rgba(11,11,11,.97);
-          border: 1.5px solid rgba(26,26,26,.95);
+          background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--panel) 100%);
+          border: 1.5px solid var(--surface-border);
           transition: border-color .28s, transform .28s, box-shadow .28s;
           animation: cardIn .36s ease backwards;
           isolation: isolate;
+          box-shadow: 0 10px 28px var(--shadow-soft);
         }
         @keyframes cardIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .disc-card:hover {
-          border-color: rgba(156,255,0,.45);
+          border-color: var(--accent-border-strong);
           transform: translateY(-3px);
-          box-shadow: 0 10px 28px rgba(0,0,0,.55), 0 0 14px rgba(156,255,0,.06);
+          box-shadow: 0 14px 36px var(--accent-shadow);
         }
 
         /* Accent — pointer-events:none is KEY, never blocks clicks */
@@ -420,37 +422,37 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           width: 46px; height: 46px; border-radius: 11px;
           flex-shrink: 0; display: flex; align-items: center;
           justify-content: center; font-size: 22px; position: relative;
-          box-shadow: 0 3px 12px rgba(0,0,0,.4);
+          box-shadow: 0 3px 12px var(--shadow);
           transition: transform .28s cubic-bezier(.4,0,.2,1);
         }
         .disc-card:hover .disc-avatar { transform: scale(1.05) rotate(2deg); }
         .disc-premium {
           position: absolute; top: -3px; right: -3px;
           width: 15px; height: 15px; border-radius: 50%;
-          background: #000; border: 1.5px solid #ffd700;
+          background: var(--panel-strong); border: 1.5px solid #ffd700;
           display: flex; align-items: center; justify-content: center;
         }
 
         .disc-card-info { flex: 1; min-width: 0; }
         .disc-card-name {
-          font-size: 13.5px; font-weight: 800; color: #fff;
+          font-size: 13.5px; font-weight: 800; color: var(--text);
           margin-bottom: 3px; display: flex; align-items: center; gap: 4px;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .disc-card-meta { display: flex; align-items: center; gap: 4px; }
-        .disc-cs { display: flex; align-items: center; gap: 3px; color: #666; font-size: 10.5px; font-weight: 600; }
-        .disc-cs.online { color: #10b981; }
-        .disc-cs-dot { color: #2a2a2a; font-size: 10px; }
-        .disc-pulse { width: 5px; height: 5px; border-radius: 50%; background: #10b981; box-shadow: 0 0 5px #10b981; }
+        .disc-cs { display: flex; align-items: center; gap: 3px; color: var(--text-secondary); font-size: 10.5px; font-weight: 600; }
+        .disc-cs.online { color: var(--brand-success); }
+        .disc-cs-dot { color: var(--text-muted); font-size: 10px; }
+        .disc-pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--brand-success); box-shadow: 0 0 5px var(--brand-success); }
 
         .disc-card-desc {
-          color: #555; font-size: 11.5px; line-height: 1.45; margin-bottom: 8px;
+          color: var(--text-secondary); font-size: 11.5px; line-height: 1.45; margin-bottom: 8px;
           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .disc-card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
         .disc-tag {
           padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700;
-          background: rgba(156,255,0,.06); border: 1px solid rgba(156,255,0,.15); color: #9cff00;
+          background: var(--accent-bg-soft); border: 1px solid var(--accent-border); color: var(--accent);
         }
 
         /* Buttons — z-index:2, always above accent */
@@ -461,13 +463,13 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           display: flex; align-items: center; justify-content: center; gap: 4px;
           font-family: 'Outfit', sans-serif;
         }
-        .dca-btn.join { background: linear-gradient(135deg,#9cff00,#667eea); color: #000; box-shadow: 0 2px 8px rgba(156,255,0,.22); }
-        .dca-btn.join:hover { box-shadow: 0 4px 16px rgba(156,255,0,.4); transform: translateY(-1px); }
-        .dca-btn.joined { background: rgba(156,255,0,.09); border: 1.5px solid rgba(156,255,0,.28); color: #9cff00; }
-        .dca-btn.details { background: rgba(18,18,18,.95); border: 1.5px solid rgba(36,36,36,.9); color: #777; }
-        .dca-btn.details:hover { border-color: rgba(102,126,234,.35); color: #667eea; transform: translateY(-1px); }
-        .dca-btn.view { background: rgba(18,18,18,.95); border: 1.5px solid rgba(36,36,36,.9); color: #777; }
-        .dca-btn.view:hover { border-color: rgba(156,255,0,.32); color: #9cff00; transform: translateY(-1px); }
+        .dca-btn.join { background: var(--accent-gradient); color: var(--accent-contrast); box-shadow: 0 2px 8px var(--accent-shadow); }
+        .dca-btn.join:hover { box-shadow: 0 4px 16px var(--accent-shadow-strong); transform: translateY(-1px); }
+        .dca-btn.joined { background: var(--accent-bg-soft); border: 1.5px solid var(--accent-border); color: var(--accent); }
+        .dca-btn.details { background: var(--surface); border: 1.5px solid var(--surface-border); color: var(--text-secondary); }
+        .dca-btn.details:hover { border-color: var(--accent-border); color: var(--accent); transform: translateY(-1px); }
+        .dca-btn.view { background: var(--surface); border: 1.5px solid var(--surface-border); color: var(--text-secondary); }
+        .dca-btn.view:hover { border-color: var(--accent-border); color: var(--accent); transform: translateY(-1px); }
 
         /* Empty state */
         .disc-empty {
@@ -476,8 +478,8 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         }
         .disc-empty-emoji { font-size: 48px; opacity: .28; animation: float 3s ease-in-out infinite; }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        .disc-empty h3 { font-size: 16px; font-weight: 800; color: #fff; margin: 0; }
-        .disc-empty p { color: #444; font-size: 12px; margin: 0; }
+        .disc-empty h3 { font-size: 16px; font-weight: 800; color: var(--text); margin: 0; }
+        .disc-empty p { color: var(--text-secondary); font-size: 12px; margin: 0; }
 
         @media (max-width: 768px) {
           .disc-root { padding: 7px 9px 20px; }
