@@ -219,6 +219,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [showFollowersModal,    setShowFollowersModal]    = useState(false);
   const [followersTab,          setFollowersTab]          = useState("followers");
   const [showLogoutConfirm,     setShowLogoutConfirm]     = useState(false);
+  const [showVerificationDashboard, setShowVerificationDashboard] = useState(false);
   const [liveStats,             setLiveStats]             = useState({
     totalViews:0, totalComments:0, totalLikes:0,
     followers:0, following:0, communities:0,
@@ -540,6 +541,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       onClick:()=>{ setFollowersTab("following"); setShowFollowersModal(true); },
     },
     {
+      id:"verification",
+      icon:<Shield size={20}/>,
+      label:"Verification",
+      sub:"Open proof dashboard",
+      accent:"#a855f7",
+      bg:"linear-gradient(135deg,rgba(168,85,247,0.16),rgba(124,58,237,0.08))",
+      border:"rgba(168,85,247,0.35)",
+      onClick:()=>setShowVerificationDashboard(true),
+    },
+    {
       id:"communities",
       icon:<Hash size={20}/>,
       label:"Communities",
@@ -756,25 +767,26 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           }}
         />
 
-        <div style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: 18, boxShadow: "0 16px 45px rgba(0,0,0,0.22)" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
-                <div style={{ padding: "5px 9px", borderRadius: 999, background: "rgba(132,204,22,0.14)", color: "#84cc16", fontSize: 10, fontWeight: 800, border: "1px solid rgba(132,204,22,0.18)" }}>
-                  {verificationLoading ? "Loading" : `${verificationSections.length} modules`}
+        {showVerificationDashboard && (
+          <div style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(168,85,247,0.35)", background: "radial-gradient(circle at top left, rgba(168,85,247,0.18), transparent 28%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.9))", padding: 18, boxShadow: "0 24px 70px rgba(168,85,247,0.24)" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 15%, rgba(255,255,255,0.08), transparent 20%), radial-gradient(circle at 85% 25%, rgba(168,85,247,0.14), transparent 18%)", borderRadius: 24, pointerEvents: "none" }} />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                    <div style={{ padding: "5px 9px", borderRadius: 999, background: "rgba(215,175,255,0.16)", color: "#d8b4fe", fontSize: 10, fontWeight: 800, border: "1px solid rgba(168,85,247,0.22)" }}>
+                      {verificationLoading ? "Loading" : `${verificationSections.length} modules`}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#c4b5fd", lineHeight: 1.5 }}>A next-generation identity surface that combines proof-backed sections, verified anchors, and cross-platform context.</div>
                 </div>
+                <button type="button" onClick={() => { setShowVerificationDashboard(false); setSelectedSection(null); }} style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  Close
+                </button>
               </div>
-              <div style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.5 }}>A next-generation identity surface that combines proof-backed sections, verified anchors, and cross-platform context.</div>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <span style={{ padding: "6px 9px", borderRadius: 999, background: "rgba(132,204,22,0.12)", color: "#84cc16", fontSize: 10, fontWeight: 800, border: "1px solid rgba(132,204,22,0.2)" }}>Verified {verifiedCount}</span>
-              <span style={{ padding: "6px 9px", borderRadius: 999, background: "rgba(96,165,250,0.12)", color: "#60a5fa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(96,165,250,0.2)" }}>High trust {highTrustCount}</span>
-              <span style={{ padding: "6px 9px", borderRadius: 999, background: "rgba(167,139,250,0.12)", color: "#a78bfa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(167,139,250,0.2)" }}>Sources {sourceCount}</span>
-            </div>
-          </div>
 
-          {selectedSectionData ? (
+              {selectedSectionData ? (
             <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.26)", padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
                 <div>

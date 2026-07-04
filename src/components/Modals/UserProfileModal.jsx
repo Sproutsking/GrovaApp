@@ -595,38 +595,42 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
               </div>
             )}
 
-            <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
-                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Open the full proof-driven dashboard from the profile.</div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDashboard(true);
+                setSelectedSection(null);
+              }}
+              style={{
+                margin: "16px 16px 0",
+                width: "calc(100% - 32px)",
+                borderRadius: 18,
+                border: "1px solid rgba(168,85,247,0.25)",
+                background: "radial-gradient(circle at top left, rgba(168,85,247,0.18), transparent 28%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.9))",
+                padding: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                cursor: "pointer",
+                color: "#fff",
+                borderColor: "rgba(168,85,247,0.35)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 14, background: "rgba(168,85,247,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <ShieldCheck size={18} color="#d8b4fe" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDashboard(true);
-                    setSelectedSection(null);
-                  }}
-                  style={{
-                    border: "1px solid rgba(132,204,22,0.3)",
-                    background: "rgba(132,204,22,0.12)",
-                    color: "#84cc16",
-                    borderRadius: 999,
-                    padding: "10px 14px",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  Open Dashboard
-                </button>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
+                  <div style={{ fontSize: 11, color: "#c4b5fd", marginTop: 2 }}>Open the full proof-driven dashboard from the profile.</div>
+                </div>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.12)", color: "#84cc16", fontSize: 10, fontWeight: 800, border: "1px solid rgba(132,204,22,0.18)" }}>Verified {verifiedCount}</span>
-                <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.12)", color: "#60a5fa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(96,165,250,0.18)" }}>High {highTrustCount}</span>
-                <span style={{ padding: "4px 8px", borderRadius: 999, background: "rgba(167,139,250,0.12)", color: "#a78bfa", fontSize: 10, fontWeight: 800, border: "1px solid rgba(167,139,250,0.18)" }}>Sources {sourceCount}</span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 999, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 12, fontWeight: 700 }}>
+                Open
+                <ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} />
               </div>
-            </div>
+            </button>
 
             {showDashboard ? (
               <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", padding: 14 }}>
