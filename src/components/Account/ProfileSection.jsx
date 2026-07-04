@@ -843,6 +843,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             </div>
           )}
         </div>
+      </div>
+    )}
 
         {/* ACTION BUTTONS */}
         <div className="actions-card">
