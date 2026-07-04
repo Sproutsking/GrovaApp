@@ -159,6 +159,15 @@ function writeProfileCache(profile) {
   } catch {}
 }
 
+function clearProfileCache() {
+  try {
+    localStorage.removeItem(PROFILE_LS_KEY);
+  } catch {}
+  try {
+    sessionStorage.removeItem(PROFILE_LS_KEY);
+  } catch {}
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
