@@ -231,6 +231,102 @@ const FAQ_DATA = [
         q: "Is XRC the same as a blockchain?",
         a: "XRC uses hash-chaining (linking records cryptographically) but operates off-chain without distributed consensus or mining. This makes it 100–1000x faster and cheaper while maintaining verifiability.",
       },
+      {
+        q: "Can third parties audit XRC records?",
+        a: "Yes. XRC provides exportable, read-only proofs and audit bundles for authorized partners. Exports contain cryptographic hashes and proof paths so auditors can verify integrity without needing full platform access.",
+      },
+      {
+        q: "How can I request a record export for my account?",
+        a: "Open a support ticket and request an XRC export. For verification or legal purposes, provide the date range and the specific events you need. Exports are delivered as signed bundles within 48 hours for valid requests.",
+      },
+    ],
+  },
+  {
+    category: "Oracle & Verification",
+    icon: "🔎",
+    questions: [
+      {
+        q: "What does the XRC Oracle do?",
+        a: "The Oracle answers deterministic, cryptographic questions about the XRC record chains so external systems (banks, governments, AI) can verify truth without redoing the work. It surfaces Trust, Identity, Business, Reputation, Knowledge, Community, and final Verification oracles.",
+      },
+      {
+        q: "Who can query the Oracle?",
+        a: "Any authorized system or partner can query the Oracle via the public API surface. Query access is governed by policy and API keys; answers are deterministic and cryptographically provable.",
+      },
+      {
+        q: "Can I get a signed proof to present to a third party?",
+        a: "Yes. Oracle responses include a signed proof payload and a signature from Xeevia's oracle key so recipients can verify the answer independently. Use the `/oracle/proof` endpoint and supply your verifier's public key if needed.",
+      },
+      {
+        q: "What data is included in an Oracle proof?",
+        a: "A proof includes the queried event(s), a compact hash path, a canonical timestamp, and a signature. It does not reveal unrelated private data — proofs are scoped to only the requested evidence.",
+      },
+    ],
+  },
+  {
+    category: "Participation Economy",
+    icon: "⚖️",
+    questions: [
+      {
+        q: "Why does participation cost EP?",
+        a: "Priced participation prevents noise and spam while creating verifiable economic commitment. EP costs ensure actions carry intent and leave evidence, turning participation into investible economic activity.",
+      },
+      {
+        q: "How do conversations create value?",
+        a: "An entire conversation (post + replies + reactions) is treated as the economic unit; contribution evidence decides payout splits based on quality, reputation, and contribution weight — not raw volume.",
+      },
+      {
+        q: "Can I gift EP to another user?",
+        a: "Yes. Use the Wallet → Send EP flow to transfer EP to other users. Gifted EP is treated like purchased EP for some reward calculations, so check eligibility before gifting in large amounts.",
+      },
+      {
+        q: "What happens if there's a dispute about content value?",
+        a: "Open a support ticket with the thread link and evidence. Disputes are resolved by reviewing XRC records and contribution weights; where appropriate, payouts can be adjusted and recorded on XRC for transparency.",
+      },
+    ],
+  },
+  {
+    category: "Portable Trust",
+    icon: "🧭",
+    questions: [
+      {
+        q: "What travels with my identity?",
+        a: "Verified evidence — claims, credentials, contributions, reputation signals — all live in your XRC record. Platforms consume that evidence rather than owning it, so your trust and reputation travel with you.",
+      },
+      {
+        q: "How does this help AI systems?",
+        a: "Evidence is structured and machine-readable so AI systems can reliably verify claims and make better decisions without guessing — solving the AI Trust Problem at scale.",
+      },
+      {
+        q: "Can I export my verification proofs to use elsewhere?",
+        a: "Yes. You can request signed proof bundles for specific claims via the support or the developer API. These bundles are portable and can be presented to third-party services.",
+      },
+      {
+        q: "How long is my reputation stored?",
+        a: "Reputation and evidence remain in XRC while your account exists. For legal and audit purposes, certain financial records are retained for up to 7 years. Reputation itself persists as evidence of past contributions.",
+      },
+    ],
+  },
+  {
+    category: "Communities & Governance",
+    icon: "🏛️",
+    questions: [
+      {
+        q: "What makes Xeevia communities different?",
+        a: "Communities on Xeevia are self-governing economies with treasuries, marketplaces, and provable governance. Reputation and treasury flows are transparent and portable across platforms.",
+      },
+      {
+        q: "Can communities monetize and govern themselves?",
+        a: "Yes. Communities can charge EP for membership, run governance proposals, allocate treasury funds, and reward contributors with verifiable evidence recorded on XRC.",
+      },
+      {
+        q: "How do I create and vote on proposals?",
+        a: "Community owners and eligible members can create proposals from the community admin panel. Voting uses either XEV stake or delegated reputation depending on community settings. Proposal outcomes are executed automatically when quorum and thresholds are met.",
+      },
+      {
+        q: "How are treasury withdrawals handled?",
+        a: "Treasury withdrawals require governance approval as configured by the community (single owner approval, multisig, or proposal vote). All treasury movements are recorded on XRC for transparency.",
+      },
     ],
   },
 ];

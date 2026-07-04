@@ -750,6 +750,164 @@ Filter by date, type, and amount. Export as CSV.`,
       },
     ],
   },
+  // Added topics: protocol, participation, communities, developers
+  {
+    id:          "protocol",
+    icon:        "⛓️",
+    title:       "XRC Protocol & Oracle",
+    description: "How truth is recorded and queried (XRC + Oracle)",
+    color:       "#7de8ff",
+    articles: [
+      {
+        id:       "xrc-1",
+        title:    "What is the XRC Protocol?",
+        readTime: "4 min",
+        content: `## The XRC Record Chains
+
+XRC is a highly-efficient off-chain evidence system that links records cryptographically so they are auditable and provable without blockchain fees.
+
+### Design goals
+- Fast writes and queries
+- Cryptographic immutability via hash chaining
+- Machine-readable evidence for verification
+
+### The chains
+- **XTRC** — transactions and payments
+- **XERC** — engagement and social events
+- **XARC** — account lifecycle and identity
+- **XCRC** — content provenance and edits
+- **XPRC** — permissions and roles
+- **XSRC** — governance and system events
+
+Each chain is queryable by the Oracle to return signed proofs.`,
+      },
+      {
+        id:       "xrc-2",
+        title:    "How the Oracle Answers Proofs",
+        readTime: "4 min",
+        content: `## The Oracle — deterministic, signed answers
+
+The Oracle evaluates queries against the XRC chains and returns a signed response you can independently verify. Answers include a proof payload and a signature from Xeevia's oracle key.
+
+### Example flow
+1. Service requests proof: '/oracle/proof?address=0x...&event=like&since=...'
+2. Oracle checks XRC chains and composes a deterministic answer
+3. Oracle returns a signed response object, for example: { answer: true, proof: { path: ..., hash: ... }, signature: '0x...' }
+
+Use cases: KYC checks, reputation verification, payout validation, AI-grounding.`,
+      },
+      {
+        id:       "xrc-3",
+        title:    "Common Use Cases for Oracle Proofs",
+        readTime: "3 min",
+        content: `## Where Oracle proofs are used
+
+- **Bank KYC integration** — banks verify identity/claims without exposing raw data
+- **Marketplace trust** — verify seller history before high-value trades
+- **AI data grounding** — provide machine-readable provenance for model inputs
+- **Third-party audits** — auditors request deterministic evidence for compliance`,
+      },
+    ],
+  },
+  {
+    id:          "participation",
+    icon:        "⚖️",
+    title:       "Participation Economy",
+    description: "How EP, conversation value, and rewards work",
+    color:       "#ff9b54",
+    articles: [
+      {
+        id:       "pe-1",
+        title:    "Why EP costs and how conversations earn",
+        readTime: "4 min",
+        content: `## Participation with weight and intent
+
+EP pricing reduces noise: it makes actions meaningful and economically accountable. Conversations (posts + replies + reactions) are evaluated as units for payout distribution.
+
+### Payout drivers
+- **Contribution weight** — length, originality, engagement quality
+- **Reputation multiplier** — trusted contributors earn more share
+- **Conversation outcomes** — threads that spur value receive higher payouts`,
+      },
+      {
+        id:       "pe-2",
+        title:    "EP: earned vs purchased",
+        readTime: "3 min",
+        content: `## Understanding EP origins
+
+- **Purchased EP**: bought with money, spendable immediately but not eligible for certain reward pools
+- **Earned EP**: comes from other users' spending on your content — this is what converts to XEV and qualifies for payouts
+
+Best practice: clearly label paid promotions and avoid mixing earned incentives with purchased boosts.`,
+      },
+    ],
+  },
+  {
+    id:          "communities",
+    icon:        "🏘️",
+    title:       "Communities & Governance",
+    description: "Treasuries, roles, and provable community health",
+    color:       "#ffb86b",
+    articles: [
+      {
+        id:       "comm-1",
+        title:    "Running a Community Economy",
+        readTime: "4 min",
+        content: `## Communities as mini-economies
+
+Communities can collect membership EP, run marketplaces, allocate treasury funds, and reward contributors. All movements and proposals are recorded on XRC for auditability.
+
+### Governance basics
+- Create proposals, vote with XEV or delegated reputation
+- Treasury spends require multi-sign or governance approval
+- Reward contributors via scheduled payouts`,
+      },
+      {
+        id:       "comm-2",
+        title:    "Monetization Patterns",
+        readTime: "3 min",
+        content: `## Monetizing your community
+
+- **Membership fees** — recurring EP subscriptions for premium content
+- **Paid channels** — paywall for exclusive posts or streams
+- **Marketplace fees** — list items and take a percentage for treasury
+
+Keep monetization transparent — show recent treasury activity and proposal history.`,
+      },
+    ],
+  },
+  {
+    id:          "developers",
+    icon:        "🧩",
+    title:       "Developers & API",
+    description: "APIs, webhooks, Oracle integration and SDKs",
+    color:       "#a78bfa",
+    articles: [
+      {
+        id:       "dev-1",
+        title:    "Integrating with Xeevia (API overview)",
+        readTime: "4 min",
+        content: `## Developer surface and quickstart
+
+Xeevia offers REST endpoints, webhooks, and SDKs for common languages. The Oracle endpoints return signed proofs you can verify in-app.
+
+### Quickstart
+1. Create a developer account
+2. Create an API key in Developer Console
+3. Call `/v1/users/{id}` and `/v1/oracle/proof`
+
+Use webhooks for real-time events (payment success, story unlock, membership join).`,
+      },
+      {
+        id:       "dev-2",
+        title:    "Oracle proof verification (example)",
+        readTime: "3 min",
+        content: `## Verifying Oracle responses
+
+      When you receive { answer, proof, signature }, validate the signature against Xeevia's public key and verify the proof path hashes match the claimed state. SDKs provide helpers for this verification step.`,
+      },
+    ],
+  },
 ];
 
 // ─── MARKDOWN RENDERER ────────────────────────────────────────────────────────
@@ -759,77 +917,63 @@ function renderMarkdown(text) {
   const lines = text.trim().split("\n");
   const elements = [];
   let i = 0;
+  let listBuffer = null;
   let tableBuffer = [];
-  let inTable = false;
+
+  const flushList = () => {
+    if (!listBuffer) return;
+    if (listBuffer.ordered) {
+      elements.push(
+        <ol key={`ol-${i}`} style={{ paddingLeft: 18, margin: "8px 0" }}>
+          {listBuffer.items.map((it, idx) => <li key={idx} style={{ color: "#9ca3af", margin: "6px 0" }} dangerouslySetInnerHTML={{ __html: it }} />)}
+        </ol>
+      );
+    } else {
+      elements.push(
+        <ul key={`ul-${i}`} style={{ paddingLeft: 18, margin: "8px 0" }}>
+          {listBuffer.items.map((it, idx) => <li key={idx} style={{ color: "#9ca3af", margin: "6px 0" }} dangerouslySetInnerHTML={{ __html: it }} />)}
+        </ul>
+      );
+    }
+    listBuffer = null;
+  };
 
   const flushTable = () => {
-    if (tableBuffer.length < 2) { tableBuffer = []; inTable = false; return; }
+    if (tableBuffer.length < 2) { tableBuffer = []; return; }
     const headers = tableBuffer[0].split("|").map((h) => h.trim()).filter(Boolean);
-    const rows    = tableBuffer.slice(2).map((r) => r.split("|").map((c) => c.trim()).filter(Boolean));
+    const rows = tableBuffer.slice(2).map((r) => r.split("|").map((c) => c.trim()).filter(Boolean));
     elements.push(
       <div key={`tbl-${i}`} style={{ overflowX: "auto", margin: "16px 0" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead><tr>
-            {headers.map((h, hi) => (
-              <th key={hi} style={{ padding: "9px 13px", background: "rgba(132,204,22,0.07)", borderBottom: "2px solid rgba(132,204,22,0.22)", textAlign: "left", color: "#a3e635", fontWeight: 700, fontSize: 11, letterSpacing: ".3px" }}>{h}</th>
-            ))}
-          </tr></thead>
-          <tbody>
-            {rows.map((row, ri) => (
-              <tr key={ri}>
-                {row.map((cell, ci) => (
-                  <td key={ci} style={{ padding: "9px 13px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#9ca3af", fontSize: 13 }}>{cell}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+          <thead><tr>{headers.map((h, hi) => <th key={hi} style={{ padding: "9px 13px", background: "rgba(132,204,22,0.07)", borderBottom: "2px solid rgba(132,204,22,0.22)", textAlign: "left", color: "#a3e635", fontWeight: 700, fontSize: 11 }}>{h}</th>)}</tr></thead>
+          <tbody>{rows.map((r, ri) => (<tr key={ri}>{r.map((c, ci) => <td key={ci} style={{ padding: "9px 13px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#9ca3af" }}>{c}</td>)}</tr>))}</tbody>
         </table>
       </div>
     );
-    tableBuffer = []; inTable = false;
+    tableBuffer = [];
   };
 
   for (; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.startsWith("|")) { inTable = true; tableBuffer.push(line); continue; }
-    if (inTable) flushTable();
-    if (line.startsWith("## ")) {
-      elements.push(<h2 key={i} style={{ fontSize: 17, fontWeight: 800, color: "#fff", margin: "26px 0 9px", letterSpacing: "-.2px", lineHeight: 1.3 }}>{line.slice(3)}</h2>);
-    } else if (line.startsWith("### ")) {
-      elements.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#e5e7eb", margin: "18px 0 7px" }}>{line.slice(4)}</h3>);
-    } else if (line.startsWith("- ")) {
-      elements.push(
-        <div key={i} style={{ display: "flex", gap: 9, margin: "6px 0", color: "#9ca3af", fontSize: 13, lineHeight: 1.7 }}>
-          <span style={{ color: "#a3e635", marginTop: 3, flexShrink: 0 }}>▸</span>
-          <span dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb">$1</strong>') }} />
-        </div>
-      );
-    } else if (/^\d+\. /.test(line)) {
-      const num = line.match(/^(\d+)\. /)[1];
-      elements.push(
-        <div key={i} style={{ display: "flex", gap: 10, margin: "6px 0", color: "#9ca3af", fontSize: 13, lineHeight: 1.7 }}>
-          <span style={{ color: "#a3e635", fontWeight: 800, flexShrink: 0, minWidth: 18 }}>{num}.</span>
-          <span dangerouslySetInnerHTML={{ __html: line.replace(/^\d+\. /, "").replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb">$1</strong>') }} />
-        </div>
-      );
-    } else if (line.startsWith("> ")) {
-      elements.push(
-        <blockquote key={i} style={{ borderLeft: "3px solid #a3e635", paddingLeft: 14, margin: "14px 0", color: "#9ca3af", fontSize: 13, fontStyle: "italic", lineHeight: 1.85, background: "rgba(132,204,22,0.03)", padding: "8px 14px", borderRadius: "0 8px 8px 0" }}>{line.slice(2)}</blockquote>
-      );
-    } else if (line.startsWith("---")) {
-      elements.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.06)", margin: "22px 0" }} />);
-    } else if (line.startsWith("**") && line.endsWith("**") && !line.slice(2).includes("**")) {
-      elements.push(<p key={i} style={{ fontWeight: 700, color: "#fff", margin: "12px 0 5px", fontSize: 13 }}>{line.slice(2, -2)}</p>);
-    } else if (line.trim()) {
-      elements.push(
-        <p key={i} style={{ color: "#9ca3af", lineHeight: 1.9, margin: "8px 0", fontSize: 13 }}
-          dangerouslySetInnerHTML={{ __html: line
-            .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb">$1</strong>')
-            .replace(/`(.*?)`/g, '<code style="background:rgba(132,204,22,0.1);color:#a3e635;padding:2px 7px;border-radius:5px;font-size:12px;font-family:monospace">$1</code>') }} />
-      );
-    }
+    const raw = lines[i];
+    const line = raw.trimEnd();
+    if (!line) { flushList(); if (tableBuffer.length) { flushTable(); } continue; }
+    if (line.startsWith("|")) { tableBuffer.push(line); continue; }
+    if (tableBuffer.length) { flushTable(); }
+    if (/^#{2} /.test(line)) { flushList(); elements.push(<h2 key={i} style={{ fontSize: 17, fontWeight: 800, color: "#fff", margin: "18px 0 8px" }}>{line.replace(/^## /, "")}</h2>); continue; }
+    if (/^#{3} /.test(line)) { flushList(); elements.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#e5e7eb", margin: "12px 0 6px" }}>{line.replace(/^### /, "")}</h3>); continue; }
+    if (line.startsWith("- ")) { if (!listBuffer) listBuffer = { ordered: false, items: [] }; listBuffer.items.push(line.replace(/^- /, "")); continue; }
+    if (/^\d+\. /.test(line)) { if (!listBuffer) listBuffer = { ordered: true, items: [] }; listBuffer.items.push(line.replace(/^\d+\. /, "")); continue; }
+    if (line.startsWith("> ")) { flushList(); elements.push(<blockquote key={i} style={{ borderLeft: "3px solid #a3e635", paddingLeft: 14, margin: "12px 0", color: "#9ca3af", fontStyle: "italic" }}>{line.replace(/^> /, "")}</blockquote>); continue; }
+    if (line.startsWith("---")) { flushList(); elements.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.06)", margin: "18px 0" }} />); continue; }
+    // Paragraph / inline formatting
+    flushList();
+    const html = line
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb">$1</strong>')
+      .replace(/`(.*?)`/g, '<code style="background:rgba(132,204,22,0.08);color:#a3e635;padding:2px 7px;border-radius:5px;font-size:12px;font-family:monospace">$1</code>');
+    elements.push(<p key={i} style={{ color: "#9ca3af", lineHeight: 1.9, margin: "8px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
   }
-  if (inTable) flushTable();
+  if (listBuffer) flushList();
+  if (tableBuffer.length) flushTable();
   return elements;
 }
 
