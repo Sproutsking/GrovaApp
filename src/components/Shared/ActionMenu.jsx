@@ -22,11 +22,11 @@ const Toast = ({ message, type = "success", onDone }) => {
       position: "fixed",
       bottom: "calc(env(safe-area-inset-bottom,0px) + 24px)",
       left: "50%", transform: "translateX(-50%)",
-      background: type === "error" ? "#ef4444" : "#111",
-      color: "#fff", padding: "9px 18px", borderRadius: "999px",
+      background: type === "error" ? "rgba(239,68,68,0.12)" : "var(--panel)",
+      color: "var(--text)", padding: "9px 18px", borderRadius: "999px",
       fontSize: "13px", fontWeight: 600, zIndex: 999999,
-      boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
-      border: type === "error" ? "1px solid #fca5a5" : "1px solid rgba(132,204,22,0.4)",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.2)",
+      border: type === "error" ? "1px solid rgba(252,165,165,0.8)" : "1px solid rgba(132,204,22,0.24)",
       whiteSpace: "nowrap", animation: "toastIn 0.25s ease",
       display: "flex", alignItems: "center", gap: "7px",
     }}>
@@ -42,13 +42,13 @@ const ConfirmDialog = ({ contentType, loading, onConfirm, onCancel }) =>
   ReactDOM.createPortal(
     <>
       <div onClick={onCancel} style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+        position: "fixed", inset: 0, background: "transparent",
         zIndex: 100000, backdropFilter: "blur(4px)",
       }} />
       <div style={{
         position: "fixed", top: "50%", left: "50%",
         transform: "translate(-50%,-50%)",
-        background: "#111", border: "1px solid rgba(239,68,68,0.35)",
+        background: "var(--panel)", border: "1px solid rgba(239,68,68,0.35)",
         borderRadius: "18px", padding: "28px 24px",
         width: "min(310px, calc(100vw - 40px))",
         zIndex: 100001, boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
@@ -62,17 +62,17 @@ const ConfirmDialog = ({ contentType, loading, onConfirm, onCancel }) =>
         }}>
           <Trash2 size={20} color="#ef4444" />
         </div>
-        <p style={{ color: "#f5f5f5", fontSize: "15px", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
+        <p style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
           Delete {contentType}?
         </p>
-        <p style={{ color: "#737373", fontSize: "13px", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "13px", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
           This will be permanently removed and cannot be recovered.
         </p>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={onCancel} disabled={loading} style={{
-            flex: 1, padding: "11px", background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)", borderRadius: "11px",
-            color: "#a3a3a3", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            flex: 1, padding: "11px", background: "var(--surface)",
+            border: "1px solid var(--surface-border)", borderRadius: "11px",
+            color: "var(--text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer",
           }}>Cancel</button>
           <button onClick={onConfirm} disabled={loading} style={{
             flex: 1, padding: "11px",
@@ -94,13 +94,13 @@ const InterestedDialog = ({ interested, onConfirm, onCancel }) =>
   ReactDOM.createPortal(
     <>
       <div onClick={onCancel} style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+        position: "fixed", inset: 0, background: "transparent",
         zIndex: 100000, backdropFilter: "blur(4px)",
       }} />
       <div style={{
         position: "fixed", top: "50%", left: "50%",
         transform: "translate(-50%,-50%)",
-        background: "#111", border: "1px solid rgba(132,204,22,0.3)",
+        background: "var(--panel)", border: "1px solid rgba(132,204,22,0.3)",
         borderRadius: "18px", padding: "28px 24px",
         width: "min(310px, calc(100vw - 40px))",
         zIndex: 100001, boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
@@ -114,19 +114,19 @@ const InterestedDialog = ({ interested, onConfirm, onCancel }) =>
         }}>
           {interested ? <ThumbsUp size={20} color="#84cc16" /> : <ThumbsDown size={20} color="#737373" />}
         </div>
-        <p style={{ color: "#f5f5f5", fontSize: "15px", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
+        <p style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700, textAlign: "center", marginBottom: 6 }}>
           {interested ? "See more like this?" : "See less like this?"}
         </p>
-        <p style={{ color: "#737373", fontSize: "13px", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "13px", textAlign: "center", marginBottom: 22, lineHeight: 1.5 }}>
           {interested
             ? "We'll show you more content similar to this in your feed."
             : "We'll reduce content like this in your feed."}
         </p>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={onCancel} style={{
-            flex: 1, padding: "11px", background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)", borderRadius: "11px",
-            color: "#a3a3a3", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            flex: 1, padding: "11px", background: "var(--surface)",
+            border: "1px solid var(--surface-border)", borderRadius: "11px",
+            color: "var(--text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer",
           }}>No thanks</button>
           <button onClick={onConfirm} style={{
             flex: 1, padding: "11px",
@@ -147,25 +147,25 @@ const ReportDialog = ({ contentType, onConfirm, onCancel }) => {
   return ReactDOM.createPortal(
     <>
       <div onClick={onCancel} style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+        position: "fixed", inset: 0, background: "transparent",
         zIndex: 100000, backdropFilter: "blur(4px)",
       }} />
       <div style={{
         position: "fixed", top: "50%", left: "50%",
         transform: "translate(-50%,-50%)",
-        background: "#111", border: "1px solid rgba(251,146,60,0.3)",
+        background: "var(--panel)", border: "1px solid rgba(251,146,60,0.3)",
         borderRadius: "18px", padding: "24px",
         width: "min(320px, calc(100vw - 40px))",
         zIndex: 100001, boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
         animation: "confirmIn 0.2s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <p style={{ color: "#f5f5f5", fontSize: "15px", fontWeight: 700 }}>Report {contentType}</p>
+          <p style={{ color: "var(--text)", fontSize: "15px", fontWeight: 700 }}>Report {contentType}</p>
           <button onClick={onCancel} style={{ background: "none", border: "none", color: "#737373", cursor: "pointer", padding: 4 }}>
             <X size={18} />
           </button>
         </div>
-        <p style={{ color: "#737373", fontSize: "12px", marginBottom: 14 }}>Select a reason:</p>
+        <p style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: 14 }}>Select a reason:</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
           {reasons.map(r => (
             <button key={r} onClick={() => setReason(r)} style={{
@@ -179,15 +179,15 @@ const ReportDialog = ({ contentType, onConfirm, onCancel }) => {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onCancel} style={{
-            flex: 1, padding: "11px", background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)", borderRadius: "11px",
-            color: "#a3a3a3", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            flex: 1, padding: "11px", background: "var(--surface)",
+            border: "1px solid var(--surface-border)", borderRadius: "11px",
+            color: "var(--text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer",
           }}>Cancel</button>
           <button onClick={() => reason && onConfirm(reason)} disabled={!reason} style={{
             flex: 1, padding: "11px",
-            background: reason ? "rgba(251,146,60,0.12)" : "rgba(255,255,255,0.03)",
-            border: `1px solid ${reason ? "rgba(251,146,60,0.4)" : "rgba(255,255,255,0.06)"}`,
-            borderRadius: "11px", color: reason ? "#fb923c" : "#525252",
+            background: reason ? "rgba(251,146,60,0.12)" : "var(--surface)",
+            border: `1px solid ${reason ? "rgba(251,146,60,0.4)" : "var(--surface-border)"}`,
+            borderRadius: "11px", color: reason ? "#fb923c" : "var(--text-secondary)",
             fontSize: "14px", fontWeight: 700, cursor: reason ? "pointer" : "not-allowed",
           }}>Submit Report</button>
         </div>
@@ -263,13 +263,13 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
   return ReactDOM.createPortal(
     <>
       <div onClick={onClose} style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+        position: "fixed", inset: 0, background: "transparent",
         zIndex: 100000, backdropFilter: "blur(4px)",
       }} />
       <div onClick={e => e.stopPropagation()} style={{
         position: "fixed", top: "50%", left: "50%",
         transform: "translate(-50%,-50%)",
-        background: "#0e0e0e", border: "1px solid rgba(132,204,22,0.25)",
+        background: "var(--panel)", border: "1px solid rgba(132,204,22,0.25)",
         borderRadius: "20px", padding: "0",
         width: "min(340px, calc(100vw - 32px))",
         maxHeight: "80vh", overflow: "hidden",
@@ -290,15 +290,15 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
               <BookmarkPlus size={15} color="#84cc16" />
             </div>
             <div>
-              <div style={{ color: "#f5f5f5", fontSize: "14px", fontWeight: 700 }}>Save to Folder</div>
-              <div style={{ color: "#525252", fontSize: "11px" }}>{folders.length}/10 folders</div>
+              <div style={{ color: "var(--text)", fontSize: "14px", fontWeight: 700 }}>Save to Folder</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{folders.length}/10 folders</div>
             </div>
           </div>
           <button onClick={onClose} style={{
-            width: 28, height: 28, background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)", borderRadius: "50%",
+            width: 28, height: 28, background: "var(--surface)",
+            border: "1px solid var(--surface-border)", borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#737373", cursor: "pointer",
+            color: "var(--text-secondary)", cursor: "pointer",
           }}><X size={14} /></button>
         </div>
 
@@ -316,11 +316,11 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
           {folders.map(folder => (
             <button key={folder} onClick={() => saveToFolder(folder)} disabled={saving === folder} style={{
               width: "100%", padding: "11px 14px", marginBottom: 6,
-              background: saving === folder ? "rgba(132,204,22,0.12)" : "rgba(255,255,255,0.03)",
-              border: `1px solid ${saving === folder ? "rgba(132,204,22,0.4)" : "rgba(255,255,255,0.08)"}`,
+              background: saving === folder ? "rgba(132,204,22,0.12)" : "var(--surface)",
+              border: `1px solid ${saving === folder ? "rgba(132,204,22,0.4)" : "var(--surface-border)"}`,
               borderRadius: "11px", display: "flex", alignItems: "center",
               justifyContent: "space-between", cursor: "pointer",
-              color: "#d4d4d4", fontSize: "13px", fontWeight: 600,
+              color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600,
               transition: "all 0.15s",
             }}>
               <span>📁 {folder}</span>
@@ -355,9 +355,9 @@ const SaveFolderPicker = ({ contentType, contentId, onClose, onSaved }) => {
                 placeholder="Folder name…"
                 maxLength={30}
                 style={{
-                  flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.05)",
+                  flex: 1, padding: "10px 12px", background: "var(--surface)",
                   border: "1px solid rgba(132,204,22,0.3)", borderRadius: "10px",
-                  color: "#f5f5f5", fontSize: "13px", outline: "none",
+                  color: "var(--text)", fontSize: "13px", outline: "none",
                   fontFamily: "inherit",
                 }}
               />
@@ -552,13 +552,14 @@ const ActionMenu = ({
         @keyframes amIn       { from{opacity:0;transform:scale(0.95) translateY(-4px)} to{opacity:1;transform:scale(1) translateY(0)} }
 
         .am-overlay {
-          position:fixed;inset:0;background:rgba(0,0,0,0.5);
+          position:fixed;inset:0;background:transparent;
           backdrop-filter:blur(2px);z-index:9998;
         }
         .am-panel {
           position:fixed;z-index:9999;
-          background:#0c0c0c;
-          border:1px solid rgba(132,204,22,0.2);
+          background:var(--panel);
+          color:var(--text);
+          border:1px solid var(--surface-border);
           display:flex;flex-direction:column;overflow:hidden;
         }
         .am-panel--desktop {
@@ -588,12 +589,12 @@ const ActionMenu = ({
         .am-head-dot  { width:7px;height:7px;background:#84cc16;border-radius:50%;flex-shrink:0; }
         .am-head-title{ flex:1;font-size:11px;font-weight:700;color:#84cc16;text-transform:uppercase;letter-spacing:.7px; }
         .am-x {
-          width:26px;height:26px;background:rgba(255,255,255,0.05);
-          border:1px solid rgba(255,255,255,0.09);border-radius:50%;
+          width:26px;height:26px;background:var(--surface);
+          border:1px solid var(--surface-border);border-radius:50%;
           display:flex;align-items:center;justify-content:center;
-          color:#525252;cursor:pointer;flex-shrink:0;padding:0;
+          color:var(--text-secondary);cursor:pointer;flex-shrink:0;padding:0;
         }
-        .am-x:hover { background:rgba(255,255,255,0.1);color:#d4d4d4; }
+        .am-x:hover { background:var(--surface-strong);color:var(--text); }
         .am-body { padding:7px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch; }
         .am-item {
           width:100%;padding:9px 10px;
@@ -610,8 +611,8 @@ const ActionMenu = ({
         }
         .am-label-wrap { flex:1;display:flex;flex-direction:column;gap:1px;min-width:0; }
         .am-label { font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .am-desc  { font-size:10.5px;color:#444;line-height:1.2; }
-        .am-divider { height:1px;background:rgba(255,255,255,0.055);margin:5px 3px; }
+        .am-desc  { font-size:10.5px;color:var(--text-secondary);line-height:1.2; }
+        .am-divider { height:1px;background:var(--surface-border);margin:5px 3px; }
         @media(max-width:768px) {
           .am-item { padding:11px 10px; }
           .am-icon-wrap { width:33px;height:33px;border-radius:9px; }

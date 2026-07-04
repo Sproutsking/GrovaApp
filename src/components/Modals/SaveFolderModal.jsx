@@ -388,7 +388,7 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
       <style>{`
         .sfm-overlay {
           position: fixed; inset: 0; z-index: 99992;
-          background: rgba(0,0,0,0.72);
+          background: transparent;
           backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
           display: flex; align-items: flex-end; justify-content: center;
           animation: sfmFadeIn 0.18s ease;
@@ -398,9 +398,9 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         .sfm-sheet {
           position: relative;
           width: 100%; max-width: 480px;
-          background: #111113;
+          background: var(--panel);
           border-radius: 24px 24px 0 0;
-          border: 1px solid rgba(255,255,255,0.08); border-bottom: none;
+          border: 1px solid var(--surface-border); border-bottom: none;
           display: flex; flex-direction: column;
           overflow: hidden; max-height: 82vh;
           padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -425,22 +425,22 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           padding: 14px 20px 10px; flex-shrink: 0;
         }
         .sfm-header-left { display: flex; align-items: center; gap: 8px; }
-        .sfm-title { font-size: 16px; font-weight: 700; color: #f5f5f5; letter-spacing: -0.3px; }
+        .sfm-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
         .sfm-close {
           width: 30px; height: 30px; border-radius: 50%;
-          background: rgba(255,255,255,0.06); border: none;
-          color: #a3a3a3; cursor: pointer;
+          background: var(--surface); border: none;
+          color: var(--text-secondary); cursor: pointer;
           display: flex; align-items: center; justify-content: center;
           transition: background 0.15s;
         }
-        .sfm-close:hover { background: rgba(255,255,255,0.12); color: #f5f5f5; }
+        .sfm-close:hover { background: var(--surface-strong); color: var(--text); }
 
         .sfm-preview-pill {
           display: flex; align-items: center; gap: 8px;
           margin: 0 20px 14px;
           padding: 8px 12px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 12px; flex-shrink: 0; min-width: 0;
         }
         .sfm-pill-type {
@@ -449,21 +449,21 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         }
         .sfm-pill-sep {
           width: 1px; height: 12px;
-          background: rgba(255,255,255,0.1); flex-shrink: 0;
+          background: var(--surface-border); flex-shrink: 0;
         }
         .sfm-pill-name {
-          font-size: 12px; color: #737373;
+          font-size: 12px; color: var(--text-secondary);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         .sfm-folders {
           flex: 1; overflow-y: auto; padding: 0 12px 8px;
           display: flex; flex-direction: column; gap: 3px;
-          scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
+          scrollbar-width: thin; scrollbar-color: var(--surface-border) transparent;
         }
         .sfm-folders::-webkit-scrollbar { width: 4px; }
         .sfm-folders::-webkit-scrollbar-track { background: transparent; }
-        .sfm-folders::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+        .sfm-folders::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 2px; }
 
         .sfm-skeletons { display: flex; flex-direction: column; gap: 5px; padding: 2px 0; }
         .sfm-skeleton {
@@ -484,10 +484,10 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         .sfm-row {
           display: flex; align-items: center;
           border-radius: 16px;
-          background: rgba(255,255,255,0.04);
+          background: var(--surface);
           transition: background 0.15s; overflow: hidden;
         }
-        .sfm-row:hover { background: rgba(255,255,255,0.07); }
+        .sfm-row:hover { background: var(--surface-strong); }
         .sfm-row-active { background: rgba(132,204,22,0.06); }
         .sfm-row-active:hover { background: rgba(132,204,22,0.09); }
 
@@ -531,16 +531,16 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           display: flex; align-items: center; justify-content: center;
           transition: background 0.15s, color 0.15s;
         }
-        .sfm-icon-btn:hover { background: rgba(255,255,255,0.08); color: #a3a3a3; }
+        .sfm-icon-btn:hover { background: var(--surface-strong); color: var(--text-secondary); }
         .sfm-icon-btn-danger:hover { background: rgba(239,68,68,0.1); color: #f87171; }
 
         .sfm-rename-row {
           flex: 1; display: flex; align-items: center; gap: 6px; padding: 8px 12px;
         }
         .sfm-rename-input, .sfm-new-input {
-          flex: 1; background: rgba(255,255,255,0.07);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 10px; color: #f5f5f5;
+          flex: 1; background: var(--surface);
+          border: 1px solid var(--surface-border);
+          border-radius: 10px; color: var(--text);
           font-size: 14px; font-weight: 600;
           padding: 8px 12px; outline: none; transition: border-color 0.15s;
         }
@@ -555,9 +555,9 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         .sfm-cancel-btn {
           width: 32px; height: 32px; border-radius: 9px; border: none; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
-          background: rgba(255,255,255,0.06); color: #737373; transition: background 0.15s;
+          background: var(--surface); color: var(--text-secondary); transition: background 0.15s;
         }
-        .sfm-cancel-btn:hover { background: rgba(255,255,255,0.1); }
+        .sfm-cancel-btn:hover { background: var(--surface-strong); }
 
         .sfm-new-row {
           display: flex; align-items: center; gap: 6px;
@@ -566,9 +566,9 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
         .sfm-add-btn {
           display: flex; align-items: center; gap: 8px;
           margin: 6px 12px 16px; padding: 13px 16px; border-radius: 16px;
-          background: rgba(255,255,255,0.03);
-          border: 1.5px dashed rgba(255,255,255,0.1);
-          color: #525252; font-size: 14px; font-weight: 600;
+          background: var(--surface);
+          border: 1.5px dashed var(--surface-border);
+          color: var(--text-secondary); font-size: 14px; font-weight: 600;
           cursor: pointer; width: calc(100% - 24px); flex-shrink: 0;
           transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
@@ -584,8 +584,8 @@ const SaveFolderModal = ({ content, currentUser, onClose, onSaved }) => {
           pointer-events: none; z-index: 1;
           animation: sfmToast 0.22s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .sfm-toast-success { background: #18181b; color: #84cc16; border: 1px solid rgba(132,204,22,0.2); }
-        .sfm-toast-error   { background: #18181b; color: #f87171; border: 1px solid rgba(239,68,68,0.22); }
+        .sfm-toast-success { background: var(--panel); color: #84cc16; border: 1px solid rgba(132,204,22,0.2); }
+        .sfm-toast-error   { background: var(--panel); color: #f87171; border: 1px solid rgba(239,68,68,0.22); }
         @keyframes sfmToast {
           from { opacity: 0; transform: translateX(-50%) translateY(6px); }
           to   { opacity: 1; transform: translateX(-50%) translateY(0); }

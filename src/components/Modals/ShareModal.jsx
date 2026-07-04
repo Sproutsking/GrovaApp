@@ -579,7 +579,7 @@ const ShareModal = ({
           position: fixed;
           inset: 0;
           z-index: 9990;
-          background: rgba(0,0,0,0.65);
+          background: transparent;
           backdrop-filter: blur(3px);
           -webkit-backdrop-filter: blur(3px);
           animation: smFadeIn 0.15s ease;
@@ -592,8 +592,8 @@ const ShareModal = ({
           left: 0;
           right: 0;
           z-index: 9991;
-          background: #0d0d0d;
-          border-top: 1px solid rgba(132,204,22,0.25);
+          background: var(--panel);
+          border-top: 1px solid var(--surface-border);
           border-radius: 20px 20px 0 0;
           padding: 0 0 max(20px, env(safe-area-inset-bottom,0)) 0;
           max-height: 90vh;
@@ -645,65 +645,65 @@ const ShareModal = ({
           align-items: center;
           justify-content: space-between;
           padding: 18px 16px 14px;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid var(--surface-border);
           position: sticky;
           top: 0;
-          background: #0d0d0d;
+          background: var(--panel);
           z-index: 2;
         }
         .sm-title {
           font-size: 16px;
           font-weight: 700;
-          color: #fff;
+          color: var(--text);
           margin: 0;
           text-transform: capitalize;
         }
         .sm-close {
-          background: rgba(255,255,255,0.07);
+          background: var(--surface);
           border: none;
           border-radius: 8px;
-          color: #737373;
+          color: var(--text-secondary);
           cursor: pointer;
           padding: 6px;
           display: flex;
           align-items: center;
           transition: all 0.15s;
         }
-        .sm-close:hover { color:#fff; background:rgba(255,255,255,0.14); }
+        .sm-close:hover { color: var(--text); background: var(--surface-strong); }
 
         .sm-search-wrap { padding: 12px 16px 0; }
         .sm-search-row {
           display: flex;
           align-items: center;
           gap: 8px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 12px;
           padding: 10px 14px;
           transition: border-color 0.15s;
         }
         .sm-search-row:focus-within { border-color: rgba(132,204,22,0.4); }
-        .sm-search-icon { color: #555; flex-shrink:0; }
+        .sm-search-icon { color: var(--text-secondary); flex-shrink:0; }
         .sm-search {
           flex: 1;
           background: none;
           border: none;
-          color: #fff;
+          color: var(--text);
           font-size: 14px;
           outline: none;
         }
-        .sm-search::placeholder { color: #555; }
+        .sm-search::placeholder { color: var(--text-secondary); }
         .sm-search-clear {
           background: none;
           border: none;
-          color: #555;
+          color: var(--text-secondary);
           cursor: pointer;
           padding: 2px;
           display: flex;
           align-items: center;
           transition: color 0.15s;
         }
-        .sm-search-clear:hover { color:#a3a3a3; }
+        .sm-search-clear:hover { color: var(--text); }
         .sm-spin { animation: spin 0.8s linear infinite; color:#84cc16; flex-shrink:0; }
         @keyframes spin { to { transform:rotate(360deg) } }
 
@@ -711,13 +711,13 @@ const ShareModal = ({
         .sm-section-label {
           font-size: 11px;
           font-weight: 600;
-          color: #555;
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.6px;
           margin: 0 0 10px;
         }
         .sm-no-results {
-          color: #555;
+          color: var(--text-secondary);
           font-size: 13px;
           text-align: center;
           padding: 16px 0;
@@ -726,7 +726,7 @@ const ShareModal = ({
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #555;
+          color: var(--text-secondary);
           font-size: 13px;
           padding: 8px 0;
         }
@@ -756,7 +756,7 @@ const ShareModal = ({
           min-width: 66px;
           max-width: 72px;
         }
-        .sm-contact:hover { background:rgba(255,255,255,0.05); }
+        .sm-contact:hover { background:var(--surface-strong); }
         .sm-contact.selected {
           background: rgba(132,204,22,0.08);
           border-color: rgba(132,204,22,0.3);
@@ -788,12 +788,12 @@ const ShareModal = ({
           align-items: center;
           justify-content: center;
           color: #000;
-          border: 2px solid #0d0d0d;
+          border: 2px solid var(--panel);
           font-weight: 700;
         }
         .sm-contact-name {
           font-size: 11px;
-          color: #d4d4d4;
+          color: var(--text);
           font-weight: 600;
           max-width: 64px;
           overflow: hidden;
@@ -804,7 +804,7 @@ const ShareModal = ({
         .sm-contact.selected .sm-contact-name { color:#84cc16; }
         .sm-contact-username {
           font-size: 10px;
-          color: #555;
+          color: var(--text-secondary);
           max-width: 64px;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -832,11 +832,11 @@ const ShareModal = ({
         }
         .sm-chip button:hover { opacity:1; }
         .sm-message-input {
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 10px;
           padding: 10px 14px;
-          color: #fff;
+          color: var(--text);
           font-size: 14px;
           outline: none;
           width: 100%;
@@ -844,7 +844,7 @@ const ShareModal = ({
           transition: border-color 0.15s;
         }
         .sm-message-input:focus { border-color:rgba(132,204,22,0.4); }
-        .sm-message-input::placeholder { color:#555; }
+        .sm-message-input::placeholder { color: var(--text-secondary); }
 
         .sm-send-wrap { padding: 0 16px 8px; }
         .sm-send-btn {
@@ -871,7 +871,7 @@ const ShareModal = ({
           align-items: center;
           gap: 12px;
           padding: 10px 16px;
-          color: #555;
+          color: var(--text-secondary);
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
@@ -881,7 +881,7 @@ const ShareModal = ({
           content: '';
           flex: 1;
           height: 1px;
-          background: rgba(255,255,255,0.08);
+          background: var(--surface-border);
         }
 
         .sm-external-grid {
@@ -896,16 +896,16 @@ const ShareModal = ({
           align-items: center;
           gap: 6px;
           padding: 12px 8px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.15s;
-          color: #d4d4d4;
+          color: var(--text-secondary);
           font-size: 11px;
           font-weight: 600;
         }
-        .sm-ext-btn:hover { background:rgba(255,255,255,0.09); transform:translateY(-1px); }
+        .sm-ext-btn:hover { background:var(--surface-strong); transform:translateY(-1px); }
         .sm-ext-btn:active { transform:scale(0.96); }
 
         .sm-copy { color:#84cc16; }
