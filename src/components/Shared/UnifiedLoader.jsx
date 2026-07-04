@@ -164,12 +164,14 @@ const UnifiedLoader = ({
           gap: 20px;
           animation: fadeIn 0.3s ease;
           padding: ${current.padding};
+          background: var(--bg);
+          color: var(--text);
         }
 
         .unified-loader.fullscreen {
           position: fixed;
           inset: 0;
-          background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+          background: var(--bg);
           z-index: 9999;
         }
 
@@ -177,7 +179,7 @@ const UnifiedLoader = ({
           content: '';
           position: absolute;
           inset: 0;
-          background: radial-gradient(circle at 50% 50%, rgba(132, 204, 22, 0.15) 0%, transparent 50%);
+          background: radial-gradient(circle at 50% 50%, rgba(132, 204, 22, 0.15) 0%, transparent 45%);
           animation: pulse 3s ease-in-out infinite;
         }
 
@@ -189,22 +191,24 @@ const UnifiedLoader = ({
         .loader-logo {
           font-size: 72px;
           font-weight: 900;
-          background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+          letter-spacing: 0.05em;
+          background: var(--accent-gradient);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           margin-bottom: 12px;
           animation: fadeIn 0.5s ease;
+          text-transform: uppercase;
         }
 
         .loader-spinner {
-          border: 4px solid rgba(132, 204, 22, 0.2);
-          border-top-color: #84cc16;
+          border: 4px solid rgba(132, 204, 22, 0.18);
+          border-top-color: var(--accent);
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
 
         .loader-message {
-          color: #84cc16;
+          color: var(--accent);
           font-weight: 600;
           display: flex;
           align-items: center;

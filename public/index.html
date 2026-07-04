@@ -34,6 +34,25 @@
     />
     <meta name="theme-color" content="#000000" />
 
+    <script>
+      (function() {
+        try {
+          var m = localStorage.getItem('xv_theme_mode');
+          if (m === 'light' || m === 'dark') {
+            document.documentElement.classList.add('theme-' + m);
+            document.documentElement.style.colorScheme = m;
+            document.documentElement.style.backgroundColor = m === 'light' ? '#f7f8fb' : '#000000';
+            document.documentElement.style.color = m === 'light' ? '#0f172a' : '#e6ebe6';
+            var body = document.body || document.documentElement;
+            body.style.backgroundColor = m === 'light' ? '#f7f8fb' : '#000000';
+            body.style.color = m === 'light' ? '#0f172a' : '#e6ebe6';
+          }
+        } catch (e) {
+          // Ignore localStorage access failures
+        }
+      })();
+    </script>
+
     <!-- PWA standalone flags — these are what make it look like a native app -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

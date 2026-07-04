@@ -23,13 +23,13 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import authService from "../../services/auth/authService";
 import PaywallGate from "./PaywallGate";
 import { supabase } from "../../services/config/supabase";
+import { AppLoader } from "../Shared/UnifiedLoader";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800;900&display=swap');
 
-  :root {
-    --bg:    #050706;
+  .xv {
     --lime:  #a8e63d;
     --lime2: #c8f56a;
     --red:   #e05252;
@@ -1809,144 +1809,8 @@ function LoginView() {
 }
 
 // ─── SPLASH ───────────────────────────────────────────────────────────────────
-export function Splash() {
-  return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "var(--bg)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        overflow: "hidden",
-      }}
-      className="xv"
-    >
-      <style>{CSS}</style>
-      <Grain />
-      <Corners />
-      <ScanLine />
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%,-50%)",
-          width: 740,
-          height: 740,
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle,rgba(168,230,61,.08) 0%,transparent 65%)",
-          animation: "S_glow 5.5s ease-in-out infinite",
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
-      <div style={{ textAlign: "center", position: "relative", zIndex: 2 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "0.01em",
-            marginBottom: 18,
-          }}
-          aria-label="XEEVIA"
-        >
-          {"XEEVIA".split("").map((ch, i) => (
-            <span
-              key={i}
-              aria-hidden
-              style={{
-                fontFamily: "'Bebas Neue',sans-serif",
-                fontSize: "clamp(84px,17vw,146px)",
-                letterSpacing: "5px",
-                lineHeight: 1,
-                backgroundImage:
-                  "linear-gradient(175deg,#e8ff9a 0%,#a8e63d 38%,#5a9a10 100%)",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                display: "inline-block",
-                animation: `S_letter .9s cubic-bezier(.23,1,.32,1) ${i * 0.18}s both`,
-              }}
-            >
-              {ch}
-            </span>
-          ))}
-        </div>
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: "5px",
-            textTransform: "uppercase",
-            fontWeight: 500,
-            color: "var(--lime)",
-            animation: "S_tagline 1.1s ease 2.0s forwards",
-            opacity: 0,
-          }}
-        >
-          Own Your Social Capital
-        </div>
-        <div
-          style={{
-            marginTop: 56,
-            display: "flex",
-            justifyContent: "center",
-            animation: "XV_fadeIn .7s ease 2.25s both",
-            opacity: 0,
-          }}
-        >
-          <svg
-            width="44"
-            height="44"
-            viewBox="0 0 44 44"
-            fill="none"
-            aria-hidden
-          >
-            <circle
-              cx="22"
-              cy="22"
-              r="18"
-              stroke="rgba(168,230,61,.07)"
-              strokeWidth="2"
-            />
-            <circle
-              cx="22"
-              cy="22"
-              r="18"
-              stroke="url(#arcg2)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              fill="none"
-              strokeDasharray="251"
-              style={{
-                animation: "S_arc 2.1s ease-in-out infinite",
-                transformOrigin: "22px 22px",
-                transform: "rotate(-90deg)",
-              }}
-            />
-            <circle
-              cx="22"
-              cy="22"
-              r="2.8"
-              fill="rgba(168,230,61,.55)"
-              style={{ animation: "S_glow 2.1s ease-in-out infinite" }}
-            />
-            <defs>
-              <linearGradient id="arcg2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(168,230,61,0)" />
-                <stop offset="55%" stopColor="rgba(168,230,61,.6)" />
-                <stop offset="100%" stopColor="#a8e63d" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-      </div>
-    </div>
-  );
+export function Splash({ message = "Initializing Xeevia..." }) {
+  return <AppLoader message={message} />;
 }
 
 // ─── AUTH WALL — root export ──────────────────────────────────────────────────

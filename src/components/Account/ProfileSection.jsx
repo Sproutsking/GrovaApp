@@ -787,64 +787,66 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               </div>
 
               {selectedSectionData ? (
-            <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.26)", padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
-                  <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
-                </div>
-                <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <ArrowLeft size={13} /> Back
-                </button>
-              </div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>{selectedSectionData.summary}</div>
-              {selectedSectionData.items.length === 0 ? (
-                <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 13 }}>This section is ready and will populate as evidence arrives. Connect a platform or refresh the verification flow to bring in richer proof.</div>
-              ) : (
-                <div style={{ display: "grid", gap: 8 }}>
-                  {selectedSectionData.items.map((item) => (
-                    <div key={item.id || item.title} style={{ padding: "12px 13px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
-                          <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 3 }}>{item.provider} · {item.evidence_type}</div>
-                        </div>
-                        <div style={{ color: item.verified ? "#84cc16" : "#9ca3af", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-                          {item.verified ? "Verified" : "Tracked"}
-                        </div>
-                      </div>
-                      {item.summary ? <div style={{ fontSize: 12, color: "#cfcfcf", marginTop: 6 }}>{item.summary}</div> : null}
-                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                        <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#84cc16", background: "rgba(132,204,22,0.14)", border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
-                        {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#60a5fa", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
-                      </div>
+                <div style={{ borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.26)", padding: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{selectedSectionData.title}</div>
+                      <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 2 }}>{selectedSectionData.subtitle}</div>
                     </div>
-                  ))}
+                    <button type="button" onClick={() => setSelectedSection(null)} style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#f5f5f5", borderRadius: 999, padding: "8px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <ArrowLeft size={13} /> Back
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>{selectedSectionData.summary}</div>
+                  {selectedSectionData.items.length === 0 ? (
+                    <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8b8b", fontSize: 13 }}>
+                      This section is ready and will populate as evidence arrives. Connect a platform or refresh the verification flow to bring in richer proof.
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {selectedSectionData.items.map((item) => (
+                        <div key={item.id || item.title} style={{ padding: "12px 13px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{item.title}</div>
+                              <div style={{ fontSize: 11, color: "#8b8b8b", marginTop: 3 }}>{item.provider} · {item.evidence_type}</div>
+                            </div>
+                            <div style={{ color: item.verified ? "#84cc16" : "#9ca3af", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                              {item.verified ? "Verified" : "Tracked"}
+                            </div>
+                          </div>
+                          {item.summary ? <div style={{ fontSize: 12, color: "#cfcfcf", marginTop: 6 }}>{item.summary}</div> : null}
+                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                            <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#84cc16", background: "rgba(132,204,22,0.14)", border: "1px solid rgba(132,204,22,0.22)" }}>{item.proofLabel}</span>
+                            {item.verificationLevel ? <span style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700, color: "#60a5fa", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)" }}>{String(item.verificationLevel).toUpperCase()} trust</span> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                  {verificationSections.map((section) => {
+                    const Icon = sectionIconMap[section.id] || Sparkles;
+                    return (
+                      <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 18, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer", boxShadow: "0 10px 26px rgba(0,0,0,0.14)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{section.title}</div>
+                          <div style={{ width: 30, height: 30, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon size={15} style={{ color: section.accent }} />
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
+                        <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          ) : (
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-              {verificationSections.map((section) => {
-                const Icon = sectionIconMap[section.id] || Sparkles;
-                return (
-                  <button key={section.id} type="button" onClick={() => setSelectedSection(section.id)} style={{ textAlign: "left", borderRadius: 18, padding: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer", boxShadow: "0 10px 26px rgba(0,0,0,0.14)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{section.title}</div>
-                      <div style={{ width: 30, height: 30, borderRadius: 10, background: `${section.accent}16`, border: `1px solid ${section.accent}28`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Icon size={15} style={{ color: section.accent }} />
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>{section.subtitle}</div>
-                    <div style={{ fontSize: 12, color: "#f5f5f5", fontWeight: 700 }}>{section.summary}</div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    )}
+          </div>
+        )}
 
         {/* ACTION BUTTONS */}
         <div className="actions-card">
