@@ -544,6 +544,24 @@ const isLocalhost = Boolean(
   ),
 );
 
+// Emergency SW guard: attempt a one-time unregister to clear stale cached
+// bundles that can keep clients running broken code. This runs at most once
+// per browser in a 24-hour window (guarded by `xv_sw_forced_unregistered_at`).
+try {
+  if (typeof window !== "undefined" && 'serviceWorker' in navigator) {
+    const FLAG = 'xv_sw_forced_unregistered_at';
+    const last = Number(localStorage.getItem(FLAG) || 0);
+    const DAY = 24 * 60 * 60 * 1000;
+    if (Date.now() - last > DAY) {
+      serviceWorkerRegistration.unregister();
+      try { localStorage.setItem(FLAG, String(Date.now())); } catch (e) {}
+      console.info('[SWGuard] Performed one-time SW unregister to clear stale caches');
+    }
+  }
+} catch (e) {
+  console.debug('[SWGuard] unregister attempt failed:', e?.message || e);
+}
+
 if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
   serviceWorkerRegistration.unregister();
 } else {
