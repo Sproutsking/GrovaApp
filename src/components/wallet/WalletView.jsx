@@ -131,8 +131,9 @@ const LAYOUT_CSS = `
     z-index: 49;
     display: flex;
     flex-direction: row;
-    background: #07080a;
+    background: var(--bg);
     overflow: hidden;
+    color: var(--text);
   }
 
   @media (max-width: 767px) {
@@ -187,8 +188,8 @@ const LAYOUT_CSS = `
       overflow-y: auto;
       overflow-x: hidden;
       padding: 20px 16px;
-      background: rgba(4,5,6,0.97);
-      border-left: 1px solid rgba(255,255,255,0.07);
+      background: var(--surface-card);
+      border-left: 1px solid var(--border-soft);
       scrollbar-width: none;
     }
     .wv-sidebar::-webkit-scrollbar { display: none; }
@@ -199,8 +200,8 @@ const LAYOUT_CSS = `
     border-radius: 13px;
     padding: 13px 14px;
     margin-bottom: 14px;
-    border: 1px solid rgba(255,255,255,0.07);
-    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border-soft);
+    background: var(--surface-strong);
     flex-shrink: 0;
   }
   .wvs-card.lime { border-color: rgba(132,204,22,0.18);  background: rgba(132,204,22,0.03); }
@@ -216,7 +217,7 @@ const LAYOUT_CSS = `
     display: flex;
     align-items: center;
     gap: 6px;
-    color: rgba(255,255,255,0.35);
+    color: var(--text-muted);
   }
   .wvs-title.lime { color: rgba(132,204,22,0.75); }
   .wvs-title.gold { color: rgba(212,168,71,0.7);  }
@@ -227,23 +228,23 @@ const LAYOUT_CSS = `
     justify-content: space-between;
     align-items: center;
     padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--border-soft);
   }
   .wvs-row:last-child { border-bottom: none; padding-bottom: 0; }
 
-  .wvs-sym   { font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,0.55); font-family: 'DM Mono', monospace; }
-  .wvs-price { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .wvs-sym   { font-size: 12.5px; font-weight: 700; color: var(--text-secondary); font-family: 'DM Mono', monospace; }
+  .wvs-price { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--text-strong); }
   .wvs-chg   { font-size: 10px;   font-weight: 700; font-family: 'DM Mono', monospace; margin-top: 1px; }
   .wvs-chg.up   { color: #a3e635; }
   .wvs-chg.down { color: #f87171; }
-  .wvs-chg.flat { color: rgba(255,255,255,0.3); }
+  .wvs-chg.flat { color: var(--text-muted); }
 
-  .wvs-stat-label { font-size: 11px; color: rgba(255,255,255,0.42); }
+  .wvs-stat-label { font-size: 11px; color: var(--text-secondary); }
   .wvs-stat-val   { font-size: 12.5px; font-weight: 700; font-family: 'DM Mono', monospace; }
 
-  .wvs-earn-label { font-size: 11px; color: rgba(255,255,255,0.42); }
+  .wvs-earn-label { font-size: 11px; color: var(--text-secondary); }
   .wvs-earn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #22d3ee; }
-  .wvs-burn-range { font-size: 11px; color: rgba(255,255,255,0.38); font-family: 'DM Mono', monospace; }
+  .wvs-burn-range { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
   .wvs-burn-val   { font-size: 11px; font-weight: 700; font-family: 'DM Mono', monospace; color: #f87171; }
 
   @keyframes wvsSkel {
@@ -267,7 +268,7 @@ const LAYOUT_CSS = `
     border: 1px dashed rgba(163,230,53,0.2);
     background: rgba(163,230,53,0.03);
     font-size: 11px; line-height: 1.7;
-    color: rgba(255,255,255,0.32);
+    color: var(--text-secondary);
     margin-bottom: 14px; flex-shrink: 0; text-align: center;
   }
 

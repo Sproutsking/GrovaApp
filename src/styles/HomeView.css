@@ -49,6 +49,11 @@
   justify-content: center;
   padding: 72px 24px;
   text-align: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  margin: 18px 0;
+  box-shadow: 0 8px 24px var(--shadow-soft);
 }
 
 .empty-state-icon {
@@ -66,7 +71,7 @@
 .empty-state-title {
   font-size: 18px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-strong);
   margin: 0 0 8px 0;
 }
 
@@ -74,7 +79,9 @@
   font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.65;
+  font-weight: 500;
+  max-width: 420px;
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */

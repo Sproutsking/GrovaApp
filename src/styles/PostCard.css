@@ -6,16 +6,19 @@
 
 /* ── Card shell ──────────────────────────────────────────────────────────── */
 .content-card {
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
   overflow: hidden;
-  transition: border-color 0.2s ease;
-  margin-bottom: 10px;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 24px var(--shadow-soft);
 }
 
 .content-card:hover {
-  border-color: rgba(132, 204, 22, 0.15);
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px var(--shadow-soft);
 }
 
 /* ── Card header ─────────────────────────────────────────────────────────── */

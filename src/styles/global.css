@@ -65,20 +65,26 @@ html {
   --bg: #000000;
   --bg-strong: #070707;
   --surface: rgba(255,255,255,0.04);
-  --surface-strong: rgba(255,255,255,0.05);
-  --surface-border: rgba(255,255,255,0.08);
+  --surface-strong: rgba(255,255,255,0.055);
+  --surface-border: rgba(255,255,255,0.1);
   --surface-elevated: #111111;
   --surface-muted: rgba(255,255,255,0.03);
+  --surface-card: rgba(255,255,255,0.045);
+  --surface-card-strong: rgba(255,255,255,0.07);
+  --surface-hover: rgba(255,255,255,0.09);
   --panel: #111111;
   --panel-strong: #0b0b0b;
   --panel-soft: rgba(255,255,255,0.06);
-  --input-bg: #0f0f0f;
-  --input-border: rgba(255,255,255,0.1);
+  --input-bg: #111111;
+  --input-border: rgba(255,255,255,0.14);
   --input-border-focus: rgba(132,204,22,0.45);
-  --text: #f5f5f5;
-  --text-secondary: #a3a3a3;
-  --text-muted: #6b7280;
+  --text: #f8fafc;
+  --text-strong: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
   --border: #1a1a1a;
+  --border-strong: rgba(255,255,255,0.14);
+  --border-soft: rgba(255,255,255,0.08);
   --accent: #84cc16;
   --accent-strong: #65a30d;
   --accent-gradient: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
@@ -154,23 +160,29 @@ html {
 
 .theme-light {
   color-scheme: light;
-  --bg: #f7f8fb;
+  --bg: #f4f6fb;
   --bg-strong: #ffffff;
   --surface: rgba(15,23,42,0.04);
-  --surface-strong: rgba(15,23,42,0.06);
-  --surface-border: rgba(148,163,184,0.22);
+  --surface-strong: rgba(15,23,42,0.055);
+  --surface-border: rgba(15,23,42,0.12);
   --surface-elevated: #ffffff;
   --surface-muted: rgba(15,23,42,0.03);
+  --surface-card: #ffffff;
+  --surface-card-strong: #f8fafc;
+  --surface-hover: #eef2f7;
   --panel: #ffffff;
-  --panel-strong: #f8fafc;
-  --panel-soft: rgba(15,23,42,0.06);
+  --panel-strong: #fbfcff;
+  --panel-soft: rgba(15,23,42,0.055);
   --input-bg: #ffffff;
-  --input-border: rgba(15,23,42,0.1);
+  --input-border: rgba(15,23,42,0.12);
   --input-border-focus: rgba(22,163,74,0.45);
   --text: #0f172a;
-  --text-secondary: #475569;
+  --text-strong: #020617;
+  --text-secondary: #334155;
   --text-muted: #64748b;
   --border: #e2e8f0;
+  --border-strong: rgba(15,23,42,0.12);
+  --border-soft: rgba(15,23,42,0.08);
   --accent: #16a34a;
   --accent-strong: #15803d;
   --accent-gradient: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
@@ -218,6 +230,33 @@ body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+}
+
+::selection {
+  background: rgba(132, 204, 22, 0.28);
+  color: var(--text-strong);
+}
+
+input, textarea, select {
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--input-border);
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+:where(.content-card, .post-card, .reel-card, .story-card-premium, .story-card, .news-card, .xv-reel-card, .profile-modal-container, .modal-card, .sheet, .drawer, .section-card, .panel) {
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  box-shadow: 0 10px 32px var(--shadow-soft);
+}
+
+:where(.content-card, .post-card, .reel-card, .story-card-premium, .story-card, .news-card, .xv-reel-card, .profile-modal-container, .modal-card, .sheet, .drawer, .section-card, .panel):hover {
+  border-color: var(--accent-border);
 }
 
 #root {
