@@ -287,13 +287,13 @@ const BASE_CSS = `
   @keyframes svLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.86)}}
   @keyframes svBar{0%,100%{height:4px}25%{height:22px}50%{height:10px}75%{height:28px}}
   @keyframes svUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes svGlow{0%,100%{box-shadow:0 0 18px rgba(132,204,22,.22)}50%{box-shadow:0 0 36px rgba(132,204,22,.52)}}
+  @keyframes svGlow{0%,100%{box-shadow:0 0 18px var(--accent-glow)}50%{box-shadow:0 0 36px var(--accent-glow-strong)}}
   @keyframes svSpin{to{transform:rotate(360deg)}}
   @keyframes svInvite{0%{transform:translateY(100%);opacity:0}100%{transform:translateY(0);opacity:1}}
   @keyframes svHandWave{0%,100%{transform:rotate(0)}30%{transform:rotate(22deg)}70%{transform:rotate(-12deg)}}
   @keyframes svLikePop{0%{transform:scale(1)}45%{transform:scale(1.5)}100%{transform:scale(1)}}
   @keyframes svHeartFly{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
-  @keyframes svSpeak{0%,100%{box-shadow:0 0 0 0 rgba(132,204,22,0),0 0 0 0 rgba(132,204,22,0)}40%{box-shadow:0 0 0 4px rgba(132,204,22,.35),0 0 0 8px rgba(132,204,22,.12)}80%{box-shadow:0 0 0 6px rgba(132,204,22,.2),0 0 0 12px rgba(132,204,22,.05)}}
+  @keyframes svSpeak{0%,100%{box-shadow:0 0 0 0 var(--accent-glow),0 0 0 0 var(--accent-glow)}40%{box-shadow:0 0 0 4px var(--accent-glow-strong),0 0 0 8px var(--accent-bg-strong)}80%{box-shadow:0 0 0 6px var(--accent-glow-strong),0 0 0 12px var(--accent-bg-soft)}}
   @keyframes svSpeakRing{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.55);opacity:0}}
   @keyframes svSearchIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 `;
@@ -307,11 +307,11 @@ const StatPill = ({ Icon, value, color }) => (
       gap: 4,
       padding: "4px 9px",
       borderRadius: 8,
-      background: "rgba(0,0,0,.62)",
-      backdropFilter: "blur(10px)",
-      fontSize: 11,
-      fontWeight: 800,
-      color: "#fff",
+        background: "var(--panel)",
+          backdropFilter: "blur(10px)",
+          fontSize: 11,
+          fontWeight: 800,
+          color: "var(--text-strong)",
     }}
   >
     <Icon size={10} color={color} />
@@ -330,7 +330,7 @@ const SignalBars = ({ strength }) => {
         gap: 2,
         padding: "4px 9px",
         borderRadius: 8,
-        background: "rgba(0,0,0,.62)",
+        background: "var(--panel)",
         backdropFilter: "blur(10px)",
       }}
     >
@@ -341,7 +341,7 @@ const SignalBars = ({ strength }) => {
             width: 3,
             borderRadius: 1,
             height: 4 + i * 3,
-            background: i < strength ? color : "rgba(255,255,255,.12)",
+            background: i < strength ? color : "var(--surface-muted)",
             transition: "background .3s",
           }}
         />

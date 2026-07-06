@@ -418,7 +418,7 @@ const CommentModal = ({
         .comment-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.18);
+          background: var(--overlay-secondary);
           backdrop-filter: blur(2px);
           -webkit-backdrop-filter: blur(2px);
           z-index: 9998;
@@ -428,15 +428,13 @@ const CommentModal = ({
         .comment-modal {
           position: fixed;
           z-index: 9999;
-          background: #0a0a0a;
-          border: 1px solid rgba(132, 204, 22, 0.3);
+          background: var(--panel);
+          border: 1px solid var(--accent-border);
           border-radius: 20px;
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          box-shadow:
-            0 24px 80px rgba(0, 0, 0, 0.45),
-            0 0 0 1px rgba(132, 204, 22, 0.08);
+          box-shadow: 0 24px 80px var(--shadow), 0 0 0 1px var(--accent-glow);
         }
         .comment-modal-desktop {
           top: 50%;
@@ -460,8 +458,8 @@ const CommentModal = ({
           justify-content: space-between;
           align-items: center;
           padding: 18px 20px;
-          border-bottom: 1px solid rgba(132, 204, 22, 0.15);
-          background: rgba(132, 204, 22, 0.04);
+          border-bottom: 1px solid var(--accent-bg-soft);
+          background: var(--accent-bg-soft);
           flex-shrink: 0;
         }
         .comment-modal-title {
@@ -472,35 +470,33 @@ const CommentModal = ({
         .comment-modal-title h3 {
           font-size: 17px;
           font-weight: 700;
-          color: #fff;
+          color: var(--text-strong);
           margin: 0;
         }
         .comment-count {
           padding: 2px 9px;
-          background: rgba(132, 204, 22, 0.18);
+          background: var(--accent-bg-strong);
           border-radius: 12px;
           font-size: 12px;
-          color: #84cc16;
+          color: var(--accent);
           font-weight: 700;
           transition: all 0.2s;
         }
         .comment-close-btn {
-          background: rgba(255, 255, 255, 0.06);
+          background: var(--surface-card);
           border: none;
-          color: #fff;
+          color: var(--text-strong);
           cursor: pointer;
           padding: 6px;
           border-radius: 10px;
-          transition:
-            background 0.2s,
-            color 0.2s;
+          transition: background 0.2s, color 0.2s;
           display: flex;
           align-items: center;
           justify-content: center;
         }
         .comment-close-btn:hover {
-          background: rgba(132, 204, 22, 0.15);
-          color: #84cc16;
+          background: var(--accent-bg-strong);
+          color: var(--accent);
         }
 
         /* ── SORT BAR ── */
@@ -508,24 +504,24 @@ const CommentModal = ({
           display: flex;
           gap: 8px;
           padding: 10px 20px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          border-bottom: 1px solid var(--surface-muted);
           flex-shrink: 0;
         }
         .sort-btn {
           padding: 5px 16px;
           background: none;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid var(--surface-border);
           border-radius: 20px;
-          color: #737373;
+          color: var(--text-muted);
           font-size: 12px;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
         }
         .sort-btn.active {
-          background: rgba(132, 204, 22, 0.18);
-          border-color: #84cc16;
-          color: #84cc16;
+          background: var(--accent-bg-strong);
+          border-color: var(--accent);
+          color: var(--accent);
         }
 
         /* ── COMMENTS LIST ── */
@@ -551,14 +547,14 @@ const CommentModal = ({
           align-items: center;
           gap: 12px;
           padding: 40px 20px;
-          color: #737373;
+          color: var(--text-muted);
           font-size: 13px;
         }
         .comments-spinner {
           width: 26px;
           height: 26px;
-          border: 2px solid rgba(132, 204, 22, 0.2);
-          border-top-color: #84cc16;
+          border: 2px solid var(--accent-glow);
+          border-top-color: var(--accent);
           border-radius: 50%;
           animation: spin 0.75s linear infinite;
         }
@@ -573,7 +569,7 @@ const CommentModal = ({
           align-items: center;
           justify-content: center;
           padding: 36px 20px;
-          color: #737373;
+          color: var(--text-muted);
           text-align: center;
           gap: 10px;
         }
@@ -581,7 +577,7 @@ const CommentModal = ({
           margin: 0;
           font-size: 15px;
           font-weight: 600;
-          color: #a3a3a3;
+          color: var(--text-secondary);
         }
         .no-comments span {
           font-size: 13px;
@@ -592,7 +588,7 @@ const CommentModal = ({
           margin-bottom: 14px;
         }
         .ci-ep-err {
-          color: #f87171;
+          color: var(--danger);
           font-size: 11px;
           margin-bottom: 4px;
         }
@@ -605,11 +601,11 @@ const CommentModal = ({
           width: 34px;
           height: 34px;
           border-radius: 50%;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
+          background: var(--accent-gradient);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #000;
+          color: var(--accent-contrast);
           font-weight: 700;
           font-size: 13px;
           flex-shrink: 0;
@@ -633,15 +629,15 @@ const CommentModal = ({
         .comment-author {
           font-size: 13px;
           font-weight: 600;
-          color: #fff;
+          color: var(--text-strong);
         }
         .comment-time {
           font-size: 11px;
-          color: #737373;
+          color: var(--text-muted);
         }
         .comment-text {
           font-size: 13px;
-          color: #e5e5e5;
+          color: var(--text);
           margin: 0 0 7px;
           line-height: 1.5;
           word-wrap: break-word;
@@ -657,7 +653,7 @@ const CommentModal = ({
           gap: 4px;
           background: none;
           border: none;
-          color: #737373;
+          color: var(--text-muted);
           font-size: 11px;
           font-weight: 600;
           cursor: pointer;
@@ -666,10 +662,10 @@ const CommentModal = ({
         }
         .comment-action:hover,
         .comment-action.active {
-          color: #84cc16;
+          color: var(--accent);
         }
         .ep-hint {
-          color: rgba(200, 245, 66, 0.45);
+          color: var(--accent-glow);
           font-size: 10px;
         }
         .comment-replies {
@@ -679,15 +675,15 @@ const CommentModal = ({
         /* ── INPUT AREA ── */
         .comment-input-area {
           padding: 14px 20px;
-          border-top: 1px solid rgba(132, 204, 22, 0.15);
+          border-top: 1px solid var(--accent-bg-soft);
           flex-shrink: 0;
-          background: rgba(0, 0, 0, 0.3);
+          background: var(--surface-hover);
         }
         .comment-ep-banner {
-          background: rgba(239, 68, 68, 0.08);
-          border: 1px solid rgba(239, 68, 68, 0.22);
+          background: var(--danger-bg);
+          border: 1px solid var(--danger-border);
           border-radius: 8px;
-          color: #f87171;
+          color: var(--danger);
           font-size: 12px;
           padding: 8px 12px;
           margin-bottom: 8px;
@@ -697,17 +693,17 @@ const CommentModal = ({
           justify-content: space-between;
           align-items: center;
           padding: 7px 11px;
-          background: rgba(132, 204, 22, 0.08);
-          border: 1px solid rgba(132, 204, 22, 0.15);
+          background: var(--accent-bg-soft);
+          border: 1px solid var(--accent-border);
           border-radius: 8px;
           margin-bottom: 7px;
           font-size: 12px;
-          color: #84cc16;
+          color: var(--accent);
         }
         .reply-indicator button {
           background: none;
           border: none;
-          color: #ef4444;
+          color: var(--danger);
           cursor: pointer;
           padding: 3px;
           border-radius: 4px;
@@ -721,10 +717,10 @@ const CommentModal = ({
         .comment-input-wrapper textarea {
           flex: 1;
           padding: 11px 14px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(132, 204, 22, 0.2);
+          background: var(--surface-card);
+          border: 1px solid var(--accent-border);
           border-radius: 12px;
-          color: #fff;
+          color: var(--text);
           font-size: 13px;
           resize: none;
           font-family: inherit;
@@ -732,12 +728,12 @@ const CommentModal = ({
           line-height: 1.5;
         }
         .comment-input-wrapper textarea::placeholder {
-          color: #525252;
+          color: var(--text-muted);
         }
         .comment-input-wrapper textarea:focus {
           outline: none;
-          border-color: #84cc16;
-          background: rgba(255, 255, 255, 0.07);
+          border-color: var(--accent);
+          background: var(--surface-card-strong);
         }
         .comment-input-wrapper textarea:disabled {
           opacity: 0.5;
@@ -746,16 +742,14 @@ const CommentModal = ({
           width: 44px;
           height: 44px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #84cc16, #65a30d);
+          background: var(--accent-gradient);
           border: none;
-          color: #000;
+          color: var(--accent-contrast);
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition:
-            transform 0.2s,
-            opacity 0.2s;
+          transition: transform 0.2s, opacity 0.2s;
           flex-shrink: 0;
         }
         .send-btn:hover:not(:disabled) {
@@ -770,7 +764,7 @@ const CommentModal = ({
         }
         .comment-footer-hint {
           font-size: 11px;
-          color: #3f3f46;
+          color: var(--text-muted);
           margin-top: 6px;
           padding-left: 2px;
         }

@@ -247,13 +247,14 @@ class AppErrorBoundary extends React.Component {
           width:          "60px",
           height:         "60px",
           borderRadius:   "50%",
-          background:     "var(--accent-bg-soft)",
-          border:         "2px solid var(--accent-border)",
+          background:     "#000000",
+          border:         "2px solid rgba(255,255,255,0.08)",
           display:        "flex",
           alignItems:     "center",
           justifyContent: "center",
           fontSize:       "26px",
           overflow:       "hidden",
+          boxShadow:      "0 8px 24px rgba(0,0,0,0.18)",
         }}>
           <img src="/logo192.png" alt="Xeevia" style={{ width: '70%', height: '70%', objectFit: 'contain', display: 'block' }} />
         </div>
@@ -392,7 +393,7 @@ function showAppPrompt({ type, message, detail }) {
       <div style="font-size:11px;color:var(--text-secondary);line-height:1.45">${subtitle}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
-      <button id="xv-prompt-later" style="border:none;background:var(--surface-overlay);color:var(--text-secondary);padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Ignore</button>
+      <button id="xv-prompt-later" style="border:1px solid var(--border);background:var(--surface-card);color:var(--text-strong);padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 1px 2px var(--shadow-soft)">Ignore</button>
       <button id="xv-prompt-action" style="border:none;background:var(--accent-gradient);color:var(--accent-inverse-text);padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
