@@ -248,13 +248,14 @@ class AppErrorBoundary extends React.Component {
           height:         "60px",
           borderRadius:   "50%",
           background:     "var(--accent-bg-soft)",
-          border:         "2px solid rgba(245,158,11,0.3)",
+          border:         "2px solid var(--accent-border)",
           display:        "flex",
           alignItems:     "center",
           justifyContent: "center",
           fontSize:       "26px",
+          overflow:       "hidden",
         }}>
-          ⚡
+          <img src="/logo192.png" alt="Xeevia" style={{ width: '70%', height: '70%', objectFit: 'contain', display: 'block' }} />
         </div>
 
         <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text)" }}>
@@ -383,7 +384,7 @@ function showAppPrompt({ type, message, detail }) {
   const subtitle = detail || message || "Tap below to continue.";
 
   banner.innerHTML = `
-    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:var(--accent-bg-soft);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center">
+    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center">
       <img src="${logoUrl}" alt="Xeevia" style="width:20px;height:20px;object-fit:contain"/>
     </div>
     <div style="flex:1;min-width:0">

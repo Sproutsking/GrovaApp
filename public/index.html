@@ -555,8 +555,8 @@
         id="xvc-main"
         style="display: flex; align-items: center; gap: 14px; width: 100%"
       >
-        <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:var(--accent-bg-soft);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center">
-          <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain"/>
+        <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center">
+          <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain;display:block"/>
         </div>
         <div class="xvi-text">
           <div class="xvi-title">Update available for Xeevia</div>
@@ -602,8 +602,8 @@
 
     <!-- Subtle install nudge — never blocks the app -->
     <div id="xv-install" role="complementary" aria-label="Install Xeevia">
-      <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
-        <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain"/>
+      <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center">
+        <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain;display:block"/>
       </div>
       <div class="xvi-text">
         <div class="xvi-title">Add Xeevia to your home screen</div>
@@ -617,7 +617,9 @@
     <!-- SW update banner -->
     <div id="xv-update" role="alert" aria-live="polite">
       <div class="xvu-inner">
-        <div class="xvu-icon" aria-hidden>✦</div>
+        <div class="xvu-icon" aria-hidden style="background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:6px">
+          <img src="/logo192.png" alt="Xeevia" style="width:20px;height:20px;object-fit:contain;display:block"/>
+        </div>
         <div class="xvu-text">
           <div class="xvu-title">New version ready</div>
           <div class="xvu-sub">Tap to get the latest features</div>
