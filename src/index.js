@@ -359,6 +359,7 @@ function showAppPrompt({ type, message, detail }) {
 
   const banner = document.createElement("div");
   banner.id = `xv-${type}-prompt`;
+  banner.className = "xv-app-prompt";
   banner.style.cssText = `
     position: fixed;
     left: 50%;
@@ -366,15 +367,15 @@ function showAppPrompt({ type, message, detail }) {
     transform: translateX(-50%);
     z-index: 2147483647;
     width: min(92vw, 420px);
-    background: rgba(6, 10, 6, 0.96);
-    border: 1px solid rgba(168, 230, 61, 0.24);
+    background: var(--panel);
+    border: 1px solid var(--accent-border);
     border-radius: 18px;
     padding: 14px 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+    box-shadow: 0 10px 40px var(--shadow);
     display: flex;
     align-items: center;
     gap: 12px;
-    backdrop-filter: blur(16px);
+    backdrop-filter: blur(8px);
   `;
 
   const logoUrl = "/logo192.png";
@@ -382,16 +383,16 @@ function showAppPrompt({ type, message, detail }) {
   const subtitle = detail || message || "Tap below to continue.";
 
   banner.innerHTML = `
-    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:rgba(132,204,22,.08);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
+    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:var(--accent-bg-soft);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center">
       <img src="${logoUrl}" alt="Xeevia" style="width:20px;height:20px;object-fit:contain"/>
     </div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:800;color:#f7f7f7;margin-bottom:2px">${title}</div>
-      <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
+      <div style="font-size:13px;font-weight:800;color:var(--text-strong);margin-bottom:2px">${title}</div>
+      <div style="font-size:11px;color:var(--text-secondary);line-height:1.45">${subtitle}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
-      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Ignore</button>
-      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
+      <button id="xv-prompt-later" style="border:none;background:var(--surface-overlay);color:var(--text-secondary);padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Ignore</button>
+      <button id="xv-prompt-action" style="border:none;background:var(--accent-gradient);color:var(--accent-inverse-text);padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
 

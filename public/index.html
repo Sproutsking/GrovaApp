@@ -104,10 +104,45 @@
       paints the gesture navigation bar ("chin") black = invisible.
     -->
     <style>
-      html,
-      body {
-        background: #000000;
+      /* Initial theme variables for first paint (dark defaults). This ensures
+         the app shell and install/update prompts are theme-aware before
+         bundled CSS loads. */
+      :root {
+        --bg: #000000;
+        --bg-strong: #070707;
+        --panel: #111111;
+        --panel-strong: #0b0b0b;
+        --surface: rgba(255,255,255,0.04);
+        --surface-overlay: rgba(255,255,255,0.04);
+        --surface-border: rgba(255,255,255,0.1);
+        --text: #e6ebe6;
+        --text-secondary: #cbd5e1;
+        --accent: #84cc16;
+        --accent-border: rgba(132,204,22,0.18);
+        --accent-gradient: linear-gradient(135deg, #84cc16, #65a30d);
+        --accent-bg-soft: rgba(132,204,22,0.08);
+        --shadow: rgba(0,0,0,0.6);
+        --danger: #ff4444;
       }
+      .theme-light {
+        --bg: #f4f6fb;
+        --bg-strong: #ffffff;
+        --panel: #ffffff;
+        --panel-strong: #fbfcff;
+        --surface: rgba(15,23,42,0.04);
+        --surface-overlay: rgba(15,23,42,0.04);
+        --surface-border: rgba(15,23,42,0.12);
+        --text: #0f172a;
+        --text-secondary: #334155;
+        --accent: #16a34a;
+        --accent-border: rgba(22,163,74,0.12);
+        --accent-gradient: linear-gradient(135deg, #16a34a, #15803d);
+        --accent-bg-soft: rgba(22,163,74,0.08);
+        --shadow: rgba(15,23,42,0.12);
+        --danger: #ff4444;
+      }
+
+      html, body { background: var(--bg); }
     </style>
 
     <style>
@@ -123,7 +158,7 @@
       html {
         width: 100%;
         height: 100%;
-        background: #000000;
+        background: var(--bg);
         color-scheme: dark;
         -webkit-text-size-adjust: 100%;
         overscroll-behavior: none;
@@ -132,8 +167,8 @@
       body {
         width: 100%;
         height: 100%;
-        background: #000000;
-        color: #e6ebe6;
+        background: var(--bg);
+        color: var(--text);
         font-family:
           "DM Sans",
           -apple-system,
@@ -153,14 +188,14 @@
 
       #root {
         min-height: 100dvh;
-        background: #000000;
+        background: var(--bg);
       }
 
       .xv-shell {
         width: 100%;
         min-height: 100dvh;
-        background: #050706;
-        color: #f4f8f2;
+        background: var(--panel);
+        color: var(--text);
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -169,7 +204,7 @@
       .xv-shell-header {
         height: 62px;
         border-radius: 18px;
-        background: rgba(255,255,255,0.04);
+        background: var(--surface);
       }
       .xv-shell-body {
         display: grid;
@@ -180,7 +215,7 @@
       .xv-shell-sidebar,
       .xv-shell-trending {
         border-radius: 20px;
-        background: rgba(255,255,255,0.04);
+        background: var(--surface);
         min-height: 420px;
       }
       .xv-shell-main {
@@ -190,7 +225,7 @@
       .xv-shell-row {
         height: 160px;
         border-radius: 20px;
-        background: rgba(255,255,255,0.03);
+        background: var(--surface-muted);
       }
       .xv-shell-grid {
         display: grid;
@@ -200,7 +235,7 @@
       .xv-shell-card {
         height: 120px;
         border-radius: 18px;
-        background: rgba(255,255,255,0.04);
+        background: var(--surface);
       }
       @media (max-width: 960px) {
         .xv-shell-body {
@@ -230,8 +265,8 @@
         bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         left: 16px;
         right: 16px;
-        background: rgba(8, 8, 8, 0.98);
-        border: 1px solid rgba(168, 230, 61, 0.18);
+        background: var(--panel-strong);
+        border: 1px solid var(--accent-border);
         border-radius: 18px;
         padding: 16px 18px;
         z-index: 10001;
@@ -240,7 +275,7 @@
         gap: 14px;
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 8px 40px var(--shadow);
         max-width: 480px;
         margin: 0 auto;
       }
@@ -253,13 +288,13 @@
         height: 44px;
         border-radius: 12px;
         flex-shrink: 0;
-        background: linear-gradient(135deg, #a8e63d, #3d7800);
+        background: var(--accent-gradient);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 20px;
         font-weight: 900;
-        color: #050706;
+        color: var(--accent-contrast);
         font-family: "Bebas Neue", sans-serif;
         letter-spacing: 1px;
       }
@@ -270,12 +305,12 @@
       .xvi-title {
         font-size: 13px;
         font-weight: 700;
-        color: #e6ebe6;
+        color: var(--text);
         margin-bottom: 2px;
       }
       .xvi-sub {
         font-size: 11px;
-        color: #3a4a3a;
+        color: var(--text-secondary);
       }
       .xvi-btn {
         padding: 9px 18px;
@@ -284,8 +319,8 @@
         font-size: 12px;
         font-weight: 800;
         cursor: pointer;
-        background: linear-gradient(135deg, #a8e63d, #5a9a10);
-        color: #040604;
+        background: var(--accent-gradient);
+        color: var(--accent-contrast);
         font-family: inherit;
         flex-shrink: 0;
         white-space: nowrap;
@@ -295,8 +330,8 @@
         height: 28px;
         border-radius: 50%;
         border: none;
-        background: rgba(255, 255, 255, 0.05);
-        color: #3a4a3a;
+        background: var(--surface-overlay);
+        color: var(--text-secondary);
         font-size: 16px;
         cursor: pointer;
         flex-shrink: 0;
@@ -312,8 +347,8 @@
         bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         left: 16px;
         right: 16px;
-        background: rgba(8, 8, 8, 0.98);
-        border: 1px solid rgba(168, 230, 61, 0.18);
+        background: var(--panel-strong);
+        border: 1px solid var(--accent-border);
         border-radius: 18px;
         padding: 16px 18px;
         z-index: 10002;
@@ -322,7 +357,7 @@
         gap: 14px;
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 8px 40px var(--shadow);
         max-width: 480px;
         margin: 0 auto;
       }
@@ -337,10 +372,10 @@
         bottom: 0;
         left: 0;
         right: 0;
-        background: rgba(0, 0, 0, 0.97);
+        background: var(--panel-strong);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
-        border-top: 1px solid rgba(168, 230, 61, 0.14);
+        border-top: 1px solid var(--accent-border);
         padding: 16px 20px;
         padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         z-index: 10000;
@@ -362,7 +397,7 @@
         height: 42px;
         border-radius: 12px;
         flex-shrink: 0;
-        background: linear-gradient(135deg, #a8e63d, #4d8800);
+        background: var(--accent-gradient);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -374,12 +409,12 @@
       .xvu-title {
         font-size: 14px;
         font-weight: 600;
-        color: #e6ebe6;
+        color: var(--text);
         margin-bottom: 2px;
       }
       .xvu-sub {
         font-size: 12px;
-        color: #4a6a2a;
+        color: var(--text-secondary);
       }
       .xvu-btn {
         padding: 10px 20px;
@@ -388,8 +423,8 @@
         font-size: 13px;
         font-weight: 700;
         cursor: pointer;
-        background: linear-gradient(135deg, #a8e63d, #5a9a10);
-        color: #040604;
+        background: var(--accent-gradient);
+        color: var(--accent-contrast);
         font-family: inherit;
         transition: transform 0.15s;
         flex-shrink: 0;
@@ -406,17 +441,17 @@
         font-size: 12px;
         font-weight: 700;
         cursor: pointer;
-        background: rgba(132, 204, 22, 0.08);
-        border: 1px solid rgba(132, 204, 22, 0.2);
-        color: #84cc16;
+        background: var(--accent-bg-soft);
+        border: 1px solid var(--accent-border);
+        color: var(--accent);
         font-family: inherit;
         transition:
           background 0.15s,
           border-color 0.15s;
       }
       .xvc-snooze-btn:active {
-        background: rgba(132, 204, 22, 0.18);
-        border-color: rgba(132, 204, 22, 0.4);
+        background: var(--accent-bg-strong);
+        border-color: var(--accent-border-strong, var(--accent-border));
       }
     </style>
 
@@ -520,7 +555,7 @@
         id="xvc-main"
         style="display: flex; align-items: center; gap: 14px; width: 100%"
       >
-        <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:rgba(132,204,22,.1);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
+        <div style="width:24px;height:24px;flex-shrink:0;border-radius:6px;overflow:hidden;background:var(--accent-bg-soft);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center">
           <img src="/logo192.png" alt="Xeevia" style="width:16px;height:16px;object-fit:contain"/>
         </div>
         <div class="xvi-text">
@@ -537,9 +572,9 @@
             width: auto;
             padding: 0 10px;
             border-radius: 8px;
-            color: #84cc16;
-            background: rgba(132, 204, 22, 0.08);
-            border: 1px solid rgba(132, 204, 22, 0.2);
+            color: var(--accent);
+            background: var(--accent-bg-soft);
+            border: 1px solid var(--accent-border);
           "
         >
           Later

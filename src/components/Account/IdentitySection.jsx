@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
-import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegistry";
 
 // Safe import
 const safeTimeout = (promise, ms = 12000) => {
@@ -34,7 +33,62 @@ const safeTimeout = (promise, ms = 12000) => {
 };
 
 // ── Platform definitions (single source of truth) ────────────────────────────
-export const PLATFORMS = CONNECTOR_DEFINITIONS;
+export const PLATFORMS = {
+  // Live: real OAuth flows available
+  x: {
+    name: "X (Twitter)", letter: "𝕏",
+    color: "#e2e2e2", bg: "rgba(226,226,226,0.08)", border: "rgba(226,226,226,0.16)",
+    desc: "Posts, threads & media to your X audience",
+    category: "Social", live: true,
+    connectNote: "Authorize via X to enable cross-posting",
+  },
+  facebook: {
+    name: "Facebook", letter: "f",
+    color: "#5b9ef9", bg: "rgba(91,158,249,0.08)", border: "rgba(91,158,249,0.16)",
+    desc: "Publish to your Facebook profile and pages",
+    category: "Social", live: true,
+    connectNote: "Authorize via Facebook to enable cross-posting",
+  },
+  instagram: {
+    name: "Instagram", letter: "✦",
+    color: "#f472b6", bg: "rgba(244,114,182,0.08)", border: "rgba(244,114,182,0.16)",
+    desc: "Distribute photo & video content visually",
+    category: "Social", live: true,
+    connectNote: "Uses Facebook authorization — requires IG Business/Creator account",
+  },
+  linkedin: {
+    name: "LinkedIn", letter: "in",
+    color: "#60a5fa", bg: "rgba(96,165,250,0.08)", border: "rgba(96,165,250,0.16)",
+    desc: "Reach your professional network instantly",
+    category: "Professional", live: true,
+    connectNote: "Authorize via LinkedIn to enable cross-posting",
+  },
+  // Coming soon
+  tiktok: {
+    name: "TikTok", letter: "♪",
+    color: "#fb7185", bg: "rgba(251,113,133,0.07)", border: "rgba(251,113,133,0.14)",
+    desc: "Short-form video reach across TikTok's global audience",
+    category: "Video", live: false,
+  },
+  youtube: {
+    name: "YouTube", letter: "▶",
+    color: "#f87171", bg: "rgba(248,113,113,0.07)", border: "rgba(248,113,113,0.14)",
+    desc: "Publish long-form video, shorts & community posts",
+    category: "Video", live: false,
+  },
+  threads: {
+    name: "Threads", letter: "@",
+    color: "#a78bfa", bg: "rgba(167,139,250,0.07)", border: "rgba(167,139,250,0.14)",
+    desc: "Text-first conversations via Meta Threads",
+    category: "Social", live: false,
+  },
+  pinterest: {
+    name: "Pinterest", letter: "P",
+    color: "#f87171", bg: "rgba(248,113,113,0.07)", border: "rgba(248,113,113,0.14)",
+    desc: "Visual discovery and idea distribution at scale",
+    category: "Visual", live: false,
+  },
+};
 
 const STATUS_CFG = {
   active:  { label: "Connected",     color: "#84cc16", Icon: CheckCircle },
@@ -172,18 +226,27 @@ const CSS = `
 
   /* ── Action buttons ── */
   .idBtn {
-    flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
-    padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
-    background:rgba(255,255,255,.07); color:#f5f5f5;
+    flex-shrink:0; display:inline-flex; align-items:center; gap:5px;
+    padding:8px 14px; border-radius:9px; border:1px solid;
     font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
-    font-family:inherit; transition:background .14s, transform .1s, border-color .14s;
+    font-family:inherit; transition:background .14s, transform .1s, box-shadow .14s;
   }
-  .idBtn:hover:not(:disabled) { background:rgba(255,255,255,.12); }
-  .idBtn:active { transform:scale(0.98); }
-  .idBtn:disabled { opacity:.45; cursor:not-allowed; }
-  .idBtn.btnLink { border-color:rgba(132,204,22,.24); color:#d7ffd9; }
-  .idBtn.btnDisconnect { border-color:rgba(239,68,68,.28); color:#fbb0b0; }
-  .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
+  .idBtn:active { transform:scale(0.95); }
+  .idBtn:disabled { opacity:.4; cursor:not-allowed; }
+  .idBtn.btnLink {
+    background:rgba(139,92,246,.1); border-color:rgba(139,92,246,.38); color:#c4b5fd;
+  }
+  .idBtn.btnLink:hover:not(:disabled) {
+    background:rgba(139,92,246,.18); box-shadow:0 0 14px rgba(139,92,246,.18);
+  }
+  .idBtn.btnDisconnect {
+    background:rgba(239,68,68,.07); border-color:rgba(239,68,68,.28); color:#f87171;
+  }
+  .idBtn.btnDisconnect:hover:not(:disabled) { background:rgba(239,68,68,.13); }
+  .idBtn.btnReconnect {
+    background:rgba(245,158,11,.09); border-color:rgba(245,158,11,.33); color:#fbbf24;
+  }
+  .idBtn.btnReconnect:hover:not(:disabled) { background:rgba(245,158,11,.16); }
   .idSoonBadge {
     padding:3px 9px; border-radius:7px; font-size:10px; font-weight:800;
     background:rgba(255,255,255,.04); color:#3a3a3a;
@@ -574,7 +637,8 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleDisconnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isBusy ? "Working…" : "Unlink"}
+                        {isBusy ? <RefreshCw size={11} className="idSpin" /> : <Unlink size={11} />}
+                        Unlink
                       </button>
                     ) : status === "expired" ? (
                       <button
@@ -582,7 +646,8 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleConnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isConnecting ? "Working…" : "Reconnect"}
+                        {isConnecting ? <RefreshCw size={11} className="idSpin" /> : <RefreshCw size={11} />}
+                        Reconnect
                       </button>
                     ) : (
                       <button
@@ -590,7 +655,8 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleConnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isConnecting ? "Connecting…" : "Link"}
+                        {isConnecting ? <RefreshCw size={11} className="idSpin" /> : <Link2 size={11} />}
+                        Link
                       </button>
                     )}
                   </div>

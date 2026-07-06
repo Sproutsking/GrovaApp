@@ -135,15 +135,15 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
         {/* dark base */}
         <div style={{
           position: "absolute", inset: 0, borderRadius: 15,
-          background: "linear-gradient(135deg, #111 0%, #0b0b0b 45%, #0d0e00 78%, #090a00 100%)",
-          border: "1px solid rgba(132,204,22,0.15)",
+          background: "linear-gradient(135deg, var(--panel) 0%, var(--panel-strong) 100%)",
+          border: "1px solid var(--accent-border)",
         }} />
 
         {/* ambient glows */}
         <div style={{ position:"absolute", top:"-70%", left:"-20%", width:"65%", height:"160%",
-          background:"radial-gradient(ellipse, rgba(132,204,22,0.15) 0%, transparent 65%)", pointerEvents:"none" }} />
+          background:"radial-gradient(ellipse, var(--accent-glow) 0%, transparent 65%)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:"-60%", right:"-8%", width:"50%", height:"140%",
-          background:"radial-gradient(ellipse, rgba(201,162,39,0.12) 0%, transparent 60%)", pointerEvents:"none" }} />
+          background:"radial-gradient(ellipse, var(--brand-warning-bg) 0%, transparent 60%)", pointerEvents:"none" }} />
 
         {/* grid lines */}
         <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", borderRadius:15, pointerEvents:"none", opacity:0.75 }}>
@@ -158,7 +158,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
         {/* scan sweep */}
         <div style={{
           position:"absolute", left:0, right:0, height:"32%",
-          background:"linear-gradient(180deg,transparent,rgba(132,204,22,0.028),transparent)",
+          background:"linear-gradient(180deg,transparent,var(--accent-glow-strong),transparent)",
           animation:"scanSlide 5.5s ease-in-out infinite", pointerEvents:"none",
         }} />
 
@@ -167,14 +167,14 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
 
         {/* top + left edges */}
         <div style={{ position:"absolute", top:0, left:"7%", right:"7%", height:1,
-          background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.16),transparent)", pointerEvents:"none" }} />
+          background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", left:0, top:"8%", bottom:"8%", width:1,
-          background:"linear-gradient(180deg,rgba(132,204,22,0.48),rgba(132,204,22,0.07),transparent)", pointerEvents:"none" }} />
+          background:"linear-gradient(180deg,var(--accent),var(--accent-bg-strong),transparent)", pointerEvents:"none" }} />
 
         {/* holographic bottom strip */}
         <div style={{
           position:"absolute", bottom:0, left:0, right:0, height:2, borderRadius:"0 0 15px 15px",
-          background:"linear-gradient(90deg,transparent,rgba(132,204,22,0.55) 16%,rgba(201,162,39,0.5) 36%,rgba(132,204,22,0.28) 54%,rgba(201,162,39,0.65) 74%,rgba(132,204,22,0.42) 92%,transparent)",
+          background:"linear-gradient(90deg,transparent,var(--accent) 16%,var(--brand-warning) 36%,var(--accent) 54%,var(--brand-warning) 74%,var(--accent) 92%,transparent)",
           backgroundSize:"200% 100%",
           animation:"holoShift 3s linear infinite",
         }} />
@@ -192,21 +192,21 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5, flexShrink:0 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 8,
-              background: "linear-gradient(135deg,rgba(132,204,22,0.18),rgba(132,204,22,0.05))",
-              border: "1px solid rgba(132,204,22,0.26)",
+              background: "linear-gradient(135deg,var(--accent-bg-soft), rgba(0,0,0,0.02))",
+              border: "1px solid var(--accent-border)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontFamily: "Bebas Neue,sans-serif",
-              fontSize: 17, color: "#a3e635", letterSpacing: "0.04em",
+              fontSize: 17, color: "var(--accent)", letterSpacing: "0.04em",
             }}>X</div>
             <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-              <div style={{ width:4, height:4, borderRadius:"50%", background:"#84cc16", animation:"livePulse 1.8s ease-in-out infinite" }} />
-              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, color:"rgba(132,204,22,0.45)", letterSpacing:"0.14em" }}>LIVE</span>
+              <div style={{ width:4, height:4, borderRadius:"50%", background:"var(--accent)", animation:"livePulse 1.8s ease-in-out infinite" }} />
+              <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, color:"var(--accent)", letterSpacing:"0.14em" }}>LIVE</span>
             </div>
           </div>
 
           {/* CENTER — balance */}
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, letterSpacing:"0.26em", color:"rgba(132,204,22,0.45)", textTransform:"uppercase", marginBottom:4 }}>
+              <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:8, letterSpacing:"0.26em", color:"var(--accent)", textTransform:"uppercase", marginBottom:4 }}>
               Total Balance
             </div>
 
@@ -215,16 +215,16 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
               {loading ? (
                 <div style={{ height:36, width:130, borderRadius:5, background:"linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%)", backgroundSize:"200% 100%", animation:"skelShim 1.4s infinite" }} />
               ) : (
-                <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:38, lineHeight:1, color:"#fff", letterSpacing:"0.01em", textShadow:"0 0 28px rgba(132,204,22,0.16)" }}>
+                <span style={{ fontFamily:"Bebas Neue,sans-serif", fontSize:38, lineHeight:1, color:"var(--text-strong)", letterSpacing:"0.01em", textShadow:"0 0 28px var(--accent-shadow)" }}>
                   {hideBalance ? "••••••" : fmt(displayXev)}
                 </span>
               )}
               <span style={{
                 fontFamily:"JetBrains Mono,monospace", fontSize:9,
-                color:"rgba(201,162,39,0.82)", letterSpacing:"0.1em",
+                color:"var(--brand-warning)", letterSpacing:"0.1em",
                 padding:"2px 6px", borderRadius:3,
-                border:"1px solid rgba(201,162,39,0.2)",
-                background:"rgba(201,162,39,0.05)",
+                border:"1px solid var(--brand-warning-border)",
+                background:"var(--brand-warning-bg)",
                 marginBottom:5, flexShrink:0,
               }}>$XEV</span>
             </div>
@@ -234,7 +234,7 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
               <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:10, color:"rgba(255,255,255,0.28)", letterSpacing:"0.04em" }}>
                 ≈ {hideBalance ? "••••" : format(displayXev, true)} {currency}
               </span>
-              <span style={{ fontSize:8, color:"rgba(132,204,22,0.4)" }}>▾</span>
+              <span style={{ fontSize:8, color:"var(--accent)" }}>▾</span>
             </button>
           </div>
 
@@ -253,10 +253,10 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
 
             {/* EP */}
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, letterSpacing:"0.16em", color:"rgba(255,255,255,0.18)", textTransform:"uppercase", marginBottom:2 }}>EP</div>
+                <div style={{ fontFamily:"JetBrains Mono,monospace", fontSize:7, letterSpacing:"0.16em", color:"var(--text-muted)", textTransform:"uppercase", marginBottom:2 }}>EP</div>
               <div style={{ display:"flex", alignItems:"center", gap:3, justifyContent:"flex-end" }}>
-                <Zap size={8} color="rgba(255,255,255,0.22)" />
-                <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:11, color:"rgba(255,255,255,0.42)" }}>
+                <Zap size={8} style={{ color: 'var(--text-secondary)' }} />
+                <span style={{ fontFamily:"JetBrains Mono,monospace", fontSize:11, color:"var(--text-secondary)" }}>
                   {hideBalance ? "••••" : (loading ? "—" : epDisplay)}
                 </span>
               </div>
@@ -266,13 +266,13 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
             <button
               onClick={onToggleHide}
               style={{
-                background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.06)",
-                borderRadius:5, color:"rgba(255,255,255,0.25)", cursor:"pointer",
+                background:"var(--surface-overlay)", border:"1px solid var(--surface-border)",
+                borderRadius:5, color:"var(--text-secondary)", cursor:"pointer",
                 width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center",
                 transition:"all 0.13s", flexShrink:0,
               }}
-              onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.55)"}
-              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.25)"}
+              onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
+              onMouseLeave={e => e.currentTarget.style.color = "var(--text-secondary)"}
             >
               {hideBalance ? <EyeOff size={11} /> : <Eye size={11} />}
             </button>
@@ -286,8 +286,8 @@ export default function BalanceCard({ balance, loading, hideBalance, onToggleHid
         margin: "8px 18px 0",
         display: "grid",
         gridTemplateColumns: "1fr 1px 1fr 1px 1fr",
-        background: "#0c0c0c",
-        border: "1px solid rgba(255,255,255,0.05)",
+        background: "var(--surface-card)",
+        border: "1px solid var(--surface-border)",
         borderRadius: 10,
         padding: "8px 0",
         overflow: "hidden",

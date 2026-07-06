@@ -184,14 +184,14 @@ const CommunityMenu = ({
 
                 <div className="cm-section">
                   {[
-                    { label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#667eea)", onClick:()=>setMenuView("members"), arrow:true },
-                    { label:"Invite People", desc:"Share invite links", icon:<Link2 size={16}/>, gradient:"linear-gradient(135deg,#f093fb,#f5576c)", onClick:()=>{onClose();onOpenInvite();} },
+                    { label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,var(--accent),var(--brand-primary))", onClick:()=>setMenuView("members"), arrow:true },
+                    { label:"Invite People", desc:"Share invite links", icon:<Link2 size={16}/>, gradient:"linear-gradient(135deg,var(--brand-pink),var(--brand-danger))", onClick:()=>{onClose();onOpenInvite();} },
                     ...(canCreateChannels ? [{ label:"Create Channel", desc:"Add a new channel", icon:<Plus size={16}/>, gradient:"linear-gradient(135deg,#4facfe,#00f2fe)", onClick:onCreateChannel }] : []),
-                    { label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} },
+                    { label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,var(--brand-primary),var(--brand-secondary))", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} },
                     ...(canManageCommunity ? [
-                      { label:"Community Settings", desc:"Manage appearance & privacy", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#43e97b,#38f9d7)", onClick:()=>setMenuView("settings"), arrow:true },
-                      { label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,#fa709a,#fee140)", onClick:()=>setMenuView("roles"), arrow:true },
-                      { label:"Analytics", desc:"View community insights", icon:<TrendingUp size={16}/>, gradient:"linear-gradient(135deg,#a8edea,#fed6e3)", onClick:()=>setMenuView("analytics"), arrow:true },
+                      { label:"Community Settings", desc:"Manage appearance & privacy", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,var(--brand-success),var(--accent))", onClick:()=>setMenuView("settings"), arrow:true },
+                      { label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,var(--brand-pink),var(--brand-warning))", onClick:()=>setMenuView("roles"), arrow:true },
+                      { label:"Analytics", desc:"View community insights", icon:<TrendingUp size={16}/>, gradient:"linear-gradient(135deg,var(--ep),var(--brand-pink-soft))", onClick:()=>setMenuView("analytics"), arrow:true },
                     ] : []),
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
                   ].map((item, i) => (
@@ -206,8 +206,8 @@ const CommunityMenu = ({
                   ))}
 
                   {!isOwner && (
-                    <div className="cm-item danger" onClick={() => showConfirm("Leave Community", "Are you sure you want to leave? You can always rejoin later.", () => { onLeave(community.id); onClose(); }, false)}>
-                      <div className="cm-item-icon" style={{ background: "#ff6b6b" }}><LogOut size={16} /></div>
+                      <div className="cm-item danger" onClick={() => showConfirm("Leave Community", "Are you sure you want to leave? You can always rejoin later.", () => { onLeave(community.id); onClose(); }, false)}>
+                      <div className="cm-item-icon" style={{ background: "var(--danger)" }}><LogOut size={16} /></div>
                       <div className="cm-item-content">
                         <span className="cm-item-title">Leave Community</span>
                         <span className="cm-item-desc">You can always rejoin later</span>
@@ -217,7 +217,7 @@ const CommunityMenu = ({
 
                   {isOwner && (
                     <div className="cm-item danger" onClick={() => showConfirm("Delete Community", "⚠️ This permanently deletes the community and all its data. Cannot be undone.", () => { onDeleteCommunity(); onClose(); }, true)}>
-                      <div className="cm-item-icon" style={{ background: "#ff6b6b" }}><Trash2 size={16} /></div>
+                      <div className="cm-item-icon" style={{ background: "var(--danger)" }}><Trash2 size={16} /></div>
                       <div className="cm-item-content">
                         <span className="cm-item-title">Delete Community</span>
                         <span className="cm-item-desc">Permanently remove this community</span>
