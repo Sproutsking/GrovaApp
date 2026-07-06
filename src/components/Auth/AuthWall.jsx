@@ -23,6 +23,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import authService from "../../services/auth/authService";
 import PaywallGate from "./PaywallGate";
 import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import { AppLoader } from "../Shared/UnifiedLoader";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -716,10 +717,14 @@ function LeftPanel() {
   };
 
   function buildAvatarUrl(avatarId) {
-    if (!avatarId) return null;
-    if (avatarId.startsWith("http")) return avatarId;
-    const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL ?? "";
-    return `${SUPABASE_URL}/storage/v1/object/public/avatars/${avatarId}?width=60&height=60&resize=cover&format=webp`;
+    try {
+      if (!avatarId) return null;
+      // prefer centralized mediaUrlService which knows cloud/storage rules
+      const url = mediaUrlService.getAvatarUrl(avatarId, 80);
+      if (url) return url;
+    } catch (e) {}
+    if (avatarId && avatarId.startsWith("http")) return avatarId;
+    return null;
   }
 
   const ACCENT_COLORS = ["#a8e63d", "#84cc16", "#65a30d", "#d4fc72"];

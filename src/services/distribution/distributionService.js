@@ -275,6 +275,37 @@ class DistributionService {
   // ── Publish to a single platform ──────────────────────────────────────────
   async _publishToSinglePlatform(postId, userId, post, platform) {
     try {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.functions.invoke("publish-platform", { body: { postId, platform } }),
+          20000
+        );
+
+        if (!error && data?.ok) {
+          await supabase
+            .from("post_distribution")
+            .update({
+              status: "success",
+              external_post_id: data.externalId || null,
+              published_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("post_id", postId)
+            .eq("platform", platform)
+            .catch(() => {});
+
+          return { platform, status: "success", externalId: data.externalId || null, verified: data.verified || false, ...data };
+        }
+
+        if (error) {
+          console.warn(`[Distribution] publish-platform edge failed for ${platform}:`, error.message || error);
+        } else if (data?.ok === false) {
+          console.warn(`[Distribution] publish-platform edge returned failure for ${platform}:`, data.error);
+        }
+      } catch (fnErr) {
+        console.warn(`[Distribution] publish-platform edge unavailable for ${platform}:`, fnErr?.message || fnErr);
+      }
+
       const adapter = adapters.getAdapter(platform);
       if (!adapter) throw new Error(`No adapter for: ${platform}`);
 

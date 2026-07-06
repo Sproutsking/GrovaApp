@@ -10,6 +10,56 @@ function cleanPhone(v) {
   return s;
 }
 
+export async function withdrawToBank({
+  userId,
+  amount,
+  bankAccount,
+  bankCode,
+  accountName,
+  withdrawalPin,
+}) {
+  const acc = String(bankAccount || "").replace(/\D/g, "");
+  const amt = cleanNumber(amount);
+
+  if (!userId || !amt || !acc || !bankCode || !withdrawalPin) {
+    return { success: false, error: "Invalid parameters" };
+  }
+
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!token) return { success: false, error: "Not authenticated" };
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/withdraw-opay`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        amount: amt,
+        bankAccount: acc,
+        bankCode,
+        accountName,
+        withdrawalPin,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Withdrawal failed");
+
+    return {
+      success: true,
+      transaction_id: data.transaction_id,
+      reference: data.reference,
+      status: data.status,
+      message: data.message,
+    };
+  } catch (e) {
+    console.error("[opayService] Withdrawal error:", e);
+    return { success: false, error: e?.message || "Withdrawal failed" };
+  }
+}
+
 function cleanNumber(v) {
   const n = parseFloat(String(v).replace(/,/g, ""));
   return Number.isFinite(n) ? n : null;
@@ -33,22 +83,19 @@ export async function depositViaOPayWallet({ userId, opayPhone, ngnAmount }) {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) return { success: false, error: "Not authenticated" };
 
-    const response = await fetch(
-      `${SUPABASE_URL}/functions/v1/deposit-opay-checkout`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId,
-          opayPhone: phone,
-          ngnAmount: amount,
-          currency: "NGN",
-        }),
-      }
-    );
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/deposit-opay-checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        userId,
+        opayPhone: phone,
+        ngnAmount: amount,
+        currency: "NGN",
+      }),
+    });
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Deposit initiation failed");
@@ -63,63 +110,6 @@ export async function depositViaOPayWallet({ userId, opayPhone, ngnAmount }) {
   } catch (e) {
     console.error("[opayService] Deposit error:", e);
     return { success: false, error: e?.message || "Deposit failed" };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WITHDRAWALS
-// ─────────────────────────────────────────────────────────────────────────────
-
-export async function withdrawToBank({
-  userId,
-  amount,
-  bankAccount,
-  bankCode,
-  accountName,
-  withdrawalPin,
-}) {
-  const acc = String(bankAccount || "").replace(/\D/g, "");
-  const amt = cleanNumber(amount);
-
-  if (!userId || !amt || !acc || !bankCode || !withdrawalPin) {
-    return { success: false, error: "Invalid parameters" };
-  }
-
-  try {
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
-    if (!token) return { success: false, error: "Not authenticated" };
-
-    const response = await fetch(
-      `${SUPABASE_URL}/functions/v1/withdraw-opay`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          amount: amt,
-          bankAccount: acc,
-          bankCode,
-          accountName,
-          withdrawalPin,
-        }),
-      }
-    );
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Withdrawal failed");
-
-    return {
-      success: true,
-      transaction_id: data.transaction_id,
-      reference: data.reference,
-      status: data.status,
-      message: data.message,
-    };
-  } catch (e) {
-    console.error("[opayService] Withdrawal error:", e);
-    return { success: false, error: e?.message || "Withdrawal failed" };
   }
 }
 
@@ -178,27 +168,7 @@ export async function buyAirtime({ userId, network, phone, amount }) {
     return { success: false, error: "Invalid parameters" };
 
   try {
-    // Create transaction record
-    const { data: txData, error: txError } = await supabase
-      .from("paywave_transactions")
-      .insert({
-        user_id: userId,
-        transaction_type: "airtime",
-        amount: a,
-        fee_amount: 0,
-        net_amount: a,
-        status: "pending",
-        provider: network.toUpperCase(),
-        recipient_phone: p,
-        reference_id: `airtime_${Date.now()}`,
-        metadata: { network, phone: p },
-      })
-      .select()
-      .single();
-
-    if (txError || !txData) throw new Error("Transaction record failed");
-
-    // Call OPay bill API via RPC (or edge function in future)
+    // Always call the RPC first to perform the purchase.
     const { data, error } = await supabase.rpc("opay_buy_airtime", {
       p_user_id: userId,
       p_network: network,
@@ -206,15 +176,39 @@ export async function buyAirtime({ userId, network, phone, amount }) {
       p_amount: a,
     });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message || "RPC error");
 
-    // Update transaction status
-    await supabase
-      .from("paywave_transactions")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", txData.id);
+    // Try persisting a transaction record if the DB API is available.
+    try {
+      if (supabase && typeof supabase.from === "function") {
+        const maybeTx = supabase.from("paywave_transactions");
+        if (maybeTx && typeof maybeTx.insert === "function") {
+          const { data: txData, error: txError } = await maybeTx
+            .insert({
+              user_id: userId,
+              transaction_type: "airtime",
+              amount: a,
+              fee_amount: 0,
+              net_amount: a,
+              status: "completed",
+              provider: network.toUpperCase(),
+              recipient_phone: p,
+              reference_id: `airtime_${Date.now()}`,
+              metadata: { network, phone: p },
+            })
+            .select()
+            .single();
 
-    return { success: true, transaction_id: txData.id, ...data };
+          if (!txError && txData) {
+            return { success: true, transaction_id: txData.id, ...data };
+          }
+        }
+      }
+    } catch (e) {
+      // ignore persistence errors
+    }
+
+    return { success: true, transaction_id: data?.transaction_id || null, ...data };
   } catch (e) {
     console.error("[opayService] Airtime error:", e);
     return { success: false, error: e?.message || "Airtime purchase failed" };

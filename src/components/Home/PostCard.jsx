@@ -680,9 +680,12 @@ const PostCard = ({
   // Viewport detection for video autoplay — match ReelCard sensitivity
   useEffect(() => {
     if (!contRef.current) return;
+    // Lower the intersection threshold so videos are considered "in viewport"
+    // slightly earlier during fast scroll. 0.5 is a good balance between
+    // avoiding accidental plays and providing a snappier, instant-feel.
     const obs = new IntersectionObserver((entries) => {
       const e = entries[0];
-      const visible = e.isIntersecting && e.intersectionRatio >= 0.75;
+      const visible = e.isIntersecting && e.intersectionRatio >= 0.5;
       setInVP(visible);
     }, { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: "-10% 0px -10% 0px" });
     obs.observe(contRef.current);

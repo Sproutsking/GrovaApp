@@ -31,6 +31,12 @@ import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
 import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt } from "./services/notifications/appPromptManager";
 
+// expose scheduling helpers to the React AppPrompt UI
+try {
+  window.__xvSchedulePrompt = schedulePrompt;
+  window.__xvClearPromptSchedule = clearPromptSchedule;
+} catch (e) {}
+
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
 // third-party code or incorrect calls that use `Image()` instead of
@@ -357,114 +363,9 @@ function showAppPrompt({ type, message, detail }) {
   if (type === "update" && updatePromptShown) return;
   if (type === "push" && pushPromptShown) return;
 
-  let isShowingSnoozeOptions = false;
-
-  const banner = document.createElement("div");
-  banner.id = `xv-${type}-prompt`;
-  banner.className = "xv-app-prompt";
-  banner.style.cssText = `
-    position: fixed;
-    left: 50%;
-    bottom: 24px;
-    transform: translateX(-50%);
-    z-index: 2147483647;
-    width: min(92vw, 420px);
-    background: var(--panel);
-    border: 1px solid var(--accent-border);
-    border-radius: 18px;
-    padding: 14px 16px;
-    box-shadow: 0 10px 40px var(--shadow);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    backdrop-filter: blur(8px);
-  `;
-
-  const logoUrl = "/logo192.png";
-  const title = type === "update" ? "Update ready" : type === "push" ? "Enable alerts" : "Install app";
-  const subtitle = detail || message || "Tap below to continue.";
-
-  banner.innerHTML = `
-    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center">
-      <img src="${logoUrl}" alt="Xeevia" style="width:20px;height:20px;object-fit:contain"/>
-    </div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:800;color:var(--text-strong);margin-bottom:2px">${title}</div>
-      <div style="font-size:11px;color:var(--text-secondary);line-height:1.45">${subtitle}</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
-      <button id="xv-prompt-later" style="border:1px solid var(--border);background:var(--surface-card);color:var(--text-strong);padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 1px 2px var(--shadow-soft)">Ignore</button>
-      <button id="xv-prompt-action" style="border:none;background:var(--accent-gradient);color:var(--accent-inverse-text);padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
-    </div>
-  `;
-
-  document.body.appendChild(banner);
-
-  function showSnoozeOptions() {
-    isShowingSnoozeOptions = true;
-    const buttonsContainer = document.getElementById("xv-prompt-buttons");
-    const snoozeHours = type === "install" || type === "push" ? [12, 24, 48] : [12, 24];
-    const snoozeLabels = { 12: "12 hrs", 24: "Tomorrow", 48: "In 2 days" };
-    
-    buttonsContainer.innerHTML = snoozeHours.map(hours => 
-      `<button class="xv-snooze-option" data-hours="${hours}" style="border:none;background:rgba(132,204,22,.12);color:#84cc16;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid rgba(132,204,22,.2)">${snoozeLabels[hours]}</button>`
-    ).join("");
-    
-    document.querySelectorAll(".xv-snooze-option").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const hours = Number(e.currentTarget.getAttribute("data-hours"));
-        const nextShowAt = Date.now() + hours * 60 * 60 * 1000;
-        const state = readPromptState();
-        state[type] = nextShowAt;
-        writePromptState(state);
-        banner.remove();
-        if (type === "install") installPromptShown = true;
-        if (type === "update") updatePromptShown = true;
-        if (type === "push") pushPromptShown = true;
-      });
-    });
-  }
-
-  function dismissPrompt(hours = 24) {
-    schedulePrompt(type, hours);
-    banner.remove();
-    if (type === "install") installPromptShown = true;
-    if (type === "update") updatePromptShown = true;
-    if (type === "push") pushPromptShown = true;
-  }
-
-  document.getElementById("xv-prompt-later").addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!isShowingSnoozeOptions) {
-      showSnoozeOptions();
-      return;
-    }
-
-    dismissPrompt(24);
-  });
-
-  document.getElementById("xv-prompt-action").addEventListener("click", async () => {
-    banner.remove();
-    if (type === "install" && deferredInstallEvent) {
-      deferredInstallEvent.prompt();
-      const { outcome } = await deferredInstallEvent.userChoice;
-      if (outcome === "accepted") {
-        installPromptShown = true;
-        localStorage.setItem("xv_pwa_installed", "1");
-        clearPromptSchedule("install");
-      }
-    } else if (type === "update") {
-      updatePromptShown = true;
-      clearPromptSchedule("update");
-      localStorage.setItem("xv_update_timestamp", String(Date.now()));
-      window.location.reload();
-    } else if (type === "push") {
-      if (typeof window.__xvRequestPushPermission === "function") {
-        await window.__xvRequestPushPermission();
-      }
-      pushPromptShown = true;
-    }
-  });
+  try {
+    window.dispatchEvent(new CustomEvent("xv:show-app-prompt", { detail: { type, message, detail } }));
+  } catch (e) {}
 
   promptCooldownUntil = Date.now() + 30_000;
   if (type === "install") installPromptShown = true;
@@ -491,6 +392,8 @@ function queuePrompt(type, detail) {
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallEvent = event;
+  // expose to the UI component
+  try { window.__xvDeferredInstallEvent = event; } catch (e) {}
   if (isPwaInstalled() || installPromptShown || !isPromptDue("install")) {
     return;
   }
@@ -498,110 +401,12 @@ window.addEventListener("beforeinstallprompt", (event) => {
 });
 
 window.addEventListener("appinstalled", () => {
-  installPromptShown = true;
-  deferredInstallEvent = null;
-  localStorage.setItem("xv_pwa_installed", "1");
-  clearPromptSchedule("install");
-});
-
-window.addEventListener("sw:registered", (event) => {
-  const registration = event?.detail?.registration;
-  if (!registration?.waiting) return;
-
+  // Use React-driven AppPrompt; dispatch an event and let the component render.
+  if (!canShowPrompt("install")) return;
+  promptCooldownUntil = Date.now() + 30_000;
   try {
-    const updateTime = localStorage.getItem("xv_update_timestamp");
-    if (updateTime && (Date.now() - Number(updateTime)) < UPDATE_SKIP_WINDOW_MS) {
-      console.log("[App] Recent update detected, skipping update prompt on reload");
-      return;
-    }
-
-    const lastShown = sessionStorage.getItem(UPDATE_SHOWN_STORAGE_KEY);
-    if (lastShown && Date.now() - Number(lastShown) < UPDATE_SKIP_WINDOW_MS) {
-      console.log("[App] Update card already shown recently this session, skipping duplicate prompt");
-      return;
-    }
+    window.dispatchEvent(new CustomEvent("xv:show-app-prompt", { detail: { type: "install", message: "Xeevia installed", detail: "Xeevia installed" } }));
   } catch (e) {}
-
-  if (!updatePromptShown && isPromptDue("update")) {
-    queuePrompt("update", "A fresh update is available. Refresh now to get the latest experience.");
-  }
+  installPromptShown = true;
+  try { sessionStorage.setItem(UPDATE_SHOWN_STORAGE_KEY, String(Date.now())); } catch (e) {}
 });
-
-window.addEventListener("xv:request_account_switch", () => {
-  if (typeof window.__xvRequestPushPermission === "function") {
-    window.__xvRequestPushPermission();
-  }
-});
-
-window.addEventListener("push:needs_permission", () => {
-  if (!pushPromptShown) {
-    queuePrompt("push", "Allow notifications for messages, calls, and activity.");
-  }
-});
-
-const isLocalhost = Boolean(
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "[::1]" ||
-  window.location.hostname.match(
-    /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
-  ),
-);
-
-// Emergency SW guard: attempt a one-time unregister to clear stale cached
-// bundles that can keep clients running broken code. This runs at most once
-// per browser in a 24-hour window (guarded by `xv_sw_forced_unregistered_at`).
-try {
-  if (typeof window !== "undefined" && 'serviceWorker' in navigator) {
-    const FLAG = 'xv_sw_forced_unregistered_at';
-    const last = Number(localStorage.getItem(FLAG) || 0);
-    const DAY = 24 * 60 * 60 * 1000;
-    if (Date.now() - last > DAY) {
-      serviceWorkerRegistration.unregister();
-      try { localStorage.setItem(FLAG, String(Date.now())); } catch (e) {}
-      console.info('[SWGuard] Performed one-time SW unregister to clear stale caches');
-    }
-  }
-} catch (e) {
-  console.debug('[SWGuard] unregister attempt failed:', e?.message || e);
-}
-
-if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
-  serviceWorkerRegistration.unregister();
-} else {
-  serviceWorkerRegistration.register({
-    onUpdate: (registration) => {
-      // Don't show update card if we just performed an update
-      try {
-        const updateTime = localStorage.getItem("xv_update_timestamp");
-        if (updateTime && (Date.now() - Number(updateTime)) < 15000) {
-          console.log("[SWReg] Recent update detected, skipping update card");
-          return;
-        }
-      } catch (e) {}
-
-      const lastShown = sessionStorage.getItem("xv_update_shown");
-      if (lastShown && Date.now() - Number(lastShown) < 60_000) return;
-      sessionStorage.setItem("xv_update_shown", String(Date.now()));
-
-      if (typeof window.__xvShowUpdate === "function") {
-        window.__xvShowUpdate();
-        return;
-      }
-
-      window.dispatchEvent(new CustomEvent("sw:registered", { detail: { registration } }));
-      return;
-    },
-
-    onSuccess: () => {
-      if (process.env.NODE_ENV !== "production") return;
-      console.log("[PWA] ✓ Service worker registered — app ready for offline use");
-    },
-  });
-
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.ready.then(() => {
-      if (process.env.NODE_ENV !== "production") return;
-      console.log("[PWA] ✓ Service worker active");
-    });
-  }
-}

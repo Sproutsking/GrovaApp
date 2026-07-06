@@ -300,6 +300,7 @@ const DashboardSection = ({
   const [loading,  setLoading]  = useState(true);
   const [greeting, setGreeting] = useState("");
   const [imgOk,    setImgOk]    = useState(true);
+  const [transitionOpen, setTransitionOpen] = useState(false);
   const subsRef = useRef([]);
 
   useEffect(() => {
@@ -567,6 +568,39 @@ const DashboardSection = ({
           background:rgba(132,204,22,0.04); border:1px solid rgba(132,204,22,0.12);
         }
 
+        .ds-transition-card {
+          margin:10px 12px 0; padding:12px 13px; border-radius:13px;
+          background:linear-gradient(135deg, rgba(96,165,250,0.07), rgba(132,204,22,0.05));
+          border:1px solid rgba(96,165,250,0.16);
+        }
+        .ds-transition-head {
+          display:flex; align-items:center; justify-content:space-between; gap:8px;
+        }
+        .ds-transition-title { font-size:12px; font-weight:800; color:#fff; }
+        .ds-transition-copy { font-size:10.5px; color:#666; margin-top:6px; line-height:1.55; }
+        .ds-transition-toggle {
+          border:none; border-radius:999px; padding:6px 10px; font-size:10px; font-weight:800;
+          background:rgba(132,204,22,0.14); color:#84cc16; cursor:pointer;
+        }
+        .ds-transition-panel {
+          margin-top:10px; padding:10px 11px; border-radius:11px;
+          background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05);
+          display:flex; flex-direction:column; gap:8px;
+        }
+        .ds-transition-step {
+          font-size:10.5px; color:#bdbdbd; line-height:1.5;
+        }
+        .ds-transition-step strong { color:#fff; }
+        .ds-premium-card {
+          margin:10px 12px 0; padding:12px 13px; border-radius:13px;
+          background:rgba(251,191,36,0.06); border:1px solid rgba(251,191,36,0.16);
+          display:flex; align-items:center; gap:10px;
+        }
+        .ds-premium-icon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.24); flex-shrink:0; }
+        .ds-premium-body { flex:1; min-width:0; }
+        .ds-premium-label { font-size:11.5px; font-weight:800; color:#fbbf24; }
+        .ds-premium-copy { font-size:10px; color:#666; margin-top:3px; line-height:1.45; }
+
         /* Smart 4→2 chip grid */
         .ds-chips-grid {
           display:grid; grid-template-columns:repeat(4,1fr);
@@ -733,6 +767,33 @@ const DashboardSection = ({
             <SocialPill label="Posts"      raw={data.posts} />
             <SocialPill label="Reels"      raw={data.reels} />
             <SocialPill label="Stories"    raw={data.stories} />
+          </div>
+        </div>
+
+        <div className="ds-transition-card">
+          <div className="ds-transition-head">
+            <span className="ds-transition-title">Audience Transition</span>
+            <button className="ds-transition-toggle" type="button" onClick={() => setTransitionOpen(v => !v)}>
+              {transitionOpen ? "Hide" : "Open"}
+            </button>
+          </div>
+          <div className="ds-transition-copy">
+            Move from one-off posting into a repeatable audience growth loop with identity verification, cross-platform sync, and relationship-aware graphs.
+          </div>
+          {transitionOpen && (
+            <div className="ds-transition-panel">
+              <div className="ds-transition-step"><strong>1.</strong> Connect one or more platforms and verify the token through the secure identity layer.</div>
+              <div className="ds-transition-step"><strong>2.</strong> Publish once to let the system confirm the connection and prepare audience distribution.</div>
+              <div className="ds-transition-step"><strong>3.</strong> Use the relationship graph to keep your verified audience context organized.</div>
+            </div>
+          )}
+        </div>
+
+        <div className="ds-premium-card">
+          <div className="ds-premium-icon"><Crown size={14} color="#fbbf24" /></div>
+          <div className="ds-premium-body">
+            <div className="ds-premium-label">Premium Slice</div>
+            <div className="ds-premium-copy">Unlock richer audience transition playbooks, deeper identity proofs, and smarter connection insights from your premium dashboard.</div>
           </div>
         </div>
 

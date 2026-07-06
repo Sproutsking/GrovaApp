@@ -203,38 +203,78 @@ class SocialConnectService {
 
   // ── Store connection and token in database ────────────────────────────────
   async _storeConnection(userId, platform, platformUserId, accessToken, refreshToken) {
-    // Upsert connection record
-    const { data: conn, error: connErr } = await supabase
-      .from("connections")
-      .upsert({
-        user_id:          userId,
-        provider:         platform,
+    // Prefer storing tokens via the secure edge function which encrypts server-side.
+    // If functions.invoke is unavailable (dev), fall back to the old direct DB upsert.
+    try {
+      const body = {
+        provider: platform,
         platform_user_id: platformUserId,
-        auth_status:      "active",
-        connected_via:    "oauth_popup",
-      }, { onConflict: "user_id,provider" })
-      .select()
-      .single();
+        accessToken,
+        refreshToken: refreshToken || null,
+        expiresAt: (new Date(Date.now() + 60 * 60 * 1000)).toISOString(),
+      };
 
-    if (connErr) throw new Error(`Failed to save connection: ${connErr.message}`);
+      // If caller provided a connection id, include it so function can update instead of creating
+      // (some code paths may pass connection_id explicitly)
+      if (body.connection_id) body.connection_id = body.connection_id;
 
-    // Store token (encrypted in production — here we store as-is with a note)
-    // In production, encrypt tokens server-side before storing
-    if (accessToken && conn?.id) {
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1h default
+      const { data, error } = await supabase.functions.invoke("store-connection-token", { body });
+      if (error) throw error;
+      // function returns { ok: true, connection_id, token }
+      if (data && data.connection_id) {
+        try {
+          const { data: verifyData, error: verifyError } = await supabase.functions.invoke("publish-platform", {
+            body: { platform, verifyOnly: true },
+          });
+          if (verifyError) throw verifyError;
+          if (!verifyData?.ok) throw new Error(verifyData?.error || "Token verification failed");
+        } catch (verifyErr) {
+          console.warn("[SocialConnect] verification failed after storage:", verifyErr?.message || verifyErr);
+        }
 
-      await supabase
-        .from("tokens")
+        return {
+          id: data.connection_id,
+          provider: platform,
+          platform_user_id: platformUserId,
+          auth_status: "active",
+          connected_via: "oauth_popup",
+        };
+      }
+
+      throw new Error("store-connection-token did not return connection_id");
+    } catch (fnErr) {
+      console.warn("[SocialConnect] secure store failed, falling back to client upsert:", fnErr?.message || fnErr);
+
+      // Fallback: older behavior — upsert connection and store token plainly
+      const { data: conn, error: connErr } = await supabase
+        .from("connections")
         .upsert({
-          connection_id:   conn.id,
-          encrypted_token: accessToken,   // TODO: encrypt server-side
-          refresh_token:   refreshToken || null,
-          expires_at:      expiresAt,
-          revoked:         false,
-        }, { onConflict: "connection_id" });
-    }
+          user_id:          userId,
+          provider:         platform,
+          platform_user_id: platformUserId,
+          auth_status:      "active",
+          connected_via:    "oauth_popup",
+        }, { onConflict: "user_id,provider" })
+        .select()
+        .single();
 
-    return conn;
+      if (connErr) throw new Error(`Failed to save connection: ${connErr.message}`);
+
+      if (accessToken && conn?.id) {
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        await supabase
+          .from("tokens")
+          .upsert({
+            connection_id:   conn.id,
+            encrypted_token: accessToken,
+            refresh_token:   refreshToken || null,
+            expires_at:      expiresAt,
+            revoked:         false,
+          }, { onConflict: "connection_id" });
+      }
+
+      return conn;
+    }
   }
 
   // ── Disconnect a platform ─────────────────────────────────────────────────

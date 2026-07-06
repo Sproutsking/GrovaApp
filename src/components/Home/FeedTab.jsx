@@ -184,18 +184,44 @@ const VideoPreloadRunway = React.memo(({ items, anchorIndex }) => {
   const rStart = Math.max(0, anchorIndex - RENDER_RADIUS);
   const rEnd   = Math.min(items.length - 1, anchorIndex + RENDER_RADIUS);
   const hints = [];
+
+  // Warm the Cloudinary connection for faster handshakes when we need to
+  // fetch proximate videos. This runs once per mount when a cloud name exists.
+  React.useEffect(() => {
+    if (!cld) return;
+    try {
+      const host = `https://res.cloudinary.com`;
+      if (!document.querySelector(`link[href="${host}"][rel="preconnect"]`)) {
+        const l = document.createElement("link");
+        l.rel = "preconnect"; l.href = host; l.crossOrigin = "anonymous";
+        document.head.appendChild(l);
+      }
+    } catch (e) {}
+  }, [cld]);
+
   for (let i = start; i <= end; i++) {
     if (i >= rStart && i <= rEnd) continue;
     const p = items[i];
     if (!p?.video_ids?.length) continue;
     p.video_ids.filter(Boolean).forEach((id, j) => {
       if (!cld) return;
+      const url = `https://res.cloudinary.com/${cld}/video/upload/q_auto,f_mp4/${id.trim()}.mp4`;
+      // Add a low-overhead preload link so the browser can begin fetching
+      // without rendering a visible element. If a preload exists already,
+      // skip creating duplicates.
+      try {
+        if (!document.querySelector(`link[href="${url}"][rel="preload"]`)) {
+          const lk = document.createElement("link");
+          lk.rel = "preload"; lk.as = "video"; lk.href = url; lk.type = "video/mp4"; lk.fetchPriority = "high";
+          document.head.appendChild(lk);
+        }
+      } catch (e) {}
+
+      // Also keep a hidden <video> element as a fallback for some browsers
+      // that warm media decoders when a media element is present.
       hints.push(
-        <video key={`vpr-${p.id}-${j}`}
-          src={`https://res.cloudinary.com/${cld}/video/upload/q_auto,f_mp4/${id.trim()}.mp4`}
-          preload="metadata" muted playsInline aria-hidden="true" tabIndex={-1}
-          style={{ position:"absolute",width:0,height:0,opacity:0,pointerEvents:"none" }}
-        />,
+        <video key={`vpr-${p.id}-${j}`} src={url} preload="metadata" muted playsInline aria-hidden="true" tabIndex={-1}
+          style={{ position:"absolute",width:0,height:0,opacity:0,pointerEvents:"none" }} />,
       );
     });
   }

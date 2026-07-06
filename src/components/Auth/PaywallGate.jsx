@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import {
   verifyWeb3Payment,
   activateFreeCode,
@@ -43,9 +44,12 @@ const fmt = (n) =>
 
 function buildAvatarUrl(avatarId) {
   if (!avatarId) return null;
+  try {
+    const url = mediaUrlService.getAvatarUrl(avatarId, 80);
+    if (url) return url;
+  } catch (e) {}
   if (avatarId.startsWith("http")) return avatarId;
-  const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL ?? "";
-  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${avatarId}?width=80&height=80&resize=cover&format=webp`;
+  return null;
 }
 
 function safePrice(value, fallback = 4) {

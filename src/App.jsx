@@ -69,6 +69,7 @@ import MobileHeader from "./components/Shared/MobileHeader";
 import MobileBottomNav from "./components/Shared/MobileBottomNav";
 import Sidebar from "./components/Shared/Sidebar";
 import AdminSidebar from "./components/Shared/AdminSidebar";
+import AppPrompt from "./components/Shared/AppPrompt";
 const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
@@ -966,6 +967,7 @@ const MainApp = memo(() => {
 
   return (
     <div className="app-container">
+      <AppPrompt />
       <OfflineBanner visible={showOfflineBanner} />
 
       {showAdminDashboard && isAdmin && (

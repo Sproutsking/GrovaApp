@@ -14,7 +14,7 @@ jest.mock('onesignal-sdk', () => ({
       },
     },
   },
-}));
+}), { virtual: true });
 
 import OneSignal from 'onesignal-sdk';
 
