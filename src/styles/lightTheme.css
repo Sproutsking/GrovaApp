@@ -4,6 +4,44 @@
   Applied when html.theme-light on root, data-light-theme="true", or [data-theme="light"]
   ──────────────────────────────────────────────────────────────────────────── */
 
+/* ── Shell and sidebars light theme polish ─────────────────────────────── */
+html.theme-light .sidebar,
+html.theme-light .trending-sidebar,
+html.theme-light .desktop-header,
+html.theme-light .mobile-header,
+html.theme-light .mobile-bottom-nav,
+html.theme-light .main-content-desktop,
+html.theme-light .main-content-mobile,
+html.theme-light .app-container {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-light .sidebar .nav-item,
+html.theme-light .sidebar .footer-title,
+html.theme-light .sidebar .social-item,
+html.theme-light .sidebar .logo-section,
+html.theme-light .sidebar .glass-container,
+html.theme-light .sidebar .footer-section {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html.theme-light .sidebar .nav-item:hover,
+html.theme-light .sidebar .nav-item.nav-item-active {
+  background: rgba(22, 163, 74, 0.1) !important;
+  color: #166534 !important;
+}
+
+html.theme-light .sidebar .item-label,
+html.theme-light .sidebar .logo-text p,
+html.theme-light .sidebar .footer-title,
+html.theme-light .sidebar .social-item {
+  color: #0f172a !important;
+}
+
 /* ── PostCard / Post feed card Light Theme ────────────────────────────────── */
 html.theme-light .gvp-card,
 [data-theme="light"] .gvp-card,

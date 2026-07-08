@@ -54,6 +54,7 @@ import callService                 from "./services/messages/callService";
 import { useNavigation }           from "./hooks/useNavigation";
 import { useBackButton }           from "./hooks/useBackButton";
 import { usePullToRefresh }        from "./hooks/usePullToRefresh";
+import { applyThemeMode }         from "./utils/theme";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
@@ -312,11 +313,7 @@ const MainApp = memo(() => {
   }, [isOnline]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-    root.classList.toggle("theme-light", themeMode === "light");
-    root.classList.toggle("theme-dark", themeMode === "dark");
-    window.localStorage.setItem("xv_theme_mode", themeMode);
+    applyThemeMode(themeMode);
   }, [themeMode]);
 
   useEffect(() => {

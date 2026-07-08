@@ -30,8 +30,17 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
   overscroll-behavior: none;
-  /* Smooth scroll padding for fixed headers */
   scroll-padding-top: 80px;
+}
+
+html.theme-light,
+body.theme-light {
+  color-scheme: light;
+}
+
+html.theme-dark,
+body.theme-dark {
+  color-scheme: dark;
 }
 
 /* Ultra-smooth scrolling physics */
@@ -230,6 +239,11 @@ body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+}
+
+body, .app-container, .desktop-layout, .main-content-desktop, .main-content-mobile, .desktop-header, .mobile-header, .sidebar, .trending-sidebar {
+  background: var(--bg);
+  color: var(--text);
 }
 
 ::selection {
@@ -451,6 +465,7 @@ img, video {
   border-right: 1px solid var(--border);
   z-index: 50;
   overflow-y: auto;
+  color: var(--text);
 }
 
 /* ==========================================================================
