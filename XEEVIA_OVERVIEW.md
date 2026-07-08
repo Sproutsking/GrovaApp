@@ -1,112 +1,164 @@
-# XEEVIA Platform Overview
+# XEEVIA Overview
 
-## What is XEEVIA?
-XEEVIA is a full-featured digital creator platform and social finance experience built for modern content communities, seamless wallet interactions, and web-native payments.
+## What XEEVIA Is
+XEEVIA is not just a social app and not just a creator platform. It is a trust infrastructure layer for the internet.
 
-At its core, XEEVIA combines:
-- social publishing and content discovery,
-- community management and messaging,
-- a dual-currency wallet economy,
-- fast in-app payments and peer-to-peer transfers,
-- a Progressive Web App shell for instant mobile-like performance.
+At its core, XEEVIA is building the missing layer beneath modern digital life: a user-controlled system for identity, evidence, reputation, relationships, and participation.
 
-XEEVIA is designed to make creator value flow directly through the platform while keeping account security, speed, and real-world payments front and center.
+In simple terms, XEEVIA aims to make this possible:
+- one identity that can travel across apps,
+- one verifiable record of contribution and reputation,
+- one place where trust can be built once and recognized everywhere,
+- one participation economy where value is earned through meaningful contribution rather than empty presence.
 
-## Key Product Experience
+The long-term vision is to become the Singular Source of Truth: the layer where digital identity, trust, and proof are established once and then reused across platforms, communities, payments, and AI systems.
+
+## The Core Thesis
+XEEVIA exists to solve a deep structural problem in digital life:
+
+- platforms fragment identity,
+- evidence is scattered,
+- trust must be rebuilt from zero on every new app,
+- reputation does not travel,
+- participation is often cheap, noisy, and unaccountable.
+
+XEEVIA addresses this by creating a portable system for:
+- identity,
+- verifiable evidence,
+- trust signals,
+- reputation,
+- relationships,
+- participation value.
+
+This is why XEEVIA is more than a product. It is an infrastructure idea with a product surface today and a broader protocol future tomorrow.
+
+## What XEEVIA Looks Like Today
+Today, the app is the first usable expression of that vision.
 
 ### Social and Content
-- Feed and discovery streams with personalized, trending, and community content.
-- Full post creation and rich media support including images, video, and reels.
-- Explore and search features for tags, trending topics, communities, and live streams.
-- Content distribution tools for cross-posting and preserving canonical content on XEEVIA.
+- feed-based participation,
+- publishing and distribution tools,
+- media creation and sharing,
+- discovery and community-based engagement.
 
-### Communities and Messaging
-- Community spaces with dedicated tabs and real-time interaction.
-- Direct messaging, group chat support, and incoming call handling.
-- Notifications, support channels, and in-app toasts for live updates.
+### Identity and Connection
+- account identity surfaces,
+- social connection management,
+- permission-aware distribution and link management,
+- cross-platform awareness of where a user's presence exists.
+
+### Rewards and Participation
+- EP-based participation economy,
+- contribution scoring and reward logic,
+- tiered reputation and gamified progression,
+- mechanisms for meaningful engagement rather than passive activity.
 
 ### Wallet and Payments
-- XEEVIA Wallet with dual-currency support: $XEV token economy and EP credits.
-- PayWave service for instant NGN payments, airtime, data, bills, and financial services.
-- Secure deposit, withdrawal, and P2P money transfer flows.
-- Premium service section for rewards, upgrade tiers, gift cards, and embedded financial products.
-- Integrated Paystack and OPay support for local currency settlement.
+- wallet and balance systems,
+- deposits, transfers, and financial flows,
+- payment infrastructure for real-world transactions,
+- monetization and premium utility layers.
 
-### Creator Value and Premium Tools
-- Boost and premium profile features for creator monetization.
-- Reward systems, gift cards, scholarship and staking-style products.
-- Admin tools for platform control, audit trails, and service moderation.
+### Verification and Evidence
+- XRC-inspired record writing and proof-oriented infrastructure,
+- chain-style activity tracking,
+- oracle-style exploration for evidence and history,
+- audit-friendly patterns for trust and accountability.
 
-## Architecture and Codebase
+## How XEEVIA Differs from a Typical App
+Most apps are built to capture attention. XEEVIA is being built to preserve meaning.
 
+A typical app owns the user experience but not the underlying trust layer.
+XEEVIA is designed to make the user the center of the relationship graph, not the platform.
+
+That means:
+- users keep their identity and evidence portable,
+- communities become more than isolated groups,
+- reputation becomes compounding instead of resettable,
+- participation becomes economically meaningful,
+- platform operators become consumers of a shared trust layer instead of owners of all identity and relationship data.
+
+## The Bigger Vision
+The app is the first layer of the system. The larger vision is a full trust ecosystem that includes:
+
+- a portable identity layer,
+- a verifiable evidence protocol,
+- a reputation and trust engine,
+- relationship portability,
+- participation-based economics,
+- oracle access for third-party systems,
+- open interfaces for other apps, institutions, and AI systems to consume verified truth.
+
+This is where XEEVIA becomes more than a platform. It becomes infrastructure for the next generation of digital trust.
+
+## Current Product Architecture
 ### Frontend
-- **React 18** application built with **Create React App** (`react-scripts`).
-- `src/App.jsx` serves as the main shell, with heavy use of `React.lazy` and `Suspense` for deferred component loading.
-- Client-side navigation is managed with custom tab rendering rather than bulky route frameworks, delivering a fast shell-first experience.
-- Progressive Web App support through service worker registration, update/install prompt handling, and offline fallback pages.
+- React-based app shell with modular views and overlays,
+- responsive mobile and desktop experiences,
+- progressive web app support,
+- rich interaction layers for content, wallet, community, and rewards.
 
 ### Backend and Services
-- **Supabase** powers authentication, database, real-time updates, and edge functions.
-- `supabase/functions/` contains serverless logic for payment checkout, push notification handling, 2FA, streaming, and withdrawals.
-- Supabase Realtime channels are used for live wallet balance updates and notifications.
+- Supabase-powered authentication, database, and realtime features,
+- edge-function-backed flows for payments and supporting services,
+- wallet and rewards logic tied to user participation,
+- evidence-oriented services that support audits and traceability.
 
-### Integrations
-- **OneSignal** for push notifications and in-app toast dispatch.
-- **Cloudflare Stream** for video playback and live streaming support.
-- **Lucide React** for iconography and fast UI visuals.
-- **WebPush / PWA** for installable app behavior and refresh/update prompts.
-- **Crypto libraries** like `@solana/web3.js`, `@emurgo/cardano-serialization-lib-browser`, `crypto-js`, `otpauth`, and `qrcode` for wallet, identity, and security features.
+### Protocol and Trust Layer
+- XRC-style record architecture,
+- chain-based event logging,
+- verification and explorer surfaces,
+- infrastructure designed to support future oracle and identity use cases.
 
-## Platform Features
+## Roadmap: XEEVIA App
+### Phase 1 — Product Hardening
+- tighten onboarding and identity flows,
+- improve wallet and rewards clarity,
+- improve the trust, reputation, and contribution surfaces,
+- ship a cleaner public-facing identity profile experience.
 
-### Navigation and UX
-- App shell with shared headers, sidebars, mobile bottom navigation, and service modals.
-- Fast tab switching with preloaded views and deferred render paths.
-- Smooth service panel animations and instant open/close transitions.
-- Adaptive mobile/desktop layouts with custom bottom sheets and desktop modal UX.
+### Phase 2 — Trust and Reputation UX
+- make reputation visible and understandable,
+- expose verification and evidence context in profiles and content,
+- create clearer contributor tiers and trust states,
+- connect participation value to real user outcomes.
 
-### Security and Wallet Hardening
-- PIN-protected withdrawal and P2P flows.
-- Account verification, two-factor authentication (2FA), and secure session handling.
-- Payment gating and audit-aware write flows using `xrcService`.
+### Phase 3 — Portable Identity and Relationship Layer
+- make identity more portable across apps and contexts,
+- support stronger cross-platform identity linking,
+- make relationships and audience connections more explicit and consent-based,
+- reduce platform lock-in and improve account continuity.
 
-### Advanced Content and Community
-- `XRCOracleExplorer` for chain explorer and content provenance.
-- Community moderation, role management, and topic-specific sections.
-- Support center with FAQ, contact, and help tabs built into the app.
+### Phase 4 — Protocol Readiness
+- formalize the XRC data model for broader adoption,
+- strengthen oracle and verification workflows,
+- expose APIs and documentation for external integrations,
+- prepare the app to act as a consumer and producer of shared truth.
 
-## Technology Stack
+## Roadmap: XEEVIA at Large
+### Phase 1 — Foundation
+- define the public narrative around XEEVIA as infrastructure, not just a product,
+- publish clear protocol documentation and architectural language,
+- establish the core identity, trust, and evidence principles.
 
-### Core Technologies
-- React 18
-- Create React App
-- JavaScript / JSX
-- CSS-driven component styling
+### Phase 2 — Ecosystem Expansion
+- open up integrations with external apps and services,
+- support business, community, creator, and institutional trust use cases,
+- build partnerships around verification, payments, identity, and distribution.
 
-### Backend and Infrastructure
-- Supabase (Auth, Database, Realtime, Storage)
-- Supabase Edge Functions
-- Vercel-friendly deployment pipeline
+### Phase 3 — Protocol Adoption
+- grow adoption of XRC-style evidence flows,
+- support external systems in querying and consuming verified records,
+- make XEEVIA usable as a verification and identity backbone for other products.
 
-### Payment and Wallet
-- Paystack integration
-- OPay integration
-- In-app wallet balance updates
-- XEEVIA dual-currency wallet model
+### Phase 4 — Trust Network Growth
+- build a wider network of verified identities, communities, and economic participants,
+- expand beyond social interaction into commerce, reputation, governance, and public trust use cases,
+- position XEEVIA as the shared infrastructure layer for digital trust.
 
-### Notifications and Offline
-- OneSignal push notifications
-- Service worker registration and offline caching
-- Custom prompt management for update/install flows
+## Why XEEVIA Matters
+XEEVIA matters because the internet still lacks a reliable layer for truth, identity, and trust.
 
-### Developer and Build Tools
-- `react-scripts` build tooling
-- `cross-env` build environment control
-- `npm` scripts for local development, production build, and wallet checks
+The app is the first step. The larger mission is to give people and institutions a way to participate in a digital world where evidence is portable, identity is real, reputation is meaningful, and trust is not constantly rebuilt from scratch.
 
-## Why XEEVIA?
-XEEVIA is more than a social app. It is a mobile-first creator ecosystem that connects content, community, and commerce in one experience.
-
-Its core strength is combining a polished, high-speed interface with deep payment and wallet functionality, while preserving creator ownership, secure finance flows, and real-time interaction.
-
-This overview is intended to capture XEEVIA’s current identity, feature set, and engineering direction as present in the repository.
+This is the direction of XEEVIA: from a platform into a protocol, from a product into infrastructure, and from attention capture into trusted participation.
