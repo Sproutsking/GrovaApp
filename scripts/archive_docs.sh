@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# archive_docs.sh — Move markdown files marked ARCHIVE in docs/MD_INVENTORY.md
+# archive_docs.sh — Package archived markdown files into a single tarball and remove loose copies.
 # Usage: ./scripts/archive_docs.sh --dry-run
 
 set -euo pipefail
@@ -11,34 +11,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-INVENTORY=docs/MD_INVENTORY.md
+TARBALL=docs/archived_docs.tar.gz
 ARCHIVE_DIR=docs/archived_docs
+mkdir -p "$(dirname "$TARBALL")"
+
+mapfile -t files < <(find "$ARCHIVE_DIR" -maxdepth 1 -type f -name '*.md' | sort)
+if [[ ${#files[@]} -eq 0 ]]; then
+  echo "No archived markdown files found in $ARCHIVE_DIR"
+  exit 0
+fi
+
+if [[ "$DRY_RUN" = true ]]; then
+  echo "DRY RUN: would create $TARBALL from ${#files[@]} markdown files and remove $ARCHIVE_DIR"
+  exit 0
+fi
+
 mkdir -p "$ARCHIVE_DIR"
+tar -czf "$TARBALL" -C docs archived_docs
+rm -f "$ARCHIVE_DIR"/*.md
+rmdir "$ARCHIVE_DIR" 2>/dev/null || true
 
-# Extract filenames marked ARCHIVE
-FILES=$(awk '/Action: ARCHIVE/ { getline; next } { if ($0 ~ /Action: ARCHIVE/) print NR ":" $0 }' "$INVENTORY" || true)
-# Alternate simpler approach: fixed list known from inventory
-# Hardcode file list extracted manually for reliability
-FILES_TO_MOVE=(
-  "APP_INVESTIGATION_REPORT.md"
-  "WEB3_PHASE_1C_COMPLETION.md"
-  "HANDOFF_PHASE_1D.md"
-  "MASSIVE_FEATURES_COMPLETED.md"
-  "BOTTOM_NAV_PAYWAVE_DOM_APPROACH.md"
-  "PR_CHECKLIST_PAYWAVE.md"
-)
-
-for f in "${FILES_TO_MOVE[@]}"; do
-  if [[ -f "$f" ]]; then
-    if [[ "$DRY_RUN" = true ]]; then
-      echo "DRY RUN: would move $f -> $ARCHIVE_DIR/"
-    else
-      echo "Moving $f -> $ARCHIVE_DIR/"
-      git mv "$f" "$ARCHIVE_DIR/"
-    fi
-  else
-    echo "Warning: $f not found, skipping"
-  fi
-done
-
-echo "Done. Review changes, then commit."
+echo "Created $TARBALL and removed the loose archived markdown files."
