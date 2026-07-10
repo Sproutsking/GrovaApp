@@ -1,0 +1,6 @@
+{"tier":"silver","billing":"monthly","ep_cost":200,"ep_bonus_pct":0,"usd_equiv":2.0}
+{"tier":"silver","billing":"yearly","ep_cost":1800,"ep_bonus_pct":0,"usd_equiv":18.0}
+{"tier":"gold","billing":"monthly","ep_cost":500,"ep_bonus_pct":5,"usd_equiv":5.0}
+{"tier":"gold","billing":"yearly","ep_cost":5000,"ep_bonus_pct":5,"usd_equiv":50.0}
+{"tier":"diamond","billing":"monthly","ep_cost":1100,"ep_bonus_pct":15,"usd_equiv":11.0}
+{"tier":"diamond","billing":"yearly","ep_cost":10000,"ep_bonus_pct":15,"usd_equiv":100.0}

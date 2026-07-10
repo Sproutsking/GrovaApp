@@ -1,0 +1,5 @@
+{"id":"f97f75f2-988a-4768-a643-dd2bd2ca6948","partition":"operations","balance":0,"total_received":0,"total_disbursed":0,"last_updated_at":"2026-05-07T18:51:56.599787+00:00"}
+{"id":"f5d4787e-8f1f-44b6-85f4-7d5a54882047","partition":"growth","balance":0,"total_received":0,"total_disbursed":0,"last_updated_at":"2026-05-07T18:51:56.599787+00:00"}
+{"id":"ef99680d-31cd-46c0-a515-5ff1826f5123","partition":"xev_rewards","balance":0,"total_received":0,"total_disbursed":0,"last_updated_at":"2026-05-07T18:51:56.599787+00:00"}
+{"id":"af73689b-1998-4da2-8ec5-388fcabba641","partition":"unallocated","balance":0,"total_received":0,"total_disbursed":0,"last_updated_at":"2026-05-07T18:51:56.599787+00:00"}
+{"id":"30cacd0d-9e29-4bf8-9bd8-03adf8c59bf0","partition":"reserve","balance":0,"total_received":0,"total_disbursed":0,"last_updated_at":"2026-05-07T18:51:56.599787+00:00"}

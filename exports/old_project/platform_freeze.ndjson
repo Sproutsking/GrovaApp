@@ -1,0 +1,8 @@
+{"region":"all","is_frozen":false,"frozen_by":null,"frozen_reason":null,"updated_at":"2026-02-20T17:08:10.476472+00:00"}
+{"region":"africa","is_frozen":false,"frozen_by":null,"frozen_reason":null,"updated_at":"2026-02-20T17:08:10.476472+00:00"}
+{"region":"south_america","is_frozen":false,"frozen_by":"6e3637ec-6842-4c4c-bfc7-c182db22973f","frozen_reason":null,"updated_at":"2026-03-07T11:02:06.312+00:00"}
+{"region":"asia","is_frozen":false,"frozen_by":"6e3637ec-6842-4c4c-bfc7-c182db22973f","frozen_reason":null,"updated_at":"2026-03-07T11:02:08.512+00:00"}
+{"region":"middle_east","is_frozen":false,"frozen_by":"6e3637ec-6842-4c4c-bfc7-c182db22973f","frozen_reason":null,"updated_at":"2026-03-07T11:02:09.802+00:00"}
+{"region":"oceania","is_frozen":false,"frozen_by":"6e3637ec-6842-4c4c-bfc7-c182db22973f","frozen_reason":null,"updated_at":"2026-03-07T11:02:11.656+00:00"}
+{"region":"europe","is_frozen":false,"frozen_by":"6e3637ec-6842-4c4c-bfc7-c182db22973f","frozen_reason":null,"updated_at":"2026-03-07T11:02:12.826+00:00"}
+{"region":"north_america","is_frozen":false,"frozen_by":"6e3637ec-6842-4c4c-bfc7-c182db22973f","frozen_reason":null,"updated_at":"2026-03-07T11:02:14.647+00:00"}

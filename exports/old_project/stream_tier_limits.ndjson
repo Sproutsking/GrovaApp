@@ -1,0 +1,7 @@
+{"tier":"free","minutes_per_month":60,"can_record":false,"max_quality":"medium"}
+{"tier":"whitelist","minutes_per_month":120,"can_record":false,"max_quality":"high"}
+{"tier":"standard","minutes_per_month":300,"can_record":true,"max_quality":"high"}
+{"tier":"vip","minutes_per_month":600,"can_record":true,"max_quality":"ultra"}
+{"tier":"silver","minutes_per_month":300,"can_record":true,"max_quality":"high"}
+{"tier":"gold","minutes_per_month":600,"can_record":true,"max_quality":"ultra"}
+{"tier":"diamond","minutes_per_month":1200,"can_record":true,"max_quality":"ultra"}
