@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getProjectEnvConfig } from "./projectBoundaries";
 
 const memoryStore = new Map();
 
@@ -85,32 +86,29 @@ function createSupabaseClient({ label, url, anonKey, storageKey }) {
   });
 }
 
-const identityUrl = process.env.IDENTITY_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || "";
-const identityAnonKey = process.env.IDENTITY_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || "";
-const coreUrl = process.env.CORE_SUPABASE_URL || identityUrl;
-const coreAnonKey = process.env.CORE_SUPABASE_ANON_KEY || identityAnonKey;
-const walletUrl = process.env.WALLET_SUPABASE_URL || identityUrl;
-const walletAnonKey = process.env.WALLET_SUPABASE_ANON_KEY || identityAnonKey;
+const identityConfig = getProjectEnvConfig("identity", process.env);
+const coreConfig = getProjectEnvConfig("core", process.env);
+const walletConfig = getProjectEnvConfig("wallet", process.env);
 
 export const identityClient = createSupabaseClient({
-  label: "identity",
-  url: identityUrl,
-  anonKey: identityAnonKey,
-  storageKey: "xeevia-auth-token",
+  label: identityConfig.label,
+  url: identityConfig.url,
+  anonKey: identityConfig.anonKey,
+  storageKey: identityConfig.storageKey,
 });
 
 export const coreClient = createSupabaseClient({
-  label: "core",
-  url: coreUrl,
-  anonKey: coreAnonKey,
-  storageKey: "xeevia-core-auth-token",
+  label: coreConfig.label,
+  url: coreConfig.url,
+  anonKey: coreConfig.anonKey,
+  storageKey: coreConfig.storageKey,
 });
 
 export const walletClient = createSupabaseClient({
-  label: "wallet",
-  url: walletUrl,
-  anonKey: walletAnonKey,
-  storageKey: "xeevia-wallet-auth-token",
+  label: walletConfig.label,
+  url: walletConfig.url,
+  anonKey: walletConfig.anonKey,
+  storageKey: walletConfig.storageKey,
 });
 
 export function getSupabaseClient(role = "identity") {
