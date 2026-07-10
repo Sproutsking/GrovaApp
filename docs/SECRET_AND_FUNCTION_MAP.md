@@ -1,114 +1,147 @@
-# Secret and function ownership map
+# Supabase function and secret ownership map
 
-This document maps the secrets and edge functions you listed to the correct ownership layer for the Xeevia split.
+This document reflects the edge functions currently present in the Supabase folder and assigns them to the Xeevia split: Identity, Core, and Wallet.
 
-## Principle
-- Frontend/browser: only public values
-- Server/edge functions: secrets and private keys
-- Identity project: auth and identity operations
-- Core project: content/community operations
-- Wallet project: payments/ledger operations
+## Core rule
+- Frontend/browser: only public values.
+- Supabase Edge Functions: private values and provider secrets.
+- Do not keep service-role keys, payment secrets, or webhook secrets in one shared bucket if they are project-specific.
+- The current code still uses generic names such as SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in several functions. For the split, the deployment layer should set these per project or expose project-specific aliases such as IDENTITY_SUPABASE_URL / CORE_SUPABASE_URL / WALLET_SUPABASE_URL.
 
-## Recommended ownership
+## 1) Xeevia Identity project
+Use this project for authentication, MFA, account recovery, identity sync, and any user-auth flows.
 
-### 1) Identity project
-Use for authentication, OAuth/Xeevia, MFA, sessions, recovery, device trust, and any auth-related edge functions.
+### Functions to deploy here
+- generate-2fa
+- verify-2fa-login
+- verify-2fa-setup
+- identity-sync
+- send-auth-email
+- generate-deeplink
 
-#### Secrets
-- `IDENTITY_SUPABASE_URL`
-- `IDENTITY_SUPABASE_ANON_KEY`
-- `IDENTITY_SUPABASE_SERVICE_ROLE_KEY`
-- any auth-provider client secrets for Xeevia/OAuth
-- any MFA/TOTP/WebAuthn backend secrets
+### Secrets to keep here
+- IDENTITY_SUPABASE_URL
+- IDENTITY_SUPABASE_ANON_KEY
+- IDENTITY_SUPABASE_SERVICE_ROLE_KEY
+- TWO_FA_ENCRYPTION_KEY
+- BREVO_API_KEY
 
-#### Functions
-- auth callback handlers
-- MFA verification handlers
-- recovery-code issuance/verification
-- OAuth authorize/token exchange functions
-- session refresh or token validation functions
+### Notes
+- If the auth email flow later uses a dedicated provider, keep that provider secret in this project only.
+- Keep any identity-only OAuth or device-trust secret here as well.
 
-### 2) Core project
-Use for posts, feeds, communities, profile content, media metadata, notifications, and content-related workflows.
+## 2) Xeevia Core project
+Use this project for content, feed, community, media, notifications, subscriptions, and other app-core experiences.
 
-#### Secrets
-- `CORE_SUPABASE_URL`
-- `CORE_SUPABASE_ANON_KEY`
-- `CORE_SUPABASE_SERVICE_ROLE_KEY`
-- media provider credentials that only serve content workflows
-- content moderation or notification service secrets if they are not wallet-specific
+### Functions to deploy here
+- enhance-post
+- fetch-news
+- generate-media-url
+- generate-upload-signature
+- getCultureContent
+- publish-platform
+- relationship-graph
+- send-push
+- stream
+- subscription-sync
+- activate-free-code
+- accept-offer
+- create-offer
+- proxy-fetch
 
-#### Functions
-- content creation/update/delete handlers
-- feed generation or recommender hooks
-- community membership actions
-- notification dispatch functions
-- media upload metadata handlers
+### Secrets to keep here
+- CORE_SUPABASE_URL
+- CORE_SUPABASE_ANON_KEY
+- CORE_SUPABASE_SERVICE_ROLE_KEY
+- ANTHROPIC_API_KEY
+- ONESIGNAL_APP_ID
+- ONESIGNAL_REST_API_KEY
+- VAPID_PUBLIC_KEY
+- VAPID_PRIVATE_KEY
+- LIVEKIT_URL
+- LIVEKIT_API_KEY
+- LIVEKIT_API_SECRET
 
-### 3) Wallet project
-Use for all payments, ledgers, treasury, payout, and provider webhook logic.
+### Notes
+- Notifications, media, live streaming, and content moderation logic belong here.
+- If a marketplace or offer feature later grows into a separate product domain, it can be split out later, but for now it fits best in Core.
 
-#### Secrets
-- `WALLET_SUPABASE_URL`
-- `WALLET_SUPABASE_ANON_KEY`
-- `WALLET_SUPABASE_SERVICE_ROLE_KEY`
-- `PAYSTACK_SECRET_KEY`
-- `PAYSTACK_PUBLIC_KEY` (public; frontend-safe only if needed for client-side flows)
-- `OPAY_API_KEY`
-- `OPAY_SECRET_KEY`
-- `OPAY_MERCHANT_ID`
-- `FLUTTERWAVE_SECRET_KEY`
-- `TREASURY_WALLET`
-- `TREASURY_WALLET_SOL`
-- `TREASURY_WALLET_ADA`
-- `POLYGON_RPC_URL`
-- `BASE_RPC_URL`
-- `ARBITRUM_RPC_URL`
-- `ETH_RPC_URL`
-- `BSC_RPC_URL`
-- any provider webhook signing keys
+## 3) Xeevia Wallet project
+Use this project for payments, payouts, wallets, webhooks, settlement, and on-chain verification.
 
-#### Functions
-- payment initiation
-- payment verification
-- wallet balance updates
-- ledger reconciliation
-- payout and withdrawal handlers
-- provider webhook receivers
+### Functions to deploy here
+- deposit-flutterwave-checkout
+- deposit-opay-checkout
+- deposit-paystack-init
+- deposit-paystack-webhook
+- paystack-create-transaction
+- paystack-webhook
+- withdraw-opay
+- withdraw-paystack-init
+- withdraw-paystack-webhook
+- webhook-flutterwave
+- webhook-opay
+- webhook-xrc-settlement
+- listener-web3-settlement
+- oracle-proof
+- web3-initiate-payment
+- web3-payment-status
+- web3-poll-pending
+- web3-submit-payment
+- web3-verify-payment
+- web3-webhook-listener
+- stripe-create-session
+- stripe-webhook
+- trade-actions
 
-## Frontend hosting / Vercel
-Use for public env values only.
+### Secrets to keep here
+- WALLET_SUPABASE_URL
+- WALLET_SUPABASE_ANON_KEY
+- WALLET_SUPABASE_SERVICE_ROLE_KEY
+- PAYSTACK_SECRET_KEY
+- PAYSTACK_PUBLIC_KEY
+- OPAY_API_KEY
+- OPAY_SECRET_KEY
+- OPAY_MERCHANT_ID
+- FLUTTERWAVE_SECRET_KEY
+- STRIPE_SECRET_KEY
+- STRIPE_WEBHOOK_SECRET
+- POLYGON_RPC_URL
+- BASE_RPC_URL
+- SOLANA_RPC_URL
+- ARBITRUM_RPC_URL
+- ETH_RPC_URL
+- BSC_RPC_URL
+- BLOCKFROST_API_KEY
+- TREASURY_WALLET_EVM
+- TREASURY_WALLET_SOL
+- TREASURY_WALLET_ADA
+- TREASURY_WALLET_TRON
+- ORACLE_HMAC_KEY
+- ORACLE_KEY_ID
 
-### Frontend-safe values
-- `REACT_APP_SUPABASE_URL`
-- `REACT_APP_SUPABASE_ANON_KEY`
-- `REACT_APP_SUPABASE_STREAM_FUNCTION_URL`
-- `REACT_APP_PAYSTACK_PUBLIC_KEY`
-- `REACT_APP_CLOUDINARY_CLOUD_NAME`
-- `REACT_APP_R2_PUBLIC_URL`
-- `REACT_APP_VAPID_PUBLIC_KEY`
-- `REACT_APP_SW_LOCALHOST`
+### Notes
+- This is the correct home for all payment-provider and webhook secrets.
+- RPC URLs and treasury addresses should not be shared with Identity or Core.
 
-### Server-only values
-- `IDENTITY_SUPABASE_SERVICE_ROLE_KEY`
-- `CORE_SUPABASE_SERVICE_ROLE_KEY`
-- `WALLET_SUPABASE_SERVICE_ROLE_KEY`
-- `PAYSTACK_SECRET_KEY`
-- `RESEND_API_KEY`
-- `VAPID_PRIVATE_KEY`
-- `CLOUDINARY_API_SECRET`
-- `LIVEKIT_API_SECRET`
-- `ONESIGNAL_REST_API_KEY`
-- `OPAY_SECRET_KEY`
-- `FLUTTERWAVE_SECRET_KEY`
+## Frontend-safe values
+Keep these in the app hosting layer only, not in the edge-function secret store.
 
-## Notes on your pasted keys
-The items you pasted are clearly split by purpose:
-- Email / notification / push / livekit / cloudinary / resend → mostly server-side or provider secrets
-- Payment / wallet / RPC / OPay / Flutterwave → wallet-project secrets
-- Supabase auth / stream function URL / anon key → identity/core/frontend-safe values depending on use
+- REACT_APP_SUPABASE_URL
+- REACT_APP_SUPABASE_ANON_KEY
+- REACT_APP_SUPABASE_STREAM_FUNCTION_URL
+- REACT_APP_PAYSTACK_PUBLIC_KEY
+- REACT_APP_CLOUDINARY_CLOUD_NAME
+- REACT_APP_R2_PUBLIC_URL
+- REACT_APP_VAPID_PUBLIC_KEY
+- REACT_APP_SW_LOCALHOST
 
-## Recommended next step
-1. Put the frontend-safe values into Vercel project env vars.
-2. Put the server-only values into Supabase Edge Function secrets or Vercel server env vars.
-3. Keep the three projects isolated by ownership and use a single routing layer for cross-project calls.
+## Recommended deployment structure
+1. Deploy Identity functions to the Identity project only.
+2. Deploy Core functions to the Core project only.
+3. Deploy Wallet functions to the Wallet project only.
+4. Keep provider secrets and project-specific service-role keys isolated per project.
+5. Use the shared hosting layer only for public values.
+
+## Practical decision on the long secret list
+The split above is the recommended structure. The only values that should remain shared are public frontend values. Everything private, provider-facing, or project-scoped should be assigned to one of the three projects above.
