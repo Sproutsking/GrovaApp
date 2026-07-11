@@ -20,10 +20,18 @@ def load_manifest(export_dir: Path) -> List[Dict[str, Any]]:
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
-def load_boundary_map(export_dir: Path) -> Dict[str, List[str]]:
-    boundary_path = export_dir / "boundary_map.json"
+def load_boundary_map(export_dir: Path, filename: str = "boundary_map.json") -> Dict[str, List[str]]:
+    boundary_path = export_dir / filename
     if not boundary_path.exists():
-        raise FileNotFoundError(f"Missing boundary map: {boundary_path}")
+        fallback_path = export_dir / "boundary_map_complete.json"
+        if fallback_path.exists():
+            print(
+                f"Warning: boundary map {boundary_path} not found, using fallback {fallback_path}",
+                file=sys.stderr,
+            )
+            boundary_path = fallback_path
+        else:
+            raise FileNotFoundError(f"Missing boundary map: {boundary_path}")
     return json.loads(boundary_path.read_text(encoding="utf-8"))
 
 
@@ -74,15 +82,25 @@ def main() -> None:
         print(f"Set TARGET_SUPABASE_URL and TARGET_SUPABASE_SERVICE_ROLE_KEY for boundary '{boundary}'.", file=sys.stderr)
         sys.exit(2)
 
+    boundary_file = os.environ.get("BOUNDARY_MAP_FILE", "boundary_map.json")
+
     # Load boundary map and manifest
-    boundary_map = load_boundary_map(export_dir)
+    boundary_map = load_boundary_map(export_dir, boundary_file)
     tables_for_boundary: Set[str] = set(boundary_map.get(boundary, []))
 
     if not tables_for_boundary:
-        print(f"No tables found for boundary '{boundary}'.", file=sys.stderr)
+        print(f"No tables found for boundary '{boundary}' in {boundary_file}.", file=sys.stderr)
         sys.exit(1)
 
     manifest = load_manifest(export_dir)
+    manifest_table_names = {item["table"] for item in manifest}
+    boundary_table_names = {table for tables in boundary_map.values() for table in tables}
+    extra_tables = sorted(boundary_table_names - manifest_table_names)
+    if extra_tables:
+        print(
+            f"Warning: boundary map {boundary_file} contains {len(extra_tables)} table(s) not present in manifest: {extra_tables}",
+            file=sys.stderr,
+        )
     headers = {
         "apikey": target_key,
         "Authorization": f"Bearer {target_key}",

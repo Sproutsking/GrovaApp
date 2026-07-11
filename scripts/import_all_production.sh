@@ -19,7 +19,8 @@
 set -e  # Exit on any error
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EXPORT_DIR="$PROJECT_ROOT/exports/old_project"
+EXPORT_DIR="${EXPORT_DIR:-$PROJECT_ROOT/exports/old_project}"
+BOUNDARY_MAP_FILE="${BOUNDARY_MAP_FILE:-boundary_map.json}"
 ENV_FILE="$PROJECT_ROOT/.env"
 
 # Colors for output
@@ -84,10 +85,11 @@ validate_requirements() {
     
     # Check .env file
     if [ ! -f "$ENV_FILE" ]; then
-        log_error ".env file not found at $ENV_FILE"
-        exit 1
+        log_warning ".env file not found at $ENV_FILE"
+        log_info "Using current shell environment variables instead"
+    else
+        log_success ".env file found"
     fi
-    log_success ".env file found"
     
     # Check export directory
     if [ ! -d "$EXPORT_DIR" ]; then
@@ -111,16 +113,19 @@ validate_requirements() {
 load_env() {
     log_header "LOADING ENVIRONMENT VARIABLES"
     
-    # Source .env file
+    # Source .env file if present
     if [ -f "$ENV_FILE" ]; then
         set -a
         source "$ENV_FILE"
         set +a
+        log_success ".env loaded"
+    else
+        log_warning ".env missing; using environment variables"
     fi
     
     # Validate Identity project credentials
     if [ -z "$IDENTITY_SUPABASE_URL" ] || [ -z "$IDENTITY_SUPABASE_SERVICE_ROLE_KEY" ]; then
-        log_error "Missing IDENTITY_SUPABASE_URL or IDENTITY_SUPABASE_SERVICE_ROLE_KEY in .env"
+        log_error "Missing IDENTITY_SUPABASE_URL or IDENTITY_SUPABASE_SERVICE_ROLE_KEY"
         exit 1
     fi
     log_success "Identity credentials loaded"
@@ -153,6 +158,8 @@ import_boundary() {
     export BOUNDARY="$boundary"
     export TARGET_SUPABASE_URL="$url"
     export TARGET_SUPABASE_SERVICE_ROLE_KEY="$key"
+    export EXPORT_DIR="$EXPORT_DIR"
+    export BOUNDARY_MAP_FILE="$BOUNDARY_MAP_FILE"
     
     if python3 "$PROJECT_ROOT/scripts/import_split_supabase_by_boundary.py"; then
         log_success "$boundary import completed"
