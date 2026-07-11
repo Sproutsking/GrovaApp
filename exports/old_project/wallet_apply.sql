@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 
 CREATE TABLE IF NOT EXISTS public.payment_products (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  name text NOT NULL,
+  name text DEFAULT 'Unnamed Product',
   description text,
   type text NOT NULL CHECK (type = ANY (ARRAY['one_time'::text, 'subscription'::text])),
   tier text NOT NULL DEFAULT 'standard'::text CHECK (tier = ANY (ARRAY['whitelist'::text, 'standard'::text, 'pro'::text, 'vip'::text])),
@@ -296,6 +296,7 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_queue (
   fee_amount numeric,
   net_amount numeric,
   failure_reason text,
+  admin_notes text,
   attempted_at timestamp with time zone,
   completed_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -311,6 +312,7 @@ CREATE TABLE IF NOT EXISTS public.p2p_payment_methods (
   method_type text NOT NULL CHECK (method_type = ANY (ARRAY['bank_account'::text, 'mobile_money'::text, 'crypto_wallet'::text, 'card'::text])),
   provider text,
   account_identifier text NOT NULL,
+  account_name text,
   is_verified boolean DEFAULT false,
   verified_at timestamp with time zone,
   is_default boolean DEFAULT false,
@@ -323,7 +325,8 @@ CREATE TABLE IF NOT EXISTS public.p2p_rate_limits (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
   ip_address text,
-  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['transfer'::text, 'withdrawal'::text])),
+  action_type text,
+  action text CHECK (action = ANY (ARRAY['transfer'::text, 'withdrawal'::text])),
   action_count integer DEFAULT 1,
   window_start timestamp with time zone DEFAULT now(),
   created_at timestamp with time zone DEFAULT now(),
@@ -338,6 +341,7 @@ CREATE TABLE IF NOT EXISTS public.p2p_reputation (
   successful_transactions integer DEFAULT 0,
   failed_transactions integer DEFAULT 0,
   reputation_score numeric DEFAULT 0,
+  avg_release_secs integer DEFAULT 0,
   is_flagged boolean DEFAULT false,
   flag_reason text,
   flagged_at timestamp with time zone,
@@ -352,6 +356,7 @@ CREATE TABLE IF NOT EXISTS public.paywave_fee_config (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   fee_type text NOT NULL UNIQUE CHECK (fee_type = ANY (ARRAY['platform_fee'::text, 'withdrawal_fee'::text, 'transfer_fee'::text, 'conversion_fee'::text])),
   percentage numeric DEFAULT 0,
+  fee_percentage numeric DEFAULT 0,
   fixed_amount numeric DEFAULT 0,
   min_amount numeric DEFAULT 0,
   max_amount numeric DEFAULT 0,
@@ -389,6 +394,7 @@ CREATE TABLE IF NOT EXISTS public.liquidity_config (
   min_liquidity numeric NOT NULL,
   target_liquidity numeric NOT NULL,
   current_liquidity numeric NOT NULL DEFAULT 0,
+  critical_threshold numeric DEFAULT 0,
   is_enabled boolean DEFAULT true,
   last_rebalanced_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
@@ -415,6 +421,7 @@ CREATE TABLE IF NOT EXISTS public.admin_revenue_summary (
   web3_revenue numeric NOT NULL DEFAULT 0,
   transaction_count integer NOT NULL DEFAULT 0,
   user_count integer NOT NULL DEFAULT 0,
+  activated_users integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT admin_revenue_summary_pkey PRIMARY KEY (id)
 );
@@ -444,6 +451,7 @@ CREATE TABLE IF NOT EXISTS public.admin_user_stats (
   active_users_week integer DEFAULT 0,
   total_transactions integer DEFAULT 0,
   total_volume_usd numeric DEFAULT 0,
+  activated_users integer DEFAULT 0,
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT admin_user_stats_pkey PRIMARY KEY (id)
 );

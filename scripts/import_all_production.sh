@@ -13,6 +13,8 @@
 #
 # USAGE:
 #   bash scripts/import_all_production.sh
+#   # To import only and skip schema application entirely:
+#   bash scripts/import_only.sh
 #
 # =============================================================================
 
@@ -54,6 +56,23 @@ log_warning() {
 
 log_info() {
     echo -e "${BLUE}ℹ $1${NC}"
+}
+
+is_placeholder_value() {
+    local value="$1"
+
+    if [ -z "$value" ]; then
+        return 0
+    fi
+
+    case "$value" in
+        *"<COPY"*|*"YOUR_"*|*"<YOUR"*|*"PLACEHOLDER"*|*"<IDENTITY_DB_PASSWORD"*|*"<CORE_DB_PASSWORD"*|*"<WALLET_DB_PASSWORD"*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 }
 
 # Validate requirements
@@ -128,11 +147,19 @@ load_env() {
         log_error "Missing IDENTITY_SUPABASE_URL or IDENTITY_SUPABASE_SERVICE_ROLE_KEY"
         exit 1
     fi
+    if is_placeholder_value "$IDENTITY_SUPABASE_SERVICE_ROLE_KEY"; then
+        log_error "IDENTITY_SUPABASE_SERVICE_ROLE_KEY appears to be a placeholder. Replace it with the real service role key from Supabase."
+        exit 1
+    fi
     log_success "Identity credentials loaded"
     
     # Validate Core project credentials
     if [ -z "$CORE_SUPABASE_URL" ] || [ -z "$CORE_SUPABASE_SERVICE_ROLE_KEY" ]; then
         log_error "Missing CORE_SUPABASE_URL or CORE_SUPABASE_SERVICE_ROLE_KEY in .env"
+        exit 1
+    fi
+    if is_placeholder_value "$CORE_SUPABASE_SERVICE_ROLE_KEY"; then
+        log_error "CORE_SUPABASE_SERVICE_ROLE_KEY appears to be a placeholder. Replace it with the real service role key from Supabase."
         exit 1
     fi
     log_success "Core credentials loaded"
@@ -142,8 +169,48 @@ load_env() {
         log_error "Missing WALLET_SUPABASE_URL or WALLET_SUPABASE_SERVICE_ROLE_KEY in .env"
         exit 1
     fi
+    if is_placeholder_value "$WALLET_SUPABASE_SERVICE_ROLE_KEY"; then
+        log_error "WALLET_SUPABASE_SERVICE_ROLE_KEY appears to be a placeholder. Replace it with the real service role key from Supabase."
+        exit 1
+    fi
     log_success "Wallet credentials loaded"
+
+    # Load optional schema apply control
+    SKIP_SCHEMA_APPLY="${SKIP_SCHEMA_APPLY:-0}"
+
+    if [ "$SKIP_SCHEMA_APPLY" = "1" ]; then
+        log_warning "SKIP_SCHEMA_APPLY=1 set; schema apply will be skipped"
+    else
+        # Validate direct DB passwords for schema application
+        if [ -z "$IDENTITY_DB_PASSWORD" ] || [ -z "$CORE_DB_PASSWORD" ] || [ -z "$WALLET_DB_PASSWORD" ]; then
+            log_error "Missing direct DB passwords: IDENTITY_DB_PASSWORD, CORE_DB_PASSWORD, WALLET_DB_PASSWORD"
+            log_error "These are required to apply the production schemas before importing data."
+            exit 1
+        fi
+        log_success "Direct DB passwords loaded"
+    fi
     
+    echo ""
+}
+
+apply_schemas() {
+    log_header "APPLYING PRODUCTION SCHEMAS"
+
+    export EXPORT_DIR="$EXPORT_DIR"
+    export SCHEMA_VERSION="production"
+
+    if [ "$SKIP_SCHEMA_APPLY" = "1" ]; then
+        log_warning "Skipping direct schema application. Ensure the production schema is already applied in each Supabase project."
+    else
+        if python3 "$PROJECT_ROOT/scripts/apply_schema.py"; then
+            log_success "All schemas applied successfully"
+        else
+            log_error "Schema application failed"
+            log_error "If your environment cannot reach Supabase Postgres directly, set SKIP_SCHEMA_APPLY=1 after applying schema manually."
+            exit 1
+        fi
+    fi
+
     echo ""
 }
 
@@ -198,6 +265,10 @@ main() {
     # Track success/failure
     FAILED_BOUNDARIES=()
     
+    # Apply production schemas before import
+    log_info "Applying production schemas to all projects..."
+    apply_schemas
+
     # Import each boundary
     log_info "Importing data to Identity project..."
     if ! import_boundary "identity" "$IDENTITY_SUPABASE_URL" "$IDENTITY_SUPABASE_SERVICE_ROLE_KEY"; then

@@ -67,6 +67,27 @@ def apply_schema(postgres_url: str, schema_file: Path, boundary: str) -> bool:
         return False
 
 
+def choose_schema_file(export_dir: Path, boundary: str) -> Path:
+    schema_file = os.environ.get("SCHEMA_FILE", "").strip()
+    if schema_file:
+        candidate = Path(schema_file)
+        if not candidate.is_absolute():
+            candidate = export_dir / candidate
+        return candidate
+
+    schema_version = os.environ.get("SCHEMA_VERSION", "production").strip().lower()
+    candidates = []
+    if schema_version:
+        candidates.append(export_dir / f"schema_{boundary}_{schema_version}.sql")
+    candidates.append(export_dir / f"schema_{boundary}.sql")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return export_dir / f"schema_{boundary}.sql"
+
+
 def main() -> None:
     export_dir = Path(os.environ.get("EXPORT_DIR", "exports/old_project"))
 
@@ -95,7 +116,8 @@ def main() -> None:
             continue
 
         project_id = project_info["project_id"]
-        schema_file = export_dir / f"schema_{boundary}.sql"
+        schema_file = choose_schema_file(export_dir, boundary)
+        print(f"Using schema file for {boundary}: {schema_file}")
         postgres_url = build_postgres_url(project_id, password)
 
         success = apply_schema(postgres_url, schema_file, boundary)

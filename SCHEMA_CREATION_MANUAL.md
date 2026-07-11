@@ -33,7 +33,7 @@ For each of the three projects below:
 - device_fingerprints
 - profile_access_summary
 
-**SQL File:** `exports/old_project/schema_identity.sql`
+**SQL File:** `exports/old_project/schema_identity_production.sql`
 
 **Copy the entire contents of this file and run it in the SQL Editor.**
 
