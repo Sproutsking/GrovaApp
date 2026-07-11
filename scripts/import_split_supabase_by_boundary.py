@@ -80,9 +80,169 @@ MINIMAL_TABLE_COLUMNS = {
         "payments": ["id", "created_at"],
         "live_sessions": ["id", "started_at", "ended_at"],
         "ambassador_profiles": ["id", "user_id", "approved_by", "created_at"],
+        "discovery_content": [
+            "id",
+            "title",
+            "category",
+            "mood",
+            "caption",
+            "video_url",
+            "thumbnail_url",
+            "duration",
+            "engagement_score",
+            "view_count",
+            "tags",
+            "source",
+            "source_id",
+            "photographer",
+            "active",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ],
+        "group_chats": ["id", "name", "icon", "created_by", "member_ids", "members", "created_at", "updated_at", "icon_url"],
+        "invite_codes": [
+            "id",
+            "code",
+            "type",
+            "max_uses",
+            "uses_count",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "updated_at",
+            "expires_at",
+            "status",
+            "metadata",
+            "community_id",
+            "community_name",
+            "price_override",
+            "entry_price",
+        ],
+        "invite_code_usage": ["id", "invite_code_id", "code", "used_by", "used_at", "ip_address", "user_agent"],
+        "news_posts": [
+            "id",
+            "description",
+            "category",
+            "url_hash",
+            "published_at",
+            "created_at",
+            "is_active",
+            "views_count",
+            "likes_count",
+            "comments_count",
+        ],
+        "news_feed": ["id", "user_id", "news_id", "added_at"],
+        "upload_rate_limits": ["id", "user_id", "upload_type", "upload_count", "window_start", "created_at"],
     },
     "wallet": {
         "profiles": ["id", "email", "username", "created_at"],
+        "payment_products": [
+            "id",
+            "name",
+            "description",
+            "type",
+            "tier",
+            "amount_usd",
+            "currency",
+            "stripe_price_id",
+            "paystack_plan_code",
+            "interval",
+            "is_active",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ],
+        "admin_revenue_summary": [
+            "total_payments",
+            "total_revenue_usd",
+            "paystack_count",
+            "web3_count",
+            "paystack_usd",
+            "web3_usd",
+            "total_ep_issued",
+            "activated_users",
+            "paid_users",
+            "free_users",
+            "pending_users",
+        ],
+        "admin_user_stats": [
+            "activated_users",
+            "paid_users",
+            "free_users",
+            "vip_users",
+            "pending_users",
+            "total_active_accounts",
+        ],
+        "liquidity_config": [
+            "id",
+            "chain",
+            "min_liquidity",
+            "target_liquidity",
+            "current_liquidity",
+            "is_enabled",
+            "last_rebalanced_at",
+            "created_at",
+            "updated_at",
+        ],
+        "p2p_payment_methods": [
+            "id",
+            "user_id",
+            "method_type",
+            "provider",
+            "account_identifier",
+            "is_verified",
+            "verified_at",
+            "is_default",
+            "created_at",
+        ],
+        "p2p_rate_limits": ["id", "user_id", "ip_address", "action_type", "action_count", "window_start", "created_at"],
+        "p2p_reputation": [
+            "id",
+            "user_id",
+            "total_transactions",
+            "successful_transactions",
+            "failed_transactions",
+            "reputation_score",
+            "is_flagged",
+            "flag_reason",
+            "flagged_at",
+            "last_transaction_at",
+            "created_at",
+            "updated_at",
+        ],
+        "paywave_fee_config": [
+            "id",
+            "fee_type",
+            "percentage",
+            "fixed_amount",
+            "min_amount",
+            "max_amount",
+            "is_active",
+            "description",
+            "created_at",
+            "updated_at",
+        ],
+        "withdrawal_queue": [
+            "id",
+            "user_id",
+            "wallet_id",
+            "amount",
+            "target_address",
+            "chain",
+            "status",
+            "pin_verified",
+            "requires_pin",
+            "transaction_hash",
+            "block_number",
+            "fee_amount",
+            "net_amount",
+            "failure_reason",
+            "attempted_at",
+            "completed_at",
+            "created_at",
+            "updated_at",
+        ],
     },
     "identity": {
         "profiles": ["id", "email", "username", "created_at"],
@@ -95,32 +255,55 @@ MINIMAL_TABLE_COLUMNS = {
     },
 }
 
+FIELD_ALIASES = {
+    "wallet": {
+        "paywave_fee_config": {
+            "transaction_type": "fee_type",
+            "fee_percentage": "percentage",
+        },
+        "p2p_payment_methods": {
+            "type": "method_type",
+            "account_number": "account_identifier",
+        },
+        "p2p_rate_limits": {
+            "action": "action_type",
+            "count": "action_count",
+        },
+        "p2p_reputation": {
+            "total_trades": "total_transactions",
+            "completed_trades": "successful_transactions",
+            "disputed_trades": "failed_transactions",
+            "trust_score": "reputation_score",
+        },
+        "withdrawal_queue": {
+            "ep_amount": "amount",
+            "net_ep": "net_amount",
+        },
+    },
+    "core": {
+        "news_feed": {
+            "id": "news_id",
+        },
+    },
+}
+
+REQUIRED_TABLE_COLUMNS = {
+    "core": {
+        "news_feed": ["user_id", "news_id"],
+    },
+    "wallet": {
+        "liquidity_config": ["chain", "min_liquidity", "target_liquidity", "current_liquidity"],
+        "p2p_payment_methods": ["user_id", "method_type", "account_identifier"],
+        "p2p_rate_limits": ["user_id", "action_type", "action_count"],
+        "p2p_reputation": ["user_id"],
+        "withdrawal_queue": ["wallet_id", "amount", "target_address", "chain", "status"],
+    },
+}
+
 GENERATED_COLUMNS_BY_TABLE = {
     "payments": {"net_cents"},
 }
 
-MISLABELED_TIMESTAMP_COLUMNS = {
-    "name",
-    "code",
-    "caption",
-    "title",
-    "post_content",
-    "content",
-    "image_url",
-    "source_name",
-    "asset_tag",
-    "error_message",
-    "category",
-    "text",
-    "preview",
-    "full_content",
-    "subject",
-    "description",
-    "address",
-    "withdrawal_pin_hash",
-    "recovery_phrase_encrypted",
-    "recovery_phrase_hash",
-}
 
 
 def table_priority(table_name: str) -> int:
@@ -130,9 +313,31 @@ def table_priority(table_name: str) -> int:
 def trim_row_columns(boundary: str, table_name: str, row: Dict[str, Any]) -> Dict[str, Any]:
     table_columns = MINIMAL_TABLE_COLUMNS.get(boundary, {}).get(table_name)
     generated_columns = GENERATED_COLUMNS_BY_TABLE.get(table_name, set())
+    aliases = FIELD_ALIASES.get(boundary, {}).get(table_name, {})
+
     if table_columns:
-        return {key: value for key, value in row.items() if key in table_columns and key not in generated_columns}
+        cleaned: Dict[str, Any] = {}
+        for key, value in row.items():
+            mapped_key = aliases.get(key, key)
+            if mapped_key in generated_columns:
+                continue
+            if mapped_key in table_columns and mapped_key not in cleaned:
+                cleaned[mapped_key] = value
+        return {key: cleaned[key] for key in table_columns if key in cleaned}
+
     return {key: value for key, value in row.items() if key not in generated_columns}
+
+
+def has_required_columns(boundary: str, table_name: str, row: Dict[str, Any]) -> bool:
+    required_columns = REQUIRED_TABLE_COLUMNS.get(boundary, {}).get(table_name, [])
+    if not required_columns:
+        return True
+
+    for column_name in required_columns:
+        value = row.get(column_name)
+        if value in (None, "", [], {}):
+            return False
+    return True
 
 
 def looks_like_timestamp_string(value: str) -> bool:
@@ -196,9 +401,15 @@ def import_tables_with_retries(
                 errors += 1
                 continue
 
-            rows = [trim_row_columns(boundary, table_name, row) for row in read_ndjson_rows(ndjson_path)]
-            # Normalize timestamp-like fields to avoid REST rejections for bad strings
-            rows = [normalize_timestamp_fields(r) for r in rows]
+            rows = []
+            for row in read_ndjson_rows(ndjson_path):
+                cleaned_row = trim_row_columns(boundary, table_name, row)
+                if not cleaned_row:
+                    continue
+                if not has_required_columns(boundary, table_name, cleaned_row):
+                    continue
+                rows.append(normalize_timestamp_fields(cleaned_row))
+
             endpoint = endpoint_template.format(table_name=table_name)
             result = post_rows(table_name, rows, endpoint, headers)
 
@@ -259,7 +470,7 @@ def normalize_timestamp_fields(row: Dict[str, Any]) -> Dict[str, Any]:
     - Converts ISO-like strings ending with 'Z' to '+00:00' and ensures a valid
       ISO format for Supabase REST ingestion.
     - Converts known invalid sentinel dates (e.g. '0000-00-00') to None.
-    - Nulls misdeclared timestamp columns when values clearly are not dates.
+    - Leaves plain text columns alone even when their names resemble metadata.
     """
     if not isinstance(row, dict):
         return row
@@ -267,58 +478,60 @@ def normalize_timestamp_fields(row: Dict[str, Any]) -> Dict[str, Any]:
     for key, val in list(row.items()):
         if val is None:
             continue
-        if isinstance(val, str) and val:
-            lk = key.lower()
-            timestamp_like = any(
-                substr in lk
-                for substr in ("_at", "date", "joined", "started", "ended", "last_", "created", "updated", "sent")
-            )
-            if not timestamp_like and key not in MISLABELED_TIMESTAMP_COLUMNS:
-                continue
+        if not isinstance(val, str) or not val:
+            continue
 
-            s = val.strip()
-            # handle common invalid sentinels
-            if s.startswith("0000") or s.startswith("0001-01-01") or s in ("0000-00-00", "0000-00-00 00:00:00"):
-                row[key] = None
-                continue
+        lk = key.lower()
+        timestamp_like = any(
+            substr in lk
+            for substr in ("_at", "date", "joined", "started", "ended", "last_", "created", "updated", "sent")
+        )
+        if not timestamp_like:
+            continue
 
-            if is_non_timestamp_string(s):
-                row[key] = None
-                continue
+        s = val.strip()
+        # handle common invalid sentinels
+        if s.startswith("0000") or s.startswith("0001-01-01") or s in ("0000-00-00", "0000-00-00 00:00:00"):
+            row[key] = None
+            continue
 
+        if is_non_timestamp_string(s):
+            row[key] = None
+            continue
+
+        try:
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            # Try fromisoformat first
             try:
-                if s.endswith("Z"):
-                    s = s[:-1] + "+00:00"
-                # Try fromisoformat first
-                try:
-                    dt = datetime.datetime.fromisoformat(s)
-                    row[key] = dt.isoformat()
-                    continue
-                except Exception:
-                    pass
-
-                # Try common SQL datetime format
-                try:
-                    dt = datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
-                    row[key] = dt.isoformat()
-                    continue
-                except Exception:
-                    pass
-
-                # As a last resort, if it's numeric epoch seconds/millis
-                if s.isdigit():
-                    ts = int(s)
-                    if ts > 1_000_000_000_000:
-                        dt = datetime.datetime.fromtimestamp(ts / 1000.0, datetime.timezone.utc)
-                    else:
-                        dt = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
-                    row[key] = dt.isoformat()
-                    continue
-
+                dt = datetime.datetime.fromisoformat(s)
+                row[key] = dt.isoformat()
+                continue
             except Exception:
                 pass
 
-            row[key] = None
+            # Try common SQL datetime format
+            try:
+                dt = datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+                row[key] = dt.isoformat()
+                continue
+            except Exception:
+                pass
+
+            # As a last resort, if it's numeric epoch seconds/millis
+            if s.isdigit():
+                ts = int(s)
+                if ts > 1_000_000_000_000:
+                    dt = datetime.datetime.fromtimestamp(ts / 1000.0, datetime.timezone.utc)
+                else:
+                    dt = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+                row[key] = dt.isoformat()
+                continue
+
+        except Exception:
+            pass
+
+        row[key] = None
     return row
 
 
@@ -445,7 +658,7 @@ def main() -> None:
         "apikey": target_key,
         "Authorization": f"Bearer {target_key}",
         "Content-Type": "application/json",
-        "Prefer": "return=minimal",
+        "Prefer": "return=minimal,resolution=merge-duplicates",
     }
 
     print(f"\n{'='*70}")
