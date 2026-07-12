@@ -353,6 +353,85 @@ def looks_like_timestamp_string(value: str) -> bool:
     return any(re.match(pattern, s) for pattern in patterns)
 
 
+def load_timestamp_columns_from_schema(export_dir: Path, boundary: str) -> Dict[str, Set[str]]:
+    timestamp_columns_by_table: Dict[str, Set[str]] = {}
+    sql_files = []
+
+    boundary_apply_pattern = str(export_dir / f"{boundary}_apply*.sql")
+    sql_files = sorted(Path(export_dir).glob(f"{boundary}_apply*.sql"))
+
+    if not sql_files:
+        sql_files = sorted(export_dir.glob("*.sql"))
+
+    table_regex = re.compile(r"CREATE TABLE IF NOT EXISTS public\.([a-zA-Z0-9_]+)\s*\((.*?)\);", re.S | re.I)
+    column_regex = re.compile(r"^\s*([a-zA-Z0-9_]+)\s+.*\bTIMESTAMP\b.*", re.I)
+
+    for sql_file in sql_files:
+        try:
+            content = sql_file.read_text(encoding="utf-8")
+        except Exception:
+            continue
+
+        for match in table_regex.finditer(content):
+            table_name = match.group(1).strip().lower()
+            body = match.group(2)
+            for line in body.splitlines():
+                line = line.strip()
+                if not line or line.startswith("--"):
+                    continue
+                column_match = column_regex.match(line)
+                if column_match:
+                    column_name = column_match.group(1).strip().lower()
+                    timestamp_columns_by_table.setdefault(table_name, set()).add(column_name)
+
+    return timestamp_columns_by_table
+
+
+def is_timestamp_field_name(field_name: str) -> bool:
+    name = field_name.strip().lower()
+    if not name:
+        return False
+
+    explicit_timestamp_fields = {
+        "created_at",
+        "updated_at",
+        "deleted_at",
+        "published_at",
+        "added_at",
+        "fetched_at",
+        "sent_at",
+        "verified_at",
+        "started_at",
+        "ended_at",
+        "attempted_at",
+        "completed_at",
+        "closed_at",
+        "resolved_at",
+        "expires_at",
+        "window_start",
+        "window_end",
+        "last_rebalanced_at",
+        "last_transaction_at",
+        "used_at",
+        "joined_at",
+        "created",
+        "updated",
+        "deleted",
+        "published",
+        "sent",
+        "started",
+        "ended",
+        "joined",
+    }
+    if name in explicit_timestamp_fields:
+        return True
+
+    if name.endswith(("_at", "_date", "_time", "_on")):
+        return True
+
+    return False
+
+
 def is_non_timestamp_string(value: str) -> bool:
     if not value:
         return False
@@ -370,6 +449,7 @@ def import_tables_with_retries(
     boundary: str,
     endpoint_template: str,
     headers: Dict[str, str],
+    timestamp_columns_by_table: Dict[str, Set[str]],
     max_passes: int = 4,
 ) -> (List[Dict[str, Any]], int, int):
     pending = items[:]
@@ -402,13 +482,14 @@ def import_tables_with_retries(
                 continue
 
             rows = []
+            timestamp_columns = timestamp_columns_by_table.get(table_name, set())
             for row in read_ndjson_rows(ndjson_path):
                 cleaned_row = trim_row_columns(boundary, table_name, row)
                 if not cleaned_row:
                     continue
                 if not has_required_columns(boundary, table_name, cleaned_row):
                     continue
-                rows.append(normalize_timestamp_fields(cleaned_row))
+                rows.append(normalize_timestamp_fields(table_name, cleaned_row, timestamp_columns))
 
             endpoint = endpoint_template.format(table_name=table_name)
             result = post_rows(table_name, rows, endpoint, headers)
@@ -464,75 +545,127 @@ def is_placeholder_key(value: str) -> bool:
     )
 
 
-def normalize_timestamp_fields(row: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize common timestamp/date string fields in a row.
+def normalize_timestamp_fields(table_name: str, row: Dict[str, Any], timestamp_columns: Set[str]) -> Dict[str, Any]:
+    """Normalize timestamp/date fields for a specific table row.
 
     - Converts ISO-like strings ending with 'Z' to '+00:00' and ensures a valid
       ISO format for Supabase REST ingestion.
     - Converts known invalid sentinel dates (e.g. '0000-00-00') to None.
-    - Leaves plain text columns alone even when their names resemble metadata.
+    - Nulls values that cannot be parsed for columns typed as timestamps.
     """
     if not isinstance(row, dict):
         return row
 
+    timestamp_columns = {key.strip().lower() for key in timestamp_columns}
+
     for key, val in list(row.items()):
         if val is None:
             continue
-        if not isinstance(val, str) or not val:
+
+        normalized_key = key.strip().lower()
+        if normalized_key not in timestamp_columns and not is_timestamp_field_name(normalized_key):
             continue
 
-        lk = key.lower()
-        timestamp_like = any(
-            substr in lk
-            for substr in ("_at", "date", "joined", "started", "ended", "last_", "created", "updated", "sent")
-        )
-        if not timestamp_like:
-            continue
-
-        s = val.strip()
-        # handle common invalid sentinels
-        if s.startswith("0000") or s.startswith("0001-01-01") or s in ("0000-00-00", "0000-00-00 00:00:00"):
-            row[key] = None
-            continue
-
-        if is_non_timestamp_string(s):
-            row[key] = None
-            continue
-
-        try:
-            if s.endswith("Z"):
-                s = s[:-1] + "+00:00"
-            # Try fromisoformat first
-            try:
-                dt = datetime.datetime.fromisoformat(s)
-                row[key] = dt.isoformat()
+        if isinstance(val, str):
+            s = val.strip()
+            if not s:
+                row[key] = None
                 continue
+
+            if s.startswith("0000") or s.startswith("0001-01-01") or s in ("0000-00-00", "0000-00-00 00:00:00"):
+                row[key] = None
+                continue
+
+            if is_non_timestamp_string(s):
+                row[key] = None
+                continue
+
+            try:
+                if s.endswith("Z"):
+                    s = s[:-1] + "+00:00"
+
+                try:
+                    dt = datetime.datetime.fromisoformat(s)
+                    row[key] = dt.isoformat()
+                    continue
+                except Exception:
+                    pass
+
+                try:
+                    dt = datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+                    row[key] = dt.isoformat()
+                    continue
+                except Exception:
+                    pass
+
+                if s.isdigit():
+                    ts = int(s)
+                    if ts > 1_000_000_000_000:
+                        dt = datetime.datetime.fromtimestamp(ts / 1000.0, datetime.timezone.utc)
+                    else:
+                        dt = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+                    row[key] = dt.isoformat()
+                    continue
             except Exception:
                 pass
 
-            # Try common SQL datetime format
-            try:
-                dt = datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
-                row[key] = dt.isoformat()
-                continue
-            except Exception:
-                pass
+            row[key] = None
+            continue
 
-            # As a last resort, if it's numeric epoch seconds/millis
-            if s.isdigit():
-                ts = int(s)
+        if isinstance(val, (int, float)):
+            try:
+                ts = float(val)
                 if ts > 1_000_000_000_000:
                     dt = datetime.datetime.fromtimestamp(ts / 1000.0, datetime.timezone.utc)
                 else:
                     dt = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
                 row[key] = dt.isoformat()
                 continue
-
-        except Exception:
-            pass
+            except Exception:
+                row[key] = None
+                continue
 
         row[key] = None
     return row
+
+
+def post_row(table_name: str, row: Dict[str, Any], endpoint: str, headers: Dict[str, str]) -> Dict[str, Any]:
+    try:
+        response = requests.post(endpoint, headers=headers, json=[row], timeout=120)
+        retry_count = 0
+        while response.status_code == 400 and retry_count < 3:
+            try:
+                body = response.json()
+                if isinstance(body, dict) and body.get("code") == "PGRST204":
+                    import time
+
+                    retry_count += 1
+                    time.sleep(2 * retry_count)
+                    response = requests.post(endpoint, headers=headers, json=[row], timeout=120)
+                    continue
+            except Exception:
+                break
+            break
+
+        response.raise_for_status()
+        return {"ok": True, "skip": False, "error": None}
+    except requests.exceptions.HTTPError as e:
+        try:
+            body = e.response.json()
+            if isinstance(body, dict):
+                if body.get("code") == "23505":
+                    return {"ok": False, "skip": True, "error": "duplicate key"}
+                if body.get("code") == "23503":
+                    return {"ok": False, "skip": True, "error": "foreign key violation"}
+                if body.get("code") == "22007":
+                    return {"ok": False, "skip": True, "error": "invalid timestamp"}
+                if body.get("code") == "23514":
+                    return {"ok": False, "skip": True, "error": "check constraint failed"}
+            return {"ok": False, "skip": False, "error": f"HTTP {e.response.status_code}: {e.response.text[:200]}"}
+        except Exception:
+            return {"ok": False, "skip": False, "error": str(e)}
+    except Exception as e:
+        return {"ok": False, "skip": False, "error": str(e)}
 
 
 def post_rows(table_name: str, rows: List[Dict[str, Any]], endpoint: str, headers: Dict[str, str]) -> Dict[str, Any]:
@@ -561,11 +694,48 @@ def post_rows(table_name: str, rows: List[Dict[str, Any]], endpoint: str, header
         response.raise_for_status()
         return {"table": table_name, "inserted": len(rows), "status": "ok", "rows": len(rows)}
     except requests.exceptions.HTTPError as e:
-        # Treat duplicate key errors as non-fatal (skip)
+        # Try row-by-row fallback for tables with a few invalid rows.
+        try:
+            body = e.response.json()
+            if isinstance(body, dict) and body.get("code") in {"22007", "23514", "23503", "23505", "42703", "PGRST204"}:
+                inserted = 0
+                skipped = 0
+                errors = []
+                for row in rows:
+                    row_result = post_row(table_name, row, endpoint, headers)
+                    if row_result["ok"]:
+                        inserted += 1
+                    elif row_result["skip"]:
+                        skipped += 1
+                    else:
+                        errors.append(row_result["error"])
+                if inserted > 0:
+                    status = "ok"
+                    error_msg = "; ".join(errors[:3]) if errors else None
+                    return {
+                        "table": table_name,
+                        "inserted": inserted,
+                        "status": status,
+                        "error": error_msg,
+                        "rows": inserted,
+                    }
+                if skipped > 0 and not errors:
+                    return {
+                        "table": table_name,
+                        "inserted": 0,
+                        "status": "skipped",
+                        "error": None,
+                        "rows": 0,
+                    }
+        except Exception:
+            pass
+
         try:
             body = e.response.json()
             if isinstance(body, dict) and body.get("code") == "23505":
                 return {"table": table_name, "inserted": 0, "status": "skipped", "error": "duplicate key", "rows": 0}
+            if isinstance(body, dict) and body.get("code") == "23503":
+                return {"table": table_name, "inserted": 0, "status": "skipped", "error": "foreign key violation", "rows": 0}
         except Exception:
             pass
         return {
@@ -667,12 +837,15 @@ def main() -> None:
     print(f"{'='*70}\n")
 
     endpoint_template = f"{target_url}/rest/v1/{{table_name}}"
+    timestamp_columns_by_table = load_timestamp_columns_from_schema(export_dir, boundary)
+
     summary, total_rows, errors = import_tables_with_retries(
         boundary_manifest,
         export_dir,
         boundary,
         endpoint_template,
         headers,
+        timestamp_columns_by_table=timestamp_columns_by_table,
     )
 
     print(f"\n{'='*70}")

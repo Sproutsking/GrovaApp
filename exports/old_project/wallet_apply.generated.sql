@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.admin_revenue_summary (
   web3_revenue numeric NOT NULL DEFAULT 0,
   transaction_count integer NOT NULL DEFAULT 0,
   user_count integer NOT NULL DEFAULT 0,
+  activated_users integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT admin_revenue_summary_pkey PRIMARY KEY (id)
 );
