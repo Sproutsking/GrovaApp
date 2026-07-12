@@ -2,8 +2,10 @@
 // Flutterwave integration for Pan-Africa deposits (mobile money + cards)
 import { supabase } from "../config/supabase";
 import { getSupabaseProjectUrl } from "../supabase/projectConfig";
+import { getSupabaseClient } from "../supabase/multiClient";
 
 const SUPABASE_URL = getSupabaseProjectUrl("wallet");
+const walletClient = getSupabaseClient("wallet");
 
 function cleanNumber(v) {
   const n = parseFloat(String(v).replace(/,/g, ""));
@@ -119,7 +121,7 @@ export async function handleFlutterwaveWebhook(webhookData) {
     }
 
     // Find transaction by reference
-    const { data: txData, error: txError } = await supabase
+    const { data: txData, error: txError } = await walletClient
       .from("paywave_transactions")
       .select("*")
       .eq("reference_id", reference)
@@ -147,14 +149,14 @@ export async function handleFlutterwaveWebhook(webhookData) {
     if (updateError) throw updateError;
 
     // Credit user wallet
-    const { data: walletData, error: walletError } = await supabase
+    const { data: walletData, error: walletError } = await walletClient
       .from("wallets")
       .select("paywave_balance")
       .eq("user_id", txData.user_id)
       .single();
 
     if (!walletError && walletData) {
-      await supabase
+      await walletClient
         .from("wallets")
         .update({
           paywave_balance: Number(walletData.paywave_balance) + Number(txData.net_amount),

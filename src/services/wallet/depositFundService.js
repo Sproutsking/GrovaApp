@@ -40,6 +40,7 @@
 
 import { supabase } from "../config/supabase";
 import { getSupabaseProjectUrl } from "../supabase/projectConfig";
+import { getSupabaseClient } from "../supabase/multiClient";
 
 // ─── Economy ──────────────────────────────────────────────────────────────────
 export const MIN_DEPOSIT = 100;   // NGN

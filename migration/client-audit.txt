@@ -1,0 +1,474 @@
+=== singleton imports ===
+src/hooks/useUserBoostTier.js:37:import { supabase } from "../services/config/supabase";
+src/hooks/useOptimisticInteractions.js:17:import { supabase } from "../services/config/supabase";
+src/App.jsx:48:import { supabase }               from "./services/config/supabase";
+src/models/SaveModel.js:5:import { supabase } from '../services/config/supabase';
+src/models/ShareModel.js:5:import { supabase } from "../services/config/supabase";
+src/models/CommentModel.js:12:import { supabase } from '../services/config/supabase';
+src/models/TagModel.js:6:import { supabase } from "../services/config/supabase";
+src/models/DistributionModel.js:6:import { supabase } from "../services/config/supabase";
+src/models/LikeModel.js:11:import { supabase } from "../services/config/supabase";
+src/models/FollowModel.js:10:import { supabase } from "../services/config/supabase";
+src/Modals/CommunitiesModal.jsx:8:import { supabase } from "../../services/config/supabase";
+src/Modals/CommentModal.jsx:14:import { supabase } from "../../services/config/supabase";
+src/Modals/PinSetupModal.jsx:4:import { supabase } from "../../services/config/supabase";
+src/Modals/RecoveryPhraseModal.jsx:16:import { supabase } from "../../services/config/supabase";
+src/Modals/FollowersModal.jsx:8:import { supabase } from "../../services/config/supabase";
+src/Modals/ShareModal.jsx:21:import { supabase } from "../../services/config/supabase";
+src/Modals/NotificationSettingsModal.jsx:7:import { supabase } from "../../services/config/supabase";
+src/Modals/TwoFAModal.jsx:4:import { supabase } from "../../services/config/supabase";
+src/components/Shared/AvatarDropdown.jsx:22:import { supabase } from "../../services/config/supabase";
+src/components/Shared/DesktopHeader.jsx:14:import { supabase } from "../../services/config/supabase";
+src/components/Shared/NotificationSidebar.jsx:35:import { supabase } from "../../services/config/supabase";
+src/components/Shared/StreamerDetailModal.jsx:31:import { supabase } from "../../services/config/supabase";
+src/components/Shared/TrendingSidebar.jsx:27:import { supabase }         from "../../services/config/supabase";
+src/components/Shared/NotificationFeed.jsx:8:import { supabase } from "../../services/config/supabase";
+src/components/Shared/FullScreenReactionPanel.jsx:7:import { supabase } from "../../services/config/supabase";
+src/components/Shared/MobileTrendingModal.jsx:27:import { supabase }         from "../../services/config/supabase";
+src/components/Shared/ReactionPanel.jsx:37:import { supabase } from '../../services/config/supabase';
+src/components/Shared/Support-tabs/ContactTab.jsx:12:import { supabase } from "../../../services/config/supabase";
+src/components/Shared/SoundGallery.jsx:50:import { supabase } from "../../services/config/supabase";
+src/components/Shared/MobileHeader.jsx:15:import { supabase } from "../../services/config/supabase";
+src/components/wallet/WalletView.jsx:28:import { supabase } from "../../services/config/supabase";
+src/components/wallet/tabs/WithdrawTab.jsx:18:import { supabase } from "../../../services/config/supabase";
+src/components/wallet/tabs/OverviewTab.jsx:48:import { supabase } from "../../../services/config/supabase";
+src/components/wallet/tabs/SendTab.jsx:19:import { supabase } from "../../../services/config/supabase";
+src/components/wallet/paywave/PayWaveApp.jsx:20:import { supabase } from "../../../services/config/supabase";
+src/components/wallet/paywave/tabs/AccountTab.jsx:7:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/BillsTab.jsx:9:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/WithdrawTab.jsx:9:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/NotificationsTab.jsx:8:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/DepositTab.jsx:9:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/FinanceTab.jsx:8:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/HomeTab.jsx:10:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/TransactionsTab.jsx:4:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/tabs/WalletTab.jsx:12:import { supabase } from "../../../../services/config/supabase";
+src/components/wallet/paywave/PayWaveWrapper.jsx:6:import { supabase } from "../../../services/config/supabase";
+src/components/wallet/components/QuickActions.jsx:14:import { supabase } from "../../../services/config/supabase";
+src/components/Ambassador/useAmbassadorData.js:22:import { supabase } from "../../services/config/supabase";
+src/components/Stream/LiveStreamersRow.jsx:31:import { supabase } from "../../services/config/supabase";
+src/components/Stream/StreamView.jsx:67:import { supabase } from "../../services/config/supabase";
+src/components/Admin/sections/AmbassadorSection.jsx:15:import { supabase } from "../../../services/config/supabase";
+src/components/Admin/sections/SupportSection.jsx:15:import { supabase } from "../../../services/config/supabase";
+src/components/Admin/sections/InviteSection.jsx:21:import { supabase } from "../../../services/config/supabase";
+src/components/Admin/sections/LiquiditySection.jsx:46:import { supabase } from "../../../services/config/supabase";
+src/components/Admin/PayWaveManagement/FeeConfigManager.jsx:5:import { supabase } from "../../../services/config/supabase";
+src/components/Admin/useAdminData.js:27:import { supabase } from "../../services/config/supabase";
+src/components/GiftCards/GiftCardsView.jsx:26:import { supabase } from "../../services/config/supabase";
+src/components/SmartTextarea/SmartTextarea.jsx:16:import { supabase }            from "../../services/config/supabase";
+src/components/Home/PostFullScreen.jsx:5:import { supabase } from "../../services/config/supabase";
+src/components/Home/NewsTab.jsx:11:import { supabase } from "../../services/config/supabase";
+src/components/Home/SoundModal.jsx:7:import { supabase } from '../../services/config/supabase';
+src/components/Home/HomeView.jsx:55:import { supabase }    from "../../services/config/supabase";
+src/components/Home/FeedPipelines.jsx:40:import { supabase }      from "../../services/config/supabase";
+src/components/Community/CommunityView.jsx:4:import { supabase } from "../../services/config/supabase";
+src/components/Community/modals/ChannelPermissionsModal.jsx:5:import { supabase } from "../../../services/config/supabase";
+src/components/Community/components/sections/MembersSection.jsx:4:import { supabase } from "../../../../services/config/supabase";
+src/components/Community/components/sections/AnalyticsSection.jsx:20:import { supabase } from "../../../../services/config/supabase";
+src/components/Create/CreateView.jsx:20:import { supabase }       from "../../services/config/supabase";
+src/components/Boost/BoostThemePicker.jsx:17:import { supabase } from "../../services/config/supabase";
+src/components/Account/MyContentSection.jsx:15:import { supabase } from "../../services/config/supabase";
+src/components/Account/DashboardSection.jsx:24:import { supabase } from "../../services/config/supabase";
+src/components/Account/AccountView.jsx:24:import { supabase }          from "../../services/config/supabase";
+src/components/Account/SecuritySection.jsx:23:import { supabase } from "../../services/config/supabase";
+src/components/Account/CommentsViewer.jsx:23:import { supabase } from "../../services/config/supabase";
+src/components/Account/SettingsSection.jsx:11:import { supabase } from "../../services/config/supabase";
+src/components/Account/IdentitySection.jsx:22:import { supabase } from "../../services/config/supabase";
+src/components/Account/ProfileEditModal.jsx:4:import { supabase } from '../../services/config/supabase';
+src/components/Account/DeviceManagement.jsx:39:import { supabase } from "../../services/config/supabase";
+src/components/Account/ProfileSection.jsx:19:import { supabase } from "../../services/config/supabase";
+src/components/Modals/TwoFactorSetupModal.jsx:23:import { supabase } from "../../services/config/supabase";
+src/components/Modals/CommunitiesModal.jsx:8:import { supabase } from "../../services/config/supabase";
+src/components/Modals/CommentModal.jsx:17:import { supabase } from "../../services/config/supabase";
+src/components/Modals/SavedContentModal.jsx:9:import { supabase } from "../../services/config/supabase";
+src/components/Modals/PinSetupModal.jsx:15:import { supabase } from "../../services/config/supabase";
+src/components/Modals/RecoveryPhraseModal.jsx:16:import { supabase } from "../../services/config/supabase";
+src/components/Modals/FollowersModal.jsx:8:import { supabase } from "../../services/config/supabase";
+src/components/Modals/PhoneVerificationModal.jsx:25:import { supabase } from "../../services/config/supabase";
+src/components/Modals/ShareModal.jsx:21:import { supabase } from "../../services/config/supabase";
+src/components/Modals/SaveFolderModal.jsx:6:import { supabase } from "../../services/config/supabase";
+src/components/Modals/NotificationSettingsModal.jsx:7:import { supabase } from "../../services/config/supabase";
+src/components/Modals/UserProfileModal.jsx:28:import { supabase }          from "../../services/config/supabase";
+src/components/Modals/TwoFAModal.jsx:19:import { supabase } from "../../services/config/supabase";
+src/components/Auth/PaywallGate.jsx:17:import { supabase } from "../../services/config/supabase";
+src/components/Auth/PaywallPayment.jsx:27:import { supabase } from "../../services/config/supabase";
+src/components/Auth/AuthWall.jsx:25:import { supabase } from "../../services/config/supabase";
+src/components/Auth/AuthContext.jsx:44:import { supabase } from "../../services/config/supabase";
+src/components/Auth/AuthCallback.jsx:15:import { supabase } from "../../services/config/supabase";
+src/components/Auth/AddAccountCallback.jsx:25:import { supabase } from "../../services/config/supabase";
+src/components/Auth/AddAccountOverlay.jsx:42:import { supabase } from "../../services/config/supabase";
+src/components/Messages/DMMessagesView.jsx:20:import { supabase } from "../../services/config/supabase";
+src/components/Messages/ActiveCall.jsx:26:import { supabase } from "../../services/config/supabase";
+src/components/Messages/UpdatesView.jsx:30:import { supabase } from "../../services/config/supabase";
+src/components/Messages/UserSearchModal.jsx:4:import { supabase } from "../../services/config/supabase";
+src/components/Messages/CallsView.jsx:30:import { supabase } from "../../services/config/supabase";
+src/components/Messages/ConversationList.jsx:11:import { supabase } from "../../services/config/supabase";
+src/components/Messages/ChatView.jsx:12:import { supabase } from "../../services/config/supabase";
+src/components/Analytics/AnalyticsView.jsx:8:import { supabase } from "../../services/config/supabase";
+src/components/Rewards/RewardsView.jsx:16:import { supabase } from "../../services/config/supabase";
+
+=== wallet/core table access ===
+src/App.jsx:584:        .from("wallets")
+src/services/distribution/distributionService.js:188:        supabase.from("posts").select("*").eq("id", postId).single(),
+src/services/distribution/distributionService.js:447:        supabase.from("posts").select("*").eq("id", postId).single(),
+src/services/social/followService.js:21:      .from("profiles")
+src/services/feed/trendingService.js:16:          .from('posts')
+src/services/explore/searchService.js:47:        .from('posts')
+src/services/explore/searchService.js:140:        .from('profiles')
+src/services/explore/cultureService.js:135:        .from("posts")
+src/services/explore/exploreService.js:242:        .from("posts")
+src/services/explore/exploreService.js:267:        .from("posts")
+src/services/explore/exploreService.js:292:        .from("posts")
+src/services/explore/exploreService.js:491:        .from("profiles")
+src/services/explore/exploreService.js:516:        .from("profiles")
+src/services/explore/exploreService.js:571:        .from("posts")
+src/services/explore/exploreService.js:644:          .from("posts")
+src/services/home/reelService.js:198:            .from("profiles").select("full_name, username").eq("id", user.id).single();
+src/services/home/reelService.js:253:          .from("profiles").select("full_name, username").eq("id", user.id).single();
+src/services/home/reelService.js:307:        .from("profiles")
+src/services/home/postService.js:33:      .from("posts")
+src/services/home/postService.js:54:        .from("posts")
+src/services/home/postService.js:92:        .from("posts")
+src/services/home/postService.js:117:        .from("profiles")
+src/services/home/postService.js:140:        .from("posts")
+src/services/home/postService.js:161:        .from("posts").select("user_id").eq("id", postId).single();
+src/services/home/postService.js:185:        .from("posts").update(updateData).eq("id", postId).select().single();
+src/services/home/postService.js:212:        .from("posts")
+src/services/home/postService.js:229:        .from("posts")
+src/services/home/postService.js:262:        const { data: p } = await supabase.from("posts").select("shares").eq("id", postId).single();
+src/services/home/postService.js:263:        if (p) await supabase.from("posts").update({ shares: (p.shares || 0) + 1 }).eq("id", postId);
+src/services/home/postService.js:270:          .from("profiles")
+src/services/home/postService.js:327:          const { data: p } = await supabase.from("posts").select("likes").eq("id", postId).single();
+src/services/home/postService.js:330:              .from("posts")
+src/services/home/postService.js:350:          const { data: p } = await supabase.from("posts").select("likes").eq("id", postId).single();
+src/services/home/postService.js:353:              .from("posts")
+src/services/home/postService.js:363:            .from("profiles")
+src/services/home/postService.js:396:        .from("posts")
+src/services/home/postService.js:403:              .from("posts")
+src/services/home/postService.js:441:        .from("profiles")
+src/services/home/realtimeService.js:23:            .from('posts')
+src/services/home/realtimeService.js:213:            .from('posts')
+src/services/home/realtimeService.js:246:              .from('posts')
+src/services/home/storyService.js:215:            .from("profiles").select("full_name, username").eq("id", user.id).single();
+src/services/home/storyService.js:270:          .from("profiles").select("full_name, username").eq("id", user.id).single();
+src/services/home/storyService.js:334:          .from("profiles").select("full_name, username").eq("id", user.id).single();
+src/services/home/storyService.js:394:        .from("profiles")
+src/services/home/engagementService.js:70:            .from("profiles").select("full_name, username").eq("id", userId).single();
+src/services/home/engagementService.js:141:          .from("profiles").select("full_name, username").eq("id", userId).single();
+src/services/home/engagementService.js:199:        .from("profiles").select("is_pro").eq("id", ownerId).single();
+src/services/home/engagementService.js:228:        const { data } = await supabase.from("posts").select("user_id").eq("id", comment.post_id).single();
+src/services/home/engagementService.js:245:        .from("profiles").select("id, is_pro").in("id", [commenterId, contentOwnerId]);
+src/services/home/engagementService.js:270:        .from("wallets").select("engagement_points").eq("user_id", userId).single();
+src/services/home/engagementService.js:272:      await supabase.from("wallets").update({ engagement_points: newAmount }).eq("user_id", userId);
+src/services/wallet/epService.js:307:      .from("wallets")
+src/services/wallet/walletService.js:104:    .from("profiles")
+src/services/wallet/walletService.js:132:      .from("wallets")
+src/services/wallet/walletService.js:145:        .from("wallets")
+src/services/wallet/walletService.js:163:      .from("wallet_addresses")
+src/services/wallet/walletService.js:181:      .from("wallet_addresses")
+src/services/wallet/walletService.js:191:      .from("wallet_addresses")
+src/services/wallet/walletService.js:256:      .from("wallet_history")
+src/services/wallet/walletService.js:336:      .from("wallets")
+src/services/wallet/walletService.js:363:      await supabase.from("wallets").update({
+src/services/wallet/walletService.js:371:    await supabase.from("wallet_history").insert({
+src/services/wallet/walletService.js:411:      .from("profiles")
+src/services/wallet/walletService.js:530:        .from("profiles")
+src/services/wallet/opayService.js:185:        const maybeTx = supabase.from("paywave_transactions");
+src/services/wallet/opayService.js:227:      .from("paywave_transactions")
+src/services/wallet/opayService.js:256:      .from("paywave_transactions")
+src/services/wallet/opayService.js:282:      .from("paywave_transactions")
+src/services/wallet/opayService.js:313:      .from("paywave_transactions")
+src/services/wallet/opayService.js:338:      .from("paywave_transactions")
+src/services/wallet/opayService.js:367:      .from("paywave_transactions")
+src/services/wallet/opayService.js:385:      .from("paywave_transactions")
+src/services/wallet/opayService.js:402:      .from("paywave_transactions")
+src/services/wallet/flutterwaveService.js:75:      .from("paywave_transactions")
+src/services/wallet/flutterwaveService.js:93:      .from("paywave_transactions")
+src/services/wallet/flutterwaveService.js:123:      .from("paywave_transactions")
+src/services/wallet/flutterwaveService.js:135:      .from("paywave_transactions")
+src/services/wallet/flutterwaveService.js:151:      .from("wallets")
+src/services/wallet/flutterwaveService.js:158:        .from("wallets")
+src/services/wallet/withdrawServiceV2.js:139:    .from("profiles")
+src/services/wallet/withdrawServiceV2.js:357:      .from("profiles")
+src/services/rewards/rewardsService.js:136:    .from("profiles")
+src/services/rewards/rewardsService.js:149:    supabase.from("profiles").select("engagement_points, subscription_tier, payment_status").eq("id", userId).single(),
+src/services/rewards/rewardsService.js:264:      const { data: p } = await supabase.from("profiles").select("engagement_points").eq("id", userId).single();
+src/services/rewards/rewardsService.js:265:      if (p) await supabase.from("profiles").update({ engagement_points: (Number(p.engagement_points) || 0) + task.ep }).eq("id", userId);
+src/services/rewards/rewardsService.js:280:  const { data: posts } = await supabase.from("posts").select("id, likes, comments_count")
+src/services/rewards/rewardsService.js:303:    const { data: p } = await supabase.from("profiles").select("engagement_points").eq("id", userId).single();
+src/services/rewards/rewardsService.js:304:    if (p) await supabase.from("profiles").update({ engagement_points: (Number(p.engagement_points) || 0) + WEEKLY_BONUS_EP }).eq("id", userId);
+src/services/rewards/rewardsService.js:418:  const { error: updateErr } = await supabase.from("profiles")
+src/services/rewards/rewardsService.js:433:  await supabase.from("wallets")
+src/services/rewards/rewardsService.js:461:    const { data: p } = await supabase.from("profiles").select("engagement_points").eq("id", creatorId).single();
+src/services/rewards/rewardsService.js:462:    if (p) await supabase.from("profiles").update({ engagement_points: (Number(p.engagement_points) || 0) + creator_ep }).eq("id", creatorId);
+src/services/rewards/rewardsService.js:470:  const { data, error } = await supabase.from("profiles")
+src/services/rewards/giftCardService.js:139:      .from("profiles")
+src/services/rewards/giftCardService.js:146:        .from("profiles")
+src/services/account/dashboardService.js:80:          .from('posts')
+src/services/account/dashboardService.js:158:        .from('wallets')
+src/services/account/dashboardService.js:230:          .from('posts')
+src/services/account/dashboardService.js:288:          .from('posts')
+src/services/account/profileService.js:15:        .from("profiles")
+src/services/account/profileService.js:27:        .from("wallets")
+src/services/account/profileService.js:88:          .from("posts")
+src/services/account/profileService.js:170:        .from("profiles")
+src/services/account/profileService.js:245:          .from("posts")
+src/services/account/SecuritySection.js:51:        .from("profiles")
+src/services/account/SecuritySection.js:304:        .from("profiles")
+src/services/account/SecuritySection.js:327:        .from("profiles")
+src/services/account/settingsService.js:19:        supabase.from("profiles")
+src/services/account/settingsService.js:99:        .from("profiles")
+src/services/account/settingsService.js:115:      const { error } = await supabase.from("profiles")
+src/services/account/settingsService.js:150:      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
+src/services/account/settingsService.js:169:      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
+src/services/account/settingsService.js:187:      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
+src/services/account/settingsService.js:248:      const { error } = await supabase.from("profiles")
+src/services/account/settingsService.js:271:        await supabase.from("profiles")
+src/services/account/settingsService.js:336:      const { error } = await supabase.from("profiles")
+src/services/account/settingsService.js:352:      const { error } = await supabase.from("profiles")
+src/services/account/settingsService.js:387:      const { error } = await supabase.from("profiles")
+src/services/account/settingsService.js:409:      const { error } = await supabase.from("profiles")
+src/services/account/settingsService.js:443:      const { error: profileError } = await supabase.from("profiles")
+src/services/create/createService.js:45:          .from("posts")
+src/services/create/createService.js:117:        .from("posts")
+src/services/create/createService.js:326:        .from("posts")
+src/services/tagService.js:41:          .from("profiles")
+src/services/tagService.js:65:          .from("profiles")
+src/services/xrc/rootChainService.js:26:        .from("xrc_root_chain")
+src/services/xrc/rootChainService.js:61:      await supabase.from("xrc_root_chain").upsert(
+src/services/xrc/rootChainService.js:83:        .from("xrc_root_chain")
+src/services/xrc/xrcService.js:11://     supabase.from("posts").insert(data).single()
+src/services/xrc/xrcService.js:108:      const { error: insertError } = await supabase.from("xrc_records").insert({
+src/services/xrc/xrcService.js:178:          .from("xrc_records")
+src/services/xrc/xrcService.js:188:              .from("xrc_records")
+src/services/xrc/xrcService.js:204:          .from("xrc_records")
+src/services/xrc/xrcService.js:268:      .from("xrc_records")
+src/services/xrc/xrcService.js:288:      .from("xrc_records")
+src/services/xrc/verificationService.js:32:        .from("xrc_records")
+src/services/xrc/verificationService.js:64:        .from("xrc_records")
+src/services/xrc/verificationService.js:140:          .from("xrc_records")
+src/services/xrc/verificationService.js:152:          .from("xrc_records")
+src/services/xrc/verificationService.js:187:        .from("xrc_records")
+src/services/xrc/verificationService.js:224:        .from("xrc_records")
+src/services/xrc/verificationService.js:243:        .from("xrc_records")
+src/services/shared/abortHandler.js:290: *     () => supabase.from("posts").select("*"),
+src/services/shared/onlineStatusService.js:51:        .from("profiles")
+src/services/shared/onlineStatusService.js:128:        .from("profiles")
+src/services/community/communityMessageService.js:267:        .from("profiles")
+src/services/identity/identityService.js:8:      .from("profiles")
+src/services/identity/identityService.js:26:      .from("profiles")
+src/services/stream/streamService.js:142:      .from("profiles")
+src/services/economy/epEconomyService.js:54:      .from('profiles')
+src/services/economy/epEconomyService.js:276:      .from('wallets').select('engagement_points').eq('user_id', userId).single();
+src/services/economy/epEconomyService.js:324:      .from('wallets').select('engagement_points').eq('user_id', userId).single();
+src/services/economy/epEconomyService.js:327:    await supabase.from('wallets').update({ engagement_points: next }).eq('user_id', userId);
+src/services/economy/epEconomyService.js:336:      .from('wallets').select('engagement_points').eq('user_id', userId).single();
+src/services/economy/epEconomyService.js:339:      .from('wallets')
+src/services/economy/liquidityService.js:347:        .from("profiles")
+src/services/economy/liquidityService.js:803:        .from("profiles")
+src/services/messages/MessageNotificationService.js:184:                .from("profiles")
+src/services/messages/onlineStatusService.js:237:      await supabase.from("profiles").update({ last_seen: ts }).eq("id", this.userId);
+src/services/messages/onlineStatusService.js:246:        .from("profiles")
+src/services/auth/sessionManager.js:66:        supabase.from("profiles").update({ last_seen: now }).eq("id", this._userId),
+src/services/auth/paywallDataService.js:114:          .from("profiles")
+src/services/auth/paywallDataService.js:118:          .from("profiles")
+src/services/auth/paywallDataService.js:123:          .from("profiles")
+src/services/auth/paywallDataService.js:463:      .from("profiles")
+src/services/auth/paywallDataService.js:486:      .from("profiles")
+src/services/auth/authService.js:287:      const { data } = await supabase.from("profiles").select("is_admin").eq("id", userId).maybeSingle();
+src/services/boost/boostService.js:21:  const { data, error } = await supabase.from("profiles")
+src/models/TagModel.js:132:          .from("posts")
+src/models/TagModel.js:169:          .from("posts")
+src/models/TagModel.js:234:          .from("posts")
+src/models/TagModel.js:282:          .from("posts")
+src/models/TagModel.js:373:          .from("posts")
+src/models/TagModel.js:484:          .from("posts")
+src/models/TagModel.js:595:          .from("posts")
+src/models/LikeModel.js:77:                .from("profiles").select("full_name, username").eq("id", userId).single();
+src/models/FollowModel.js:70:        .from("profiles")
+src/api/feed.js:27:    .from("posts")
+src/stores/optimisticStore.js:163:        .from("wallets")
+src/Modals/PinSetupModal.jsx:46:        const { data: w } = await supabase.from("wallets").select("withdrawal_pin_hash").eq("user_id", userId).maybeSingle();
+src/Modals/PinSetupModal.jsx:52:      const { error: e } = await supabase.from("wallets").update({
+src/Modals/RecoveryPhraseModal.jsx:158:        .from("wallets")
+src/Modals/RecoveryPhraseModal.jsx:194:        .from("wallets")
+src/Modals/RecoveryPhraseModal.jsx:285:    await supabase.from("wallets")
+src/Modals/ShareModal.jsx:110:          .from("profiles")
+src/components/Shared/StreamerDetailModal.jsx:665:            .from("profiles")
+src/components/Shared/TrendingSidebar.jsx:120:    .from("profiles")
+src/components/Shared/TrendingSidebar.jsx:418:      supabase.from("posts"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
+src/components/Shared/TrendingSidebar.jsx:436:      supabase.from("posts"  ).select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
+src/components/Shared/TrendingSidebar.jsx:451:    const { data: profiles } = await supabase.from("profiles").select("id,full_name,username,avatar_id,verified,bio").in("id", topIds);
+src/components/Shared/TrendingSidebar.jsx:468:        supabase.from("posts"  ).select("id,user_id,caption,category,views,likes,media_id,created_at"   ).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+src/components/Shared/TrendingSidebar.jsx:479:        ? await supabase.from("profiles").select("id,full_name,username,avatar_id").in("id", uids)
+src/components/Shared/MobileTrendingModal.jsx:142:    .from("profiles")
+src/components/Shared/MobileTrendingModal.jsx:477:      supabase.from("posts"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
+src/components/Shared/MobileTrendingModal.jsx:495:      supabase.from("posts"  ).select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
+src/components/Shared/MobileTrendingModal.jsx:510:    const { data: profiles } = await supabase.from("profiles").select("id,full_name,username,avatar_id,verified,bio").in("id", topIds);
+src/components/Shared/MobileTrendingModal.jsx:523:        supabase.from("posts"  ).select("id,user_id,caption,category,views,likes,media_id"   ).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+src/components/Shared/MobileTrendingModal.jsx:533:      const { data: prs } = uids.length ? await supabase.from("profiles").select("id,full_name,username,avatar_id").in("id", uids) : { data: [] };
+src/components/Shared/Support-tabs/ContactTab.jsx:768:    supabase.from("profiles").select("id, full_name, avatar_id, avatar_metadata").eq("id", userId).single()
+src/components/wallet/WalletView.jsx:353:        supabase.from("wallets").select("*", { count: "exact", head: true }),
+src/components/wallet/WalletView.jsx:354:        supabase.from("wallets").select("xev_tokens"),
+src/components/wallet/WalletView.jsx:355:        supabase.from("wallet_history")
+src/components/wallet/WalletView.jsx:359:        supabase.from("wallet_history")
+src/components/wallet/WalletView.jsx:566:          .from("wallets")
+src/components/wallet/tabs/WithdrawTab.jsx:512:    const { data } = await supabase.from("wallets").select("engagement_points").eq("user_id", userId).maybeSingle();
+src/components/wallet/tabs/OverviewTab.jsx:67:      .from("profiles")
+src/components/wallet/tabs/SendTab.jsx:316:          .from("profiles")
+src/components/wallet/paywave/PayWaveApp.jsx:684:        .from("wallets")
+src/components/wallet/paywave/tabs/AccountTab.jsx:58:        .from("wallets").select("paywave_balance,engagement_points")
+src/components/wallet/paywave/tabs/HomeTab.jsx:85:        .from("wallet_history")
+src/components/wallet/paywave/tabs/TransactionsTab.jsx:34:        .from("paywave_transactions").select("*")
+src/components/wallet/paywave/tabs/WalletTab.jsx:38:          .from("profiles").select("id,full_name,username")
+src/components/wallet/components/QuickActions.jsx:27:    supabase.from("profiles").select("id,username,full_name,avatar_id,avatar_metadata,verified").eq("username", cp.username).single().then(({ data }) => {
+src/components/Admin/sections/SupportSection.jsx:464:    supabase.from("profiles").select("id, full_name, avatar_id, avatar_metadata").eq("id", init.user_id).single()
+src/components/Admin/sections/InviteSection.jsx:4009:          .from("profiles")
+src/components/Admin/sections/InviteSection.jsx:4013:          .from("profiles")
+src/components/Admin/useAdminData.js:229:        sb().from("profiles").select("*", { count: "exact", head: true }),
+src/components/Admin/useAdminData.js:231:          .from("profiles")
+src/components/Admin/useAdminData.js:235:          .from("profiles")
+src/components/Admin/useAdminData.js:239:          .from("profiles")
+src/components/Admin/useAdminData.js:251:          .from("profiles")
+src/components/Admin/useAdminData.js:255:          .from("posts")
+src/components/Admin/useAdminData.js:289:        sb().from("wallets").select("xev_tokens").not("user_id", "is", null),
+src/components/Admin/useAdminData.js:291:          .from("wallet_history")
+src/components/Admin/useAdminData.js:296:          .from("profiles")
+src/components/Admin/useAdminData.js:414:      .from("profiles")
+src/components/Admin/useAdminData.js:430:        .from("profiles")
+src/components/Admin/useAdminData.js:459:        .from("profiles")
+src/components/Admin/useAdminData.js:491:        .from("profiles")
+src/components/Admin/useAdminData.js:501:        .from("profiles")
+src/components/Admin/useAdminData.js:516:        .from("profiles")
+src/components/Admin/useAdminData.js:569:          .from("profiles")
+src/components/Admin/useAdminData.js:587:        .from("profiles")
+src/components/Admin/useAdminData.js:601:        .from("profiles")
+src/components/Admin/useAdminData.js:611:        .from("profiles")
+src/components/Admin/useAdminData.js:624:        .from("profiles")
+src/components/Admin/useAdminData.js:641:        .from("profiles")
+src/components/Admin/useAdminData.js:649:        .from("profiles")
+src/components/Admin/useAdminData.js:659:          .from("wallets")
+src/components/Admin/useAdminData.js:667:            .from("wallets")
+src/components/Admin/useAdminData.js:676:            .from("wallets")
+src/components/Admin/useAdminData.js:946:          .from("profiles")
+src/components/Admin/useAdminData.js:1126:          .from("profiles")
+src/components/Admin/useAdminData.js:1160:          .from("profiles")
+src/components/Admin/useAdminData.js:1239:            .from("profiles")
+src/components/Admin/useAdminData.js:1246:            .from("profiles")
+src/components/Admin/useAdminData.js:1608:        .from("profiles")
+src/components/GiftCards/GiftCardsView.jsx:250:  const { data: p, error } = await supabase.from("profiles").select("engagement_points").eq("id", userId).single();
+src/components/GiftCards/GiftCardsView.jsx:255:  const { error: e2 } = await supabase.from("profiles").update({ engagement_points: nb }).eq("id", userId);
+src/components/GiftCards/GiftCardsView.jsx:262:  const { data: p, error } = await supabase.from("profiles").select("engagement_points").eq("id", userId).single();
+src/components/GiftCards/GiftCardsView.jsx:265:  const { error: e2 } = await supabase.from("profiles").update({ engagement_points: nb }).eq("id", userId);
+src/components/GiftCards/GiftCardsView.jsx:845:      const { data } = await supabase.from("profiles").select("id,username,full_name,avatar_id,verified").or(`username.ilike.%${v.replace(/^@/, "")}%,full_name.ilike.%${v.replace(/^@/, "")}%`).neq("id", currentUser?.id).limit(6);
+src/components/GiftCards/GiftCardsView.jsx:1026:        const { data: p } = await supabase.from("profiles").select("engagement_points").eq("id", currentUser.id).single();
+src/components/SmartTextarea/useAdaptiveEngine.js:142:    const { data } = await supabase.from("profiles").select("preferences").eq("id", user.id).maybeSingle();
+src/components/SmartTextarea/useAdaptiveEngine.js:155:      const { data: existing } = await supabase.from("profiles").select("preferences").eq("id", user.id).maybeSingle();
+src/components/SmartTextarea/useAdaptiveEngine.js:157:      await supabase.from("profiles").update({
+src/components/SmartTextarea/useSmartSuggestions.js:56:    const { data: ex } = await sb.from("profiles").select("preferences").eq("id", user.id).maybeSingle();
+src/components/SmartTextarea/useSmartSuggestions.js:57:    await sb.from("profiles").update({ preferences: { ...(ex?.preferences || {}), suggestionPrefs: prefs } }).eq("id", user.id);
+src/components/SmartTextarea/useSmartSuggestions.js:242:        const { data } = await sb.from("profiles").select("preferences").eq("id", user.id).maybeSingle();
+src/components/Home/FeedPipelines.jsx:395:          const { data: pop } = await supabase.from("profiles")
+src/components/Community/CommunityView.jsx:56:      const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+src/components/Community/components/sections/AnalyticsSection.jsx:168:        .from("profiles")
+src/components/Create/CreateView.jsx:197:          .from("profiles")
+src/components/Account/MyContentSection.jsx:483:      supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null),
+src/components/Account/MyContentSection.jsx:505:          .from("posts")
+src/components/Account/DashboardSection.jsx:333:        supabase.from("profiles")
+src/components/Account/DashboardSection.jsx:336:        supabase.from("wallets")
+src/components/Account/DashboardSection.jsx:344:        supabase.from("posts").select("*",{count:"exact",head:true}).eq("user_id",uid).is("deleted_at",null),
+src/components/Account/DashboardSection.jsx:347:        supabase.from("posts").select("views,likes,comments_count,shares").eq("user_id",uid).is("deleted_at",null),
+src/components/Account/AccountView.jsx:220:        .from("profiles")
+src/components/Account/SecuritySection.jsx:159:    .from("wallets")
+src/components/Account/SecuritySection.jsx:237:        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+src/components/Account/SecuritySection.jsx:239:        supabase.from("wallets").select("withdrawal_pin_hash,pin_length,recovery_phrase_encrypted").eq("user_id", userId).maybeSingle(),
+src/components/Account/SecuritySection.jsx:280:        await supabase.from("profiles")
+src/components/Account/SecuritySection.jsx:312:        await supabase.from("profiles")
+src/components/Account/SecuritySection.jsx:376:      await supabase.from("profiles")
+src/components/Account/SecuritySection.jsx:414:      await supabase.from("profiles")
+src/components/Account/CommentsViewer.jsx:209:            .from("posts")
+src/components/Account/SettingsSection.jsx:253:        supabase.from("profiles")
+src/components/Account/ProfileEditModal.jsx:127:          .from('profiles').select('id')
+src/components/Account/ProfileSection.jsx:254:        .from("profiles")
+src/components/Account/ProfileSection.jsx:301:        supabase.from("wallets").select("xev_tokens, engagement_points").eq("user_id", userId).maybeSingle(),
+src/components/Account/ProfileSection.jsx:304:        supabase.from("posts").select("*", { count:"exact", head:true }).eq("user_id", userId).is("deleted_at", null),
+src/components/Account/ProfileSection.jsx:307:        supabase.from("posts").select("views").eq("user_id", userId).is("deleted_at", null),
+src/components/Modals/SavedContentModal.jsx:49:                const { data } = await supabase.from("posts").select("*, profiles(*)").eq("id", s.content_id).single();
+src/components/Modals/PinSetupModal.jsx:92:          .from("wallets")
+src/components/Modals/PinSetupModal.jsx:117:        .from("wallets")
+src/components/Modals/PinSetupModal.jsx:144:        .from("wallets")
+src/components/Modals/RecoveryPhraseModal.jsx:158:        .from("wallets")
+src/components/Modals/RecoveryPhraseModal.jsx:194:        .from("wallets")
+src/components/Modals/RecoveryPhraseModal.jsx:285:    await supabase.from("wallets")
+src/components/Modals/ShareModal.jsx:115:          .from("profiles")
+src/components/Modals/UserProfileModal.jsx:335:        .from("profiles")
+src/components/Modals/UserProfileModal.jsx:381:          supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", targetId).is("deleted_at", null),
+src/components/Modals/UserProfileModal.jsx:424:          .from("posts")
+src/components/Auth/PaywallGate.jsx:370:      .from("profiles")
+src/components/Auth/PaywallGate.jsx:1809:          .from("profiles")
+src/components/Auth/AuthWall.jsx:701:      .from("profiles")
+src/components/Auth/AuthContext.jsx:422:          .from("profiles")
+src/components/Auth/AddAccountOverlay.jsx:63:      .from("profiles")
+src/components/Messages/UserSearchModal.jsx:35:          .from("profiles")
+src/components/Messages/CallsView.jsx:176:          .from("profiles")
+src/components/Analytics/AnalyticsView.jsx:210:        supabase.from("wallets").select("xev_tokens, engagement_points").eq("user_id", uid).maybeSingle(),
+src/components/Analytics/AnalyticsView.jsx:214:        supabase.from("posts").select("*", { count:"exact", head:true }).eq("user_id",uid).is("deleted_at",null),
+src/components/Analytics/AnalyticsView.jsx:217:        supabase.from("posts").select("views, created_at").eq("user_id",uid).is("deleted_at",null),
+src/components/Rewards/RewardsView.jsx:461:      const { data: posts } = await supabase.from("posts").select("likes, comments_count")
+
+=== high-risk files ===
+src/services/wallet/__tests__/opayService.test.js:19:import * as opayService from '../opayService';
+src/services/wallet/__tests__/opayService.test.js:27:  const res = await opayService.buyAirtime({ userId: 'u1', network: 'mtn', phone: '08012345678', amount: 200 });
+src/services/wallet/__tests__/opayService.test.js:33:  const res = await opayService.buyAirtime({ userId: 'u1', network: 'mtn', phone: '08012345678', amount: 200 });
+src/services/wallet/web3PaymentService.js:1:// src/services/wallet/web3PaymentService.js
+src/services/wallet/web3PaymentService.js:100:export const web3PaymentService = {
+src/services/wallet/web3PaymentService.js:479:export default web3PaymentService;
+src/services/wallet/depositFundService.js:1:// src/services/wallet/depositFundService.js
+src/services/wallet/epService.js:20://    depositFundService pushes into via setEPServiceRate(rate).
+src/services/wallet/epService.js:199:// depositFundService calls setEPServiceRate(rate) after it fetches
+src/services/wallet/epService.js:206: * Called by depositFundService after it fetches a live USD/NGN rate.
+src/services/wallet/epService.js:209: * In depositFundService.js add this after getLiveUSDNGN() resolves:
+src/services/wallet/opayService.js:1:// src/services/wallet/opayService.js
+src/services/wallet/opayService.js:59:    console.error("[opayService] Withdrawal error:", e);
+src/services/wallet/opayService.js:112:    console.error("[opayService] Deposit error:", e);
+src/services/wallet/opayService.js:156:    console.error("[opayService] OPay withdrawal error:", e);
+src/services/wallet/opayService.js:214:    console.error("[opayService] Airtime error:", e);
+src/services/wallet/opayService.js:262:    console.error("[opayService] Data error:", e);
+src/services/wallet/opayService.js:319:    console.error("[opayService] Electricity error:", e);
+src/services/wallet/opayService.js:373:    console.error("[opayService] Cable error:", e);
+src/services/wallet/opayService.js:394:    console.error("[opayService] History fetch error:", e);
+src/services/wallet/opayService.js:410:    console.error("[opayService] Status fetch error:", e);
+src/services/wallet/opayService.js:416:export const opayService = {
+src/services/wallet/opayService.js:428:export default opayService;
+src/services/wallet/flutterwaveService.js:1:// src/services/wallet/flutterwaveService.js
+src/services/wallet/flutterwaveService.js:63:    console.error("[flutterwaveService] Deposit error:", e);
+src/services/wallet/flutterwaveService.js:85:    console.error("[flutterwaveService] History fetch error:", e);
+src/services/wallet/flutterwaveService.js:102:    console.error("[flutterwaveService] Status fetch error:", e);
+src/services/wallet/flutterwaveService.js:117:      console.warn("[flutterwaveService] Payment not successful:", webhookData);
+src/services/wallet/flutterwaveService.js:171:    console.error("[flutterwaveService] Webhook error:", e);
+src/services/wallet/flutterwaveService.js:177:export const flutterwaveService = {
+src/services/wallet/flutterwaveService.js:184:export default flutterwaveService;
+src/services/wallet/withdrawServiceV2.js:1:// src/services/wallet/withdrawServiceV2.js
+src/services/wallet/withdrawServiceV2.js:34:import { getLiveUSDNGN, getCachedUSDNGN } from "./depositFundService";
+src/services/wallet/withdrawService.js:31:import { getLiveUSDNGN, getCachedUSDNGN }    from "./depositFundService";
+src/components/wallet/tabs/WithdrawTab.jsx:35:} from "../../../services/wallet/withdrawServiceV2";
+src/components/wallet/tabs/DepositTab.jsx:26:} from "../../../services/wallet/depositFundService";
+src/components/wallet/tabs/SendTab.jsx:18:import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
+src/components/wallet/tabs/SwapTab.jsx:13:import { verifyWithdrawalPin } from "../../../services/wallet/withdrawServiceV2";
+src/components/wallet/paywave/tabs/BillsTab.jsx:10:import { opayService } from "../../../../services/wallet/opayService";
+src/components/wallet/paywave/tabs/BillsTab.jsx:14:import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
+src/components/wallet/paywave/tabs/BillsTab.jsx:126:      const res = await opayService.buyAirtime({
+src/components/wallet/paywave/tabs/BillsTab.jsx:302:      const res = await opayService.buyData({
+src/components/wallet/paywave/tabs/BillsTab.jsx:466:      const res = await opayService.buyElectricity({
+src/components/wallet/paywave/tabs/BillsTab.jsx:631:      const res = await opayService.buyCable({
+src/components/wallet/paywave/tabs/WithdrawTab.jsx:10:import { opayService } from "../../../../services/wallet/opayService";
+src/components/wallet/paywave/tabs/WithdrawTab.jsx:11:import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
+src/components/wallet/paywave/tabs/WithdrawTab.jsx:131:      const result = await opayService.withdrawToBank({
+src/components/wallet/paywave/tabs/WithdrawTab.jsx:163:      const result = await opayService.verifyAccountName({
+src/components/wallet/paywave/tabs/WithdrawTab.jsx:343:      const result = await opayService.withdrawToOPayWallet({
+src/components/wallet/paywave/tabs/DepositTab.jsx:10:import { opayService } from "../../../../services/wallet/opayService";
+src/components/wallet/paywave/tabs/DepositTab.jsx:11:import { flutterwaveService } from "../../../../services/wallet/flutterwaveService";
+src/components/wallet/paywave/tabs/DepositTab.jsx:219:      const result = await opayService.depositViaOPayWallet({
+src/components/wallet/paywave/tabs/DepositTab.jsx:347:      const result = await flutterwaveService.depositViaFlutterwave({
+src/components/wallet/paywave/tabs/FinanceTab.jsx:12:import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";
+src/components/wallet/paywave/tabs/WalletTab.jsx:14:import { verifyWithdrawalPin } from "../../../../services/wallet/withdrawServiceV2";

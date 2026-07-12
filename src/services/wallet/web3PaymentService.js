@@ -32,6 +32,9 @@
 
 import { supabase } from "../config/supabase";
 import { getSupabaseProjectUrl } from "../supabase/projectConfig";
+import { getSupabaseClient } from "../supabase/multiClient";
+
+const walletClient = getSupabaseClient("wallet");
 
 // ── Constants ────────────────────────────────────────────────────────────────
 export const SUPPORTED_CHAINS = {

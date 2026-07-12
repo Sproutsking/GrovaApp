@@ -2,8 +2,10 @@
 // OPay Business integration: Direct API calls (no local RPC stubs)
 import { supabase } from "../config/supabase";
 import { getSupabaseProjectUrl } from "../supabase/projectConfig";
+import { getSupabaseClient } from "../supabase/multiClient";
 
 const SUPABASE_URL = getSupabaseProjectUrl("wallet");
+const walletClient = getSupabaseClient("wallet");
 
 function cleanPhone(v) {
   if (!v) return null;
@@ -170,7 +172,7 @@ export async function buyAirtime({ userId, network, phone, amount }) {
 
   try {
     // Always call the RPC first to perform the purchase.
-    const { data, error } = await supabase.rpc("opay_buy_airtime", {
+    const { data, error } = await walletClient.rpc("opay_buy_airtime", {
       p_user_id: userId,
       p_network: network,
       p_phone: p,
@@ -182,7 +184,7 @@ export async function buyAirtime({ userId, network, phone, amount }) {
     // Try persisting a transaction record if the DB API is available.
     try {
       if (supabase && typeof supabase.from === "function") {
-        const maybeTx = supabase.from("paywave_transactions");
+        const maybeTx = walletClient.from("paywave_transactions");
         if (maybeTx && typeof maybeTx.insert === "function") {
           const { data: txData, error: txError } = await maybeTx
             .insert({
@@ -223,7 +225,7 @@ export async function buyData({ userId, network, phone, planId, amount }) {
     return { success: false, error: "Invalid parameters" };
 
   try {
-    const { data: txData, error: txError } = await supabase
+    const { data: txData, error: txError } = await walletClient
       .from("paywave_transactions")
       .insert({
         user_id: userId,
@@ -242,7 +244,7 @@ export async function buyData({ userId, network, phone, planId, amount }) {
 
     if (txError || !txData) throw new Error("Transaction record failed");
 
-    const { data, error } = await supabase.rpc("opay_buy_data", {
+    const { data, error } = await walletClient.rpc("opay_buy_data", {
       p_user_id: userId,
       p_network: network,
       p_phone: p,
@@ -252,7 +254,7 @@ export async function buyData({ userId, network, phone, planId, amount }) {
 
     if (error) throw new Error(error.message);
 
-    await supabase
+    await walletClient
       .from("paywave_transactions")
       .update({ status: "completed", completed_at: new Date().toISOString() })
       .eq("id", txData.id);
@@ -278,7 +280,7 @@ export async function buyElectricity({
     return { success: false, error: "Invalid parameters" };
 
   try {
-    const { data: txData, error: txError } = await supabase
+    const { data: txData, error: txError } = await walletClient
       .from("paywave_transactions")
       .insert({
         user_id: userId,
@@ -298,7 +300,7 @@ export async function buyElectricity({
 
     if (txError || !txData) throw new Error("Transaction record failed");
 
-    const { data, error } = await supabase.rpc("opay_buy_electricity", {
+    const { data, error } = await walletClient.rpc("opay_buy_electricity", {
       p_user_id: userId,
       p_provider: provider,
       p_meter_number: m,
@@ -309,7 +311,7 @@ export async function buyElectricity({
 
     if (error) throw new Error(error.message);
 
-    await supabase
+    await walletClient
       .from("paywave_transactions")
       .update({ status: "completed", completed_at: new Date().toISOString() })
       .eq("id", txData.id);
@@ -334,7 +336,7 @@ export async function buyCable({
     return { success: false, error: "Invalid parameters" };
 
   try {
-    const { data: txData, error: txError } = await supabase
+    const { data: txData, error: txError } = await walletClient
       .from("paywave_transactions")
       .insert({
         user_id: userId,
@@ -353,7 +355,7 @@ export async function buyCable({
 
     if (txError || !txData) throw new Error("Transaction record failed");
 
-    const { data, error } = await supabase.rpc("opay_buy_cable", {
+    const { data, error } = await walletClient.rpc("opay_buy_cable", {
       p_user_id: userId,
       p_provider: provider,
       p_smart_card: s,
@@ -363,7 +365,7 @@ export async function buyCable({
 
     if (error) throw new Error(error.message);
 
-    await supabase
+    await walletClient
       .from("paywave_transactions")
       .update({ status: "completed", completed_at: new Date().toISOString() })
       .eq("id", txData.id);
@@ -381,7 +383,7 @@ export async function buyCable({
 
 export async function getTransactionHistory(userId, limit = 50) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await walletClient
       .from("paywave_transactions")
       .select("*")
       .eq("user_id", userId)
@@ -398,7 +400,7 @@ export async function getTransactionHistory(userId, limit = 50) {
 
 export async function getTransactionStatus(transactionId) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await walletClient
       .from("paywave_transactions")
       .select("*")
       .eq("id", transactionId)
