@@ -281,120 +281,31 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
     };
   }, []);
 
-  // ── Listen for postMessage from popup ────────────────────────────────────
+  // ── Listen for auth callback (simplified) ────────────────────────────────
   useEffect(() => {
-    const onMessage = async (event) => {
-      // Security: only accept messages from our own origin
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "XEEVIA_ACCOUNT_ADDED") return;
-
-      clearInterval(pollRef.current);
-      if (popupRef.current && !popupRef.current.closed) popupRef.current.close();
-
-      const posted = event.data.user;
-      if (!posted?.id) {
-        setErrorMsg("Account data missing. Please try again.");
-        setStep("error");
-        return;
-      }
-
-      // Reject if this is the currently active user
-      if (posted.id === currentUserId) {
-        setErrorMsg("That's already your active account.");
-        setStep("error");
-        return;
-      }
-
-      // Enrich with fresh profile data from Supabase (safe — uses public client)
-      const profile = await fetchMinimalProfile(posted.id);
-
-      const entry = {
-        id:       posted.id,
-        email:    posted.email || "",
-        fullName: profile?.full_name  || posted.fullName || "User",
-        username: profile?.username   || posted.username || "user",
-        avatar:   profile?.avatar_id
-                    ? null  // AvatarDropdown will resolve via mediaUrlService
-                    : posted.avatar || null,
-        avatarId: profile?.avatar_id || null,
-        verified: profile?.verified  || false,
-        isPro:    profile?.is_pro    || false,
-        provider: posted.provider    || "oauth",
-        savedAt:  Date.now(),
-      };
-
-      const existing = loadAccounts();
-      if (existing.find(a => a.id === entry.id)) {
-        // Already saved — just update it
-        const updated = existing.map(a => a.id === entry.id ? { ...a, ...entry } : a);
-        saveAccountsToStorage(updated);
-        setAccounts(updated);
-      } else {
-        const updated = [...existing, entry];
-        saveAccountsToStorage(updated);
-        setAccounts(updated);
-      }
-
-      if (!mountedRef.current) return;
-      setSuccessEntry(entry);
-      setStep("success");
-    };
-
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    // Callback URL handler will manage auth flow
+    // Component just tracks state
   }, [currentUserId]);
 
-  // ── Open popup ────────────────────────────────────────────────────────────
+  // ── Direct OAuth (no popup) ────────────────────────────────────────────────
   const openPopup = useCallback((provider) => {
     if (atMax) return;
-
-    // Position popup centered on screen
-    const left = Math.round(window.screenX + (window.outerWidth  - POPUP_W) / 2);
-    const top  = Math.round(window.screenY + (window.outerHeight - POPUP_H) / 2);
-    const features = `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`;
-
-    // Open blank popup first (must be synchronous to avoid popup blockers)
-    const popup = window.open("about:blank", "xeevia_add_account", features);
-
-    if (!popup || popup.closed) {
-      setErrorMsg("Popup was blocked. Please allow popups for this site and try again.");
-      setStep("error");
-      return;
-    }
-
-    popupRef.current = popup;
     setActiveProvider(provider.id);
     setStep("waiting");
-
-    // Inject the auth HTML into the popup
-    const html = buildPopupHTML(
-      provider.id,
-      SUPA_URL,
-      SUPA_KEY,
-      window.location.origin,
-    );
-
-    popup.document.open();
-    popup.document.write(html);
-    popup.document.close();
-
-    // Poll for popup closure so we can show an error if user cancelled
-    clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => {
-      if (!popup || popup.closed) {
-        clearInterval(pollRef.current);
-        if (!mountedRef.current) return;
-        // If we're still in "waiting" state, the user cancelled
-        setStep(prev => {
-          if (prev === "waiting") {
-            setErrorMsg("Sign-in was cancelled or the popup closed.");
-            return "error";
-          }
-          return prev;
-        });
-      }
-    }, 600);
-  }, [atMax, SUPA_URL, SUPA_KEY]);
+    
+    // Direct OAuth redirect — no popup
+    supabase.auth.signInWithOAuth({
+      provider: provider.id,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        skipBrowserRedirect: false,
+      },
+    }).catch((err) => {
+      if (!mountedRef.current) return;
+      setErrorMsg(err.message || "OAuth failed");
+      setStep("error");
+    });
+  }, [atMax]);
 
   // ── Cancel / retry ────────────────────────────────────────────────────────
   const cancel = useCallback(() => {
