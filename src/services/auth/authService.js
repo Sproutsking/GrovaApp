@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectAnonKey, getSupabaseProjectUrl } from "../supabase/projectConfig";
 
 class AuthService {
   async getSession() {
@@ -96,8 +97,8 @@ class AuthService {
   async _signInWithPopup(provider, options) {
     return new Promise((resolve, reject) => {
       try {
-        const SUPA_URL = process.env.REACT_APP_SUPABASE_URL || "";
-        const SUPA_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
+        const SUPA_URL = getSupabaseProjectUrl("identity") || window.__SUPABASE_URL__ || "";
+        const SUPA_KEY = getSupabaseProjectAnonKey("identity") || "";
         const POPUP_W = 560;
         const POPUP_H = 700;
 

@@ -17,12 +17,13 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectFunctionUrl } from "../supabase/projectConfig";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 // CRA uses process.env.REACT_APP_* (not import.meta.env.VITE_*)
 const STREAM_FUNCTION_URL =
   process.env.REACT_APP_SUPABASE_STREAM_FUNCTION_URL ||
-  `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/stream`;
+  getSupabaseProjectFunctionUrl("core", "stream");
 
 // Heartbeat interval (ms) — host pings every 30s to stay "live"
 const HEARTBEAT_INTERVAL = 30_000;

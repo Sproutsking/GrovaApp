@@ -1,5 +1,6 @@
 import React from "react";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import { getSupabaseProjectUrl } from "../../services/supabase/projectConfig";
 
 const TIER = { CRITICAL: 0, URGENT: 1, BATCH: 2 };
 const _SLOTS = { [TIER.CRITICAL]: 12, [TIER.URGENT]: 8, [TIER.BATCH]: 4 };
@@ -100,7 +101,7 @@ function buildAllCandidates(id, opts = {}) {
   }
 
   if (clean.startsWith("http") && !urls.includes(clean)) urls.push(clean);
-  const supa = process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supa = getSupabaseProjectUrl("core");
   if (supa && !clean.startsWith("http")) {
     const u5 = `${supa}/storage/v1/object/public/posts/${clean}`;
     if (!urls.includes(u5)) urls.push(u5);

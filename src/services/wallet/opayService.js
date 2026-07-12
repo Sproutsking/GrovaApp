@@ -1,8 +1,9 @@
 // src/services/wallet/opayService.js
 // OPay Business integration: Direct API calls (no local RPC stubs)
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectUrl } from "../supabase/projectConfig";
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_URL = getSupabaseProjectUrl("wallet");
 
 function cleanPhone(v) {
   if (!v) return null;

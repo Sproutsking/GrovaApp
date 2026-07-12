@@ -1,8 +1,9 @@
 // src/services/wallet/flutterwaveService.js
 // Flutterwave integration for Pan-Africa deposits (mobile money + cards)
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectUrl } from "../supabase/projectConfig";
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+const SUPABASE_URL = getSupabaseProjectUrl("wallet");
 
 function cleanNumber(v) {
   const n = parseFloat(String(v).replace(/,/g, ""));

@@ -33,6 +33,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectFunctionUrl } from "../supabase/projectConfig";
 import { RSS_SOURCES } from "./clientNewsFetcher";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ async function fetchRss(url) {
     url,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`,
+    `${getSupabaseProjectFunctionUrl("core", "proxy-fetch")}?url=${encodeURIComponent(url)}`,
   ];
   for (const candidate of candidates) {
     try {
@@ -184,7 +185,7 @@ async function fetchYtRss(channelId) {
   const candidates = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(ytUrl)}`,
     `https://corsproxy.io/?${encodeURIComponent(ytUrl)}`,
-    `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(ytUrl)}`,
+    `${getSupabaseProjectFunctionUrl("core", "proxy-fetch")}?url=${encodeURIComponent(ytUrl)}`,
   ];
   for (const candidate of candidates) {
     try {

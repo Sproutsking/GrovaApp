@@ -102,7 +102,7 @@ function buildAllCandidates(id, opts = {}) {
     if (!urls.includes(u3)) urls.push(u3);
   }
   if (clean.startsWith("http") && !urls.includes(clean)) urls.push(clean);
-  const supa = process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supa = getSupabaseProjectUrl("core");
   if (supa && !clean.startsWith("http")) {
     const u5 = `${supa}/storage/v1/object/public/posts/${clean}`;
     if (!urls.includes(u5)) urls.push(u5);

@@ -267,8 +267,8 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
   const atMax = accounts.length >= MAX_ACCOUNTS;
 
   // ── Supabase config (read from env) ──────────────────────────────────────
-  const SUPA_URL = process.env.REACT_APP_SUPABASE_URL || "";
-  const SUPA_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
+  const SUPA_URL = getSupabaseProjectUrl("identity") || "";
+  const SUPA_KEY = getSupabaseProjectAnonKey("identity") || "";
 
   useEffect(() => {
     mountedRef.current = true;

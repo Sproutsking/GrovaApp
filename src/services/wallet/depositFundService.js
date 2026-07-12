@@ -39,6 +39,7 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectUrl } from "../supabase/projectConfig";
 
 // ─── Economy ──────────────────────────────────────────────────────────────────
 export const MIN_DEPOSIT = 100;   // NGN
@@ -305,7 +306,7 @@ export async function depositPaystackOpen({
   // ── 3. Call edge function to register intent ──────────────────────────────
   //       Edge function returns: { reference, creditAmount, amountKobo, paystackKey }
   //       paystackKey is read from Deno.env on the server — always available.
-  const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+  const SUPABASE_URL = getSupabaseProjectUrl("wallet");
   let initResult;
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/deposit-paystack-init`, {
@@ -431,7 +432,7 @@ export async function depositCryptoVerify({ userId, txHash, tokenId, network, na
   const rate   = await getLiveUSDNGN();
   const amtUSD = parseFloat(((parseFloat(nairaEquivalent) || 0) / rate).toFixed(4));
 
-  const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+  const SUPABASE_URL = getSupabaseProjectUrl("wallet");
   const res = await fetch(`${SUPABASE_URL}/functions/v1/web3-verify-payment`, {
     method:  "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

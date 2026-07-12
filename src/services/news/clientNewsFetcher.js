@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectFunctionUrl } from "../supabase/projectConfig";
 
 // ── 80+ RSS Sources ───────────────────────────────────────────────────────────
 export const RSS_SOURCES = [
@@ -615,7 +616,7 @@ async function fetchXml(url) {
   if (fallback) return fallback;
 
   return tryFetch(
-    `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`,
+    `${getSupabaseProjectFunctionUrl("core", "proxy-fetch")}?url=${encodeURIComponent(url)}`,
   );
 }
 

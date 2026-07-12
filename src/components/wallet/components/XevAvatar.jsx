@@ -15,20 +15,31 @@
 // ══════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef } from "react";
+import { getSupabaseProjectUrl } from "../../../services/supabase/projectConfig";
 
 // ── Supabase base URL — read from env or window global ───────────
 const getSupabaseUrl = () => {
   try {
+    const helperUrl = getSupabaseProjectUrl("core");
+    if (helperUrl) return helperUrl;
+
     if (typeof window !== "undefined") {
-      if (window.__SUPABASE_URL__)                return window.__SUPABASE_URL__;
-      if (window._env_?.REACT_APP_SUPABASE_URL)   return window._env_.REACT_APP_SUPABASE_URL;
-      if (window._env_?.NEXT_PUBLIC_SUPABASE_URL) return window._env_.NEXT_PUBLIC_SUPABASE_URL;
+      const runtimeEnv = window._env_ || {};
+      if (runtimeEnv.CORE_SUPABASE_URL) return runtimeEnv.CORE_SUPABASE_URL;
+      if (runtimeEnv.IDENTITY_SUPABASE_URL) return runtimeEnv.IDENTITY_SUPABASE_URL;
+      if (runtimeEnv.REACT_APP_CORE_SUPABASE_URL) return runtimeEnv.REACT_APP_CORE_SUPABASE_URL;
+      if (runtimeEnv.REACT_APP_SUPABASE_URL) return runtimeEnv.REACT_APP_SUPABASE_URL;
+      if (window.__SUPABASE_URL__) return window.__SUPABASE_URL__;
+      if (runtimeEnv.NEXT_PUBLIC_SUPABASE_URL) return runtimeEnv.NEXT_PUBLIC_SUPABASE_URL;
     }
     if (typeof process !== "undefined" && process.env) {
       return (
-        process.env.REACT_APP_SUPABASE_URL   ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL  ||
-        process.env.SUPABASE_URL             ||
+        process.env.CORE_SUPABASE_URL ||
+        process.env.IDENTITY_SUPABASE_URL ||
+        process.env.REACT_APP_CORE_SUPABASE_URL ||
+        process.env.REACT_APP_SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
         ""
       );
     }

@@ -22,7 +22,10 @@
 // [1] Use the shared singleton — same instance that holds the user's session
 // Path: src/services/auth/paymentService.js → src/services/config/supabase.js
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectUrl } from "../supabase/projectConfig";
 export { supabase };
+
+const WALLET_SUPABASE_URL = getSupabaseProjectUrl("wallet");
 
 // ── getAuthToken: robust session fetch with retry ─────────────────────────────
 // Supabase session may not be ready immediately after /auth/callback# redirect.
@@ -599,7 +602,7 @@ export async function requestWalletPayment({
 
   step("confirming", "Verifying on blockchain...");
   var verifyResp = await fetch(
-    process.env.REACT_APP_SUPABASE_URL + "/functions/v1/web3-verify-payment",
+    WALLET_SUPABASE_URL + "/functions/v1/web3-verify-payment",
     {
       method: "POST",
       headers: {
@@ -733,7 +736,7 @@ export async function requestSolanaPayment({
   var solToken = await getAuthToken();
 
   var solResp = await fetch(
-    process.env.REACT_APP_SUPABASE_URL + "/functions/v1/web3-verify-payment",
+    WALLET_SUPABASE_URL + "/functions/v1/web3-verify-payment",
     {
       method: "POST",
       headers: {
@@ -872,7 +875,7 @@ export async function requestCardanoPayment({ productId, amountUSD, onStep }) {
   var adaToken = await getAuthToken();
 
   var adaResp = await fetch(
-    process.env.REACT_APP_SUPABASE_URL + "/functions/v1/web3-verify-payment",
+    WALLET_SUPABASE_URL + "/functions/v1/web3-verify-payment",
     {
       method: "POST",
       headers: {
@@ -925,7 +928,7 @@ export async function verifyWeb3Payment({
   if (inviteCodeId) body.inviteCodeId = inviteCodeId;
 
   var resp = await fetch(
-    process.env.REACT_APP_SUPABASE_URL + "/functions/v1/web3-verify-payment",
+    WALLET_SUPABASE_URL + "/functions/v1/web3-verify-payment",
     {
       method: "POST",
       headers: {
@@ -972,8 +975,7 @@ export async function createPaystackTransaction({
   if (inviteCodeId) body.invite_code_id = inviteCodeId;
 
   var resp = await fetch(
-    process.env.REACT_APP_SUPABASE_URL +
-      "/functions/v1/paystack-create-transaction",
+    WALLET_SUPABASE_URL + "/functions/v1/paystack-create-transaction",
     {
       method: "POST",
       headers: {
@@ -1012,7 +1014,7 @@ export async function activateFreeCode({ inviteCodeId, code, productId }) {
     : { code: code, productId: productId, idempotencyKey: idempotencyKey };
 
   var resp = await fetch(
-    process.env.REACT_APP_SUPABASE_URL + "/functions/v1/activate-free-code",
+    WALLET_SUPABASE_URL + "/functions/v1/activate-free-code",
     {
       method: "POST",
       headers: {

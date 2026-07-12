@@ -32,6 +32,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectAnonKey, getSupabaseProjectUrl } from "../supabase/projectConfig";
 
 const POPUP_W = 520;
 const POPUP_H = 620;
@@ -337,8 +338,8 @@ class SocialConnectService {
 
   // ── Build popup HTML for the OAuth link flow ──────────────────────────────
   _buildLinkPopupHTML(platform, config) {
-    const SUPA_URL = process.env.REACT_APP_SUPABASE_URL || "";
-    const SUPA_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
+    const SUPA_URL = getSupabaseProjectUrl("identity") || "";
+    const SUPA_KEY = getSupabaseProjectAnonKey("identity") || "";
     const origin   = window.location.origin;
     const callbackUrl = `${origin}/auth/social-callback`;
 

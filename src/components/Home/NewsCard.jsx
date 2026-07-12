@@ -14,6 +14,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import { getSupabaseProjectFunctionUrl } from "../../services/supabase/projectConfig";
 import {
   ExternalLink,
   Globe,
@@ -188,7 +189,7 @@ const PROXIES = [
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
+  (u) => `${getSupabaseProjectFunctionUrl("core", "proxy-fetch")}?url=${encodeURIComponent(u)}`,
 ];
 
 async function fetchArticleText(url) {

@@ -220,9 +220,7 @@ export default function BeneficiaryList({ userId, onSelect, onViewAll, currentUs
                 author:          b.fullName  || b.full_name || b.username,
                 full_name:       b.fullName  || b.full_name,
                 username:        b.username,
-                avatar:          (b.avatarMeta || b.avatar_metadata)?.publicUrl || (b.avatarMeta || b.avatar_metadata)?.url ||
-                                 (b.avatarId || b.avatar_id ? `${(typeof window !== 'undefined' && window.__SUPABASE_URL__) || ''}/storage/v1/object/public/avatars/${b.avatarId || b.avatar_id}` : null) ||
-                                 null,
+                avatar:          resolveAvatarUrl(b.avatarId || b.avatar_id, b.avatarMeta || b.avatar_metadata, b.avatar_url || b.avatarUrl) || null,
                   avatar_id:       b.avatarId  || b.avatar_id,
                 avatar_metadata: b.avatarMeta|| b.avatar_metadata,
                 verified:        b.verified  || false,

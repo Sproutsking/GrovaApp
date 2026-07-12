@@ -10,6 +10,7 @@ import {
 import BalanceCard from "../components/BalanceCard";
 import { useCurrency } from "../../../contexts/CurrencyContext";
 import ProfilePreview from "../../Shared/ProfilePreview";
+import { resolveAvatarUrl } from "./XevAvatar";
 import { supabase } from "../../../services/config/supabase";
 
 const profileCache = {};
@@ -25,7 +26,7 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
     if (profileCache[cp.username]) { setProfile(profileCache[cp.username]); return; }
     supabase.from("profiles").select("id,username,full_name,avatar_id,avatar_metadata,verified").eq("username", cp.username).single().then(({ data }) => {
       if (data) {
-        const full = { ...data, userId: data.id, author: data.full_name || data.username, avatar: data.avatar_metadata?.publicUrl || data.avatar_metadata?.url || (data.avatar_id ? `${process.env.REACT_APP_SUPABASE_URL || ""}/storage/v1/object/public/avatars/${data.avatar_id}` : null) || null };
+        const full = { ...data, userId: data.id, author: data.full_name || data.username, avatar: resolveAvatarUrl(data.avatar_id, data.avatar_metadata, data.avatar_url) || null };
         profileCache[cp.username] = full;
         setProfile(full);
       }

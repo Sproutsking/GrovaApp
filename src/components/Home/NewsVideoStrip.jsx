@@ -25,6 +25,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
+import { getSupabaseProjectFunctionUrl } from "../../services/supabase/projectConfig";
 import {
   X, ChevronLeft, ChevronRight, Volume2, VolumeX,
   ExternalLink, Play, Radio,
@@ -128,7 +129,7 @@ const PROXIES = [
   },
   {
     name: "supabase",
-    build: (u) => `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(u)}`,
+    build: (u) => `${getSupabaseProjectFunctionUrl("core", "proxy-fetch")}?url=${encodeURIComponent(u)}`,
     parse: async (res) => parseAtomXml(await res.text()),
   },
 ];

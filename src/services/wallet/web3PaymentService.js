@@ -31,6 +31,7 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 import { supabase } from "../config/supabase";
+import { getSupabaseProjectUrl } from "../supabase/projectConfig";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 export const SUPPORTED_CHAINS = {
@@ -124,7 +125,7 @@ export const web3PaymentService = {
       if (!token) throw new Error("Not authenticated");
 
       // Call edge function to create payment session
-      const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+      const SUPABASE_URL = getSupabaseProjectUrl("wallet");
       const result = await safeFetch(
         `${SUPABASE_URL}/functions/v1/web3-initiate-payment`,
         {
@@ -184,7 +185,7 @@ export const web3PaymentService = {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+      const SUPABASE_URL = getSupabaseProjectUrl("wallet");
       const result = await safeFetch(
         `${SUPABASE_URL}/functions/v1/web3-submit-payment`,
         {
@@ -235,7 +236,7 @@ export const web3PaymentService = {
         const token = session?.access_token;
         if (!token) throw new Error("Not authenticated");
 
-        const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+        const SUPABASE_URL = getSupabaseProjectUrl("wallet");
         const result = await safeFetch(
           `${SUPABASE_URL}/functions/v1/web3-payment-status?paymentId=${paymentId}`,
           {
@@ -315,7 +316,7 @@ export const web3PaymentService = {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+      const SUPABASE_URL = getSupabaseProjectUrl("wallet");
       const result = await safeFetch(
         `${SUPABASE_URL}/functions/v1/web3-manual-deposit-info`,
         {
@@ -372,7 +373,7 @@ export const web3PaymentService = {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+      const SUPABASE_URL = getSupabaseProjectUrl("wallet");
       const result = await safeFetch(
         `${SUPABASE_URL}/functions/v1/web3-verify-payment`,
         {
@@ -460,7 +461,7 @@ export const web3PaymentService = {
       const token = session?.access_token;
       if (!token) return;
 
-      const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+      const SUPABASE_URL = getSupabaseProjectUrl("wallet");
       await fetch(`${SUPABASE_URL}/functions/v1/web3-cleanup-sessions`, {
         method: "POST",
         headers: {

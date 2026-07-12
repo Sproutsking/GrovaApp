@@ -36,16 +36,12 @@
 // ============================================================================
 
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseProjectConfig } from "../supabase/projectConfig";
 
-const identityUrl = process.env.IDENTITY_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || "";
-const identityAnon = process.env.IDENTITY_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || "";
-const coreUrl = process.env.CORE_SUPABASE_URL || identityUrl;
-const coreAnon = process.env.CORE_SUPABASE_ANON_KEY || identityAnon;
-const walletUrl = process.env.WALLET_SUPABASE_URL || identityUrl;
-const walletAnon = process.env.WALLET_SUPABASE_ANON_KEY || identityAnon;
+const { url: SUPABASE_URL, anonKey: SUPABASE_ANON } = getSupabaseProjectConfig("identity");
 
-const SUPABASE_URL = identityUrl;
-const SUPABASE_ANON = identityAnon;
+const { url: coreUrl, anonKey: coreAnon } = getSupabaseProjectConfig("core");
+const { url: walletUrl, anonKey: walletAnon } = getSupabaseProjectConfig("wallet");
 
 if (!SUPABASE_URL || !SUPABASE_ANON) {
   console.error(

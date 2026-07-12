@@ -44,6 +44,7 @@ import {
 import BalanceCard from "../components/BalanceCard";
 import { useCurrency } from "../../../contexts/CurrencyContext";
 import ProfilePreview from "../../Shared/ProfilePreview";
+import { resolveAvatarUrl } from "../components/XevAvatar";
 import { supabase } from "../../../services/config/supabase";
 
 // ── TxAvatar ─────────────────────────────────────────────────────
@@ -74,13 +75,11 @@ function TxAvatar({ cp, currentUser, dirClass, isPending, isReceived }) {
             userId: data.id,
             author: data.full_name || data.username,
             avatar:
-              data.avatar_metadata?.publicUrl ||
-              data.avatar_metadata?.url ||
-              data.avatar_metadata?.signedUrl ||
-              (data.avatar_id
-                ? `${process.env.REACT_APP_SUPABASE_URL || ""}/storage/v1/object/public/avatars/${data.avatar_id}`
-                : null) ||
-              null,
+              resolveAvatarUrl(
+                data.avatar_id,
+                data.avatar_metadata,
+                data.avatar_url,
+              ) || null,
           };
           profileCache[cp.username] = full;
           setProfile(full);

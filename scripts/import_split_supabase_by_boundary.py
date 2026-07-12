@@ -154,25 +154,25 @@ MINIMAL_TABLE_COLUMNS = {
             "updated_at",
         ],
         "admin_revenue_summary": [
-            "total_payments",
-            "total_revenue_usd",
-            "paystack_count",
-            "web3_count",
-            "paystack_usd",
-            "web3_usd",
-            "total_ep_issued",
+            "period_start",
+            "period_end",
+            "total_revenue",
+            "stripe_revenue",
+            "paystack_revenue",
+            "web3_revenue",
+            "transaction_count",
+            "user_count",
             "activated_users",
-            "paid_users",
-            "free_users",
-            "pending_users",
+            "created_at",
         ],
         "admin_user_stats": [
+            "total_users",
+            "active_users_today",
+            "active_users_week",
+            "total_transactions",
+            "total_volume_usd",
             "activated_users",
-            "paid_users",
-            "free_users",
-            "vip_users",
-            "pending_users",
-            "total_active_accounts",
+            "updated_at",
         ],
         "liquidity_config": [
             "id",
@@ -257,6 +257,18 @@ MINIMAL_TABLE_COLUMNS = {
 
 FIELD_ALIASES = {
     "wallet": {
+        "admin_revenue_summary": {
+            "total_payments": "transaction_count",
+            "total_revenue_usd": "total_revenue",
+            "paystack_count": "transaction_count",
+            "web3_count": "transaction_count",
+            "paystack_usd": "paystack_revenue",
+            "web3_usd": "web3_revenue",
+            "paid_users": "user_count",
+        },
+        "admin_user_stats": {
+            "total_active_accounts": "total_users",
+        },
         "paywave_fee_config": {
             "transaction_type": "fee_type",
             "fee_percentage": "percentage",
@@ -310,7 +322,21 @@ def table_priority(table_name: str) -> int:
     return PRIORITY_RANK.get(table_name, len(PRIORITY_TABLES))
 
 
+def apply_boundary_row_defaults(boundary: str, table_name: str, row: Dict[str, Any]) -> Dict[str, Any]:
+    if boundary != "wallet":
+        return row
+
+    if table_name == "admin_revenue_summary":
+        today = datetime.date.today().isoformat()
+        row.setdefault("period_start", today)
+        row.setdefault("period_end", today)
+
+    return row
+
+
 def trim_row_columns(boundary: str, table_name: str, row: Dict[str, Any]) -> Dict[str, Any]:
+    row = apply_boundary_row_defaults(boundary, table_name, row)
+
     table_columns = MINIMAL_TABLE_COLUMNS.get(boundary, {}).get(table_name)
     generated_columns = GENERATED_COLUMNS_BY_TABLE.get(table_name, set())
     aliases = FIELD_ALIASES.get(boundary, {}).get(table_name, {})

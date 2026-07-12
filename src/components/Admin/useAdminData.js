@@ -25,6 +25,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../services/config/supabase";
+import { getSupabaseProjectFunctionUrl } from "../../services/supabase/projectConfig";
 import { ROLE_PERMISSIONS } from "./permissions.js";
 
 let _override = null;
@@ -94,12 +95,9 @@ async function _revokeAuthSession(userId) {
       data: { session },
     } = await sb().auth.getSession();
     if (!session?.access_token) return false;
-    const supabaseUrl =
-      import.meta.env?.VITE_SUPABASE_URL ||
-      process.env?.REACT_APP_SUPABASE_URL ||
-      process.env?.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) return false;
-    const res = await fetch(`${supabaseUrl}/functions/v1/admin-revoke-user`, {
+    const adminRevokeUrl = getSupabaseProjectFunctionUrl("identity", "admin-revoke-user");
+    if (!adminRevokeUrl) return false;
+    const res = await fetch(adminRevokeUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

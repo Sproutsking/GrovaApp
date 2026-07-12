@@ -103,7 +103,7 @@ function buildImageUrl(id, opts = {}) {
   if (clean.startsWith("http")) out.push(clean);
 
   // Strategy 4: Supabase storage
-  const supa = process.env.REACT_APP_SUPABASE_URL;
+  const supa = getSupabaseProjectUrl("core");
   if (supa && !clean.startsWith("http"))
     out.push(`${supa}/storage/v1/object/public/posts/${clean}`);
 
