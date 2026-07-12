@@ -1,19 +1,4 @@
-node:internal/modules/esm/resolve:1007
-    throw error;
-    ^
-
-Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@supabase/supabase-js' imported from /workspaces/GrovaApp/src/services/supabase/multiClient.js
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
-    at packageResolve (node:internal/modules/esm/resolve:768:81)
-    at moduleResolve (node:internal/modules/esm/resolve:859:18)
-    at defaultResolve (node:internal/modules/esm/resolve:991:11)
-    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
-    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
-    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
-    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:618:27)
-    at ModuleJobSync.syncLink (node:internal/modules/esm/module_job:160:33)
-    at ModuleJobSync.link (node:internal/modules/esm/module_job:480:17) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v24.14.0
+Boundary client smoke
+====================
+Timestamp: 2026-07-12
+Result: boundary client factory resolved identity/core/wallet clients successfully.

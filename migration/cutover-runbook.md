@@ -1,24 +1,17 @@
-# Supabase split cutover runbook
+# Cutover runbook
 
-## Pre-checks
-1. Confirm the identity/core/wallet project refs are available.
-2. Confirm the required secrets are present in the target project secret store, not in the repository.
-3. Verify the migration branch builds locally.
-4. Run smoke checks against staging before production.
+## Preconditions
+1. Confirm the identity, core, and wallet projects are reachable with the matching service-role credentials.
+2. Confirm the edge functions are deployed to the correct project and the required secrets exist in CI secret storage.
+3. Run the smoke suite against the staging environment before production cutover.
 
 ## Cutover steps
-1. Deploy edge functions to the intended project.
-2. Push schema changes to staging first, then production.
-3. Switch runtime config to the per-boundary project URLs/anon keys.
-4. Run smoke tests for auth, profile, feed, and wallet flows.
+1. Deploy the latest edge functions to identity/core/wallet projects in sequence.
+2. Push any DB changes to a staging project first; only promote to production after smoke tests pass.
+3. Enable the new boundary-aware client wiring in the app build.
+4. Run the smoke checks and validate wallet, profile, and feed flows.
 
 ## Rollback
-- Revert runtime env to the previous identity/core/wallet URLs and anon keys.
-- Redeploy the previous edge function revision if necessary.
-- Re-enable the prior database schema state from backup if a destructive migration caused issues.
-
-## Smoke checks
-- Auth sign-in/sign-out/refresh
-- Profile create/read
-- Feed fetch
-- Wallet deposit/transaction confirmation
+- Revert the frontend build to the previous release.
+- Re-deploy the previous edge-function bundle to the affected project.
+- Restore the previous schema or use the latest backup if a database change needs to be rolled back.
