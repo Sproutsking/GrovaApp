@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.admin_revenue_summary (
   transaction_count integer NOT NULL DEFAULT 0,
   user_count integer NOT NULL DEFAULT 0,
   activated_users integer DEFAULT 0,
+  free_users integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT admin_revenue_summary_pkey PRIMARY KEY (id)
 );
@@ -42,6 +43,8 @@ CREATE TABLE IF NOT EXISTS public.admin_user_stats (
   active_users_week integer DEFAULT 0,
   total_transactions integer DEFAULT 0,
   total_volume_usd numeric DEFAULT 0,
+  activated_users integer DEFAULT 0,
+  free_users integer DEFAULT 0,
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT admin_user_stats_pkey PRIMARY KEY (id)
 );

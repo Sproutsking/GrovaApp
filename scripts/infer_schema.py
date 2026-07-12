@@ -5,6 +5,7 @@ Generate CREATE TABLE statements for each table.
 """
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
@@ -23,8 +24,8 @@ def infer_type_from_value(value: Any) -> str:
         # Check for UUID pattern
         if len(value) == 36 and value.count("-") == 4:
             return "UUID"
-        # Check for timestamp pattern
-        if value.endswith("Z") or value.endswith("+00:00") or "T" in value:
+        # Check for timestamp pattern with a stricter ISO/date matcher
+        if re.match(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?)?$|^\d{10}$|^\d{13}$", value):
             return "TIMESTAMP WITH TIME ZONE"
         # Default text
         if len(value) > 255:
