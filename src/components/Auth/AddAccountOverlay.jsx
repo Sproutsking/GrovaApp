@@ -1,38 +1,19 @@
 // ============================================================================
-// src/components/Auth/AddAccountOverlay.jsx — v2 WATER-FLOW
+// src/components/Auth/AddAccountOverlay.jsx — DIRECT OAUTH FLOW (NO POPUPS)
 // ============================================================================
 //
-// THE CORE PROBLEM WITH THE OLD APPROACH:
-//   signInWithOAuth() with skipBrowserRedirect:false does a FULL PAGE REDIRECT.
-//   This wipes the current Supabase session from memory. Even with
-//   scope:"local" signOut afterward, the main session was already gone.
-//   The "SIGNED_IN" listener inside this component was catching the MAIN
-//   user's re-auth after the redirect, not a second account.
-//
-// THE CORRECT APPROACH — POPUP WINDOW:
-//   1. Open a small popup window that does the OAuth flow independently.
-//   2. The popup completes auth in its OWN tab — main window session untouched.
-//   3. The popup posts its result (userId, email, name, avatar) back to the
-//      main window via window.postMessage.
-//   4. We fetch the minimal profile from Supabase using the posted userId.
-//   5. We save the account entry to localStorage WITHOUT ever touching the
-//      main window's Supabase session.
-//   6. Popup closes. Main session is exactly as it was.
-//
-// POPUP AUTH PAGE:
-//   This component opens: /auth/add-account?provider=google (or x, discord)
-//   That route renders <AddAccountCallback /> which:
-//     a. Calls supabase.auth.signInWithOAuth() in the popup context
-//     b. On SIGNED_IN, posts the user data to window.opener via postMessage
-//     c. Calls supabase.auth.signOut({scope:"local"}) in the popup only
-//     d. Closes itself
-//
-//   If your app doesn't have routing set up for this, see the INLINE POPUP
-//   approach below — we inject the callback HTML directly into the popup.
+// APPROACH — DIRECT REDIRECT:
+//   1. User clicks "Add another account" → picks a provider
+//   2. Direct OAuth redirect to provider (no popup, full page redirect)
+//   3. Provider redirects back to /auth/callback with session in URL hash
+//   4. AuthContext detects session and loads profile
+//   5. No popup windows, no postMessage complexity, no session loss
 //
 // SECURITY:
-//   postMessage is sent to window.location.origin only. The receiver
-//   validates the origin before trusting any message.
+//   Session tokens are exchanged via URL hash which:
+//   - Never goes to the server
+//   - Never exposed in network logs
+//   - Is cleaned from browser history by AuthContext
 //
 // ============================================================================
 
@@ -40,11 +21,10 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { X, UserPlus, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import { getSupabaseProjectUrl, getSupabaseProjectAnonKey } from "../../services/supabase/projectConfig";
 
 const MAX_ACCOUNTS = 3;
 const ACCOUNTS_KEY = "grova_saved_accounts";
-const POPUP_W      = 520;
-const POPUP_H      = 640;
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 export const loadAccounts = () => {
@@ -68,120 +48,7 @@ async function fetchMinimalProfile(userId) {
   } catch { return null; }
 }
 
-// ── Build the popup callback HTML ─────────────────────────────────────────────
-// This is injected into a blank popup window. It runs completely independently
-// of the main window's Supabase session.
-function buildPopupHTML(provider, supabaseUrl, supabaseAnonKey, redirectOrigin) {
-  const callbackUrl = `${redirectOrigin}/auth/popup-callback`;
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Connecting account…</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{
-      background:#080808;
-      color:#e0e0e0;
-      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      display:flex;flex-direction:column;align-items:center;
-      justify-content:center;min-height:100vh;gap:16px;
-      text-align:center;padding:24px;
-    }
-    .logo{font-size:28px;font-weight:900;letter-spacing:-1px;
-      background:linear-gradient(135deg,#a3e635,#4d7c0f);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-      margin-bottom:4px;
-    }
-    .tagline{font-size:11px;color:#333;letter-spacing:3px;
-      text-transform:uppercase;margin-bottom:24px}
-    .spinner{
-      width:40px;height:40px;border-radius:50%;
-      border:3px solid rgba(163,230,53,.15);
-      border-top-color:#a3e635;
-      animation:spin .7s linear infinite;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .status{font-size:14px;color:#555;margin-top:8px}
-    .err{color:#ef4444;font-size:13px;max-width:300px;line-height:1.6}
-  </style>
-</head>
-<body>
-  <div class="logo">XEEVIA</div>
-  <div class="tagline">Adding account</div>
-  <div class="spinner" id="sp"></div>
-  <p class="status" id="msg">Connecting to ${provider}…</p>
-  <script type="module">
-    import{createClient}from'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-    const sb = createClient('${supabaseUrl}','${supabaseAnonKey}',{
-      auth:{persistSession:false,autoRefreshToken:false}
-    });
-
-    // Check if we already have a session (returned from OAuth redirect)
-    const{data:{session}}=await sb.auth.getSession();
-
-    if(session?.user){
-      await finish(session.user);
-    } else {
-      // Initiate OAuth — this popup will redirect to provider then back here
-      document.getElementById('msg').textContent='Opening ${provider} login…';
-      const{error}=await sb.auth.signInWithOAuth({
-        provider:'${provider}',
-        options:{
-          redirectTo:'${callbackUrl}',
-          skipBrowserRedirect:false,
-          ${provider === "google" ? "queryParams:{access_type:'offline',prompt:'select_account'}," : ""}
-          ${provider === "x" ? "scopes:'tweet.read users.read'," : ""}
-          ${provider === "discord" ? "scopes:'identify email'," : ""}
-          ${provider === "facebook" ? "scopes:'email,public_profile'," : ""}
-        }
-      });
-      if(error){
-        document.getElementById('sp').style.display='none';
-        document.getElementById('msg').className='err';
-        document.getElementById('msg').textContent='Error: '+error.message;
-        setTimeout(()=>window.close(),3000);
-      }
-    }
-
-    async function finish(user){
-      document.getElementById('msg').textContent='Saving account…';
-      // Sign out in THIS popup only — doesn't affect main window
-      await sb.auth.signOut({scope:'local'}).catch(()=>{});
-
-      const payload={
-        type:'XEEVIA_ACCOUNT_ADDED',
-        user:{
-          id:user.id,
-          email:user.email||'',
-          fullName:user.user_metadata?.full_name||user.user_metadata?.name||user.email?.split('@')[0]||'User',
-          username:user.user_metadata?.user_name||user.user_metadata?.preferred_username||user.email?.split('@')[0]||'user',
-          avatar:user.user_metadata?.avatar_url||user.user_metadata?.picture||null,
-          provider:user.app_metadata?.provider||'oauth',
-        }
-      };
-
-      // Post to main window
-      if(window.opener&&!window.opener.closed){
-        window.opener.postMessage(payload,'${redirectOrigin}');
-        document.getElementById('msg').textContent='Account linked! Closing…';
-        setTimeout(()=>window.close(),800);
-      } else {
-        // Opener was closed — store in localStorage as fallback
-        try{
-          const key='xeevia_pending_account';
-          localStorage.setItem(key,JSON.stringify(payload.user));
-        }catch(e){}
-        document.getElementById('msg').textContent='Done! You can close this window.';
-        setTimeout(()=>window.close(),1500);
-      }
-    }
-  </script>
-</body>
-</html>`;
-}
 
 // ── Provider definitions ──────────────────────────────────────────────────────
 const PROVIDERS = [
@@ -261,7 +128,6 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
   const [accounts,    setAccounts]    = useState(() => loadAccounts());
 
   const popupRef    = useRef(null);
-  const pollRef     = useRef(null);
   const mountedRef  = useRef(true);
 
   const atMax = accounts.length >= MAX_ACCOUNTS;
@@ -274,26 +140,22 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      clearInterval(pollRef.current);
-      if (popupRef.current && !popupRef.current.closed) {
-        popupRef.current.close();
-      }
     };
   }, []);
 
-  // ── Listen for auth callback (simplified) ────────────────────────────────
+  // ── Listen for auth callback ─────────────────────────────────────────────────
   useEffect(() => {
-    // Callback URL handler will manage auth flow
-    // Component just tracks state
+    // Direct OAuth redirect — main window transitions to callback URL
+    // No popups, no polling needed
   }, [currentUserId]);
 
-  // ── Direct OAuth (no popup) ────────────────────────────────────────────────
+  // ── Direct OAuth (no popup) ──────────────────────────────────────────────────
   const openPopup = useCallback((provider) => {
     if (atMax) return;
     setActiveProvider(provider.id);
     setStep("waiting");
     
-    // Direct OAuth redirect — no popup
+    // Direct OAuth redirect — no popup, full page redirect to provider then back to /auth/callback
     supabase.auth.signInWithOAuth({
       provider: provider.id,
       options: {
@@ -309,8 +171,6 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
 
   // ── Cancel / retry ────────────────────────────────────────────────────────
   const cancel = useCallback(() => {
-    clearInterval(pollRef.current);
-    if (popupRef.current && !popupRef.current.closed) popupRef.current.close();
     setStep("pick");
     setActiveProvider(null);
     setErrorMsg("");
