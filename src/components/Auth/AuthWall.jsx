@@ -1583,8 +1583,8 @@ function LoginView() {
       setProvider(p);
       setStatus("loading");
       
-      // Directly call provider without awaiting — no intermediate screen
-      authService.signInOAuth({ provider: p, usePopup: true }).catch((e) => {
+      // Direct OAuth redirect — no popups, no intermediate screen
+      authService.signInOAuth({ provider: p }).catch((e) => {
         if (!mounted.current) return;
         const msg = e?.message || "";
         if (/cancel|denied|access_denied|closed|popup/i.test(msg)) {
