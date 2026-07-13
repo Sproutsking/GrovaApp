@@ -45,6 +45,7 @@ export async function signInWithProviderDirect(provider) {
           }),
         },
       },
+      flowType: "pkce",
     });
 
     if (error) throw error;

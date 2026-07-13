@@ -78,7 +78,7 @@ function createSupabaseClient({ label, url, anonKey, storageKey }) {
     auth: {
       storage: storageAdapter,
       storageKey,
-      flowType: "implicit",
+      flowType: "pkce",
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,

@@ -343,6 +343,17 @@ class SocialConnectService {
     const origin   = window.location.origin;
     const callbackUrl = `${origin}/auth/social-callback`;
 
+    // DEV DEBUG: log values used to build the OAuth popup so we can verify
+    // which Supabase project URL and callback are being used at runtime.
+    try {
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.endsWith('.vercel.app') || window.DEBUG_SOCIAL_CONNECT)) {
+        // eslint-disable-next-line no-console
+        console.info('[SocialConnect] buildLinkPopupHTML', { platform, SUPA_URL, callbackUrl, origin });
+      }
+    } catch (e) {
+      // ignore
+    }
+
     const platformIcons = {
       x:         "𝕏",
       facebook:  "f",

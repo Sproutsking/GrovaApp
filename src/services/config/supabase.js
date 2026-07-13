@@ -1,38 +1,28 @@
 // ============================================================================
-// src/services/config/supabase.js — v3 IMPLICIT FLOW
+// src/services/config/supabase.js — v4 PKCE-FIRST FLOW
 //
-// WHAT CHANGED vs v2:
-//   [A] flowType changed from "pkce" to "implicit".
+// WHAT CHANGED vs v3:
+//   [A] flowType changed from "implicit" back to "pkce".
 //
-//       PKCE flow works like this:
-//         1. App generates a code_verifier + code_challenge
-//         2. Supabase redirects back with ?code= in the URL
-//         3. App exchanges ?code= for a session via a network round-trip
-//         4. If the Service Worker intercepts step 2 before Supabase JS
-//            can read the ?code=, the exchange never happens → stuck splash
+//       PKCE is the best modern OAuth flow for browser-based public clients.
+//       It keeps the token exchange secure, avoids access token leakage,
+//       and aligns with the strongest production auth model used by
+//       serious platforms.
 //
-//       Implicit flow works like this:
-//         1. Supabase redirects back with #access_token= in the URL HASH
-//         2. Hashes are NEVER sent to the server, NEVER intercepted by SW
-//         3. Supabase JS reads the token directly from window.location.hash
-//         4. No network round-trip, no race condition, no stuck splash
+//       The tradeoff: the callback returns ?code= in the URL, which requires
+//       the app to correctly process the redirect and exchange the code.
+//       That requires robust client startup handling but is the safer path.
 //
-//       The tradeoff: implicit flow tokens are shorter-lived and the
-//       access_token is visible in the hash briefly. For a social app
-//       with autoRefreshToken: true and our sessionRefresh manager, this
-//       is completely fine. PKCE is only strictly necessary for server-side
-//       apps where the token must never touch the browser at all.
-//
-//   [B] storageKey kept as "xeevia-auth-token" — no migration needed.
-//       Implicit flow still uses the same storage adapter for persistence.
+//   [B] storageKey remains "xeevia-auth-token".
+//       The same storage adapter continues to support localStorage/sessionStorage
+//       fallback and session persistence.
 //
 //   [C] Everything else (storage fallback chain, env guards, singleton
-//       export) is identical to v2. No other files need to change.
+//       export) remains unchanged.
 //
-// RESULT: The ?code= query param that was confusing oauthInProgress and
-//         freezing the splash screen can never appear again. The auth
-//         callback now lands as a hash fragment which is invisible to the
-//         Service Worker and cleaned by _detectAndCleanOAuth in AuthContext.
+// RESULT: Auth now uses authorization code + PKCE, which is the secure,
+//         production-grade flow for SPAs and keeps your app aligned with
+//         modern OAuth best practices.
 // ============================================================================
 
 import { createClient } from "@supabase/supabase-js";
@@ -135,7 +125,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
     storage: storageAdapter,
     storageKey: "xeevia-auth-token",
-    flowType: "implicit", // ← THE ONLY CHANGE FROM v2
+    flowType: "pkce", // ← Secure, modern SPA auth flow
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
