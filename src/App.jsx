@@ -71,6 +71,9 @@ import MobileBottomNav from "./components/Shared/MobileBottomNav";
 import Sidebar from "./components/Shared/Sidebar";
 import AdminSidebar from "./components/Shared/AdminSidebar";
 import AppPrompt from "./components/Shared/AppPrompt";
+import xrcService from "./services/xrc";
+import HomeView from "./components/Home/HomeView";
+import TrendingSidebar from "./components/Shared/TrendingSidebar";
 const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
@@ -79,7 +82,6 @@ const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitch
 const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
 const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
 const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
-import xrcService              from "./services/xrc";
 // DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
 // Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
 // This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
@@ -92,13 +94,11 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
-import HomeView from "./components/Home/HomeView";
 const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
 const CreateView      = lazy(() => import("./components/Create/CreateView"));
 const AccountView     = lazy(() => import("./components/Account/AccountView"));
 const WalletView      = lazy(() => import("./components/wallet/WalletView"));
 const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
-import TrendingSidebar from "./components/Shared/TrendingSidebar";
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
 const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
@@ -322,7 +322,7 @@ const MainApp = memo(() => {
     if (normalized && normalized !== themeMode) {
       setThemeMode(normalized);
     }
-  }, [profile?.preferences]);
+  }, [profile?.preferences, themeMode]);
 
   // ── Notification deep-link navigate ──────────────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
@@ -1197,24 +1197,12 @@ function AppRouter() {
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
-  const oauthInProgress = hasOAuthCodeInUrl();
+  // oauthInProgress intentionally unused here; keep helper available via hasOAuthCodeInUrl()
 
-  // ── Handle public pages (no auth required) ────────────────────────────────
+  // Defer public page early-returns until after hooks so hooks run
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  if (pathname === "/terms") {
-    return (
-      <Suspense fallback={<Splash />}>
-        <TermsOfService />
-      </Suspense>
-    );
-  }
-  if (pathname === "/privacy") {
-    return (
-      <Suspense fallback={<Splash />}>
-        <PrivacyPolicy />
-      </Suspense>
-    );
-  }
+  const isTerms = pathname === "/terms";
+  const isPrivacy = pathname === "/privacy";
 
   useEffect(() => {
     if (!loading) return;
@@ -1238,6 +1226,22 @@ function AppRouter() {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
 
+  // Public pages: render without calling other hooks after they are registered
+  if (isTerms) {
+    return (
+      <Suspense fallback={<Splash />}>
+        <TermsOfService />
+      </Suspense>
+    );
+  }
+  if (isPrivacy) {
+    return (
+      <Suspense fallback={<Splash />}>
+        <PrivacyPolicy />
+      </Suspense>
+    );
+  }
+
   if (!forceResolve && loading) return <Splash />;
   if (!user) {
     if (forceResolve) return <AuthWall />;
@@ -1257,6 +1261,7 @@ function AppRouter() {
 // ── Root ──────────────────────────────────────────────────────────────────────
 const App = () => (
   <AuthProvider>
+    <BoostStyles />
     <AppRouter />
   </AuthProvider>
 );
