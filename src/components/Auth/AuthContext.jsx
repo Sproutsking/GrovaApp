@@ -559,6 +559,13 @@ export default function AuthProvider({ children }) {
       }
     };
 
+    const startupFallbackTimer = setTimeout(() => {
+      if (!resolved) {
+        console.warn("[AuthContext] Startup timed out after 8s — falling back to unauthenticated shell");
+        resolve();
+      }
+    }, 8000);
+
     const hasPKCECode = new URLSearchParams(window.location.search).has("code");
 
     // ── PKCE retry logic: OAuth callback can take 600-1500ms ─────────────────
@@ -769,6 +776,7 @@ export default function AuthProvider({ children }) {
     });
 
     return () => {
+      clearTimeout(startupFallbackTimer);
       subscription.unsubscribe();
     };
   }, [loadProfile, setPaid, startSessionGuard]);

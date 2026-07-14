@@ -1239,7 +1239,10 @@ function AppRouter() {
   }, [profile]);
 
   if (!forceResolve && loading) return <Splash />;
-  if (!user)                     return <AuthWall />;
+  if (!user) {
+    if (forceResolve) return <AuthWall />;
+    return <AuthWall />;
+  }
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
   if (!profile) {
     const paidCache = getIsPaidCached ? getIsPaidCached() : false;
