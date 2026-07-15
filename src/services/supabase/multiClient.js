@@ -1,4 +1,4 @@
-import { createIsolatedClient } from "../config/supabase";
+import supabase, { createIsolatedClient } from "../config/supabase";
 import { getProjectEnvConfig } from "./projectBoundaries";
 
 const memoryStore = new Map();
@@ -90,12 +90,9 @@ const identityConfig = getProjectEnvConfig("identity", process.env);
 const coreConfig = getProjectEnvConfig("core", process.env);
 const walletConfig = getProjectEnvConfig("wallet", process.env);
 
-export const identityClient = createSupabaseClient({
-  label: identityConfig.label,
-  url: identityConfig.url,
-  anonKey: identityConfig.anonKey,
-  storageKey: identityConfig.storageKey,
-});
+// Reuse the main identity client singleton from config/supabase to avoid
+// creating multiple GoTrueClient instances that share the same storage key.
+export const identityClient = supabase;
 
 export const coreClient = createSupabaseClient({
   label: coreConfig.label,
