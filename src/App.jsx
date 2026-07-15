@@ -58,6 +58,8 @@ import { applyThemeMode }         from "./utils/theme";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
+import AuthCallback             from "./components/Auth/AuthCallback";
+import AddAccountCallback       from "./components/Auth/AddAccountCallback";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
 import BoostStyles               from "./components/Boost/BoostStyles";
 
@@ -1187,6 +1189,63 @@ const MainApp = memo(() => {
 });
 MainApp.displayName = "MainApp";
 
+function ProfileLoadError({ onRefresh, onSignOut }) {
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--bg)",
+        color: "var(--text)",
+        padding: 24,
+      }}
+    >
+      <div style={{ maxWidth: 480, textAlign: "center" }}>
+        <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
+          Still loading your account
+        </div>
+        <div style={{ color: "var(--text-secondary)", fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>
+          We found your session, but your profile did not finish loading.
+          This can happen when a network request or profile lookup is delayed.
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={onRefresh}
+            style={{
+              padding: "12px 20px",
+              borderRadius: 12,
+              border: "none",
+              background: "var(--accent)",
+              color: "var(--bg)",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Retry profile load
+          </button>
+          <button
+            onClick={onSignOut}
+            style={{
+              padding: "12px 20px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "transparent",
+              color: "var(--text)",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Sign out and retry
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── AppRouter ─────────────────────────────────────────────────────────────────
 function AppRouter() {
   const {
@@ -1201,8 +1260,11 @@ function AppRouter() {
 
   // Defer public page early-returns until after hooks so hooks run
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  const isTerms = pathname === "/terms";
-  const isPrivacy = pathname === "/privacy";
+  const cleanPathname = pathname.replace(/\/+$/, "");
+  const isTerms = cleanPathname === "/terms";
+  const isPrivacy = cleanPathname === "/privacy";
+  const isAuthCallback = cleanPathname === "/auth/callback";
+  const isPopupCallback = cleanPathname === "/auth/popup-callback";
 
   useEffect(() => {
     if (!loading) return;
@@ -1225,6 +1287,10 @@ function AppRouter() {
   useEffect(() => {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
+
+  // Auth callback routes: render the dedicated callback pages directly.
+  if (isAuthCallback) return <AuthCallback />;
+  if (isPopupCallback) return <AddAccountCallback />;
 
   // Public pages: render without calling other hooks after they are registered
   if (isTerms) {
@@ -1251,6 +1317,14 @@ function AppRouter() {
   if (!profile) {
     const paidCache = getIsPaidCached ? getIsPaidCached() : false;
     if (isAdmin || paidCache) return <MainApp />;
+    if (profileTimedOut) {
+      return (
+        <ProfileLoadError
+          onRefresh={() => window.location.reload()}
+          onSignOut={() => window.location.href = "/login"}
+        />
+      );
+    }
     return <Splash />;
   }
   const paidCache = getIsPaidCached ? getIsPaidCached() : false;
