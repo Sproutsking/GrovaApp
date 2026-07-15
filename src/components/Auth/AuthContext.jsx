@@ -43,6 +43,7 @@ import React, {
 } from "react";
 import { supabase } from "../../services/config/supabase";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
+import { createAbortController } from "../../services/shared/abortHandler";
 
 const AuthContext = createContext(null);
 
@@ -414,8 +415,8 @@ export default function AuthProvider({ children }) {
       fetchInFlight.current = true;
       if (retryIndex === 0) setProfileLoading(true);
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), PROFILE_TIMEOUT_MS);
+      const { controller, abort } = createAbortController("profile-load");
+      const timer = setTimeout(abort, PROFILE_TIMEOUT_MS);
 
       try {
         let query = supabase

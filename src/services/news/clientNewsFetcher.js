@@ -17,6 +17,7 @@
 
 import { supabase } from "../config/supabase";
 import { getSupabaseProjectFunctionUrl } from "../supabase/projectConfig";
+import { createAbortController } from "../shared/abortHandler";
 
 // ── 80+ RSS Sources ───────────────────────────────────────────────────────────
 export const RSS_SOURCES = [
@@ -603,11 +604,11 @@ async function fetchXml(url) {
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
   ];
-  const controller = new AbortController();
+  const { controller, abort } = createAbortController("proxy-fetch");
   const proxyPromises = publicProxies.map(async (target) => {
     if (controller.signal.aborted) return null;
     const result = await tryFetch(target);
-    if (result) controller.abort();
+    if (result) abort();
     return result;
   });
 
