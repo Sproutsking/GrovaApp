@@ -427,7 +427,7 @@ class SocialConnectService {
     import{createClient}from'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
     const sb = createClient('${SUPA_URL}','${SUPA_KEY}',{
-      auth:{persistSession:false,autoRefreshToken:false}
+      auth:{persistSession:false,autoRefreshToken:false,storageKey:'xeevia-auth-popup'}
     });
 
     const platform = '${platform}';
