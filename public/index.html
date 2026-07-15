@@ -70,7 +70,49 @@
     -->
     <meta name="apple-mobile-web-app-title" content="Xeevia" />
     <meta name="application-name" content="Xeevia" />
+    <!-- Runtime env bootstrap: attempts to populate window._env_ from
+         /env.json (served by your host) or existing globals before the
+         main bundle runs. This helps with runtime injection of split
+         Supabase project URLs when the hosting platform provides an
+         env.json file or sets window._env_. -->
+    <script>
+      (function () {
+        try {
+          if (window._env_) return;
+          // Try a synchronous fetch of /env.json so the app bundle can read
+          // window._env_ immediately after this script executes.
+          var xhr = null;
+          try {
+            xhr = new XMLHttpRequest();
+            xhr.open('GET', '/env.json', false);
+            xhr.send(null);
+            if (xhr.status === 200 && xhr.responseText) {
+              try {
+                window._env_ = JSON.parse(xhr.responseText);
+              } catch (e) {
+                window._env_ = window._env_ || {};
+              }
+            }
+          } catch (e) {
+            // Ignore sync XHR failures (e.g., not served)
+            window._env_ = window._env_ || {};
+          }
 
+          // Ensure window._env_ exists
+          window._env_ = window._env_ || {};
+
+          // Copy legacy globals if present
+          if (!window._env_.REACT_APP_SUPABASE_URL && window.__SUPABASE_URL__) {
+            window._env_.REACT_APP_SUPABASE_URL = window.__SUPABASE_URL__;
+          }
+          if (!window._env_.REACT_APP_SUPABASE_ANON_KEY && window.__SUPABASE_ANON__) {
+            window._env_.REACT_APP_SUPABASE_ANON_KEY = window.__SUPABASE_ANON__;
+          }
+        } catch (e) {
+          window._env_ = window._env_ || {};
+        }
+      })();
+    </script>
     <!-- SEO / sharing -->
     <meta
       name="description"
