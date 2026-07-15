@@ -28,8 +28,8 @@ ADD COLUMN IF NOT EXISTS payment_date timestamp with time zone,
 ADD COLUMN IF NOT EXISTS next_payment_date timestamp with time zone,
 ADD COLUMN IF NOT EXISTS invite_code_used text,
 ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false,
-ADD COLUMN IF NOT EXISTS stripe_customer_id text UNIQUE,
-ADD COLUMN IF NOT EXISTS paystack_customer_id text UNIQUE,
+ADD COLUMN IF NOT EXISTS stripe_customer_id text,
+ADD COLUMN IF NOT EXISTS paystack_customer_id text,
 ADD COLUMN IF NOT EXISTS subscription_tier text DEFAULT 'free'::text,
 ADD COLUMN IF NOT EXISTS subscription_expires timestamp with time zone,
 ADD COLUMN IF NOT EXISTS engagement_points numeric NOT NULL DEFAULT 0,
@@ -39,6 +39,29 @@ ADD COLUMN IF NOT EXISTS boost_selections jsonb DEFAULT '{}'::jsonb,
 ADD COLUMN IF NOT EXISTS reward_level text DEFAULT 'none'::text,
 ADD COLUMN IF NOT EXISTS reward_level_since timestamp with time zone,
 ADD COLUMN IF NOT EXISTS level_activity_score numeric DEFAULT 0;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.profiles'::regclass
+      AND conname = 'profiles_stripe_customer_id_key'
+  ) THEN
+    ALTER TABLE public.profiles
+    ADD CONSTRAINT profiles_stripe_customer_id_key UNIQUE (stripe_customer_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.profiles'::regclass
+      AND conname = 'profiles_paystack_customer_id_key'
+  ) THEN
+    ALTER TABLE public.profiles
+    ADD CONSTRAINT profiles_paystack_customer_id_key UNIQUE (paystack_customer_id);
+  END IF;
+END $$;
 
 -- Create index on email for faster lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);

@@ -557,8 +557,24 @@ export default function AuthProvider({ children }) {
             enforceAccountStatus(userId);
             startEnforcement(userId);
           }
-        } else if (lastGoodProfile.current) {
-          setProfile(lastGoodProfile.current);
+        } else {
+          const fallbackProfile = buildFallbackProfile(userId, user);
+          const bootstrapped = await bootstrapProfileRow(userId, user);
+          const resolvedProfile = bootstrapped || fallbackProfile;
+
+          lastGoodProfile.current = resolvedProfile;
+          lastFetchedUserId.current = userId;
+          setProfile(resolvedProfile);
+          writeProfileCache(resolvedProfile);
+          setPaid(true);
+
+          setIsAdmin(false);
+          setAdminData(null);
+
+          if (!explicitSignOutRef.current) {
+            enforceAccountStatus(userId);
+            startEnforcement(userId);
+          }
         }
       } catch (err) {
         clearTimeout(timer);
