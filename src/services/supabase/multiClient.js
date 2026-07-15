@@ -120,5 +120,5 @@ export function getSupabaseClient(role = "identity") {
   }
 }
 
-export const supabase = identityClient || coreClient || walletClient;
-export default supabase;
+export const multiSupabase = identityClient || coreClient || walletClient;
+export default multiSupabase;
