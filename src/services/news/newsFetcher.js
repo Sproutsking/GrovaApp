@@ -19,10 +19,10 @@
 
 import Parser from "rss-parser";
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createIsolatedClient } from "../config/supabase";
 
 // ── Supabase service-role client ──────────────────────────────────────────────
-const supabase = createClient(
+const supabase = createIsolatedClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } },

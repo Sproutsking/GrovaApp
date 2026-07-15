@@ -12,10 +12,10 @@
 // Works as an Express route or a Next.js API route.
 // ============================================================================
 
-import { createClient } from "@supabase/supabase-js";
+import { createIsolatedClient } from "../services/config/supabase";
 import { mergeFeed }    from "../services/news/feedMerger.js";
 
-const supabase = createClient(
+const supabase = createIsolatedClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }

@@ -9,10 +9,10 @@
 //   • The unified feed preserves the original user post ordering
 // ============================================================================
 
-import { createClient } from "@supabase/supabase-js";
+import { createIsolatedClient } from "../config/supabase";
 
 // Service-role client — bypasses RLS, used server-side only
-const supabase = createClient(
+const supabase = createIsolatedClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }

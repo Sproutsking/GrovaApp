@@ -133,3 +133,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
 });
 
 export default supabase;
+
+/**
+ * Create an isolated Supabase client for server-side or one-off use.
+ * Use this instead of importing createClient directly so behaviour is
+ * consistent and easier to audit across the codebase.
+ */
+export function createIsolatedClient(url, key, opts = {}) {
+  return createClient(url, key, opts);
+}

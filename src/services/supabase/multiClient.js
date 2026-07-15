@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createIsolatedClient } from "../config/supabase";
 import { getProjectEnvConfig } from "./projectBoundaries";
 
 const memoryStore = new Map();
@@ -74,7 +74,7 @@ function createSupabaseClient({ label, url, anonKey, storageKey }) {
     return null;
   }
 
-  return createClient(url, anonKey, {
+  return createIsolatedClient(url, anonKey, {
     auth: {
       storage: storageAdapter,
       storageKey,
