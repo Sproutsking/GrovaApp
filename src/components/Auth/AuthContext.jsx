@@ -88,6 +88,84 @@ function isNetworkError(err) {
   );
 }
 
+function buildFallbackProfile(userId, sessionUser) {
+  const email = sessionUser?.email || "";
+  const baseName =
+    sessionUser?.user_metadata?.full_name ||
+    sessionUser?.user_metadata?.name ||
+    email.split("@")[0] ||
+    "User";
+  const slugBase = baseName.toLowerCase().replace(/[^a-z0-9._-]+/g, "").slice(0, 20) || "user";
+  const username =
+    sessionUser?.user_metadata?.username ||
+    `${slugBase}_${String(userId || "").slice(0, 8) || "guest"}`;
+
+  return {
+    id: userId,
+    email,
+    full_name: baseName,
+    display_name: baseName,
+    username,
+    bio: null,
+    avatar_id: null,
+    avatar_metadata: {},
+    avatar_url: null,
+    verified: false,
+    is_pro: false,
+    account_activated: true,
+    account_status: "active",
+    payment_status: "free",
+    subscription_tier: "free",
+    preferences: {},
+    engagement_points: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    deleted_at: null,
+    is_admin: false,
+    is_private: false,
+    show_email: false,
+    show_phone: false,
+    phone_verified: false,
+  };
+}
+
+async function bootstrapProfileRow(userId, sessionUser) {
+  if (!userId) return null;
+  try {
+    const fallbackProfile = buildFallbackProfile(userId, sessionUser);
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        email: fallbackProfile.email || null,
+        full_name: fallbackProfile.full_name || "User",
+        username: fallbackProfile.username || `user_${String(userId).slice(0, 8)}`,
+        display_name: fallbackProfile.display_name || fallbackProfile.full_name || "User",
+        bio: fallbackProfile.bio,
+        account_activated: true,
+        account_status: "active",
+        payment_status: "free",
+        subscription_tier: "free",
+        preferences: fallbackProfile.preferences || {},
+        verified: false,
+        is_pro: false,
+        created_at: fallbackProfile.created_at,
+        updated_at: fallbackProfile.updated_at,
+      },
+      { onConflict: "id" },
+    );
+
+    if (error) {
+      console.warn("[AuthContext] Bootstrap profile upsert failed:", error.message);
+      return null;
+    }
+
+    return fallbackProfile;
+  } catch (err) {
+    console.warn("[AuthContext] Bootstrap profile error:", err?.message);
+    return null;
+  }
+}
+
 function cleanOAuthErrorParams() {
   try {
     const url = new URL(window.location.href);
@@ -492,9 +570,19 @@ export default function AuthProvider({ children }) {
           err?.message,
         );
 
-        if (lastGoodProfile.current) {
-          setProfile(lastGoodProfile.current);
-          lastFetchedUserId.current = userId;
+        const fallbackProfile = buildFallbackProfile(userId, user);
+        const bootstrapped = await bootstrapProfileRow(userId, user);
+        const resolvedProfile = bootstrapped || fallbackProfile;
+
+        lastGoodProfile.current = resolvedProfile;
+        lastFetchedUserId.current = userId;
+        setProfile(resolvedProfile);
+        writeProfileCache(resolvedProfile);
+        setPaid(true);
+
+        if (!explicitSignOutRef.current) {
+          enforceAccountStatus(userId);
+          startEnforcement(userId);
         }
 
         const delay =
