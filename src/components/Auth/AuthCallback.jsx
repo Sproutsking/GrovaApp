@@ -46,19 +46,38 @@ export default function AuthCallback() {
 
         // PKCE: Supabase JS automatically exchanges the ?code= param
         // when getSession() is called — we just wait for it.
-        // Give it up to 5s to complete the exchange.
+        // Give it enough time to complete the exchange.
         let session = null;
-        const deadline = Date.now() + 5000;
+        const deadline = Date.now() + 10000;
 
         while (Date.now() < deadline) {
           const { data } = await supabase.auth.getSession();
-          if (data?.session) { session = data.session; break; }
-          await new Promise(r => setTimeout(r, 300));
+          if (data?.session) {
+            session = data.session;
+            break;
+          }
+          await new Promise(r => setTimeout(r, 400));
         }
 
         if (!session) {
-          // Try one more time with a longer wait
-          await new Promise(r => setTimeout(r, 1500));
+          await new Promise(r => setTimeout(r, 2000));
+          const { data } = await supabase.auth.getSession();
+          session = data?.session ?? null;
+        }
+
+        if (!session) {
+          try {
+            const { data } = await supabase.auth.refreshSession();
+            session = data?.session ?? null;
+          } catch (refreshErr) {
+            console.warn("[AuthCallback] refreshSession fallback failed:", refreshErr?.message);
+          }
+        }
+
+        if (!session && window.location.hash) {
+          // Some providers may return auth state in the hash; give the client one
+          // more chance to detect it before failing.
+          await new Promise(r => setTimeout(r, 500));
           const { data } = await supabase.auth.getSession();
           session = data?.session ?? null;
         }
@@ -70,13 +89,13 @@ export default function AuthCallback() {
           // Clean up URL then redirect to app
           window.history.replaceState({}, "", "/");
           setTimeout(() => {
-            window.location.href = "/";
+            window.location.replace(window.location.origin + "/");
           }, 500);
         } else {
           setErrMsg("Sign-in could not be completed. Please try again.");
           setStatus("error");
           setTimeout(() => {
-            window.location.href = "/login";
+            window.location.replace(window.location.origin + "/");
           }, 2000);
         }
       } catch (err) {

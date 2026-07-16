@@ -671,12 +671,15 @@ export default function AuthProvider({ children }) {
       }
     }, 8000);
 
-    const hasPKCECode = new URLSearchParams(window.location.search).has("code");
+    const hasPKCECode =
+      new URLSearchParams(window.location.search).has("code") ||
+      window.location.hash.includes("access_token=") ||
+      window.location.hash.includes("refresh_token=");
 
     // ── PKCE retry logic: OAuth callback can take 600-1500ms ─────────────────
     const waitForPKCESession = async () => {
-      const maxRetries = 10;
-      const delays = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500];
+      const maxRetries = 14;
+      const delays = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1500, 1800, 2200, 2600];
 
       for (let i = 0; i < maxRetries; i++) {
         if (!isMounted.current) return null;
@@ -709,8 +712,22 @@ export default function AuthProvider({ children }) {
         }
       }
 
+      try {
+        const { data } = await supabase.auth.refreshSession();
+        if (data?.session?.user) {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[AuthContext] PKCE session recovered via refreshSession");
+          }
+          return data.session;
+        }
+      } catch (refreshErr) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[AuthContext] PKCE refreshSession fallback failed:", refreshErr?.message);
+        }
+      }
+
       console.warn(
-        "[AuthContext] PKCE session not found after 10 retries — OAuth may have failed"
+        "[AuthContext] PKCE session not found after retries — OAuth may have failed"
       );
       return null;
     };
