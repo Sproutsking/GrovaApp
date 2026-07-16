@@ -46,7 +46,7 @@ class AuthService {
     let usePopup = false;
     if (typeof provider === "object" && provider !== null) {
       usePopup = !!provider.usePopup;
-      provider = provider.provider;
+      provider = provider.provider || provider.id;
     }
 
     if (!supported.includes(provider)) throw new Error(`Unsupported provider: ${provider}`);

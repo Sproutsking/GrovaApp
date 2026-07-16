@@ -1584,7 +1584,7 @@ function LoginView() {
       setStatus("loading");
       
       // Direct OAuth redirect — no popups, no intermediate screen
-      authService.signInOAuth({ provider: p }).catch((e) => {
+      authService.signInOAuth({ provider: p.id }).catch((e) => {
         if (!mounted.current) return;
         const msg = e?.message || "";
         if (/cancel|denied|access_denied|closed|popup/i.test(msg)) {
