@@ -1327,9 +1327,17 @@ function AppRouter() {
     }
     return <Splash />;
   }
+
   const paidCache = getIsPaidCached ? getIsPaidCached() : false;
-  if (canAccessApp({ profile, isAdmin, adminData, paidCache })) return <MainApp />;
-  return <AuthWall paywall />;
+  const accessAllowed = canAccessApp({ profile, isAdmin, adminData, paidCache });
+
+  if (accessAllowed) return <MainApp />;
+
+  // If the profile is already loaded and the user is known to be authenticated,
+  // show the paywall gate rather than bouncing back to splash/loading state.
+  if (user) return <AuthWall paywall />;
+
+  return <AuthWall />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────

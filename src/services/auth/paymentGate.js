@@ -61,6 +61,11 @@ export function isPaidProfile(profile) {
   // Payment status check — "free" is critical: covers invite-code free access
   if (["paid", "vip", "free"].includes(profile.payment_status)) return true;
 
+  // Legacy fallbacks used by older records / partial migrations
+  if (profile.is_pro === true) return true;
+  if (profile.isPremium === true) return true;
+  if (profile.is_paid === true) return true;
+
   // Tier-based legacy fallback — any non-default tier means access was granted
   if (
     profile.subscription_tier &&
