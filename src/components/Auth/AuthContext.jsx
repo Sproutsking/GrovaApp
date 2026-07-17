@@ -619,6 +619,38 @@ export default function AuthProvider({ children }) {
     [fetchAdminRole, setPaid, enforceAccountStatus, startEnforcement],
   );
 
+    // ── Ensure profile present (defensive fallback) ──────────────────────────
+    const ensureProfilePresent = useCallback(async (sessionUser) => {
+      if (!isMounted.current) return;
+      const currentProfile = lastGoodProfile.current || profile;
+      if (currentProfile && currentProfile.id) return;
+
+      const userId = sessionUser?.id || lastGoodUser.current?.id;
+      if (!userId) return;
+
+      try {
+        // Attempt a forced profile load first
+        await loadProfile(userId, { force: true });
+        if (lastGoodProfile.current) return;
+      } catch (e) {
+        /* non-fatal */
+      }
+
+      try {
+        const boot = await bootstrapProfileRow(userId, sessionUser || lastGoodUser.current);
+        const resolved = boot || buildFallbackProfile(userId, sessionUser || lastGoodUser.current);
+        if (!isMounted.current) return;
+        lastGoodProfile.current = resolved;
+        lastFetchedUserId.current = userId;
+        setProfile(resolved);
+        writeProfileCache(resolved);
+        setPaid(true);
+        startEnforcement(userId);
+      } catch (e) {
+        /* non-fatal */
+      }
+    }, [loadProfile, profile, startEnforcement]);
+
   // ── Session guard ─────────────────────────────────────────────────────────
   const startSessionGuard = useCallback((userId) => {
     clearInterval(sessionGuardInterval.current);
