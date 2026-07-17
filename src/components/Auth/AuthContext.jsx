@@ -247,9 +247,9 @@ function resolveDevBypassActive() {
   return false;
 }
 
-function buildDevBypassUser() {
+function buildDevBypassUser(userId = "dev-bypass-user") {
   return {
-    id: "dev-bypass-user",
+    id: userId,
     email: "dev@xeevia.local",
     aud: "authenticated",
     app_metadata: {},
@@ -262,10 +262,10 @@ function buildDevBypassUser() {
   };
 }
 
-function buildDevBypassProfile() {
+function buildDevBypassProfile(userId = "dev-bypass-user") {
   const now = new Date().toISOString();
   return {
-    id: "dev-bypass-user",
+    id: userId,
     email: "dev@xeevia.local",
     full_name: "Dev Bypass",
     display_name: "Dev Bypass",
@@ -400,11 +400,12 @@ export default function AuthProvider({ children }) {
     writePaidCache(val);
   }, []);
 
-  const activateDevBypass = useCallback(() => {
-    const bypassUser = buildDevBypassUser();
-    const bypassProfile = buildDevBypassProfile();
+  const activateDevBypass = useCallback((userId = DEV_BYPASS_USER_ID || "dev-bypass-user") => {
+    const bypassUser = buildDevBypassUser(userId);
+    const bypassProfile = buildDevBypassProfile(userId);
     lastGoodUser.current = bypassUser;
     lastGoodProfile.current = bypassProfile;
+    lastFetchedUserId.current = null;
     setUser(bypassUser);
     setProfile(bypassProfile);
     setPaid(true);
@@ -871,7 +872,10 @@ export default function AuthProvider({ children }) {
           }
           // PKCE code existed but session couldn't be recovered — fall through to regular flow
           if (devBypassEnabled && isMounted.current) {
-            activateDevBypass();
+            const devUserId = DEV_BYPASS_USER_ID || "dev-bypass-user";
+            activateDevBypass(devUserId);
+            await loadProfile(devUserId);
+            startSessionGuard(devUserId);
             resolve();
             return;
           }
@@ -905,7 +909,10 @@ export default function AuthProvider({ children }) {
             return;
           }
           if (devBypassEnabled && isMounted.current) {
-            activateDevBypass();
+            const devUserId = DEV_BYPASS_USER_ID || "dev-bypass-user";
+            activateDevBypass(devUserId);
+            await loadProfile(devUserId);
+            startSessionGuard(devUserId);
           }
           resolve();
           return;
@@ -932,7 +939,10 @@ export default function AuthProvider({ children }) {
         }
 
         if (devBypassEnabled && isMounted.current) {
-          activateDevBypass();
+          const devUserId = DEV_BYPASS_USER_ID || "dev-bypass-user";
+          activateDevBypass(devUserId);
+          await loadProfile(devUserId);
+          startSessionGuard(devUserId);
         }
         resolve();
       } catch (err) {
