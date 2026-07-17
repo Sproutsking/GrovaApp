@@ -1739,7 +1739,7 @@ function LoginView() {
                   : "other"
                 : "idle"
             }
-            onClick={() => go(p.id)}
+            onClick={() => go(p)}
           />
         ))}
       </div>
