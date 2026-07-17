@@ -44,6 +44,7 @@ import SectionHeader from "../Shared/SectionHeader";
 import { FeedPipeline, useFeedInjections } from "./FeedPipelines";
 import { rankItems, recordSignal }          from "../../services/discovery/discoveryPersonalizationModel";
 import mediaUrlService                      from "../../services/shared/mediaUrlService";
+import { getSupabaseProjectUrl }            from "../../services/supabase/projectConfig";
 
 const NewsVideoStrip = lazy(() => import("./NewsVideoStrip"));
 

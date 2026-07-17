@@ -58,6 +58,7 @@ import mediaUrlService    from "../../services/shared/mediaUrlService";
 import postService        from "../../services/home/postService";
 import FullScreenPostView from "./FullScreenPostView";
 import followService      from "../../services/social/followService";
+import { getSupabaseProjectUrl } from "../../services/supabase/projectConfig";
 
 // ─── Connection-quality profile (MUST match PostTab.jsx exactly) ──────────────
 const _conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection;

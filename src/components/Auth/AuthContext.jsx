@@ -42,6 +42,7 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../../services/config/supabase";
+import { isPaidProfileData } from "../../services/auth/paymentGate";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { createAbortController } from "../../services/shared/abortHandler";
 
@@ -190,6 +191,109 @@ function cleanPKCEParams() {
   } catch {}
 }
 
+const DEV_BYPASS_SECRET = process.env.REACT_APP_DEV_AUTH_BYPASS_SECRET?.trim();
+const DEV_BYPASS_USER_ID = process.env.REACT_APP_DEV_AUTH_BYPASS_USER_ID?.trim() || "";
+const DEV_BYPASS_PARAM = "dev_access";
+const DEV_BYPASS_STORAGE_KEY = "xv_dev_auth_bypass";
+
+function getDevBypassKeyFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get(DEV_BYPASS_PARAM)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+function readDevBypassActive() {
+  try {
+    return sessionStorage.getItem(DEV_BYPASS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeDevBypassActive(val) {
+  try {
+    if (val) sessionStorage.setItem(DEV_BYPASS_STORAGE_KEY, "1");
+    else sessionStorage.removeItem(DEV_BYPASS_STORAGE_KEY);
+  } catch {}
+}
+
+function clearDevBypassQueryParam() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has(DEV_BYPASS_PARAM)) {
+      url.searchParams.delete(DEV_BYPASS_PARAM);
+      window.history.replaceState({}, "", url.toString());
+    }
+  } catch {}
+}
+
+function isDevBypassRequested() {
+  if (!DEV_BYPASS_SECRET) return false;
+  const requestKey = getDevBypassKeyFromUrl();
+  return requestKey && requestKey === DEV_BYPASS_SECRET;
+}
+
+function resolveDevBypassActive() {
+  if (!DEV_BYPASS_SECRET) return false;
+  const stored = readDevBypassActive();
+  if (stored) return true;
+  if (isDevBypassRequested()) {
+    writeDevBypassActive(true);
+    clearDevBypassQueryParam();
+    return true;
+  }
+  return false;
+}
+
+function buildDevBypassUser() {
+  return {
+    id: "dev-bypass-user",
+    email: "dev@xeevia.local",
+    aud: "authenticated",
+    app_metadata: {},
+    user_metadata: {
+      full_name: "Dev Bypass",
+      name: "Dev Bypass",
+      username: "dev",
+    },
+    created_at: new Date().toISOString(),
+  };
+}
+
+function buildDevBypassProfile() {
+  const now = new Date().toISOString();
+  return {
+    id: "dev-bypass-user",
+    email: "dev@xeevia.local",
+    full_name: "Dev Bypass",
+    display_name: "Dev Bypass",
+    username: "dev",
+    bio: "Developer access only",
+    avatar_id: null,
+    avatar_metadata: {},
+    avatar_url: null,
+    verified: true,
+    is_pro: true,
+    account_activated: true,
+    account_status: "active",
+    payment_status: "free",
+    subscription_tier: "developer",
+    preferences: {},
+    engagement_points: 0,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+    is_admin: false,
+    is_private: false,
+    show_email: true,
+    show_phone: false,
+    phone_verified: false,
+    is_dev_bypass: true,
+  };
+}
+
 function readPaidCache() {
   try {
     if (sessionStorage.getItem(PAID_SS_KEY) === "1") return true;
@@ -255,6 +359,7 @@ export default function AuthProvider({ children }) {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [devBypassActive, setDevBypassActive] = useState(false);
   // [NEW] Populated when admin bans/deletes this user while they're logged in
   const [kickReason, setKickReason] = useState(null); // { reason, message } | null
 
@@ -294,6 +399,18 @@ export default function AuthProvider({ children }) {
     paidCacheRef.current = val;
     writePaidCache(val);
   }, []);
+
+  const activateDevBypass = useCallback(() => {
+    const bypassUser = buildDevBypassUser();
+    const bypassProfile = buildDevBypassProfile();
+    lastGoodUser.current = bypassUser;
+    lastGoodProfile.current = bypassProfile;
+    setUser(bypassUser);
+    setProfile(bypassProfile);
+    setPaid(true);
+    setIsAdmin(false);
+    setAdminData(null);
+  }, [setPaid]);
 
   // ── [NEW] Account enforcement ─────────────────────────────────────────────
   // Calls get_session_profile() RPC. If the account is suspended or deleted,
@@ -732,6 +849,9 @@ export default function AuthProvider({ children }) {
       return null;
     };
 
+    const devBypassEnabled = resolveDevBypassActive();
+    if (devBypassEnabled) setDevBypassActive(true);
+
     const init = async () => {
       try {
         if (hasPKCECode) {
@@ -750,6 +870,11 @@ export default function AuthProvider({ children }) {
             return;
           }
           // PKCE code existed but session couldn't be recovered — fall through to regular flow
+          if (devBypassEnabled && isMounted.current) {
+            activateDevBypass();
+            resolve();
+            return;
+          }
         }
 
         const {
@@ -776,6 +901,11 @@ export default function AuthProvider({ children }) {
               initDoneRef.current = true;
               sessionRefreshManager.initialize().catch(() => {});
             }
+            resolve();
+            return;
+          }
+          if (devBypassEnabled && isMounted.current) {
+            activateDevBypass();
           }
           resolve();
           return;
@@ -797,6 +927,12 @@ export default function AuthProvider({ children }) {
             initDoneRef.current = true;
             sessionRefreshManager.initialize().catch(() => {});
           }
+          resolve();
+          return;
+        }
+
+        if (devBypassEnabled && isMounted.current) {
+          activateDevBypass();
         }
         resolve();
       } catch (err) {
@@ -932,6 +1068,8 @@ export default function AuthProvider({ children }) {
     } catch (err) {
       console.warn("[AuthContext] signOut error:", err?.message);
     }
+    writeDevBypassActive(false);
+    setDevBypassActive(false);
   }, [setPaid]);
 
   // ── signOutAllDevices ─────────────────────────────────────────────────────
@@ -966,6 +1104,8 @@ export default function AuthProvider({ children }) {
         await supabase.auth.signOut({ scope: "local" });
       } catch {}
     }
+    writeDevBypassActive(false);
+    setDevBypassActive(false);
   }, [setPaid]);
 
   // ── Force refresh profile ─────────────────────────────────────────────────

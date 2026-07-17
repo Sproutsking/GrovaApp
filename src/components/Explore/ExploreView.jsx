@@ -29,6 +29,7 @@ import StoryCard from "../Home/StoryCard";
 import ProfilePreview from "../Shared/ProfilePreview";
 import XRCOracleExplorer from "../Oracle/XRCOracleExplorer";
 import evidenceService from "../../services/evidence/evidenceService";
+import { STREAM_REGISTRY } from "../../services/xrc";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => (n || 0).toLocaleString();

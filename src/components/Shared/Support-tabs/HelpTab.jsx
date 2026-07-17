@@ -894,7 +894,7 @@ Xeevia offers REST endpoints, webhooks, and SDKs for common languages. The Oracl
 ### Quickstart
 1. Create a developer account
 2. Create an API key in Developer Console
-3. Call `/v1/users/{id}` and `/v1/oracle/proof`
+3. Call \`/v1/users/{id}\` and \`/v1/oracle/proof\`
 
 Use webhooks for real-time events (payment success, story unlock, membership join).`,
       },

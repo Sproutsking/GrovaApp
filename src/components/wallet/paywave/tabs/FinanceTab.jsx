@@ -100,8 +100,6 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
           p_amount:pendingAction.amount, p_note:pendingAction.description,
         });
         onSuccess(`Savings plan created!\n${pendingAction.goalName || pendingAction.plan.name} — ₦${fmtNGN(pendingAction.amount)}`);
-        fetchPlans();
-        setView("list"); setAmount(""); setGoalName("");
       }
     } catch (err) {
       console.error("Finance action failed", err);
