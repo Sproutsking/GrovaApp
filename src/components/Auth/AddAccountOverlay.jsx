@@ -22,6 +22,7 @@ import ReactDOM from "react-dom";
 import { X, UserPlus, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import { getSupabaseProjectUrl, getSupabaseProjectAnonKey } from "../../services/supabase/projectConfig";
+import { getCallbackUrl } from "../../services/config/authConfig";
 
 const MAX_ACCOUNTS = 3;
 const ACCOUNTS_KEY = "grova_saved_accounts";
@@ -159,7 +160,7 @@ const AddAccountOverlay = ({ onClose, currentUserId }) => {
     supabase.auth.signInWithOAuth({
       provider: provider.id,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: getCallbackUrl(),
         skipBrowserRedirect: false,
       },
     }).catch((err) => {

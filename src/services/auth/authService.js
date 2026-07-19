@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getCallbackUrl } from "../config/authConfig";
 import { getSupabaseProjectAnonKey, getSupabaseProjectUrl } from "../supabase/projectConfig";
 
 class AuthService {
@@ -51,7 +52,7 @@ class AuthService {
 
     if (!supported.includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
 
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = getCallbackUrl();
     const options = { redirectTo, skipBrowserRedirect: false };
 
     switch (provider) {

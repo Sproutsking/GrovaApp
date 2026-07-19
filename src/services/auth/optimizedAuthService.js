@@ -20,9 +20,8 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getCallbackUrl } from "../config/authConfig";
 import { getSupabaseProjectUrl } from "../supabase/projectConfig";
-
-const SITE_URL = typeof window !== "undefined" ? window.location.origin : "";
 
 /**
  * Direct OAuth sign-in — no popups, direct redirect
@@ -32,7 +31,7 @@ export async function signInWithProviderDirect(provider) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${SITE_URL}/auth/callback`,
+        redirectTo: getCallbackUrl(),
         skipBrowserRedirect: false, // Direct redirect = fastest
         queryParams: {
           // Provider-specific optimizations

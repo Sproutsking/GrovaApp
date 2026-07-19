@@ -44,9 +44,26 @@ export default function AuthCallback() {
           return;
         }
 
-        // PKCE: Supabase JS automatically exchanges the ?code= param
-        // when getSession() is called — we just wait for it.
-        // Give it enough time to complete the exchange.
+        // PKCE: try an explicit exchange first. Some providers return the
+        // code in the URL and Supabase exposes a helper that reads the URL
+        // and completes the PKCE exchange in this window.
+        // This reduces races where getSession() returns null briefly.
+        try {
+          if (typeof supabase.auth.getSessionFromUrl === "function") {
+            const resp = await supabase.auth.getSessionFromUrl();
+            if (resp?.data?.session) {
+              session = resp.data.session;
+            }
+            if (resp?.error) {
+              console.debug("[AuthCallback] getSessionFromUrl error:", resp.error.message || resp.error);
+            }
+          }
+        } catch (e) {
+          console.debug("[AuthCallback] getSessionFromUrl threw:", e?.message || e);
+        }
+
+        // If explicit exchange didn't produce a session, fall back to polling
+        // getSession() — give it enough time to complete the exchange.
         let session = null;
         const deadline = Date.now() + 10000;
 

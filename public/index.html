@@ -550,21 +550,24 @@
         } catch (_) {}
         if (!installed) return;
 
-        // Build the intent URL for the current path so deep links work.
+        // Build the intent URL for the current host so local dev and production
+        // don't accidentally redirect to the live site.
         var path =
           window.location.pathname +
           window.location.search +
           window.location.hash;
+        var host = window.location.host || "app.xeevia.com";
+        var scheme = window.location.protocol === "https:" ? "https" : "http";
         var intentUrl =
-          "intent://app.xeevia.com" +
+          "intent://" + host +
           path +
           "#Intent;" +
-          "scheme=https;" +
+          "scheme=" + scheme + ";" +
           "action=android.intent.action.VIEW;" +
           "category=android.intent.category.BROWSABLE;" +
           "package=com.android.chrome;" +
           "S.browser_fallback_url=" +
-          encodeURIComponent("https://app.xeevia.com" + path) +
+          encodeURIComponent(scheme + "://" + host + path) +
           ";end";
 
         window.location.replace(intentUrl);
