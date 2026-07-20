@@ -42,6 +42,7 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../../services/config/supabase";
+import authService from "../../services/auth/AuthService";
 import { getSupabaseProjectUrl } from "../../services/supabase/projectConfig";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { createAbortController } from "../../services/shared/abortHandler";
@@ -510,24 +511,36 @@ export default function AuthProvider({ children }) {
             } catch (e) {}
           }
 
-          let query = supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .maybeSingle();
-        if (typeof query.abortSignal === "function") {
-          query = query.abortSignal(controller.signal);
-        }
-
-        const { data, error } = await query;
+          // Prefer server-authoritative RPC via AuthService.getProfile()
+          const data = await authService.getProfile(userId);
+          const error = null;
         clearTimeout(timer);
         if (!isMounted.current) return;
-        if (error) {
-          if (process.env.NODE_ENV !== "production") {
-            console.error("[AuthContext] Supabase profiles query error:", error);
+          // If RPC failed to return data, fall back to direct profiles table read
+          if (!data) {
+            try {
+              let query = supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+              if (typeof query.abortSignal === "function") query = query.abortSignal(controller.signal);
+              const qres = await query;
+              if (qres?.error) {
+                if (process.env.NODE_ENV !== "production") console.error("[AuthContext] profiles fallback error:", qres.error);
+                throw qres.error;
+              }
+              // use fallback data if present
+              if (qres?.data) {
+                lastGoodProfile.current = qres.data;
+                setProfile(qres.data);
+                writeProfileCache(qres.data);
+                if (isPaidProfileData(qres.data)) setPaid(true);
+              }
+            } catch (err) {
+              if (process.env.NODE_ENV !== "production") console.error("[AuthContext] profiles fallback read failed:", err?.message || err);
+              throw err;
+            }
+            // exit early because fallback path handled profile set
+            fetchInFlight.current = false;
+            return;
           }
-          throw error;
-        }
 
         profileRetryCount.current = 0;
         clearTimeout(profileRetryTimer.current);
