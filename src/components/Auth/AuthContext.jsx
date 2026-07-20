@@ -46,6 +46,7 @@ import authService from "../../services/auth/authService";
 import { getSupabaseProjectUrl } from "../../services/supabase/projectConfig";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { createAbortController } from "../../services/shared/abortHandler";
+import { isPaidProfileData } from "../../services/auth/paymentGate";
 
 const AuthContext = createContext(null);
 
@@ -355,7 +356,7 @@ export default function AuthProvider({ children }) {
           clearInterval(enforcementInterval.current);
           sessionRefreshManager.cleanup();
 
-          // Clear all state
+          // Clear all state and persisted caches
           setUser(null);
           setProfile(null);
           setIsAdmin(false);
@@ -365,24 +366,8 @@ export default function AuthProvider({ children }) {
           lastGoodProfile.current = null;
           lastGoodUser.current = null;
           lastFetchedUserId.current = null;
-
-          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-          return;
-        }
-
-        // ── Account deleted/deactivated ───────────────────────────────────────
-        if (
-          data.error === "ACCOUNT_DELETED" ||
-          data.error === "PROFILE_NOT_FOUND"
-        ) {
-          if (!isMounted.current || explicitSignOutRef.current) return;
-          console.warn("[AuthContext] Account deleted — forcing sign-out");
-
-          const reason = {
-            reason: "deleted",
-            message: "This account has been removed.",
-          };
-
+          clearProfileCache();
+          writePaidCache(false);
           explicitSignOutRef.current = true;
           clearTimeout(profileRetryTimer.current);
           clearInterval(sessionGuardInterval.current);
@@ -398,6 +383,8 @@ export default function AuthProvider({ children }) {
           lastGoodProfile.current = null;
           lastGoodUser.current = null;
           lastFetchedUserId.current = null;
+          clearProfileCache();
+          writePaidCache(false);
 
           await supabase.auth.signOut({ scope: "local" }).catch(() => {});
           return;
@@ -512,11 +499,29 @@ export default function AuthProvider({ children }) {
           }
 
           // Prefer server-authoritative RPC via AuthService.getProfile()
-          const data = await authService.getProfile(userId);
-          const error = null;
-        clearTimeout(timer);
-        if (!isMounted.current) return;
-          // If RPC failed to return data, fall back to direct profiles table read
+          let data = await authService.getProfile(userId);
+          clearTimeout(timer);
+          if (!isMounted.current) return;
+
+          if (data && typeof data === "object" && data.error) {
+            if (data.error === "PROFILE_NOT_FOUND") {
+              data = null;
+            } else {
+              if (isMounted.current) {
+                lastGoodProfile.current = null;
+                setProfile(null);
+                setPaid(false);
+              }
+              if (!explicitSignOutRef.current) {
+                enforceAccountStatus(userId);
+              }
+              fetchInFlight.current = false;
+              return;
+            }
+          }
+
+          // If RPC failed to return data, fall back to direct profiles table read.
+          // If the profile still does not exist, continue to the bootstrap path.
           if (!data) {
             try {
               let query = supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
@@ -532,14 +537,15 @@ export default function AuthProvider({ children }) {
                 setProfile(qres.data);
                 writeProfileCache(qres.data);
                 if (isPaidProfileData(qres.data)) setPaid(true);
+                else setPaid(false);
+                fetchInFlight.current = false;
+                return;
               }
             } catch (err) {
               if (process.env.NODE_ENV !== "production") console.error("[AuthContext] profiles fallback read failed:", err?.message || err);
               throw err;
             }
-            // exit early because fallback path handled profile set
-            fetchInFlight.current = false;
-            return;
+            // No profile row exists yet; fall through to bootstrap/default handling.
           }
 
         profileRetryCount.current = 0;
@@ -1088,16 +1094,3 @@ export default function AuthProvider({ children }) {
   );
 }
 
-export function isPaidProfileData(profile) {
-  if (!profile) return false;
-  return (
-    profile.account_activated === true ||
-    profile.payment_status === "paid" ||
-    profile.payment_status === "vip" ||
-    profile.payment_status === "free" ||
-    profile.subscription_tier === "standard" ||
-    profile.subscription_tier === "pro" ||
-    profile.subscription_tier === "vip" ||
-    profile.subscription_tier === "whitelist"
-  );
-}

@@ -448,6 +448,9 @@ export function isPaidProfile(profile) {
   if (!profile) return false;
   if (profile.account_activated === true) return true;
   if (["paid", "vip", "free"].includes(profile.payment_status)) return true;
+  if (profile.is_pro === true) return true;
+  if (profile.isPremium === true) return true;
+  if (profile.is_paid === true) return true;
   if (
     profile.subscription_tier &&
     !["free", "pending"].includes(profile.subscription_tier)

@@ -1315,8 +1315,7 @@ function AppRouter() {
   }
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
   if (!profile) {
-    const paidCache = getIsPaidCached ? getIsPaidCached() : false;
-    if (isAdmin || paidCache) return <MainApp />;
+    if (isAdmin) return <MainApp />;
     if (profileTimedOut) {
       return (
         <ProfileLoadError
