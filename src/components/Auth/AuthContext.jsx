@@ -332,7 +332,33 @@ export default function AuthProvider({ children }) {
           return;
         }
 
-        if (!data) return; // No data → fail open
+        // No data → fail open
+        if (!data) return;
+
+        // If the RPC explicitly reports the profile is missing, this can be
+        // a race immediately after sign-in where the profile hasn't been
+        // bootstrapped yet. Defer enforcement briefly and retry instead of
+        // forcing an immediate sign-out. This avoids spurious sign-outs on
+        // fresh accounts.
+        if (data && data.error === "PROFILE_NOT_FOUND") {
+          if (process.env.NODE_ENV !== "production") {
+            console.debug(
+              "[AuthContext] enforcement RPC returned PROFILE_NOT_FOUND — deferring enforcement",
+              { userId, data },
+            );
+          }
+          enforcementBusy.current = false;
+          setTimeout(() => {
+            if (isMounted.current && !explicitSignOutRef.current) {
+              enforceAccountStatus(userId);
+            }
+          }, 2000);
+          return;
+        }
+
+        if (process.env.NODE_ENV !== "production") {
+          console.debug("[AuthContext] enforcement RPC result:", { userId, data });
+        }
 
         // Account is fine — data is the full profile object, no action needed
         if (!data.error) return;
