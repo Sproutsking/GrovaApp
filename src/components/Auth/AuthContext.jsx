@@ -42,6 +42,7 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../../services/config/supabase";
+import { getSupabaseProjectUrl } from "../../services/supabase/projectConfig";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { createAbortController } from "../../services/shared/abortHandler";
 
@@ -480,7 +481,8 @@ export default function AuthProvider({ children }) {
 
   // ── Profile loader ────────────────────────────────────────────────────────
   const loadProfile = useCallback(
-    async (userId, { force = false, retryIndex = 0 } = {}) => {
+    async (userId, sessionUser = null, { force = false, retryIndex = 0 } = {}) => {
+      const sessionUserRef = sessionUser || lastGoodUser.current;
       if (!userId || !isMounted.current) return;
       if (
         !force &&
@@ -497,7 +499,15 @@ export default function AuthProvider({ children }) {
       const timer = setTimeout(abort, PROFILE_TIMEOUT_MS);
 
       try {
-        let query = supabase
+          if (typeof window !== "undefined" && (window.__XEEVIA_DEBUG__ || process.env.NODE_ENV !== "production")) {
+            try {
+              console.debug(
+                `[AuthContext] loadProfile start userId=${userId} supabaseUrls: identity=${getSupabaseProjectUrl('identity')} core=${getSupabaseProjectUrl('core')} wallet=${getSupabaseProjectUrl('wallet')}`,
+              );
+            } catch (e) {}
+          }
+
+          let query = supabase
           .from("profiles")
           .select("*")
           .eq("id", userId)
@@ -509,7 +519,12 @@ export default function AuthProvider({ children }) {
         const { data, error } = await query;
         clearTimeout(timer);
         if (!isMounted.current) return;
-        if (error) throw error;
+        if (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error("[AuthContext] Supabase profiles query error:", error);
+          }
+          throw error;
+        }
 
         profileRetryCount.current = 0;
         clearTimeout(profileRetryTimer.current);
@@ -558,8 +573,8 @@ export default function AuthProvider({ children }) {
             startEnforcement(userId);
           }
         } else {
-          const fallbackProfile = buildFallbackProfile(userId, user);
-          const bootstrapped = await bootstrapProfileRow(userId, user);
+          const fallbackProfile = buildFallbackProfile(userId, sessionUserRef);
+          const bootstrapped = await bootstrapProfileRow(userId, sessionUserRef);
           const resolvedProfile = bootstrapped || fallbackProfile;
 
           lastGoodProfile.current = resolvedProfile;
@@ -585,13 +600,17 @@ export default function AuthProvider({ children }) {
         fetchInFlight.current = false;
         if (!isMounted.current) return;
 
-        console.warn(
-          `[AuthContext] Profile fetch error (retry ${retryIndex}):`,
-          err?.message,
-        );
+        if (process.env.NODE_ENV !== "production") {
+          console.error(`[AuthContext] Profile fetch error (retry ${retryIndex}):`, err);
+        } else {
+          console.warn(
+            `[AuthContext] Profile fetch error (retry ${retryIndex}):`,
+            err?.message,
+          );
+        }
 
-        const fallbackProfile = buildFallbackProfile(userId, user);
-        const bootstrapped = await bootstrapProfileRow(userId, user);
+        const fallbackProfile = buildFallbackProfile(userId, sessionUserRef);
+        const bootstrapped = await bootstrapProfileRow(userId, sessionUserRef);
         const resolvedProfile = bootstrapped || fallbackProfile;
 
         lastGoodProfile.current = resolvedProfile;
@@ -615,7 +634,10 @@ export default function AuthProvider({ children }) {
           ];
         profileRetryTimer.current = setTimeout(() => {
           if (isMounted.current && userId) {
-            loadProfile(userId, { force: true, retryIndex: retryIndex + 1 });
+            loadProfile(userId, sessionUserRef, {
+              force: true,
+              retryIndex: retryIndex + 1,
+            });
           }
         }, delay);
       } finally {
@@ -638,7 +660,7 @@ export default function AuthProvider({ children }) {
 
       try {
         // Attempt a forced profile load first
-        await loadProfile(userId, { force: true });
+        await loadProfile(userId, sessionUser || lastGoodUser.current, { force: true });
         if (lastGoodProfile.current) return;
       } catch (e) {
         /* non-fatal */
@@ -784,7 +806,7 @@ export default function AuthProvider({ children }) {
             cleanPKCEParams();
             lastGoodUser.current = session.user;
             setUser(session.user);
-            loadProfile(session.user.id);
+            loadProfile(session.user.id, session.user);
             startSessionGuard(session.user.id);
             if (!initDoneRef.current) {
               initDoneRef.current = true;
@@ -814,7 +836,7 @@ export default function AuthProvider({ children }) {
           if (recovered?.user && isMounted.current) {
             lastGoodUser.current = recovered.user;
             setUser(recovered.user);
-            loadProfile(recovered.user.id);
+            loadProfile(recovered.user.id, recovered.user);
             startSessionGuard(recovered.user.id);
             if (!initDoneRef.current) {
               initDoneRef.current = true;
@@ -835,7 +857,7 @@ export default function AuthProvider({ children }) {
             setProfile(cachedProfile);
           }
 
-          loadProfile(session.user.id);
+          loadProfile(session.user.id, session.user);
           startSessionGuard(session.user.id);
           if (!initDoneRef.current) {
             initDoneRef.current = true;
@@ -930,7 +952,7 @@ export default function AuthProvider({ children }) {
           !lastGoodProfile.current
         ) {
           profileRetryCount.current = 0;
-          loadProfile(session.user.id);
+          loadProfile(session.user.id, session.user);
         }
         if (!initDoneRef.current) {
           initDoneRef.current = true;
@@ -1019,7 +1041,7 @@ export default function AuthProvider({ children }) {
     clearTimeout(profileRetryTimer.current);
     profileRetryCount.current = 0;
     lastFetchedUserId.current = null;
-    await loadProfile(userId, { force: true });
+    await loadProfile(userId, lastGoodUser.current || profile, { force: true });
   }, [profile?.id, loadProfile]);
 
   const getIsPaidCached = useCallback(() => {

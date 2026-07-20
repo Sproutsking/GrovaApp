@@ -84,11 +84,30 @@ const walletAnonKey =
 export function getSupabaseProjectConfig(role = "identity") {
   switch (role) {
     case "core":
+      if (typeof window !== "undefined" && (window.__XEEVIA_DEBUG__ || process.env.NODE_ENV !== "production")) {
+        try {
+          // Avoid printing full anon keys in logs
+          const anonPreview = coreAnonKey ? `${String(coreAnonKey).slice(0,4)}...` : "(none)";
+          console.debug(`[supabase] role=core url=${coreUrl} anon=${anonPreview}`);
+        } catch (e) {}
+      }
       return { url: coreUrl, anonKey: coreAnonKey };
     case "wallet":
+      if (typeof window !== "undefined" && (window.__XEEVIA_DEBUG__ || process.env.NODE_ENV !== "production")) {
+        try {
+          const anonPreview = walletAnonKey ? `${String(walletAnonKey).slice(0,4)}...` : "(none)";
+          console.debug(`[supabase] role=wallet url=${walletUrl} anon=${anonPreview}`);
+        } catch (e) {}
+      }
       return { url: walletUrl, anonKey: walletAnonKey };
     case "identity":
     default:
+      if (typeof window !== "undefined" && (window.__XEEVIA_DEBUG__ || process.env.NODE_ENV !== "production")) {
+        try {
+          const anonPreview = identityAnonKey ? `${String(identityAnonKey).slice(0,4)}...` : "(none)";
+          console.debug(`[supabase] role=identity url=${identityUrl} anon=${anonPreview}`);
+        } catch (e) {}
+      }
       return { url: identityUrl, anonKey: identityAnonKey };
   }
 }
