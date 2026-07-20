@@ -1254,6 +1254,12 @@ function AppRouter() {
     getIsPaidCached,
   } = useAuth();
 
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      console.debug('[AppRouter] auth state:', { userId: user?.id, profileLoaded: !!profile, loading, profileLoading });
+    } catch (e) {}
+  }
+
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
   // oauthInProgress intentionally unused here; keep helper available via hasOAuthCodeInUrl()

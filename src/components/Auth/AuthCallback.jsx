@@ -26,6 +26,7 @@ export default function AuthCallback() {
 
   useEffect(() => {
     let mounted = true;
+    console.debug('[AuthCallback] mounted, url=', window.location.href);
 
     const handle = async () => {
       try {
@@ -97,6 +98,7 @@ export default function AuthCallback() {
           // more chance to detect it before failing.
           await new Promise(r => setTimeout(r, 500));
           const { data } = await supabase.auth.getSession();
+          console.debug('[AuthCallback] getSession after hash, data=', data);
           session = data?.session ?? null;
         }
 
@@ -104,12 +106,14 @@ export default function AuthCallback() {
 
         if (session) {
           setStatus("success");
+          console.debug('[AuthCallback] session established, redirecting to app root');
           // Clean up URL then redirect to app
           window.history.replaceState({}, "", "/");
           setTimeout(() => {
             window.location.replace(getAppRoot());
           }, 500);
         } else {
+          console.debug('[AuthCallback] no session after attempts, failing');
           setErrMsg("Sign-in could not be completed. Please try again.");
           setStatus("error");
           setTimeout(() => {

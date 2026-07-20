@@ -136,6 +136,9 @@ async function bootstrapProfileRow(userId, sessionUser) {
   if (!userId) return null;
   try {
     const fallbackProfile = buildFallbackProfile(userId, sessionUser);
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[AuthContext] bootstrapProfileRow: attempting upsert for userId=', userId, 'fallback=', fallbackProfile);
+    }
     const { error } = await supabase.from("profiles").upsert(
       {
         id: userId,
@@ -165,6 +168,7 @@ async function bootstrapProfileRow(userId, sessionUser) {
       return null;
     }
 
+    if (process.env.NODE_ENV !== 'production') console.debug('[AuthContext] bootstrapProfileRow upsert OK for', userId);
     return fallbackProfile;
   } catch (err) {
     console.warn("[AuthContext] Bootstrap profile error:", err?.message);
