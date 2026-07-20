@@ -142,10 +142,13 @@ async function bootstrapProfileRow(userId, sessionUser) {
         username: fallbackProfile.username || `user_${String(userId).slice(0, 8)}`,
         display_name: fallbackProfile.display_name || fallbackProfile.full_name || "User",
         bio: fallbackProfile.bio,
-        account_activated: true,
+        // Don't mark newly bootstrapped profiles as active/paid by default.
+        // Use conservative 'pending' values so paywall gating runs correctly
+        // and the enforcement RPC can determine real account state.
+        account_activated: false,
         account_status: "active",
-        payment_status: "free",
-        subscription_tier: "free",
+        payment_status: "pending",
+        subscription_tier: "pending",
         preferences: fallbackProfile.preferences || {},
         verified: false,
         is_pro: false,
