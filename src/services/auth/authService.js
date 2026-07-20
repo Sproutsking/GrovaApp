@@ -40,6 +40,42 @@ class AuthService {
     }
   }
 
+  // Server-authoritative profile loader. Calls RPC `get_session_profile` if available,
+  // falling back to a direct profiles table read if the RPC is missing or returns no data.
+  async getProfile(pUserId) {
+    try {
+      if (!pUserId) {
+        const u = await this.getCurrentUser();
+        pUserId = u?.id;
+      }
+      if (!pUserId) return null;
+
+      const res = await supabase.rpc('get_session_profile', { p_user_id: pUserId });
+      // `res` shape can be { data, error } or direct data depending on client; handle both.
+      if (res?.error) {
+        console.warn('[AuthService] get_session_profile RPC error:', res.error?.message || res.error);
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', pUserId).maybeSingle();
+        if (error) {
+          console.warn('[AuthService] fallback profiles read error:', error.message || error);
+          return null;
+        }
+        return data || null;
+      }
+
+      const data = res?.data ?? res;
+      if (!data) {
+        // Fallback to direct read
+        const { data: pData, error } = await supabase.from('profiles').select('*').eq('id', pUserId).maybeSingle();
+        if (error) return null;
+        return pData || null;
+      }
+      return data;
+    } catch (err) {
+      console.warn('[AuthService] getProfile error:', err?.message || err);
+      return null;
+    }
+  }
+
   async signInOAuth(provider) {
     const supported = ["google", "x", "facebook", "tiktok", "discord"];
     // Backwards-compatible: older callers expect to just pass the provider
