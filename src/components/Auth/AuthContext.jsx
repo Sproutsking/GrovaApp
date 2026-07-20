@@ -112,10 +112,10 @@ function buildFallbackProfile(userId, sessionUser) {
     avatar_url: null,
     verified: false,
     is_pro: false,
-    account_activated: true,
+    account_activated: false,
     account_status: "active",
-    payment_status: "free",
-    subscription_tier: "free",
+    payment_status: "pending",
+    subscription_tier: "pending",
     preferences: {},
     engagement_points: 0,
     created_at: new Date().toISOString(),
@@ -566,7 +566,11 @@ export default function AuthProvider({ children }) {
           lastFetchedUserId.current = userId;
           setProfile(resolvedProfile);
           writeProfileCache(resolvedProfile);
-          setPaid(true);
+          if (isPaidProfileData(resolvedProfile)) {
+            setPaid(true);
+          } else {
+            setPaid(false);
+          }
 
           setIsAdmin(false);
           setAdminData(null);
@@ -594,7 +598,11 @@ export default function AuthProvider({ children }) {
         lastFetchedUserId.current = userId;
         setProfile(resolvedProfile);
         writeProfileCache(resolvedProfile);
-        setPaid(true);
+        if (isPaidProfileData(resolvedProfile)) {
+          setPaid(true);
+        } else {
+          setPaid(false);
+        }
 
         if (!explicitSignOutRef.current) {
           enforceAccountStatus(userId);
@@ -644,7 +652,11 @@ export default function AuthProvider({ children }) {
         lastFetchedUserId.current = userId;
         setProfile(resolved);
         writeProfileCache(resolved);
-        setPaid(true);
+        if (isPaidProfileData(resolved)) {
+          setPaid(true);
+        } else {
+          setPaid(false);
+        }
         startEnforcement(userId);
       } catch (e) {
         /* non-fatal */

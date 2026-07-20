@@ -13,6 +13,7 @@
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../services/config/supabase";
+import { getAppRoot } from "../../services/config/authConfig";
 
 const STYLES = `
   @keyframes cbSpin { to { transform: rotate(360deg); } }
@@ -48,6 +49,7 @@ export default function AuthCallback() {
         // code in the URL and Supabase exposes a helper that reads the URL
         // and completes the PKCE exchange in this window.
         // This reduces races where getSession() returns null briefly.
+        let session = null;
         try {
           if (typeof supabase.auth.getSessionFromUrl === "function") {
             const resp = await supabase.auth.getSessionFromUrl();
@@ -64,7 +66,6 @@ export default function AuthCallback() {
 
         // If explicit exchange didn't produce a session, fall back to polling
         // getSession() — give it enough time to complete the exchange.
-        let session = null;
         const deadline = Date.now() + 10000;
 
         while (Date.now() < deadline) {
@@ -106,7 +107,7 @@ export default function AuthCallback() {
           // Clean up URL then redirect to app
           window.history.replaceState({}, "", "/");
           setTimeout(() => {
-            window.location.replace(window.location.origin + "/");
+            window.location.replace(getAppRoot());
           }, 500);
         } else {
           setErrMsg("Sign-in could not be completed. Please try again.");
