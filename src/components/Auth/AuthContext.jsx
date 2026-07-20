@@ -42,7 +42,7 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../../services/config/supabase";
-import authService from "../../services/auth/AuthService";
+import authService from "../../services/auth/authService";
 import { getSupabaseProjectUrl } from "../../services/supabase/projectConfig";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { createAbortController } from "../../services/shared/abortHandler";
