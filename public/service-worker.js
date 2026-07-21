@@ -27,10 +27,10 @@
 //   handler, _focusOrOpen) preserved exactly.
 // ============================================================================
 
-const CACHE_NAME = "xeevia-v2026-sw14";
+const CACHE_NAME = "xeevia-v2026-sw15";
 const CLOUDINARY_CACHE = "xeevia-cloudinary-v1";
 const CLOUDINARY_DOMAINS = ["res.cloudinary.com"];
-const SW_VERSION = "xeevia-1.0.14";
+const SW_VERSION = "xeevia-1.0.15";
 const DB_NAME = "xeevia-sw-db";
 const DB_VERSION = 1;
 const STORE_NAME = "pending-payloads";
@@ -180,6 +180,32 @@ function isCloudinaryRequest(request) {
   }
 }
 
+function shouldUseNetworkFirst(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.origin !== self.location.origin) return false;
+    const pathname = url.pathname;
+    if (pathname === "/" || pathname === "/index.html") return true;
+    return (
+      request.destination === "script" ||
+      request.destination === "style" ||
+      pathname.startsWith("/static/js/") ||
+      pathname.startsWith("/static/css/")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function cacheResponse(request, response) {
+  if (!response || response.type === "opaque") return response;
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  } catch (_) {}
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
@@ -215,10 +241,7 @@ self.addEventListener("fetch", (event) => {
       fetch(event.request)
         .then((res) => {
           if (res.ok) {
-            caches
-              .open(CACHE_NAME)
-              .then((c) => c.put(event.request, res.clone()))
-              .catch(() => {});
+            return cacheResponse(event.request, res);
           }
           return res;
         })
@@ -242,6 +265,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (shouldUseNetworkFirst(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res && (res.ok || res.type === "opaque")) {
+            return cacheResponse(event.request, res);
+          }
+          return res;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return new Response("", { status: 404 });
+        }),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) =>
       fetch(event.request)
@@ -250,10 +291,7 @@ self.addEventListener("fetch", (event) => {
             res.ok &&
             STATIC_ASSETS.includes(new URL(event.request.url).pathname)
           ) {
-            caches
-              .open(CACHE_NAME)
-              .then((c) => c.put(event.request, res.clone()))
-              .catch(() => {});
+            return cacheResponse(event.request, res);
           }
           return res;
         })
