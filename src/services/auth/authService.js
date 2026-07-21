@@ -91,6 +91,14 @@ class AuthService {
     const redirectTo = getCallbackUrl();
     const options = { redirectTo, skipBrowserRedirect: false };
 
+    // Diagnostic: log redirect target and resolved identity Supabase URL
+    try {
+      if (typeof window !== 'undefined' && (window.__XEEVIA_DEBUG__ || process.env.NODE_ENV !== 'production')) {
+        const identityUrl = getSupabaseProjectUrl('identity') || window.__SUPABASE_URL__ || '(none)';
+        console.debug('[AuthService] signInOAuth redirectTo=', redirectTo, 'identityUrl=', identityUrl);
+      }
+    } catch (e) {}
+
     switch (provider) {
       case "google":
         // access_type:"offline" ensures a refresh token is always issued.

@@ -31,15 +31,46 @@ export default function AuthCallback() {
     const handle = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        const hash   = window.location.hash;
+        let hash = window.location.hash;
 
-        // Handle OAuth errors
+        // If provider returned error info in the URL hash (some providers
+        // return #error=...), merge it into params so we handle errors
+        // uniformly here.
+        if (hash && hash.startsWith("#")) {
+          try {
+            const frag = new URLSearchParams(hash.slice(1));
+            for (const [k, v] of frag.entries()) {
+              if (!params.has(k)) params.set(k, v);
+            }
+          } catch (e) {
+            // ignore malformed hash
+          }
+        }
+
+        // Handle OAuth errors (from query or fragment)
         const errorCode = params.get("error_code") || params.get("error");
         if (errorCode) {
           const desc = params.get("error_description") || errorCode;
           if (!mounted) return;
-          setErrMsg(decodeURIComponent(desc).replace(/\+/g, " "));
+          setErrMsg(decodeURIComponent(String(desc)).replace(/\+/g, " "));
           setStatus("error");
+          // Clean up query/hash so the error doesn't persist in browser
+          try {
+            const url = new URL(window.location.href);
+            // remove known error params from search
+            ["error", "error_code", "error_description", "state", "sb"].forEach((k) => url.searchParams.delete(k));
+            // remove from fragment if present
+            if (url.hash) {
+              try {
+                const frag = new URLSearchParams(url.hash.slice(1));
+                ["error", "error_code", "error_description", "state", "sb"].forEach((k) => frag.delete(k));
+                const newHash = String(frag.toString());
+                url.hash = newHash ? `#${newHash}` : "";
+              } catch (e) {}
+            }
+            window.history.replaceState({}, "", url.toString());
+          } catch (e) {}
+
           setTimeout(() => {
             window.location.href = "/login";
           }, 2000);
