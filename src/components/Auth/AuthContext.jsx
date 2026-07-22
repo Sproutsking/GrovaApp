@@ -625,9 +625,16 @@ export default function AuthProvider({ children }) {
             startEnforcement(userId);
           }
         } else {
+          const priorProfile =
+            lastGoodProfile.current && lastGoodProfile.current.id === userId
+              ? lastGoodProfile.current
+              : null;
+          const useExistingProfile = !!(
+            priorProfile && (isPaidProfileData(priorProfile) || paidCacheRef.current)
+          );
           const fallbackProfile = buildFallbackProfile(userId, sessionUserRef);
           const bootstrapped = await bootstrapProfileRow(userId, sessionUserRef);
-          const resolvedProfile = bootstrapped || fallbackProfile;
+          const resolvedProfile = bootstrapped || (useExistingProfile ? priorProfile : fallbackProfile);
 
           lastGoodProfile.current = resolvedProfile;
           lastFetchedUserId.current = userId;
@@ -661,9 +668,16 @@ export default function AuthProvider({ children }) {
           );
         }
 
+        const priorProfile =
+          lastGoodProfile.current && lastGoodProfile.current.id === userId
+            ? lastGoodProfile.current
+            : null;
+        const useExistingProfile = !!(
+          priorProfile && (isPaidProfileData(priorProfile) || paidCacheRef.current)
+        );
         const fallbackProfile = buildFallbackProfile(userId, sessionUserRef);
         const bootstrapped = await bootstrapProfileRow(userId, sessionUserRef);
-        const resolvedProfile = bootstrapped || fallbackProfile;
+        const resolvedProfile = bootstrapped || (useExistingProfile ? priorProfile : fallbackProfile);
 
         lastGoodProfile.current = resolvedProfile;
         lastFetchedUserId.current = userId;

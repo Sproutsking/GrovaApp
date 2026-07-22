@@ -30,6 +30,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
 import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt } from "./services/notifications/appPromptManager";
+import { isChunkLoadError, buildRecoveryUrl } from "./utils/chunkRecovery";
 
 // expose scheduling helpers to the React AppPrompt UI
 try {
@@ -138,6 +139,22 @@ window.addEventListener("unhandledrejection", (event) => {
   ) {
     event.preventDefault();
     return;
+  }
+  if (isChunkLoadError(msg) || isChunkLoadError(stack)) {
+    event.preventDefault();
+    console.warn("[ChunkRecovery] Dynamic chunk failed, forcing reload with cache-busting URL");
+    window.location.replace(buildRecoveryUrl());
+    return;
+  }
+}, true);
+
+window.addEventListener("error", (event) => {
+  const msg = String(event?.error?.message ?? event?.message ?? "");
+  const stack = String(event?.error?.stack ?? "");
+  if (isChunkLoadError(msg) || isChunkLoadError(stack)) {
+    event.preventDefault();
+    console.warn("[ChunkRecovery] Chunk error captured, refreshing app");
+    window.location.replace(buildRecoveryUrl());
   }
 }, true);
 
