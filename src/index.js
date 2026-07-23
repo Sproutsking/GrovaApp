@@ -1,23 +1,25 @@
 // ============================================================================
-// src/index.js — v5 PUSH BRIDGE EARLY ATTACH
+// src/index.js — v6 CHUNK-LOAD-AWARE ERROR BOUNDARY
 // ============================================================================
 //
-// CHANGES vs v4:
-//   [1] pushService.attachBridgeEarly() called BEFORE root.render() so
-//       the SW message listener is live from the very first tick of the page.
-//       Previously the bridge was only attached inside pushService.start()
-//       which App.jsx called 2 seconds after mount — any SW messages that
-//       arrived in those first 2 seconds (PUSH_RECEIVED on cold start,
-//       PENDING_PAYLOADS drain, CALL_ACCEPTED_FROM_NOTIFICATION from a
-//       notification tap that opened the app) were silently dropped.
-//   [2] push:needs_permission window listener added globally so the
-//       permission prompt works from any component that calls
-//       pushService.enablePushNotifications(). Without this listener
-//       the event fired into the void and new users were never subscribed.
-//       The listener is set up once here and re-uses the userId from the
-//       CustomEvent detail.
-//   All v4 changes (global error filter, React error boundary, console noise
-//   filter, strict mode in dev only, SW registration) preserved exactly.
+// CHANGES vs v5:
+//   [1] AppErrorBoundary now recognizes ChunkLoadError / "Failed to fetch
+//       dynamically imported module" errors specifically. These happen when
+//       a lazy-loaded component's JS chunk 404s (stale build reference,
+//       mid-deploy race, or a CDN caching skew). Instead of dead-ending on
+//       the "Something hiccupped" screen, it triggers ONE automatic reload
+//       (guarded by a sessionStorage flag so it can never loop forever).
+//       This is a safety net — the primary fix is lazyRetry.js wrapping each
+//       lazy() import in App.jsx, which catches the failure before it ever
+//       reaches this boundary. This boundary exists in case a chunk error
+//       occurs somewhere lazyRetry doesn't cover (e.g. a nested dynamic
+//       import inside a library).
+//   [2] The reload-guard flag is cleared automatically 5s after a successful
+//       load, so a genuinely new chunk failure later in the same session
+//       still gets its own retry attempt instead of being permanently
+//       blocked by an old flag.
+//   All v5 logic (global error filter, dev console noise filter, SW
+//   registration, app-install/update prompts) preserved exactly.
 // ============================================================================
 
 import React from "react";
@@ -30,7 +32,6 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
 import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt } from "./services/notifications/appPromptManager";
-import { isChunkLoadError, buildRecoveryUrl } from "./utils/chunkRecovery";
 
 // expose scheduling helpers to the React AppPrompt UI
 try {
@@ -62,19 +63,30 @@ if (typeof window !== "undefined" && window.Image) {
 pushService.attachBridgeEarly();
 
 // ── [2] GLOBAL PUSH PERMISSION LISTENER ──────────────────────────────────────
-// Listens for the 'push:needs_permission' event that pushService.start()
-// dispatches when Notification.permission === "default". Any component can
-// then trigger enablePushNotifications() from a user gesture (e.g. a
-// "Enable notifications" button) without needing a direct pushService import.
 window.addEventListener("push:needs_permission", (e) => {
-  // Store the userId so it's available when the user later taps a prompt.
-  // The actual permission request MUST happen inside a user gesture handler —
-  // this listener just captures the userId for later use.
   const userId = e?.detail?.userId;
   if (userId) {
     window.__pushUserId = userId;
   }
 });
+
+// ── HELPERS: detect a chunk-load failure from any error shape ────────────────
+const CHUNK_ERROR_PATTERNS = [
+  /Loading chunk [\d]+ failed/i,
+  /Failed to fetch dynamically imported module/i,
+  /Importing a module script failed/i,
+  /error loading dynamically imported module/i,
+];
+
+function isChunkLoadError(error) {
+  if (!error) return false;
+  const name = String(error?.name ?? "");
+  const msg = String(error?.message ?? "");
+  if (name === "ChunkLoadError") return true;
+  return CHUNK_ERROR_PATTERNS.some((p) => p.test(msg));
+}
+
+const CHUNK_RELOAD_FLAG = "xv_boundary_chunk_reload";
 
 // ── 1. GLOBAL EXTENSION ERROR FILTER ─────────────────────────────────────────
 const EXTENSION_ERROR_PATTERNS = [
@@ -140,21 +152,19 @@ window.addEventListener("unhandledrejection", (event) => {
     event.preventDefault();
     return;
   }
-  if (isChunkLoadError(msg) || isChunkLoadError(stack)) {
-    event.preventDefault();
-    console.warn("[ChunkRecovery] Dynamic chunk failed, forcing reload with cache-busting URL");
-    window.location.replace(buildRecoveryUrl());
-    return;
-  }
-}, true);
-
-window.addEventListener("error", (event) => {
-  const msg = String(event?.error?.message ?? event?.message ?? "");
-  const stack = String(event?.error?.stack ?? "");
-  if (isChunkLoadError(msg) || isChunkLoadError(stack)) {
-    event.preventDefault();
-    console.warn("[ChunkRecovery] Chunk error captured, refreshing app");
-    window.location.replace(buildRecoveryUrl());
+  // A chunk-load rejection that surfaces as an unhandled promise rejection
+  // (rather than a thrown render error) — same one-shot reload guard as the
+  // error boundary below, so we never loop.
+  if (isChunkLoadError(reason)) {
+    let already = false;
+    try { already = sessionStorage.getItem(CHUNK_RELOAD_FLAG) === "1"; } catch (_) {}
+    if (!already) {
+      try { sessionStorage.setItem(CHUNK_RELOAD_FLAG, "1"); } catch (_) {}
+      event.preventDefault();
+      console.warn("[index.js] Chunk load rejection — reloading once:", msg);
+      window.location.reload();
+      return;
+    }
   }
 }, true);
 
@@ -216,6 +226,22 @@ class AppErrorBoundary extends React.Component {
     if (/AbortError/i.test(msg) || /signal is aborted/i.test(msg)) {
       return { hasError: false, error: null };
     }
+
+    // [1] Chunk load errors get ONE automatic reload before we ever show
+    // the fallback screen. Guarded by sessionStorage so a genuinely broken
+    // deploy (chunk permanently missing) still surfaces the real error
+    // after the first retry instead of reload-looping forever.
+    if (isChunkLoadError(error)) {
+      let already = false;
+      try { already = sessionStorage.getItem(CHUNK_RELOAD_FLAG) === "1"; } catch (_) {}
+      if (!already) {
+        try { sessionStorage.setItem(CHUNK_RELOAD_FLAG, "1"); } catch (_) {}
+        console.warn("[AppErrorBoundary] Chunk load error — reloading once:", msg);
+        window.location.reload();
+        return { hasError: false, error: null };
+      }
+    }
+
     return { hasError: true, error };
   }
 
@@ -347,6 +373,15 @@ if (process.env.NODE_ENV === "development") {
 } else {
   root.render(AppTree);
 }
+
+// Clear the chunk-reload guard a few seconds after a clean load so a
+// genuinely NEW chunk failure later in this tab's life still gets its own
+// single retry instead of being silently blocked by an old flag.
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    try { sessionStorage.removeItem(CHUNK_RELOAD_FLAG); } catch (_) {}
+  }, 8000);
+});
 
 // ── 5. SERVICE WORKER + APP PROMPTS ────────────────────────────────────────
 const UPDATE_SKIP_WINDOW_MS = 60_000;

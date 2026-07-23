@@ -1,27 +1,14 @@
 // ============================================================================
-// src/App.jsx — v25 PUSH STARTUP RACE FIXED
+// src/App.jsx — v26 CHUNK-RETRY HARDENED
 // ============================================================================
 //
-// CHANGES vs v24:
-//   [PUSH-FIX-1] pushService.start() is no longer inside a setTimeout(2000).
-//                The bridge is now attached in index.js before React renders
-//                (via attachBridgeEarly()), so there is no race. start() can
-//                be called immediately after the 2s guard was just protecting
-//                against. Removing the delay means subscriptions are created
-//                faster and PENDING_PAYLOADS are drained without a 2-second gap.
-//   [PUSH-FIX-2] push:needs_permission listener added inside the init useEffect
-//                so when the SW dispatches the event (on first visit with
-//                Notification.permission === "default") a non-blocking nudge
-//                can show the permission prompt on the next user gesture.
-//                This uses window.__pushUserId set by index.js + a custom
-//                window.__xvRequestPushPermission hook that any component
-//                (e.g. AccountView settings) can call from a button click.
-//   [PUSH-FIX-3] The unified push useEffect now also handles "push_received"
-//                for general notifications that are NOT incoming_call — they
-//                are forwarded directly to the InAppNotificationToast via
-//                addToastRef so in-app toasts fire even when the user has
-//                not scrolled to the notifications tab.
-//   All v24 logic preserved exactly.
+// CHANGES vs v25:
+//   [1] Every lazy(() => import(...)) call is now wrapped with lazyRetry()
+//       from src/utils/lazyRetry.js. If a chunk 404s (stale build reference,
+//       CDN cache skew, mid-deploy race), the app now self-heals with ONE
+//       automatic reload instead of crashing to the top-level error boundary.
+//   All v25 logic preserved exactly — no behavioral changes besides chunk
+//   loading resilience.
 // ============================================================================
 
 import React, {
@@ -55,6 +42,7 @@ import { useNavigation }           from "./hooks/useNavigation";
 import { useBackButton }           from "./hooks/useBackButton";
 import { usePullToRefresh }        from "./hooks/usePullToRefresh";
 import { applyThemeMode }         from "./utils/theme";
+import { lazyRetry }               from "./utils/lazyRetry";
 
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
@@ -76,41 +64,41 @@ import AppPrompt from "./components/Shared/AppPrompt";
 import xrcService from "./services/xrc";
 import HomeView from "./components/Home/HomeView";
 import TrendingSidebar from "./components/Shared/TrendingSidebar";
-const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
-const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
-const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
-const PushPermissionNudge = lazy(() => import("./components/Shared/PushPermissionNudge"));
-const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitchPrompt"));
-const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
-const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
-const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
+const SupportSidebar = lazy(() => lazyRetry(() => import("./components/Shared/SupportSidebar"), "SupportSidebar"));
+const NotificationSidebar = lazy(() => lazyRetry(() => import("./components/Shared/NotificationSidebar"), "NotificationSidebar"));
+const InAppNotificationToast = lazy(() => lazyRetry(() => import("./components/Shared/InAppNotificationToast"), "InAppNotificationToast"));
+const PushPermissionNudge = lazy(() => lazyRetry(() => import("./components/Shared/PushPermissionNudge"), "PushPermissionNudge"));
+const AccountSwitchPrompt = lazy(() => lazyRetry(() => import("./components/Shared/AccountSwitchPrompt"), "AccountSwitchPrompt"));
+const PullToRefreshIndicator = lazy(() => lazyRetry(() => import("./components/Shared/PullToRefreshIndicator"), "PullToRefreshIndicator"));
+const NetworkError = lazy(() => lazyRetry(() => import("./components/Shared/NetworkError"), "NetworkError"));
+const IncomingCallToast = lazy(() => lazyRetry(() => import("./components/Messages/IncomingCallToast"), "IncomingCallToast"));
 // DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
 // Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
 // This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
 
 // Admin dashboard
-const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboard"));
+const AdminDashboard = lazy(() => lazyRetry(() => import("./components/Admin/AdminDashboard"), "AdminDashboard"));
 
 // ── Public Pages (no auth required) ──────────────────────────────────────────
-const TermsOfService = lazy(() => import("./pages/TermsOfService"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => lazyRetry(() => import("./pages/TermsOfService"), "TermsOfService"));
+const PrivacyPolicy = lazy(() => lazyRetry(() => import("./pages/PrivacyPolicy"), "PrivacyPolicy"));
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
-const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
-const CreateView      = lazy(() => import("./components/Create/CreateView"));
-const AccountView     = lazy(() => import("./components/Account/AccountView"));
-const WalletView      = lazy(() => import("./components/wallet/WalletView"));
-const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
+const ExploreView     = lazy(() => lazyRetry(() => import("./components/Explore/ExploreView"), "ExploreView"));
+const CreateView      = lazy(() => lazyRetry(() => import("./components/Create/CreateView"), "CreateView"));
+const AccountView     = lazy(() => lazyRetry(() => import("./components/Account/AccountView"), "AccountView"));
+const WalletView      = lazy(() => lazyRetry(() => import("./components/wallet/WalletView"), "WalletView"));
+const CommunityView   = lazy(() => lazyRetry(() => import("./components/Community/CommunityView"), "CommunityView"));
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
-const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
-const UpgradeView    = lazy(() => import("./components/Upgrade/UpgradeView"));
-const RewardsView    = lazy(() => import("./components/Rewards/RewardsView"));
-const StreamView     = lazy(() => import("./components/Stream/StreamView"));
-const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView"));
-const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView"));
-const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall"));
-const AmbassadorView = lazy(() => import("./components/Ambassador/AmbassadorView"));
+const AnalyticsView  = lazy(() => lazyRetry(() => import("./components/Analytics/AnalyticsView"), "AnalyticsView"));
+const UpgradeView    = lazy(() => lazyRetry(() => import("./components/Upgrade/UpgradeView"), "UpgradeView"));
+const RewardsView    = lazy(() => lazyRetry(() => import("./components/Rewards/RewardsView"), "RewardsView"));
+const StreamView     = lazy(() => lazyRetry(() => import("./components/Stream/StreamView"), "StreamView"));
+const GiftCardsView  = lazy(() => lazyRetry(() => import("./components/GiftCards/GiftCardsView"), "GiftCardsView"));
+const DMMessagesView = lazy(() => lazyRetry(() => import("./components/Messages/DMMessagesView"), "DMMessagesView"));
+const ActiveCall     = lazy(() => lazyRetry(() => import("./components/Messages/ActiveCall"), "ActiveCall"));
+const AmbassadorView = lazy(() => lazyRetry(() => import("./components/Ambassador/AmbassadorView"), "AmbassadorView"));
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set([
@@ -193,22 +181,22 @@ OfflineBanner.displayName = "OfflineBanner";
 // ── Preload lazy overlays ─────────────────────────────────────────────────────────
 function preloadTabs() {
   [
-    () => import("./components/Analytics/AnalyticsView"),
-    () => import("./components/Upgrade/UpgradeView"),
-    () => import("./components/Rewards/RewardsView"),
-    () => import("./components/Stream/StreamView"),
-    () => import("./components/GiftCards/GiftCardsView"),
-    () => import("./components/Messages/DMMessagesView"),
-    () => import("./components/Messages/ActiveCall"),
-    () => import("./components/Ambassador/AmbassadorView"),
-    () => import("./components/Shared/SupportSidebar"),
-    () => import("./components/Shared/NotificationSidebar"),
-    () => import("./components/Shared/InAppNotificationToast"),
-    () => import("./components/Shared/PushPermissionNudge"),
-    () => import("./components/Shared/AccountSwitchPrompt"),
-    () => import("./components/Shared/PullToRefreshIndicator"),
-    () => import("./components/Shared/NetworkError"),
-    () => import("./components/Messages/IncomingCallToast"),
+    () => lazyRetry(() => import("./components/Analytics/AnalyticsView"), "AnalyticsView"),
+    () => lazyRetry(() => import("./components/Upgrade/UpgradeView"), "UpgradeView"),
+    () => lazyRetry(() => import("./components/Rewards/RewardsView"), "RewardsView"),
+    () => lazyRetry(() => import("./components/Stream/StreamView"), "StreamView"),
+    () => lazyRetry(() => import("./components/GiftCards/GiftCardsView"), "GiftCardsView"),
+    () => lazyRetry(() => import("./components/Messages/DMMessagesView"), "DMMessagesView"),
+    () => lazyRetry(() => import("./components/Messages/ActiveCall"), "ActiveCall"),
+    () => lazyRetry(() => import("./components/Ambassador/AmbassadorView"), "AmbassadorView"),
+    () => lazyRetry(() => import("./components/Shared/SupportSidebar"), "SupportSidebar"),
+    () => lazyRetry(() => import("./components/Shared/NotificationSidebar"), "NotificationSidebar"),
+    () => lazyRetry(() => import("./components/Shared/InAppNotificationToast"), "InAppNotificationToast"),
+    () => lazyRetry(() => import("./components/Shared/PushPermissionNudge"), "PushPermissionNudge"),
+    () => lazyRetry(() => import("./components/Shared/AccountSwitchPrompt"), "AccountSwitchPrompt"),
+    () => lazyRetry(() => import("./components/Shared/PullToRefreshIndicator"), "PullToRefreshIndicator"),
+    () => lazyRetry(() => import("./components/Shared/NetworkError"), "NetworkError"),
+    () => lazyRetry(() => import("./components/Messages/IncomingCallToast"), "IncomingCallToast"),
   ].forEach((fn) => fn().catch(() => {}));
 }
 
@@ -389,20 +377,12 @@ const MainApp = memo(() => {
       addToastRef.current?.(toast);
     });
 
-    // [PUSH-FIX-1] No setTimeout — bridge is already attached via
-    // attachBridgeEarly() in index.js. start() is safe to call immediately.
     if (navigator.onLine) {
       pushService.start(user.id).catch(() => {});
     } else {
-      // If offline at mount, start() when connectivity returns.
-      // pushService.start() itself handles the online event internally,
-      // but we still need to call it to set _userId and attach the visibility check.
       pushService.start(user.id).catch(() => {});
     }
 
-    // [PUSH-FIX-2] Expose a hook so any component (e.g. account settings
-    // "Enable notifications" button) can trigger the permission flow from
-    // within a user gesture without importing pushService directly.
     window.__xvRequestPushPermission = async () => {
       const granted = await pushService.enablePushNotifications(user.id);
       if (granted) {
@@ -430,17 +410,14 @@ const MainApp = memo(() => {
   useEffect(() => {
     if (!user?.id) return;
 
-    // ── OS / SW notification tapped → navigate ──────────────────────────
     const unsubClick = pushService.on("notification_clicked", ({ url }) => {
       if (url) handleNotificationNavigate(url);
     });
 
-    // ── SW updated ───────────────────────────────────────────────────────
     const unsubSwUpdate = pushService.on("sw_updated", ({ version }) => {
       console.log("[App] SW updated to", version);
     });
 
-    // ── Incoming call arrived via push (app backgrounded/closed) ─────────
     const unsubCallPush = pushService.on("incoming_call_push", (callData) => {
       if (!callData) return;
       callService._onIncomingCall({
@@ -460,7 +437,6 @@ const MainApp = memo(() => {
       });
     });
 
-    // ── OS notification: user tapped "Accept" on call notification ────────
     const unsubAcceptNotif = pushService.on("call_accepted_from_notification", (callData) => {
       if (!callData) return;
       setAcceptedCallData({
@@ -478,7 +454,6 @@ const MainApp = memo(() => {
       setShowMessages(false);
     });
 
-    // ── OS notification: user tapped "Decline" on call notification ───────
     const unsubDeclineNotif = pushService.on("call_declined_from_notification", (callData) => {
       if (!callData) return;
       const callId   = callData.call_id || callData.callId;
@@ -486,18 +461,11 @@ const MainApp = memo(() => {
       if (callId) callService.declineCall(callId, callerId);
     });
 
-    // ── [PUSH-FIX-3] General push_received → in-app toast ─────────────────
-    // Ensures non-call push notifications show an in-app toast when the app
-    // is open. InAppNotificationToast also subscribes to this via pushService
-    // directly, so dedup in that component prevents double-toasts.
     const unsubPushReceived = pushService.on("push_received", (payload) => {
       if (!payload) return;
       const type = payload?.data?.type || "general";
-      // incoming_call handled by IncomingCallToast, not a toast
       if (type === "incoming_call") return;
-      // dm handled by MessageNotificationService
       if (type === "dm") return;
-      // All other types: forward to InAppNotificationToast via addToastRef
       if (addToastRef.current) {
         addToastRef.current({
           type,
@@ -508,7 +476,6 @@ const MainApp = memo(() => {
       }
     });
 
-    // ── In-app toast: user tapped "Accept" inside the app ────────────────
     const handleInAppAccept = (e) => {
       const callData = e.detail;
       if (!callData) return;
@@ -518,7 +485,6 @@ const MainApp = memo(() => {
     };
     window.addEventListener("nova:accept_call", handleInAppAccept);
 
-    // ── Cold start: app opened via ?accept_call=<id> deep link ───────────
     const params           = new URLSearchParams(window.location.search);
     const coldAcceptCallId = params.get("accept_call");
     if (coldAcceptCallId) {
@@ -1262,9 +1228,7 @@ function AppRouter() {
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
-  // oauthInProgress intentionally unused here; keep helper available via hasOAuthCodeInUrl()
 
-  // Defer public page early-returns until after hooks so hooks run
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
   const cleanPathname = pathname.replace(/\/+$/, "");
   const isTerms = cleanPathname === "/terms";
@@ -1294,11 +1258,9 @@ function AppRouter() {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
 
-  // Auth callback routes: render the dedicated callback pages directly.
   if (isAuthCallback) return <AuthCallback />;
   if (isPopupCallback) return <AddAccountCallback />;
 
-  // Public pages: render without calling other hooks after they are registered
   if (isTerms) {
     return (
       <Suspense fallback={<Splash />}>
@@ -1338,8 +1300,6 @@ function AppRouter() {
 
   if (accessAllowed) return <MainApp />;
 
-  // If the profile is already loaded and the user is known to be authenticated,
-  // show the paywall gate rather than bouncing back to splash/loading state.
   if (user) return <AuthWall paywall />;
 
   return <AuthWall />;
