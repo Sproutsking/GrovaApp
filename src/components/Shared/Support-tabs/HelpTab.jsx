@@ -894,7 +894,7 @@ Xeevia offers REST endpoints, webhooks, and SDKs for common languages. The Oracl
 ### Quickstart
 1. Create a developer account
 2. Create an API key in Developer Console
-3. Call `/v1/users/{id}` and `/v1/oracle/proof`
+3. Call /v1/users/[id] and /v1/oracle/proof
 
 Use webhooks for real-time events (payment success, story unlock, membership join).`,
       },
@@ -904,7 +904,7 @@ Use webhooks for real-time events (payment success, story unlock, membership joi
         readTime: "3 min",
         content: `## Verifying Oracle responses
 
-      When you receive { answer, proof, signature }, validate the signature against Xeevia's public key and verify the proof path hashes match the claimed state. SDKs provide helpers for this verification step.`,
+When you receive an answer object with answer, proof, and signature fields, validate the signature against Xeevia's public key and verify the proof path hashes match the claimed state. SDKs provide helpers for this verification step.`,
       },
     ],
   },
@@ -914,7 +914,17 @@ Use webhooks for real-time events (payment success, story unlock, membership joi
 
 function renderMarkdown(text) {
   if (!text) return null;
-  const lines = text.trim().split("\n");
+
+  const safeText = String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+    .replace(/\{/g, "&#123;")
+    .replace(/\}/g, "&#125;");
+
+  const lines = safeText.trim().split("\n");
   const elements = [];
   let i = 0;
   let listBuffer = null;

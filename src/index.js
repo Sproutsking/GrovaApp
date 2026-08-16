@@ -332,6 +332,36 @@ let updatePromptShown = false;
 let pushPromptShown = false;
 let promptCooldownUntil = 0;
 
+function ensurePromptStyles() {
+  if (document.getElementById("xv-prompt-animations")) return;
+
+  const style = document.createElement("style");
+  style.id = "xv-prompt-animations";
+  style.textContent = `
+    @keyframes xvPromptRise {
+      0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(16px) scale(0.96);
+      }
+      65% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-2px) scale(1.01);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+    }
+
+    @keyframes xvPromptPulse {
+      0% { transform: scale(1); }
+      35% { transform: scale(0.97); }
+      100% { transform: scale(1); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function isPwaInstalled() {
   return window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone
@@ -355,6 +385,7 @@ function showAppPrompt({ type, message, detail }) {
   if (type === "update" && updatePromptShown) return;
   if (type === "push" && pushPromptShown) return;
 
+  ensurePromptStyles();
   let isShowingSnoozeOptions = false;
 
   const banner = document.createElement("div");
@@ -363,18 +394,21 @@ function showAppPrompt({ type, message, detail }) {
     position: fixed;
     left: 50%;
     bottom: 24px;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(12px) scale(.96);
+    opacity: 0;
     z-index: 2147483647;
     width: min(92vw, 420px);
-    background: rgba(6, 10, 6, 0.96);
-    border: 1px solid rgba(168, 230, 61, 0.24);
+    background: linear-gradient(180deg, rgba(12, 16, 12, 0.98), rgba(8, 12, 8, 0.96));
+    border: 1px solid rgba(168, 230, 61, 0.28);
     border-radius: 18px;
     padding: 14px 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(168,230,61,0.08), 0 0 32px rgba(132,204,22,0.18);
     display: flex;
     align-items: center;
     gap: 12px;
     backdrop-filter: blur(16px);
+    transition: transform 0.22s cubic-bezier(.2,.9,.2,1), opacity 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    animation: xvPromptRise 0.28s cubic-bezier(.2,.9,.2,1) forwards;
   `;
 
   const logoUrl = "/logo192.png";
@@ -382,7 +416,7 @@ function showAppPrompt({ type, message, detail }) {
   const subtitle = detail || message || "Tap below to continue.";
 
   banner.innerHTML = `
-    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:rgba(132,204,22,.08);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center">
+    <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;overflow:hidden;background:rgba(132,204,22,.08);border:1px solid rgba(132,204,22,.2);display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(132,204,22,.12)">
       <img src="${logoUrl}" alt="Xeevia" style="width:20px;height:20px;object-fit:contain"/>
     </div>
     <div style="flex:1;min-width:0">
@@ -390,76 +424,132 @@ function showAppPrompt({ type, message, detail }) {
       <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
-      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">Ignore</button>
-      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
+      <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, background .18s ease;">Ignore</button>
+      <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, filter .18s ease; box-shadow:0 8px 18px rgba(132,204,22,0.26);">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
 
+  const closeBanner = (callback) => {
+    if (!banner || !document.body.contains(banner)) {
+      callback?.();
+      return;
+    }
+    banner.style.opacity = "0";
+    banner.style.transform = "translateX(-50%) translateY(10px) scale(0.96)";
+    banner.style.filter = "blur(1px)";
+    setTimeout(() => {
+      banner.remove();
+      callback?.();
+    }, 180);
+  };
+
   document.body.appendChild(banner);
+
+  const actionButton = document.getElementById("xv-prompt-action");
+  const laterButton = document.getElementById("xv-prompt-later");
+
+  actionButton.addEventListener("pointerdown", () => {
+    actionButton.style.transform = "scale(0.97)";
+    actionButton.style.filter = "brightness(1.06)";
+  });
+  actionButton.addEventListener("pointerup", () => {
+    actionButton.style.transform = "scale(1)";
+  });
+  actionButton.addEventListener("mouseover", () => {
+    actionButton.style.transform = "translateY(-1px) scale(1.02)";
+    actionButton.style.boxShadow = "0 12px 24px rgba(132,204,22,0.34)";
+  });
+  actionButton.addEventListener("mouseout", () => {
+    actionButton.style.transform = "none";
+    actionButton.style.boxShadow = "0 8px 18px rgba(132,204,22,0.26)";
+  });
+
+  laterButton.addEventListener("mouseover", () => {
+    laterButton.style.transform = "translateY(-1px)";
+    laterButton.style.background = "rgba(255,255,255,0.12)";
+  });
+  laterButton.addEventListener("mouseout", () => {
+    laterButton.style.transform = "none";
+    laterButton.style.background = "rgba(255,255,255,0.08)";
+  });
 
   function showSnoozeOptions() {
     isShowingSnoozeOptions = true;
     const buttonsContainer = document.getElementById("xv-prompt-buttons");
     const snoozeHours = type === "install" || type === "push" ? [12, 24, 48] : [12, 24];
     const snoozeLabels = { 12: "12 hrs", 24: "Tomorrow", 48: "In 2 days" };
-    
-    buttonsContainer.innerHTML = snoozeHours.map(hours => 
-      `<button class="xv-snooze-option" data-hours="${hours}" style="border:none;background:rgba(132,204,22,.12);color:#84cc16;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid rgba(132,204,22,.2)">${snoozeLabels[hours]}</button>`
+
+    buttonsContainer.innerHTML = snoozeHours.map(hours =>
+      `<button class="xv-snooze-option" data-hours="${hours}" style="border:none;background:rgba(132,204,22,.12);color:#84cc16;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:transform .18s ease, background .18s ease, box-shadow .18s ease;border:1px solid rgba(132,204,22,.2)">${snoozeLabels[hours]}</button>`
     ).join("");
-    
+
     document.querySelectorAll(".xv-snooze-option").forEach(btn => {
+      btn.addEventListener("mouseover", () => {
+        btn.style.transform = "translateY(-1px)";
+        btn.style.boxShadow = "0 8px 16px rgba(132,204,22,0.18)";
+      });
+      btn.addEventListener("mouseout", () => {
+        btn.style.transform = "none";
+        btn.style.boxShadow = "none";
+      });
       btn.addEventListener("click", (e) => {
         const hours = Number(e.currentTarget.getAttribute("data-hours"));
         const nextShowAt = Date.now() + hours * 60 * 60 * 1000;
         const state = readPromptState();
         state[type] = nextShowAt;
         writePromptState(state);
-        banner.remove();
-        if (type === "install") installPromptShown = true;
-        if (type === "update") updatePromptShown = true;
-        if (type === "push") pushPromptShown = true;
+        closeBanner(() => {
+          if (type === "install") installPromptShown = true;
+          if (type === "update") updatePromptShown = true;
+          if (type === "push") pushPromptShown = true;
+        });
       });
     });
   }
 
   function dismissPrompt(hours = 24) {
     schedulePrompt(type, hours);
-    banner.remove();
-    if (type === "install") installPromptShown = true;
-    if (type === "update") updatePromptShown = true;
-    if (type === "push") pushPromptShown = true;
+    closeBanner(() => {
+      if (type === "install") installPromptShown = true;
+      if (type === "update") updatePromptShown = true;
+      if (type === "push") pushPromptShown = true;
+    });
   }
 
-  document.getElementById("xv-prompt-later").addEventListener("click", (e) => {
+  laterButton.addEventListener("click", (e) => {
     e.stopPropagation();
     if (!isShowingSnoozeOptions) {
       showSnoozeOptions();
       return;
     }
-
     dismissPrompt(24);
   });
 
-  document.getElementById("xv-prompt-action").addEventListener("click", async () => {
-    banner.remove();
+  actionButton.addEventListener("click", async () => {
     if (type === "install" && deferredInstallEvent) {
-      deferredInstallEvent.prompt();
-      const { outcome } = await deferredInstallEvent.userChoice;
-      if (outcome === "accepted") {
-        installPromptShown = true;
-        localStorage.setItem("xv_pwa_installed", "1");
-        clearPromptSchedule("install");
-      }
+      closeBanner(async () => {
+        deferredInstallEvent.prompt();
+        const { outcome } = await deferredInstallEvent.userChoice;
+        if (outcome === "accepted") {
+          installPromptShown = true;
+          localStorage.setItem("xv_pwa_installed", "1");
+          clearPromptSchedule("install");
+        }
+      });
     } else if (type === "update") {
-      updatePromptShown = true;
-      clearPromptSchedule("update");
-      localStorage.setItem("xv_update_timestamp", String(Date.now()));
-      window.location.reload();
+      closeBanner(() => {
+        updatePromptShown = true;
+        clearPromptSchedule("update");
+        localStorage.setItem("xv_update_timestamp", String(Date.now()));
+        window.location.reload();
+      });
     } else if (type === "push") {
-      if (typeof window.__xvRequestPushPermission === "function") {
-        await window.__xvRequestPushPermission();
-      }
-      pushPromptShown = true;
+      closeBanner(async () => {
+        if (typeof window.__xvRequestPushPermission === "function") {
+          await window.__xvRequestPushPermission();
+        }
+        pushPromptShown = true;
+      });
     }
   });
 

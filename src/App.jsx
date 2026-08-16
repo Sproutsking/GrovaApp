@@ -1192,7 +1192,7 @@ MainApp.displayName = "MainApp";
 function AppRouter() {
   const {
     user, profile, isAdmin, adminData,
-    loading, profileLoading,
+    loading, profileLoading, adminRoleLoading,
     getIsPaidCached,
   } = useAuth();
 
