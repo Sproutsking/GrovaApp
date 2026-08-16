@@ -21,9 +21,12 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import authService from "../../services/auth/authService";
+import { fetchLiveStats } from "../../services/auth/paywallDataService";
 import PaywallGate from "./PaywallGate";
 import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import { AppLoader } from "../Shared/UnifiedLoader";
+import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package } from "lucide-react";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -297,7 +300,7 @@ const Grain = () => (
   </svg>
 );
 
-const Corners = ({ color = "rgba(168,230,61,0.26)" }) => (
+const Corners = ({ color = "rgba(214,255,128,0.9)" }) => (
   <div
     aria-hidden
     style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }}
@@ -310,11 +313,11 @@ const Corners = ({ color = "rgba(168,230,61,0.26)" }) => (
     ].map((c, i) => (
       <svg
         key={i}
-        style={{ position: "absolute", ...c.s, width: 24, height: 24 }}
+        style={{ position: "absolute", ...c.s, width: 24, height: 24, filter: "drop-shadow(0 0 5px rgba(168,230,61,0.9)) drop-shadow(0 0 12px rgba(168,230,61,0.5))" }}
         viewBox="0 0 24 24"
         fill="none"
       >
-        <path d={c.p} stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+        <path d={c.p} stroke={color} strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ))}
   </div>
@@ -678,35 +681,58 @@ export function DeclinedScreen({ message, onRetry }) {
 // ─── LEFT PANEL ───────────────────────────────────────────────────────────────
 function LeftPanel() {
   const [memberCount, setMemberCount] = useState(null);
-  const [epGrant, setEpGrant] = useState(300);
   const [recentUsers, setRecentUsers] = useState([]);
 
   useEffect(() => {
-    supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "paywall_config")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.value) {
-          if (data.value.member_count != null)
-            setMemberCount(data.value.member_count);
-          if (data.value.ep_grant != null) setEpGrant(data.value.ep_grant);
-        }
-      })
-      .catch(() => {});
+    let active = true;
 
-    supabase
-      .from("profiles")
-      .select("id,full_name,avatar_id")
-      .is("deleted_at", null)
-      .not("full_name", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(4)
-      .then(({ data }) => {
-        if (data?.length) setRecentUsers(data);
-      })
-      .catch(() => {});
+    const loadData = async () => {
+      try {
+        const [profilesResult, liveStatsResult] = await Promise.allSettled([
+          supabase
+            .from("profiles")
+            .select("id, full_name, avatar_id", { count: "exact" })
+            .is("deleted_at", null)
+            .not("full_name", "is", null)
+            .order("created_at", { ascending: false }),
+          fetchLiveStats(),
+        ]);
+
+        if (!active) return;
+
+        if (profilesResult.status === "fulfilled") {
+          const { data, error } = profilesResult.value;
+          if (error) {
+            console.error("AuthWall profiles fetch failed:", error);
+          } else {
+            const allUsers = data || [];
+            setRecentUsers(allUsers.slice(0, 12));
+          }
+        }
+
+        if (liveStatsResult.status === "fulfilled") {
+          setMemberCount(
+            typeof liveStatsResult.value?.memberCount === "number"
+              ? liveStatsResult.value.memberCount
+              : 0,
+          );
+        } else if (profilesResult.status === "fulfilled") {
+          const { data, error } = profilesResult.value;
+          if (!error) {
+            const allUsers = data || [];
+            setMemberCount(allUsers.length);
+          }
+        }
+      } catch (error) {
+        console.error("AuthWall profile query error:", error);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const fmtCount = (n) => {
@@ -716,27 +742,31 @@ function LeftPanel() {
   };
 
   function buildAvatarUrl(avatarId) {
-    if (!avatarId) return null;
-    if (avatarId.startsWith("http")) return avatarId;
-    const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL ?? "";
-    return `${SUPABASE_URL}/storage/v1/object/public/avatars/${avatarId}?width=60&height=60&resize=cover&format=webp`;
+    try {
+      if (!avatarId) return null;
+      // prefer centralized mediaUrlService which knows cloud/storage rules
+      const url = mediaUrlService.getAvatarUrl(avatarId, 80);
+      if (url) return url;
+    } catch (e) {}
+    if (avatarId && avatarId.startsWith("http")) return avatarId;
+    return null;
   }
 
   const ACCENT_COLORS = ["#a8e63d", "#84cc16", "#65a30d", "#d4fc72"];
 
   const VALUE_PROPS = [
     {
-      icon: "⚡",
+      iconType: "flame",
       title: "Engagement Has Weight",
       body: "Every action costs something and means something. No bots. No fake reach.",
     },
     {
-      icon: "💸",
+      iconType: "trending",
       title: "Creators Keep 84%",
       body: "84% of every EP tip lands directly in your wallet — not the platform's.",
     },
     {
-      icon: "⛓",
+      iconType: "link",
       title: "XRC Protocol",
       body: "Every like, post and transaction is cryptographically recorded. Yours permanently.",
     },
@@ -745,24 +775,40 @@ function LeftPanel() {
   const FEATURES = [
     {
       n: "01",
-      icon: "🔒",
+      iconType: "lock",
       title: "Private & Yours",
       sub: "Your data, your rules",
     },
     {
       n: "02",
-      icon: "⚡",
-      title: `${epGrant} EP on join`,
+      iconType: "zap",
+      title: "400 EP on join",
       sub: "Instant reward",
     },
-    { n: "03", icon: "♾️", title: "Lifetime access", sub: "No renewals ever" },
+    { n: "03", iconType: "infinity", title: "Lifetime access", sub: "No renewals ever" },
   ];
 
   const ECO_STATS = [
-    { value: "$1 = 100 EP", label: "Fixed EP Rate", note: "stable" },
-    { value: "84%", label: "Creator Share", note: "of every tip" },
-    { value: "1T XEV", label: "Token Supply", note: "hard cap" },
+    { iconType: "dollar", value: "$1 = 100 EP", label: "Fixed EP Rate", note: "stable" },
+    { iconType: "percent", value: "84%", label: "Creator Share", note: "of every tip" },
+    { iconType: "package", value: "1T XEV", label: "Token Supply", note: "hard cap" },
   ];
+
+  const getIcon = (iconType) => {
+    const iconProps = {size:18, strokeWidth:2, style:{color:"#a8e63d"}};
+    const iconMap = {
+      lock: <Lock {...iconProps}/>,
+      zap: <Zap {...iconProps}/>,
+      infinity: <Infinity {...iconProps}/>,
+      flame: <Flame {...iconProps}/>,
+      trending: <TrendingUp {...iconProps}/>,
+      link: <Link2 {...iconProps}/>,
+      dollar: <DollarSign {...iconProps}/>,
+      percent: <Percent {...iconProps}/>,
+      package: <Package {...iconProps}/>,
+    };
+    return iconMap[iconType] || null;
+  };
 
   const NODE_PATHS = [
     "M110,160 L275,255",
@@ -930,429 +976,105 @@ function LeftPanel() {
           display: "flex",
           flexDirection: "column",
           height: "100%",
+          gap: 0,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 14,
-            animation: "LP_rise .5s ease both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              background: "linear-gradient(135deg,#a8e63d,#4d7c0f)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 16px rgba(168,230,61,.22)",
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                fontSize: 17,
-                fontWeight: 900,
-                color: "#040a00",
-                lineHeight: 1,
-              }}
-            >
-              X
-            </span>
-          </div>
-          <div>
-            <div
-              style={{
-                fontFamily: "'Bebas Neue',sans-serif",
-                fontSize: 17,
-                letterSpacing: "6px",
-                color: "#4a7a1a",
-                lineHeight: 1,
-              }}
-            >
-              XEEVIA
+        {/* ─── HEADER & HERO ─── */}
+        <div style={{animation:"LP_rise .5s ease both",animationFillMode:"forwards",opacity:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
+            <div style={{width:52,height:52,borderRadius:16,background:"linear-gradient(135deg,rgba(168,230,61,.18),rgba(12,12,12,.9))",border:"1.5px solid rgba(168,230,61,.34)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,.05), 0 0 22px rgba(168,230,61,.18)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:4}}>
+              <div style={{width:"100%",height:"100%",borderRadius:12,overflow:"hidden",border:"1px solid rgba(168,230,61,.26)",background:"linear-gradient(135deg,#a8e63d,#4d7c0f)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <img src="/logo192.png" alt="Xeevia logo" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} />
+              </div>
             </div>
-            <div
-              style={{
-                fontSize: 7,
-                fontWeight: 700,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                color: "#2a4a1a",
-                marginTop: 1,
-              }}
-            >
-              The First True SocialFi Economy
+            <div style={{display:"flex",alignItems:"center"}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(28px,3vw,44px)",letterSpacing:"7px",color:"#e9ffbf",lineHeight:1,fontWeight:700}}>XEEVIA</div>
             </div>
           </div>
-        </div>
-
-        <div
-          style={{
-            marginBottom: 10,
-            animation: "LP_rise .55s ease .08s both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          <h1
-            style={{
-              fontFamily: "'Syne',sans-serif",
-              fontSize: "clamp(24px,2.8vw,38px)",
-              fontWeight: 900,
-              lineHeight: 1.05,
-              letterSpacing: "-1.6px",
-              margin: "0 0 10px",
-              color: "#ffffff",
-              textShadow: "0 0 20px rgba(168, 230, 61, 0.25)",
-            }}
-          >
-            Your social life,
-            <br />
-            <span className="lp-shimmer">renewed.</span>
+          <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(22px,2.3vw,32px)",fontWeight:900,lineHeight:1.1,letterSpacing:"-1.4px",margin:"0 0 12px",color:"#ffffff",whiteSpace:"nowrap"}}>
+            Participation <span className="lp-shimmer">with weight.</span>
           </h1>
-          <p
-            style={{
-              fontSize: 12.5,
-              color: "#d4e1d4",
-              lineHeight: 1.8,
-              maxWidth: 310,
-              margin: 0,
-              fontWeight: 500,
-            }}
-          >
-            A private social experience built for people who want more — real
-            connections, genuine community, and a platform that actually belongs
-            to you.
-          </p>
+          <p style={{fontSize:13,color:"#b8d8a0",lineHeight:1.85,maxWidth:330,margin:0,fontWeight:500}}>Your network is worth something. Your engagement means something. Your data stays yours.</p>
         </div>
 
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            background: "rgba(168,230,61,.042)",
-            border: "1px solid rgba(168,230,61,.12)",
-            borderRadius: 100,
-            padding: "4px 11px",
-            marginBottom: 11,
-            alignSelf: "flex-start",
-            animation: "LP_rise .5s ease .16s both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "#a8e63d",
-              flexShrink: 0,
-              boxShadow: "0 0 6px rgba(168,230,61,.7)",
-              animation: "LP_pulse 2s ease-in-out infinite",
-            }}
-          />
-          {memberCount != null ? (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#8abe3a" }}>
-              <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 11 }}>
-                {fmtCount(memberCount)}
-              </span>{" "}
-              members in the economy
-            </span>
-          ) : (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#4a6a2a" }}>
-              Join the economy today
-            </span>
-          )}
-          <span
-            style={{
-              fontSize: 7.5,
-              fontWeight: 800,
-              letterSpacing: "1.5px",
-              textTransform: "uppercase",
-              color: "#2a4a1a",
-            }}
-          >
-            LIVE
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3,1fr)",
-            gap: 6,
-            marginBottom: 8,
-            animation: "LP_rise .5s ease .2s both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          {FEATURES.map(({ n, icon, title, sub }) => (
-            <div key={n} className="lp-feat-card">
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 900,
-                  color: "#a8e63d",
-                  fontFamily: "'Syne',sans-serif",
-                  marginBottom: 2,
-                  textShadow: "0 0 8px rgba(168, 230, 61, 0.3)",
-                }}
-              >
-                {n}
+        {/* ─── YOUR BENEFITS ─── */}
+        <div style={{marginBottom:14,animation:"LP_rise .5s ease .16s both",animationFillMode:"forwards",opacity:0}}>
+          <div style={{fontSize:11.5,fontWeight:900,textTransform:"uppercase",letterSpacing:"1.5px",color:"#8aa46f",marginBottom:10}}>✦ Your Benefits</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {FEATURES.map(({n,iconType,title,sub})=>(
+              <div key={n} style={{background:"linear-gradient(135deg,rgba(168,230,61,.1),rgba(168,230,61,.03))",border:"1.5px solid rgba(168,230,61,.2)",borderRadius:13,padding:"14px 10px",cursor:"default",position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
+                <div style={{marginBottom:8}}>{getIcon(iconType)}</div>
+                <div style={{fontSize:11.5,fontWeight:800,color:"#ebffd5",marginBottom:3,lineHeight:1.2}}>{title}</div>
+                <div style={{fontSize:9.5,color:"#b5d998",fontWeight:600}}>{sub}</div>
               </div>
-              <div style={{ fontSize: 16, marginBottom: 3 }}>{icon}</div>
-              <div
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  color: "#d4e1d4",
-                  lineHeight: 1.25,
-                  marginBottom: 2,
-                }}
-              >
-                {title}
-              </div>
-              <div
-                style={{
-                  fontSize: 7.5,
-                  fontWeight: 500,
-                  color: "#8abe3a",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                {sub}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            flex: 1,
-            minHeight: 0,
-            animation: "LP_rise .5s ease .26s both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          {VALUE_PROPS.map(({ icon, title, body }) => (
-            <div
-              key={title}
-              className="lp-value-row"
-              style={{ flex: 1, minHeight: 0 }}
-            >
-              <div className="lp-icon-box">{icon}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                    color: "#c8f56a",
-                    marginBottom: 3,
-                    lineHeight: 1.3,
-                    textShadow: "0 0 6px rgba(168, 230, 61, 0.2)",
-                  }}
-                >
-                  {title}
-                </div>
-                <div
-                  style={{ fontSize: 10, color: "#b8d8a0", lineHeight: 1.7, fontWeight: 500 }}
-                >
-                  {body}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3,1fr)",
-            gap: 6,
-            marginTop: 8,
-            animation: "LP_rise .5s ease .32s both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          {ECO_STATS.map(({ value, label, note }) => (
-            <div key={label} className="lp-stat-box">
-              <div
-                style={{
-                  fontFamily: "'Syne',sans-serif",
-                  fontSize: "clamp(10px,1vw,13px)",
-                  fontWeight: 900,
-                  color: "#d4fc72",
-                  letterSpacing: "-0.3px",
-                  lineHeight: 1,
-                  marginBottom: 2,
-                  textShadow: "0 0 8px rgba(168, 230, 61, 0.25)",
-                }}
-              >
-                {value}
-              </div>
-              <div
-                style={{
-                  fontSize: 8,
-                  fontWeight: 800,
-                  color: "#a8d86a",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.7px",
-                  marginBottom: 1,
-                }}
-              >
-                {label}
-              </div>
-              <div style={{ fontSize: 7.5, color: "#5a7a4a", fontWeight: 500 }}>{note}</div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            borderTop: "1px solid rgba(168,230,61,.055)",
-            paddingTop: 9,
-            marginTop: 8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            animation: "LP_rise .5s ease .38s both",
-            animationFillMode: "forwards",
-            opacity: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{ display: "flex", alignItems: "center", flexShrink: 0 }}
-            >
-              {(recentUsers.length > 0
-                ? recentUsers
-                : [null, null, null, null]
-              ).map((u, i) => {
-                const url = u ? buildAvatarUrl(u.avatar_id) : null;
-                const init = u
-                  ? (u.full_name || "U").charAt(0).toUpperCase()
-                  : "?";
-                return (
-                  <div
-                    key={u?.id || i}
-                    className="lp-avatar"
-                    style={{
-                      marginLeft: i > 0 ? -8 : 0,
-                      zIndex: 4 - i,
-                      background: url ? "transparent" : ACCENT_COLORS[i % 4],
-                      position: "relative",
-                    }}
-                  >
-                    {url ? (
-                      <img
-                        src={url}
-                        alt=""
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: "50%",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                          e.target.parentNode.style.background =
-                            ACCENT_COLORS[i % 4];
-                        }}
-                      />
-                    ) : (
-                      <span
-                        style={{
-                          color: "#040a00",
-                          fontSize: 9,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {init}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 900,
-                  color: "#90c040",
-                  letterSpacing: "-0.4px",
-                  fontFamily: "'Syne',sans-serif",
-                  lineHeight: 1,
-                }}
-              >
-                {memberCount != null ? fmtCount(memberCount) : "—"}
-              </div>
-              <div style={{ fontSize: 9, color: "#4a6a3a", fontWeight: 600 }}>
-                members joined
-              </div>
-            </div>
+            ))}
           </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 3,
-              flexShrink: 0,
-            }}
-          >
-            {[
-              ["⛓", "Web3"],
-              ["🏦", "Paystack"],
-              ["🔐", "Encrypted"],
-            ].map(([ic, lb]) => (
+        </div>
+
+        {/* ─── HOW IT WORKS ─── */}
+        <div style={{flex:1,minHeight:0,marginBottom:12,animation:"LP_rise .5s ease .22s both",animationFillMode:"forwards",opacity:0,display:"flex",flexDirection:"column"}}>
+          <div style={{fontSize:11.5,fontWeight:900,textTransform:"uppercase",letterSpacing:"1.5px",color:"#8aa46f",marginBottom:10}}>✦ How It Works</div>
+          <div style={{display:"flex",flexDirection:"column",gap:9,flex:1,minHeight:0}}>
+            {VALUE_PROPS.map(({iconType,title,body})=>(
               <div
-                key={lb}
+                key={title}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 7.5,
-                  fontWeight: 700,
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                  color: "#2a4a1a",
-                  background: "rgba(168,230,61,.03)",
-                  border: "1px solid rgba(168,230,61,.08)",
-                  borderRadius: 100,
-                  padding: "2.5px 7px",
-                  whiteSpace: "nowrap",
+                  background:"linear-gradient(135deg,rgba(10,12,10,.94),rgba(18,18,18,.8))",
+                  border:"1px solid rgba(168,230,61,.18)",
+                  borderRadius:14,
+                  padding:"12px 12px 11px",
+                  transition:"all .25s ease",
+                  cursor:"default",
+                  display:"flex",
+                  gap:10,
+                  alignItems:"flex-start",
+                  boxShadow:"0 12px 28px rgba(0,0,0,.28)",
+                  backdropFilter:"blur(8px)",
                 }}
               >
-                <span>{ic}</span>
-                <span>{lb}</span>
+                <div style={{flexShrink:0,lineHeight:1,width:32,height:32,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(168,230,61,.12)",border:"1px solid rgba(168,230,61,.2)",color:"#d4fc72"}}>{getIcon(iconType)}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12.5,fontWeight:850,color:"#f5f5f5",marginBottom:4,lineHeight:1.25,letterSpacing:"-0.12px"}}>{title}</div>
+                  <div style={{fontSize:9.8,color:"#f0f0f0",lineHeight:1.6,fontWeight:600}}>{body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── COMMUNITY ─── */}
+        <div style={{borderTop:"1px solid rgba(168,230,61,.08)",paddingTop:12,marginTop:"auto",animation:"LP_rise .5s ease .34s both",animationFillMode:"forwards",opacity:0}}>
+          {/* Members row */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{display:"flex",alignItems:"center"}}>
+                {(recentUsers.length > 0 ? recentUsers : [null,null,null,null]).map((u,i)=>{
+                  const url = u ? buildAvatarUrl(u.avatar_id) : null;
+                  const init = u ? (u.full_name||"U").charAt(0).toUpperCase() : "?";
+                  return (
+                    <div key={u?.id||i} className="lp-avatar" style={{marginLeft:i>0?-5:0,zIndex:4-i,background:url?"transparent":ACCENT_COLORS[i%4],position:"relative"}}>
+                      {url ? (
+                        <img src={url} alt="" style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover",display:"block"}} onError={e=>{e.target.style.display="none";e.target.parentNode.style.background=ACCENT_COLORS[i%4];}}/>
+                      ) : (
+                        <span style={{color:"#040a00",fontSize:8,fontWeight:800}}>{init}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div>
+                <div style={{fontSize:12.5,fontWeight:900,color:"#dfffb0",fontFamily:"'Syne',sans-serif"}}>{memberCount != null ? fmtCount(memberCount) : "—"}</div>
+                <div style={{fontSize:9.5,color:"#a3ba7d",fontWeight:700}}>joined</div>
+              </div>
+            </div>
+            <div style={{fontSize:9.5,color:"#a3ba7d",fontWeight:800,textTransform:"uppercase",letterSpacing:"1px"}}>🌍 Global</div>
+          </div>
+          
+          {/* Trust badges */}
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {[["⛓","Web3"],["🏦","Paystack"],["🔐","Encrypted"]].map(([ic,lb])=>(
+              <div key={lb} style={{display:"flex",alignItems:"center",gap:3,fontSize:8.5,fontWeight:700,letterSpacing:"0.8px",textTransform:"uppercase",color:"#b3d08d",background:"rgba(168,230,61,.06)",border:"1px solid rgba(168,230,61,.12)",borderRadius:10,padding:"4px 8px",whiteSpace:"nowrap"}}>
+                <span>{ic}</span><span>{lb}</span>
               </div>
             ))}
           </div>
@@ -1572,14 +1294,14 @@ function LoginView() {
   }, []);
 
   const go = useCallback(
-    (p) => {
+    (providerID) => {
       if (status === "loading") return;
       setErrMsg("");
-      setProvider(p);
+      setProvider(providerID);
       setStatus("loading");
       
-      // Directly call provider without awaiting — no intermediate screen
-      authService.signInOAuth({ provider: p, usePopup: true }).catch((e) => {
+      // Direct OAuth redirect — no popups, no intermediate screen
+      authService.signInOAuth(providerID).catch((e) => {
         if (!mounted.current) return;
         const msg = e?.message || "";
         if (/cancel|denied|access_denied|closed|popup/i.test(msg)) {
@@ -1835,11 +1557,11 @@ export default function AuthWall({ paywall = false }) {
       <Corners />
       <ScanLine />
 
-      {/* ── Left panel — 46% width, full height ── */}
+      {/* ── Left panel — give the brand/story side more breathing room ── */}
       <div
         className="xv-left"
         style={{
-          flex: "0 0 46%",
+          flex: "0 0 58%",
           height: "100dvh",
           overflow: "hidden",
           position: "relative",
@@ -1848,11 +1570,11 @@ export default function AuthWall({ paywall = false }) {
         <LeftPanel />
       </div>
 
-      {/* ── Right panel — perfectly centered both axes ── */}
+      {/* ── Right panel — keep the sign-in panel comfortable but less dominant ── */}
       <div
         className="xv-right"
         style={{
-          flex: "1 1 54%",
+          flex: "1 1 42%",
           height: "100dvh",
           overflow: "hidden",
           display: "flex",
@@ -1867,8 +1589,8 @@ export default function AuthWall({ paywall = false }) {
           className="xv-right-inner"
           style={{
             width: "100%",
-            maxWidth: 380,
-            padding: "0 32px",
+            maxWidth: 360,
+            padding: "0 28px",
           }}
         >
           <LoginView />
