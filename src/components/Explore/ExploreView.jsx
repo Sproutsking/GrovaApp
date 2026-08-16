@@ -475,13 +475,46 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         ═══════════════════════════════════════════════════════════════ */
         .xpl-wrapper { max-width:1200px; margin:0 auto; }
 
-        .xpl-header { position:sticky; top:0; background:#000; z-index:101; border-bottom:1px solid rgba(132,204,22,.12); }
-        .xpl-controls { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; flex-wrap:wrap; }
+        .xpl-header { 
+          position:sticky; 
+          top:0; 
+          background:#000; 
+          z-index:101; 
+          border-bottom:1px solid rgba(132,204,22,.12);
+          --header-height: 54px;
+          height: 54px;
+          padding: 0;
+        }
+        .xpl-controls { 
+          display:flex; 
+          align-items:center; 
+          justify-content:space-between; 
+          gap:6px; 
+          padding:2px 2px; 
+          flex-wrap:nowrap;
+          overflow-x:auto;
+          overflow-y:hidden;
+        }
+        .xpl-controls-left {
+          display:flex;
+          align-items:center;
+          gap:8px;
+          flex:1;
+          min-width:0;
+          flex-wrap:nowrap;
+        }
+        .xpl-controls-right {
+          display:flex;
+          align-items:center;
+          gap:8px;
+          flex-shrink:0;
+          white-space:nowrap;
+        }
         .xpl-btn { 
           display:flex; 
           align-items:center; 
           gap:6px; 
-          padding:8px 13px; 
+          padding:7px 10px; 
           background:rgba(132,204,22,.05); 
           border:1.2px solid rgba(132,204,22,.25); 
           border-radius:8px; 
@@ -492,6 +525,9 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           transition:all .15s cubic-bezier(0.34, 1.56, 0.64, 1);
           position: relative;
           overflow: hidden;
+          white-space:nowrap;
+          flex-shrink:0;
+          height:30px;
         }
         .xpl-btn::before {
           content: '';
@@ -525,24 +561,55 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           color: #ffffff;
           box-shadow: 0 6px 16px rgba(168,85,247,.15);
         }
-        .xpl-btn:hover  { background:rgba(132,204,22,.06); border-color:rgba(132,204,22,.4); }
-        .xpl-btn.active { background:rgba(132,204,22,.12); border-color:#84cc16; }
-        .xpl-tabs-btn   { flex:1; justify-content:space-between; }
+        .xpl-tabs-btn { justify-content:space-between; }
         .xpl-oracle-tab { border-color:rgba(138,43,226,.4); color:#a855f7; }
         .xpl-oracle-tab:hover { background:rgba(168,85,247,.06); }
         .xpl-oracle-tab.active { background:rgba(168,85,247,.12); border-color:#a855f7; }
 
-        .xpl-search-dd { width:100%; position:absolute!important; top:calc(100% + 5px)!important; left:0!important; right:0!important; display:flex!important; flex-direction:column; gap:8px; background:#000!important; border:1.5px solid rgba(132,204,22,.3)!important; border-radius:0 0 12px 12px!important; padding:12px 16px!important; box-shadow:0 10px 40px rgba(0,0,0,.95)!important; animation:dropIn .15s ease!important; z-index:200!important; }
-        .xpl-search-input-wrap { display:flex; align-items:center; gap:12px; }
-        .xpl-search-input { flex:1; background:none; border:none; color:#fff; font-size:14px; outline:none; font-weight:500; }
+        .xpl-search-dd { 
+          position: fixed !important; 
+          top: 54px !important;
+          left: 50% !important; 
+          transform: translateX(-50%) !important;
+          width: min(1200px, calc(100vw - 24px)) !important;
+          max-height: 60vh;
+          overflow-y: auto;
+          display:flex !important; 
+          flex-direction:column; 
+          gap:6px; 
+          background: linear-gradient(135deg, rgba(0,0,0,0.98) 0%, rgba(10,10,10,0.95) 100%) !important; 
+          border: none !important;
+          border-top: 1.5px solid rgba(132,204,22,.3) !important;
+          border-radius: 10px !important; 
+          padding:8px 10px 10px !important; 
+          box-shadow: 0 10px 40px rgba(0,0,0,.95) !important; 
+          animation: dropIn .15s ease !important; 
+          z-index:200 !important;
+        }
+        .xpl-search-input-wrap { display:flex; align-items:center; gap:10px; background:rgba(132,204,22,.05); border:1px solid rgba(132,204,22,.25); border-radius:8px; padding:7px 9px; min-height: 34px; }
+        .xpl-search-input { flex:1; background:none; border:none; color:#fff; font-size:13px; outline:none; font-weight:500; height: 18px; }
         .xpl-search-input::placeholder { color:#555; }
-        .xpl-search-type-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:rgba(132,204,22,.1); border:1px solid rgba(132,204,22,.25); border-radius:4px; font-size:11px; font-weight:600; color:#84cc16; }
-        .xpl-clear { background:none; border:1px solid #444; color:#5e5e5e; cursor:pointer; padding:5px; display:flex; transition:all .12s; border-radius:4px; }
+        .xpl-clear { background:none; border:1px solid #444; color:#5e5e5e; cursor:pointer; padding:4px; display:flex; transition:all .12s; border-radius:4px; }
         .xpl-clear:hover { color:lime; transform:scale(1.1); }
-        .xpl-search-hint { font-size:11px; color:#666; padding:0 4px; }
+        .xpl-search-hint { font-size:10px; color:#666; padding:0 2px; line-height:1.35; }
         .xpl-search-hint strong { color:#84cc16; }
 
-        .xpl-tabs-dd { position:absolute; top:calc(100% + 4px); left:10px; right:10px; background:#0a0a0a; border:1px solid rgba(132,204,22,.2); border-radius:10px; padding:8px; box-shadow:0 12px 48px rgba(0,0,0,.9); animation:dropIn .15s ease; z-index:150; }
+        .xpl-tabs-dd { 
+          position: fixed; 
+          top: 54px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(1200px, calc(100vw - 24px));
+          background:#0a0a0a; 
+          border:1px solid rgba(132,204,22,.2); 
+          border-radius:10px; 
+          padding:8px; 
+          box-shadow:0 12px 48px rgba(0,0,0,.9); 
+          animation:dropIn .15s ease; 
+          z-index:150; 
+          max-height: 60vh;
+          overflow-y: auto;
+        }
         .xpl-tab-opt { padding:10px 14px; background:transparent; border:none; border-radius:6px; color:#fff; font-size:13px; font-weight:600; cursor:pointer; transition:all .12s; width:100%; text-align:left; }
         .xpl-tab-opt:hover  { background:rgba(132,204,22,.08); }
         .xpl-tab-opt.active { background:rgba(132,204,22,.15); color:#84cc16; }
@@ -551,14 +618,17 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-tab-opt.oracle-opt.active { background:rgba(168,85,247,.15); }
 
         .xpl-filter-dd { 
-          position:absolute; 
-          top:calc(100% + 6px); 
-          right:0px; 
+          position: fixed; 
+          top: 54px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(360px, calc(100vw - 24px));
           background:linear-gradient(135deg, rgba(10,10,10,0.98) 0%, rgba(15,15,15,0.95) 100%);
           border:1.5px solid rgba(168,230,61,.3); 
           border-radius:12px; 
-          padding:14px; 
-          min-width:280px; 
+          padding:12px; 
+          max-height: 60vh;
+          overflow-y: auto;
           box-shadow:0 16px 56px rgba(0,0,0,.95), 0 0 40px rgba(168,230,61,.12); 
           animation:dropIn .18s cubic-bezier(0.34, 1.56, 0.64, 1); 
           z-index:150;
@@ -845,9 +915,14 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         @keyframes spin   { to{transform:rotate(360deg)} }
 
         @media (max-width:768px) {
-          .xpl-controls { gap:4px; padding:5px 8px; }
-          .xpl-btn { padding:6px 10px; font-size:12px; }
-          .xpl-filter-dd { position:fixed; top:auto; bottom:0; left:0; right:0; border-radius:14px 14px 0 0; max-height:65vh; overflow-y:auto; }
+          .xpl-header { --header-height: 50px; height: 50px; }
+          .xpl-controls { gap:8px; padding:8px 10px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+          .xpl-controls-left { gap:6px; }
+          .xpl-controls-right { gap:6px; }
+          .xpl-btn { padding:7px 11px; font-size:12px; height:30px; }
+          .xpl-search-dd { top: 50px; }
+          .xpl-tabs-dd { top: 50px; left: 10px; right: 10px; }
+          .xpl-filter-dd { position:fixed !important; top:auto !important; bottom:0 !important; left:0 !important; right:0 !important; border-radius:14px 14px 0 0; max-height:65vh; overflow-y:auto; }
           .xpl-reels-grid { grid-template-columns:1fr; }
           .xpl-user-grid  { grid-template-columns:1fr; }
           .xo-stats-bar   { gap:12px; }
@@ -871,66 +946,71 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         {/* ── HEADER ── */}
         <div className="xpl-header">
           <div className="xpl-controls">
-            {/* Search */}
-            <div ref={searchRef} style={{ position: "relative", width: "100%" }}>
-              <button className={`xpl-btn ${showSearchPanel ? "active" : ""}`} onClick={() => { setShowSearchPanel(p => !p); setShowTabsPanel(false); setShowFilterPanel(false); }}>
-                <Search size={15} /> Search
-              </button>
-              {showSearchPanel && (
-                <div className="xpl-search-dd">
-                  <div className="xpl-search-input-wrap">
-                    {sti ? <sti.icon size={18} style={{ color: sti.color }} /> : <Search size={18} style={{ color: "#84cc16" }} />}
-                    <input type="text" placeholder="Search stories, posts, reels, people, #tags…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="xpl-search-input" autoFocus />
-                    {searchQuery && <button className="xpl-clear" onClick={() => setSearchQuery("")}><X size={16} /></button>}
-                  </div>
-                  {sti && <div className="xpl-search-type-badge"><sti.icon size={12} /> {sti.text} Search</div>}
-                  <div className="xpl-search-hint">💡 Try: <strong>#storytelling</strong> for tags · <strong>@username</strong> for people · or just type a name</div>
-                </div>
-              )}
-            </div>
-
-            {/* Tabs */}
-            <div ref={tabsRef} style={{ position: "relative", flex: 1 }}>
-              <button className={`xpl-btn xpl-tabs-btn ${showTabsPanel ? "active" : ""}`} onClick={() => { setShowTabsPanel(p => !p); setShowSearchPanel(false); setShowFilterPanel(false); }}>
-                <span>{currentTabLabel}</span>
-                <ChevronDown size={15} />
-              </button>
-              {showTabsPanel && (
-                <div className="xpl-tabs-dd">
-                  {tabs.map(tab => (
-                    <button key={tab.id} className={`xpl-tab-opt ${activeTab === tab.id ? "active" : ""}`} onClick={() => { setActiveTab(tab.id); setShowTabsPanel(false); }}>
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Filter */}
-            {activeTab !== "evidence" && (
-              <div ref={filterRef} style={{ position: "relative" }}>
-                <button className={`xpl-btn ${showFilterPanel ? "active" : ""}`} onClick={() => { setShowFilterPanel(p => !p); setShowSearchPanel(false); setShowTabsPanel(false); }}>
-                  <Filter size={15} /> Filter
+            {/* Left Group: Search, Tabs, Filter */}
+            <div className="xpl-controls-left">
+              {/* Search */}
+              <div ref={searchRef} style={{ position: "relative" }}>
+                <button className={`xpl-btn ${showSearchPanel ? "active" : ""}`} onClick={() => { setShowSearchPanel(p => !p); setShowTabsPanel(false); setShowFilterPanel(false); }}>
+                  <Search size={15} /> Search
                 </button>
-                {showFilterPanel && (
-                  <div className="xpl-filter-dd">
-                    <div className="xpl-filter-label">Category</div>
-                    <div className="xpl-cat-grid">
-                      {categories.map(cat => (
-                        <button key={cat} className={`xpl-cat-btn ${selectedCategory === cat ? "active" : ""}`} onClick={() => setSelectedCategory(cat)}>
-                          {cat}
-                        </button>
-                      ))}
+                {showSearchPanel && (
+                  <div className="xpl-search-dd">
+                    <div className="xpl-search-input-wrap">
+                      {sti ? <sti.icon size={18} style={{ color: sti.color }} /> : <Search size={18} style={{ color: "#84cc16" }} />}
+                      <input type="text" placeholder="Search stories, posts, reels, people, #tags…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="xpl-search-input" autoFocus />
+                      {searchQuery && <button className="xpl-clear" onClick={() => setSearchQuery("")}><X size={16} /></button>}
                     </div>
+                    <div className="xpl-search-hint">💡 Try: <strong>#storytelling</strong> for tags · <strong>@username</strong> for people · or just type a name</div>
                   </div>
                 )}
               </div>
-            )}
 
+              {/* Tabs */}
+              <div ref={tabsRef} style={{ position: "relative" }}>
+                <button className={`xpl-btn xpl-tabs-btn ${showTabsPanel ? "active" : ""}`} onClick={() => { setShowTabsPanel(p => !p); setShowSearchPanel(false); setShowFilterPanel(false); }}>
+                  <span>{currentTabLabel}</span>
+                  <ChevronDown size={15} />
+                </button>
+                {showTabsPanel && (
+                  <div className="xpl-tabs-dd">
+                    {tabs.map(tab => (
+                      <button key={tab.id} className={`xpl-tab-opt ${activeTab === tab.id ? "active" : ""}`} onClick={() => { setActiveTab(tab.id); setShowTabsPanel(false); }}>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Filter */}
+              {activeTab !== "evidence" && (
+                <div ref={filterRef} style={{ position: "relative" }}>
+                  <button className={`xpl-btn ${showFilterPanel ? "active" : ""}`} onClick={() => { setShowFilterPanel(p => !p); setShowSearchPanel(false); setShowTabsPanel(false); }}>
+                    <Filter size={15} /> Filter
+                  </button>
+                  {showFilterPanel && (
+                    <div className="xpl-filter-dd">
+                      <div className="xpl-filter-label">Category</div>
+                      <div className="xpl-cat-grid">
+                        {categories.map(cat => (
+                          <button key={cat} className={`xpl-cat-btn ${selectedCategory === cat ? "active" : ""}`} onClick={() => setSelectedCategory(cat)}>
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Right Group: XRC Oracle */}
             {xrcService && (
-              <button className="xpl-btn xpl-oracle-action" onClick={() => setShowOracleModal(true)}>
-                <Link2 size={15} /> XRC Oracle
-              </button>
+              <div className="xpl-controls-right">
+                <button className="xpl-btn xpl-oracle-action" onClick={() => setShowOracleModal(true)}>
+                  <Link2 size={15} /> XRC Oracle
+                </button>
+              </div>
             )}
           </div>
         </div>

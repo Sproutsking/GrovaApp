@@ -72,7 +72,6 @@ import AdminSidebar from "./components/Shared/AdminSidebar";
 const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
-const PushPermissionNudge = lazy(() => import("./components/Shared/PushPermissionNudge"));
 const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitchPrompt"));
 const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
 const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
@@ -200,7 +199,6 @@ function preloadTabs() {
     () => import("./components/Shared/SupportSidebar"),
     () => import("./components/Shared/NotificationSidebar"),
     () => import("./components/Shared/InAppNotificationToast"),
-    () => import("./components/Shared/PushPermissionNudge"),
     () => import("./components/Shared/AccountSwitchPrompt"),
     () => import("./components/Shared/PullToRefreshIndicator"),
     () => import("./components/Shared/NetworkError"),
@@ -1149,9 +1147,6 @@ const MainApp = memo(() => {
         />
       </Suspense>
 
-      <Suspense fallback={null}>
-        <PushPermissionNudge userId={user?.id} />
-      </Suspense>
       <Suspense fallback={null}>
         <AccountSwitchPrompt
           userId={user?.id}
