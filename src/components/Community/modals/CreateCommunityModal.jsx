@@ -1,20 +1,12 @@
 // components/Community/modals/CreateCommunityModal.jsx
-// Full rewrite: supports device image upload OR emoji icon
+// REVISION: restyled to match the admin-section design language
+// (RolesPermissionsSection / AnalyticsSection — bordered cards, uppercase
+// icon+label section headers, consistent buttons) and upgraded the
+// gradient/icon picker to the shared premium system (Aurora / Mesh /
+// Cosmic / Sunset / Pixel / Glass) with a layered, glowing preview.
 import React, { useState, useRef } from "react";
-import { X, Upload, ImagePlus, Shuffle } from "lucide-react";
-
-const GRADIENTS = [
-  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
-  "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
-  "linear-gradient(135deg, #9cff00 0%, #00c9ff 100%)",
-  "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
-  "linear-gradient(135deg, #ee0979 0%, #ff6a00 100%)",
-];
+import { X, Upload, ImagePlus, Shuffle, Check, Sparkles, AlignLeft, Lock, Globe, Palette } from "lucide-react";
+import { PREMIUM_GRADIENTS, CATEGORY_ORDER, CATEGORY_BLURB, getGradientById } from "../utils/communityVisuals";
 
 const QUICK_EMOJIS = [
   "🚀","🌟","🔥","💎","⚡","🎯","🌊","🎨","🏆","🦁",
@@ -22,12 +14,15 @@ const QUICK_EMOJIS = [
 ];
 
 const CreateCommunityModal = ({ onClose, onCreate }) => {
-  const [step, setStep] = useState(1); // 1 = icon, 2 = details
   const [iconMode, setIconMode] = useState("emoji"); // "emoji" | "image"
   const [selectedEmoji, setSelectedEmoji] = useState("🌟");
   const [iconFile, setIconFile] = useState(null);
   const [iconPreview, setIconPreview] = useState(null);
-  const [bannerGradient, setBannerGradient] = useState(GRADIENTS[0]);
+
+  const [activeCategory, setActiveCategory] = useState(CATEGORY_ORDER[0]);
+  const [bannerGradientId, setBannerGradientId] = useState(PREMIUM_GRADIENTS[0].id);
+  const [bannerGradient, setBannerGradient] = useState(PREMIUM_GRADIENTS[0].css);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -35,6 +30,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
   const [error, setError] = useState("");
 
   const fileInputRef = useRef(null);
+  const activePreset = getGradientById(bannerGradientId);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -51,9 +47,15 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
     setError("");
   };
 
+  const selectGradient = (preset) => {
+    setBannerGradientId(preset.id);
+    setBannerGradient(preset.css);
+  };
+
   const randomGradient = () => {
-    const next = GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)];
-    setBannerGradient(next);
+    const next = PREMIUM_GRADIENTS[Math.floor(Math.random() * PREMIUM_GRADIENTS.length)];
+    setActiveCategory(next.category);
+    selectGradient(next);
   };
 
   const handleCreate = async () => {
@@ -76,7 +78,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
     }
   };
 
-  const currentIcon = iconMode === "image" && iconPreview ? iconPreview : selectedEmoji;
+  const categoryPresets = PREMIUM_GRADIENTS.filter((g) => g.category === activeCategory);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -87,159 +89,217 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
         </div>
 
-        {/* Preview banner */}
-        <div className="banner-preview" style={{ background: bannerGradient }}>
-          <div className="banner-overlay" />
-          <div className="banner-icon">
-            {iconMode === "image" && iconPreview
-              ? <img src={iconPreview} alt="icon" className="icon-img" />
-              : <span className="icon-emoji">{selectedEmoji}</span>
-            }
-          </div>
-          <button className="shuffle-btn" onClick={randomGradient} title="Random gradient">
-            <Shuffle size={14} />
-          </button>
-        </div>
+        <div className="cc-body">
+          {/* ── Banner & Icon card ───────────────────────────────── */}
+          <div className="cc-card">
+            <div className="cc-section-header"><Palette size={14} /><span>Banner &amp; Icon</span></div>
 
-        {/* Gradient picker */}
-        <div className="section-label">Banner Color</div>
-        <div className="gradient-row">
-          {GRADIENTS.map((g, i) => (
+            {/* Live preview */}
             <div
-              key={i}
-              className={`grad-swatch${bannerGradient === g ? " active" : ""}`}
-              style={{ background: g }}
-              onClick={() => setBannerGradient(g)}
-            />
-          ))}
-        </div>
+              className={`banner-preview${activePreset?.animated ? " is-animated" : ""}`}
+              style={{
+                backgroundImage: bannerGradient,
+                backgroundSize: activePreset?.backgroundSize || "cover",
+                "--cc-glow": activePreset?.glow || "#9cff00",
+              }}
+            >
+              <div className="banner-sheen" />
+              <div className="banner-vignette" />
+              <div className="banner-icon">
+                {iconMode === "image" && iconPreview
+                  ? <img src={iconPreview} alt="icon" className="icon-img" />
+                  : <span className="icon-emoji">{selectedEmoji}</span>
+                }
+              </div>
+              <button className="shuffle-btn" onClick={randomGradient} title="Surprise me">
+                <Shuffle size={14} />
+              </button>
+            </div>
 
-        {/* Icon section */}
-        <div className="section-label">Community Icon</div>
-        <div className="icon-tabs">
-          <button
-            className={`icon-tab${iconMode === "emoji" ? " active" : ""}`}
-            onClick={() => setIconMode("emoji")}
-          >Emoji</button>
-          <button
-            className={`icon-tab${iconMode === "image" ? " active" : ""}`}
-            onClick={() => { setIconMode("image"); if (!iconFile) fileInputRef.current?.click(); }}
-          >
-            <ImagePlus size={14} /> Image
+            {/* Category tabs */}
+            <div className="cc-cat-row">
+              {CATEGORY_ORDER.map((cat) => (
+                <button
+                  key={cat}
+                  className={`cc-cat-tab${activeCategory === cat ? " active" : ""}`}
+                  onClick={() => setActiveCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="cc-cat-blurb">{CATEGORY_BLURB[activeCategory]}</div>
+
+            <div className="cc-gradient-grid">
+              {categoryPresets.map((g) => (
+                <button
+                  key={g.id}
+                  className={`cc-grad-swatch${bannerGradientId === g.id ? " active" : ""}`}
+                  style={{ backgroundImage: g.css, backgroundSize: g.backgroundSize || "cover" }}
+                  onClick={() => selectGradient(g)}
+                  title={g.label}
+                >
+                  {bannerGradientId === g.id && <Check size={12} className="cc-grad-check" />}
+                  <span className="cc-grad-label">{g.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Icon source tabs */}
+            <div className="cc-subhead">Icon Source</div>
+            <div className="icon-tabs">
+              <button
+                className={`icon-tab${iconMode === "emoji" ? " active" : ""}`}
+                onClick={() => setIconMode("emoji")}
+              >Emoji</button>
+              <button
+                className={`icon-tab${iconMode === "image" ? " active" : ""}`}
+                onClick={() => { setIconMode("image"); if (!iconFile) fileInputRef.current?.click(); }}
+              >
+                <ImagePlus size={14} /> Image
+              </button>
+            </div>
+
+            {iconMode === "emoji" ? (
+              <div className="emoji-grid-sm">
+                {QUICK_EMOJIS.map((em) => (
+                  <button
+                    key={em}
+                    className={`emoji-btn${selectedEmoji === em ? " active" : ""}`}
+                    onClick={() => setSelectedEmoji(em)}
+                  >{em}</button>
+                ))}
+              </div>
+            ) : (
+              <div className="upload-zone" onClick={() => fileInputRef.current?.click()}>
+                {iconPreview
+                  ? <img src={iconPreview} alt="preview" className="upload-preview" />
+                  : <>
+                      <Upload size={22} color="#9cff00" />
+                      <span>Click to upload image</span>
+                      <span className="upload-hint">PNG, JPG, GIF · max 5 MB</span>
+                    </>
+                }
+              </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden-file" onChange={handleFileChange} />
+          </div>
+
+          {/* ── Details card ─────────────────────────────────────── */}
+          <div className="cc-card">
+            <div className="cc-section-header"><Sparkles size={14} /><span>Details</span></div>
+
+            <div className="cc-field-label">Community Name</div>
+            <input
+              className="field-input"
+              placeholder="e.g. Builders Collective"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={50}
+            />
+
+            <div className="cc-field-label" style={{ marginTop: 12 }}>
+              <AlignLeft size={11} /> Description <span className="cc-optional">Optional</span>
+            </div>
+            <textarea
+              className="field-textarea"
+              placeholder="What is this community about?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={300}
+              rows={3}
+            />
+          </div>
+
+          {/* ── Privacy card ─────────────────────────────────────── */}
+          <div className="cc-card cc-card-tight">
+            <div className="cc-section-header">
+              {isPrivate ? <Lock size={14} /> : <Globe size={14} />}
+              <span>Privacy</span>
+            </div>
+            <label className="toggle-row">
+              <div className="toggle-info">
+                <div className="toggle-label">Private Community</div>
+                <div className="toggle-hint">Only invited members can join</div>
+              </div>
+              <button
+                type="button"
+                className={`cc-toggle${isPrivate ? " on" : ""}`}
+                onClick={() => setIsPrivate(!isPrivate)}
+                role="switch"
+                aria-checked={isPrivate}
+              >
+                <span className="cc-toggle-thumb" />
+              </button>
+            </label>
+          </div>
+
+          {error && <div className="error-msg">{error}</div>}
+
+          <button className="create-btn" onClick={handleCreate} disabled={loading || !name.trim()}>
+            {loading ? <div className="btn-spinner" /> : "Create Community"}
           </button>
         </div>
-
-        {iconMode === "emoji" ? (
-          <div className="emoji-grid-sm">
-            {QUICK_EMOJIS.map((em) => (
-              <button
-                key={em}
-                className={`emoji-btn${selectedEmoji === em ? " active" : ""}`}
-                onClick={() => setSelectedEmoji(em)}
-              >{em}</button>
-            ))}
-          </div>
-        ) : (
-          <div
-            className="upload-zone"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {iconPreview
-              ? <img src={iconPreview} alt="preview" className="upload-preview" />
-              : <>
-                  <Upload size={24} color="#9cff00" />
-                  <span>Click to upload image</span>
-                  <span className="upload-hint">PNG, JPG, GIF · max 5 MB</span>
-                </>
-            }
-          </div>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden-file"
-          onChange={handleFileChange}
-        />
-
-        {/* Details */}
-        <div className="section-label">Details</div>
-
-        <input
-          className="field-input"
-          placeholder="Community name *"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={50}
-        />
-
-        <textarea
-          className="field-textarea"
-          placeholder="Description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          maxLength={300}
-          rows={3}
-        />
-
-        <label className="toggle-row">
-          <div className="toggle-info">
-            <div className="toggle-label">Private Community</div>
-            <div className="toggle-hint">Only invited members can join</div>
-          </div>
-          <div
-            className={`toggle-switch${isPrivate ? " on" : ""}`}
-            onClick={() => setIsPrivate(!isPrivate)}
-          >
-            <div className="toggle-thumb" />
-          </div>
-        </label>
-
-        {error && <div className="error-msg">{error}</div>}
-
-        <button
-          className="create-btn"
-          onClick={handleCreate}
-          disabled={loading || !name.trim()}
-        >
-          {loading ? <div className="btn-spinner" /> : "Create Community"}
-        </button>
       </div>
 
       <style>{`
         .modal-overlay {
-          position: fixed; inset: 0;
-          background: rgba(0,0,0,0.75);
-          backdrop-filter: blur(10px);
-          z-index: 50000;
-          display: flex; align-items: center; justify-content: center;
+          position: fixed;
+          inset: 0;
+          background: rgba(5, 7, 10, 0.66);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          z-index: 99999;
+          display: flex;
+          align-items: stretch;
+          justify-content: center;
           padding: 20px;
         }
 
         .create-modal {
-          width: 100%; max-width: 440px;
+          width: min(100%, 460px);
           max-height: 90vh;
-          background: #0c0c0c;
+          background: rgba(10, 12, 16, 0.97);
           border: 1.5px solid rgba(156,255,0,0.18);
-          border-radius: 20px;
+          border-radius: 22px;
           overflow-y: auto;
           overflow-x: hidden;
           animation: modalIn 0.3s cubic-bezier(.4,0,.2,1);
           scrollbar-width: thin;
           scrollbar-color: rgba(156,255,0,0.2) transparent;
+          box-shadow: 0 32px 90px rgba(0, 0, 0, 0.6), 0 0 40px rgba(156,255,0,0.08);
         }
         .create-modal::-webkit-scrollbar { width: 5px; }
         .create-modal::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.2); border-radius: 3px; }
 
         @keyframes modalIn {
-          from { opacity:0; transform:translateY(24px) scale(.97); }
-          to   { opacity:1; transform:translateY(0)   scale(1);    }
+          from { opacity:0; transform:translateX(24px) scale(.98); }
+          to   { opacity:1; transform:translateX(0) scale(1); }
+        }
+
+        @media (min-width: 768px) {
+          .modal-overlay { justify-content: flex-end; padding: 0; }
+          .create-modal {
+            width: min(50vw, 600px);
+            max-width: 600px;
+            height: 100vh;
+            max-height: 100vh;
+            border-radius: 24px 0 0 24px;
+            border-left: 1.5px solid rgba(156,255,0,0.18);
+            border-right: none;
+            box-shadow: -18px 0 60px rgba(0,0,0,0.45), 0 0 60px rgba(156,255,0,0.08);
+          }
+        }
+
+        @media (max-width: 767px) {
+          .modal-overlay { padding: 20px; align-items: center; }
+          .create-modal { width: 100%; max-width: 460px; height: auto; max-height: 90vh; border-radius: 22px; }
         }
 
         .modal-head {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 20px 20px 0;
+          padding: 20px 20px 14px;
+          border-bottom: 1.5px solid rgba(156,255,0,0.1);
         }
         .modal-title { font-size: 18px; font-weight: 800; color: #fff; }
         .modal-close {
@@ -251,65 +311,115 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         }
         .modal-close:hover { background: rgba(255,100,100,0.15); color: #ff6b6b; }
 
-        /* Banner */
+        .cc-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+
+        /* ── Card language shared with RolesPermissionsSection / AnalyticsSection ── */
+        .cc-card {
+          background: rgba(26, 26, 26, 0.4);
+          border: 2px solid rgba(42, 42, 42, 0.6);
+          border-radius: 16px;
+          padding: 16px;
+        }
+        .cc-card-tight { padding: 14px 16px; }
+
+        .cc-section-header {
+          display: flex; align-items: center; gap: 9px;
+          font-size: 12.5px; font-weight: 800; color: #9cff00;
+          text-transform: uppercase; letter-spacing: 0.6px;
+          margin-bottom: 14px; padding-bottom: 11px;
+          border-bottom: 1.5px solid rgba(156,255,0,0.16);
+        }
+
+        .cc-subhead {
+          font-size: 10.5px; font-weight: 800; color: #555;
+          text-transform: uppercase; letter-spacing: 0.6px;
+          margin: 14px 0 8px;
+        }
+
+        .cc-field-label {
+          display: flex; align-items: center; gap: 5px;
+          font-size: 10.5px; font-weight: 800; color: #666;
+          text-transform: uppercase; letter-spacing: 0.6px;
+          margin-bottom: 7px;
+        }
+        .cc-optional { font-weight: 600; text-transform: none; color: #444; letter-spacing: 0; margin-left: 2px; }
+
+        /* Banner preview — layered, glowing, next-gen */
         .banner-preview {
-          margin: 16px 20px 0;
-          height: 100px; border-radius: 14px;
+          height: 128px; border-radius: 14px;
           position: relative; overflow: hidden;
           display: flex; align-items: center; justify-content: center;
-          transition: background 0.4s;
+          background-position: center; background-repeat: no-repeat;
+          box-shadow:
+            0 10px 30px -8px var(--cc-glow),
+            inset 0 0 0 1px rgba(255,255,255,.08);
+          transition: box-shadow .4s ease;
         }
-        .banner-overlay {
-          position:absolute; inset:0;
-          background: linear-gradient(180deg,transparent 40%,rgba(0,0,0,.5) 100%);
+        .banner-preview.is-animated { background-size: 220% 220% !important; animation: bpDrift 16s ease-in-out infinite; }
+        @keyframes bpDrift { 0%,100%{ background-position: 15% 25%; } 50%{ background-position: 85% 75%; } }
+        .banner-sheen {
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(125deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,.12) 100%);
+          mix-blend-mode: overlay;
+        }
+        .banner-vignette {
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,.55) 100%);
         }
         .banner-icon {
-          width: 60px; height: 60px; border-radius: 14px;
+          width: 60px; height: 60px; border-radius: 15px;
           background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
           display: flex; align-items: center; justify-content: center;
           font-size: 30px; z-index: 2;
-          border: 2px solid rgba(255,255,255,0.12);
+          border: 2px solid rgba(255,255,255,0.14);
+          box-shadow: 0 8px 22px -6px var(--cc-glow), inset 0 0 0 1px rgba(255,255,255,.06);
         }
-        .icon-img { width:100%; height:100%; object-fit:cover; border-radius:12px; }
-        .icon-emoji { font-size:30px; line-height:1; }
+        .icon-img { width:100%; height:100%; object-fit:cover; border-radius:13px; }
+        .icon-emoji { font-size:30px; line-height:1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
         .shuffle-btn {
-          position:absolute; bottom:8px; right:10px;
+          position:absolute; bottom:9px; right:10px;
           width:28px; height:28px; border-radius:8px;
-          background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);
-          color:#aaa; cursor:pointer;
+          background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.14);
+          color:#eee; cursor:pointer;
           display:flex; align-items:center; justify-content:center;
           z-index:3; transition:all .2s;
         }
-        .shuffle-btn:hover { color:#9cff00; border-color:rgba(156,255,0,0.4); }
+        .shuffle-btn:hover { color:#9cff00; border-color:rgba(156,255,0,0.5); transform: rotate(18deg); }
 
-        /* Gradient row */
-        .gradient-row {
-          display: flex; gap: 7px; padding: 0 20px;
-          overflow-x: auto; padding-bottom: 2px;
+        /* Category tabs */
+        .cc-cat-row { display:flex; gap:6px; margin-top:14px; overflow-x:auto; padding-bottom:2px; }
+        .cc-cat-row::-webkit-scrollbar { height: 3px; }
+        .cc-cat-tab {
+          flex-shrink:0; padding:6px 12px; border-radius:8px;
+          background: rgba(18,18,18,.95); border:1.5px solid rgba(42,42,42,.9);
+          color:#888; font-size:11px; font-weight:800; cursor:pointer;
+          transition: all .16s; white-space:nowrap;
         }
-        .gradient-row::-webkit-scrollbar { height: 3px; }
-        .gradient-row::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.2); }
-        .grad-swatch {
-          width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
-          flex-shrink: 0; border: 2px solid transparent;
-          transition: all .2s;
-        }
-        .grad-swatch.active {
-          border-color: #9cff00;
-          box-shadow: 0 0 12px rgba(156,255,0,0.5);
-          transform: scale(1.12);
-        }
+        .cc-cat-tab:hover { border-color: rgba(156,255,0,.3); color:#ccc; }
+        .cc-cat-tab.active { background: rgba(156,255,0,.12); border-color: rgba(156,255,0,.5); color:#9cff00; }
+        .cc-cat-blurb { font-size: 11px; color: #555; margin: 6px 2px 10px; }
 
-        .section-label {
-          font-size: 11px; font-weight: 700; color: #555;
-          text-transform: uppercase; letter-spacing: .6px;
-          padding: 14px 20px 6px;
+        .cc-gradient-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+        .cc-grad-swatch {
+          position:relative; height:52px; border-radius:11px; cursor:pointer;
+          border:2px solid transparent; overflow:hidden;
+          background-position:center; background-repeat:no-repeat;
+          display:flex; align-items:flex-end; justify-content:flex-start;
+          transition: transform .18s, border-color .18s, box-shadow .18s;
+        }
+        .cc-grad-swatch:hover { transform: translateY(-2px); }
+        .cc-grad-swatch.active { border-color:#fff; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+        .cc-grad-label {
+          font-size:9.5px; font-weight:800; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7);
+          padding:4px 6px; text-transform:uppercase; letter-spacing:.3px;
+        }
+        .cc-grad-check {
+          position:absolute; top:5px; right:5px; color:#fff;
+          background: rgba(0,0,0,.45); border-radius:50%; padding:2px;
         }
 
         /* Icon tabs */
-        .icon-tabs {
-          display: flex; gap: 6px; padding: 0 20px;
-        }
+        .icon-tabs { display: flex; gap: 6px; }
         .icon-tab {
           display: flex; align-items: center; gap: 5px;
           padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
@@ -317,16 +427,9 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           background: rgba(18,18,18,.95); color: #888;
           transition: all .2s;
         }
-        .icon-tab.active {
-          border-color: rgba(156,255,0,.5); color: #9cff00;
-          background: rgba(156,255,0,.1);
-        }
+        .icon-tab.active { border-color: rgba(156,255,0,.5); color: #9cff00; background: rgba(156,255,0,.1); }
 
-        /* Emoji grid */
-        .emoji-grid-sm {
-          display: grid; grid-template-columns: repeat(10,1fr);
-          gap: 4px; padding: 8px 20px;
-        }
+        .emoji-grid-sm { display: grid; grid-template-columns: repeat(10,1fr); gap: 4px; margin-top: 8px; }
         .emoji-btn {
           aspect-ratio:1; border-radius:8px; font-size:18px;
           background:rgba(18,18,18,.95); border:1.5px solid rgba(30,30,30,.9);
@@ -336,86 +439,68 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .emoji-btn:hover  { background:rgba(156,255,0,.1); border-color:rgba(156,255,0,.3); transform:scale(1.1); }
         .emoji-btn.active { background:rgba(156,255,0,.18); border-color:rgba(156,255,0,.6); }
 
-        /* Upload zone */
         .upload-zone {
-          margin: 0 20px;
-          height: 90px; border-radius: 12px;
+          margin-top: 8px;
+          height: 84px; border-radius: 12px;
           border: 2px dashed rgba(156,255,0,0.25);
           background: rgba(156,255,0,0.03);
           display:flex; flex-direction:column; align-items:center; justify-content:center;
-          gap:6px; cursor:pointer; transition:all .2s;
-          color:#666; font-size:13px; font-weight:600;
+          gap:5px; cursor:pointer; transition:all .2s;
+          color:#666; font-size:12.5px; font-weight:600;
           position:relative; overflow:hidden;
         }
         .upload-zone:hover { border-color:rgba(156,255,0,.5); background:rgba(156,255,0,.06); }
-        .upload-preview {
-          width:100%; height:100%; object-fit:cover;
-          position:absolute; inset:0; border-radius:10px;
-        }
+        .upload-preview { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; border-radius:10px; }
         .upload-hint { font-size:10px; color:#444; font-weight:500; }
-
         .hidden-file { display:none; }
 
         /* Fields */
         .field-input, .field-textarea {
           display:block; width:100%; box-sizing:border-box;
-          margin: 0 0 10px; padding: 11px 14px;
+          padding: 11px 14px;
           background: rgba(18,18,18,.95); border:1.5px solid rgba(42,42,42,.9);
           border-radius:10px; color:#fff; font-size:14px; font-family:inherit;
           outline:none; resize:none; transition:border-color .2s;
         }
-        .field-input { margin-left:0; margin-right:0; }
-        /* wrap in padding container */
-        .field-input, .field-textarea {
-          margin-left:20px; margin-right:20px; width:calc(100% - 40px);
-        }
-        .field-input:focus, .field-textarea:focus {
-          border-color: rgba(156,255,0,.45);
-        }
+        .field-input:focus, .field-textarea:focus { border-color: rgba(156,255,0,.45); }
         .field-input::placeholder, .field-textarea::placeholder { color:#444; }
 
         /* Toggle */
-        .toggle-row {
-          display:flex; align-items:center; justify-content:space-between;
-          padding: 10px 20px; cursor:pointer;
-        }
+        .toggle-row { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
         .toggle-label { font-size:13px; font-weight:700; color:#ddd; }
         .toggle-hint  { font-size:11px; color:#555; margin-top:2px; }
-        .toggle-switch {
-          width:44px; height:24px; border-radius:12px;
-          background:rgba(42,42,42,.9); position:relative;
-          transition:background .25s; flex-shrink:0;
+        .cc-toggle {
+          width: 38px; height: 20px; border-radius: 10px;
+          background: rgba(40,40,40,.9); border: none; cursor: pointer;
+          position: relative; flex-shrink: 0; padding: 0;
+          transition: background .22s;
         }
-        .toggle-switch.on { background:rgba(156,255,0,.8); }
-        .toggle-thumb {
-          position:absolute; top:3px; left:3px;
-          width:18px; height:18px; border-radius:50%;
-          background:#fff; transition:transform .25s;
-          box-shadow:0 1px 4px rgba(0,0,0,.3);
+        .cc-toggle.on { background: rgba(156,255,0,.75); }
+        .cc-toggle-thumb {
+          position: absolute; top: 3px; left: 3px;
+          width: 14px; height: 14px; border-radius: 50%;
+          background: #fff; transition: transform .22s;
+          box-shadow: 0 1px 3px rgba(0,0,0,.4);
         }
-        .toggle-switch.on .toggle-thumb { transform:translateX(20px); }
+        .cc-toggle.on .cc-toggle-thumb { transform: translateX(18px); }
 
         /* Error */
         .error-msg {
-          margin:0 20px 10px; padding:10px 14px;
+          padding:10px 14px;
           background:rgba(255,100,100,.1); border:1px solid rgba(255,100,100,.3);
-          border-radius:8px; color:#ff6b6b; font-size:12px; font-weight:600;
+          border-radius:10px; color:#ff6b6b; font-size:12px; font-weight:600;
         }
 
         /* Create btn */
         .create-btn {
           display:flex; align-items:center; justify-content:center;
-          width:calc(100% - 40px); margin:0 20px 20px;
-          padding:14px; border-radius:12px;
+          width:100%; padding:14px; border-radius:12px;
           background:linear-gradient(135deg,#9cff00,#667eea);
           border:none; color:#000; font-size:15px; font-weight:800;
           cursor:pointer; transition:all .25s;
           box-shadow:0 4px 16px rgba(156,255,0,.25);
         }
-        .create-btn:hover:not(:disabled) {
-          transform:translateY(-2px);
-          box-shadow:0 8px 24px rgba(156,255,0,.4);
-        }
+        .create-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 24px rgba(156,255,0,.4); }
         .create-btn:disabled { opacity:.5; cursor:not-allowed; }
 
         .btn-spinner {
@@ -428,6 +513,11 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         @media (max-width:480px) {
           .create-modal { border-radius:16px; }
           .emoji-grid-sm { grid-template-columns: repeat(8,1fr); }
+          .cc-gradient-grid { grid-template-columns: repeat(2,1fr); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .banner-preview.is-animated { animation: none; }
         }
       `}</style>
     </div>

@@ -22,7 +22,7 @@
   left: calc(6% + 5px + 280px);
   right: 0;
   bottom: 0;
-  z-index: 5;           /* below sidebar (z-index 50) */
+  z-index: 10;           /* below sidebar and modals */
 
   display: flex;
   flex-direction: row;

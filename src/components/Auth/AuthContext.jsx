@@ -43,6 +43,7 @@ import React, {
 } from "react";
 import { supabase } from "../../services/config/supabase";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
+import { hasAdminProfileFlag } from "../../services/auth/adminAccess";
 
 const AuthContext = createContext(null);
 
@@ -444,22 +445,22 @@ export default function AuthProvider({ children }) {
 
           if (isPaidProfileData(data)) setPaid(true);
 
-          const hasAdminFlag =
-            data.is_admin || data.role === "admin" || data.is_super_admin;
-          if (hasAdminFlag) {
-            const adminInfo = await fetchAdminRole(userId);
+          const hasAdminFlag = hasAdminProfileFlag(data);
+          const adminInfo = hasAdminFlag ? await fetchAdminRole(userId) : null;
+
+          if (hasAdminFlag || adminInfo) {
             if (isMounted.current) {
               setIsAdmin(true);
               setAdminData(
                 adminInfo || {
                   id: userId,
-                  role: "admin",
-                  roleLabel: "Admin",
-                  roleLevel: 60,
-                  roleColor: "#94a3b8",
+                  role: data.role || "admin",
+                  roleLabel: ADMIN_ROLE_MAP[data.role]?.label || "Admin",
+                  roleLevel: ADMIN_ROLE_MAP[data.role]?.level || 60,
+                  roleColor: ADMIN_ROLE_MAP[data.role]?.color || "#94a3b8",
                   permissions: data.permissions || [],
-                  isCEO: false,
-                  isSuperAdmin: false,
+                  isCEO: data.role === "ceo_owner",
+                  isSuperAdmin: data.role === "super_admin" || data.role === "ceo_owner",
                 },
               );
             }

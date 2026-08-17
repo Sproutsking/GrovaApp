@@ -1,6 +1,7 @@
 // components/Community/tabs/ChatTab.jsx
-// FULL REWRITE: No entry loader, channel permissions, reactions, image icons,
-// accurate online tracking, permission-aware channels, elegant UI
+// REVISION: instant-feel channel rail (cache-first + prefetch aware),
+// permission-correct header (no hover-reveal, ever), and an elevated
+// "next generation" visual pass on the channel sidebar.
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Menu, ChevronLeft, ChevronRight, Plus, Lock, Palette,
@@ -22,6 +23,7 @@ import communityState from "../../../services/community/CommunityStateManager";
 import backgroundService from "../../../services/community/CommunityBackgroundService";
 import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
+import communityCache from "../../../services/community/communityCache";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -41,8 +43,15 @@ const ChatTab = ({
   onBack,
   onToggleSidebar,
 }) => {
-  const [channels, setChannels] = useState([]);
-  const [messages, setMessages] = useState([]);
+  // Seed channels from the shared cache synchronously — if this community
+  // was ever hovered/visited before, the rail paints on the very first
+  // frame with zero blank state.
+  const [channels, setChannels] = useState(() => communityCache.getChannels(community?.id) || []);
+  const [channelsReady, setChannelsReady] = useState(() => !!communityCache.getChannels(community?.id));
+  const [channelsRefreshing, setChannelsRefreshing] = useState(false);
+  const [messages, setMessages] = useState(() =>
+    selectedChannel ? [...(communityState.getMessages(selectedChannel.id) || [])] : []
+  );
   const [messageInput, setMessageInput] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [sending, setSending] = useState(false);
@@ -128,14 +137,29 @@ const ChatTab = ({
   }, [community?.id]);
 
   const loadChannels = async () => {
+    // 1) Instant paint from cache (if any) — no spinner, no blank rail.
+    const cached = communityCache.getChannels(community.id);
+    if (cached) {
+      setChannels(cached);
+      setChannelsReady(true);
+      if (cached.length > 0 && !selectedChannel) setSelectedChannel(cached[0]);
+    }
+    // 2) Revalidate in the background. Only the very first, never-cached
+    // load shows the skeleton state; every other visit is silent.
+    setChannelsRefreshing(!!cached);
     try {
       const data = await channelService.fetchChannels(community.id);
+      communityCache.setChannels(community.id, data);
       setChannels(data);
+      setChannelsReady(true);
       if (data.length > 0 && !selectedChannel) {
         setSelectedChannel(data[0]);
       }
     } catch (error) {
       console.error("Error loading channels:", error);
+      setChannelsReady(true);
+    } finally {
+      setChannelsRefreshing(false);
     }
   };
 
@@ -160,6 +184,13 @@ const ChatTab = ({
   // ── Messages + subscriptions ──────────────────────────────────────────────
   useEffect(() => {
     if (selectedChannel) {
+      // Seed synchronously from whatever's already in the state manager for
+      // this channel. This does two things: (a) if we've visited this
+      // channel before in this session, its messages appear the instant
+      // you click — no flash of empty; (b) it immediately clears the
+      // previous channel's messages instead of leaving them on screen
+      // until the async load resolves.
+      setMessages([...(communityState.getMessages(selectedChannel.id) || [])]);
       communityState.setActive(selectedChannel.id);
       communityMessageService.init(userId);
       loadMessages();
@@ -303,119 +334,145 @@ const ChatTab = ({
     return <Icon size={14} />;
   };
 
+  const showSkeleton = !channelsReady && channels.length === 0;
+
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
       <ChatBackground key={backgroundId} theme={backgroundTheme.id} />
 
-      {/* ── Channels bar ── */}
-      <div className="channels-bar">
-        {isMobile && onBack && (
-          <button className="bar-btn back-btn" onClick={onBack} title="Back">
-            <ArrowLeft size={18} />
-          </button>
-        )}
-
-        <button className="bar-btn menu-btn" onClick={() => setShowMenu(true)} title="Community menu">
-          <Menu size={17} />
-        </button>
-
-        <div className="channels-scroll">
-          {channels.map((channel) => (
-            <div
-              key={channel.id}
-              className={`ch-pill${selectedChannel?.id === channel.id ? " active" : ""}`}
-              onClick={() => setSelectedChannel(channel)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (canManageChannels || canManageRoles) {
-                  setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
-                }
-              }}
-            >
-              <span className="ch-pill-icon">{renderChannelIcon(channel)}</span>
-              <span className="ch-pill-name">{channel.name}</span>
-              {channel.is_private && <Lock size={10} className="ch-lock" />}
-            </div>
-          ))}
-        </div>
-
-        <div className="bar-actions">
-          <button
-            className="bar-btn"
-            onClick={() => { if (currentChannelIndex > 0) setSelectedChannel(channels[currentChannelIndex - 1]); }}
-            disabled={currentChannelIndex <= 0}
-          ><ChevronLeft size={15} /></button>
-          <button
-            className="bar-btn"
-            onClick={() => { if (currentChannelIndex < channels.length - 1) setSelectedChannel(channels[currentChannelIndex + 1]); }}
-            disabled={currentChannelIndex >= channels.length - 1}
-          ><ChevronRight size={15} /></button>
+      {/* ── Channels container ── */}
+      <div className="channels-container">
+        {/* Sidebar header. No permission → single centered Menu button.
+            Has "manage channels" → Plus sits left, Menu sits right.
+            Both states are pure conditional rendering; nothing here ever
+            depends on :hover to appear. */}
+        <div className={`channels-header${canManageChannels ? " has-manage" : " no-manage"}`}>
           {canManageChannels && (
-            <button className="bar-btn" onClick={() => setShowCreateChannel(true)} title="Create channel">
-              <Plus size={15} />
+            <button
+              className="channels-plus-btn"
+              onClick={() => setShowCreateChannel(true)}
+              title="Create channel"
+              aria-label="Create channel"
+            >
+              <Plus size={16} />
             </button>
           )}
-          <button className="bar-btn" onClick={() => setShowBgDropdown(!showBgDropdown)} title="Change background">
-            <Palette size={15} />
+          <button
+            className="channels-menu-btn"
+            onClick={() => setShowMenu(true)}
+            title="Community menu"
+            aria-label="Community menu"
+          >
+            <Menu size={16} />
+            <span className="menu-label">Menu</span>
           </button>
+        </div>
+
+        {/* Channels list below header */}
+        <div className="channels-list">
+          <div className="channels-eyebrow">
+            <span>Channels</span>
+            {channelsRefreshing && <span className="channels-refresh-dot" aria-hidden="true" />}
+          </div>
+
+          {showSkeleton ? (
+            <div className="channels-skeleton" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="skel-item" style={{ animationDelay: `${i * 70}ms` }} />
+              ))}
+            </div>
+          ) : (
+            channels.map((channel) => (
+              <div
+                key={channel.id}
+                className={`channel-item${selectedChannel?.id === channel.id ? " active" : ""}`}
+                onClick={() => setSelectedChannel(channel)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (canManageChannels || canManageRoles) {
+                    setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
+                  }
+                }}
+                title={channel.name}
+              >
+                <span className="channel-item-icon">{renderChannelIcon(channel)}</span>
+                <span className="channel-item-name">{channel.name}</span>
+                {channel.is_private && <Lock size={12} className="channel-item-lock" />}
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* ── Messages ── */}
-      <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-        <MessageList
-          messages={messages}
-          pendingMessages={[]}
-          loading={false}
-          userId={userId}
-          currentUser={currentUser}
-          messagesEndRef={messagesEndRef}
-          onContextMenu={(e, msg) => {
-            e.preventDefault();
-            setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
-          }}
-          onReactionClick={async (msgId, emoji) => {
-            try {
-              const msg = messages.find((m) => m.id === msgId);
-              const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
-              if (hasReacted) {
-                await communityMessageService.removeReaction(msgId, userId, emoji);
-              } else {
-                await communityMessageService.addReaction(msgId, userId, emoji);
-              }
-              await loadMessages();
-            } catch (error) {
-              console.error("Error toggling reaction:", error);
-            }
-          }}
-        />
-        {showJump && (
-          <button className="jump-btn" onClick={() => scrollToBottom()}>
-            <ChevronDown size={18} />
-          </button>
+      <div className="chat-main">
+        {isMobile && (
+          <div className="mobile-chat-header">
+            <button className="mobile-back-btn" onClick={onBack || (() => setSelectedChannel(null))} aria-label="Back">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="mobile-chat-title">#{selectedChannel?.name || "channel"}</div>
+            <button className="mobile-menu-btn" onClick={() => setShowMenu(true)} aria-label="Open menu">
+              <Menu size={18} />
+            </button>
+          </div>
         )}
-      </div>
 
-      {/* ── Input area ── */}
-      <div className="chat-input-area">
-        <BackgroundDropdown
-          currentTheme={backgroundId}
-          onThemeChange={handleBackgroundChange}
-          show={showBgDropdown}
-          onClose={() => setShowBgDropdown(false)}
-        />
-        <CommunityMessageInput
-          value={messageInput}
-          onChange={setMessageInput}
-          onSend={handleSendMessage}
-          disabled={sending}
-          placeholder={`Message #${selectedChannel?.name || "channel"}`}
-          editingMessage={editingMessage}
-          onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
-          typingUsers={typingUsers}
-        />
+        {/* ── Messages ── */}
+        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
+          <MessageList
+            messages={messages}
+            pendingMessages={[]}
+            loading={false}
+            userId={userId}
+            currentUser={currentUser}
+            messagesEndRef={messagesEndRef}
+            onContextMenu={(e, msg) => {
+              e.preventDefault();
+              setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
+            }}
+            onReactionClick={async (msgId, emoji) => {
+              try {
+                const msg = messages.find((m) => m.id === msgId);
+                const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
+                if (hasReacted) {
+                  await communityMessageService.removeReaction(msgId, userId, emoji);
+                } else {
+                  await communityMessageService.addReaction(msgId, userId, emoji);
+                }
+                await loadMessages();
+              } catch (error) {
+                console.error("Error toggling reaction:", error);
+              }
+            }}
+          />
+          {showJump && (
+            <button className="jump-btn" onClick={() => scrollToBottom()}>
+              <ChevronDown size={18} />
+            </button>
+          )}
+        </div>
+
+        {/* ── Input area ── */}
+        <div className="chat-input-area">
+          <BackgroundDropdown
+            currentTheme={backgroundId}
+            onThemeChange={handleBackgroundChange}
+            show={showBgDropdown}
+            onClose={() => setShowBgDropdown(false)}
+          />
+          <CommunityMessageInput
+            value={messageInput}
+            onChange={setMessageInput}
+            onSend={handleSendMessage}
+            disabled={sending}
+            placeholder={`Message #${selectedChannel?.name || "channel"}`}
+            editingMessage={editingMessage}
+            onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
+            typingUsers={typingUsers}
+          />
+        </div>
       </div>
 
       {/* ── Community menu ── */}
@@ -498,6 +555,7 @@ const ChatTab = ({
             if (!window.confirm(`Delete #${channelContextMenu.channel.name}? Cannot be undone.`)) return;
             try {
               await channelService.deleteChannel(channelContextMenu.channel.id);
+              communityCache.clearCommunity(community.id);
               await loadChannels();
               setChannelContextMenu(null);
               if (selectedChannel?.id === channelContextMenu.channel.id) {
@@ -514,6 +572,7 @@ const ChatTab = ({
               await channelService.updateChannel(channelContextMenu.channel.id, {
                 is_private: !channelContextMenu.channel.is_private,
               });
+              communityCache.clearCommunity(community.id);
               await loadChannels();
               setChannelContextMenu(null);
             } catch (error) {
@@ -530,6 +589,7 @@ const ChatTab = ({
           onCreate={async (channelData) => {
             try {
               await channelService.createChannel(channelData, community.id);
+              communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowCreateChannel(false);
             } catch (error) {
@@ -547,6 +607,7 @@ const ChatTab = ({
           onUpdate={async (channelData) => {
             try {
               await channelService.updateChannel(editingChannel.id, channelData);
+              communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowEditChannel(false);
               setEditingChannel(null);
@@ -569,96 +630,341 @@ const ChatTab = ({
 
       <style>{`
         .chat-tab {
-          display: flex; flex-direction: column;
-          height: 100vh; position: relative; background: var(--bg);
+          display: flex;
+          flex-direction: row;
+          height: 100%;
+          width: 100%;
+          position: relative;
+          background: var(--bg);
           color: var(--text);
+          overflow: hidden;
         }
 
-        /* ── Channels bar ── */
-        .channels-bar {
-          display: flex; align-items: center; gap: 6px;
-          padding: 7px 10px;
-          background: var(--glass-strong);
-          border-bottom: 1px solid var(--surface-border);
-          z-index: 10; flex-shrink:0;
+        .chat-main {
+          flex: 1;
+          min-width: 0;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
-        .bar-btn {
-          width: 32px; height: 32px; border-radius: 8px;
-          background: var(--surface);
-          border: 1px solid var(--surface-border);
-          color: var(--text-secondary); cursor: pointer; flex-shrink:0;
-          display:flex; align-items:center; justify-content:center;
-          transition: all .18s;
+        .mobile-chat-header {
+          display: none;
         }
-        .bar-btn:hover:not(:disabled) {
-          background: var(--accent-bg-soft);
-          border-color: var(--accent-border); color: var(--accent);
-        }
-        .bar-btn:disabled { opacity:.28; cursor:not-allowed; }
-        .back-btn { color: var(--accent); }
-        .menu-btn { color: var(--accent); }
 
-        .channels-scroll {
-          flex:1; display:flex; gap:5px;
-          overflow-x:auto; padding:1px 0;
+        /* ── Channel rail: the whole "channel section" gets a proper
+           premium treatment — layered background, crisp border-right,
+           and a header that always has a bottom border. ── */
+        .channels-container {
+          width: 212px;
+          min-width: 212px;
+          max-width: 212px;
+          height: 100%;
+          position: relative;
+          background:
+            radial-gradient(120% 60% at 0% 0%, rgba(156,255,0,0.07), transparent 55%),
+            radial-gradient(140% 70% at 100% 100%, rgba(102,126,234,0.08), transparent 55%),
+            linear-gradient(180deg, rgba(15,17,22,0.99) 0%, rgba(9,10,14,0.98) 55%, rgba(7,8,11,0.99) 100%);
+          border-right: 1.5px solid rgba(156,255,0,0.14);
+          display: flex;
+          flex-direction: column;
+          flex-shrink: 0;
+          overflow: hidden;
+          box-shadow:
+            inset -1px 0 0 rgba(255,255,255,0.025),
+            8px 0 24px -18px rgba(0,0,0,0.6);
         }
-        .channels-scroll::-webkit-scrollbar { height:3px; }
-        .channels-scroll::-webkit-scrollbar-thumb { background:var(--accent-bg-strong); border-radius:2px; }
 
-        /* Channel pills */
-        .ch-pill {
-          display:flex; align-items:center; gap:5px;
-          padding:6px 10px; border-radius:7px;
-          background:var(--surface);
-          border:1px solid var(--surface-border);
-          color:var(--text-secondary); font-size:12px; font-weight:700;
-          cursor:pointer; white-space:nowrap; flex-shrink:0;
-          transition:all .18s;
+        .channels-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 14px 12px 12px;
+          border-bottom: 1.5px solid rgba(156,255,0,0.14);
+          background: linear-gradient(180deg, rgba(156,255,0,0.045) 0%, rgba(10,12,16,0) 100%);
+          flex-shrink: 0;
         }
-        .ch-pill:hover { background:var(--surface-strong); border-color:var(--accent-border); color:var(--text); }
-        .ch-pill.active {
-          background:var(--accent-bg-soft);
-          border-color:var(--accent-border-strong); color:var(--accent);
-        }
-        .ch-pill-icon {
-          display:flex; align-items:center; justify-content:center;
-          width:16px; flex-shrink:0;
-        }
-        .ch-icon-img { width:14px; height:14px; object-fit:cover; border-radius:3px; }
-        .ch-emoji { font-size:13px; line-height:1; }
-        .ch-lock { opacity:.6; flex-shrink:0; }
+        .channels-header.has-manage { justify-content: space-between; }
+        .channels-header.no-manage  { justify-content: center; }
 
-        .bar-actions { display:flex; gap:3px; flex-shrink:0; }
+        .channels-plus-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          border: 1px solid rgba(156,255,0,0.16);
+          background: rgba(156,255,0,0.07);
+          color: var(--accent);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+        }
+        .channels-plus-btn:hover {
+          background: rgba(156,255,0,0.14);
+          border-color: rgba(156,255,0,0.3);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(156,255,0,0.14);
+        }
+        .channels-plus-btn:active { transform: translateY(0) scale(0.96); }
 
-        /* Messages */
+        .channels-menu-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 0 12px;
+          height: 34px;
+          border-radius: 10px;
+          border: 1px solid rgba(156,255,0,0.16);
+          background: rgba(156,255,0,0.07);
+          color: var(--accent);
+          font-size: 10px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+        }
+        .channels-header.has-manage .channels-menu-btn { flex-shrink: 0; }
+        .channels-menu-btn:hover {
+          background: rgba(156,255,0,0.14);
+          border-color: rgba(156,255,0,0.3);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(156,255,0,0.14);
+        }
+        .channels-menu-btn:active { transform: translateY(0) scale(0.97); }
+
+        .channels-list {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding: 12px 8px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .channels-list::-webkit-scrollbar { width: 4px; }
+        .channels-list::-webkit-scrollbar-track { background: transparent; }
+        .channels-list::-webkit-scrollbar-thumb {
+          background: rgba(156,255,0,0.22);
+          border-radius: 2px;
+        }
+
+        .channels-eyebrow {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 2px 8px 10px;
+          font-size: 10px;
+          font-weight: 800;
+          color: rgba(255,255,255,0.32);
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+        .channels-refresh-dot {
+          width: 5px; height: 5px; border-radius: 50%;
+          background: var(--accent);
+          box-shadow: 0 0 8px var(--accent);
+          animation: chRefreshPulse 1.1s ease-in-out infinite;
+        }
+        @keyframes chRefreshPulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+
+        /* Skeleton — shown only on a truly first, never-cached load, so the
+           rail still communicates "content is arriving" instead of a dead
+           blank panel while never blocking anything already known. */
+        .channels-skeleton { display: flex; flex-direction: column; gap: 8px; padding: 2px 4px; }
+        .skel-item {
+          height: 40px;
+          border-radius: 11px;
+          background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 100%);
+          background-size: 200% 100%;
+          animation: skelShimmer 1.3s ease-in-out infinite;
+        }
+        @keyframes skelShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        .channel-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          min-height: 42px;
+          padding: 0 11px;
+          border-radius: 11px;
+          border: 1px solid rgba(255,255,255,0.055);
+          background: rgba(255,255,255,0.018);
+          color: rgba(255,255,255,0.72);
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+          position: relative;
+        }
+
+        .channel-item:hover {
+          background: rgba(156,255,0,0.065);
+          border-color: rgba(156,255,0,0.22);
+          transform: translateX(2px);
+          color: rgba(255,255,255,0.92);
+        }
+
+        .channel-item.active {
+          background: linear-gradient(135deg, rgba(156,255,0,0.14), rgba(102,126,234,0.06));
+          border-color: rgba(156,255,0,0.3);
+          color: var(--accent);
+          box-shadow: inset 0 0 0 1px rgba(156,255,0,0.08), 0 4px 16px -6px rgba(156,255,0,0.25);
+        }
+
+        .channel-item.active::before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 3px;
+          height: 18px;
+          border-radius: 999px;
+          background: linear-gradient(180deg, rgba(156,255,0,1), rgba(156,255,0,0.2));
+          box-shadow: 0 0 10px rgba(156,255,0,0.6);
+        }
+
+        .channel-item-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+          opacity: 0.85;
+        }
+
+        .ch-icon-img { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; }
+
+        .channel-item-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .channel-item-lock {
+          margin-left: auto;
+          opacity: 0.5;
+          flex-shrink: 0;
+        }
+
         .chat-msgs {
-          flex:1; overflow-y:auto; overflow-x:hidden; position:relative;
+          flex: 1;
+          min-width: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          position: relative;
         }
-        .chat-msgs::-webkit-scrollbar { width:5px; }
-        .chat-msgs::-webkit-scrollbar-track { background:var(--surface); }
-        .chat-msgs::-webkit-scrollbar-thumb { background:var(--accent-bg-strong); border-radius:3px; }
 
-        /* Input area */
-        .chat-input-area { position:relative; flex-shrink:0; }
+        .chat-msgs::-webkit-scrollbar { width: 5px; }
+        .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        .chat-msgs::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.25); border-radius: 3px; }
 
-        /* Jump button */
+        .chat-input-area {
+          position: relative;
+          flex-shrink: 0;
+        }
+
         .jump-btn {
-          position:fixed; bottom:80px; right:18px; z-index:5;
-          width:36px; height:36px; border-radius:50%;
-          background:var(--panel-strong);
-          border:1.5px solid var(--accent-border-strong);
-          color:var(--accent); cursor:pointer;
-          display:flex; align-items:center; justify-content:center;
-          box-shadow:0 4px 12px var(--shadow); transition:all .2s;
+          position: fixed;
+          bottom: 80px;
+          right: 18px;
+          z-index: 5;
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          background: var(--panel-strong);
+          border: 1.5px solid var(--accent-border-strong);
+          color: var(--accent);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .jump-btn:hover { transform:scale(1.08); box-shadow:0 6px 16px var(--accent-shadow); }
 
-        @media(max-width:768px){
-          .channels-bar { padding:5px 8px; gap:5px; }
-          .bar-btn { width:28px; height:28px; }
-          .ch-pill { padding:5px 8px; font-size:11px; }
-          .jump-btn { bottom:72px; right:12px; }
+        .jump-btn:hover {
+          transform: scale(1.1) translateY(-2px);
+          box-shadow: 0 8px 24px var(--accent-shadow);
+        }
+
+        @media (max-width: 768px) {
+          .chat-tab {
+            flex-direction: column;
+            height: 100%;
+          }
+
+          .chat-main {
+            width: 100%;
+            height: 100%;
+            flex: 1;
+          }
+
+          .mobile-chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            height: 52px;
+            padding: 0 12px;
+            border-bottom: 1px solid rgba(156,255,0,0.12);
+            background: rgba(10, 12, 16, 0.96);
+            z-index: 11;
+            flex-shrink: 0;
+          }
+
+          .mobile-back-btn,
+          .mobile-menu-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid rgba(156,255,0,0.14);
+            background: rgba(156,255,0,0.06);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          }
+
+          .mobile-back-btn:hover,
+          .mobile-menu-btn:hover {
+            background: rgba(156,255,0,0.12);
+            border-color: rgba(156,255,0,0.2);
+            transform: translateY(-1px);
+          }
+
+          .mobile-chat-title {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+          }
+
+          .channels-container {
+            display: none;
+          }
+
+          .jump-btn {
+            bottom: 72px;
+            right: 12px;
+            width: 36px;
+            height: 36px;
+          }
         }
       `}</style>
     </div>

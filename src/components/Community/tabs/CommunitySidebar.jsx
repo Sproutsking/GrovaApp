@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Home, Plus } from "lucide-react";
+import { Home, Plus, Sparkles } from "lucide-react";
+import CommunityAvatar from "../utils/communityVisuals";
 
 const CommunitySidebar = ({
   myCommunities,
@@ -7,6 +8,7 @@ const CommunitySidebar = ({
   onSelectCommunity,
   onCreateCommunity,
   onGoHome,
+  onPrefetchCommunity,
   view,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -25,9 +27,21 @@ const CommunitySidebar = ({
     setContextMenu({ x: e.clientX, y: e.clientY, community });
   };
 
+  const handlePrefetch = (communityId) => {
+    if (typeof onPrefetchCommunity === "function") onPrefetchCommunity(communityId);
+  };
+
   return (
     <>
       <div className="community-sidebar" onClick={() => setContextMenu(null)}>
+        {/* Sidebar header — always present, always has a bottom border,
+            never depends on hover to appear. */}
+        <div className="sidebar-top">
+          <div className="sidebar-mark" aria-hidden="true">
+            <Sparkles size={15} />
+          </div>
+        </div>
+
         <div
           className={`community-icon home ${view === "discover" ? "active" : ""}`}
           onClick={onGoHome}
@@ -42,17 +56,19 @@ const CommunitySidebar = ({
           {myCommunities.map((community) => (
             <div
               key={community.id}
-              className={`community-icon ${selectedCommunity?.id === community.id ? "active" : ""}`}
-              style={{
-                background:
-                  community.banner_gradient ||
-                  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              }}
+              className={`community-icon-wrap${selectedCommunity?.id === community.id ? " active" : ""}`}
               onClick={() => onSelectCommunity(community)}
+              onMouseEnter={() => handlePrefetch(community.id)}
               onContextMenu={(e) => handleContextMenu(e, community)}
               title={community.name}
             >
-              <span>{community.icon || "🌟"}</span>
+              <CommunityAvatar
+                icon={community.icon || "🌟"}
+                gradientCss={community.banner_gradient}
+                size={50}
+                radius={14}
+                className="community-avatar-slot"
+              />
             </div>
           ))}
         </div>
@@ -100,7 +116,7 @@ const CommunitySidebar = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 12px 0;
+          padding: 0 0 12px;
           gap: 8px;
           overflow-y: auto;
           overflow-x: hidden;
@@ -120,6 +136,33 @@ const CommunitySidebar = ({
           border-radius: 2px;
         }
 
+        /* Sidebar header: fixed height, always bordered on the bottom —
+           the rail's own "title bar", not a hover-revealed affordance. */
+        .sidebar-top {
+          width: 100%;
+          height: 52px;
+          min-height: 52px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-bottom: 1.5px solid var(--accent-border, rgba(156,255,0,0.16));
+          background: linear-gradient(180deg, rgba(156,255,0,0.06) 0%, transparent 100%);
+          margin-bottom: 8px;
+          flex-shrink: 0;
+        }
+        .sidebar-mark {
+          width: 32px;
+          height: 32px;
+          border-radius: 9px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--accent);
+          background: rgba(156,255,0,0.1);
+          border: 1px solid rgba(156,255,0,0.22);
+          box-shadow: 0 0 16px -4px rgba(156,255,0,0.4);
+        }
+
         .community-list {
           flex: 1;
           display: flex;
@@ -131,70 +174,97 @@ const CommunitySidebar = ({
         }
 
         .community-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 16px;
+          width: 50px;
+          height: 50px;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 24px;
           cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           position: relative;
           flex-shrink: 0;
-          border: 1px solid transparent;
+          border: 1.5px solid transparent;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          background-size: 100% 100%;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+
+        .community-icon:hover {
+          transform: translateY(-3px) scale(1.05);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+
+        .community-icon:active {
+          transform: translateY(-1px) scale(1.02);
         }
 
         .community-icon.home {
-          background: var(--surface);
-          color: var(--text-secondary);
+          background: linear-gradient(135deg, rgba(156,255,0,0.2) 0%, rgba(156,255,0,0.05) 100%);
+          color: var(--accent);
+          border-color: rgba(156,255,0,0.2);
         }
 
         .community-icon.home:hover {
-          background: var(--accent-bg-soft);
-          color: var(--accent);
-          border-radius: 12px;
+          background: linear-gradient(135deg, rgba(156,255,0,0.3) 0%, rgba(156,255,0,0.1) 100%);
+          border-color: rgba(156,255,0,0.35);
+          box-shadow: 0 8px 24px rgba(156,255,0,0.15);
         }
 
         .community-icon.home.active {
-          background: var(--accent-gradient);
-          color: var(--accent-contrast);
-          border-radius: 12px;
-          box-shadow: 0 0 20px var(--accent-shadow);
+          background: linear-gradient(135deg, rgba(156,255,0,0.4) 0%, rgba(156,255,0,0.2) 100%);
+          color: var(--accent);
+          border: 2px solid var(--accent);
+          box-shadow: 0 0 24px rgba(156,255,0,0.3);
         }
 
-        .community-icon:not(.home):not(.create):hover {
-          border-radius: 12px;
-          transform: translateX(-4px);
-          box-shadow: 0 8px 24px var(--shadow);
+        /* Community icon wrapper — the CommunityAvatar handles its own
+           gradient/sheen/glow; this wrapper only handles hover-lift,
+           the active rail indicator, and click affordance. */
+        .community-icon-wrap {
+          position: relative;
+          cursor: pointer;
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+          flex-shrink: 0;
+        }
+        .community-icon-wrap:hover { transform: translateY(-3px); }
+        .community-icon-wrap:active { transform: translateY(-1px) scale(0.98); }
+
+        .community-icon-wrap.active .cav-root {
+          box-shadow:
+            0 0 0 2px var(--accent),
+            0 10px 26px rgba(0,0,0,.45),
+            0 0 0 1px rgba(255,255,255,.09) inset,
+            0 0 34px -4px var(--cav-glow);
         }
 
-        .community-icon.active:not(.home):not(.create) {
-          border-radius: 12px;
-          box-shadow: 0 0 20px var(--accent-shadow);
-        }
-
-        .community-icon.active:not(.home):not(.create)::before {
+        .community-icon-wrap.active::before {
           content: "";
           position: absolute;
           left: -12px;
+          top: 50%;
+          transform: translateY(-50%);
           width: 4px;
-          height: 24px;
-          background: var(--accent);
-          border-radius: 0 4px 4px 0;
+          height: 26px;
+          background: linear-gradient(180deg, var(--accent), transparent);
+          border-radius: 0 2px 2px 0;
+          box-shadow: 0 0 8px rgba(156,255,0,0.5);
         }
 
         .community-icon.create {
-          background: var(--surface);
+          background: rgba(156,255,0,0.08);
+          border: 1.5px dashed rgba(156,255,0,0.4);
           color: var(--accent);
-          border: 2px dashed var(--accent-border);
+          font-weight: 700;
         }
 
         .community-icon.create:hover {
-          background: var(--accent-bg-soft);
-          border-color: var(--accent-border-strong);
-          border-radius: 12px;
-          transform: scale(1.05);
+          background: rgba(156,255,0,0.15);
+          border-color: rgba(156,255,0,0.6);
+          box-shadow: 0 8px 24px rgba(156,255,0,0.2), inset 0 0 8px rgba(156,255,0,0.1);
+          transform: scale(1.08);
         }
 
         .community-divider {
@@ -256,9 +326,11 @@ const CommunitySidebar = ({
             width: 54px;
             border-right: 1px solid var(--surface-border);
             border-top: 1px solid var(--surface-border);
-            padding: 8px 0px;
-            padding-bottom: 15px;
+            padding: 0px 0px 15px;
           }
+
+          .sidebar-top { height: 40px; min-height: 40px; margin-bottom: 6px; }
+          .sidebar-mark { width: 26px; height: 26px; border-radius: 7px; }
 
           .community-list {
             padding: 0;
@@ -270,7 +342,7 @@ const CommunitySidebar = ({
             border: 1px solid var(--surface-border);
           }
 
-          .community-icon.active:not(.home):not(.create)::before {
+          .community-icon-wrap.active::before {
             left: auto;
             top: -8px;
             width: 24px;

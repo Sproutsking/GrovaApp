@@ -144,7 +144,7 @@ const InviteModal = ({ community, userId, onClose }) => {
       </div>
 
       <style>{`
-        .inv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:50000;display:flex;align-items:center;justify-content:center;padding:20px}
+        .inv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px}
         .inv-modal{width:100%;max-width:420px;background:#0c0c0c;border:1.5px solid rgba(156,255,0,.18);border-radius:18px;padding:20px;animation:modalIn .3s cubic-bezier(.4,0,.2,1)}
         @keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
         .inv-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}

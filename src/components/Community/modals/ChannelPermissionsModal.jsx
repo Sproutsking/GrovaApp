@@ -219,20 +219,49 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
       <style>{`
         .cp-overlay {
           position:fixed; inset:0;
-          background:rgba(0,0,0,.75); backdrop-filter:blur(10px);
-          z-index:60000; display:flex; align-items:center; justify-content:center;
+          background:rgba(5,7,10,.68); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+          z-index:99999; display:flex; align-items:stretch; justify-content:center;
           padding:20px;
         }
         .cp-modal {
-          width:100%; max-width:540px; max-height:88vh;
-          background:#0c0c0c; border:1.5px solid rgba(156,255,0,.18);
+          width:min(100%, 540px); max-height:88vh;
+          background:rgba(12,14,18,.98); border:1.5px solid rgba(156,255,0,.18);
           border-radius:18px; display:flex; flex-direction:column;
           animation:modalIn .3s cubic-bezier(.4,0,.2,1);
           overflow:hidden;
+          box-shadow:0 32px 90px rgba(0,0,0,.6), 0 0 42px rgba(156,255,0,.08);
         }
         @keyframes modalIn{
-          from{opacity:0;transform:translateY(20px) scale(.97)}
-          to  {opacity:1;transform:translateY(0)    scale(1)  }
+          from{opacity:0;transform:translateX(26px) scale(.98)}
+          to  {opacity:1;transform:translateX(0) scale(1)}
+        }
+
+        @media (min-width: 768px) {
+          .cp-overlay {
+            justify-content: flex-end;
+            padding: 0;
+          }
+          .cp-modal {
+            width:min(50vw, 600px);
+            max-width:600px;
+            height:100vh;
+            max-height:100vh;
+            border-radius:24px 0 0 24px;
+            box-shadow:-18px 0 60px rgba(0,0,0,.48), 0 0 60px rgba(156,255,0,.08);
+          }
+        }
+
+        @media (max-width: 767px) {
+          .cp-overlay {
+            padding: 20px;
+            align-items: center;
+          }
+          .cp-modal {
+            width: min(100%, 540px);
+            height: auto;
+            max-height: 88vh;
+            border-radius: 18px;
+          }
         }
 
         .cp-head {

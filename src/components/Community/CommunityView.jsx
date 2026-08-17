@@ -1,14 +1,21 @@
 // components/Community/CommunityView.jsx
-// FULL REWRITE: No entry loader, online presence, invite auto-redirect, image icons
+// REVISION: wires a background channel-prefetch into the sidebar (fires on
+// pointer-hover, fetches silently, never changes anything visually) so that
+// by the time a click lands, ChatTab/ChannelsView already have the data
+// cached and paint instantly. Everything else is unchanged from the
+// original "no loading gate" architecture.
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../services/config/supabase";
 import CommunitySidebar from "./tabs/CommunitySidebar";
 import DiscoverTab from "./tabs/DiscoverTab";
+import ChannelsView from "./tabs/ChannelsView";
 import ChatTab from "./tabs/ChatTab";
 import CreateCommunityModal from "./modals/CreateCommunityModal";
 import InviteModal from "./modals/InviteModal";
 import InviteHandler from "./components/InviteHandler";
 import communityService from "../../services/community/communityService";
+import channelService from "../../services/community/channelService";
+import communityCache from "../../services/community/communityCache";
 import "../../styles/CommunityView.css";
 
 const CommunityView = ({ userId, currentUser }) => {
@@ -100,6 +107,15 @@ const CommunityView = ({ userId, currentUser }) => {
     }
   };
 
+  // ── Background channel prefetch ───────────────────────────────────────────
+  // Fired on sidebar hover (see CommunitySidebar). Purely a background
+  // network call into the shared cache — nothing renders differently while
+  // it runs, so it never conflicts with "no hover reveals" from the UI side.
+  const handlePrefetchCommunity = (communityId) => {
+    if (!communityId) return;
+    communityCache.prefetchChannels(communityId, channelService.fetchChannels).catch(() => {});
+  };
+
   // ── Community actions ─────────────────────────────────────────────────────
   const handleSelectCommunity = async (community) => {
     if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
@@ -107,8 +123,12 @@ const CommunityView = ({ userId, currentUser }) => {
       setSelectedChannel(null);
       currentCommunityRef.current = community.id;
     }
+    // Kick a prefetch off immediately too — covers touch devices / clicks
+    // that land without a preceding hover.
+    handlePrefetchCommunity(community.id);
     setSelectedCommunity(community);
-    setView("chat");
+    // On mobile, show channels view; on desktop, go straight to chat
+    setView(isMobile ? "channels" : "chat");
     if (isMobile) setSidebarOpen(false);
 
     switchTimeoutRef.current = setTimeout(async () => {
@@ -117,6 +137,11 @@ const CommunityView = ({ userId, currentUser }) => {
         if (currentCommunityRef.current === fresh?.id) setSelectedCommunity(fresh);
       } catch {}
     }, 80);
+  };
+
+  const handleSelectChannel = async (channel) => {
+    setSelectedChannel(channel);
+    setView("chat"); // Move to chat when a channel is selected
   };
 
   const handleCreateCommunity = async (communityData) => {
@@ -160,6 +185,7 @@ const CommunityView = ({ userId, currentUser }) => {
     if (!window.confirm("Are you sure you want to leave this community?")) return;
     try {
       await communityService.leaveCommunity(communityId, userId);
+      communityCache.clearCommunity(communityId);
       if (selectedCommunity?.id === communityId) {
         setSelectedCommunity(null); setSelectedChannel(null);
         setView("discover"); currentCommunityRef.current = null;
@@ -174,6 +200,7 @@ const CommunityView = ({ userId, currentUser }) => {
     if (!window.confirm("Delete this community? This cannot be undone.")) return;
     try {
       await communityService.deleteCommunity(communityId, userId);
+      communityCache.clearCommunity(communityId);
       if (selectedCommunity?.id === communityId) {
         setSelectedCommunity(null); setSelectedChannel(null);
         setView("discover"); currentCommunityRef.current = null;
@@ -249,6 +276,7 @@ const CommunityView = ({ userId, currentUser }) => {
           selectedCommunity={selectedCommunity}
           onSelectCommunity={handleSelectCommunity}
           onCreateCommunity={() => setShowCreateCommunity(true)}
+          onPrefetchCommunity={handlePrefetchCommunity}
           onGoHome={() => {
             setSelectedCommunity(null); setSelectedChannel(null);
             setView("discover"); currentCommunityRef.current = null;
@@ -266,6 +294,17 @@ const CommunityView = ({ userId, currentUser }) => {
             onJoin={handleJoinCommunity}
             onSelect={handleSelectCommunity}
           />
+        ) : view === "channels" && selectedCommunity && fullUserProfile ? (
+          <ChannelsView
+            community={selectedCommunity}
+            userId={userId}
+            currentUser={fullUserProfile}
+            onSelectChannel={handleSelectChannel}
+            onBack={() => {
+              setSelectedCommunity(null); setSelectedChannel(null);
+              setView("discover"); currentCommunityRef.current = null;
+            }}
+          />
         ) : (
           selectedCommunity && fullUserProfile && (
             <ChatTab
@@ -280,8 +319,8 @@ const CommunityView = ({ userId, currentUser }) => {
               onOpenInvite={handleOpenInvite}
               onDeleteCommunity={() => handleDeleteCommunity(selectedCommunity.id)}
               onBack={isMobile ? () => {
-                setSelectedCommunity(null); setSelectedChannel(null);
-                setView("discover"); currentCommunityRef.current = null;
+                setSelectedChannel(null);
+                setView("channels");
               } : undefined}
               onToggleSidebar={isMobile ? () => setSidebarOpen(!sidebarOpen) : undefined}
             />

@@ -195,11 +195,12 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.75);
-          backdrop-filter: blur(8px);
+          background: rgba(5, 7, 10, 0.72);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           z-index: 99999;
           display: flex;
-          align-items: center;
+          align-items: stretch;
           justify-content: center;
           padding: 20px;
           animation: overlayFadeIn 0.2s ease;
@@ -216,8 +217,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
         }
 
         .modal {
-          width: 100%;
-          max-width: 520px;
+          width: min(100%, 520px);
           background: #0f0f0f;
           border: 2px solid rgba(156, 255, 0, 0.3);
           border-radius: 20px;
@@ -235,11 +235,43 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
         @keyframes modalSlideIn {
           from {
             opacity: 0;
-            transform: scale(0.95) translateY(20px);
+            transform: translateX(26px) scale(0.98);
           }
           to {
             opacity: 1;
-            transform: scale(1) translateY(0);
+            transform: translateX(0) scale(1);
+          }
+        }
+
+        @media (min-width: 768px) {
+          .modal-overlay {
+            justify-content: flex-end;
+            padding: 0;
+          }
+
+          .modal {
+            width: min(50vw, 600px);
+            max-width: 600px;
+            height: 100vh;
+            max-height: 100vh;
+            border-radius: 24px 0 0 24px;
+            margin: 0;
+            box-shadow: -18px 0 60px rgba(0,0,0,0.48), 0 0 50px rgba(156,255,0,0.08);
+          }
+        }
+
+        @media (max-width: 767px) {
+          .modal-overlay {
+            padding: 20px;
+            align-items: center;
+          }
+          .modal {
+            width: 100%;
+            max-width: 520px;
+            height: auto;
+            max-height: 90vh;
+            border-radius: 20px;
+            margin: auto;
           }
         }
 
