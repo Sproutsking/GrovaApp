@@ -156,11 +156,12 @@ const StoryCard = ({
                       linear-gradient(180deg, rgba(10,10,10,0.96), rgba(15,15,15,0.95));
           border: 1px solid rgba(255,255,255,0.08);
           box-shadow: 0 24px 60px rgba(0,0,0,0.18);
-          transition: transform 0.24s ease, border-color 0.24s ease;
+          transition: border-color 0.24s ease;
         }
+        /* Neutralize hover interaction to keep feed stable */
         .story-card:hover {
-          transform: translateY(-2px);
-          border-color: rgba(132,204,22,0.28);
+          transform: none;
+          border-color: rgba(255,255,255,0.08);
         }
         .story-header {
           display: flex;
@@ -179,7 +180,7 @@ const StoryCard = ({
           background: linear-gradient(180deg, rgba(18,18,18,0.88), rgba(8,8,8,0.95));
         }
         .story-cover:hover .cover-img {
-          transform: scale(1.04);
+          transform: none;
         }
         .cover-img {
           width: 100%;

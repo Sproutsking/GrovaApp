@@ -12,6 +12,7 @@ import {
   Plus,
   Maximize2,
 } from "lucide-react";
+import CardDesignLibrary from "./CardDesignLibrary";
 import "./CustomCardMaker.css";
 
 const QUICK_MESSAGES = {
@@ -98,6 +99,8 @@ const CustomCardMaker = ({
   const [activeCategory, setActiveCategory] = useState("crypto");
   const [textAlign, setTextAlign] = useState(initialValues.align || "center");
   const [fontSize, setFontSize] = useState(initialValues.fontSize ?? null);
+  const [activePresetId, setActivePresetId] = useState(null);
+  const [activeGradientId, setActiveGradientId] = useState(null);
 
   // ── CARD HEIGHT STATE ──────────────────────────────────────────────────────
   const [cardHeight, setCardHeight] = useState(initialValues.cardHeight || 200);
@@ -121,6 +124,22 @@ const CustomCardMaker = ({
     const newText = `${msg.icon} ${msg.text}`;
     setCardText(newText);
     if (onTextChange) onTextChange(newText);
+  };
+
+  const handlePresetSelect = (preset) => {
+    setColor1(preset.from);
+    setColor2(preset.to);
+    setTextColor(preset.textColor || textColor);
+    setAngle(preset.angle ?? angle);
+    setActivePresetId(preset.id);
+    setActiveGradientId(null);
+  };
+
+  const handleGradientSelect = (preset) => {
+    setColor1(preset.from);
+    setColor2(preset.to);
+    setActiveGradientId(preset.id);
+    setActivePresetId(null);
   };
 
   const handleApply = () => {
@@ -303,6 +322,21 @@ const CustomCardMaker = ({
             </div>
           </div>
 
+          {/* ── CARD DESIGN LIBRARY ───────────────────────────────────────────── */}
+          <div className="ccm-section">
+            <label className="ccm-label">
+              <Palette size={16} />
+              Card Design Library
+            </label>
+            <CardDesignLibrary
+              activePresetId={activePresetId}
+              activeGradientId={activeGradientId}
+              onSelectPreset={handlePresetSelect}
+              onSelectGradient={handleGradientSelect}
+              gradientPresets={GRADIENTS}
+            />
+          </div>
+
           {/* ── QUICK MESSAGES ───────────────────────────────────────────────── */}
           <div className="ccm-section">
             <label className="ccm-label">
@@ -388,29 +422,6 @@ const CustomCardMaker = ({
             )}
           </div>
 
-          {/* ── GRADIENT PRESETS ─────────────────────────────────────────────── */}
-          <div className="ccm-section">
-            <label className="ccm-label">
-              <Palette size={16} />
-              Gradient Presets
-            </label>
-            <div className="ccm-gradient-grid">
-              {GRADIENTS.map((g) => (
-                <button
-                  key={g.id}
-                  className="ccm-gradient-preset"
-                  style={{
-                    background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
-                  }}
-                  onClick={() => {
-                    setColor1(g.from);
-                    setColor2(g.to);
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
           {/* ── CUSTOM COLORS ────────────────────────────────────────────────── */}
           <div className="ccm-section">
             <label className="ccm-label">Custom Colors</label>
@@ -456,6 +467,26 @@ const CustomCardMaker = ({
               onChange={(e) => setAngle(parseInt(e.target.value))}
               className="ccm-slider"
             />
+          </div>
+
+          {/* ── GRADIENT LAST OPTION ───────────────────────────────────────────── */}
+          <div className="ccm-section">
+            <label className="ccm-label">
+              <Palette size={16} />
+              Gradient (Last Option)
+            </label>
+            <div className="ccm-gradient-grid">
+              {GRADIENTS.map((g) => (
+                <button
+                  key={g.id}
+                  className={`ccm-gradient-preset ${activeGradientId === g.id ? "active" : ""}`}
+                  style={{
+                    background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
+                  }}
+                  onClick={() => handleGradientSelect(g)}
+                />
+              ))}
+            </div>
           </div>
 
           {/* ── TEXT ALIGNMENT ───────────────────────────────────────────────── */}

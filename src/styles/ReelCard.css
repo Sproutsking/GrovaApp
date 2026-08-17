@@ -17,11 +17,12 @@
     0 8px 32px var(--shadow);
 }
 
+/* Hovered state neutralized to prevent card movement in feeds */
 .xv-reel-card.hovered {
-  transform: translateY(-2px) scale(1.003);
-  border-color: rgba(132, 204, 22, 0.2);
-  box-shadow: 0 0 24px var(--accent-shadow),
-    0 16px 48px var(--shadow);
+  transform: none;
+  border-color: rgba(255,255,255,0.09);
+  box-shadow: 0 0 0 0 rgba(132, 204, 22, 0),
+    0 8px 32px var(--shadow);
 }
 
 .xv-card-accent {
@@ -42,7 +43,7 @@
   z-index: 20;
 }
 .xv-reel-card.hovered .xv-card-accent {
-  opacity: 1;
+  opacity: 0;
 }
 
 /* ── Video container ─────────────────────────────────────────────────────────── */

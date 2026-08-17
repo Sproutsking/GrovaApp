@@ -50,16 +50,17 @@
     box-shadow 0.25s ease;
 }
 
+/* Hover intentionally neutralized to avoid layout shift in feeds */
 .cp-card:hover {
-  transform: translateY(-3px) scale(1.005);
-  box-shadow: 0 4px 8px var(--shadow),
-    0 16px 40px rgba(0, 0, 0, 0.4),
-    0 32px 72px rgba(0, 0, 0, 0.3),
+  transform: none;
+  box-shadow: 0 2px 4px var(--shadow),
+    0 8px 24px rgba(0, 0, 0, 0.32),
+    0 20px 56px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 var(--surface-border);
 }
 
 .cp-card:active {
-  transform: translateY(-1px) scale(1.002);
+  transform: none;
 }
 
 /* ── NOISE TEXTURE ────────────────────────────────────────────────────────────
