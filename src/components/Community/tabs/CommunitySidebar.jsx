@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Home, Plus, Sparkles } from "lucide-react";
+import { Home, Plus } from "lucide-react";
 import CommunityAvatar from "../utils/communityVisuals";
 
 const CommunitySidebar = ({
@@ -34,14 +34,6 @@ const CommunitySidebar = ({
   return (
     <>
       <div className="community-sidebar" onClick={() => setContextMenu(null)}>
-        {/* Sidebar header — always present, always has a bottom border,
-            never depends on hover to appear. */}
-        <div className="sidebar-top">
-          <div className="sidebar-mark" aria-hidden="true">
-            <Sparkles size={15} />
-          </div>
-        </div>
-
         <div
           className={`community-icon home ${view === "discover" ? "active" : ""}`}
           onClick={onGoHome}
