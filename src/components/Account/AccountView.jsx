@@ -11,7 +11,7 @@
 //  • Fallback profile state set on any error so child components always
 //    receive a valid userId.
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, startTransition } from "react";
 import {
   UserCircle, Settings, LayoutDashboard, Shield, Globe,
 } from "lucide-react";
@@ -208,11 +208,21 @@ const AccountView = ({
   onOpenSaved,
 }) => {
   const [profileData, setProfileData] = useState(null);
+  const [preRendered, setPreRendered] = useState(false);
 
   useEffect(() => {
     if (userId) loadBasicProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  // Pre-render all tabs on mount for ultra-instant switching
+  useEffect(() => {
+    if (!preRendered && profileData) {
+      startTransition(() => {
+        setPreRendered(true);
+      });
+    }
+  }, [profileData, preRendered]);
 
   const loadBasicProfile = async () => {
     try {
@@ -301,44 +311,52 @@ const AccountView = ({
         ))}
       </div>
 
-      {/* ── Section Panels ── */}
-      {accountSection === "profile" && (
-        <ProfileSection
-          currentUser={currentUser}
-          userId={userId}
-          onProfileUpdate={loadBasicProfile}
-          onSignOut={onSignOut}
-          // [AMB-1] Forward global navigator so ambassador button works
-          onNavigate={onNavigate}
-        />
+      {/* ── Section Panels — All pre-rendered for instant switching ── */}
+      {(accountSection === "profile" || preRendered) && (
+        <div style={{ display: accountSection === "profile" ? "block" : "none" }}>
+          <ProfileSection
+            currentUser={currentUser}
+            userId={userId}
+            onProfileUpdate={loadBasicProfile}
+            onSignOut={onSignOut}
+            onNavigate={onNavigate}
+          />
+        </div>
       )}
 
-      {/* [ID-2] Identity panel */}
-      {accountSection === "identity" && (
-        <IdentitySection userId={userId} />
+      {(accountSection === "identity" || preRendered) && (
+        <div style={{ display: accountSection === "identity" ? "block" : "none" }}>
+          <IdentitySection userId={userId} />
+        </div>
       )}
 
-      {accountSection === "dashboard" && (
-        <DashboardSection
-          currentUser={currentUser}
-          profile={profileData}
-          setActiveTab={setAccountSection}
-          onNavigate={onNavigate}
-          onOpenSaved={onOpenSaved}
-        />
+      {(accountSection === "dashboard" || preRendered) && (
+        <div style={{ display: accountSection === "dashboard" ? "block" : "none" }}>
+          <DashboardSection
+            currentUser={currentUser}
+            profile={profileData}
+            setActiveTab={setAccountSection}
+            onNavigate={onNavigate}
+            onOpenSaved={onOpenSaved}
+          />
+        </div>
       )}
 
-      {accountSection === "security" && (
-        <SecuritySection userId={userId} />
+      {(accountSection === "security" || preRendered) && (
+        <div style={{ display: accountSection === "security" ? "block" : "none" }}>
+          <SecuritySection userId={userId} />
+        </div>
       )}
 
-      {accountSection === "settings" && (
-        <SettingsSection
-          isSubscribed={isSubscribed}
-          userId={userId}
-          themeMode={themeMode}
-          setThemeMode={setThemeMode}
-        />
+      {(accountSection === "settings" || preRendered) && (
+        <div style={{ display: accountSection === "settings" ? "block" : "none" }}>
+          <SettingsSection
+            isSubscribed={isSubscribed}
+            userId={userId}
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+          />
+        </div>
       )}
     </div>
   );

@@ -243,7 +243,10 @@ const MainApp = memo(() => {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isOnline,           setIsOnline]           = useState(navigator.onLine);
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
-  const [mountedTabs,        setMountedTabs]        = useState(new Set(["home", "search", "create", "community", "account", "wallet"]));
+  const [mountedTabs,        setMountedTabs]        = useState(new Set([
+    "home", "search", "create", "community", "account", "wallet",
+    "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador"
+  ]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
   const [themeMode,         setThemeMode]         = useState(() => {
     if (typeof window === "undefined") return "dark";
@@ -812,108 +815,109 @@ const MainApp = memo(() => {
 
   // ── Overlay views ────────────────────────────────────────────────────────
   const renderOverlay = () => {
-    if (!overlayTab) return null;
-    switch (overlayTab) {
-      case "analytics":
-        return (
-          <Suspense fallback={null}>
-            <AnalyticsView
-              currentUser={currentUser}
-              userId={user.id}
-              onClose={closeOverlayToAccount}
-            />
-          </Suspense>
-        );
-      case "upgrade":
-        return (
-          <Suspense fallback={null}>
-            <UpgradeView currentUser={currentUser} onClose={closeOverlayToAccount} />
-          </Suspense>
-        );
-      case "rewards":
-        return (
-          <Suspense fallback={null}>
-            <RewardsView
-              currentUser={currentUser}
-              userId={user.id}
-              onClose={closeOverlayToAccount}
-            />
-          </Suspense>
-        );
-      case "stream":
-        return (
-          <Suspense fallback={null}>
-            <StreamView
-              currentUser={currentUser}
-              userId={user.id}
-              onClose={closeOverlayToHome}
-              streamSession={streamSession}
-            />
-          </Suspense>
-        );
-      case "giftcards":
-        return (
-          <Suspense fallback={null}>
-            <GiftCardsView
-              currentUser={currentUser}
-              userId={user.id}
-              onClose={closeOverlayToAccount}
-            />
-          </Suspense>
-        );
-      case "ambassador":
-        return (
-          <Suspense fallback={null}>
+    const overlayViews = {
+      analytics: (
+        <Suspense fallback={null}>
+          <AnalyticsView
+            currentUser={currentUser}
+            userId={user.id}
+            onClose={closeOverlayToAccount}
+          />
+        </Suspense>
+      ),
+      upgrade: (
+        <Suspense fallback={null}>
+          <UpgradeView currentUser={currentUser} onClose={closeOverlayToAccount} />
+        </Suspense>
+      ),
+      rewards: (
+        <Suspense fallback={null}>
+          <RewardsView
+            currentUser={currentUser}
+            userId={user.id}
+            onClose={closeOverlayToAccount}
+          />
+        </Suspense>
+      ),
+      stream: (
+        <Suspense fallback={null}>
+          <StreamView
+            currentUser={currentUser}
+            userId={user.id}
+            onClose={closeOverlayToHome}
+            streamSession={streamSession}
+          />
+        </Suspense>
+      ),
+      giftcards: (
+        <Suspense fallback={null}>
+          <GiftCardsView
+            currentUser={currentUser}
+            userId={user.id}
+            onClose={closeOverlayToAccount}
+          />
+        </Suspense>
+      ),
+      ambassador: (
+        <Suspense fallback={null}>
+          <div
+            style={{
+              position:   "fixed",
+              inset:      0,
+              zIndex:     9500,
+              background: "var(--bg-strong)",
+              overflowY:  "auto",
+              fontFamily: "'DM Sans','Inter',system-ui,sans-serif",
+            }}
+          >
             <div
               style={{
-                position:   "fixed",
-                inset:      0,
-                zIndex:     9500,
-                background: "var(--bg-strong)",
-                overflowY:  "auto",
-                fontFamily: "'DM Sans','Inter',system-ui,sans-serif",
+                position:     "sticky",
+                top:          0,
+                zIndex:       10,
+                display:      "flex",
+                alignItems:   "center",
+                gap:          10,
+                padding:      isMobile ? "12px 16px" : "14px 24px",
+                background:   "var(--surface-strong)",
+                backdropFilter: "blur(12px)",
+                borderBottom: "1px solid var(--surface-border)",
               }}
             >
-              <div
+              <button
+                onClick={closeOverlayToAccount}
                 style={{
-                  position:     "sticky",
-                  top:          0,
-                  zIndex:       10,
-                  display:      "flex",
-                  alignItems:   "center",
-                  gap:          10,
-                  padding:      isMobile ? "12px 16px" : "14px 24px",
-                  background:   "var(--surface-strong)",
-                  backdropFilter: "blur(12px)",
-                  borderBottom: "1px solid var(--surface-border)",
+                  display:    "flex",
+                  alignItems: "center",
+                  gap:        7,
+                  background: "transparent",
+                  border:     "none",
+                  color:      "var(--accent)",
+                  fontWeight: 700,
+                  fontSize:   13,
+                  cursor:     "pointer",
+                  fontFamily: "inherit",
+                  padding:    "6px 0",
                 }}
               >
-                <button
-                  onClick={closeOverlayToAccount}
-                  style={{
-                    display:    "flex",
-                    alignItems: "center",
-                    gap:        7,
-                    background: "transparent",
-                    border:     "none",
-                    color:      "var(--accent)",
-                    fontWeight: 700,
-                    fontSize:   13,
-                    cursor:     "pointer",
-                    fontFamily: "inherit",
-                    padding:    "6px 0",
-                  }}
-                >
-                  ← Back
-                </button>
-              </div>
-              <AmbassadorView userId={user.id} userProfile={currentUser} />
+                ← Back
+              </button>
             </div>
-          </Suspense>
-        );
-      default:
-        return null;
-    }
+            <AmbassadorView userId={user.id} userProfile={currentUser} />
+          </div>
+        </Suspense>
+      ),
+    };
+
+    return (
+      <>
+        {Object.entries(overlayViews).map(([id, view]) => (
+          <div key={id} style={{ display: overlayTab === id ? "block" : "none" }}>
+            {view}
+          </div>
+        ))}
+      </>
+    );
   };
 
   // ── Sidebar ──────────────────────────────────────────────────────────────
@@ -975,6 +979,17 @@ const MainApp = memo(() => {
       )}
 
       {renderOverlay()}
+
+      <div style={{ display: showMessages ? "block" : "none" }}>
+        <Suspense fallback={null}>
+          <DMMessagesView
+            currentUser={currentUser}
+            userId={user.id}
+            onClose={() => setShowMessages(false)}
+            targetUserId={dmTargetUserId}
+          />
+        </Suspense>
+      </div>
 
       <div
         style={{

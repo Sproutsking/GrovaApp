@@ -13,7 +13,7 @@
 // UNCHANGED: All existing post/reel/story/user/tag search functionality
 // ============================================================================
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import {
   Search, Filter, ChevronDown, X, Loader, Hash, AtSign,
   User, ChevronRight, BookOpen, Film, FileText,
@@ -341,6 +341,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
   const [evidenceGraph, setEvidenceGraph]     = useState({ items: [], edges: [] });
   const [content, setContent] = useState({ stories: [], posts: [], reels: [], users: [], tags: [], mentions: [], userContext: null, searchType: null });
   const [showOracleModal, setShowOracleModal] = useState(false);
+  const [preRendered, setPreRendered] = useState(false);
 
   const searchRef = useRef(null);
   const tabsRef   = useRef(null);
@@ -367,6 +368,24 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Pre-render all tabs on mount for ultra-instant switching
+  useEffect(() => {
+    if (!preRendered) {
+      startTransition(() => {
+        // Load all tab content in parallel
+        Promise.all([
+          exploreService.getTrending("stories", 50, userId).catch(() => ({})),
+          exploreService.getTrending("posts", 50, userId).catch(() => ({})),
+          exploreService.getTrending("reels", 50, userId).catch(() => ({})),
+          exploreService.getTrending("users", 50, userId).catch(() => ({})),
+          exploreService.getTrending("tags", 50, userId).catch(() => ({})),
+        ]).then(() => {
+          setPreRendered(true);
+        });
+      });
+    }
+  }, [userId, preRendered]);
 
   useEffect(() => {
     if (activeTab === "evidence") {

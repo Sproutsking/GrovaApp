@@ -49,15 +49,15 @@ const css = `
 .si.b{background:rgba(96,165,250,.09);border-color:rgba(96,165,250,.16);color:#60a5fa}
 .si.p{background:rgba(167,139,250,.09);border-color:rgba(167,139,250,.16);color:#a78bfa}
 
-.sl{font-size:13px;font-weight:700;color:#e5e5e5;line-height:1;margin:0 0 2px}
-.sd{font-size:10.5px;color:#4a4a4a;font-weight:500;line-height:1}
+.sl{font-size:13px;font-weight:700;color:#f8fafc;line-height:1;margin:0 0 2px}
+.sd{font-size:10.5px;color:#dfe7f2;font-weight:600;line-height:1}
 
 .ck{padding:3px 8px;border-radius:20px;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0}
 .ck.g{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.18)}
 .ck.rr{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.18)}
 .ck.a{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.18)}
 
-.sg{font-size:9.5px;font-weight:800;color:#333;letter-spacing:.08em;text-transform:uppercase;padding:10px 2px 5px;margin:0}
+.sg{font-size:9.5px;font-weight:800;color:#dfe7f2;letter-spacing:.08em;text-transform:uppercase;padding:10px 2px 5px;margin:0}
 
 .sc{padding:14px;border-radius:14px;background:linear-gradient(145deg,rgba(132,204,22,.06),rgba(132,204,22,.02));border:1px solid rgba(132,204,22,.16);margin-bottom:12px;position:relative;overflow:hidden}
 
@@ -70,27 +70,27 @@ const css = `
 .sin{width:100%;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;color:#fff;font-size:12.5px;box-sizing:border-box;outline:none;transition:border .15s}
 .sin:focus{border-color:rgba(132,204,22,.5)}
 
-.bl{padding:10px 14px;border-radius:12px;border:1px solid rgba(132,204,22,.3);background:rgba(132,204,22,.08);color:#111;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
-.bl:hover:not(:disabled){background:rgba(132,204,22,.16);border-color:rgba(132,204,22,.45)}
+.bl{padding:10px 14px;border-radius:12px;border:1px solid rgba(132,204,22,.32);background:linear-gradient(135deg,#a3e635,#84cc16);color:#0b1206;font-size:11.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;box-shadow:0 4px 12px rgba(132,204,22,.25)}
+.bl:hover:not(:disabled){background:linear-gradient(135deg,#bbf86a,#9ae632);border-color:rgba(132,204,22,.55);box-shadow:0 6px 20px rgba(132,204,22,.35)}
 .bl:disabled{opacity:.5;cursor:not-allowed}
-.bg{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#f5f5f5;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
-.bg:hover:not(:disabled){background:rgba(255,255,255,.12)}
-.br{padding:10px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.08);color:#ef4444;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
-.br:hover:not(:disabled){background:rgba(239,68,68,.14)}
+.bg{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#f8fafc;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.bg:hover:not(:disabled){background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28)}
+.br{padding:10px 14px;border-radius:12px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.12);color:#fecaca;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.br:hover:not(:disabled){background:rgba(239,68,68,.20);border-color:rgba(239,68,68,.5)}
 
 .sess-card{display:flex;gap:10px;padding:10px;border-bottom:1px solid rgba(255,255,255,.04);align-items:flex-start}
 .sess-card:last-child{border-bottom:none}
 .sess-device-icon{width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .sess-info{flex:1;min-width:0}
 .sess-name{font-size:12px;font-weight:700;color:#d4d4d4;margin:0 0 3px}
-.sess-meta{font-size:10px;color:#3a3a3a;display:flex;flex-direction:column;gap:2px}
+.sess-meta{font-size:10px;color:#dfe7f2;display:flex;flex-direction:column;gap:2px}
 .sess-meta-row{display:flex;align-items:center;gap:4px}
 .sess-current{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);border-radius:5px;color:#22c55e;font-size:9px;font-weight:800}
 
 /* [SEC-1] Withdrawal limit table */
 .wl-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px}
-.wl-table th{padding:5px 8px;text-align:left;color:#484848;font-weight:700;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(255,255,255,.05)}
-.wl-table td{padding:6px 8px;color:#9ca3af;border-bottom:1px solid rgba(255,255,255,.03)}
+.wl-table th{padding:5px 8px;text-align:left;color:#dfe7f2;font-weight:700;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(255,255,255,.05)}
+.wl-table td{padding:6px 8px;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,.03)}
 .wl-table tr.current-level td{color:#fff;background:rgba(132,204,22,.04)}
 .wl-table tr.current-level td:first-child{color:#84cc16;font-weight:800}
 `;
@@ -548,7 +548,7 @@ const SecuritySection = ({ userId }) => {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", lineHeight: 1 }}>Security Score</div>
-              <div style={{ fontSize: 10.5, color: "#3a3a3a", marginTop: 2 }}>{si.label} protection · {si.dailyLimit}/day withdrawal limit</div>
+              <div style={{ fontSize: 10.5, color: "#dfe7f2", marginTop: 2 }}>{si.label} protection · {si.dailyLimit}/day withdrawal limit</div>
             </div>
             <div style={{ padding: "3px 10px", borderRadius: 8, background: `${si.color}18`, color: si.color, fontSize: 12, fontWeight: 900, border: `1.5px solid ${si.color}28` }}>
               Level {level}
@@ -604,7 +604,6 @@ const SecuritySection = ({ userId }) => {
           <div className="si"><ShieldCheck size={15} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p className="sl">Two-Factor Authentication</p>
-            <p className="sd">TOTP authenticator app (Google Auth, Authy)</p>
           </div>
           <span className={`ck ${has2FA ? "g" : "rr"}`}>
             {has2FA ? <CheckCircle size={7} /> : <XCircle size={7} />} {has2FA ? "On" : "Off"}
@@ -619,7 +618,6 @@ const SecuritySection = ({ userId }) => {
           <div className="si"><Fingerprint size={15} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p className="sl">Passkey & Biometrics</p>
-            <p className="sd">Fingerprint · Face ID · Device PIN</p>
           </div>
           <span className={`ck ${hasKey ? "g" : "rr"}`}>
             {hasKey ? <CheckCircle size={7} /> : <XCircle size={7} />} {hasKey ? "Active" : "Off"}
@@ -635,7 +633,6 @@ const SecuritySection = ({ userId }) => {
           <div className="si b"><Phone size={15} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p className="sl">Phone Verification</p>
-            <p className="sd">{phoneVer ? "Phone number verified — tap to change" : "Not verified — tap to verify and unlock Level 4"}</p>
           </div>
           <span className={`ck ${phoneVer ? "g" : "a"}`}>
             {phoneVer ? <CheckCircle size={7} /> : <AlertTriangle size={7} />} {phoneVer ? "Verified" : "Pending"}
@@ -655,7 +652,6 @@ const SecuritySection = ({ userId }) => {
           <div className="si"><Lock size={15} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p className="sl">{hasPin ? "Change Transaction PIN" : "Set Transaction PIN"}</p>
-            <p className="sd">{hasPin ? `${pinLen || "?"}-digit PIN active — required for all withdrawals` : "No PIN set — tap to create one now"}</p>
           </div>
           <span className={`ck ${hasPin ? "g" : "rr"}`}>
             {hasPin ? <CheckCircle size={7} /> : <XCircle size={7} />} {hasPin ? "Set" : "None"}
@@ -666,7 +662,6 @@ const SecuritySection = ({ userId }) => {
           <div className="si a"><Key size={15} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p className="sl">Recovery Phrase</p>
-            <p className="sd">{hasPhrase ? "12-word backup saved — tap to view" : "⚠️ Not set — your wallet has no backup"}</p>
           </div>
           <span className={`ck ${hasPhrase ? "g" : "a"}`}>
             {hasPhrase ? <CheckCircle size={7} /> : <AlertTriangle size={7} />} {hasPhrase ? "Set" : "Missing"}
@@ -682,7 +677,6 @@ const SecuritySection = ({ userId }) => {
             <div className="si a"><Lock size={15} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p className="sl">Password</p>
-              <p className="sd">{lastPwd ? `Last changed ${fmtAgo(lastPwd)}` : "Not recently changed"}</p>
             </div>
             <ChevronDown size={13} color="#2e2e2e" style={{ transform: open === "pwd" ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
           </div>
@@ -694,7 +688,7 @@ const SecuritySection = ({ userId }) => {
                 { label: "Confirm New Password", v: cfp, set: setCfp, noTog: true },
               ].map(({ label, v, set, sh, tog: tg, str, noTog }) => (
                 <div key={label} style={{ marginBottom: 10 }}>
-                  <label style={{ display: "block", fontSize: 9.5, color: "#3a3a3a", fontWeight: 700, marginBottom: 5, letterSpacing: ".04em" }}>
+                  <label style={{ display: "block", fontSize: 9.5, color: "#dfe7f2", fontWeight: 700, marginBottom: 5, letterSpacing: ".04em" }}>
                     {label.toUpperCase()}
                   </label>
                   <div style={{ position: "relative" }}>
@@ -740,7 +734,6 @@ const SecuritySection = ({ userId }) => {
                 <div className="si b"><Globe size={15} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p className="sl">Signed-in Devices</p>
-                  <p className="sd">{sessions.length} active session{sessions.length !== 1 ? "s" : ""} across your devices</p>
                 </div>
                 <ChevronDown size={13} color="#2e2e2e" style={{ transform: open === "sess" ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </div>
@@ -819,7 +812,6 @@ const SecuritySection = ({ userId }) => {
                 <div className="si"><Smartphone size={15} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p className="sl">Trusted Devices</p>
-                  <p className="sd">{devices.length} device{devices.length !== 1 ? "s" : ""} skip 2FA verification</p>
                 </div>
                 <ChevronDown size={13} color="#2e2e2e" style={{ transform: open === "dev" ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
               </div>

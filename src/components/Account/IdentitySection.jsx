@@ -81,7 +81,7 @@ const CSS = `
   }
   .idHeroTitle em { font-style:normal; color:#c4b5fd; }
   .idHeroBody {
-    font-size:12.5px; color:#737373; line-height:1.7;
+    font-size:12.5px; color:#d6dde7; line-height:1.7;
     margin:0 0 18px; max-width:480px;
   }
   .idStats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
@@ -92,12 +92,12 @@ const CSS = `
   }
   .idStat:hover { border-color:rgba(139,92,246,.3); }
   .idStatV { font-size:24px; font-weight:900; color:#c4b5fd; line-height:1; margin-bottom:4px; }
-  .idStatL { font-size:10px; color:#404040; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+  .idStatL { font-size:10px; color:#dfe7f2; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
 
   /* ── Section label ── */
   .idLabel {
     display:flex; align-items:center; gap:6px;
-    font-size:10px; font-weight:800; color:#404040;
+    font-size:10px; font-weight:800; color:#dfe7f2;
     text-transform:uppercase; letter-spacing:.7px; margin:0 0 10px;
   }
 
@@ -120,10 +120,11 @@ const CSS = `
     background:#0a0a0b; border:1px solid rgba(255,255,255,.1);
     position:relative; z-index:1;
   }
-  .idHowText { font-size:11px; color:#525252; line-height:1.55; }
+  .idHowText { font-size:11px; color:#dfe7f2; line-height:1.55; }
 
   /* ── Platform cards ── */
-  .idGrid { display:flex; flex-direction:column; gap:8px; }
+  .idGrid { display:grid; grid-template-columns:1fr; gap:8px; }
+  @media(min-width:768px) { .idGrid { grid-template-columns:repeat(2, 1fr); } }
   .idCard {
     position:relative; overflow:hidden;
     background:rgba(255,255,255,.025);
@@ -155,20 +156,20 @@ const CSS = `
   .idBody { flex:1; min-width:0; }
   .idPname {
     display:flex; align-items:center; gap:6px;
-    font-size:13.5px; font-weight:800; color:#efefef; margin:0 0 2px;
+    font-size:13.5px; font-weight:800; color:#f8fafc; margin:0 0 2px;
   }
   .idCatTag {
     padding:1px 6px; border-radius:5px; font-size:9px; font-weight:700;
-    background:rgba(255,255,255,.06); color:#404040;
+    background:rgba(255,255,255,.06); color:#d6dde7;
     text-transform:uppercase; letter-spacing:.4px;
   }
-  .idPdesc { font-size:11px; color:#454545; margin:0 0 6px; line-height:1.5; }
-  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; }
+  .idPdesc { display:none; }
+  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:#d6dde7; }
   .idLiveDot {
     display:inline-block; width:5px; height:5px; border-radius:50%;
     background:#84cc16; animation:idPulse 2s ease-in-out infinite;
   }
-  .idHandle { color:#3a3a3a; font-weight:500; }
+  .idHandle { color:#9ca3af; font-weight:500; }
 
   /* ── Action buttons ── */
   .idBtn {
@@ -186,7 +187,7 @@ const CSS = `
   .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
   .idSoonBadge {
     padding:3px 9px; border-radius:7px; font-size:10px; font-weight:800;
-    background:rgba(255,255,255,.04); color:#3a3a3a;
+    background:rgba(255,255,255,.04); color:#d6dde7;
     border:1px solid rgba(255,255,255,.07); letter-spacing:.4px; text-transform:uppercase;
   }
 
@@ -244,13 +245,13 @@ const CSS = `
   }
   .idTable { width:100%; border-collapse:collapse; margin-top:12px; }
   .idTable th {
-    font-size:10px; font-weight:700; color:#3a3a3a;
+    font-size:10px; font-weight:700; color:#dfe7f2;
     text-transform:uppercase; letter-spacing:.4px;
     text-align:left; padding:5px 8px;
     border-bottom:1px solid rgba(255,255,255,.06);
   }
   .idTable td {
-    font-size:12px; color:#737373; padding:9px 8px;
+    font-size:12px; color:#cbd5e1; padding:9px 8px;
     border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle;
   }
   .idTable tr:last-child td { border-bottom:none; }
@@ -468,9 +469,7 @@ const IdentitySection = ({ userId }) => {
             One Identity.<br /><em>Every Platform.</em>
           </h2>
           <p className="idHeroBody">
-            Xeevia sits above every social network as your singular source of truth.
-            Link your accounts once — every post you publish here distributes across all
-            of them automatically. Build your global presence from one place.
+            Link your account once. Publish once and distribute everywhere.
           </p>
           <div className="idStats">
             <div className="idStat">
@@ -493,9 +492,9 @@ const IdentitySection = ({ userId }) => {
           <p className="idLabel"><Zap size={11} /> How it works</p>
           <div className="idHowSteps">
             {[
-              { n:"1", text:"Link your social accounts below via OAuth" },
-              { n:"2", text:"Create content in Xeevia once" },
-              { n:"3", text:"Hit Publish — it distributes everywhere" },
+              { n:"1", text:"Link account" },
+              { n:"2", text:"Create content once" },
+              { n:"3", text:"Publish once & distribute everywhere" },
             ].map(s => (
               <div key={s.n} className="idHowStep">
                 <div className="idHowNum">{s.n}</div>

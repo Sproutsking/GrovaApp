@@ -4834,6 +4834,11 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
   const [viewerList, setViewerList] = useState([]);
   const [showStageSearch, setShowStageSearch] = useState(false);
   const [speakingId, setSpeakingId] = useState(null);
+  
+  // Co-host management
+  const [coHosts, setCoHosts] = useState([]); // [{id, name, role: "co-host"}]
+  const [coHostInvites, setCoHostInvites] = useState([]); // [{id, name, invitedAt}]
+  const [showCoHostSearch, setShowCoHostSearch] = useState(false);
 
   const [previewStream, setPreviewStream] = useState(null);
   const [liveStream, setLiveStream] = useState(null);
@@ -5034,6 +5039,28 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
     setStageParticipants((prev) =>
       prev.map((x) => (x.id === p.id ? { ...x, micOn: false } : x)),
     );
+  }, []);
+
+  // Co-host invite function
+  const inviteCoHost = useCallback((viewer) => {
+    if (!chRef.current) return;
+    chRef.current.send({
+      type: "broadcast",
+      event: "cohost_invite",
+      payload: { targetId: viewer.id, targetName: viewer.name },
+    });
+    setCoHostInvites((p) => [
+      ...p,
+      { id: viewer.id, name: viewer.name, invitedAt: new Date().toISOString() },
+    ]);
+    setMessages((p) => [
+      ...p.slice(-199),
+      {
+        id: ++msgId.current,
+        type: "system",
+        text: `Invited ${viewer.name} as co-host`,
+      },
+    ]);
   }, []);
 
   const allStage = useMemo(
@@ -5423,8 +5450,8 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 color: "#fff",
                 background: "rgba(239,68,68,.14)",
                 border: "1px solid rgba(239,68,68,.28)",
-                padding: "3px 9px",
-                borderRadius: 7,
+                padding: "4px 10px",
+                borderRadius: 8,
               }}
             >
               <span
@@ -5438,7 +5465,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
               />
               LIVE
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#444" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#666" }}>
               {fmtDur(duration)}
             </span>
             {handRaisers.length > 0 && (
@@ -5447,11 +5474,11 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 4,
-                  padding: "3px 9px",
-                  borderRadius: 7,
+                  gap: 3,
+                  padding: "4px 10px",
+                  borderRadius: 8,
                   background: "rgba(251,191,36,.12)",
-                  border: "1px solid rgba(251,191,36,.3)",
+                  border: "1px solid rgba(251,191,36,.25)",
                   fontSize: 10,
                   fontWeight: 900,
                   color: "#fbbf24",
@@ -5460,7 +5487,7 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                   animation: "svLivePulse 2s ease-in-out infinite",
                 }}
               >
-                ✋{handRaisers.length}
+                ✋ {handRaisers.length}
               </button>
             )}
           </div>
@@ -6453,109 +6480,123 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                 </div>
               )}
 
-              {/* Controls */}
+              {/* ELITE CONTROLS — Minimal icon buttons only */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 7,
-                  padding: "9px 12px",
-                  background: "rgba(0,0,0,.94)",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "11px 12px",
+                  background: "rgba(0,0,0,.98)",
+                  backdropFilter: "blur(12px)",
                   borderTop: "1px solid rgba(255,255,255,.04)",
                   flexShrink: 0,
-                  flexWrap: "wrap",
-                  justifyContent: "center",
                 }}
               >
-                {[
-                  mode === "video" && {
-                    icon: camOn ? Video : VideoOff,
-                    on: camOn,
-                    fn: toggleCam,
-                  },
-                  { icon: micOn ? Mic : MicOff, on: micOn, fn: toggleMic },
-                  {
-                    icon: muted ? VolumeX : Volume2,
-                    on: !muted,
-                    fn: () => setMuted((p) => !p),
-                  },
-                  {
-                    icon: Wifi,
-                    on: !showNet,
-                    hl: showNet,
-                    fn: () => setShowNet((p) => !p),
-                  },
-                  {
-                    icon: Share2,
-                    on: true,
-                    fn: () => {
-                      const url = window.location.href;
-                      if (navigator.share)
-                        navigator.share({ title, url }).catch(() => {});
-                      else navigator.clipboard?.writeText(url).catch(() => {});
-                    },
-                  },
-                ]
-                  .filter(Boolean)
-                  .map((b, i) => (
-                    <button
-                      key={i}
-                      onClick={b.fn}
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 12,
-                        border: "none",
-                        cursor: "pointer",
-                        transition: "all .15s",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: b.hl
-                          ? "rgba(132,204,22,.1)"
-                          : b.on
-                            ? "rgba(255,255,255,.07)"
-                            : "rgba(239,68,68,.1)",
-                        borderWidth: 1,
-                        borderStyle: "solid",
-                        borderColor: b.hl
-                          ? "rgba(132,204,22,.22)"
-                          : b.on
-                            ? "rgba(255,255,255,.1)"
-                            : "rgba(239,68,68,.22)",
-                        color: b.hl ? "#84cc16" : b.on ? "#fff" : "#ef4444",
-                      }}
-                    >
-                      <b.icon size={16} />
-                    </button>
-                  ))}
+                {/* Essential buttons only: Camera, Mic, Screen Share, End Stream */}
+                {mode === "video" && (
+                  <button
+                    onClick={toggleCam}
+                    title={camOn ? "Camera on" : "Camera off"}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all .15s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: camOn
+                        ? "rgba(255,255,255,.08)"
+                        : "rgba(239,68,68,.12)",
+                      color: camOn ? "#fff" : "#ef4444",
+                    }}
+                  >
+                    {camOn ? <Video size={18} /> : <VideoOff size={18} />}
+                  </button>
+                )}
+                <button
+                  onClick={toggleMic}
+                  title={micOn ? "Mic on" : "Mic off"}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all .15s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: micOn
+                      ? "rgba(255,255,255,.08)"
+                      : "rgba(239,68,68,.12)",
+                    color: micOn ? "#fff" : "#ef4444",
+                  }}
+                >
+                  {micOn ? <Mic size={18} /> : <MicOff size={18} />}
+                </button>
+                <button
+                  onClick={() => {
+                    const url = window.location.href;
+                    if (navigator.share)
+                      navigator.share({ title, url }).catch(() => {});
+                    else navigator.clipboard?.writeText(url).catch(() => {});
+                  }}
+                  title="Share stream"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all .15s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(255,255,255,.08)",
+                    color: "#fff",
+                  }}
+                >
+                  <Share2 size={18} />
+                </button>
+                {/* SPACER */}
+                <div style={{ flex: 1 }} />
+                {/* END STREAM — Danger button, always visible */}
                 <button
                   onClick={handleEndStream}
                   style={{
-                    padding: "10px 16px",
+                    width: 44,
+                    height: 44,
                     borderRadius: 12,
-                    background: "rgba(239,68,68,.1)",
-                    border: "1px solid rgba(239,68,68,.25)",
-                    color: "#ef4444",
-                    fontSize: 12,
-                    fontWeight: 800,
+                    border: "1px solid rgba(239,68,68,.3)",
                     cursor: "pointer",
-                    fontFamily: FONT,
+                    transition: "all .15s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(239,68,68,.12)",
+                    color: "#ef4444",
                   }}
                 >
-                  End Stream
+                  <PhoneOff size={18} />
                 </button>
               </div>
 
-              {/* Chat tabs */}
+              {/* Chat tabs — Elite styling */}
               <div
                 style={{
                   display: "flex",
-                  padding: "5px 12px 0",
-                  background: "rgba(0,0,0,.9)",
+                  padding: "6px 12px 0",
+                  background: "rgba(0,0,0,.95)",
+                  backdropFilter: "blur(8px)",
                   flexShrink: 0,
                   borderTop: "1px solid rgba(255,255,255,.04)",
-                  gap: 4,
+                  gap: 2,
+                  overflow: "x-auto",
                 }}
               >
                 {[
@@ -6572,19 +6613,24 @@ const HostStreamView = ({ currentUser, userId, onClose, isSidebar }) => {
                     onClick={() => setTab(k)}
                     style={{
                       flex: 1,
-                      padding: "7px 4px",
-                      borderRadius: 8,
+                      padding: "8px 6px",
+                      borderRadius: "8px 8px 0 0",
                       border: "none",
-                      fontSize: 9.5,
+                      fontSize: 10,
                       fontWeight: 800,
                       cursor: "pointer",
                       fontFamily: FONT,
                       background:
-                        tab === k ? "rgba(132,204,22,.1)" : "transparent",
-                      color: tab === k ? "#84cc16" : "#383838",
+                        tab === k ? "rgba(132,204,22,.08)" : "transparent",
+                      color: tab === k ? "#84cc16" : "#525252",
                       textTransform: "uppercase",
-                      letterSpacing: ".3px",
-                      transition: "all .15s",
+                      letterSpacing: ".4px",
+                      transition: "all .18s ease",
+                      borderBottom: tab === k ? "2px solid #84cc16" : "none",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minWidth: 0,
                     }}
                   >
                     {l}
