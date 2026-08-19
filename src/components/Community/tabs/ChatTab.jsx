@@ -712,6 +712,19 @@ const ChatTab = ({
               console.error("Error updating channel:", error);
             }
           }}
+          onWipeChannel={async (channel) => {
+            try {
+              await communityMessageService.wipeChannel(channel.id);
+              if (selectedChannel?.id === channel.id) {
+                communityState.initMessages(channel.id, []);
+                setMessages([]);
+                await loadMessages();
+              }
+            } catch (error) {
+              console.error("Error wiping channel messages:", error);
+              alert(error.message || "Failed to wipe channel messages");
+            }
+          }}
         />
       )}
 

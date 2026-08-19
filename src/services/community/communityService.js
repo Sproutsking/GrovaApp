@@ -7,6 +7,35 @@ class CommunityService {
     this.lastFetch = new Map();
     this.CACHE_TTL = 5 * 60 * 1000;
     this._presenceChannels = new Map(); // track realtime presence per community
+    this._restoreCachedLists();
+  }
+
+  _restoreCachedLists() {
+    try {
+      const stored = JSON.parse(localStorage.getItem("xeevia_community_lists_v1") || "{}");
+      Object.entries(stored).forEach(([key, entry]) => {
+        if (Array.isArray(entry?.data) && entry.ts) {
+          this.cache.set(key, entry.data);
+          this.lastFetch.set(key, entry.ts);
+        }
+      });
+    } catch {}
+  }
+
+  _persistList(cacheKey, data) {
+    try {
+      const stored = JSON.parse(localStorage.getItem("xeevia_community_lists_v1") || "{}");
+      stored[cacheKey] = { data, ts: this.lastFetch.get(cacheKey) || Date.now() };
+      localStorage.setItem("xeevia_community_lists_v1", JSON.stringify(stored));
+    } catch {}
+  }
+
+  getCachedCommunities(userId) {
+    return this.cache.get(`communities:${userId}`) || [];
+  }
+
+  getCachedUserCommunities(userId) {
+    return this.cache.get(`user-communities:${userId}`) || [];
   }
 
   // ─── PRESENCE / ONLINE TRACKING ───────────────────────────────────────────
@@ -116,10 +145,14 @@ class CommunityService {
 
       if (error) throw error;
 
-      // Compute actual online count from DB
-      const communities = await this._enrichOnlineCounts(data || []);
+      const communities = data || [];
       this.cache.set(cacheKey, communities);
       this.lastFetch.set(cacheKey, Date.now());
+      this._persistList(cacheKey, communities);
+      this._enrichOnlineCounts(communities).then((enriched) => {
+        this.cache.set(cacheKey, enriched);
+        this._persistList(cacheKey, enriched);
+      }).catch(() => {});
       return communities;
     } catch (error) {
       console.error("Error fetching communities:", error);
@@ -151,10 +184,14 @@ class CommunityService {
       if (error) throw error;
 
       const communities = (data || []).map((m) => m.community).filter(Boolean);
-      const enriched = await this._enrichOnlineCounts(communities);
-      this.cache.set(cacheKey, enriched);
+      this.cache.set(cacheKey, communities);
       this.lastFetch.set(cacheKey, Date.now());
-      return enriched;
+      this._persistList(cacheKey, communities);
+      this._enrichOnlineCounts(communities).then((enriched) => {
+        this.cache.set(cacheKey, enriched);
+        this._persistList(cacheKey, enriched);
+      }).catch(() => {});
+      return communities;
     } catch (error) {
       console.error("Error fetching user communities:", error);
       return this.cache.get(cacheKey) || [];

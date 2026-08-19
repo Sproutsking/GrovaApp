@@ -134,13 +134,41 @@ const CommunityProfileModal = ({
   };
 
   const currentRole = member?.role || memberships.find((item) => item.community?.id === community?.id)?.role;
-  const roleBadges = memberships.filter((item) => item.role?.name).map((item) => ({
-    ...item.role,
-    communityName: item.community?.name,
-  }));
-  if (currentRole && !roleBadges.some((role) => role.id === currentRole.id)) roleBadges.unshift(currentRole);
+  const uniqueRoleMap = new Map();
+  const addUniqueRole = (role, fallbackLabel) => {
+    if (!role) return;
+    const label = (role.name || fallbackLabel || "").trim();
+    if (!label) return;
+    const normalized = label.toLowerCase();
+    if (!uniqueRoleMap.has(normalized)) uniqueRoleMap.set(normalized, role);
+  };
 
-  const assignableRoles = roles.filter((role) => role.name?.toLowerCase() !== "owner");
+  const roleBadges = memberships
+    .filter((item) => item.role?.name)
+    .map((item) => ({
+      ...item.role,
+      communityName: item.community?.name,
+    }));
+  roleBadges.forEach((role) => addUniqueRole(role, role.name));
+  if (currentRole) addUniqueRole(currentRole, currentRole.name);
+  const dedupedRoleBadges = Array.from(uniqueRoleMap.values());
+
+  const assignableRoles = Array.from(
+    roles.reduce((unique, role) => {
+      const label = (role?.name || "").trim();
+      if (!label) return unique;
+
+      const normalized = label.toLowerCase();
+      if (normalized === "owner") return unique;
+
+      const key = role.id ? `id:${role.id}` : normalized;
+      if (!unique.has(key) && !unique.has(normalized)) {
+        unique.set(key, role);
+        unique.set(normalized, role);
+      }
+      return unique;
+    }, new Map()).values(),
+  ).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   return (
     <div className="community-profile-overlay" onClick={onClose}>
@@ -190,7 +218,7 @@ const CommunityProfileModal = ({
           </div>
           <div className="community-profile-role-head"><span>Roles</span>{canManageRoles && <button onClick={() => setShowRolePicker((value) => !value)} aria-label="Assign role"><Plus size={15} /></button>}</div>
           <div className="community-profile-roles">
-            {roleBadges.length ? roleBadges.map((role, index) => (
+            {dedupedRoleBadges.length ? dedupedRoleBadges.map((role, index) => (
               <span className="community-profile-role" key={`${role.id}-${index}`} style={{ "--role-color": role.color || "#9cff00" }}>
                 <span className="community-profile-role-icon">{role.icon || "♟"}</span>{role.name}
                 {role.communityName && <small>{role.communityName}</small>}
@@ -198,13 +226,24 @@ const CommunityProfileModal = ({
             )) : <span className="community-profile-empty"><Shield size={13} /> No roles assigned</span>}
           </div>
           {showRolePicker && canManageRoles && member && (
-            <label className="community-profile-assign">
+            <div className="community-profile-assign">
               <span>Assign a community role</span>
-              <select defaultValue="" onChange={(event) => { if (event.target.value) onAssignRole?.(member.id, event.target.value); setShowRolePicker(false); }}>
-                <option value="">Choose role...</option>
-                {assignableRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
-              </select>
-            </label>
+              <div className="community-role-picker">
+                {assignableRoles.length === 0 ? (
+                  <span className="community-role-picker-empty">No assignable roles</span>
+                ) : assignableRoles.map((role) => (
+                  <button
+                    key={role.id}
+                    type="button"
+                    className="community-role-option"
+                    onClick={() => { onAssignRole?.(member.id, role.id); setShowRolePicker(false); }}
+                  >
+                    <span className="community-role-option-dot" style={{ background: role.color || "#9cff00" }} />
+                    <span>{role.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
         </BoostProfileCard>
@@ -219,6 +258,7 @@ const CommunityProfileModal = ({
           .community-profile-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:13px 0;padding:8px 0;border:1px solid rgba(156,255,0,.12);border-radius:9px;background:rgba(0,0,0,.14);color:#719273;font-size:9px;text-align:center}.community-profile-stats span{padding:0 7px}.community-profile-stats span+span{border-left:1px solid rgba(156,255,0,.2)}.community-profile-stats strong{display:block;color:#eaffea;font-size:13px;margin-bottom:2px}
           .community-profile-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.community-profile-actions button{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;padding:9px 5px;border:1px solid rgba(156,255,0,.22);border-radius:9px;background:rgba(156,255,0,.06);color:#c9e8c5;font:700 10px inherit;cursor:pointer}.community-profile-actions button.primary{background:#2e9f38;border-color:#45bc50;color:#fff}.community-profile-actions button.following{background:rgba(156,255,0,.14);border-color:rgba(156,255,0,.5);color:#baff82}.community-profile-actions button:disabled{opacity:.6;cursor:not-allowed}.community-profile-actions button:hover:not(:disabled){filter:brightness(1.12)}
           .community-profile-role-head{display:flex;align-items:center;justify-content:space-between;margin-top:18px;color:#769578;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.community-profile-role-head button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(156,255,0,.45);border-radius:7px;background:rgba(156,255,0,.08);color:#9cff00;cursor:pointer}.community-profile-roles{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.community-profile-role{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;border:1px solid color-mix(in srgb,var(--role-color) 35%,transparent);border-radius:7px;background:color-mix(in srgb,var(--role-color) 10%,transparent);color:var(--role-color);font-size:10px;font-weight:800}.community-profile-role small{color:#79947b;font-size:8px;font-weight:600}.community-profile-empty{display:flex;align-items:center;gap:5px;color:#668168;font-size:10px}.community-profile-assign{display:flex;flex-direction:column;gap:6px;margin-top:10px;color:#759176;font-size:10px;font-weight:700}.community-profile-assign select{padding:8px;border:1px solid rgba(156,255,0,.22);border-radius:8px;background:#0d1c10;color:#d9f4d5;font-size:11px;outline:0}
+          .community-profile-assign{display:flex;flex-direction:column;gap:8px;margin-top:12px;color:#78967d;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.community-role-picker{display:flex;flex-direction:column;gap:4px;max-height:170px;overflow-y:auto;padding:6px;border:1px solid rgba(156,255,0,.25);border-radius:10px;background:rgba(7,16,9,.96);box-shadow:0 18px 30px rgba(0,0,0,.45),0 0 0 1px rgba(156,255,0,.05)}.community-role-option{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:#ecf8eb;font:700 11px inherit;text-align:left;cursor:pointer;transition:all .15s ease}.community-role-option:hover{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.18);color:#cfff80}.community-role-option-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.08),0 0 12px rgba(156,255,0,.5)}.community-role-picker-empty{padding:8px;color:#6d896f;font-size:11px;font-weight:600}
           @keyframes communityProfileIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
         `}</style>
       </section>

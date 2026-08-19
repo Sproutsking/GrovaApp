@@ -22,8 +22,8 @@ const CommunityView = ({ userId, currentUser }) => {
   const [view, setView] = useState("discover");
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
-  const [myCommunities, setMyCommunities] = useState([]);
-  const [allCommunities, setAllCommunities] = useState([]);
+  const [myCommunities, setMyCommunities] = useState(() => communityService.getCachedUserCommunities(userId));
+  const [allCommunities, setAllCommunities] = useState(() => communityService.getCachedCommunities(userId));
   // NO loading state — we render immediately with empty data, fill as it arrives
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);

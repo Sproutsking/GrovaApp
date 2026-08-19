@@ -322,6 +322,19 @@ class CommunityMessageService {
       throw error;
     }
   }
+  async wipeChannel(channelId) {
+    if (!channelId) throw new Error("Channel is required");
+
+    const { error } = await supabase
+      .from("community_messages")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("channel_id", channelId)
+      .is("deleted_at", null);
+
+    if (error) throw error;
+    communityState.initMessages(channelId, []);
+    return true;
+  }
 
   async addReaction(messageId, userId, emoji) {
     try {
