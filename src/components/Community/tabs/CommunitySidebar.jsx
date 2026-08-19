@@ -59,6 +59,11 @@ const CommunitySidebar = ({
                 size={50}
                 radius={14}
                 className="community-avatar-slot"
+                style={{
+                  boxShadow: selectedCommunity?.id === community.id
+                    ? "0 0 0 1px var(--accent), 0 0 12px rgba(156,255,0,.18)"
+                    : "none",
+                }}
               />
             </div>
           ))}
@@ -177,7 +182,7 @@ const CommunitySidebar = ({
           position: relative;
           flex-shrink: 0;
           border: 1.5px solid transparent;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          box-shadow: none;
           background-size: 100% 100%;
           background-position: center;
           background-repeat: no-repeat;
@@ -185,7 +190,7 @@ const CommunitySidebar = ({
 
         .community-icon:hover {
           transform: translateY(-3px) scale(1.05);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+          box-shadow: none;
         }
 
         .community-icon:active {
@@ -198,13 +203,13 @@ const CommunitySidebar = ({
           border: 1.5px solid rgba(156, 255, 0, 0.3);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.4);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
         .community-icon.home:hover {
           background: rgba(0, 0, 0, 0.4);
           border-color: rgba(156, 255, 0, 0.5);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 24px rgba(156, 255, 0, 0.2);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
           transform: translateY(-3px) scale(1.05);
         }
 
@@ -212,7 +217,7 @@ const CommunitySidebar = ({
           background: rgba(0, 0, 0, 0.5);
           color: var(--accent);
           border: 2px solid var(--accent);
-          box-shadow: inset 0 1px 0 rgba(156, 255, 0, 0.2), 0 0 24px rgba(156, 255, 0, 0.35);
+          box-shadow: inset 0 1px 0 rgba(156, 255, 0, 0.2), 0 0 12px rgba(156, 255, 0, 0.18);
         }
 
         /* Community icon wrapper — the CommunityAvatar handles its own
@@ -233,6 +238,10 @@ const CommunitySidebar = ({
             0 10px 26px rgba(0,0,0,.45),
             0 0 0 1px rgba(255,255,255,.09) inset,
             0 0 34px -4px var(--cav-glow);
+        }
+
+        .community-icon-wrap:not(.active) .cav-root {
+          box-shadow: none;
         }
 
         .community-icon-wrap.active::before {
@@ -258,7 +267,7 @@ const CommunitySidebar = ({
         .community-icon.create:hover {
           background: rgba(156,255,0,0.15);
           border-color: rgba(156,255,0,0.6);
-          box-shadow: 0 8px 24px rgba(156,255,0,0.2), inset 0 0 8px rgba(156,255,0,0.1);
+          box-shadow: none;
           transform: scale(1.08);
         }
 

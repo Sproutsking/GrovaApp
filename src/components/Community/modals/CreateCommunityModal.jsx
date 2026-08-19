@@ -246,7 +246,10 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
       <style>{`
         .modal-overlay {
           position: fixed;
-          inset: 0;
+          top: 57px;
+          right: 0;
+          bottom: 0;
+          left: 0;
           background: rgba(5, 7, 10, 0.66);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
@@ -294,14 +297,16 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
         @media (max-width: 768px) {
           .modal-overlay {
+            top: 47px;
+            bottom: 56px;
             justify-content: center;
             align-items: flex-end;
             padding: 0;
           }
           .create-modal {
             width: 100%;
-            height: auto;
-            max-height: calc(100vh - 60px);
+            height: 100%;
+            max-height: 100%;
             border: 1.5px solid rgba(156,255,0,0.18);
             border-radius: 20px 20px 0 0;
             border-bottom: none;

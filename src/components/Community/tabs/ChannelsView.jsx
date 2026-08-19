@@ -16,14 +16,23 @@ const CHANNEL_TYPE_ICON = {
 };
 
 const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack }) => {
-  const [channels, setChannels] = useState(() => communityCache.getChannels(community?.id) || []);
-  const [channelsReady, setChannelsReady] = useState(() => !!communityCache.getChannels(community?.id));
+  const [channels, setChannels] = useState(() => (
+    communityCache.getChannels(community?.id) || community?.channels || []
+  ));
+  const [channelsReady, setChannelsReady] = useState(() => (
+    !!(communityCache.getChannels(community?.id) || community?.channels?.length)
+  ));
   const [userPermissions, setUserPermissions] = useState({});
   const [showMenu, setShowMenu] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
 
   useEffect(() => {
     if (community) {
+      const immediate = communityCache.getChannels(community.id) || community.channels;
+      if (Array.isArray(immediate) && immediate.length) {
+        setChannels(immediate);
+        setChannelsReady(true);
+      }
       loadChannels();
       loadPermissions();
     }

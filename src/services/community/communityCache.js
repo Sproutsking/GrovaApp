@@ -14,6 +14,14 @@ const channelsCache = new Map(); // communityId -> { data, ts }
 const inFlight = new Map(); // communityId -> Promise (dedupe concurrent fetches)
 
 const STALE_AFTER_MS = 60_000; // background-refresh channels older than this
+const STORAGE_KEY = "xeevia_community_channels_v1";
+
+try {
+  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  Object.entries(stored).forEach(([communityId, entry]) => {
+    if (entry?.data && Array.isArray(entry.data)) channelsCache.set(communityId, entry);
+  });
+} catch {}
 
 const communityCache = {
   getChannels(communityId) {
@@ -28,7 +36,13 @@ const communityCache = {
   },
 
   setChannels(communityId, data) {
-    channelsCache.set(communityId, { data, ts: Date.now() });
+    const entry = { data: Array.isArray(data) ? data : [], ts: Date.now() };
+    channelsCache.set(communityId, entry);
+    try {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      stored[communityId] = entry;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    } catch {}
   },
 
   /**

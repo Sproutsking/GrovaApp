@@ -175,7 +175,7 @@ export const CommunityAvatar = ({
   return (
     <div
       className={`cav-root${isMotion ? " cav-motion" : ""}${className ? ` ${className}` : ""}`}
-      style={{ width: size, height: size, borderRadius: r, "--cav-glow": glowColor, ...style }}
+      style={{ width: size, height: size, borderRadius: r, "--cav-glow": glowColor, "--cav-shadow": style.active ? `0 0 0 2px var(--accent), 0 0 16px -5px ${glowColor}` : "none", ...style }}
     >
       <div className="cav-bg" style={{ backgroundImage: bg, backgroundSize: bgSize || "cover", borderRadius: r }} />
       <div className="cav-sheen" style={{ borderRadius: r }} />
@@ -193,10 +193,7 @@ export const CommunityAvatar = ({
       <style>{`
         .cav-root{
           position:relative; flex-shrink:0; isolation:isolate;
-          box-shadow:
-            0 6px 18px rgba(0,0,0,.38),
-            0 0 0 1px rgba(255,255,255,.06) inset,
-            0 0 26px -6px var(--cav-glow);
+          box-shadow: var(--cav-shadow, none);
           transition: box-shadow .3s ease, transform .25s cubic-bezier(.34,1.56,.64,1);
         }
         .cav-root:hover{
