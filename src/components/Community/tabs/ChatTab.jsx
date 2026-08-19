@@ -329,11 +329,6 @@ const ChatTab = ({
       }
       return;
     }
-    if (payload.type === "reorderRoles") {
-      await Promise.all(payload.roles.map((role, index) => roleService.updateRole(role.id, { position: index })));
-      await loadRoles();
-    }
-
     setMessageInput("");
     stopTyping();
 
