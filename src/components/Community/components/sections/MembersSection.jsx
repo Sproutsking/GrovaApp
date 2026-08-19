@@ -5,6 +5,8 @@ import { supabase } from "../../../../services/config/supabase";
 import mediaUrlService from "../../../../services/shared/mediaUrlService";
 import communityOnlineStatusService from "../../../../services/community/communityOnlineStatusService";
 import roleService from "../../../../services/community/roleService";
+import CommunityProfileModal from "../CommunityProfileModal";
+import UserProfileModal from "../../../Modals/UserProfileModal";
 
 const MembersSection = ({ community, userId }) => {
   const [members, setMembers] = useState([]);
@@ -16,6 +18,7 @@ const MembersSection = ({ community, userId }) => {
   const [showSearchPanel, setShowSearchPanel] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [appProfileTarget, setAppProfileTarget] = useState(null);
 
   useEffect(() => {
     if (community?.id) {
@@ -108,11 +111,19 @@ const MembersSection = ({ community, userId }) => {
     return matchesSearch && matchesRole;
   });
 
-  const groupedMembers = roles
-    .map((role) => ({
-      role,
-      members: filteredMembers.filter((m) => m.role_id === role.id),
-    }))
+  const groupedMembers = roles.reduce((groups, role) => {
+    const key = role.name?.trim().toLowerCase() || role.id;
+    const existing = groups.find((group) => group.key === key);
+    const roleMembers = filteredMembers.filter((member) =>
+      member.role_id === role.id || member.role?.name?.trim().toLowerCase() === key
+    );
+    if (existing) {
+      existing.members.push(...roleMembers.filter((member) => !existing.members.some((item) => item.id === member.id)));
+    } else {
+      groups.push({ key, role, members: roleMembers });
+    }
+    return groups;
+  }, [])
     .filter((group) => group.members.length > 0);
 
   return (
@@ -329,34 +340,23 @@ const MembersSection = ({ community, userId }) => {
       </div>
 
       {selectedMember && (
-        <div className="member-profile-overlay" onClick={() => setSelectedMember(null)}>
-          <div className="member-profile-popover" onClick={(event) => event.stopPropagation()}>
-            <button className="member-profile-close" onClick={() => setSelectedMember(null)} aria-label="Close"><X size={15} /></button>
-            <div className="member-profile-avatar">
-              {selectedMember.user?.avatar_id
-                ? <img src={mediaUrlService.getAvatarUrl(selectedMember.user.avatar_id, 160)} alt="" />
-                : selectedMember.user?.full_name?.[0]?.toUpperCase() || "?"}
-            </div>
-            <h3>{selectedMember.user?.full_name || selectedMember.user?.username || "Unknown user"}</h3>
-            <p>@{selectedMember.user?.username || "unknown"}</p>
-            <div className="member-profile-role" style={{ color: selectedMember.role?.color || "#9cff00" }}>
-              <Crown size={13} /> {selectedMember.role?.name || "Member"}
-            </div>
-            {community.owner_id === userId && (
-              <label className="member-role-picker">
-                <span><Plus size={13} /> Assign role</span>
-                <select value={selectedMember.role_id || ""} onChange={async (event) => {
-                  await roleService.updateMemberRole(selectedMember.id, event.target.value);
-                  await loadData();
-                  setSelectedMember(null);
-                }}>
-                  {roles.map((role) => <option value={role.id} key={role.id}>{role.name}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-        </div>
+        <CommunityProfileModal
+          user={selectedMember.user}
+          member={selectedMember}
+          community={community}
+          roles={roles}
+          canManageRoles={community.owner_id === userId}
+          currentUserId={userId}
+          onAssignRole={async (memberId, roleId) => {
+            await roleService.updateMemberRole(memberId, roleId);
+            await loadData();
+          }}
+          onOpenProfile={(user) => setAppProfileTarget(user)}
+          onOpenDm={(user) => window.dispatchEvent(new CustomEvent("community:open-dm", { detail: { userId: user.id } }))}
+          onClose={() => setSelectedMember(null)}
+        />
       )}
+      {appProfileTarget && <UserProfileModal user={appProfileTarget} currentUser={{ id: userId }} onClose={() => setAppProfileTarget(null)} />}
 
       <style>{`
         .members-header {
@@ -662,19 +662,20 @@ const MembersSection = ({ community, userId }) => {
 
         .members-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 6px;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 8px;
         }
 
         .member-card {
-          padding: 0 0 10px 0;
+          min-height: 60px;
+          padding: 0 0 8px 0;
           background: rgb(26, 26, 26);
           border: 1px solid rgba(42, 42, 42, 0.6);
           border-radius: 12px;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 8px;
         }
 
         .member-card:hover {

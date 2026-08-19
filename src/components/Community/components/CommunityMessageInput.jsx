@@ -10,7 +10,9 @@ const CommunityMessageInput = ({
   placeholder = "Type a message...",
   editingMessage = null,
   onCancelEdit = null,
-  typingUsers = []
+  typingUsers = [],
+  replyTo = null,
+  onCancelReply = null,
 }) => {
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
@@ -151,6 +153,13 @@ const CommunityMessageInput = ({
         </div>
       )}
 
+      {replyTo && (
+        <div className="comm-reply-banner">
+          <div><strong>Replying to {replyTo.user?.full_name || replyTo.user?.username || "member"}</strong><span>{replyTo.content}</span></div>
+          <button onClick={onCancelReply} aria-label="Cancel reply"><X size={14} /></button>
+        </div>
+      )}
+
       {/* PREVIEW CARDS - Above input */}
       {allMedia.length > 0 && (
         <div className="comm-media-preview-bar">
@@ -242,6 +251,8 @@ const CommunityMessageInput = ({
           gap: 6px;
           padding: 4px 12px;
         }
+        .comm-reply-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;border-top:1px solid rgba(156,255,0,.16);background:rgba(156,255,0,.045);color:#9cff00}
+        .comm-reply-banner div{display:flex;flex-direction:column;gap:2px;min-width:0}.comm-reply-banner strong{font-size:10px}.comm-reply-banner span{font-size:11px;color:#8aa68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.comm-reply-banner button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:#8aa68a;cursor:pointer;flex-shrink:0}
 
         .comm-typing-bubble {
           padding: 4px 8px;

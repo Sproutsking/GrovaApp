@@ -437,8 +437,8 @@ const Sidebar = ({
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 0;
-          padding: 0 8px;
+          gap: 7px;
+          padding: 20px 8px 12px;
           overflow-y: auto;
         }
         .nav-container::-webkit-scrollbar { display: none; }
@@ -448,12 +448,12 @@ const Sidebar = ({
           display: flex;
           align-items: center;
           gap: 11px;
-          padding: 9px 10px;
-          background: var(--surface);
-          border: 1px solid var(--surface-border);
+          padding: 11px 12px;
+          background: linear-gradient(135deg, var(--surface-strong), var(--surface));
+          border: 1px solid color-mix(in srgb, var(--surface-border) 85%, white 15%);
           border-radius: 8px;
           color: var(--text-secondary);
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           overflow: hidden;
@@ -463,7 +463,7 @@ const Sidebar = ({
           text-align: left;
           font-family: "Manrope", sans-serif;
           flex-shrink: 0;
-          margin-bottom: 3px;
+          margin-bottom: 0;
         }
         @keyframes itemSlide {
           from { opacity: 0; transform: translateX(-20px); }
@@ -527,7 +527,7 @@ const Sidebar = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 28px; height: 28px;
+          width: 32px; height: 32px;
           z-index: 2;
           flex-shrink: 0;
         }

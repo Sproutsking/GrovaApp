@@ -327,6 +327,17 @@ const MainApp = memo(() => {
     }
   }, [profile?.preferences]);
 
+  useEffect(() => {
+    const openCommunityDm = (event) => {
+      const targetId = event.detail?.userId;
+      if (!targetId || targetId === user?.id) return;
+      setDmTargetUserId(targetId);
+      setShowMessages(true);
+    };
+    window.addEventListener("community:open-dm", openCommunityDm);
+    return () => window.removeEventListener("community:open-dm", openCommunityDm);
+  }, [user?.id]);
+
   // ── Notification deep-link navigate ──────────────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
     if (!path || path === "/") return;

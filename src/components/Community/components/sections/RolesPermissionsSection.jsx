@@ -7,6 +7,7 @@ import {
   Plus, Search, Shield, ChevronRight, ChevronLeft,
   Check, X, Users, Crown, Save, Trash2,
 } from "lucide-react";
+import mediaUrlService from "../../../../services/shared/mediaUrlService";
 
 // ─── Permission groups (Discord-style but ours) ───────────────────────────────
 const PERM_GROUPS = [
@@ -107,6 +108,19 @@ const RolesPermissionsSection = ({
   };
 
   const memberCount = (roleId) => members.filter((m) => m.role_id === roleId).length;
+  const roleGroups = roles.reduce((groups, role) => {
+    const key = role.name?.trim().toLowerCase() || role.id;
+    const existing = groups.find((group) => group.key === key);
+    if (existing) {
+      existing.roles.push(role);
+    } else {
+      groups.push({ key, role, roles: [role] });
+    }
+    return groups;
+  }, []);
+  const membersForRole = (role) => members.filter((member) =>
+    member.role_id === role.id || member.role?.name?.trim().toLowerCase() === role.name?.trim().toLowerCase()
+  );
 
   const handleSave = async () => {
     if (!selectedRole || !canManageRoles) return;
@@ -154,7 +168,7 @@ const RolesPermissionsSection = ({
       <div className="rps-list-view">
         {/* Header row */}
         <div className="rps-list-head">
-          <span className="rps-list-label">ROLES <span className="rps-count">{roles.length}</span></span>
+            <span className="rps-list-label">ROLES <span className="rps-count">{roleGroups.length}</span></span>
           {canManageRoles && (
             <button className="rps-new-btn" onClick={() => setShowCreate(!showCreate)}>
               <Plus size={13} /> New Role
@@ -190,11 +204,12 @@ const RolesPermissionsSection = ({
               <p>No roles yet</p>
             </div>
           )}
-          {roles.map((role) => (
+          {roleGroups.map(({ role, roles: groupedRoles }) => (
             <div key={role.id} className="rps-role-row" onClick={() => openRole(role)}>
               <span className="rps-role-dot" style={{ background: role.color || "#667eea" }} />
               <span className="rps-role-name">{role.name}</span>
-              <span className="rps-role-members"><Users size={10} />{memberCount(role.id)}</span>
+              <span className="rps-role-members"><Users size={10} />{membersForRole(role).length}</span>
+              {groupedRoles.length > 1 && <span className="rps-role-merged">{groupedRoles.length} entries</span>}
               <ChevronRight size={14} className="rps-role-arrow" />
             </div>
           ))}
@@ -341,16 +356,22 @@ const RolesPermissionsSection = ({
       {activeTab === "members" && (
         <div className="rps-members">
           <div className="rps-field-label">Members with this role</div>
-          {members.filter((member) => member.role_id === selectedRole?.id).map((member) => (
+          {membersForRole(selectedRole || {}).map((member) => (
             <div className="rps-member-row" key={member.id}>
-              <div className="rps-member-avatar">{member.user?.full_name?.[0]?.toUpperCase() || "?"}</div>
+              <div className="rps-member-avatar">
+                {member.user?.avatar_id ? (
+                  <img src={mediaUrlService.getAvatarUrl(member.user.avatar_id, 80)} alt="" />
+                ) : (
+                  member.user?.full_name?.[0]?.toUpperCase() || "?"
+                )}
+              </div>
               <div className="rps-member-info">
                 <strong>{member.user?.full_name || member.user?.username || "Unknown user"}</strong>
                 <span>@{member.user?.username || "unknown"}</span>
               </div>
             </div>
           ))}
-          {members.filter((member) => member.role_id === selectedRole?.id).length === 0 && (
+          {membersForRole(selectedRole || {}).length === 0 && (
             <div className="rps-empty-members">No members have this role yet.</div>
           )}
           {canManageRoles && !isOwnerRole && (
@@ -361,7 +382,7 @@ const RolesPermissionsSection = ({
                 event.target.value = "";
               }}>
                 <option value="">Choose member...</option>
-                {members.filter((member) => member.role_id !== selectedRole?.id).map((member) => (
+                {members.filter((member) => !membersForRole(selectedRole || {}).some((roleMember) => roleMember.id === member.id)).map((member) => (
                   <option value={member.id} key={member.id}>{member.user?.full_name || member.user?.username || "Unknown user"}</option>
                 ))}
               </select>
@@ -403,6 +424,7 @@ const rpsStyles = `
   .rps-role-name{flex:1;font-size:13px;font-weight:700;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rps-role-row:hover .rps-role-name{color:#fff}
   .rps-role-members{display:flex;align-items:center;gap:3px;font-size:10px;color:#555;flex-shrink:0}
+  .rps-role-merged{font-size:9px;color:#777;padding:2px 5px;border:1px solid rgba(255,255,255,.08);border-radius:5px}
   .rps-role-arrow{color:#444;transition:color .15s}
   .rps-role-row:hover .rps-role-arrow{color:#9cff00}
 
@@ -446,8 +468,9 @@ const rpsStyles = `
   .rps-owner-tag{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.18);color:#FFD700;font-size:11px;font-weight:700}
 
   .rps-members{flex:1;overflow-y:auto;padding:14px 12px}
-  .rps-member-row{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:5px;border-radius:9px;background:rgba(16,16,16,.8);border:1px solid rgba(30,30,30,.9)}
-  .rps-member-avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.12);color:#9cff00;font-weight:900;font-size:12px;flex-shrink:0}
+  .rps-member-row{display:flex;align-items:center;gap:9px;min-height:42px;padding:5px 8px;margin-bottom:5px;border-radius:9px;background:rgba(16,16,16,.8);border:1px solid rgba(30,30,30,.9)}
+  .rps-member-avatar{width:32px;height:32px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.12);border:2px solid rgba(156,255,0,.22);color:#9cff00;font-weight:900;font-size:12px;flex-shrink:0}
+  .rps-member-avatar img{width:100%;height:100%;object-fit:cover;display:block}
   .rps-member-info{display:flex;flex-direction:column;gap:2px;min-width:0}.rps-member-info strong{font-size:12px;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rps-member-info span{font-size:10px;color:#666}
   .rps-empty-members{padding:18px 8px;color:#555;font-size:11px;text-align:center}
   .rps-assign-label{display:flex;flex-direction:column;gap:7px;margin-top:14px;font-size:10px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.5px}

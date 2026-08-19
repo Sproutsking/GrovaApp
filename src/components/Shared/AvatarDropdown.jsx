@@ -342,8 +342,8 @@ const AvatarDropdown = ({
   };
 
   const canAddMore = savedAccounts.length < MAX_ACCOUNTS;
-  const sz  = isMobile ? 34 : 44;
-  const fSz = isMobile ? 14 : 17;
+  const sz  = isMobile ? 38 : 52;
+  const fSz = isMobile ? 16 : 19;
 
   return (
     <>

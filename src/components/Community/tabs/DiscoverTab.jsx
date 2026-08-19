@@ -6,6 +6,7 @@ import {
   Star, Zap, Globe, Crown, Sparkles, ChevronDown, X,
   Info, Lock, Hash, MessageCircle, Calendar, Shield,
 } from "lucide-react";
+import CommunityAvatar from "../utils/communityVisuals";
 
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
@@ -62,10 +63,10 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
         @keyframes dmSlide{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
         .dm-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.7);border:1.5px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;z-index:10}
         .dm-close:hover{background:rgba(255,107,107,.22);color:#ff6b6b;transform:rotate(90deg)}
-        .dm-banner{height:120px;position:relative;flex-shrink:0;overflow:hidden;display:flex;align-items:flex-end;justify-content:center}
+        .dm-banner{height:140px;position:relative;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;padding-top:8px;box-sizing:border-box}
         .dm-banner-fade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(9,9,9,1) 100%)}
-        .dm-icon-wrap{width:64px;height:64px;border-radius:14px;background:rgba(0,0,0,.4);border:2px solid rgba(9,9,9,1);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;z-index:2;margin-bottom:-22px}
-        .dm-body{padding:32px 22px 20px;overflow-y:auto}
+        .dm-icon-wrap{width:72px;height:72px;border-radius:16px;background:rgba(0,0,0,.4);border:2px solid rgba(9,9,9,1);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;z-index:2;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+        .dm-body{padding:20px 22px 20px;overflow-y:auto}
         .dm-body::-webkit-scrollbar{width:4px}
         .dm-body::-webkit-scrollbar-thumb{background:rgba(156,255,0,.18);border-radius:2px}
         .dm-name-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px}
@@ -228,17 +229,14 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                   <div className="disc-card-body">
                     {/* Head row */}
                     <div className="disc-card-head">
-                      <div
-                        className="disc-avatar"
-                        style={{
-                          background: icon?.startsWith("http") ? "transparent" : (c.banner_gradient||"linear-gradient(135deg,#667eea,#764ba2)"),
-                          overflow: icon?.startsWith("http") ? "hidden" : "visible",
-                        }}
-                      >
-                        {icon?.startsWith("http")
-                          ? <img src={icon} alt={c.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                          : (icon||c.name?.[0]||"🌟")
-                        }
+                      <div className="disc-avatar-frame">
+                        <CommunityAvatar
+                          icon={icon || c.name?.[0] || "🌟"}
+                          gradientCss={c.banner_gradient}
+                          borderStyle={c.icon_border}
+                          size={46}
+                          radius={11}
+                        />
                         {c.is_premium&&<div className="disc-premium"><Crown size={8} fill="#FFD700" color="#000"/></div>}
                       </div>
                       <div className="disc-card-info">
@@ -418,14 +416,14 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         .disc-card-body { padding: 12px; position: relative; z-index: 1; }
 
         .disc-card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
-        .disc-avatar {
+        .disc-avatar-frame {
           width: 46px; height: 46px; border-radius: 11px;
           flex-shrink: 0; display: flex; align-items: center;
-          justify-content: center; font-size: 22px; position: relative;
+          justify-content: center; position: relative;
           box-shadow: 0 3px 12px var(--shadow);
           transition: transform .28s cubic-bezier(.4,0,.2,1);
         }
-        .disc-card:hover .disc-avatar { transform: scale(1.05) rotate(2deg); }
+        .disc-card:hover .disc-avatar-frame { transform: scale(1.05) rotate(2deg); }
         .disc-premium {
           position: absolute; top: -3px; right: -3px;
           width: 15px; height: 15px; border-radius: 50%;

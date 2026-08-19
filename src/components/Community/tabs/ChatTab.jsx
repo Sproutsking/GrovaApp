@@ -25,6 +25,8 @@ import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
+import UserProfileModal from "../../Modals/UserProfileModal";
+import CommunityProfileModal from "../components/CommunityProfileModal";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -73,6 +75,9 @@ const ChatTab = ({
   const [showJump, setShowJump] = useState(false);
   const [backgroundId, setBackgroundId] = useState("minimal");
   const [isMobile, setIsMobile] = useState(false);
+  const [profileTarget, setProfileTarget] = useState(null);
+  const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
   const messagesEndRef = useRef(null);
@@ -143,9 +148,11 @@ const ChatTab = ({
     // 1) Instant paint from cache (if any) — no spinner, no blank rail.
     const cached = communityCache.getChannels(community.id);
     if (cached) {
-      setChannels(cached);
+      roleService.getVisibleChannels(community.id, userId, cached).then((visibleChannels) => {
+        setChannels(visibleChannels);
+        if (visibleChannels.length > 0 && !selectedChannel) setSelectedChannel(visibleChannels[0]);
+      }).catch(() => setChannels([]));
       setChannelsReady(true);
-      if (cached.length > 0 && !selectedChannel) setSelectedChannel(cached[0]);
     }
     // 2) Revalidate in the background. Only the very first, never-cached
     // load shows the skeleton state; every other visit is silent.
@@ -153,10 +160,11 @@ const ChatTab = ({
     try {
       const data = await channelService.fetchChannels(community.id);
       communityCache.setChannels(community.id, data);
-      setChannels(data);
+      const visibleChannels = await roleService.getVisibleChannels(community.id, userId, data);
+      setChannels(visibleChannels);
       setChannelsReady(true);
-      if (data.length > 0 && !selectedChannel) {
-        setSelectedChannel(data[0]);
+      if (visibleChannels.length > 0 && !selectedChannel) {
+        setSelectedChannel(visibleChannels[0]);
       }
     } catch (error) {
       console.error("Error loading channels:", error);
@@ -211,7 +219,7 @@ const ChatTab = ({
       return;
     }
     if (payload.type === "assignRole") {
-      await roleService.updateMemberRole(payload.memberId, payload.roleId);
+      await roleService.updateMemberRole(payload.memberId, payload.roleId, userId);
       await loadMembers();
     }
   };
@@ -339,8 +347,10 @@ const ChatTab = ({
             avatar_metadata: currentUser?.avatar_metadata,
             verified: currentUser?.verified || false,
           },
+          reply_to_id: replyTo?.id || null,
         }
       );
+      setReplyTo(null);
       setTimeout(scrollToBottom, 10);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -358,6 +368,7 @@ const ChatTab = ({
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
   const canManageRoles = userPermissions.manageRoles || isOwner;
+  const canSendMessages = userPermissions.sendMessages || isOwner;
 
   // ── Channel icon renderer ─────────────────────────────────────────────────
   const renderChannelIcon = (channel) => {
@@ -467,6 +478,8 @@ const ChatTab = ({
               e.preventDefault();
               setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
             }}
+            onProfileClick={(user) => user?.id && setCommunityProfileTarget(user)}
+            onReply={(message) => { setReplyTo(message); setContextMenu(null); }}
             onReactionClick={async (msgId, emoji) => {
               try {
                 const msg = messages.find((m) => m.id === msgId);
@@ -501,11 +514,13 @@ const ChatTab = ({
             value={messageInput}
             onChange={setMessageInput}
             onSend={handleSendMessage}
-            disabled={sending}
+            disabled={sending || !canSendMessages}
             placeholder={`Message #${selectedChannel?.name || "channel"}`}
             editingMessage={editingMessage}
             onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
             typingUsers={typingUsers}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
           />
         </div>
       </div>
@@ -565,7 +580,42 @@ const ChatTab = ({
             }
             setContextMenu(null);
           }}
+          onReply={() => {
+            setReplyTo(contextMenu.message);
+            setContextMenu(null);
+          }}
           onCopy={() => { navigator.clipboard.writeText(contextMenu.message.content); setContextMenu(null); }}
+          onForward={() => { navigator.clipboard.writeText(contextMenu.message.content); setContextMenu(null); }}
+          onReport={() => { alert("Message reported to community moderators."); setContextMenu(null); }}
+        />
+      )}
+
+      {profileTarget && (
+        <UserProfileModal
+          user={profileTarget}
+          currentUser={currentUser}
+          onClose={() => setProfileTarget(null)}
+        />
+      )}
+
+      {communityProfileTarget && (
+        <CommunityProfileModal
+          user={communityProfileTarget}
+          community={community}
+          member={members.find((item) => item.user_id === communityProfileTarget.id)}
+          roles={roles}
+          canManageRoles={canManageRoles}
+          currentUserId={userId}
+          onAssignRole={async (memberId, roleId) => {
+            await roleService.updateMemberRole(memberId, roleId);
+            await loadMembers();
+          }}
+          onOpenProfile={(user) => { setProfileTarget(user); setCommunityProfileTarget(null); }}
+          onOpenDm={(user) => {
+            window.dispatchEvent(new CustomEvent("community:open-dm", { detail: { userId: user.id } }));
+            setCommunityProfileTarget(null);
+          }}
+          onClose={() => setCommunityProfileTarget(null)}
         />
       )}
 

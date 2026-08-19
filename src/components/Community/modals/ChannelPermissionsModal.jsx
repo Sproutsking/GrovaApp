@@ -218,7 +218,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
 
       <style>{`
         .cp-overlay {
-          position:fixed; inset:0;
+          position:fixed; top:56px; right:0; bottom:0; left:0;
           background:rgba(5,7,10,.68); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
           z-index:99999; display:flex; align-items:stretch; justify-content:center;
           padding:20px;
@@ -244,8 +244,8 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
           .cp-modal {
             width:min(50vw, 600px);
             max-width:600px;
-            height:100vh;
-            max-height:100vh;
+            height:calc(100vh - 56px);
+            max-height:calc(100vh - 56px);
             border-radius:24px 0 0 24px;
             box-shadow:-18px 0 60px rgba(0,0,0,.48), 0 0 60px rgba(156,255,0,.08);
           }
@@ -254,12 +254,14 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
         @media (max-width: 767px) {
           .cp-overlay {
             padding: 20px;
+            top:47px;
+            bottom:56px;
             align-items: center;
           }
           .cp-modal {
             width: min(100%, 540px);
             height: auto;
-            max-height: 88vh;
+            max-height: calc(100vh - 47px - 56px);
             border-radius: 18px;
           }
         }

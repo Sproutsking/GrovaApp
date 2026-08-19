@@ -182,12 +182,23 @@ class RoleService {
         });
       }
 
-      // Others can view all channels if they have viewChannels permission
-      if (roleModel.hasPermission("viewChannels")) {
-        return allChannels;
-      }
+      if (!roleModel.hasPermission("viewChannels")) return [];
 
-      return [];
+      const { data: membership } = await supabase
+        .from("community_members")
+        .select("role_id")
+        .eq("community_id", communityId)
+        .eq("user_id", userId)
+        .single();
+      if (!membership?.role_id) return [];
+
+      const { data: overrides } = await supabase
+        .from("channel_permission_overrides")
+        .select("channel_id, state")
+        .eq("role_id", membership.role_id)
+        .eq("permission", "viewChannel");
+      const overrideMap = new Map((overrides || []).map((item) => [item.channel_id, item.state]));
+      return allChannels.filter((channel) => overrideMap.get(channel.id) !== "deny");
     } catch (error) {
       console.error("Error getting visible channels:", error);
       return [];
@@ -284,8 +295,25 @@ class RoleService {
   /**
    * Update member role
    */
-  async updateMemberRole(memberId, roleId) {
+  async updateMemberRole(memberId, roleId, actorUserId) {
     try {
+      const { data: member } = await supabase
+        .from("community_members")
+        .select("community_id, user_id")
+        .eq("id", memberId)
+        .single();
+      if (!member) throw new Error("Member not found");
+      if (actorUserId) {
+        const allowed = await this.hasPermission(member.community_id, actorUserId, "assignRoles");
+        if (!allowed) throw new Error("You do not have permission to assign roles");
+        if (member.user_id === actorUserId) throw new Error("You cannot change your own role");
+      }
+      const { data: targetRole } = await supabase
+        .from("community_roles")
+        .select("name")
+        .eq("id", roleId)
+        .single();
+      if (targetRole?.name?.toLowerCase() === "owner") throw new Error("The Owner role cannot be assigned");
       const { error } = await supabase
         .from("community_members")
         .update({ role_id: roleId })

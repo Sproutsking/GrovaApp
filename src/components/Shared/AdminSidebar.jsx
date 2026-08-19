@@ -30,12 +30,13 @@ const STYLES = `
 
   .xv-logo {
     padding: 18px 20px;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(156,255,0,0.2);
     display: flex;
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
-    background: var(--surface);
+    background: linear-gradient(135deg, var(--surface-strong), var(--surface));
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,.18);
   }
 
   .xv-logo-icon {
@@ -70,7 +71,10 @@ const STYLES = `
 
   .xv-nav {
     flex: 1;
-    padding: 18px 12px 8px;
+    padding: 22px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -101,7 +105,7 @@ const STYLES = `
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
-    margin-bottom: 3px;
+    margin-bottom: 0;
     text-align: left;
     position: relative;
     font-family: 'Syne', sans-serif;
@@ -147,10 +151,10 @@ const STYLES = `
     background: var(--surface);
     border: 1px solid var(--surface-border);
     color: var(--text-secondary);
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    margin-bottom: 3px;
+    margin-bottom: 0;
     text-align: left;
     font-family: 'Syne', sans-serif;
     transition: background 0.15s, color 0.15s, border-color 0.15s;

@@ -11,6 +11,8 @@ const MessageList = ({
   messagesEndRef,
   onContextMenu,
   onReactionClick,
+  onProfileClick,
+  onReply,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -38,6 +40,26 @@ const MessageList = ({
   };
 
   const allMessages = [...messages, ...pendingMessages];
+  const [swipe, setSwipe] = React.useState(null);
+  const touchStart = React.useRef(null);
+
+  const beginSwipe = (event, message) => {
+    touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, message };
+  };
+  const moveSwipe = (event, message) => {
+    if (!touchStart.current) return;
+    const dx = event.touches[0].clientX - touchStart.current.x;
+    const dy = Math.abs(event.touches[0].clientY - touchStart.current.y);
+    if (dy > 18) return;
+    const direction = message.user_id === userId ? -1 : 1;
+    const distance = Math.max(0, Math.min(76, dx * direction));
+    if (distance > 4) setSwipe({ id: message.id, distance });
+  };
+  const endSwipe = () => {
+    if (swipe?.distance >= 52) onReply?.(allMessages.find((message) => message.id === swipe.id));
+    touchStart.current = null;
+    setSwipe(null);
+  };
 
   return (
     <div className="msg-list-wrapper">
@@ -64,9 +86,14 @@ const MessageList = ({
               key={msg.id || msg.tempId || msg._tempId}
               className={`msg-item ${isMe ? "me" : "them"} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
+              onTouchStart={(e) => beginSwipe(e, msg)}
+              onTouchMove={(e) => moveSwipe(e, msg)}
+              onTouchEnd={endSwipe}
+              style={{ transform: swipe?.id === msg.id ? `translateX(${(msg.user_id === userId ? -1 : 1) * swipe.distance}px)` : undefined }}
             >
+              {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
               {showAvatar && (
-                <div className="msg-avatar">
+                <button className="msg-avatar" onClick={() => onProfileClick?.(msg.user)} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
                   {avatarUrl ? (
                     <img 
                       src={avatarUrl} 
@@ -84,15 +111,19 @@ const MessageList = ({
                   >
                     {initial}
                   </div>
-                </div>
+                </button>
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" />}
 
               <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}`}>
+                {msg.reply_to_id && (() => {
+                  const original = allMessages.find((item) => item.id === msg.reply_to_id);
+                  return original ? <div className="msg-reply-quote"><span>Replying to {original.user?.full_name || "member"}</span><strong>{original.content}</strong></div> : null;
+                })()}
                 {!isMe && showAvatar && (
-                  <div className="msg-user-name">
+                  <button className="msg-user-name" onClick={() => onProfileClick?.(msg.user)}>
                     {msg.user?.full_name || msg.user?.username || "Unknown"}
-                  </div>
+                  </button>
                 )}
                 <div className="msg-content">{msg.content}</div>
                 <div className="msg-meta">
@@ -156,7 +187,14 @@ const MessageList = ({
           align-items: flex-end;
           gap: 8px;
           animation: slideIn 0.2s ease-out;
+          position: relative;
+          transition: transform 0.18s ease-out;
         }
+
+        .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
+        .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
+        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25}
+        .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
         .msg-item.me {
           flex-direction: row-reverse;
@@ -190,6 +228,8 @@ const MessageList = ({
           flex-shrink: 0;
           position: relative;
           box-shadow: 0 2px 8px var(--shadow);
+          padding: 0;
+          cursor: pointer;
         }
 
         .msg-avatar img {
@@ -233,12 +273,9 @@ const MessageList = ({
 
         /* "me" bubble for better blending */
         .msg-bubble.me {
-          background: linear-gradient(
-            135deg,
-            var(--accent-bg-soft),
-            rgba(255,255,255,0.04)
-          );
-          border: 1px solid var(--accent-border);
+          background: linear-gradient(135deg, rgba(48,104,31,.96), rgba(20,48,25,.98) 58%, rgba(12,27,17,.98));
+          border: 1px solid rgba(156,255,0,.42);
+          box-shadow: 0 5px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.07);
           border-bottom-right-radius: 4px;
         }
 
@@ -284,7 +321,7 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 10px 8px;
-          border-color: transparent transparent var(--accent-bg-soft) transparent;
+          border-color: transparent transparent rgba(48,104,31,.96) transparent;
           transform: scaleX(-1);
         }
 
@@ -297,12 +334,17 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 11px 9px;
-          border-color: transparent transparent var(--accent-border) transparent;
+          border-color: transparent transparent rgba(156,255,0,.42) transparent;
           z-index: -1;
           transform: scaleX(-1);
         }
 
         .msg-user-name {
+          border: 0;
+          background: transparent;
+          padding: 0;
+          cursor: pointer;
+          text-align: left;
           font-size: 12px;
           font-weight: 700;
           color: var(--accent);

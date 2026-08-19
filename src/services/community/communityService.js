@@ -381,50 +381,12 @@ class CommunityService {
 
   async joinCommunity(communityId, userId) {
     try {
-      const { data: community } = await supabase
-        .from("communities")
-        .select("*, owner_id, is_private, member_count")
-        .eq("id", communityId)
-        .is("deleted_at", null)
-        .single();
-
-      if (!community) throw new Error("Community not found");
-      if (community.is_private) throw new Error("Cannot join private community without invite");
-
-      const { data: existing } = await supabase
-        .from("community_members")
-        .select("id")
-        .eq("community_id", communityId)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existing) throw new Error("Already a member");
-
-      const { data: defaultRole } = await supabase
-        .from("community_roles")
-        .select("id")
-        .eq("community_id", communityId)
-        .eq("is_default", true)
-        .maybeSingle();
-
-      let roleId = defaultRole?.id;
-      if (!roleId) {
-        const role = await this.createDefaultRole(communityId, "Novis", 2, "novis");
-        roleId = role.id;
-      }
-
-      await supabase.from("community_members").insert({
-        community_id: communityId,
-        user_id: userId,
-        role_id: roleId,
-        is_online: true,
-        last_seen: new Date().toISOString(),
+      const { data: community, error } = await supabase.rpc("join_public_community", {
+        p_community_id: communityId,
+        p_user_id: userId,
       });
-
-      await supabase
-        .from("communities")
-        .update({ member_count: (community.member_count || 0) + 1 })
-        .eq("id", communityId);
+      if (error) throw error;
+      if (!community) throw new Error("Community could not be joined");
 
       this.invalidateUserCache(userId);
       this.cache.delete(`community:${communityId}`);
@@ -514,34 +476,13 @@ class CommunityService {
         .maybeSingle();
 
       if (!existing) {
-        // Get default role
-        const { data: defaultRole } = await supabase
-          .from("community_roles")
-          .select("id")
-          .eq("community_id", community.id)
-          .eq("is_default", true)
-          .maybeSingle();
-
-        let roleId = defaultRole?.id;
-        if (!roleId) {
-          const role = await this.createDefaultRole(community.id, "Novis", 2, "novis");
-          roleId = role.id;
-        }
-
-        await supabase.from("community_members").insert({
-          community_id: community.id,
-          user_id: userId,
-          role_id: roleId,
-          is_online: true,
-          last_seen: new Date().toISOString(),
+        const { error: joinError } = await supabase.rpc("join_public_community", {
+          p_community_id: community.id,
+          p_user_id: userId,
         });
+        if (joinError) throw joinError;
 
-        // Increment member_count & invite uses atomically
-        await supabase
-          .from("communities")
-          .update({ member_count: (community.member_count || 0) + 1 })
-          .eq("id", community.id);
-
+        // The join RPC increments the member count with the membership insert.
         await supabase
           .from("community_invites")
           .update({ uses: (invite.uses || 0) + 1 })

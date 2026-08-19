@@ -88,6 +88,7 @@ class CommunityMessageService {
         channel_id: channelId,
         user_id: userId,
         content,
+        reply_to_id: options.reply_to_id || null,
         created_at: new Date().toISOString(),
         user: userObject,  // Full user object included
         reactions: {},
@@ -111,7 +112,7 @@ class CommunityMessageService {
       console.log(`📡 [SEND] Broadcast sent with user data`);
 
       // Save to database (async) - pass userObject for fallback
-      this.saveToDatabase(channelId, userId, content, tempId, userObject);
+      this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id);
 
       return optimisticMessage;
     } catch (error) {
@@ -122,14 +123,15 @@ class CommunityMessageService {
     }
   }
 
-  async saveToDatabase(channelId, userId, content, tempId, userObject) {
+  async saveToDatabase(channelId, userId, content, tempId, userObject, replyToId = null) {
     try {
       const { data, error } = await supabase
         .from("community_messages")
         .insert({
           channel_id: channelId,
           user_id: userId,
-          content: content.trim()
+          content: content.trim(),
+          reply_to_id: replyToId || null,
         })
         .select(`
           *,
