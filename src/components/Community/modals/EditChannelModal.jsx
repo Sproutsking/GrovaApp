@@ -193,7 +193,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
         .modal {
           width: 100%;
           max-width: 600px;
-          height: 100vh;
+          height: calc(100vh - 57px);
           background: rgba(15, 15, 15, 0.98);
           border-left: 2px solid rgba(156, 255, 0, 0.2);
           box-shadow: -18px 0 60px rgba(0, 0, 0, 0.6), 0 0 60px rgba(156,255,0,0.08);
@@ -224,8 +224,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
           }
           .modal {
             width: 100%;
-            height: 100%;
-            max-height: 100%;
+            height: calc(100vh - 103px);
+            max-height: calc(100vh - 103px);
             border: 2px solid rgba(156, 255, 0, 0.2);
             border-radius: 20px 20px 0 0;
             border-bottom: none;
@@ -247,7 +247,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
         }
 
         .modal-header {
-          padding: 16px 20px;
+          padding: 10px 16px;
           border-bottom: 2px solid rgba(156, 255, 0, 0.1);
           background: linear-gradient(180deg, rgba(26, 26, 26, 0.9) 0%, rgba(15, 15, 15, 0) 100%);
           display: flex;

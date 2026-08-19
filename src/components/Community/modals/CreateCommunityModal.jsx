@@ -269,7 +269,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .create-modal {
           width: 100%;
           max-width: 600px;
-          height: 100vh;
+          height: calc(100vh - 57px);
           background: rgba(10, 12, 16, 0.97);
           border-left: 1.5px solid rgba(156,255,0,0.18);
           overflow-y: auto;
@@ -305,8 +305,8 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           }
           .create-modal {
             width: 100%;
-            height: 100%;
-            max-height: 100%;
+            height: calc(100vh - 103px);
+            max-height: calc(100vh - 103px);
             border: 1.5px solid rgba(156,255,0,0.18);
             border-radius: 20px 20px 0 0;
             border-bottom: none;
@@ -339,7 +339,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          padding: 16px 20px;
+          padding: 10px 16px;
           border-bottom: 1.5px solid rgba(156,255,0,0.1);
           flex-shrink: 0;
           background: rgba(10, 12, 16, 0.97);

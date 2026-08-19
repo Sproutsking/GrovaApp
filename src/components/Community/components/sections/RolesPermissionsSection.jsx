@@ -80,6 +80,7 @@ const RolesPermissionsSection = ({
   canManageRoles = false,
   onUpdateRole,
   onCreateRole,
+  onAssignRole,
 }) => {
   // "list" view → shows role list
   // "edit" view → shows editor for selectedRole
@@ -89,7 +90,7 @@ const RolesPermissionsSection = ({
   const [editedName, setEditedName]     = useState("");
   const [editedColor, setEditedColor]   = useState("#667eea");
   const [permSearch, setPermSearch]     = useState("");
-  const [activeTab, setActiveTab]       = useState("permissions");
+  const [activeTab, setActiveTab]       = useState("display");
   const [saving, setSaving]             = useState(false);
   const [saved, setSaved]               = useState(false);
   const [showCreate, setShowCreate]     = useState(false);
@@ -101,7 +102,7 @@ const RolesPermissionsSection = ({
     setEditedName(role.name || "");
     setEditedColor(role.color || "#667eea");
     setPermSearch("");
-    setActiveTab("permissions");
+    setActiveTab("display");
     setView("edit");
   };
 
@@ -233,6 +234,7 @@ const RolesPermissionsSection = ({
       {/* Tabs */}
       <div className="rps-tabs">
         <button className={`rps-tab${activeTab === "display" ? " active" : ""}`} onClick={() => setActiveTab("display")}>Display</button>
+        <button className={`rps-tab${activeTab === "members" ? " active" : ""}`} onClick={() => setActiveTab("members")}>Members</button>
         <button className={`rps-tab${activeTab === "permissions" ? " active" : ""}`} onClick={() => setActiveTab("permissions")}>Permissions</button>
       </div>
 
@@ -336,6 +338,38 @@ const RolesPermissionsSection = ({
         </div>
       )}
 
+      {activeTab === "members" && (
+        <div className="rps-members">
+          <div className="rps-field-label">Members with this role</div>
+          {members.filter((member) => member.role_id === selectedRole?.id).map((member) => (
+            <div className="rps-member-row" key={member.id}>
+              <div className="rps-member-avatar">{member.user?.full_name?.[0]?.toUpperCase() || "?"}</div>
+              <div className="rps-member-info">
+                <strong>{member.user?.full_name || member.user?.username || "Unknown user"}</strong>
+                <span>@{member.user?.username || "unknown"}</span>
+              </div>
+            </div>
+          ))}
+          {members.filter((member) => member.role_id === selectedRole?.id).length === 0 && (
+            <div className="rps-empty-members">No members have this role yet.</div>
+          )}
+          {canManageRoles && !isOwnerRole && (
+            <label className="rps-assign-label">
+              <span>Assign this role to a member</span>
+              <select defaultValue="" onChange={(event) => {
+                if (event.target.value) onAssignRole?.(event.target.value, selectedRole.id);
+                event.target.value = "";
+              }}>
+                <option value="">Choose member...</option>
+                {members.filter((member) => member.role_id !== selectedRole?.id).map((member) => (
+                  <option value={member.id} key={member.id}>{member.user?.full_name || member.user?.username || "Unknown user"}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
+
       <style>{rpsStyles}</style>
     </div>
   );
@@ -410,6 +444,14 @@ const rpsStyles = `
   .rps-stat-pill{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;background:rgba(16,16,16,.9);border:1px solid rgba(32,32,32,.9);font-size:11px;color:#888;font-weight:700;flex:1}
   .rps-default-tag{padding:7px 10px;border-radius:8px;background:rgba(102,126,234,.08);border:1px solid rgba(102,126,234,.2);color:#667eea;font-size:11px;font-weight:700;text-align:center}
   .rps-owner-tag{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.18);color:#FFD700;font-size:11px;font-weight:700}
+
+  .rps-members{flex:1;overflow-y:auto;padding:14px 12px}
+  .rps-member-row{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:5px;border-radius:9px;background:rgba(16,16,16,.8);border:1px solid rgba(30,30,30,.9)}
+  .rps-member-avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.12);color:#9cff00;font-weight:900;font-size:12px;flex-shrink:0}
+  .rps-member-info{display:flex;flex-direction:column;gap:2px;min-width:0}.rps-member-info strong{font-size:12px;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rps-member-info span{font-size:10px;color:#666}
+  .rps-empty-members{padding:18px 8px;color:#555;font-size:11px;text-align:center}
+  .rps-assign-label{display:flex;flex-direction:column;gap:7px;margin-top:14px;font-size:10px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.5px}
+  .rps-assign-label select{padding:9px 10px;border-radius:8px;background:#121212;border:1px solid rgba(156,255,0,.25);color:#bbb;font-size:12px;outline:none}
 
   /* Permissions tab */
   .rps-perms{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:0}

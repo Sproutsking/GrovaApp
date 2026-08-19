@@ -24,6 +24,7 @@ import backgroundService from "../../../services/community/CommunityBackgroundSe
 import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
+import roleService from "../../../services/community/roleService";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -65,6 +66,7 @@ const ChatTab = ({
   const [editingMessage, setEditingMessage] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
   const [roles, setRoles] = useState([]);
+  const [members, setMembers] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
@@ -133,6 +135,7 @@ const ChatTab = ({
       loadChannels();
       loadPermissions();
       loadRoles();
+      loadMembers();
     }
   }, [community?.id]);
 
@@ -178,6 +181,38 @@ const ChatTab = ({
       setRoles(data || []);
     } catch (error) {
       console.error("Error loading roles:", error);
+    }
+  };
+
+  const loadMembers = async () => {
+    try {
+      const data = await roleService.fetchMembers(community.id);
+      setMembers(data || []);
+    } catch (error) {
+      console.error("Error loading community members:", error);
+    }
+  };
+
+  const handleCommunityMenuUpdate = async (payload) => {
+    if (!payload) return;
+    if (payload.type === "community") {
+      await onCommunityUpdate(payload);
+      return;
+    }
+    if (payload.type === "role") {
+      await roleService.updateRole(payload.roleId, payload.updates);
+      await loadRoles();
+      await loadMembers();
+      return;
+    }
+    if (payload.type === "createRole") {
+      await roleService.createRole(payload.roleData, community.id);
+      await loadRoles();
+      return;
+    }
+    if (payload.type === "assignRole") {
+      await roleService.updateMemberRole(payload.memberId, payload.roleId);
+      await loadMembers();
     }
   };
 
@@ -482,11 +517,13 @@ const ChatTab = ({
         community={community}
         userId={userId}
         onLeave={onLeaveCommunity}
-        onUpdate={onCommunityUpdate}
+        onUpdate={handleCommunityMenuUpdate}
         onCreateChannel={() => setShowCreateChannel(true)}
         onOpenInvite={onOpenInvite}
         onDeleteCommunity={() => { setShowMenu(false); onDeleteCommunity(); }}
         onOpenBackgroundSwitcher={() => { setShowMenu(false); setShowBgDropdown(true); }}
+        roles={roles}
+        members={members}
       />
 
       {/* ── Message context menu ── */}

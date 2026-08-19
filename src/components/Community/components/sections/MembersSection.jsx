@@ -1,9 +1,10 @@
 // components/Community/components/sections/MembersSection.jsx - FIXED VERSION
 import React, { useState, useEffect } from "react";
-import { Crown, Users, Search, Filter, CheckCircle } from "lucide-react";
+import { Crown, Users, Search, Filter, CheckCircle, X, Plus } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import mediaUrlService from "../../../../services/shared/mediaUrlService";
 import communityOnlineStatusService from "../../../../services/community/communityOnlineStatusService";
+import roleService from "../../../../services/community/roleService";
 
 const MembersSection = ({ community, userId }) => {
   const [members, setMembers] = useState([]);
@@ -14,6 +15,7 @@ const MembersSection = ({ community, userId }) => {
   const [onlineStatuses, setOnlineStatuses] = useState({});
   const [showSearchPanel, setShowSearchPanel] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   useEffect(() => {
     if (community?.id) {
@@ -261,7 +263,7 @@ const MembersSection = ({ community, userId }) => {
                   const isOnline = memberStatus.online;
 
                   return (
-                    <div key={member.id} className="member-card">
+                    <div key={member.id} className="member-card" onClick={() => setSelectedMember(member)}>
                       <div className="member-card-contents">
                         <div className="member-card-header">
                           <div className="member-avatar">
@@ -325,6 +327,36 @@ const MembersSection = ({ community, userId }) => {
           ))
         )}
       </div>
+
+      {selectedMember && (
+        <div className="member-profile-overlay" onClick={() => setSelectedMember(null)}>
+          <div className="member-profile-popover" onClick={(event) => event.stopPropagation()}>
+            <button className="member-profile-close" onClick={() => setSelectedMember(null)} aria-label="Close"><X size={15} /></button>
+            <div className="member-profile-avatar">
+              {selectedMember.user?.avatar_id
+                ? <img src={mediaUrlService.getAvatarUrl(selectedMember.user.avatar_id, 160)} alt="" />
+                : selectedMember.user?.full_name?.[0]?.toUpperCase() || "?"}
+            </div>
+            <h3>{selectedMember.user?.full_name || selectedMember.user?.username || "Unknown user"}</h3>
+            <p>@{selectedMember.user?.username || "unknown"}</p>
+            <div className="member-profile-role" style={{ color: selectedMember.role?.color || "#9cff00" }}>
+              <Crown size={13} /> {selectedMember.role?.name || "Member"}
+            </div>
+            {community.owner_id === userId && (
+              <label className="member-role-picker">
+                <span><Plus size={13} /> Assign role</span>
+                <select value={selectedMember.role_id || ""} onChange={async (event) => {
+                  await roleService.updateMemberRole(selectedMember.id, event.target.value);
+                  await loadData();
+                  setSelectedMember(null);
+                }}>
+                  {roles.map((role) => <option value={role.id} key={role.id}>{role.name}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       <style>{`
         .members-header {
@@ -648,6 +680,11 @@ const MembersSection = ({ community, userId }) => {
         .member-card:hover {
           transform: translateY(-2px);
         }
+        .member-profile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.48);backdrop-filter:blur(4px);z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px}
+        .member-profile-popover{position:relative;width:min(300px,100%);padding:24px 20px;background:#0d0f12;border:1px solid rgba(156,255,0,.25);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.65);text-align:center}
+        .member-profile-close{position:absolute;top:10px;right:10px;width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.06);color:#888;display:flex;align-items:center;justify-content:center;cursor:pointer}
+        .member-profile-avatar{width:68px;height:68px;margin:0 auto 10px;border-radius:20px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(135deg,#9cff00,#667eea);color:#000;font-size:28px;font-weight:900}
+        .member-profile-avatar img{width:100%;height:100%;object-fit:cover}.member-profile-popover h3{margin:0;color:#fff;font-size:16px}.member-profile-popover p{margin:4px 0 12px;color:#666;font-size:11px}.member-profile-role{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:800;margin-bottom:16px}.member-role-picker{display:flex;flex-direction:column;gap:7px;text-align:left;color:#888;font-size:11px;font-weight:700}.member-role-picker span{display:flex;align-items:center;gap:5px}.member-role-picker select{padding:9px;border-radius:8px;background:#171717;border:1px solid rgba(156,255,0,.25);color:#ccc;outline:0}
 
         .member-card-header {
           display: flex;
