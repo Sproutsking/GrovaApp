@@ -379,19 +379,21 @@ const AvatarDropdown = ({
 
         .ad-avatar-btn {
           position:relative; border-radius:50%;
-          border:2px solid #84cc16;
-          background:linear-gradient(135deg,#84cc16 0%,#4d7c0f 100%);
+          border:2px solid rgba(156,255,0,.9);
+          background:linear-gradient(135deg,#9cff00 0%,#367b24 52%,#112a18 100%);
           display:flex; align-items:center; justify-content:center;
           cursor:pointer;
           transition:transform 0.2s, box-shadow 0.2s, border-color 0.2s;
           flex-shrink:0;
+          padding:2px;
+          box-shadow:0 0 0 2px rgba(156,255,0,.12), 0 5px 18px rgba(0,0,0,.45), 0 0 18px rgba(156,255,0,.28);
         }
         .ad-avatar-btn:hover  { transform:scale(1.07); box-shadow:0 0 24px rgba(132,204,22,0.55); border-color:#a3e635; }
         .ad-avatar-btn:active { transform:scale(0.95); }
         .ad-avatar-btn.open   { border-color:#a3e635; box-shadow:0 0 22px rgba(132,204,22,0.5); }
-        .ad-avatar-inner { position:absolute; inset:0; border-radius:50%; overflow:hidden; }
+        .ad-avatar-inner { position:absolute; inset:2px; border-radius:50%; overflow:hidden; background:#142519; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), inset 0 0 16px rgba(0,0,0,.28); }
         .ad-avatar-letter { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; color:#000; z-index:1; }
-        .ad-avatar-inner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; transition:opacity 0.35s; }
+        .ad-avatar-inner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; z-index:2; transition:opacity 0.35s; filter:saturate(1.08) contrast(1.04); }
         .ad-chevron { position:absolute; bottom:-3px; right:-3px; width:15px; height:15px; background:var(--surface); border:1.5px solid rgba(132,204,22,0.55); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10; transition:transform 0.25s; pointer-events:none; }
         .ad-chevron.open { transform:rotate(180deg); }
 
