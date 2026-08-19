@@ -224,7 +224,8 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
   const renderContent=c=>{
     if(!c||typeof c!=="string"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
       return <span className="cv-bad">[message unavailable]</span>;
-    if(c.startsWith("↩ Replying to status:")){const m=c.match(/↩ Replying to status: "(.+)"/);return(<span><span style={{color:"#84cc16",fontSize:11,display:"block",marginBottom:3}}>↩ Status reply</span>{m?<em style={{opacity:.7}}>"{m[1]}"</em>:c}</span>);}
+    if(c.startsWith("↩ Replying to status:")){const m=c.match(/↩ Replying to status: "(.+)"/);return(<span><span style={{color:"#84cc16",fontSize:11,display:"block",marginBottom:3}}>↩ Status reply</span>{m?<em style={{opacity:.7}}>{`"${m[1]}"`}</em>:c}</span>);}
+    if(c.startsWith("↗ Forwarded message")){const lines=c.split("\n");return(<span className="cv-forwarded"><span className="cv-forwarded-label">↗ Forwarded message</span><span className="cv-forwarded-body">{lines.slice(1).join("\n")}</span></span>);}
     if(c.startsWith("__GIF__:")){return <img src={c.replace("__GIF__:","")} alt="GIF" style={{maxWidth:220,maxHeight:170,borderRadius:10,display:"block",objectFit:"cover"}}/>;}
     return c;
   };
@@ -589,6 +590,9 @@ export const CV_CSS = `
 .cv-tail-r.cv-bme{border-bottom-right-radius:4px;}
 .cv-content{font-size:14px;color:#f0f0f0;line-height:1.5;}
 .cv-bme .cv-content{color:#e8ffe8;}
+.cv-forwarded{display:flex;flex-direction:column;gap:5px;padding:6px 8px;border-left:2px solid #84cc16;background:rgba(132,204,22,.08);border-radius:5px;white-space:pre-wrap;}
+.cv-forwarded-label{font-size:10px;font-weight:800;color:#9cff00;letter-spacing:.2px;}
+.cv-forwarded-body{font-size:13px;color:inherit;}
 .cv-bad{font-size:12px;color:#444;font-style:italic;}
 .cv-meta{display:flex;align-items:center;gap:4px;margin-top:3px;}
 .cv-meta-me{justify-content:flex-end;}

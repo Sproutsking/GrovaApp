@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Hash, Volume2, Bell, ArrowLeft } from "lucide-react";
+import { X, Hash, Volume2, Bell, ArrowLeft, Upload } from "lucide-react";
 
 const EditChannelModal = ({ channel, onClose, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -11,6 +11,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [iconFile, setIconFile] = useState(null);
 
   const channelTypes = [
     { value: "text", label: "Text Channel", icon: Hash },
@@ -37,6 +38,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
       await onUpdate({
         name: formData.name.trim(),
         icon: formData.icon || "💬",
+        iconFile,
         description: formData.description.trim() || null,
         type: formData.type,
         is_private: formData.is_private,
@@ -111,6 +113,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
                 placeholder="Enter emoji..."
                 maxLength={2}
               />
+              <label className="channel-icon-upload"><Upload size={14} /> Replace with image<input type="file" accept="image/*" onChange={(e) => setIconFile(e.target.files?.[0] || null)} /></label>
+              {iconFile && <small className="help-text">{iconFile.name}</small>}
             </div>
 
             <div className="form-group">
@@ -483,6 +487,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
           gap: 12px;
           margin-top: 28px;
         }
+        .channel-icon-upload{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;border:1px dashed rgba(156,255,0,.35);border-radius:8px;color:#9cff00;font-size:11px;font-weight:700;cursor:pointer;background:rgba(156,255,0,.05)}
+        .channel-icon-upload input{display:none}
 
         .action-btn {
           flex: 1;

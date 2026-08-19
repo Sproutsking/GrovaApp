@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Hash, Volume2, Bell, ArrowLeft } from "lucide-react";
+import { X, Hash, Volume2, Bell, ArrowLeft, Upload } from "lucide-react";
 
 const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
   const [formData, setFormData] = useState({
@@ -11,6 +11,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [iconFile, setIconFile] = useState(null);
 
   const channelTypes = [
     {
@@ -52,6 +53,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
         community_id: communityId,
         name: formData.name.trim().toLowerCase().replace(/\s+/g, "-"),
         icon: formData.icon || "💬",
+        iconFile,
         description: formData.description || null,
         type: formData.type || "text",
         is_private: formData.isPrivate,
@@ -137,6 +139,8 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
                 }
                 maxLength={2}
               />
+              <label className="channel-icon-upload"><Upload size={14} /> Upload image<input type="file" accept="image/*" onChange={(e) => setIconFile(e.target.files?.[0] || null)} /></label>
+              {iconFile && <small className="help-text">{iconFile.name}</small>}
             </div>
 
             <div className="form-group">
@@ -528,6 +532,8 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
           gap: 12px;
           margin-top: 28px;
         }
+        .channel-icon-upload{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;border:1px dashed rgba(156,255,0,.35);border-radius:8px;color:#9cff00;font-size:11px;font-weight:700;cursor:pointer;background:rgba(156,255,0,.05)}
+        .channel-icon-upload input{display:none}
 
         .action-btn {
           flex: 1;

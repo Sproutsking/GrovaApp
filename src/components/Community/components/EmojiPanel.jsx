@@ -33,6 +33,27 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
+  useEffect(() => {
+    const placePanel = () => {
+      if (!panelRef.current) return;
+      const panel = panelRef.current;
+      const rect = panel.getBoundingClientRect();
+      const requestedLeft = Number.parseFloat(style.left) || 12;
+      const requestedTop = Number.parseFloat(style.top) || 12;
+      const left = Math.max(12, Math.min(requestedLeft, window.innerWidth - rect.width - 12));
+      const below = requestedTop + rect.height <= window.innerHeight - 12;
+      const top = below
+        ? Math.max(12, requestedTop)
+        : Math.max(12, requestedTop - rect.height);
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+      panel.style.maxHeight = `${Math.max(240, Math.min(620, window.innerHeight - 24))}px`;
+    };
+    placePanel();
+    window.addEventListener("resize", placePanel);
+    return () => window.removeEventListener("resize", placePanel);
+  }, [style.left, style.top]);
+
   const emojiCategories = {
     people: {
       icon: Smile,
@@ -809,10 +830,13 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
           padding: 10px 11px;
           border-bottom: 1px solid rgba(255,255,255,0.07);
           background: rgba(255,255,255,0.018);
+          overflow-x:auto;
+          scrollbar-width:none;
         }
+        .community-emoji-categories::-webkit-scrollbar{display:none}
 
         .community-emoji-category {
-          flex: 1;
+          flex: 0 0 34px;
           height: 34px;
           background: rgba(255,255,255,0.025);
           border: 1px solid rgba(255,255,255,0.04);
@@ -837,10 +861,11 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
         .community-emoji-grid {
           flex: 1;
           display: grid;
-          grid-template-columns: repeat(8, 1fr);
+          grid-template-columns: repeat(8, minmax(28px, 1fr));
           gap: 4px;
           padding: 12px;
           overflow-y: auto;
+          min-height:0;
           scrollbar-width: thin;
           scrollbar-color: rgba(132,204,22,0.3) transparent;
         }

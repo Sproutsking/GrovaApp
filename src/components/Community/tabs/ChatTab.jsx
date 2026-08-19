@@ -27,6 +27,7 @@ import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
 import UserProfileModal from "../../Modals/UserProfileModal";
 import CommunityProfileModal from "../components/CommunityProfileModal";
+import ForwardMessageModal from "../components/ForwardMessageModal";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -77,6 +78,7 @@ const ChatTab = ({
   const [isMobile, setIsMobile] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
@@ -325,6 +327,10 @@ const ChatTab = ({
         setSending(false);
       }
       return;
+    }
+    if (payload.type === "reorderRoles") {
+      await Promise.all(payload.roles.map((role, index) => roleService.updateRole(role.id, { position: index })));
+      await loadRoles();
     }
 
     setMessageInput("");
@@ -585,7 +591,7 @@ const ChatTab = ({
             setContextMenu(null);
           }}
           onCopy={() => { navigator.clipboard.writeText(contextMenu.message.content); setContextMenu(null); }}
-          onForward={() => { navigator.clipboard.writeText(contextMenu.message.content); setContextMenu(null); }}
+          onForward={() => { setForwardMessage(contextMenu.message); setContextMenu(null); }}
           onReport={() => { alert("Message reported to community moderators."); setContextMenu(null); }}
         />
       )}
@@ -595,6 +601,15 @@ const ChatTab = ({
           user={profileTarget}
           currentUser={currentUser}
           onClose={() => setProfileTarget(null)}
+        />
+      )}
+
+      {forwardMessage && (
+        <ForwardMessageModal
+          message={forwardMessage}
+          userId={userId}
+          onOpenDm={(recipientId) => window.dispatchEvent(new CustomEvent("community:open-dm", { detail: { userId: recipientId } }))}
+          onClose={() => setForwardMessage(null)}
         />
       )}
 

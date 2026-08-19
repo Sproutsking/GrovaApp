@@ -419,7 +419,7 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     display: flex; align-items: center; gap: 6px;
     padding: 4px 10px;
     background: ${hasBoosted ? `${greetingColor}10` : "var(--surface-muted)"};
-    border: 1px solid ${hasBoosted ? `${greetingColor}28` : "var(--surface-border)"};
+    border: 1px solid ${hasBoosted ? `${greetingColor}18` : "var(--surface-border)"};
     border-radius: 9px;
     min-height: 28px; min-width: 36px;
     transition: background 0.4s, border-color 0.4s;

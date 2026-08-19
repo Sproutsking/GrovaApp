@@ -46,9 +46,17 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const roleGroups = roles.reduce((groups, role) => {
+    const key = role.name?.trim().toLowerCase() || role.id;
+    const group = groups.find((item) => item.key === key);
+    if (group) group.roles.push(role);
+    else groups.push({ key, role, roles: [role] });
+    return groups;
+  }, []);
+
   useEffect(() => {
     loadOverrides();
-    if (roles.length > 0) setSelectedRole(roles[0]);
+    if (roleGroups.length > 0) setSelectedRole(roleGroups[0].role);
   }, [channel.id]);
 
   const loadOverrides = async () => {
@@ -76,13 +84,19 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
   };
 
   const getState = (roleId, permKey) => {
-    return overrides[roleId]?.[permKey] || "inherit";
+    const states = getRoleIds(roleId).map((id) => overrides[id]?.[permKey]).filter(Boolean);
+    return states.find((state) => state !== "inherit") || states[0] || "inherit";
+  };
+
+  const getRoleIds = (roleId) => {
+    const group = roleGroups.find((item) => item.role.id === roleId);
+    return group ? group.roles.map((role) => role.id) : [roleId];
   };
 
   const setState = (roleId, permKey, state) => {
     setOverrides((prev) => ({
       ...prev,
-      [roleId]: { ...(prev[roleId] || {}), [permKey]: state },
+      ...Object.fromEntries(getRoleIds(roleId).map((id) => [id, { ...(prev[id] || {}), [permKey]: state }])),
     }));
   };
 
@@ -122,7 +136,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
   const resetRole = (roleId) => {
     setOverrides((prev) => {
       const next = { ...prev };
-      delete next[roleId];
+      getRoleIds(roleId).forEach((id) => delete next[id]);
       return next;
     });
   };
@@ -143,8 +157,8 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
         <div className="cp-body">
           {/* Role list */}
           <div className="role-list">
-            {roles.map((role) => {
-              const hasOverrides = Object.values(overrides[role.id] || {}).some((s) => s !== "inherit");
+            {roleGroups.map(({ role, roles: groupedRoles }) => {
+              const hasOverrides = groupedRoles.some((entry) => Object.values(overrides[entry.id] || {}).some((s) => s !== "inherit"));
               return (
                 <button
                   key={role.id}
@@ -153,6 +167,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
                 >
                   <span className="role-dot" style={{ background: role.color || "#667eea" }} />
                   {role.name}
+                  {groupedRoles.length > 1 && <span className="role-merged-count">{groupedRoles.length}</span>}
                   {hasOverrides && <span className="override-badge" />}
                 </button>
               );
@@ -305,6 +320,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
         }
         .role-pill:hover  { background:rgba(255,255,255,.05); color:#fff; }
         .role-pill.active { background:rgba(156,255,0,.1); color:#9cff00; }
+        .role-merged-count{margin-left:auto;min-width:15px;padding:1px 4px;border-radius:5px;background:rgba(255,255,255,.08);color:#777;font-size:9px;text-align:center}
         .role-dot {
           width:8px; height:8px; border-radius:50%; flex-shrink:0;
         }

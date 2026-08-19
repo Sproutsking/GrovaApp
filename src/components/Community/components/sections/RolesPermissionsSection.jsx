@@ -82,7 +82,12 @@ const RolesPermissionsSection = ({
   onUpdateRole,
   onCreateRole,
   onAssignRole,
+  onReorderRoles,
 }) => {
+  const [orderedRoles, setOrderedRoles] = useState(roles);
+  const [draggedRoleId, setDraggedRoleId] = useState(null);
+
+  useEffect(() => { setOrderedRoles(roles); }, [roles]);
   // "list" view → shows role list
   // "edit" view → shows editor for selectedRole
   const [view, setView]               = useState("list");
@@ -108,7 +113,7 @@ const RolesPermissionsSection = ({
   };
 
   const memberCount = (roleId) => members.filter((m) => m.role_id === roleId).length;
-  const roleGroups = roles.reduce((groups, role) => {
+  const roleGroups = orderedRoles.reduce((groups, role) => {
     const key = role.name?.trim().toLowerCase() || role.id;
     const existing = groups.find((group) => group.key === key);
     if (existing) {
@@ -198,14 +203,24 @@ const RolesPermissionsSection = ({
 
         {/* Role rows */}
         <div className="rps-roles-list">
-          {roles.length === 0 && (
+          {orderedRoles.length === 0 && (
             <div className="rps-no-roles">
               <Shield size={24} color="#333" />
               <p>No roles yet</p>
             </div>
           )}
           {roleGroups.map(({ role, roles: groupedRoles }) => (
-            <div key={role.id} className="rps-role-row" onClick={() => openRole(role)}>
+            <div key={role.id} className={`rps-role-row${draggedRoleId === role.id ? " dragging" : ""}`} draggable={canManageRoles} onDragStart={() => setDraggedRoleId(role.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => {
+              if (!draggedRoleId || draggedRoleId === role.id) return;
+              const next = [...orderedRoles];
+              const from = next.findIndex((entry) => entry.id === draggedRoleId);
+              const to = next.findIndex((entry) => entry.id === role.id);
+              const [moved] = next.splice(from, 1);
+              next.splice(to, 0, moved);
+              setOrderedRoles(next);
+              setDraggedRoleId(null);
+              onReorderRoles?.(next);
+            }} onDragEnd={() => setDraggedRoleId(null)} onClick={() => openRole(role)}>
               <span className="rps-role-dot" style={{ background: role.color || "#667eea" }} />
               <span className="rps-role-name">{role.name}</span>
               <span className="rps-role-members"><Users size={10} />{membersForRole(role).length}</span>
@@ -420,6 +435,7 @@ const rpsStyles = `
 
   .rps-role-row{display:flex;align-items:center;gap:9px;padding:10px 12px;background:rgba(16,16,16,.8);border:1px solid rgba(30,30,30,.9);border-radius:9px;cursor:pointer;transition:all .15s}
   .rps-role-row:hover{background:rgba(20,20,20,.95);border-color:rgba(156,255,0,.2);transform:translateX(3px)}
+  .rps-role-row.dragging{opacity:.5;border-color:#9cff00}
   .rps-role-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
   .rps-role-name{flex:1;font-size:13px;font-weight:700;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rps-role-row:hover .rps-role-name{color:#fff}

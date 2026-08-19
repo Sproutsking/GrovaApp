@@ -122,6 +122,7 @@ const CommunityMenu = ({
   const handleUpdateRole = async (roleId, updates) => { await onUpdate({ type: "role", roleId, updates }); };
   const handleCreateRole = async (roleData) => { await onUpdate({ type: "createRole", roleData }); };
   const handleAssignRole = async (memberId, roleId) => { await onUpdate({ type: "assignRole", memberId, roleId }); };
+  const handleReorderRoles = async (nextRoles) => { await onUpdate({ type: "reorderRoles", roles: nextRoles }); };
 
   if (!show) return null;
 
@@ -244,7 +245,7 @@ const CommunityMenu = ({
                 roles={roles} members={members}
                 selectedRole={selectedRole} setSelectedRole={setSelectedRole}
                 canManageRoles={canManageRoles}
-                onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole}
+                onUpdateRole={handleUpdateRole} onCreateRole={handleCreateRole} onAssignRole={handleAssignRole} onReorderRoles={handleReorderRoles}
               />
             )}
             {menuView === "settings"  && <CommunitySettingsSection community={community} userId={userId} onUpdate={async(s)=>onUpdate({type:"community",settings:s})} onClose={()=>setMenuView("main")} />}

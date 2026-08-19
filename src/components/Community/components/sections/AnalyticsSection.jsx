@@ -66,7 +66,7 @@ const AnalyticsSection = ({ community }) => {
       // Fetch current period messages
       const { data: currentMessages } = await supabase
         .from("community_messages")
-        .select("id, user_id, created_at, reactions")
+        .select("id, channel_id, user_id, created_at, reactions")
         .in(
           "channel_id",
           (
@@ -82,7 +82,7 @@ const AnalyticsSection = ({ community }) => {
       // Fetch previous period messages
       const { data: prevMessages } = await supabase
         .from("community_messages")
-        .select("id")
+        .select("id, channel_id, user_id, created_at")
         .in(
           "channel_id",
           (

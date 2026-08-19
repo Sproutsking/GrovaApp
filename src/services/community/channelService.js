@@ -48,12 +48,20 @@ class ChannelService {
 
   async createChannel(channelData, communityId) {
     try {
+      let icon = channelData.icon || "💬";
+      if (channelData.iconFile) {
+        const ext = channelData.iconFile.name.split(".").pop()?.toLowerCase() || "png";
+        const path = `channel-icons/${communityId}/${Date.now()}.${ext}`;
+        const upload = await supabase.storage.from("community-assets").upload(path, channelData.iconFile, { upsert: true, cacheControl: "3600" });
+        if (upload.error) throw upload.error;
+        icon = supabase.storage.from("community-assets").getPublicUrl(path).data.publicUrl;
+      }
       const { data, error } = await supabase
         .from("community_channels")
         .insert({
           community_id: communityId,
           name: channelData.name,
-          icon: channelData.icon || "💬",
+          icon,
           description: channelData.description,
           type: channelData.type || "text",
           is_private: channelData.isPrivate || false,
@@ -75,9 +83,24 @@ class ChannelService {
 
   async updateChannel(channelId, updates) {
     try {
+      const nextUpdates = { ...updates };
+      delete nextUpdates.iconFile;
+      if (updates.iconFile) {
+        const { data: channel, error: channelError } = await supabase
+          .from("community_channels")
+          .select("community_id")
+          .eq("id", channelId)
+          .single();
+        if (channelError) throw channelError;
+        const ext = updates.iconFile.name.split(".").pop()?.toLowerCase() || "png";
+        const path = `channel-icons/${channel.community_id}/${Date.now()}.${ext}`;
+        const upload = await supabase.storage.from("community-assets").upload(path, updates.iconFile, { upsert: true, cacheControl: "3600" });
+        if (upload.error) throw upload.error;
+        nextUpdates.icon = supabase.storage.from("community-assets").getPublicUrl(path).data.publicUrl;
+      }
       const { data, error } = await supabase
         .from("community_channels")
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...nextUpdates, updated_at: new Date().toISOString() })
         .eq("id", channelId)
         .select()
         .single();
