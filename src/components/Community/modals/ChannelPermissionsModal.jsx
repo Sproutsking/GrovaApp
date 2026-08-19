@@ -165,7 +165,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
                   className={`role-pill${selectedRole?.id === role.id ? " active" : ""}`}
                   onClick={() => setSelectedRole(role)}
                 >
-                  <span className="role-dot" style={{ background: role.color || "#667eea" }} />
+                  <span className="role-dot" style={{ background: role.color || "#667eea" }}>{role.icon || "♟"}</span>
                   {role.name}
                   {groupedRoles.length > 1 && <span className="role-merged-count">{groupedRoles.length}</span>}
                   {hasOverrides && <span className="override-badge" />}
@@ -178,7 +178,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
           {selectedRole && (
             <div className="perm-panel">
               <div className="perm-role-head">
-                <span className="role-dot-lg" style={{ background: selectedRole.color || "#667eea" }} />
+                <span className="role-dot-lg" style={{ background: selectedRole.color || "#667eea" }}>{selectedRole.icon || "♟"}</span>
                 <span className="perm-role-name">{selectedRole.name}</span>
                 <button
                   className="reset-btn"
@@ -234,7 +234,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
       <style>{`
         .cp-overlay {
           position:fixed; top:56px; right:0; bottom:0; left:0;
-          background:rgba(5,7,10,.68); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+          background:rgba(5,7,10,.48); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
           z-index:99999; display:flex; align-items:stretch; justify-content:center;
           padding:20px;
         }

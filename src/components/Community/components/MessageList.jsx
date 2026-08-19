@@ -13,6 +13,8 @@ const MessageList = ({
   onReactionClick,
   onProfileClick,
   onReply,
+  onChannelMention,
+  onRoleMention,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -59,6 +61,15 @@ const MessageList = ({
     if (swipe?.distance >= 52) onReply?.(allMessages.find((message) => message.id === swipe.id));
     touchStart.current = null;
     setSwipe(null);
+  };
+
+  const renderContent = (content) => {
+    const parts = String(content || "").split(/(#[\w-]+|@[\w.-]+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("#")) return <button key={index} className="msg-mention channel" onClick={() => onChannelMention?.(part.slice(1))}>{part}</button>;
+      if (part.startsWith("@")) return <button key={index} className="msg-mention user" onClick={() => onRoleMention?.(part.slice(1))}>{part}</button>;
+      return <React.Fragment key={index}>{part}</React.Fragment>;
+    });
   };
 
   return (
@@ -125,7 +136,7 @@ const MessageList = ({
                     {msg.user?.full_name || msg.user?.username || "Unknown"}
                   </button>
                 )}
-                <div className="msg-content">{msg.content}</div>
+                <div className="msg-content">{renderContent(msg.content)}</div>
                 <div className="msg-meta">
                   <span className="msg-time">{formatTime(msg.created_at)}</span>
                   {msg.edited && <span className="msg-edited">(edited)</span>}
@@ -357,6 +368,7 @@ const MessageList = ({
           line-height: 1.5;
           word-break: break-word;
         }
+        .msg-mention{border:0;border-radius:4px;padding:1px 3px;font:inherit;cursor:pointer}.msg-mention.channel{color:#8fc9ff;background:rgba(96,165,250,.12)}.msg-mention.user{color:#baff82;background:rgba(156,255,0,.1)}.msg-mention:hover{filter:brightness(1.2)}
 
         .msg-meta {
           display: flex;

@@ -268,7 +268,7 @@ class RoleService {
           `
           *,
           user:profiles!user_id(id, username, full_name, avatar_id, verified),
-          role:community_roles!role_id(id, name, color)
+          role:community_roles!role_id(id, name, color, icon)
         `,
         )
         .eq("community_id", communityId)

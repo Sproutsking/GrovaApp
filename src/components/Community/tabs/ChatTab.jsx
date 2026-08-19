@@ -79,6 +79,7 @@ const ChatTab = ({
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
+  const [mentionedRole, setMentionedRole] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
@@ -485,6 +486,17 @@ const ChatTab = ({
               setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
             }}
             onProfileClick={(user) => user?.id && setCommunityProfileTarget(user)}
+            onChannelMention={(name) => {
+              const channel = channels.find((item) => item.name.toLowerCase() === name.toLowerCase());
+              if (channel) setSelectedChannel(channel);
+            }}
+            onRoleMention={(name) => {
+              if (name.toLowerCase() === "everyone" || name.toLowerCase() === "here") return;
+              const role = roles.find((item) => item.name?.toLowerCase() === name.toLowerCase());
+              if (role) { setMentionedRole(role); return; }
+              const member = members.find((item) => item.user?.username?.toLowerCase() === name.toLowerCase());
+              if (member?.user) setCommunityProfileTarget(member.user);
+            }}
             onReply={(message) => { setReplyTo(message); setContextMenu(null); }}
             onReactionClick={async (msgId, emoji) => {
               try {
@@ -522,11 +534,15 @@ const ChatTab = ({
             onSend={handleSendMessage}
             disabled={sending || !canSendMessages}
             placeholder={`Message #${selectedChannel?.name || "channel"}`}
+            title={!canSendMessages ? "Your role cannot send messages in this channel" : undefined}
             editingMessage={editingMessage}
             onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
             typingUsers={typingUsers}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
+            members={members}
+            roles={roles}
+            channels={channels}
           />
         </div>
       </div>
@@ -611,6 +627,26 @@ const ChatTab = ({
           onOpenDm={(recipientId) => window.dispatchEvent(new CustomEvent("community:open-dm", { detail: { userId: recipientId } }))}
           onClose={() => setForwardMessage(null)}
         />
+      )}
+
+      {mentionedRole && (
+        <div className="mentioned-role-overlay" onClick={() => setMentionedRole(null)}>
+          <section className="mentioned-role-card" onClick={(event) => event.stopPropagation()}>
+            <button onClick={() => setMentionedRole(null)} aria-label="Close role members">×</button>
+            <div className="mentioned-role-title" style={{ color: mentionedRole.color || "#9cff00" }}>
+              <span>{mentionedRole.icon || "♟"}</span><strong>@{mentionedRole.name}</strong>
+            </div>
+            <p>Members with this role</p>
+            <div className="mentioned-role-list">
+              {members.filter((member) => member.role_id === mentionedRole.id || member.role?.name?.toLowerCase() === mentionedRole.name?.toLowerCase()).map((member) => (
+                <button key={member.id} onClick={() => { setCommunityProfileTarget(member.user); setMentionedRole(null); }}>
+                  <span>{member.user?.full_name?.charAt(0)?.toUpperCase() || "?"}</span><b>{member.user?.full_name || member.user?.username || "Unknown"}</b><small>@{member.user?.username || "user"}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+          <style>{`.mentioned-role-overlay{position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.38);backdrop-filter:blur(2px)}.mentioned-role-card{position:relative;width:min(320px,calc(100vw - 28px));max-height:min(430px,calc(100vh - 32px));overflow:hidden;padding:18px;background:#0b130d;border:1px solid color-mix(in srgb,${mentionedRole.color || "#9cff00"} 40%,transparent);border-radius:15px;box-shadow:0 22px 60px rgba(0,0,0,.7)}.mentioned-role-card>button{position:absolute;right:10px;top:9px;border:0;background:transparent;color:#78917b;font-size:22px;cursor:pointer}.mentioned-role-title{display:flex;align-items:center;gap:8px;font-size:16px}.mentioned-role-title span{font-size:20px}.mentioned-role-card p{margin:5px 0 12px;color:#718774;font-size:11px}.mentioned-role-list{overflow-y:auto;max-height:320px}.mentioned-role-list button{width:100%;display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:8px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer}.mentioned-role-list button:hover{background:rgba(156,255,0,.1)}.mentioned-role-list button>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.13);color:#baff82;font-weight:800}.mentioned-role-list b{font-size:11px}.mentioned-role-list small{margin-left:auto;color:#69816d;font-size:9px}`}</style>
+        </div>
       )}
 
       {communityProfileTarget && (

@@ -77,6 +77,7 @@ const MembersSection = ({ community, userId }) => {
             id,
             name,
             color,
+            icon,
             position
           )
         `,
@@ -252,7 +253,7 @@ const MembersSection = ({ community, userId }) => {
           groupedMembers.map(({ role, members: roleMembers }) => (
             <div key={role.id} className="role-group">
               <div className="role-group-header" style={{ color: role.color }}>
-                <Crown size={14} />
+                <span className="role-group-icon">{role.icon || "♟"}</span>
                 <span>{role.name}</span>
                 <div
                   className="role-member-count"
@@ -650,6 +651,7 @@ const MembersSection = ({ community, userId }) => {
           letter-spacing: 0.5px;
           margin-bottom: 16px;
         }
+        .role-group-icon{font-size:15px;line-height:1;filter:drop-shadow(0 0 5px currentColor)}
 
         .role-member-count {
           padding: 4px 10px;

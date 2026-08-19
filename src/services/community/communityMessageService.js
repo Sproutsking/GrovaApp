@@ -112,9 +112,7 @@ class CommunityMessageService {
       console.log(`📡 [SEND] Broadcast sent with user data`);
 
       // Save to database (async) - pass userObject for fallback
-      this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id);
-
-      return optimisticMessage;
+      return await this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id);
     } catch (error) {
       console.error("❌ Error sending message:", error);
       this.pendingMessages.delete(tempId);

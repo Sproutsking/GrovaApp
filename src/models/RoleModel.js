@@ -9,6 +9,7 @@ class RoleModel {
     this.communityId = data.community_id || data.communityId || null;
     this.name = data.name || "";
     this.color = data.color || "#95A5A6";
+    this.icon = data.icon || "♟";
     this.position = data.position || 0;
     this.isDefault = data.is_default || data.isDefault || false;
     this.permissions = data.permissions || this.getDefaultPermissions();
@@ -165,6 +166,7 @@ class RoleModel {
       community_id: this.communityId,
       name: this.name,
       color: this.color,
+      icon: this.icon,
       position: this.position,
       is_default: this.isDefault,
       permissions: this.permissions,

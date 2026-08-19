@@ -13,6 +13,10 @@ const CommunityMessageInput = ({
   typingUsers = [],
   replyTo = null,
   onCancelReply = null,
+  members = [],
+  roles = [],
+  channels = [],
+  onMentionSelect = null,
 }) => {
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
@@ -23,6 +27,7 @@ const CommunityMessageInput = ({
   
   const inputRef = useRef(null);
   const plusBtnRef = useRef(null);
+  const [mentionQuery, setMentionQuery] = useState(null);
 
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
@@ -55,9 +60,41 @@ const CommunityMessageInput = ({
       if (e.key === "Escape" && editingMessage && onCancelEdit) {
         onCancelEdit();
       }
+      if (mentionQuery && e.key === "ArrowDown") { e.preventDefault(); return; }
+      if (mentionQuery && e.key === "Tab") { e.preventDefault(); return; }
     },
-    [handleSend, editingMessage, onCancelEdit],
+    [handleSend, editingMessage, onCancelEdit, mentionQuery],
   );
+
+  const handleChange = (event) => {
+    const nextValue = event.target.value;
+    onChange(nextValue);
+    const cursor = event.target.selectionStart;
+    const before = nextValue.slice(0, cursor);
+    const match = before.match(/(^|\s)([@#])([^\s@#]*)$/);
+    setMentionQuery(match ? { trigger: match[2], query: match[3].toLowerCase(), start: cursor - match[3].length - 1 } : null);
+  };
+
+  const mentionOptions = mentionQuery ? (mentionQuery.trigger === "#"
+    ? channels.filter((channel) => channel.name.toLowerCase().includes(mentionQuery.query)).slice(0, 6)
+    : [
+      { id: "everyone", name: "everyone", type: "everyone" },
+      { id: "here", name: "here", type: "here" },
+      ...roles.map((role) => ({ ...role, type: "role" })),
+      ...members.map((member) => ({ ...member.user, type: "user" })),
+    ].filter((item) => (item.name || item.full_name || item.username || "").toLowerCase().includes(mentionQuery.query)).slice(0, 8)
+  ) : [];
+
+  const selectMention = (item) => {
+    const label = item.type === "user" ? (item.username || item.full_name) : item.name;
+    const replacement = `${mentionQuery.trigger}${label} `;
+    const before = value.slice(0, mentionQuery.start);
+    const cursor = value.length;
+    onChange(`${before}${replacement}${value.slice(cursor)}`);
+    onMentionSelect?.(item, mentionQuery.trigger);
+    setMentionQuery(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
 
   const handlePlusClick = () => {
     if (plusBtnRef.current) {
@@ -220,12 +257,21 @@ const CommunityMessageInput = ({
           ref={inputRef}
           className="comm-textarea"
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={1}
           disabled={disabled}
         />
+
+        {mentionQuery && mentionOptions.length > 0 && (
+          <div className="comm-mention-menu">
+            {mentionOptions.map((item) => <button key={`${item.type}-${item.id}`} onMouseDown={(event) => { event.preventDefault(); selectMention(item); }}>
+              <span className="comm-mention-icon">{item.type === "user" ? (item.full_name || item.username || "?").charAt(0).toUpperCase() : item.type === "role" ? (item.icon || "♟") : item.type === "channel" ? "#" : "@"}</span>
+              <span><strong>{item.name || item.full_name || item.username}</strong><small>{item.type === "user" ? `@${item.username || "user"}` : item.type}</small></span>
+            </button>)}
+          </div>
+        )}
 
         <button
           className={`comm-send-btn ${value.trim() || allMedia.length > 0 ? "active" : ""}`}
@@ -401,11 +447,13 @@ const CommunityMessageInput = ({
         }
 
         .comm-msg-input-bar {
+          position: relative;
           display: flex;
           align-items: center;
           gap: 8px;
           padding: 10px 12px;
         }
+        .comm-mention-menu{position:absolute;bottom:calc(100% + 8px);left:48px;width:min(280px,calc(100vw - 70px));max-height:240px;overflow-y:auto;padding:6px;background:rgba(9,15,11,.98);border:1px solid rgba(156,255,0,.3);border-radius:11px;box-shadow:0 16px 36px rgba(0,0,0,.65);z-index:20}.comm-mention-menu button{width:100%;display:flex;align-items:center;gap:8px;padding:7px;border:0;border-radius:7px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer}.comm-mention-menu button:hover{background:rgba(156,255,0,.1)}.comm-mention-icon{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:rgba(156,255,0,.12);color:#9cff00;font-weight:800}.comm-mention-menu button span:nth-child(2){display:flex;flex-direction:column;gap:2px}.comm-mention-menu strong{font-size:11px}.comm-mention-menu small{font-size:9px;color:#6d876f}
 
         .comm-plus-btn {
           width: 38px;

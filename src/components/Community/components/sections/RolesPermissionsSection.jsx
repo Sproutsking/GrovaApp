@@ -95,6 +95,7 @@ const RolesPermissionsSection = ({
   const [editedPerms, setEditedPerms]   = useState({});
   const [editedName, setEditedName]     = useState("");
   const [editedColor, setEditedColor]   = useState("#667eea");
+  const [editedIcon, setEditedIcon]     = useState("♟");
   const [permSearch, setPermSearch]     = useState("");
   const [activeTab, setActiveTab]       = useState("display");
   const [saving, setSaving]             = useState(false);
@@ -107,6 +108,7 @@ const RolesPermissionsSection = ({
     setEditedPerms(role.permissions || {});
     setEditedName(role.name || "");
     setEditedColor(role.color || "#667eea");
+    setEditedIcon(role.icon || "♟");
     setPermSearch("");
     setActiveTab("display");
     setView("edit");
@@ -135,6 +137,7 @@ const RolesPermissionsSection = ({
         permissions: editedPerms,
         name: editedName,
         color: editedColor,
+        icon: editedIcon,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -148,7 +151,7 @@ const RolesPermissionsSection = ({
   const handleCreate = async () => {
     if (!newName.trim()) return;
     try {
-      await onCreateRole({ name: newName.trim(), color: "#667eea" });
+      await onCreateRole({ name: newName.trim(), color: "#667eea", icon: "♟" });
       setNewName("");
       setShowCreate(false);
     } catch (err) {
@@ -294,6 +297,9 @@ const RolesPermissionsSection = ({
               </button>
             ))}
           </div>
+
+          <div className="rps-field-label" style={{ marginTop: 14 }}>Role Icon</div>
+          <input className="rps-role-icon-input" value={editedIcon} maxLength={2} onChange={(event) => setEditedIcon(event.target.value)} disabled={!canManageRoles || isOwnerRole} placeholder="♟" />
 
           {/* Stats */}
           <div className="rps-stats-row">
@@ -470,6 +476,7 @@ const rpsStyles = `
   .rps-display::-webkit-scrollbar-thumb{background:rgba(156,255,0,.2);border-radius:2px}
   .rps-field-label{font-size:10px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
   .rps-name-inp{width:100%;box-sizing:border-box;background:rgba(16,16,16,.95);border:1.5px solid rgba(38,38,38,.9);border-radius:8px;padding:9px 12px;color:#fff;font-size:13px;font-weight:700;outline:none;transition:border-color .2s}
+  .rps-role-icon-input{width:64px;height:42px;box-sizing:border-box;text-align:center;background:rgba(16,16,16,.95);border:1.5px solid rgba(38,38,38,.9);border-radius:8px;padding:6px;color:#fff;font-size:22px;outline:none}
   .rps-name-inp:focus{border-color:rgba(156,255,0,.4)}
   .rps-name-inp:disabled{background:transparent;border-color:rgba(30,30,30,.5)}
 
