@@ -102,6 +102,12 @@ const CommunityView = ({ userId, currentUser }) => {
       ]);
       setMyCommunities(userComms);
       setAllCommunities(allComms);
+      // Warm every joined community's channel list before the user opens one.
+      // The cache deduplicates these requests and lets ChannelsView paint from
+      // memory on first navigation instead of waiting on its mount effect.
+      userComms.forEach((community) => {
+        communityCache.prefetchChannels(community.id, channelService.fetchChannels).catch(() => {});
+      });
     } catch (error) {
       console.error("Error loading communities:", error);
     }
@@ -211,7 +217,10 @@ const CommunityView = ({ userId, currentUser }) => {
     }
   };
 
-  const handleCommunityUpdate = async () => {
+  const handleCommunityUpdate = async (payload) => {
+    if (payload?.type === "community" && selectedCommunity) {
+      await communityService.updateCommunity(selectedCommunity.id, userId, payload.settings);
+    }
     await loadCommunities();
     if (selectedCommunity) {
       const updated = await communityService.fetchCommunityDetails(selectedCommunity.id);

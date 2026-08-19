@@ -5,7 +5,7 @@
 // gradient/icon picker to the shared premium system (Aurora / Mesh /
 // Cosmic / Sunset / Pixel / Glass) with a layered, glowing preview.
 import React, { useState, useRef } from "react";
-import { X, Upload, ImagePlus, Shuffle, Check, Sparkles, AlignLeft, Lock, Globe, Palette } from "lucide-react";
+import { X, Upload, ImagePlus, Shuffle, Check, Sparkles, AlignLeft, Lock, Globe, Palette, ArrowLeft } from "lucide-react";
 import { PREMIUM_GRADIENTS, CATEGORY_ORDER, CATEGORY_BLURB, getGradientById } from "../utils/communityVisuals";
 
 const QUICK_EMOJIS = [
@@ -85,6 +85,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
       <div className="create-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-head">
+          <button className="modal-back" onClick={onClose} title="Back"><ArrowLeft size={20} /></button>
           <div className="modal-title">Create Community</div>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
         </div>
@@ -249,69 +250,160 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
           background: rgba(5, 7, 10, 0.66);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          z-index: 99999;
+          z-index: 1000;
           display: flex;
           align-items: stretch;
-          justify-content: center;
-          padding: 20px;
+          justify-content: flex-end;
+          padding: 0;
+          animation: overlayFadeIn 0.3s ease;
+        }
+
+        @keyframes overlayFadeIn {
+          from { background-color: rgba(5, 7, 10, 0); }
+          to { background-color: rgba(5, 7, 10, 0.66); }
         }
 
         .create-modal {
-          width: min(100%, 460px);
-          max-height: 90vh;
+          width: 100%;
+          max-width: 600px;
+          height: 100vh;
           background: rgba(10, 12, 16, 0.97);
-          border: 1.5px solid rgba(156,255,0,0.18);
-          border-radius: 22px;
+          border-left: 1.5px solid rgba(156,255,0,0.18);
           overflow-y: auto;
           overflow-x: hidden;
-          animation: modalIn 0.3s cubic-bezier(.4,0,.2,1);
+          animation: modalSlideIn 0.35s cubic-bezier(.34,1.56,.64,1);
           scrollbar-width: thin;
           scrollbar-color: rgba(156,255,0,0.2) transparent;
-          box-shadow: 0 32px 90px rgba(0, 0, 0, 0.6), 0 0 40px rgba(156,255,0,0.08);
+          box-shadow: -18px 0 60px rgba(0, 0, 0, 0.6), 0 0 60px rgba(156,255,0,0.08);
+          display: flex;
+          flex-direction: column;
         }
         .create-modal::-webkit-scrollbar { width: 5px; }
         .create-modal::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.2); border-radius: 3px; }
 
-        @keyframes modalIn {
-          from { opacity:0; transform:translateX(24px) scale(.98); }
-          to   { opacity:1; transform:translateX(0) scale(1); }
-        }
-
-        @media (min-width: 768px) {
-          .modal-overlay { justify-content: flex-end; padding: 0; }
-          .create-modal {
-            width: min(50vw, 600px);
-            max-width: 600px;
-            height: 100vh;
-            max-height: 100vh;
-            border-radius: 24px 0 0 24px;
-            border-left: 1.5px solid rgba(156,255,0,0.18);
-            border-right: none;
-            box-shadow: -18px 0 60px rgba(0,0,0,0.45), 0 0 60px rgba(156,255,0,0.08);
+        @keyframes modalSlideIn {
+          from {
+            opacity:0;
+            transform: translateX(100px);
+          }
+          to   {
+            opacity:1;
+            transform: translateX(0);
           }
         }
 
-        @media (max-width: 767px) {
-          .modal-overlay { padding: 20px; align-items: center; }
-          .create-modal { width: 100%; max-width: 460px; height: auto; max-height: 90vh; border-radius: 22px; }
+        @media (max-width: 768px) {
+          .modal-overlay {
+            justify-content: center;
+            align-items: flex-end;
+            padding: 0;
+          }
+          .create-modal {
+            width: 100%;
+            height: auto;
+            max-height: calc(100vh - 60px);
+            border: 1.5px solid rgba(156,255,0,0.18);
+            border-radius: 20px 20px 0 0;
+            border-bottom: none;
+            box-shadow: 0 -18px 60px rgba(0,0,0,0.45), 0 0 60px rgba(156,255,0,0.08);
+            max-width: 100%;
+            animation: modalSlideUp 0.35s cubic-bezier(.34,1.56,.64,1);
+          }
+        }
+
+        @keyframes modalSlideUp {
+          from {
+            opacity:0;
+            transform: translateY(100%);
+          }
+          to   {
+            opacity:1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .create-modal {
+            max-height: calc(100vh - 50px);
+            border-radius: 18px 18px 0 0;
+          }
         }
 
         .modal-head {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 20px 20px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 16px 20px;
           border-bottom: 1.5px solid rgba(156,255,0,0.1);
+          flex-shrink: 0;
+          background: rgba(10, 12, 16, 0.97);
+          position: sticky;
+          top: 0;
+          z-index: 10;
         }
-        .modal-title { font-size: 18px; font-weight: 800; color: #fff; }
-        .modal-close {
-          width: 32px; height: 32px; border-radius: 8px;
-          background: rgba(255,255,255,0.06); border: none;
-          color: #888; cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
-          transition: all .2s;
-        }
-        .modal-close:hover { background: rgba(255,100,100,0.15); color: #ff6b6b; }
 
-        .cc-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+        .modal-back {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(156, 255, 0, 0.1);
+          border: 1.5px solid rgba(156, 255, 0, 0.2);
+          color: #9cff00;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .modal-back:hover {
+          background: rgba(156, 255, 0, 0.2);
+          border-color: rgba(156, 255, 0, 0.4);
+          box-shadow: 0 4px 12px rgba(156, 255, 0, 0.15);
+        }
+
+        .modal-back:active {
+          transform: scale(0.95);
+        }
+
+        .modal-title {
+          font-size: 18px;
+          font-weight: 800;
+          color: #fff;
+          flex: 1;
+          text-align: center;
+        }
+
+        .modal-close {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(255,255,255,0.06);
+          border: none;
+          color: #888;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .modal-close:hover {
+          background: rgba(255,100,100,0.15);
+          color: #ff6b6b;
+        }
+
+        .cc-body {
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          flex: 1;
+          overflow-y: auto;
+        }
 
         /* ── Card language shared with RolesPermissionsSection / AnalyticsSection ── */
         .cc-card {
@@ -511,13 +603,16 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         @keyframes spin { to { transform:rotate(360deg); } }
 
         @media (max-width:480px) {
-          .create-modal { border-radius:16px; }
+          .modal-title { font-size: 16px; }
           .emoji-grid-sm { grid-template-columns: repeat(8,1fr); }
           .cc-gradient-grid { grid-template-columns: repeat(2,1fr); }
+          .cc-cat-row { gap: 4px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .banner-preview.is-animated { animation: none; }
+          .modal-overlay { animation: none; }
+          .create-modal { animation: none; }
         }
       `}</style>
     </div>

@@ -23,6 +23,7 @@ import postService from "../../services/home/postService";
 import reelService from "../../services/home/reelService";
 import storyService from "../../services/home/storyService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import { buildContentShareUrl, buildPlatformShareUrl } from "../../utils/shareLinks";
 
 // ─── AVATAR ──────────────────────────────────────────────────────────────────
 const Avatar = ({ profile, size = 40 }) => {
@@ -70,7 +71,7 @@ const ShareModal = ({
   const [toast, setToast] = useState(null);
   const searchTimeout = useRef(null);
 
-  const shareUrl = `${window.location.origin}/${contentType}/${content?.id}`;
+  const shareUrl = buildContentShareUrl(contentType, content);
 
   // ── Load top 3 recent DM contacts on mount ────────────────────────────────
   useEffect(() => {
@@ -265,19 +266,15 @@ const ShareModal = ({
       content?.content ||
       "Check this out on Grova!";
     const shortTitle = title.substring(0, 120);
-    const encodedUrl = encodeURIComponent(shareUrl);
-    const encodedText = encodeURIComponent(shortTitle);
-
-    const platformUrls = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${shortTitle}\n${shareUrl}`)}`,
-      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-    };
-
-    const url = platformUrls[platform];
-    if (!url) return;
+    const url = buildPlatformShareUrl(platform, { url: shareUrl, title: shortTitle });
+    if (!url) {
+      // TikTok, Discord, Twitch, Kick, Snapchat and Instagram do not expose a
+      // universal web share-intent URL. Native share gives their mobile apps
+      // the URL; clipboard remains the desktop fallback.
+      if (navigator.share) await handleNativeShare();
+      else await handleCopyLink();
+      return;
+    }
 
     window.open(url, "_blank", "width=600,height=500,noopener,noreferrer");
 
@@ -543,6 +540,22 @@ const ShareModal = ({
             </svg>
             <span>Telegram</span>
           </button>
+
+          {[
+            ["reddit", "Reddit", "🔴"],
+            ["pinterest", "Pinterest", "📌"],
+            ["tumblr", "Tumblr", "✦"],
+            ["email", "Email", "✉"],
+            ["tiktok", "TikTok", "♪"],
+            ["discord", "Discord", "◉"],
+            ["twitch", "Twitch", "◈"],
+            ["kick", "Kick", "K"],
+          ].map(([platform, label, icon]) => (
+            <button key={platform} className={`sm-ext-btn sm-${platform}`} onClick={() => shareExternal(platform)} type="button">
+              <span aria-hidden="true">{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
 
           {typeof navigator !== "undefined" && navigator.share ? (
             <button

@@ -18,7 +18,7 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
           <button className="dm-close" onClick={onClose}><X size={18} /></button>
           <div className="dm-banner" style={{ background: community.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
             <div className="dm-banner-fade" />
-            <div className="dm-icon-wrap">
+            <div className="dm-icon-wrap" style={{ border: community.icon_border === "none" ? "none" : community.icon_border === "lime" ? "2px solid rgba(156,255,0,.7)" : community.icon_border === "dashed" ? "2px dashed rgba(156,255,0,.55)" : "1px solid rgba(255,255,255,.28)" }}>
               {icon?.startsWith("http")
                 ? <img src={icon} alt={community.name} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
                 : <span style={{ fontSize:34,lineHeight:1 }}>{icon || community.name?.[0] || "🌟"}</span>

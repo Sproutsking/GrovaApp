@@ -4,7 +4,7 @@
 // desktop/mobile already visited this community, it's instant here too) +
 // a premium visual pass matching the rest of the community rewrite.
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone } from "lucide-react";
+import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, X } from "lucide-react";
 import channelService from "../../../services/community/channelService";
 import permissionService from "../../../services/community/permissionService";
 import communityCache from "../../../services/community/communityCache";
@@ -36,8 +36,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
       setChannelsReady(true);
     }
     try {
-      const data = await channelService.fetchChannels(community.id);
-      communityCache.setChannels(community.id, data);
+      const data = await communityCache.prefetchChannels(community.id, channelService.fetchChannels);
       setChannels(data);
       setChannelsReady(true);
     } catch (error) {
@@ -140,6 +139,25 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           }}
           communityId={community.id}
         />
+      )}
+
+      {showMenu && (
+        <div className="cv-menu-overlay" onClick={() => setShowMenu(false)}>
+          <div className="cv-menu-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="cv-menu-head">
+              <span>Community menu</span>
+              <button onClick={() => setShowMenu(false)} aria-label="Close menu"><X size={17} /></button>
+            </div>
+            {canManageChannels && (
+              <button className="cv-menu-action" onClick={() => { setShowMenu(false); setShowCreateChannel(true); }}>
+                <Plus size={16} /> Create channel
+              </button>
+            )}
+            <button className="cv-menu-action" onClick={() => { setShowMenu(false); onBack(); }}>
+              <ArrowLeft size={16} /> Back to communities
+            </button>
+          </div>
+        </div>
       )}
 
       <style>{`
@@ -344,6 +362,69 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           font-size: 11px !important;
           color: rgba(156, 255, 0, 0.4) !important;
           margin-top: 6px !important;
+        }
+
+        .cv-menu-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 1100;
+          display: flex;
+          justify-content: flex-end;
+          align-items: flex-start;
+          padding: 76px 14px 14px;
+          background: rgba(0,0,0,.28);
+          backdrop-filter: blur(5px);
+        }
+
+        .cv-menu-panel {
+          width: min(280px, calc(100vw - 28px));
+          padding: 10px;
+          background: rgba(10,12,16,.98);
+          border: 1px solid rgba(156,255,0,.2);
+          border-radius: 14px;
+          box-shadow: 0 18px 50px rgba(0,0,0,.55);
+        }
+
+        .cv-menu-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 5px 5px 10px;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 800;
+        }
+
+        .cv-menu-head button {
+          display: flex;
+          padding: 5px;
+          border: 0;
+          background: transparent;
+          color: #888;
+          cursor: pointer;
+        }
+
+        .cv-menu-action {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          width: 100%;
+          padding: 11px 10px;
+          border: 1px solid transparent;
+          border-radius: 9px;
+          background: transparent;
+          color: #bbb;
+          font-family: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          text-align: left;
+        }
+
+        .cv-menu-action:hover {
+          border-color: rgba(156,255,0,.18);
+          background: rgba(156,255,0,.08);
+          color: #9cff00;
         }
       `}</style>
     </div>

@@ -60,15 +60,23 @@ const CommunityIcon = ({ community, size = 52 }) => {
     fontSize: size * 0.54, overflow: "hidden",
     boxShadow: "0 4px 16px rgba(0,0,0,.3)",
   };
+  const borderStyle = community?.icon_border || "default";
+  const border = borderStyle === "none"
+    ? "none"
+    : borderStyle === "lime"
+      ? "2px solid rgba(156,255,0,.7)"
+      : borderStyle === "dashed"
+        ? "2px dashed rgba(156,255,0,.55)"
+        : "1px solid rgba(255,255,255,.28)";
   if (icon?.startsWith("http")) {
     return (
-      <div style={{ ...style, background: community.banner_gradient || "#1a1a1a" }}>
+      <div style={{ ...style, border, background: community.banner_gradient || "#1a1a1a" }}>
         <img src={icon} alt={community.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
       </div>
     );
   }
   return (
-    <div style={{ ...style, background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
+    <div style={{ ...style, border, background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
       {icon || "🌟"}
     </div>
   );

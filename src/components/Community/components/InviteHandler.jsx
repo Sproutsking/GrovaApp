@@ -9,6 +9,7 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
   const [message, setMessage] = useState("Verifying invite…");
   const [communityName, setCommunityName] = useState("");
   const [communityId, setCommunityId] = useState(null);
+  const [community, setCommunity] = useState(null);
 
   useEffect(() => {
     if (inviteCode && userId) handleInvite();
@@ -23,6 +24,7 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
 
       setCommunityName(community.name);
       setCommunityId(community.id);
+      setCommunity(community);
       setStatus("success");
       setMessage(`You're now a member of ${community.name}!`);
 
@@ -63,6 +65,13 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
 
             {status === "success" && (
               <>
+                <div className="invite-community-card" style={{ background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
+                  <div className="invite-community-image" style={{ border: community?.icon_border === "none" ? "none" : community?.icon_border === "lime" ? "2px solid rgba(156,255,0,.75)" : community?.icon_border === "dashed" ? "2px dashed rgba(156,255,0,.65)" : "1px solid rgba(255,255,255,.3)" }}>
+                    {community?.icon?.startsWith("http") ? <img src={community.icon} alt="" /> : <span>{community?.icon || "🌟"}</span>}
+                  </div>
+                  <strong>{community?.name}</strong>
+                  {community?.description && <small>{community.description}</small>}
+                </div>
                 <div className="inv-icon success">
                   <CheckCircle size={40} />
                 </div>
@@ -125,6 +134,10 @@ const InviteHandler = ({ inviteCode, userId, onSuccess, onError, onClose }) => {
         .close-x:hover { background:rgba(255,100,100,.15); color:#ff6b6b; }
 
         .inv-body { text-align:center; }
+        .invite-community-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:18px 14px;margin-bottom:18px;border-radius:14px;box-shadow:inset 0 -34px 40px rgba(0,0,0,.32),0 8px 22px rgba(0,0,0,.25);color:#fff}
+        .invite-community-image{width:62px;height:62px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(0,0,0,.36);font-size:30px;box-shadow:0 5px 16px rgba(0,0,0,.28)}
+        .invite-community-image img{width:100%;height:100%;object-fit:cover}
+        .invite-community-card strong{font-size:15px}.invite-community-card small{max-width:280px;color:rgba(255,255,255,.72);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
         /* Spinner */
         .inv-spinner-wrap {

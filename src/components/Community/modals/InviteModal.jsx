@@ -1,8 +1,9 @@
 // components/Community/modals/InviteModal.jsx
 // Unique codes via communityService._generateInviteCode (base62 timestamp + entropy)
 import React, { useState, useEffect } from "react";
-import { X, Copy, CheckCircle, Link2, RefreshCw, Clock, Users, Share2 } from "lucide-react";
+import { X, Copy, CheckCircle, Link2, RefreshCw, Clock, Users, Share2, Search, UserPlus } from "lucide-react";
 import communityService from "../../../services/community/communityService";
+import FollowModel from "../../../models/FollowModel";
 
 const EXPIRY_OPTIONS = [
   { label:"Never",   value:null },
@@ -26,10 +27,23 @@ const InviteModal = ({ community, userId, onClose }) => {
   const [expiry, setExpiry] = useState(null);
   const [maxUses, setMaxUses] = useState(null);
   const [error, setError] = useState("");
+  const [panel, setPanel] = useState("details");
+  const [friends, setFriends] = useState([]);
+  const [friendQuery, setFriendQuery] = useState("");
+  const [friendsLoading, setFriendsLoading] = useState(false);
 
   const APP_URL = window.location.origin;
 
   useEffect(() => { generateInvite(); }, []);
+
+  useEffect(() => {
+    if (panel !== "friends" || friends.length || friendsLoading) return;
+    setFriendsLoading(true);
+    FollowModel.getMutualFriends(userId)
+      .then(setFriends)
+      .catch(() => setError("Friends could not be loaded right now."))
+      .finally(() => setFriendsLoading(false));
+  }, [panel, userId, friends.length, friendsLoading]);
 
   const generateInvite = async () => {
     setLoading(true);
@@ -72,9 +86,14 @@ const InviteModal = ({ community, userId, onClose }) => {
           <button className="inv-close" onClick={onClose}><X size={16}/></button>
         </div>
 
+        <div className="inv-tabs" role="tablist">
+          <button className={panel === "details" ? "active" : ""} onClick={() => setPanel("details")}><Link2 size={13} /> Invite link</button>
+          <button className={panel === "friends" ? "active" : ""} onClick={() => setPanel("friends")}><Users size={13} /> Share with friends</button>
+        </div>
+
         {/* Community pill */}
         <div className="community-pill">
-          <div className="pill-icon" style={{ background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
+          <div className="pill-icon" style={{ background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)", border: community?.icon_border === "none" ? "none" : community?.icon_border === "lime" ? "2px solid rgba(156,255,0,.7)" : community?.icon_border === "dashed" ? "2px dashed rgba(156,255,0,.55)" : "1px solid rgba(255,255,255,.28)" }}>
             {icon?.startsWith("http")
               ? <img src={icon} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"9px"}}/>
               : icon || "🌟"
@@ -88,6 +107,7 @@ const InviteModal = ({ community, userId, onClose }) => {
           </div>
         </div>
 
+        {panel === "details" ? <>
         {/* Options */}
         <div className="inv-options">
           <div className="opt-group">
@@ -141,6 +161,18 @@ const InviteModal = ({ community, userId, onClose }) => {
         </button>
 
         <p className="inv-note">Anyone with this link joins the community immediately.</p>
+        </> : <div className="friends-panel">
+          <div className="friend-search"><Search size={15} /><input value={friendQuery} onChange={(event) => setFriendQuery(event.target.value)} placeholder="Search mutual friends" /></div>
+          {friendsLoading && <div className="friends-empty">Finding your mutual friends…</div>}
+          {!friendsLoading && friends.filter((friend) => `${friend.full_name || ""} ${friend.username || ""}`.toLowerCase().includes(friendQuery.toLowerCase())).map((friend) => (
+            <div className="friend-row" key={friend.id}>
+              <div className="friend-avatar">{friend.username?.[0]?.toUpperCase() || "U"}</div>
+              <div className="friend-info"><strong>{friend.full_name || friend.username || "User"}</strong><span>@{friend.username || "user"}</span></div>
+              <button className="friend-share" disabled={!invite} onClick={() => navigator.share?.({ title: `Join ${community.name}`, url: inviteLink }) || copyLink()}><UserPlus size={14} /> Share</button>
+            </div>
+          ))}
+          {!friendsLoading && !friends.length && <div className="friends-empty">Mutual friends will appear here.</div>}
+        </div>}
       </div>
 
       <style>{`
@@ -148,6 +180,9 @@ const InviteModal = ({ community, userId, onClose }) => {
         .inv-modal{width:100%;max-width:420px;background:#0c0c0c;border:1.5px solid rgba(156,255,0,.18);border-radius:18px;padding:20px;animation:modalIn .3s cubic-bezier(.4,0,.2,1)}
         @keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
         .inv-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+        .inv-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+        .inv-tabs button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 7px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#777;font-size:11px;font-weight:800;cursor:pointer}
+        .inv-tabs button.active{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.3);color:#9cff00}
         .inv-title{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:800;color:#fff}
         .inv-close{width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.05);border:none;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
         .inv-close:hover{background:rgba(255,100,100,.12);color:#ff6b6b}
@@ -178,6 +213,14 @@ const InviteModal = ({ community, userId, onClose }) => {
         .share-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px rgba(156,255,0,.4)}
         .share-btn:disabled{opacity:.4;cursor:not-allowed}
         .inv-note{font-size:10px;color:#555;text-align:center;margin:0}
+        .friends-panel{display:flex;flex-direction:column;gap:8px}
+        .friend-search{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;background:rgba(18,18,18,.95);border:1px solid rgba(42,42,42,.9);color:#666}
+        .friend-search input{width:100%;background:none;border:0;outline:0;color:#fff;font:12px inherit}
+        .friend-row{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+        .friend-avatar{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#9cff00,#667eea);color:#000;font-weight:900;font-size:12px}
+        .friend-info{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.friend-info strong{color:#ddd;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friend-info span{color:#666;font-size:10px}
+        .friend-share{display:flex;align-items:center;gap:4px;padding:7px 8px;border-radius:7px;background:rgba(156,255,0,.1);border:1px solid rgba(156,255,0,.25);color:#9cff00;font-size:10px;font-weight:800;cursor:pointer}.friend-share:disabled{opacity:.4;cursor:not-allowed}
+        .friends-empty{padding:24px 8px;text-align:center;color:#666;font-size:12px}
       `}</style>
     </div>
   );

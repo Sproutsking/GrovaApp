@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Save,
   X,
@@ -11,6 +11,7 @@ import {
   Palette,
   Image,
   Check,
+  Upload,
 } from "lucide-react";
 
 const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
@@ -21,9 +22,14 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
     isPrivate: false,
     backgroundTheme: "security",
     bannerGradient: "",
+    iconBorder: "default",
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [iconFile, setIconFile] = useState(null);
+  const [iconPreview, setIconPreview] = useState(null);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   const backgroundThemes = [
     {
@@ -97,19 +103,39 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
         bannerGradient:
           community.banner_gradient ||
           "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        iconBorder: community.icon_border || "default",
       });
+      setIconPreview(community.icon?.startsWith("http") ? community.icon : null);
+      setIconFile(null);
     }
   }, [community]);
+
+  const handleIconChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5 MB");
+      return;
+    }
+    setError("");
+    setIconFile(file);
+    setIconPreview(URL.createObjectURL(file));
+  };
 
   const handleSave = async () => {
     try {
       setLoading(true);
-      await onUpdate(settings);
+      setError("");
+      await onUpdate({ ...settings, iconFile });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error("Error saving settings:", error);
-      alert("Failed to save settings");
+      setError(error.message || "Failed to save settings");
     } finally {
       setLoading(false);
     }
@@ -180,18 +206,47 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
           <div className="setting-group">
             <label className="setting-label">
               <Palette size={16} />
-              Community Icon (Emoji)
+              Community Image
             </label>
-            <input
-              type="text"
-              className="setting-input icon-input"
-              value={settings.icon}
-              onChange={(e) =>
-                setSettings({ ...settings, icon: e.target.value })
-              }
-              placeholder="🌟"
-              maxLength={2}
-            />
+            <div className="icon-editor">
+              <div className="icon-preview" style={{ background: settings.bannerGradient }}>
+                {iconPreview ? <img src={iconPreview} alt="Community preview" /> : <span>{settings.icon || "🌟"}</span>}
+              </div>
+              <div className="icon-editor-actions">
+                <button type="button" className="upload-image-btn" onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={15} /> Choose image
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleIconChange} hidden />
+                <input
+                  type="text"
+                  className="setting-input icon-input"
+                  value={settings.icon}
+                  onChange={(e) => setSettings({ ...settings, icon: e.target.value })}
+                  placeholder="Or use an emoji"
+                  maxLength={2}
+                />
+              </div>
+            </div>
+            <span className="setting-hint">PNG, JPG, GIF up to 5 MB</span>
+          </div>
+
+          <div className="setting-group">
+            <label className="setting-label">
+              <Palette size={16} />
+              Image Border
+            </label>
+            <div className="border-options">
+              {["default", "lime", "glass", "dashed", "none"].map((border) => (
+                <button
+                  type="button"
+                  key={border}
+                  className={`border-option ${settings.iconBorder === border ? "selected" : ""} border-${border}`}
+                  onClick={() => setSettings({ ...settings, iconBorder: border })}
+                >
+                  {border}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Privacy */}
@@ -282,6 +337,8 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
               ))}
             </div>
           </div>
+
+          {error && <div className="settings-error">{error}</div>}
 
           {/* Save Button */}
           <div className="settings-actions">
@@ -410,6 +467,94 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
           font-size: 32px;
           text-align: center;
           padding: 20px;
+        }
+
+        .icon-editor {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 12px;
+          background: rgba(26, 26, 26, 0.5);
+          border: 1px solid rgba(42, 42, 42, 0.8);
+          border-radius: 12px;
+        }
+
+        .icon-preview {
+          width: 72px;
+          height: 72px;
+          flex-shrink: 0;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          font-size: 34px;
+        }
+
+        .icon-preview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .icon-editor-actions { flex: 1; min-width: 0; }
+
+        .upload-image-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 9px 12px;
+          margin-bottom: 8px;
+          border-radius: 8px;
+          background: rgba(156, 255, 0, 0.1);
+          border: 1px solid rgba(156, 255, 0, 0.3);
+          color: #9cff00;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .icon-editor .icon-input {
+          width: 100%;
+          box-sizing: border-box;
+          font-size: 14px;
+          padding: 10px 12px;
+        }
+
+        .border-options { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .border-option {
+          padding: 9px 12px;
+          border-radius: 9px;
+          background: rgba(26, 26, 26, 0.7);
+          border: 1px solid rgba(42, 42, 42, 0.9);
+          color: #999;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: capitalize;
+          cursor: pointer;
+        }
+
+        .border-option.selected {
+          border-color: #9cff00;
+          color: #9cff00;
+          background: rgba(156, 255, 0, 0.1);
+        }
+
+        .border-lime { border-color: rgba(156, 255, 0, 0.5); }
+        .border-glass { border-color: rgba(255, 255, 255, 0.35); }
+        .border-dashed { border-style: dashed; border-color: rgba(156, 255, 0, 0.5); }
+        .border-none { border-color: transparent; }
+
+        .settings-error {
+          padding: 10px 12px;
+          margin-bottom: 14px;
+          border-radius: 9px;
+          background: rgba(255, 107, 107, 0.1);
+          border: 1px solid rgba(255, 107, 107, 0.35);
+          color: #ff8b8b;
+          font-size: 12px;
+          font-weight: 600;
         }
 
         .setting-hint {

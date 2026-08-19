@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Hash, Volume2, Bell } from "lucide-react";
+import { X, Hash, Volume2, Bell, ArrowLeft } from "lucide-react";
 
 const EditChannelModal = ({ channel, onClose, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -52,6 +52,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
+            <button className="modal-back" onClick={onClose} title="Back"><ArrowLeft size={20} /></button>
             <span className="modal-title">Edit Channel</span>
             <button className="close-modal" onClick={onClose}>
               <X size={20} />
@@ -169,107 +170,135 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
       <style>{`
         .modal-overlay {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(5, 7, 10, 0.72);
+          inset: 0;
+          background: rgba(5, 7, 10, 0.66);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          z-index: 99999;
+          z-index: 1000;
           display: flex;
           align-items: stretch;
-          justify-content: center;
-          padding: 20px;
+          justify-content: flex-end;
+          padding: 0;
           animation: overlayFadeIn 0.3s ease;
         }
 
         @keyframes overlayFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from { background-color: rgba(5, 7, 10, 0); }
+          to { background-color: rgba(5, 7, 10, 0.66); }
         }
 
         .modal {
-          width: min(100%, 520px);
-          max-width: 520px;
+          width: 100%;
+          max-width: 600px;
+          height: 100vh;
           background: rgba(15, 15, 15, 0.98);
-          border: 2px solid rgba(156, 255, 0, 0.2);
-          border-radius: 20px;
-          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 100px rgba(156, 255, 0, 0.08);
+          border-left: 2px solid rgba(156, 255, 0, 0.2);
+          box-shadow: -18px 0 60px rgba(0, 0, 0, 0.6), 0 0 60px rgba(156,255,0,0.08);
           overflow: hidden;
-          animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: modalSlideIn 0.35s cubic-bezier(.34,1.56,.64,1);
+          display: flex;
+          flex-direction: column;
         }
 
         @keyframes modalSlideIn {
           from {
-            opacity: 0;
-            transform: translateX(26px) scale(0.98);
+            opacity:0;
+            transform: translateX(100px);
           }
-          to {
-            opacity: 1;
-            transform: translateX(0) scale(1);
+          to   {
+            opacity:1;
+            transform: translateX(0);
           }
         }
 
-        @media (min-width: 768px) {
+        @media (max-width: 768px) {
           .modal-overlay {
-            justify-content: flex-end;
+            justify-content: center;
+            align-items: flex-end;
             padding: 0;
-          }
-
-          .modal {
-            width: min(50vw, 600px);
-            max-width: 600px;
-            height: 100vh;
-            max-height: 100vh;
-            border-radius: 24px 0 0 24px;
-            margin: 0;
-            box-shadow: -18px 0 60px rgba(0,0,0,0.48), 0 0 50px rgba(156,255,0,0.08);
-          }
-        }
-
-        @media (max-width: 767px) {
-          .modal-overlay {
-            padding: 20px;
-            align-items: center;
           }
           .modal {
             width: 100%;
-            max-width: 520px;
             height: auto;
-            border-radius: 20px;
-            margin: auto;
+            max-height: calc(100vh - 60px);
+            border: 2px solid rgba(156, 255, 0, 0.2);
+            border-radius: 20px 20px 0 0;
+            border-bottom: none;
+            box-shadow: 0 -18px 60px rgba(0,0,0,0.45), 0 0 60px rgba(156,255,0,0.08);
+            max-width: 100%;
+            animation: modalSlideUp 0.35s cubic-bezier(.34,1.56,.64,1);
+          }
+        }
+
+        @keyframes modalSlideUp {
+          from {
+            opacity:0;
+            transform: translateY(100%);
+          }
+          to   {
+            opacity:1;
+            transform: translateY(0);
           }
         }
 
         .modal-header {
-          padding: 24px 24px 20px 24px;
+          padding: 16px 20px;
           border-bottom: 2px solid rgba(156, 255, 0, 0.1);
-          background: linear-gradient(180deg, rgba(26, 26, 26, 0.8) 0%, rgba(15, 15, 15, 0) 100%);
+          background: linear-gradient(180deg, rgba(26, 26, 26, 0.9) 0%, rgba(15, 15, 15, 0) 100%);
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+        }
+
+        .modal-back {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(156, 255, 0, 0.1);
+          border: 1.5px solid rgba(156, 255, 0, 0.2);
+          color: #9cff00;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .modal-back:hover {
+          background: rgba(156, 255, 0, 0.2);
+          border-color: rgba(156, 255, 0, 0.4);
+          box-shadow: 0 4px 12px rgba(156, 255, 0, 0.15);
+        }
+
+        .modal-back:active {
+          transform: scale(0.95);
         }
 
         .modal-title {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 800;
           color: #fff;
           letter-spacing: -0.5px;
+          flex: 1;
+          text-align: center;
         }
 
         .close-modal {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
           background: rgba(26, 26, 26, 0.6);
-          border: 2px solid rgba(42, 42, 42, 0.8);
+          border: none;
           color: #999;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
+          flex-shrink: 0;
         }
 
         .close-modal:hover {
@@ -277,6 +306,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
           border-color: rgba(255, 107, 107, 0.6);
           color: #ff6b6b;
           transform: rotate(90deg);
+        }
+
         }
 
         .modal-body {

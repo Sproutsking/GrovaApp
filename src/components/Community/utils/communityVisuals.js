@@ -159,6 +159,7 @@ export const CommunityAvatar = ({
   radius,
   shape = "rounded", // "rounded" | "circle"
   animated = true,
+  borderStyle = "default",
   className = "",
   style = {},
   children,
@@ -178,7 +179,7 @@ export const CommunityAvatar = ({
     >
       <div className="cav-bg" style={{ backgroundImage: bg, backgroundSize: bgSize || "cover", borderRadius: r }} />
       <div className="cav-sheen" style={{ borderRadius: r }} />
-      <div className="cav-ring" style={{ borderRadius: r }} />
+      {borderStyle !== "none" && <div className={`cav-ring cav-ring-${borderStyle}`} style={{ borderRadius: r }} />}
       <div className="cav-content" style={{ fontSize: Math.max(12, Math.round(size * 0.42)) }}>
         {isImage ? (
           <img src={icon} alt="" className="cav-img" style={{ borderRadius: r }} />
@@ -205,6 +206,10 @@ export const CommunityAvatar = ({
             0 0 0 1px rgba(255,255,255,.09) inset,
             0 0 34px -4px var(--cav-glow);
         }
+        .cav-ring{position:absolute;inset:0;pointer-events:none;border:1px solid rgba(255,255,255,.16);z-index:1}
+        .cav-ring-lime{border:2px solid rgba(156,255,0,.7);box-shadow:0 0 10px rgba(156,255,0,.35)}
+        .cav-ring-glass{border:1px solid rgba(255,255,255,.36);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+        .cav-ring-dashed{border:2px dashed rgba(156,255,0,.55)}
         .cav-bg{ position:absolute; inset:0; background-position:center; background-repeat:no-repeat; }
         .cav-motion .cav-bg{
           background-size: 220% 220% !important;
@@ -218,10 +223,6 @@ export const CommunityAvatar = ({
           position:absolute; inset:0; pointer-events:none;
           background: linear-gradient(125deg, rgba(255,255,255,.32) 0%, rgba(255,255,255,0) 32%, rgba(255,255,255,0) 68%, rgba(255,255,255,.14) 100%);
           mix-blend-mode: overlay;
-        }
-        .cav-ring{
-          position:absolute; inset:0; pointer-events:none;
-          box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.14), inset 0 -10px 16px -8px rgba(0,0,0,.35);
         }
         .cav-content{
           position:absolute; inset:0;

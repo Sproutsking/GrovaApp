@@ -3,6 +3,10 @@
   "outputDirectory": "build",
   "rewrites": [
     {
+      "source": "/share/:path*",
+      "destination": "/api/share?path=:path*"
+    },
+    {
       "source": "/((?!service-worker\\.js|manifest\\.json|favicon\\.png|logo192\\.png|logo512\\.png|OneSignalSDKWorker\\.js|OneSignalSDKUpdaterWorker\\.js|static/).*)",
       "destination": "/index.html"
     }

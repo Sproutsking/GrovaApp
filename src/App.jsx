@@ -373,6 +373,21 @@ const MainApp = memo(() => {
     setOverlayTab(null);
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user?.id || !profile) return;
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    const isContentLink = /^\/(post|reel|story)\//.test(path);
+    if (isContentLink) {
+      handleNotificationNavigate(`${path}${window.location.search}`);
+      return;
+    }
+    if (params.has("invite")) {
+      setActiveTab("community");
+      setMountedTabs((previous) => new Set([...previous, "community"]));
+    }
+  }, [user?.id, profile, handleNotificationNavigate]);
+
   // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (initDone.current || !user?.id || !profile) return;

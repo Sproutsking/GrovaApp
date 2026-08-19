@@ -26,6 +26,7 @@ import {
   AMBASSADOR_LEVELS,
   getLevelConfig,
 } from "./useAmbassadorData";
+import { buildShareUrl, buildPlatformShareUrl } from "../../utils/shareLinks";
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 const T = {
@@ -51,7 +52,7 @@ const T = {
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 function buildLink(code) {
-  return `${window.location.origin}?ref=${code}`;
+  return buildShareUrl("ambassador", code);
 }
 function fmt$(n) {
   return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1102,6 +1103,10 @@ function SharePanel({ code, profile, isMobile }) {
     { icon: "𝕏", label: "X / Twitter", color: "#e7e7e7", url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(link)}` },
     { icon: "✈️", label: "Telegram", color: "#2AABEE", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(msg)}` },
     { icon: "💼", label: "LinkedIn", color: "#0A66C2", url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}` },
+    { icon: "🔴", label: "Reddit", color: "#ff4500", url: buildPlatformShareUrl("reddit", { url: link, title: msg }) },
+    { icon: "📌", label: "Pinterest", color: "#e60023", url: buildPlatformShareUrl("pinterest", { url: link, title: msg }) },
+    { icon: "✦", label: "Tumblr", color: "#35465c", url: buildPlatformShareUrl("tumblr", { url: link, title: msg }) },
+    { icon: "✉", label: "Email", color: "#9cff00", url: buildPlatformShareUrl("email", { url: link, title: msg }) },
   ];
 
   return (

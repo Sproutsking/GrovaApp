@@ -197,6 +197,18 @@ class FollowModel {
       return [];
     }
   }
+
+  static async getMutualFriends(userId, limit = 100) {
+    const [following, followers] = await Promise.all([
+      this.getFollowing(userId, limit),
+      this.getFollowers(userId, limit),
+    ]);
+    const followerIds = new Set(followers.map((row) => row.follower_id));
+    return following
+      .filter((row) => followerIds.has(row.following_id))
+      .map((row) => row.profiles)
+      .filter(Boolean);
+  }
 }
 
 export default FollowModel;

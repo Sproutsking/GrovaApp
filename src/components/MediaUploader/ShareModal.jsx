@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import "./ShareModal.css";
 
-const ShareModal = ({ videoFile, onClose, onDownload }) => {
+const ShareModal = ({ videoFile, shareUrl, onClose, onDownload }) => {
   const [copied, setCopied] = useState(false);
   const [startY, setStartY] = useState(0);
   const [currentY, setCurrentY] = useState(0);
@@ -39,9 +39,16 @@ const ShareModal = ({ videoFile, onClose, onDownload }) => {
       icon: <Link size={24} />,
       color: "#6366f1",
       action: async () => {
+        if (!shareUrl) {
+          if (navigator.share && navigator.canShare?.({ files: [videoFile] })) {
+            await navigator.share({ files: [videoFile], title: "Share video on Xeevia" });
+          } else {
+            alert("Upload the video first to create a shareable link.");
+          }
+          return;
+        }
         try {
-          const url = URL.createObjectURL(videoFile);
-          await navigator.clipboard.writeText(url);
+          await navigator.clipboard.writeText(shareUrl);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         } catch (err) {
@@ -55,7 +62,8 @@ const ShareModal = ({ videoFile, onClose, onDownload }) => {
       icon: <Facebook size={24} />,
       color: "#1877f2",
       action: () => {
-        window.open("https://www.facebook.com/sharer/sharer.php", "_blank");
+        if (!shareUrl) return alert("Upload the video first to create a shareable link.");
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank");
       },
     },
     {
@@ -73,7 +81,8 @@ const ShareModal = ({ videoFile, onClose, onDownload }) => {
       icon: <Twitter size={24} />,
       color: "#1da1f2",
       action: () => {
-        window.open("https://twitter.com/intent/tweet", "_blank");
+        if (!shareUrl) return alert("Upload the video first to create a shareable link.");
+        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`, "_blank");
       },
     },
   ];

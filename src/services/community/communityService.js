@@ -287,13 +287,15 @@ class CommunityService {
   }
 
   async _uploadCommunityIcon(file, userId) {
-    const ext = file.name.split(".").pop();
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `community-icons/${userId}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("community-assets").upload(path, file, {
       cacheControl: "3600",
       upsert: true,
     });
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Community image upload failed: ${error.message}`);
+    }
     const { data } = supabase.storage.from("community-assets").getPublicUrl(path);
     return data.publicUrl;
   }
@@ -622,10 +624,20 @@ class CommunityService {
 
   async updateCommunity(communityId, userId, updates) {
     try {
+      const nextUpdates = {
+        name: updates.name,
+        description: updates.description || "",
+        is_private: updates.isPrivate ?? updates.is_private ?? false,
+        background_theme: updates.backgroundTheme || updates.background_theme || "security",
+        banner_gradient: updates.bannerGradient || updates.banner_gradient || null,
+        icon_border: updates.iconBorder || updates.icon_border || "default",
+      };
+
       // Handle icon image upload
       if (updates.iconFile) {
-        updates.icon = await this._uploadCommunityIcon(updates.iconFile, userId);
-        delete updates.iconFile;
+        nextUpdates.icon = await this._uploadCommunityIcon(updates.iconFile, userId);
+      } else if (updates.icon) {
+        nextUpdates.icon = updates.icon;
       }
 
       const { data: community } = await supabase
@@ -639,7 +651,7 @@ class CommunityService {
 
       const { data, error } = await supabase
         .from("communities")
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...nextUpdates, updated_at: new Date().toISOString() })
         .eq("id", communityId)
         .select()
         .single();

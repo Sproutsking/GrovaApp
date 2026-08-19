@@ -11,11 +11,9 @@ const CommunitySidebar = ({
   onPrefetchCommunity,
   view,
 }) => {
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
 
   const handleCreate = () => {
-    setShowCreateModal(true);
     if (typeof onCreateCommunity === "function") {
       // Signal to parent to show create modal
       onCreateCommunity();
@@ -57,6 +55,7 @@ const CommunitySidebar = ({
               <CommunityAvatar
                 icon={community.icon || "🌟"}
                 gradientCss={community.banner_gradient}
+                borderStyle={community.icon_border}
                 size={50}
                 radius={14}
                 className="community-avatar-slot"
@@ -108,7 +107,7 @@ const CommunitySidebar = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 0 0 12px;
+          padding: 16px 0 12px 0;
           gap: 8px;
           overflow-y: auto;
           overflow-x: hidden;
@@ -194,22 +193,26 @@ const CommunitySidebar = ({
         }
 
         .community-icon.home {
-          background: linear-gradient(135deg, rgba(156,255,0,0.2) 0%, rgba(156,255,0,0.05) 100%);
+          background: rgba(0, 0, 0, 0.3);
           color: var(--accent);
-          border-color: rgba(156,255,0,0.2);
+          border: 1.5px solid rgba(156, 255, 0, 0.3);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
         .community-icon.home:hover {
-          background: linear-gradient(135deg, rgba(156,255,0,0.3) 0%, rgba(156,255,0,0.1) 100%);
-          border-color: rgba(156,255,0,0.35);
-          box-shadow: 0 8px 24px rgba(156,255,0,0.15);
+          background: rgba(0, 0, 0, 0.4);
+          border-color: rgba(156, 255, 0, 0.5);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 24px rgba(156, 255, 0, 0.2);
+          transform: translateY(-3px) scale(1.05);
         }
 
         .community-icon.home.active {
-          background: linear-gradient(135deg, rgba(156,255,0,0.4) 0%, rgba(156,255,0,0.2) 100%);
+          background: rgba(0, 0, 0, 0.5);
           color: var(--accent);
           border: 2px solid var(--accent);
-          box-shadow: 0 0 24px rgba(156,255,0,0.3);
+          box-shadow: inset 0 1px 0 rgba(156, 255, 0, 0.2), 0 0 24px rgba(156, 255, 0, 0.35);
         }
 
         /* Community icon wrapper — the CommunityAvatar handles its own
@@ -315,10 +318,10 @@ const CommunitySidebar = ({
 
         @media (max-width: 768px) {
           .community-sidebar {
-            width: 54px;
+            width: 56px;
             border-right: 1px solid var(--surface-border);
             border-top: 1px solid var(--surface-border);
-            padding: 0px 0px 15px;
+            padding: 12px 0px 15px;
           }
 
           .sidebar-top { height: 40px; min-height: 40px; margin-bottom: 6px; }
@@ -329,17 +332,22 @@ const CommunitySidebar = ({
           }
 
           .community-icon {
-            width: 40px;
-            height: 40px;
+            width: 39px;
+            height: 39px;
             border: 1px solid var(--surface-border);
           }
 
           .community-icon-wrap.active::before {
             left: auto;
-            top: -8px;
-            width: 24px;
-            height: 4px;
-            border-radius: 0 0 4px 4px;
+            top: auto;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 22px;
+            height: 3px;
+            border-radius: 3px;
+            background: linear-gradient(180deg, var(--accent), transparent);
+            box-shadow: 0 0 7px rgba(156,255,0,0.35);
           }
         }
       `}</style>
