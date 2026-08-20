@@ -5,11 +5,11 @@
 .story-card-premium {
   background: linear-gradient(145deg, var(--panel) 0%, var(--bg-strong) 100%);
   border: 1px solid var(--accent-border);
-  border-radius: 24px;
+  border-radius: 14px;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 16px;
-  box-shadow: 0 8px 32px var(--shadow);
+  margin-bottom: 10px;
+  box-shadow: 0 6px 22px var(--shadow);
   position: relative;
 }
 
@@ -42,7 +42,7 @@
 .story-hero {
   position: relative;
   width: 100%;
-  height: 320px;
+  height: 260px;
   overflow: hidden;
   cursor: pointer;
   background: linear-gradient(135deg, var(--panel) 0%, var(--bg-strong) 100%);
@@ -110,11 +110,11 @@
   position: absolute;
   top: 20px;
   left: 20px;
-  padding: 8px 16px;
+  padding: 7px 11px;
   background: var(--panel-strong);
   backdrop-filter: blur(12px);
   border: 1px solid var(--accent-border);
-  border-radius: 24px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -147,7 +147,7 @@
   background: var(--accent-gradient);
   backdrop-filter: blur(12px);
   border: 2px solid var(--surface-strong);
-  border-radius: 24px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -181,7 +181,7 @@
   background: var(--panel-strong);
   backdrop-filter: blur(12px);
   border: 1px solid var(--surface-strong);
-  border-radius: 20px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -196,16 +196,18 @@
    ============================================================================ */
 
 .story-content-section {
-  padding: 20px 24px;
+  padding: 18px 22px 14px;
   background: var(--surface);
 }
 
 .story-author-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 13px;
+  padding-bottom: 11px;
   border-bottom: 1px solid rgba(132, 204, 22, 0.1);
 }
 
@@ -218,7 +220,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -228,6 +230,7 @@
 }
 
 .story-action-btn.unlock-compact {
+  margin-left: auto;
   background: var(--accent-gradient);
   color: var(--accent-contrast);
   box-shadow: 0 4px 12px var(--accent-shadow);
@@ -240,6 +243,7 @@
 }
 
 .story-action-btn.read-compact {
+  margin-left: auto;
   background: var(--accent-bg-soft);
   border: 2px solid var(--accent-border);
   color: var(--accent);
@@ -256,10 +260,10 @@
    ============================================================================ */
 
 .story-title-premium {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 800;
   color: var(--text);
-  margin: 0 0 14px 0;
+  margin: 0 0 10px 0;
   line-height: 1.3;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -281,14 +285,14 @@
 
 .story-preview-container {
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 4px;
 }
 
 .story-preview-text {
   font-size: 15px;
   color: var(--text-secondary);
-  line-height: 1.7;
-  margin: 0 0 12px 0;
+  line-height: 1.55;
+  margin: 0 0 10px 0;
 
   /* CRITICAL: 2-line truncation */
   display: -webkit-box;
@@ -342,9 +346,28 @@
    ============================================================================ */
 
 .story-footer-premium {
-  padding: 14px 24px;
+  padding: 10px 22px;
   background: var(--surface-strong);
   border-top: 1px solid var(--accent-border);
+}
+
+.story-footer-premium .rp-panel {
+  margin-top: 0;
+  padding: 0;
+  min-height: 34px;
+  gap: 4px;
+}
+
+.story-footer-premium .rp-btn,
+.story-footer-premium .rp-stat {
+  min-height: 32px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.story-footer-premium .rp-stat {
+  justify-content: center;
 }
 
 /* ============================================================================
@@ -364,7 +387,7 @@
   }
 
   .story-hero {
-    height: 280px;
+    height: 248px;
   }
 
   .story-category-floating {
@@ -389,12 +412,12 @@
   }
 
   .story-content-section {
-    padding: 18px 16px;
+    padding: 14px 14px 10px;
   }
 
   .story-author-header {
-    padding-bottom: 12px;
-    margin-bottom: 14px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
   }
 
   .story-action-btn {
@@ -421,7 +444,18 @@
   }
 
   .story-footer-premium {
-    padding: 12px 16px;
+    padding: 10px 14px;
+  }
+
+  .story-footer-premium .rp-panel {
+    gap: 2px;
+  }
+
+  .story-footer-premium .rp-btn,
+  .story-footer-premium .rp-stat {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 11px;
   }
 }
 

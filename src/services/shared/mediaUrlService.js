@@ -14,6 +14,10 @@ class MediaUrlService {
     }
   }
 
+  _isHttpUrl(value) {
+    return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+  }
+
   _markPreloaded(url) {
     if (!url) return;
     this._preloadedMedia.add(url);
@@ -90,10 +94,16 @@ class MediaUrlService {
   // ==================== GET CLOUDINARY IMAGE URL ====================
   
   getImageUrl(publicId, options = {}) {
-    if (!publicId || !this.cloudName) {
+    if (!publicId) {
       console.warn('⚠️ Missing publicId or cloudName:', { publicId, cloudName: this.cloudName });
       return null;
     }
+
+    // Database rows may already contain a signed/CDN URL. Never treat it as
+    // a Cloudinary public ID or strip its query parameters.
+    if (this._isHttpUrl(publicId)) return publicId.trim();
+
+    if (!this.cloudName) return null;
 
     const {
       width,
@@ -131,10 +141,15 @@ class MediaUrlService {
   // ==================== GET CLOUDINARY VIDEO URL ====================
   
   getVideoUrl(publicId, options = {}) {
-    if (!publicId || !this.cloudName) {
+    if (!publicId) {
       console.warn('⚠️ Missing publicId or cloudName:', { publicId, cloudName: this.cloudName });
       return null;
     }
+
+    // Preserve direct, signed, and provider-hosted video URLs verbatim.
+    if (this._isHttpUrl(publicId)) return publicId.trim();
+
+    if (!this.cloudName) return null;
 
     const {
       width,
@@ -177,7 +192,11 @@ class MediaUrlService {
       time = '0'
     } = options;
 
-    if (!publicId || !this.cloudName) return null;
+    if (!publicId) return null;
+
+    if (this._isHttpUrl(publicId)) return publicId.trim();
+
+    if (!this.cloudName) return null;
 
     return `https://res.cloudinary.com/${this.cloudName}/video/upload/so_${time},w_${width},h_${height},c_fill,q_auto,f_jpg/${publicId}.jpg`;
   }

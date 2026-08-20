@@ -114,18 +114,22 @@ function buildImageUrl(id, opts = {}) {
 function buildVideoUrl(id) {
   if (!id || typeof id !== "string" || !id.trim()) return [];
   const clean = id.trim();
+  // A stored URL is already the most authoritative source. Trying to turn it
+  // into a Cloudinary public ID first creates guaranteed-invalid candidates.
+  if (/^https?:\/\//i.test(clean)) return [clean];
   const q   = Q.videoQ;
   const cld = getCldCloud();
+  const publicId = clean.replace(/\.(mp4|webm|mov|m4v)$/i, "");
   const out = [];
 
   if (cld) {
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_auto,f_mp4/${clean}.mp4`);
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_${q},f_mp4/${clean}.mp4`);
-    out.push(`https://res.cloudinary.com/${cld}/video/upload/${clean}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_auto,f_mp4/${publicId}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/q_${q},f_mp4/${publicId}.mp4`);
+    out.push(`https://res.cloudinary.com/${cld}/video/upload/${publicId}.mp4`);
   }
 
   try {
-    const raw = mediaUrlService.getVideoUrl(clean, { quality:q, format:"mp4" });
+    const raw = mediaUrlService.getVideoUrl(publicId, { quality:q, format:"mp4" });
     if (raw && typeof raw === "string" && raw.startsWith("http")) {
       const qi   = raw.indexOf("?");
       const base = qi >= 0 ? raw.slice(0, qi) : raw;
@@ -133,8 +137,6 @@ function buildVideoUrl(id) {
       out.push(base.replace(/\.mp4$/i, "") + ".mp4" + qs);
     }
   } catch {}
-
-  if (clean.startsWith("http")) out.push(clean);
 
   return [...new Set(out)];
 }

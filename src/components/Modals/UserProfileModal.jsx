@@ -88,6 +88,7 @@ const parseMediaIds = (value) => {
 const resolveMediaThumbnail = (item) => {
   if (!item) return null;
   const httpUrl = (url) => typeof url === "string" && url.startsWith("http") ? url : null;
+  const isVideoUrl = (url) => /\/video\/upload\/|\.(mp4|webm|mov|m4v)(?:[?#]|$)/i.test(url || "");
 
   const imageIds = parseMediaIds(item.image_ids);
   if (imageIds.length) {
@@ -108,7 +109,9 @@ const resolveMediaThumbnail = (item) => {
 
   const thumbnailId = item.thumbnail_id || item.video_id || parseMediaIds(item.video_ids)[0];
   if (thumbnailId) {
-    const candidate = httpUrl(thumbnailId) || mediaUrlService.getVideoThumbnail(thumbnailId, {
+    const directThumbnail = httpUrl(thumbnailId);
+    if (directThumbnail && isVideoUrl(directThumbnail)) return null;
+    const candidate = directThumbnail || mediaUrlService.getVideoThumbnail(thumbnailId, {
       width: 400,
       height: 400,
       time: "0",
@@ -125,6 +128,13 @@ const resolveMediaThumbnail = (item) => {
   }
 
   return null;
+};
+
+const resolveVideoUrl = (item) => {
+  const value = item?.video_metadata?.url || item?.video_url || item?.video_id;
+  if (!value || typeof value !== "string") return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return mediaUrlService.getVideoUrl(value, { quality: "auto", format: "mp4" });
 };
 // ── Robust ID resolvers ───────────────────────────────────────────────────────
 
@@ -171,7 +181,10 @@ const TierBadgePill = ({ tier, paymentStatus }) => {
 // ── Content grid card ─────────────────────────────────────────────────────────
 
 const ContentCard = ({ item, type }) => {
+  const [imageFailed, setImageFailed] = React.useState(false);
   const imgUrl = resolveMediaThumbnail(item);
+  const videoUrl = type === "reel" ? resolveVideoUrl(item) : null;
+  const showVideo = type === "reel" && (!imgUrl || imageFailed) && videoUrl;
 
   return (
     <div style={{
@@ -180,8 +193,24 @@ const ContentCard = ({ item, type }) => {
       border:       "1px solid rgba(255,255,255,0.07)",
       aspectRatio:  "1", position: "relative",
     }}>
-      {imgUrl ? (
-        <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      {showVideo ? (
+        <video
+          src={videoUrl}
+          poster={imgUrl || undefined}
+          muted
+          loop
+          playsInline
+          autoPlay
+          preload="metadata"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : imgUrl && !imageFailed ? (
+        <img
+          src={imgUrl}
+          alt=""
+          onError={() => setImageFailed(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
       ) : (
         <div style={{
           width: "100%", height: "100%", display: "flex",

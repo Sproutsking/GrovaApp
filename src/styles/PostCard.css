@@ -468,7 +468,8 @@
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
-@media (max-width: 768px) .feed-container {
+@media (max-width: 768px) {
+.feed-container {
   padding: 0;
 }
 
@@ -553,4 +554,5 @@
 .image-lightbox-close {
   top: 18px;
   right: 18px;
+}
 }

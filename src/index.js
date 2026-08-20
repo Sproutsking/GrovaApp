@@ -620,11 +620,9 @@ window.addEventListener("xv:request_account_switch", () => {
   }
 });
 
-window.addEventListener("push:needs_permission", () => {
-  if (!pushPromptShown) {
-    queuePrompt("push", "Allow notifications for messages, calls, and activity.");
-  }
-});
+// Push permission is opt-in from an explicit notification/settings action.
+// Startup must never place a permission prompt over the first screen.
+window.addEventListener("push:needs_permission", () => {});
 
 const isLocalhost = Boolean(
   window.location.hostname === "localhost" ||

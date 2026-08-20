@@ -83,7 +83,7 @@ const buildUrl = (mediaId, options = {}) => {
       ...options,
     });
     if (!url || typeof url !== "string") return null;
-    return url.split("?")[0];
+    return url;
   } catch {
     return null;
   }
@@ -299,7 +299,12 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
 
         {/* ── READY: actual image ── */}
         {phase === "ready" && imgSrc && (
-          <img src={imgSrc} alt="" className="mcs-card-img" />
+          <img
+            src={imgSrc}
+            alt=""
+            className="mcs-card-img"
+            onError={() => { setImgSrc(null); setPhase("fallback"); }}
+          />
         )}
 
         {/* ── FALLBACK: rich content-aware placeholder ── */}

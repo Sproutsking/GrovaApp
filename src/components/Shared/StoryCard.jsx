@@ -150,12 +150,13 @@ const StoryCard = ({
 
       <style>{`
         .story-card {
-          border-radius: 28px;
+          border-radius: 14px;
           overflow: hidden;
           background: radial-gradient(circle at top left, rgba(132,204,22,0.18), transparent 25%),
                       linear-gradient(180deg, rgba(10,10,10,0.96), rgba(15,15,15,0.95));
           border: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+          margin-bottom: 10px;
           transition: border-color 0.24s ease;
         }
         /* Neutralize hover interaction to keep feed stable */
@@ -167,13 +168,13 @@ const StoryCard = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 18px 20px 0;
+          padding: 14px 20px 0;
           gap: 12px;
         }
         .story-cover {
           position: relative;
           cursor: pointer;
-          height: 320px;
+          height: 250px;
           overflow: hidden;
           display: grid;
           place-items: center;
@@ -210,10 +211,10 @@ const StoryCard = ({
           backdrop-filter: blur(8px);
         }
         .story-body {
-          padding: 24px 20px 20px;
+          padding: 18px 20px 14px;
           display: flex;
           flex-direction: column;
-          gap: 18px;
+          gap: 12px;
         }
         .story-title {
           font-size: 1.65rem;
@@ -226,14 +227,14 @@ const StoryCard = ({
         }
         .story-preview-wrapper {
           position: relative;
-          min-height: 110px;
+          min-height: 0;
         }
         .story-preview {
           margin: 0;
           color: rgba(255,255,255,0.78);
           font-size: 0.98rem;
           line-height: 1.75;
-          max-height: 7.8rem;
+          max-height: 5.25rem;
           overflow: hidden;
           position: relative;
           z-index: 1;
@@ -253,9 +254,9 @@ const StoryCard = ({
           align-items: center;
           gap: 8px;
           border: none;
-          border-radius: 999px;
-          padding: 13px 18px;
-          font-size: 0.96rem;
+          border-radius: 8px;
+          padding: 9px 13px;
+          font-size: 0.86rem;
           font-weight: 700;
           cursor: pointer;
           transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
@@ -275,7 +276,20 @@ const StoryCard = ({
           border: 1px solid rgba(255,255,255,0.08);
         }
         .story-footer {
-          padding: 0 20px 20px;
+          padding: 0 20px 12px;
+        }
+        .story-footer .rp-panel {
+          margin-top: 0;
+          padding: 0;
+          gap: 4px;
+          min-height: 34px;
+        }
+        .story-footer .rp-btn,
+        .story-footer .rp-stat {
+          min-height: 32px;
+          padding: 5px 8px;
+          border-radius: 7px;
+          font-size: 12px;
         }
         .story-header .category-tag {
           display: inline-flex;
@@ -308,10 +322,13 @@ const StoryCard = ({
         }
         @media (max-width: 640px) {
           .story-card {
-            border-radius: 22px;
+            border-radius: 0;
+            margin-bottom: 0;
+            border-left: none;
+            border-right: none;
           }
           .story-cover {
-            height: 260px;
+            height: 240px;
           }
           .story-body {
             padding: 18px 16px 18px;
@@ -320,7 +337,16 @@ const StoryCard = ({
             font-size: 1.35rem;
           }
           .story-preview-wrapper {
-            min-height: 90px;
+            min-height: 0;
+          }
+          .story-footer {
+            padding: 0 14px 8px;
+          }
+          .story-footer .rp-btn,
+          .story-footer .rp-stat {
+            padding-left: 5px;
+            padding-right: 5px;
+            font-size: 11px;
           }
         }
       `}</style>

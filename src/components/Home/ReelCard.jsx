@@ -42,8 +42,10 @@ const relTime = (dateStr) => {
   });
 };
 function safeVideoUrl(id) {
+  if (typeof id === "string" && /^https?:\/\//i.test(id.trim())) return id.trim();
   try {
-    const raw = mediaUrlService.getVideoUrl(id, { quality: "auto", format: "mp4" });
+    const publicId = String(id || "").trim().replace(/\.(mp4|webm|mov|m4v)$/i, "");
+    const raw = mediaUrlService.getVideoUrl(publicId, { quality: "auto", format: "mp4" });
     if (!raw) return null;
     const qIdx = raw.indexOf("?");
     const base = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
@@ -519,6 +521,7 @@ const ReelCard = ({
                   setVideoError(true);
                   setIsLoading(false);
                 }}
+                onStalled={() => setIsLoading(true)}
                 onWaiting={() => setIsLoading(true)}
                 onEnded={() => setPlaying(false)}
               />
