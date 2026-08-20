@@ -10,12 +10,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import {
   X, Search, Loader, ArrowLeft, Copy, Check,
-  Clock, Link2, Zap, Activity, Shield, CheckCircle,
-  AlertTriangle, RefreshCw, ChevronRight, Database,
-  TrendingUp, Eye, Hash, GitBranch, Layers, Radio,
-  Cpu, Hexagon, Triangle,
+  Clock, Link2, Zap, CheckCircle,
+  AlertTriangle, RefreshCw, ChevronRight,
+  GitBranch, Layers,
 } from "lucide-react";
-import { STREAM_REGISTRY, listStreams } from "../../services/xrc/streamRegistry";
+import UserProfileModal from "../Modals/UserProfileModal";
 
 // ── Stream visual identity ─────────────────────────────────────────────────
 const SV = {
@@ -979,7 +978,7 @@ const TraceView = ({ chain, loading, onNodeClick }) => {
 };
 
 // ── Idle View ─────────────────────────────────────────────────────────────
-const IdleView = ({ feed, stats, error, onEnterRecord, onQuickSearch }) => {
+const IdleView = ({ feed, stats, error, onEnterRecord, onQuickSearch, onClose }) => {
   const total = stats?.totalRecords ?? stats?.total_records ?? 0;
   const QUICK = [
     "post_created", "token_transfer", "story_unlocked", "wallet_deposit",
@@ -1010,6 +1009,12 @@ const IdleView = ({ feed, stats, error, onEnterRecord, onQuickSearch }) => {
       </div>
 
       {error && <div className="xo3-error"><AlertTriangle size={13}/>{error}</div>}
+
+      {error && (
+        <button type="button" className="xo3-chip" onClick={onClose}>
+          <ArrowLeft size={12}/> Return to app
+        </button>
+      )}
 
       {total > 0 && (
         <div className="xo3-stats">
@@ -1283,6 +1288,38 @@ const SearchZone = ({ query, setQuery, onSearch, searching, inputRef }) => {
   );
 };
 
+const OracleResultCards = ({ records, onSelect }) => {
+  if (!records?.length) return null;
+  return (
+    <div style={{ display: "grid", gap: 10, maxWidth: 860, margin: "0 auto", padding: "18px 20px 30px" }}>
+      <div style={{ color: "rgba(255,255,255,.45)", fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase" }}>
+        {records.length} matching verification result{records.length === 1 ? "" : "s"}
+      </div>
+      {records.slice(0, 24).map((record, index) => {
+        const style = sv(record.stream_type);
+        const profile = record._profile;
+        const label = profile?.full_name || profile?.username || humanEvent(record.payload);
+        const subject = record.payload?.post_id || record.payload?.profile_id || record.payload?.transaction_id || record.payload?.tx_id || record.actor_id;
+        return (
+          <button
+            key={`${record.record_id || index}`}
+            type="button"
+            onClick={() => onSelect(record)}
+            style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: 14, textAlign: "left", color: "#e8edf5", background: "rgba(255,255,255,.035)", border: `1px solid ${style.color}45`, borderRadius: 12, cursor: "pointer" }}
+          >
+            <span style={{ width: 36, height: 36, borderRadius: 10, display: "grid", placeItems: "center", flexShrink: 0, color: style.color, background: style.dim, fontSize: 18 }}>{style.glyph}</span>
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <strong style={{ display: "block", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</strong>
+              <span style={{ display: "block", marginTop: 4, color: "rgba(255,255,255,.48)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{humanEvent(record.payload)} · {record.stream_type} · {trunc(subject, 22)}</span>
+            </span>
+            <ChevronRight size={16} color={style.color} />
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────
 const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
   const [phase,         setPhase]         = useState("idle");
@@ -1298,16 +1335,21 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
   const [traceLoading,  setTraceLoading]  = useState(false);
   const [selectedNode,  setSelectedNode]  = useState(null);
   const [showDetail,    setShowDetail]    = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [profileTarget, setProfileTarget] = useState(null);
   const [stats,         setStats]         = useState(null);
   const [feed,          setFeed]          = useState([]);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    loadOverview();
-    setTimeout(() => inputRef.current?.focus(), 500);
-  }, []);
+    const handleEscape = (event) => {
+      if (event.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
 
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async () => {
     if (!xrcService) return;
     try {
       const [s, f] = await Promise.all([
@@ -1316,33 +1358,30 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
       ]);
       setStats(s); setFeed(f);
     } catch {}
-  };
+  }, [xrcService]);
+
+  useEffect(() => {
+    loadOverview();
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 500);
+    return () => clearTimeout(focusTimer);
+  }, [loadOverview]);
 
   const oracleSearch = useCallback(async (q) => {
     if (!xrcService || !q.trim()) return;
     const raw = q.trim();
     setSearching(true); setError(null); setPhase("searching");
     try {
-      let found = null;
-      if (/^[0-9a-f-]{36}$/i.test(raw)) {
-        const v = await xrcService.verifyRecord(raw).catch(() => null);
-        if (v?.record) found = v.record;
+      const result = await (xrcService.smartSearch
+        ? xrcService.smartSearch(raw, { limit: 24 })
+        : xrcService.searchRecords({ searchTerm: raw, limit: 24 }));
+      const records = result?.records || [];
+      if (records.length > 0) {
+        setSearchResults(records);
+        setPhase("results");
       }
-      if (!found && /^[0-9a-f-]{36}$/i.test(raw)) {
-        const r = await xrcService.getActorHistory(raw, 1).catch(() => []);
-        if (r.length > 0) found = r[0];
-      }
-      if (!found) {
-        const r = await xrcService.searchRecords({ eventType: raw, limit: 1 }).catch(() => null);
-        if (r?.records?.length > 0) found = r.records[0];
-      }
-      if (!found) {
-        const r = await xrcService.searchRecords({ searchTerm: raw, limit: 1 }).catch(() => null);
-        if (r?.records?.length > 0) found = r.records[0];
-      }
-      if (found) { await expandNetwork(found); }
       else {
-        setError(`Nothing found for "${raw}". Try a Record ID, User UUID, or event type like "post_created".`);
+        setSearchResults([]);
+        setError(`Nothing found for "${raw}". Try a username, profile/post link, transaction ID, record ID, or event type.`);
         setPhase("idle");
       }
     } catch {
@@ -1376,6 +1415,24 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
     } catch (e) { console.error("[Oracle] expandNetwork:", e); }
     finally { setNetLoading(false); }
   }, [xrcService]);
+
+  const selectSearchResult = useCallback(async (record) => {
+    const actorId = record?.actor_id || record?.payload?.user_id || record?.payload?.owner_id;
+    const profile = record?._profile;
+    if (actorId) {
+      setProfileTarget({
+        id: actorId,
+        user_id: actorId,
+        name: profile?.full_name || "Verified profile",
+        username: profile?.username,
+        avatar_id: profile?.avatar_id,
+        verified: profile?.verified,
+        verificationRecord: record,
+      });
+      return;
+    }
+    await expandNetwork(record);
+  }, [expandNetwork]);
 
   const traceToGenesis = useCallback(async (recordId) => {
     if (!xrcService) return;
@@ -1426,7 +1483,8 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
           {phase === "idle" && (
             <IdleView feed={feed} stats={stats} error={error}
               onEnterRecord={expandNetwork}
-              onQuickSearch={q => { setQuery(q); oracleSearch(q); }}/>
+              onQuickSearch={q => { setQuery(q); oracleSearch(q); }}
+              onClose={onClose}/>
           )}
           {phase === "searching" && (
             <div className="xo3-searching">
@@ -1434,6 +1492,9 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
               <div className="xo3-searching-txt">Querying the chain…</div>
               <div className="xo3-searching-q">"{query}"</div>
             </div>
+          )}
+          {phase === "results" && (
+            <OracleResultCards records={searchResults} onSelect={selectSearchResult} />
           )}
           {phase === "network" && centerRecord && (
             <NetworkView
@@ -1450,6 +1511,15 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
           )}
         </div>
       </div>
+      {profileTarget && (
+        <UserProfileModal
+          user={profileTarget}
+          currentUser={currentUser}
+          openVerificationDashboard
+            verificationRecord={profileTarget.verificationRecord}
+          onClose={() => setProfileTarget(null)}
+        />
+      )}
     </>,
     document.body
   );

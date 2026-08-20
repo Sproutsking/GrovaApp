@@ -42,8 +42,8 @@ const _save = _conn?.saveData || false;
 const IS_SLOW = _save || _ect === "slow-2g" || _ect === "2g";
 const IS_MID  = _ect === "3g";
 
-const RENDER_RADIUS   = IS_SLOW ? 8 : IS_MID ? 12 : 16;
-const PRELOAD_WINDOW  = IS_SLOW ? 6 : IS_MID ? 12 : 20;
+const RENDER_RADIUS   = IS_SLOW ? 4 : IS_MID ? 6 : 10;
+const PRELOAD_WINDOW  = IS_SLOW ? 2 : IS_MID ? 4 : 6;
 const PLACEHOLDER_H   = 520;
 
 // ─── Placeholder gradients ────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ function preloadReelThumbs(reels, anchorIdx = 0) {
       const url = r.thumbnail_id
         ? mediaUrlService.getImageUrl(thumbId, {
             width: 400,
-            quality: i <= anchorIdx + 4 ? "auto:best" : "auto:good",
+            quality: "auto:good",
             format: "webp",
           })
         : mediaUrlService.getVideoThumbnail(thumbId, { width: 400, height: 711 });

@@ -18,6 +18,19 @@ class MediaUrlService {
     return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
   }
 
+  _isVideoUrl(value) {
+    return typeof value === 'string' && (
+      /\/video\/upload\//i.test(value) ||
+      /\.(mp4|webm|mov|m4v|avi)(?:[?#]|$)/i.test(value)
+    );
+  }
+
+  _stripVideoExtension(value) {
+    return typeof value === 'string'
+      ? value.replace(/\.(mp4|webm|mov|m4v|avi)(?:[?#].*)?$/i, '')
+      : value;
+  }
+
   _markPreloaded(url) {
     if (!url) return;
     this._preloadedMedia.add(url);
@@ -110,7 +123,7 @@ class MediaUrlService {
       height,
       crop = 'fill',
       gravity = 'auto',
-      quality = 'auto:best',
+      quality = 'auto:good',
       format = 'auto',
       fetch_format = 'auto'
     } = options;
@@ -134,7 +147,6 @@ class MediaUrlService {
     
     const url = `${baseUrl}/image/upload/${transformString}${publicId}`;
     
-    console.log('🖼️ Generated image URL:', url);
     return url;
   }
 
@@ -168,9 +180,8 @@ class MediaUrlService {
     
     const transformString = transforms.length > 0 ? `${transforms.join(',')}/` : '';
     
-    const url = `${baseUrl}/video/upload/${transformString}${publicId}`;
+    const url = `${baseUrl}/video/upload/${transformString}${this._stripVideoExtension(publicId)}`;
     
-    console.log('🎬 Generated video URL:', url);
     return url;
   }
 
@@ -178,9 +189,11 @@ class MediaUrlService {
   
   getVideoStreamUrl(publicId, quality = 'auto') {
     if (!publicId || !this.cloudName) return null;
+
+    if (this._isHttpUrl(publicId)) return publicId.trim();
     
     // Generate HLS streaming URL for adaptive bitrate
-    return `https://res.cloudinary.com/${this.cloudName}/video/upload/sp_auto,q_${quality}/${publicId}.m3u8`;
+    return `https://res.cloudinary.com/${this.cloudName}/video/upload/sp_auto,q_${quality}/${this._stripVideoExtension(publicId)}.m3u8`;
   }
 
   // ==================== GET VIDEO THUMBNAIL ====================
@@ -194,11 +207,26 @@ class MediaUrlService {
 
     if (!publicId) return null;
 
-    if (this._isHttpUrl(publicId)) return publicId.trim();
+    if (this._isHttpUrl(publicId)) {
+      const source = publicId.trim();
+      if (!/\/video\/upload\//i.test(source)) return this._isVideoUrl(source) ? null : source;
+
+      try {
+        const url = new URL(source);
+        const marker = '/video/upload/';
+        const markerIndex = url.pathname.indexOf(marker);
+        const publicPath = url.pathname.slice(markerIndex + marker.length);
+        const publicIdPath = this._stripVideoExtension(publicPath);
+        const transforms = `so_${time},w_${width},h_${height},c_fill,q_auto,f_jpg`;
+        return `${url.origin}${url.pathname.slice(0, markerIndex + marker.length)}${transforms}/${publicIdPath}${url.search}`;
+      } catch {
+        return null;
+      }
+    }
 
     if (!this.cloudName) return null;
 
-    return `https://res.cloudinary.com/${this.cloudName}/video/upload/so_${time},w_${width},h_${height},c_fill,q_auto,f_jpg/${publicId}.jpg`;
+    return `https://res.cloudinary.com/${this.cloudName}/video/upload/so_${time},w_${width},h_${height},c_fill,q_auto,f_jpg/${this._stripVideoExtension(publicId)}.jpg`;
   }
 
   // ==================== GET AVATAR URL ====================
@@ -211,7 +239,7 @@ class MediaUrlService {
       height: size,
       crop: 'thumb',
       gravity: 'face',
-      quality: 'auto:best'
+      quality: 'auto:good'
     });
   }
 
@@ -224,7 +252,7 @@ class MediaUrlService {
       width,
       crop: 'fill',
       gravity: 'auto',
-      quality: 'auto:best'
+      quality: 'auto:good'
     });
   }
 
@@ -237,7 +265,7 @@ class MediaUrlService {
       width,
       crop: 'fill',
       gravity: 'auto',
-      quality: 'auto:best'
+      quality: 'auto:good'
     });
   }
 
@@ -247,7 +275,7 @@ class MediaUrlService {
     if (!videoId) return null;
     
     return this.getVideoUrl(videoId, {
-      quality: 'auto:best',
+      quality: 'auto:good',
       format: 'mp4'
     });
   }
@@ -274,7 +302,7 @@ class MediaUrlService {
         const url = this.getImageUrl(imageId, {
           width,
           crop: 'scale',
-          quality: 'auto:best'
+          quality: 'auto:good'
         });
         return `${url} ${width}w`;
       })

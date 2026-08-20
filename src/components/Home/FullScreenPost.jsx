@@ -32,6 +32,58 @@ import {
 } from "lucide-react";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
+function getCloudinaryName() {
+  return (
+    window.__CLD_CLOUD__ ||
+    process.env.REACT_APP_CLOUDINARY_CLOUD_NAME ||
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+    null
+  );
+}
+
+function buildPostVideoSources(videoId) {
+  if (!videoId || typeof videoId !== "string") return [];
+  const clean = videoId.trim();
+  if (!clean) return [];
+  if (/^https?:\/\//i.test(clean)) return [clean];
+
+  const publicId = clean.replace(/\.(mp4|webm|mov|m4v)$/i, "");
+  const cloudName = getCloudinaryName();
+  const sources = [];
+  if (cloudName) {
+    sources.push(
+      `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_mp4/${publicId}.mp4`,
+      `https://res.cloudinary.com/${cloudName}/video/upload/${publicId}.mp4`,
+    );
+  }
+  const fallback = mediaUrlService.getVideoUrl(publicId, { quality: "auto", format: "mp4" });
+  if (fallback) sources.push(fallback);
+  return [...new Set(sources)];
+}
+
+function buildPostVideoPoster(post) {
+  const metadata = post?.video_metadata?.[0] || post?.video_metadata || {};
+  const directPoster = metadata.thumbnail_url || metadata.thumbnailUrl || metadata.poster || metadata.poster_url;
+  if (typeof directPoster === "string" && /^https?:\/\//i.test(directPoster.trim())) {
+    return directPoster.trim();
+  }
+
+  const imageId = post?.image_ids?.[0];
+  if (imageId) {
+    const imagePoster = mediaUrlService.getImageUrl(imageId, {
+      width: 1200,
+      quality: "auto:good",
+      format: "auto",
+    });
+    if (imagePoster) return imagePoster;
+  }
+
+  const videoId = post?.video_ids?.[0];
+  return videoId
+    ? mediaUrlService.getVideoThumbnail(videoId, { width: 1200, height: 1200, time: "0" })
+    : null;
+}
+
 // Preload the main full-screen media when the viewer opens.
 function useFullScreenMediaPreload(post) {
   useEffect(() => {
@@ -40,7 +92,7 @@ function useFullScreenMediaPreload(post) {
     const videoId = post.video_ids?.[0];
     try {
       if (videoId) {
-        const url = mediaUrlService.getVideoUrl(videoId, { quality: "auto:best", format: "mp4" });
+        const url = buildPostVideoSources(videoId)[0];
         if (url) mediaUrlService.preloadMediaUrl(url, { type: "video", priority: "high" });
       }
     } catch {}
@@ -73,11 +125,22 @@ const FullScreenPost = ({
   const [expandedReplyTo, setExpandedReplyTo] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [threadDepth, setThreadDepth] = useState({});
+  const [videoSourceIndex, setVideoSourceIndex] = useState(0);
 
   const videoRef = useRef(null);
   const commentsContainerRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
   const mountedRef = useRef(true);
+
+  const videoSources = useMemo(
+    () => buildPostVideoSources(post?.video_ids?.[0]),
+    [post?.video_ids?.[0]],
+  );
+  const videoPoster = useMemo(() => buildPostVideoPoster(post), [post]);
+
+  useEffect(() => {
+    setVideoSourceIndex(0);
+  }, [post?.id]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -274,14 +337,19 @@ const FullScreenPost = ({
           {post.video_ids?.length > 0 ? (
             <video
               ref={videoRef}
-              src={mediaUrlService.getVideoUrl(post.video_ids[0])}
-              poster={post.image_ids?.[0] ? mediaUrlService.getImageUrl(post.image_ids[0], { width: 640 }) : undefined}
-              preload="auto"
+              src={videoSources[videoSourceIndex] || undefined}
+              poster={videoPoster || undefined}
+              preload="metadata"
               muted={muted}
               loop
               playsInline
               controls={false}
               onClick={togglePlay}
+              onError={() => {
+                if (videoSourceIndex < videoSources.length - 1) {
+                  setVideoSourceIndex((index) => index + 1);
+                }
+              }}
               className="fs-video"
             />
           ) : post.image_ids?.length > 0 ? (

@@ -107,11 +107,25 @@ const resolveMediaThumbnail = (item) => {
     return httpUrl(item.cover_image_id) || mediaUrlService.getStoryImageUrl(item.cover_image_id, 400);
   }
 
-  const thumbnailId = item.thumbnail_id || item.video_id || parseMediaIds(item.video_ids)[0];
-  if (thumbnailId) {
-    const directThumbnail = httpUrl(thumbnailId);
-    if (directThumbnail && isVideoUrl(directThumbnail)) return null;
-    const candidate = directThumbnail || mediaUrlService.getVideoThumbnail(thumbnailId, {
+  if (item.thumbnail_id) {
+    const directThumbnail = httpUrl(item.thumbnail_id);
+    if (directThumbnail && !isVideoUrl(directThumbnail)) return directThumbnail;
+    if (!directThumbnail) {
+      const candidate = mediaUrlService.getImageUrl(item.thumbnail_id, {
+        width: 400,
+        height: 400,
+        crop: "fill",
+        gravity: "auto",
+        quality: "auto:good",
+        format: "webp",
+      });
+      if (candidate) return candidate;
+    }
+  }
+
+  const videoId = item.video_id || parseMediaIds(item.video_ids)[0];
+  if (videoId) {
+    const candidate = mediaUrlService.getVideoThumbnail(videoId, {
       width: 400,
       height: 400,
       time: "0",
@@ -131,10 +145,16 @@ const resolveMediaThumbnail = (item) => {
 };
 
 const resolveVideoUrl = (item) => {
-  const value = item?.video_metadata?.url || item?.video_url || item?.video_id;
+  const value = item?.video_metadata?.url || item?.video_url || item?.video_id || parseMediaIds(item?.video_ids)[0];
   if (!value || typeof value !== "string") return null;
   if (/^https?:\/\//i.test(value)) return value;
   return mediaUrlService.getVideoUrl(value, { quality: "auto", format: "mp4" });
+};
+
+const isTextPost = (item) => {
+  const hasTextFlag = item?.is_text_card === true || item?.is_text_card === "true" || item?.is_text_card === 1;
+  const hasMedia = parseMediaIds(item?.image_ids).length > 0 || parseMediaIds(item?.video_ids).length > 0;
+  return hasTextFlag || (!hasMedia && Boolean(item?.content || item?.card_caption));
 };
 // ── Robust ID resolvers ───────────────────────────────────────────────────────
 
@@ -183,8 +203,10 @@ const TierBadgePill = ({ tier, paymentStatus }) => {
 const ContentCard = ({ item, type }) => {
   const [imageFailed, setImageFailed] = React.useState(false);
   const imgUrl = resolveMediaThumbnail(item);
-  const videoUrl = type === "reel" ? resolveVideoUrl(item) : null;
-  const showVideo = type === "reel" && (!imgUrl || imageFailed) && videoUrl;
+  const textPost = type === "post" && isTextPost(item);
+  const isVideo = type === "reel" || (type === "post" && parseMediaIds(item.video_ids).length > 0);
+  const videoUrl = isVideo ? resolveVideoUrl(item) : null;
+  const showVideo = isVideo && (!imgUrl || imageFailed) && videoUrl;
 
   return (
     <div style={{
@@ -193,7 +215,21 @@ const ContentCard = ({ item, type }) => {
       border:       "1px solid rgba(255,255,255,0.07)",
       aspectRatio:  "1", position: "relative",
     }}>
-      {showVideo ? (
+      {textPost ? (
+        <div style={{
+          width: "100%", height: "100%", padding: 12, display: "flex",
+          flexDirection: "column", justifyContent: "center", gap: 8,
+          overflow: "hidden", textAlign: item.text_card_metadata?.align || "center",
+          color: item.text_card_metadata?.textColor || "#fff",
+          background: item.text_card_metadata?.gradient || "linear-gradient(145deg,#172554,#0f766e)",
+          position: "relative", isolation: "isolate",
+        }}>
+          <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: ".12em", opacity: .7 }}>TEXT POST</span>
+          <span style={{ fontSize: 13, lineHeight: 1.18, fontWeight: 800, textShadow: "0 2px 8px rgba(0,0,0,.35)" }}>
+            {item.content || item.card_caption || "Text post"}
+          </span>
+        </div>
+      ) : showVideo ? (
         <video
           src={videoUrl}
           poster={imgUrl || undefined}
@@ -217,7 +253,7 @@ const ContentCard = ({ item, type }) => {
           alignItems: "center", justifyContent: "center",
           background: "rgba(132,204,22,0.05)",
         }}>
-          {type === "reel"   ? <Film     size={22} color="#84cc16" opacity={0.3} />
+          {isVideo          ? <Film     size={22} color="#84cc16" opacity={0.3} />
            : type === "story" ? <BookOpen size={22} color="#84cc16" opacity={0.3} />
            :                    <Image   size={22} color="#84cc16" opacity={0.3} />}
         </div>
@@ -256,7 +292,7 @@ const ContentCard = ({ item, type }) => {
 // UserProfileModal
 // ══════════════════════════════════════════════════════════════════════════════
 
-const UserProfileModal = ({ user, currentUser, onClose }) => {
+const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboard = false, verificationRecord = null }) => {
   const [profile,        setProfile]        = useState(null);
   const [loading,        setLoading]        = useState(true);
   const [isFollowing,    setIsFollowing]    = useState(false);
@@ -275,6 +311,10 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
   });
 
   const mounted = useRef(true);
+
+  useEffect(() => {
+    if (openVerificationDashboard) setShowDashboard(true);
+  }, [openVerificationDashboard]);
 
   // ── ID resolution ─────────────────────────────────────────────────────────
   const targetId = resolveTargetId(user);
@@ -423,7 +463,19 @@ const UserProfileModal = ({ user, currentUser, onClose }) => {
           followers: followersR.status === "fulfilled" ? (followersR.value.count ?? 0) : 0,
           following: followingR.status === "fulfilled" ? (followingR.value.count ?? 0) : 0,
         });
-        setVerificationItems(Array.isArray(evidenceR?.value?.data) ? evidenceR.value.data : []);
+        const storedEvidence = Array.isArray(evidenceR?.value?.data) ? evidenceR.value.data : [];
+        const oracleEvidence = verificationRecord ? [{
+          id: `xrc-${verificationRecord.record_id}`,
+          title: verificationRecord.payload?.event || "XRC verification record",
+          summary: `Verified ${verificationRecord.stream_type || "XRC"} record ${verificationRecord.record_id || ""}`,
+          provider: "XRC Oracle",
+          evidence_type: "verification",
+          verified: true,
+          metadata: { proofType: "credential", verificationLevel: "high", record_id: verificationRecord.record_id, stream_type: verificationRecord.stream_type },
+          url: null,
+          created_at: verificationRecord.created_at || null,
+        }] : [];
+        setVerificationItems([...oracleEvidence, ...storedEvidence]);
       }
 
       // Follow status — only when viewing another user

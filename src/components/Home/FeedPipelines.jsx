@@ -55,13 +55,49 @@ export const PIPELINE = {
 // ─── Module-level cache (5 min TTL) ──────────────────────────────────────────
 const _cache    = new Map();
 const CACHE_TTL = 60_000;
+const PIPELINE_TIMEOUT = 3_500;
+const SESSION_CACHE_PREFIX = "grova:pipeline:";
+
+function readSessionCache(key) {
+  try {
+    const raw = sessionStorage.getItem(`${SESSION_CACHE_PREFIX}${key}`);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || Date.now() - entry.ts > 15 * 60_000) {
+      sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${key}`);
+      return null;
+    }
+    return entry.data;
+  } catch {
+    return null;
+  }
+}
+
 function getCached(key) {
   const e = _cache.get(key);
-  if (!e) return null;
-  if (Date.now() - e.ts > CACHE_TTL) { _cache.delete(key); return null; }
-  return e.data;
+  if (e && Date.now() - e.ts <= CACHE_TTL) return e.data;
+  if (e) _cache.delete(key);
+  const sessionData = readSessionCache(key);
+  if (sessionData) {
+    _cache.set(key, { data: sessionData, ts: Date.now() });
+    return sessionData;
+  }
+  return null;
 }
-function setCached(key, data) { _cache.set(key, { data, ts: Date.now() }); }
+function setCached(key, data) {
+  const ts = Date.now();
+  _cache.set(key, { data, ts });
+  try {
+    sessionStorage.setItem(`${SESSION_CACHE_PREFIX}${key}`, JSON.stringify({ data, ts }));
+  } catch {}
+}
+
+function withTimeout(task, timeout = PIPELINE_TIMEOUT) {
+  return Promise.race([
+    task,
+    new Promise((resolve) => setTimeout(() => resolve({ __timedOut: true }), timeout)),
+  ]);
+}
 
 // ─── Seeded LCG RNG ──────────────────────────────────────────────────────────
 function makeLCG(seed) {
@@ -72,8 +108,8 @@ const _SESSION_SEED = Math.floor(Math.random() * 2147483646) + 1;
 const _conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection;
 const _ect = _conn?.effectiveType || "4g";
 const _save = _conn?.saveData || false;
-const THUMB_QUALITY = _save || _ect === "slow-2g" || _ect === "2g" ? "auto:good" : "auto:best";
-const TOP_THUMB_QUALITY = _save || _ect === "slow-2g" || _ect === "2g" ? "auto:good" : "auto:best";
+const THUMB_QUALITY = "auto:good";
+const TOP_THUMB_QUALITY = "auto:good";
 
 // ─── [FIX-5] Per-category cinematic gradients (self-contained) ───────────────
 const CATEGORY_GRADIENTS = {
@@ -356,13 +392,18 @@ export const FollowsPipeline = ({ currentUser }) => {
   const fetchedRef = useRef(false);
 
   useEffect(() => {
-    if (!currentUser?.id || fetchedRef.current) return;
+    if (!currentUser?.id) {
+      setLoading(false);
+      return undefined;
+    }
+    if (fetchedRef.current) return undefined;
     fetchedRef.current = true;
     let cancelled = false;
-    const cached = getCached(PIPELINE.FOLLOWS);
+    const cacheKey = `${PIPELINE.FOLLOWS}:${currentUser.id}`;
+    const cached = getCached(cacheKey);
     if (cached) { setUsers(cached); setLoading(false); return; }
 
-    (async () => {
+    const load = async () => {
       try {
         const { data: mine } = await supabase
           .from("follows").select("following_id")
@@ -401,14 +442,20 @@ export const FollowsPipeline = ({ currentUser }) => {
         }
 
         const result = suggestions.slice(0, 12);
-        setCached(PIPELINE.FOLLOWS, result);
+        setCached(cacheKey, result);
         if (!cancelled) setUsers(result);
       } catch {
         if (!cancelled) { setUsers([]); fetchedRef.current = false; }
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    };
+    withTimeout(load()).then((result) => {
+      if (result?.__timedOut && !cancelled) {
+        setLoading(false);
+        fetchedRef.current = false;
+      }
+    });
     return () => { cancelled = true; };
   }, [currentUser?.id]);
 
@@ -501,7 +548,7 @@ export const ReelsPipeline = ({ onNavigate }) => {
     const cached = getCached(PIPELINE.REELS);
     if (cached) { setReels(cached); setLoading(false); return; }
 
-    (async () => {
+    const load = async () => {
       try {
         const data   = await reelService.getReels({ limit: 24 });
         if (cancelled) return;
@@ -516,7 +563,13 @@ export const ReelsPipeline = ({ onNavigate }) => {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    };
+    withTimeout(load()).then((result) => {
+      if (result?.__timedOut && !cancelled) {
+        setLoading(false);
+        fetchedRef.current = false;
+      }
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -690,7 +743,7 @@ export const DiscoveryPipeline = ({ onNavigate }) => {
     const cached = getCached(PIPELINE.DISCOVERY);
     if (cached) { setClips(cached); setLoading(false); return; }
 
-    (async () => {
+    const load = async () => {
       try {
         const data    = await getDiscoveryFeed({ limit: 18 });
         if (cancelled) return;
@@ -712,7 +765,13 @@ export const DiscoveryPipeline = ({ onNavigate }) => {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    };
+    withTimeout(load()).then((result) => {
+      if (result?.__timedOut && !cancelled) {
+        setLoading(false);
+        fetchedRef.current = false;
+      }
+    });
     return () => { cancelled = true; };
   }, []);
 

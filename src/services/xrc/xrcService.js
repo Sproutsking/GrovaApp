@@ -263,15 +263,72 @@ export function createXRCService(supabase) {
       }
     }
 
-    // ── Strategy C: Event type keyword (most common non-UUID search) ──
-    const evResult = await supabase
-      .from("xrc_records")
-      .select("*")
-      .contains("payload", { event: raw })
-      .order("timestamp", { ascending: false })
-      .limit(limit)
-      .then((r) => ({ data: r.data || [], error: r.error }))
-      .catch(() => ({ data: [], error: null }));
+    // ── Strategy C: profile/username lookup ────────────────────────────
+    // Resolve human input before searching the chain payload. This makes
+    // usernames and pasted profile links useful even when the username is
+    // not present in an XRC payload.
+    const profileQuery = raw.replace(/^@/, "").trim();
+    if (profileQuery.length >= 2) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id,full_name,username,avatar_id,verified")
+        .or(`username.ilike.%${profileQuery}%,full_name.ilike.%${profileQuery}%`)
+        .is("deleted_at", null)
+        .limit(8)
+        .catch(() => ({ data: [] }));
+
+      if (profiles?.length) {
+        const histories = await Promise.all(
+          profiles.map((profile) =>
+            getActorHistory(profile.id, limit)
+              .then((records) => ({ profile, records: records || [] }))
+              .catch(() => ({ profile, records: [] })),
+          ),
+        );
+        const records = histories.flatMap(({ profile, records }) =>
+          records.map((record) => ({
+            ...record,
+            _profile: profile,
+            _matchType: "profile",
+          })),
+        );
+        const profileResults = records.length
+          ? records
+          : profiles.map((profile) => ({
+              record_id: `profile:${profile.id}`,
+              actor_id: profile.id,
+              stream_type: STREAM_TYPES.XARC,
+              payload: { event: "profile_lookup", profile_id: profile.id },
+              timestamp: null,
+              _profile: profile,
+              _matchType: "profile",
+            }));
+        if (profileResults.length) {
+          return {
+            records: profileResults,
+            total: profileResults.length,
+            strategy: "profile_search",
+            contentType: "user",
+            isTimeline: true,
+            profiles,
+          };
+        }
+      }
+    }
+
+    // ── Strategy D: Event type keyword (most common non-UUID search) ──
+    let evResult = { data: [], error: null };
+    try {
+      const response = await supabase
+        .from("xrc_records")
+        .select("*")
+        .contains("payload", { event: raw })
+        .order("timestamp", { ascending: false })
+        .limit(limit);
+      evResult = { data: response?.data || [], error: response?.error || null };
+    } catch {
+      evResult = { data: [], error: null };
+    }
 
     if (evResult.data.length > 0) {
       return {
@@ -283,13 +340,18 @@ export function createXRCService(supabase) {
       };
     }
 
-    // ── Strategy D: Generic text search in payload ────────────────────
-    const { data: recentRecs } = await supabase
-      .from("xrc_records")
-      .select("*")
-      .order("timestamp", { ascending: false })
-      .limit(200)
-      .catch(() => ({ data: [] }));
+    // ── Strategy E: Generic text search in payload ────────────────────
+    let recentRecs = [];
+    try {
+      const response = await supabase
+        .from("xrc_records")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(200);
+      recentRecs = response?.data || [];
+    } catch {
+      recentRecs = [];
+    }
 
     const lower = raw.toLowerCase();
     const textMatches = (recentRecs || [])

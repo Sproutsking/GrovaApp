@@ -11,13 +11,28 @@
 //   [OAUTH-4] Disconnect properly revokes tokens before marking as revoked.
 //   [OAUTH-5] Deep link fallback shown if popup is blocked.
 //
-// All existing UI from v3 preserved. Only the connection logic is rewritten.
+// v4.1 CARD-LAYOUT PASS:
+//   [CARD-1] Card body switched from flex to a fixed grid (icon / text / action)
+//             so the icon, name, and button line up on the same axis on every
+//             row instead of the button drifting or wrapping.
+//   [CARD-2] Removed the per-card category pill — it duplicated the section
+//             header directly above the grid (SOCIAL / VISUAL / etc.) and was
+//             crowding the platform name for no new information.
+//   [CARD-3] Action column is a fixed width, so "Link" / "Reconnect" / "Unlink"
+//             render as the same-size control instead of stretching to fill
+//             the row on narrow screens.
+//   [CARD-4] Fixed a contrast bug: "Not linked" status text and the connect
+//             note were set to near-black (#3a3a3a / #2a2a2a) on a dark
+//             background — effectively invisible. Bumped both to a legible
+//             muted gray in line with the rest of the palette.
+//   [CARD-5] Removed the dead .idPdesc paragraph (class was display:none;
+//             description was never actually shown).
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Globe, Link2, Unlink, CheckCircle, AlertCircle, Clock,
-  RefreshCw, BarChart2, Shield, Zap, Layers, ExternalLink, X,
+  Globe, CheckCircle, AlertCircle, Clock,
+  RefreshCw, BarChart2, Shield, Zap, Layers, X,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
@@ -40,7 +55,7 @@ const STATUS_CFG = {
   active:  { label: "Connected",     color: "#84cc16", Icon: CheckCircle },
   expired: { label: "Token expired", color: "#f59e0b", Icon: AlertCircle },
   revoked: { label: "Disconnected",  color: "#ef4444", Icon: AlertCircle },
-  none:    { label: "Not linked",    color: "#3a3a3a", Icon: Clock       },
+  none:    { label: "Not linked",    color: "#6b7280", Icon: Clock       },
 };
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
@@ -122,15 +137,19 @@ const CSS = `
   }
   .idHowText { font-size:11px; color:#dfe7f2; line-height:1.55; }
 
-  /* ── Platform cards ── */
-  .idGrid { display:grid; grid-template-columns:1fr; gap:8px; }
+  /* ── Platform cards ──
+     Grid, not flex: icon / text / action sit in fixed columns so every card
+     in the section lines up on the same three axes, and the action control
+     never has to wrap or stretch to fill leftover space. */
+  .idGrid { display:grid; grid-template-columns:1fr; gap:10px; }
   @media(min-width:768px) { .idGrid { grid-template-columns:repeat(2, 1fr); } }
   .idCard {
     position:relative; overflow:hidden;
     background:rgba(255,255,255,.025);
     border:1px solid rgba(255,255,255,.07);
     border-radius:16px; padding:14px 16px;
-    display:flex; align-items:center; gap:14px;
+    display:grid; grid-template-columns:42px minmax(0,1fr);
+    align-items:center; column-gap:14px; row-gap:9px;
     transition:border-color .2s, background .2s, transform .14s;
   }
   .idCard:hover { transform:translateX(3px); }
@@ -146,35 +165,37 @@ const CSS = `
   .idCard.scSoon    { opacity:.5; }
 
   .idIcon {
-    width:42px; height:42px; border-radius:11px; flex-shrink:0;
+    width:42px; height:42px; border-radius:11px;
     display:flex; align-items:center; justify-content:center;
     font-size:16px; font-weight:900; border:1px solid;
-    font-style:normal; transition:transform .18s;
+    font-style:normal; transition:transform .18s; grid-column:1; grid-row:1 / span 2;
   }
   .idCard:hover .idIcon { transform:scale(1.06); }
 
-  .idBody { flex:1; min-width:0; }
+  .idBody { min-width:0; display:flex; flex-direction:column; gap:3px; }
   .idPname {
-    display:flex; align-items:center; gap:6px;
-    font-size:13.5px; font-weight:800; color:#f8fafc; margin:0 0 2px;
+    font-size:13.5px; font-weight:800; color:#f8fafc; margin:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .idCatTag {
-    padding:1px 6px; border-radius:5px; font-size:9px; font-weight:700;
-    background:rgba(255,255,255,.06); color:#d6dde7;
-    text-transform:uppercase; letter-spacing:.4px;
-  }
-  .idPdesc { display:none; }
-  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:#d6dde7; }
+  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; min-width:0; }
   .idLiveDot {
-    display:inline-block; width:5px; height:5px; border-radius:50%;
+    display:inline-block; width:5px; height:5px; border-radius:50%; flex-shrink:0;
     background:#84cc16; animation:idPulse 2s ease-in-out infinite;
   }
-  .idHandle { color:#9ca3af; font-weight:500; }
+  .idHandle { color:#9ca3af; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .idConnectNote { font-size:10px; color:#7d8590; margin-top:2px; line-height:1.5; }
 
-  /* ── Action buttons ── */
+  .idCard > .idBtn,
+  .idCard > .idSoonBadge {
+    grid-column:2; grid-row:2; justify-self:start; margin:0;
+  }
+
+  /* ── Action buttons ──
+     Fixed width so Link / Reconnect / Unlink / Soon all read as the same
+     control, and never inflate to fill the card on small screens. */
   .idBtn {
-    flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
-    padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
+    width:84px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+    padding:9px 8px; border-radius:11px; border:1px solid rgba(255,255,255,.14);
     background:rgba(255,255,255,.07); color:#f5f5f5;
     font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
     font-family:inherit; transition:background .14s, transform .1s, border-color .14s;
@@ -186,7 +207,8 @@ const CSS = `
   .idBtn.btnDisconnect { border-color:rgba(239,68,68,.28); color:#fbb0b0; }
   .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
   .idSoonBadge {
-    padding:3px 9px; border-radius:7px; font-size:10px; font-weight:800;
+    width:84px; flex-shrink:0; text-align:center;
+    padding:6px 8px; border-radius:9px; font-size:10px; font-weight:800;
     background:rgba(255,255,255,.04); color:#d6dde7;
     border:1px solid rgba(255,255,255,.07); letter-spacing:.4px; text-transform:uppercase;
   }
@@ -290,8 +312,9 @@ const CSS = `
 
   @media(max-width:480px){
     .idRoot { padding:14px 14px 32px; gap:18px; }
-    .idCard { flex-wrap:wrap; }
-    .idBtn { flex:1; justify-content:center; min-width:80px; }
+    .idCard { grid-template-columns:38px minmax(0,1fr); padding:12px 14px; column-gap:10px; }
+    .idIcon { width:38px; height:38px; font-size:14px; }
+    .idBtn, .idSoonBadge { width:72px; padding:8px 6px; font-size:10.5px; }
   }
 `;
 
@@ -304,7 +327,6 @@ const IdentitySection = ({ userId }) => {
   const [connecting,   setConnecting]   = useState(null); // platform key being connected
   const [busy,         setBusy]         = useState(null);  // platform being disconnected
   const [toast,        setToast]        = useState(null);  // { type, message }
-  const [setupNeeded,  setSetupNeeded]  = useState(false);
   const [fetchError,   setFetchError]   = useState(null);
   const toastTimer = useRef(null);
 
@@ -319,8 +341,6 @@ const IdentitySection = ({ userId }) => {
   const load = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
-    setSetupNeeded(false);
-
     try {
       // Auto-import any existing Supabase identities (e.g. signed in via X)
       await socialConnectService.checkAndImportExistingIdentities(userId);
@@ -364,7 +384,7 @@ const IdentitySection = ({ userId }) => {
   const handleConnect = async (platform) => {
     setConnecting(platform);
     try {
-      const result = await socialConnectService.linkPlatform(userId, platform);
+      await socialConnectService.linkPlatform(userId, platform);
       showToast("success", `${PLATFORMS[platform]?.name || platform} connected successfully!`);
       await load();
     } catch (err) {
@@ -522,7 +542,7 @@ const IdentitySection = ({ userId }) => {
                               : !meta.live           ? "scSoon" : "";
 
                 return (
-                  <div key={key} className={`idCard ${scClass}`} style={{ position:"relative" }}>
+                  <div key={key} className={`idCard ${scClass}`}>
 
                     {/* Connecting overlay */}
                     {isConnecting && (
@@ -543,11 +563,7 @@ const IdentitySection = ({ userId }) => {
 
                     {/* Body */}
                     <div className="idBody">
-                      <p className="idPname">
-                        {meta.name}
-                        <span className="idCatTag">{meta.category}</span>
-                      </p>
-                      <p className="idPdesc">{meta.desc}</p>
+                      <p className="idPname">{meta.name}</p>
                       <div className="idStatusRow" style={{ color: cfg.color }}>
                         {status === "active"
                           ? <span className="idLiveDot" />
@@ -558,9 +574,7 @@ const IdentitySection = ({ userId }) => {
                       </div>
                       {/* Connect note for unlinked live platforms */}
                       {status === "none" && meta.live && meta.connectNote && (
-                        <div style={{ fontSize:10, color:"#2a2a2a", marginTop:4, lineHeight:1.5 }}>
-                          {meta.connectNote}
-                        </div>
+                        <div className="idConnectNote">{meta.connectNote}</div>
                       )}
                     </div>
 

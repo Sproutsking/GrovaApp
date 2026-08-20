@@ -19,7 +19,6 @@ import {
   Gift, BarChart2, BookMarked, UserCog, HelpCircle, Settings,
   Radio, CreditCard, Sparkles, ChevronRight,
 } from "lucide-react";
-import XRCOracleExplorer from "../Oracle/XRCOracleExplorer";
 
 const OracleIcon = () => <span style={{ fontSize: 15, lineHeight: 1 }}>⛓</span>;
 
@@ -58,7 +57,6 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
   const [closing,    setClosing]    = useState(false);
   const [query,      setQuery]      = useState("");
   const [hovered,    setHovered]    = useState(null);
-  const [showOracle, setShowOracle] = useState(false);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
   const resizeTimerRef = useRef(null);
@@ -143,10 +141,9 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
     }
 
     if (id === "oracle") {
-      setShowOracle(true);
+      setActiveTab("oracle");
+      close();
       setClosing(true);
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = setTimeout(onClose, 120);
       return;
     }
 
@@ -644,13 +641,6 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
         </>
       )}
 
-      {showOracle && (
-        <XRCOracleExplorer
-          onClose={() => setShowOracle(false)}
-          xrcService={xrcService}
-          currentUser={currentUser}
-        />
-      )}
     </>
   );
 };

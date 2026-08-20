@@ -100,10 +100,24 @@ const getStoryThumbUrl = (coverId) => {
 };
 
 const getReelThumbUrl = (item) => {
-  const thumbId = item.thumbnail_id || item.video_id;
-  if (!thumbId) return null;
+  if (item.thumbnail_id) {
+    try {
+      return mediaUrlService.getImageUrl(item.thumbnail_id, {
+        width: 640,
+        height: 640,
+        crop: "fill",
+        gravity: "auto",
+        quality: "auto:good",
+        format: "webp",
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  if (!item.video_id) return null;
   try {
-    return mediaUrlService.getVideoThumbnail(thumbId, {
+    return mediaUrlService.getVideoThumbnail(item.video_id, {
       width: 640,
       height: 640,
       time: "0",
@@ -111,6 +125,12 @@ const getReelThumbUrl = (item) => {
   } catch {
     return null;
   }
+};
+
+const isTextPost = (item) => {
+  const hasTextFlag = item?.is_text_card === true || item?.is_text_card === "true" || item?.is_text_card === 1;
+  const hasMedia = parseMediaIds(item?.image_ids).length > 0 || parseMediaIds(item?.video_ids).length > 0;
+  return hasTextFlag || (!hasMedia && Boolean(item?.content || item?.card_caption));
 };
 
 const thumbUrl = (mediaId) => buildUrl(mediaId);
@@ -176,7 +196,8 @@ const extractVideoFrame = (videoUrl) =>
 const getVideoUrl = (item) => {
   try {
     if (item.video_metadata?.url) return item.video_metadata.url;
-    if (item.video_id) return mediaUrlService.getVideoUrl?.(item.video_id) || null;
+    const videoId = item.video_id || parseMediaIds(item.video_ids)[0];
+    if (videoId) return mediaUrlService.getVideoUrl?.(videoId) || null;
   } catch {}
   return null;
 };
@@ -192,6 +213,9 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
 
   const meta   = TAB_META[tab];
   const isReel = tab === "reels";
+  const isText = tab === "posts" && isTextPost(item);
+  const textMeta = item.text_card_metadata || {};
+  const textPreview = item.content || item.card_caption || "Text post";
   const text   = item.body?.slice(0, 120)    || item.content?.slice(0, 120)
                || item.caption?.slice(0, 120) || item.title?.slice(0, 120)
                || item.preview?.slice(0, 120) || "";
@@ -217,6 +241,15 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
             format: "webp",
           });
           if (u) candidates.push(u);
+        }
+        const videoId = parseMediaIds(item.video_ids)[0];
+        if (videoId) {
+          const videoPoster = mediaUrlService.getVideoThumbnail(videoId, {
+            width: 640,
+            height: 640,
+            time: item.video_metadata?.[0]?.poster_time || "0",
+          });
+          if (videoPoster) candidates.push(videoPoster);
         }
         if (item.preview?.startsWith("http")) candidates.push(item.preview);
       } else if (tab === "reels") {
@@ -254,8 +287,8 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
         }
       }
 
-      // 3. For reels — try extracting a frame from the actual video
-      if (!cancelled && tab === "reels") {
+      // 3. Try extracting a frame when a video has no usable poster.
+      if (!cancelled && (tab === "reels" || tab === "posts")) {
         const videoUrl = getVideoUrl(item);
         if (videoUrl) {
           const frame = await extractVideoFrame(videoUrl);
@@ -308,7 +341,21 @@ const ThumbCard = ({ item, tab, index, onClick }) => {
         )}
 
         {/* ── FALLBACK: rich content-aware placeholder ── */}
-        {phase === "fallback" && (
+        {phase === "fallback" && isText && (
+          <div
+            className="mcs-text-preview"
+            style={{
+              background: textMeta.gradient || "linear-gradient(145deg,#172554,#0f766e)",
+              color: textMeta.textColor || "#fff",
+              textAlign: textMeta.align || "center",
+            }}
+          >
+            <span className="mcs-text-preview-label">TEXT POST</span>
+            <span className="mcs-text-preview-copy">{textPreview}</span>
+          </div>
+        )}
+
+        {phase === "fallback" && !isText && (
           <div className="mcs-card-fallback" style={{ "--tc": meta.color }}>
             {/* Background pattern */}
             <div className="mcs-fb-bg" />
@@ -679,6 +726,25 @@ const MyContentSection = ({
         .mcs-card-img {
           position: absolute; inset: 0; width: 100%; height: 100%;
           object-fit: cover;
+        }
+
+        .mcs-text-preview {
+          position: absolute; inset: 0; display: flex; flex-direction: column;
+          justify-content: center; gap: 10px; padding: 14px;
+          overflow: hidden; isolation: isolate;
+        }
+        .mcs-text-preview::after {
+          content: ""; position: absolute; inset: 0; z-index: -1;
+          background: radial-gradient(circle at 15% 10%,rgba(255,255,255,.2),transparent 35%), linear-gradient(to top,rgba(0,0,0,.28),transparent 60%);
+        }
+        .mcs-text-preview-label {
+          font-size: 8px; font-weight: 900; letter-spacing: .12em;
+          opacity: .7; text-transform: uppercase;
+        }
+        .mcs-text-preview-copy {
+          display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
+          overflow: hidden; font-size: clamp(12px, 2.6vw, 17px);
+          line-height: 1.18; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.35);
         }
 
         /* Skeleton state */

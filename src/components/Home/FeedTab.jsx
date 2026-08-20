@@ -52,13 +52,13 @@ const IS_MID  = _ect === "3g";
 const IS_FAST = !IS_SLOW && !IS_MID;
 
 // [ARCH-2] Render radius + preload window
-const RENDER_RADIUS  = IS_SLOW ? 14 : IS_MID ? 24 : 40;
-const PRELOAD_WINDOW = IS_SLOW ? 10 : IS_MID ? 20 : 36;
-const VIDEO_PRELOAD_W = IS_SLOW ? 4 : IS_MID ? 16 : 30;
+const RENDER_RADIUS  = IS_SLOW ? 8 : IS_MID ? 12 : 18;
+const PRELOAD_WINDOW = IS_SLOW ? 4 : IS_MID ? 6 : 8;
+const VIDEO_PRELOAD_W = IS_SLOW ? 1 : IS_MID ? 2 : 3;
 
 // Image quality
-const IMG_W = IS_SLOW ? 480 : IS_MID ? 800 : 1200;
-const IMG_Q = IS_SLOW ? "auto:low" : IS_MID ? "auto:good" : "auto:best";
+const IMG_W = IS_SLOW ? 480 : IS_MID ? 640 : 800;
+const IMG_Q = IS_SLOW ? "auto:low" : "auto:good";
 
 // [ARCH-2] Three-tier preload engine
 const TIER = { CRITICAL: 0, URGENT: 1, BATCH: 2 };

@@ -180,10 +180,24 @@ function isCloudinaryRequest(request) {
   }
 }
 
+function isCloudinaryVideoRequest(request) {
+  try {
+    const url = new URL(request.url);
+    return /\/video\/upload\//i.test(url.pathname) || /\.m3u8(?:$|\?)/i.test(url.pathname + url.search);
+  } catch {
+    return false;
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   if (isCloudinaryRequest(event.request)) {
+    // Let the browser/CDN handle video range requests and adaptive streams.
+    // Caching these responses here can retain partial segments and consume
+    // the media cache needed by thumbnails and images.
+    if (isCloudinaryVideoRequest(event.request)) return;
+
     event.respondWith(
       caches.open(CLOUDINARY_CACHE).then(async (cache) => {
         const cached = await cache.match(event.request);

@@ -141,6 +141,24 @@ function buildVideoUrl(id) {
   return [...new Set(out)];
 }
 
+function buildVideoPoster(id, metadata = {}) {
+  const directPoster = metadata.thumbnail_url || metadata.thumbnailUrl || metadata.poster || metadata.poster_url;
+  if (typeof directPoster === "string" && /^https?:\/\//i.test(directPoster.trim())) {
+    return directPoster.trim();
+  }
+
+  const source = metadata.video_url || metadata.url || id;
+  try {
+    return mediaUrlService.getVideoThumbnail(source, {
+      width: 800,
+      height: 800,
+      time: metadata.poster_time ?? metadata.posterTime ?? "0",
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const relTime = (d) => {
   if (!d) return "";
@@ -624,7 +642,16 @@ const PostCard = ({
       const m          = post.video_metadata?.[i] || {};
       const candidates = buildVideoUrl(id);
       if (!candidates.length) return;
-      out.push({ type:"video", id, index:i, candidates, poster:m.thumbnail_url||null, duration:m.duration, w:m.width||null, h:m.height||null });
+      out.push({
+        type:"video",
+        id,
+        index:i,
+        candidates,
+        poster:buildVideoPoster(id, m),
+        duration:m.duration,
+        w:m.width||null,
+        h:m.height||null,
+      });
     });
     return out;
   })();

@@ -2,7 +2,7 @@ import React from "react";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
 const TIER = { CRITICAL: 0, URGENT: 1, BATCH: 2 };
-const _SLOTS = { [TIER.CRITICAL]: 12, [TIER.URGENT]: 8, [TIER.BATCH]: 4 };
+const _SLOTS = { [TIER.CRITICAL]: 4, [TIER.URGENT]: 3, [TIER.BATCH]: 2 };
 const _queues = { [TIER.CRITICAL]: [], [TIER.URGENT]: [], [TIER.BATCH]: [] };
 const _done = new Set();
 const _flying = { [TIER.CRITICAL]: 0, [TIER.URGENT]: 0, [TIER.BATCH]: 0 };
@@ -82,7 +82,7 @@ function buildAllCandidates(id, opts = {}) {
   if (!id || typeof id !== "string" || !id.trim()) return [];
   const clean = id.trim();
   const w = opts.width || 1200;
-  const q = opts.quality || "auto:best";
+  const q = opts.quality || "auto:good";
   const f = opts.format || "auto";
   const cld = getCld();
   const urls = [];
@@ -92,18 +92,10 @@ function buildAllCandidates(id, opts = {}) {
     if (u?.startsWith("http") && !urls.includes(u)) urls.push(u);
   } catch {}
 
-  if (cld) {
-    const u2 = `https://res.cloudinary.com/${cld}/image/upload/w_${w},q_${q},f_${f},c_limit/${clean}`;
-    if (!urls.includes(u2)) urls.push(u2);
-    const u3 = `https://res.cloudinary.com/${cld}/image/upload/${clean}`;
-    if (!urls.includes(u3)) urls.push(u3);
-  }
-
   if (clean.startsWith("http") && !urls.includes(clean)) urls.push(clean);
-  const supa = process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (supa && !clean.startsWith("http")) {
-    const u5 = `${supa}/storage/v1/object/public/posts/${clean}`;
-    if (!urls.includes(u5)) urls.push(u5);
+
+  if (!urls.length && cld) {
+    urls.push(`https://res.cloudinary.com/${cld}/image/upload/w_${w},q_${q},f_${f},c_limit/${clean}`);
   }
 
   return urls;
@@ -157,10 +149,13 @@ function preloadItemThumbnails(item, tier) {
 
 function preloadBatch(items, anchorIndex = 0) {
   if (!items?.length) return;
-  items.forEach((item, index) => {
+  const start = Math.max(0, anchorIndex - 4);
+  const end = Math.min(items.length - 1, anchorIndex + 8);
+  items.slice(start, end + 1).forEach((item, offset) => {
     if (!item) return;
+    const index = start + offset;
     const dist = Math.abs(index - anchorIndex);
-    const tier = dist <= 6 ? TIER.CRITICAL : dist <= 16 ? TIER.URGENT : TIER.BATCH;
+    const tier = dist <= 2 ? TIER.CRITICAL : dist <= 5 ? TIER.URGENT : TIER.BATCH;
     preloadItemImages(item, tier);
     preloadItemThumbnails(item, tier);
   });
@@ -168,7 +163,7 @@ function preloadBatch(items, anchorIndex = 0) {
 
 function preloadFirstPaintImages(items) {
   if (!items?.length) return;
-  items.slice(0, 10).forEach((item) => {
+  items.slice(0, 6).forEach((item) => {
     if (!item) return;
     if (item.type === "post") {
       (item.image_ids || []).slice(0, 1).filter(Boolean).forEach((id) => {
@@ -192,7 +187,7 @@ function preloadFirstPaintImages(items) {
   });
 }
 
-const VideoPreloadRunway = React.memo(({ items, anchorIndex, preloadWindow = 18, renderRadius = 30 }) => {
+const VideoPreloadRunway = React.memo(({ items, anchorIndex, preloadWindow = 2, renderRadius = 4 }) => {
   const cld = getCld();
   const start = Math.max(0, anchorIndex - preloadWindow);
   const end = Math.min(items.length - 1, anchorIndex + preloadWindow);

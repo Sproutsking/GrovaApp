@@ -106,10 +106,11 @@ const GiftCardsView  = lazy(() => import("./components/GiftCards/GiftCardsView")
 const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView"));
 const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall"));
 const AmbassadorView = lazy(() => import("./components/Ambassador/AmbassadorView"));
+const XRCOracleExplorer = lazy(() => import("./components/Oracle/XRCOracleExplorer"));
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set([
-  "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador",
+  "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador", "oracle",
 ]);
 const PSEUDO_TABS = new Set(["support", "notifications", "trending"]); // eslint-disable-line
 
@@ -933,17 +934,19 @@ const MainApp = memo(() => {
           </div>
         </Suspense>
       ),
+      oracle: (
+        <Suspense fallback={<TabSkeleton />}>
+          <XRCOracleExplorer
+            xrcService={xrcService}
+            currentUser={currentUser}
+            onClose={closeOverlayToAccount}
+          />
+        </Suspense>
+      ),
     };
 
-    return (
-      <>
-        {Object.entries(overlayViews).map(([id, view]) => (
-          <div key={id} style={{ display: overlayTab === id ? "block" : "none" }}>
-            {view}
-          </div>
-        ))}
-      </>
-    );
+    if (!overlayTab || !overlayViews[overlayTab]) return null;
+    return <div key={overlayTab}>{overlayViews[overlayTab]}</div>;
   };
 
   // ── Sidebar ──────────────────────────────────────────────────────────────
