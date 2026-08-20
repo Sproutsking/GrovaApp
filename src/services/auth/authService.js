@@ -39,7 +39,7 @@ class AuthService {
   }
 
   async signInOAuth(provider) {
-    const supported = ["google", "x", "facebook", "tiktok", "discord"];
+    const supported = ["google", "x", "facebook", "tiktok", "discord", "roblox", "fortnite", "minecraft", "dynamic", "privy", "web3auth", "rainbowkit"];
     // Backwards-compatible: older callers expect to just pass the provider
     // string. New callers can pass an object: { provider, usePopup: true }.
     let usePopup = false;
@@ -49,6 +49,11 @@ class AuthService {
     }
 
     if (!supported.includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
+
+    const externalProvider = ["roblox", "fortnite", "minecraft", "dynamic", "privy", "web3auth", "rainbowkit"].includes(provider);
+    if (externalProvider) {
+      throw new Error(`${provider} authentication is not configured yet.`);
+    }
 
     const redirectTo = `${window.location.origin}/auth/callback`;
     const options = { redirectTo, skipBrowserRedirect: false };

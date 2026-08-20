@@ -34,3 +34,4 @@ export default function ExperienceSidebar({ experience, activeTab, setActiveTab,
     </aside>
   );
 }
+          <style>{`.experience-sidebar{left:4%;top:56px;bottom:0;width:300px;box-sizing:border-box;z-index:50;padding:0;overflow:hidden}.experience-sidebar-inner{box-sizing:border-box}.experience-sidebar nav{gap:7px}.experience-sidebar nav button,.experience-sidebar-services{gap:11px;padding:10px 12px;border:1px solid var(--surface-border);border-radius:10px;background:var(--surface);color:var(--text-secondary);font:500 13.5px inherit}.experience-sidebar nav button:hover,.experience-sidebar-services:hover{background:color-mix(in srgb,var(--experience-accent) 8%,var(--surface))}`}</style>

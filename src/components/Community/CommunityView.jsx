@@ -18,12 +18,12 @@ import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
 import "../../styles/CommunityView.css";
 
-const CommunityView = ({ userId, currentUser }) => {
+const CommunityView = ({ userId, currentUser, experienceId = "xeevia" }) => {
   const [view, setView] = useState("discover");
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
-  const [myCommunities, setMyCommunities] = useState(() => communityService.getCachedUserCommunities(userId));
-  const [allCommunities, setAllCommunities] = useState(() => communityService.getCachedCommunities(userId));
+  const [myCommunities, setMyCommunities] = useState(() => communityService.getCachedUserCommunities(userId, experienceId));
+  const [allCommunities, setAllCommunities] = useState(() => communityService.getCachedCommunities(userId, experienceId));
   // NO loading state — we render immediately with empty data, fill as it arrives
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -84,7 +84,7 @@ const CommunityView = ({ userId, currentUser }) => {
     loadCommunities();
     checkPendingInvite();
     return () => { if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current); };
-  }, [userId]);
+  }, [userId, experienceId]);
 
   const checkPendingInvite = () => {
     const code = new URLSearchParams(window.location.search).get("invite");
@@ -97,8 +97,8 @@ const CommunityView = ({ userId, currentUser }) => {
   const loadCommunities = async () => {
     try {
       const [userComms, allComms] = await Promise.all([
-        communityService.fetchUserCommunities(userId),
-        communityService.fetchCommunities(userId),
+        communityService.fetchUserCommunities(userId, experienceId),
+        communityService.fetchCommunities(userId, experienceId),
       ]);
       setMyCommunities(userComms);
       setAllCommunities(allComms);
@@ -151,7 +151,7 @@ const CommunityView = ({ userId, currentUser }) => {
   };
 
   const handleCreateCommunity = async (communityData) => {
-    const newCommunity = await communityService.createCommunity(communityData, userId);
+    const newCommunity = await communityService.createCommunity(communityData, userId, experienceId);
     await loadCommunities();
     handleSelectCommunity(newCommunity);
     setShowCreateCommunity(false);

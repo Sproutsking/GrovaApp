@@ -61,8 +61,7 @@ import AuthWall, { Splash }      from "./components/Auth/AuthWall";
 import BoostStyles               from "./components/Boost/BoostStyles";
 import { ExperienceProvider }    from "./experiences/ExperienceContext";
 import { useExperience }         from "./experiences/ExperienceContext";
-import { ExperienceHome, ExperienceMarket } from "./experiences/ExperienceContent";
-import ExperienceSidebar from "./experiences/ExperienceSidebar";
+import { ExperienceMarket } from "./experiences/ExperienceContent";
 import ExperienceBottomNav from "./experiences/ExperienceBottomNav";
 import xrcService                from "./services/xrc";
 import HomeView                  from "./components/Home/HomeView";
@@ -120,23 +119,6 @@ const PSEUDO_TABS = new Set(["support", "notifications", "trending"]); // eslint
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const checkMobile = () => window.innerWidth <= 768;
-
-const EXPERIENCE_HOME_TABS = {
-  gaming: [
-    { id: "feed", Icon: () => <CompassIcon />, label: "Discover" },
-    { id: "players", Icon: () => <UsersIcon />, label: "Players" },
-    { id: "events", Icon: () => <EventsIcon />, label: "Events" },
-  ],
-  web3: [
-    { id: "feed", Icon: () => <CompassIcon />, label: "Discover" },
-    { id: "builders", Icon: () => <UsersIcon />, label: "Builders" },
-    { id: "protocols", Icon: () => <EventsIcon />, label: "Protocols" },
-  ],
-};
-
-const CompassIcon = () => <span aria-hidden style={{ fontSize: 13 }}>◈</span>;
-const UsersIcon = () => <span aria-hidden style={{ fontSize: 13 }}>◎</span>;
-const EventsIcon = () => <span aria-hidden style={{ fontSize: 13 }}>◇</span>;
 
 function hasOAuthCodeInUrl() {
   try {
@@ -770,34 +752,24 @@ const MainApp = memo(() => {
 
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {
-    const isSpecializedExperience = experienceId !== "xeevia";
     const tabs = [
       {
         id: "home",
         el: (
           <Suspense fallback={<TabSkeleton />}>
             <div ref={feedRef}>
-              {isSpecializedExperience ? (
-                <ExperienceHome
-                  experience={experience}
-                  userId={user.id}
-                  currentUser={currentUser}
-                  homeSection={homeSection}
-                  setHomeSection={setHomeSection}
-                  onNavigate={handleTabChange}
-                />
-              ) : (
-                <HomeView
-                  {...viewProps}
-                  homeSection={homeSection}
-                  setHomeSection={setHomeSection}
-                  feedFilter={feedFilter}
-                  onClearFilter={() => setFeedFilter(null)}
-                  onJoinStream={handleJoinStream}
-                  activeHomeTab={activeHomeTab}
-                  setActiveHomeTab={setActiveHomeTab}
-                />
-              )}
+              <HomeView
+                key={experienceId}
+                {...viewProps}
+                experienceId={experienceId}
+                homeSection={homeSection}
+                setHomeSection={setHomeSection}
+                feedFilter={feedFilter}
+                onClearFilter={() => setFeedFilter(null)}
+                onJoinStream={handleJoinStream}
+                activeHomeTab={activeHomeTab}
+                setActiveHomeTab={setActiveHomeTab}
+              />
             </div>
           </Suspense>
         ),
@@ -814,7 +786,7 @@ const MainApp = memo(() => {
         id: "create",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <CreateView currentUser={currentUser} userId={user.id} />
+            <CreateView currentUser={currentUser} userId={user.id} experienceId={experienceId} />
           </Suspense>
         ),
       },
@@ -822,7 +794,7 @@ const MainApp = memo(() => {
         id: "community",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <CommunityView {...viewProps} />
+            <CommunityView key={experienceId} {...viewProps} experienceId={experienceId} />
           </Suspense>
         ),
       },
@@ -992,9 +964,6 @@ const MainApp = memo(() => {
   // ── Sidebar ──────────────────────────────────────────────────────────────
   const renderSidebar = () => {
     if (isMobile || showAdminDashboard) return null;
-    if (experienceId !== "xeevia") {
-      return <ExperienceSidebar experience={experience} activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} xrcService={xrcService} />;
-    }
     if (isAdmin) {
       return (
         <Suspense fallback={null}>
@@ -1021,7 +990,9 @@ const MainApp = memo(() => {
           setSidebarOpen={setSidebarOpen}
           onSignOut={handleSignOut}
           user={user}
+          currentUser={currentUser}
           xrcService={xrcService}
+          experienceId={experienceId}
         />
       </Suspense>
     );
@@ -1097,7 +1068,6 @@ const MainApp = memo(() => {
             onSignOut={handleSignOut}
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
-            experienceHomeTabs={experienceId === "xeevia" ? undefined : EXPERIENCE_HOME_TABS[experienceId]}
           />
         </Suspense>
       )}
@@ -1116,7 +1086,6 @@ const MainApp = memo(() => {
             activeTab={activeTab}
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
-            experienceHomeTabs={experienceId === "xeevia" ? undefined : EXPERIENCE_HOME_TABS[experienceId]}
           />
         </Suspense>
       )}
@@ -1133,6 +1102,7 @@ const MainApp = memo(() => {
             <Suspense fallback={null}>
               <TrendingSidebar
                 currentUser={currentUser}
+                experienceId={experienceId}
                 isMobile={false}
                 setActiveTab={handleTabChange}
                 setFeedFilter={setFeedFilter}

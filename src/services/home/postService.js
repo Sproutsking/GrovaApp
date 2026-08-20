@@ -44,9 +44,9 @@ class PostService {
   // ── getPosts ────────────────────────────────────────────────────────────
   async getPosts(filters = {}, offset = 0, limit = 20) {
     try {
-      const { userId = null, category = null } = filters;
+      const { userId = null, category = null, experienceId = "xeevia" } = filters;
 
-      const cacheKey = `posts:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
+      const cacheKey = `posts:${experienceId}:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
       const cached = cacheService.get(cacheKey);
       if (cached) return cached;
 
@@ -64,6 +64,7 @@ class PostService {
 
       if (userId && typeof userId === "string") query = query.eq("user_id", userId);
       if (category) query = query.eq("category", category);
+      query = query.eq("experience_id", experienceId);
 
       const { data, error } = await query;
 
@@ -134,6 +135,7 @@ class PostService {
         is_text_card:       postData.is_text_card || false,
         text_card_metadata: postData.text_card_metadata || null,
         card_caption:       postData.card_caption || null,
+        experience_id:      postData.experienceId || "xeevia",
       };
 
       const { data, error } = await supabase

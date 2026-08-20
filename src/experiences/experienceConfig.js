@@ -28,7 +28,7 @@ export const EXPERIENCE_CONFIG = Object.freeze({
     description: "Roblox, players, teams, and gaming culture",
     accent: "#60a5fa",
     navigation: CORE_NAVIGATION,
-    authProviders: ["discord", "google", "x"],
+    authProviders: ["roblox", "fortnite", "minecraft", "discord"],
     features: Object.freeze(["gameFeed", "roblox", "avatarFashion", "trading", "gameCommunities"]),
   }),
   web3: Object.freeze({
@@ -37,7 +37,7 @@ export const EXPERIENCE_CONFIG = Object.freeze({
     description: "Builders, protocols, projects, and communities",
     accent: "#f59e0b",
     navigation: CORE_NAVIGATION,
-    authProviders: ["x", "discord", "google"],
+    authProviders: ["dynamic", "privy", "web3auth", "rainbowkit", "discord"],
     features: Object.freeze(["web3Feed", "protocols", "projects", "opportunities", "walletActivity"]),
   }),
 });

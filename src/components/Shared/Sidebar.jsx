@@ -1,6 +1,6 @@
 // src/components/Shared/Sidebar.jsx
 import React, { useState } from "react";
-import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid } from "lucide-react";
+import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid, Store, UserRound } from "lucide-react";
 import Logo from "./Assets/Logo.png";
 import ServicesModal from "./ServicesModal";
 
@@ -56,6 +56,16 @@ const navItems = [
   },
 ];
 
+const experienceNavItems = [
+  { id: "home", icon: Home, label: "Home", color: "var(--accent)", bg: "var(--accent-bg-soft)", glow: "var(--accent-shadow)" },
+  { id: "search", icon: Search, label: "Explore", color: "var(--brand-info)", bg: "var(--brand-info-bg)", glow: "var(--brand-info-shadow)" },
+  { id: "community", icon: Users, label: "Community", color: "var(--brand-purple)", bg: "var(--brand-purple-bg)", glow: "var(--brand-purple-shadow)" },
+  { id: "market", icon: Store, label: "Market", color: "var(--brand-warning)", bg: "var(--brand-warning-bg)", glow: "var(--brand-warning-shadow)" },
+  { id: "wallet", icon: Wallet, label: "Wallet", color: "var(--brand-success)", bg: "var(--brand-success-bg)", glow: "var(--brand-success-shadow)" },
+  { id: "account", icon: UserRound, label: "Account", color: "var(--brand-info)", bg: "var(--brand-info-bg)", glow: "var(--brand-info-shadow)" },
+  { id: "menu", icon: LayoutGrid, label: "Menu", color: "var(--text-secondary)", bg: "var(--surface-strong)", glow: "var(--surface-border)", isMenu: true },
+];
+
 const Sidebar = ({
   activeTab,
   setActiveTab,
@@ -65,9 +75,11 @@ const Sidebar = ({
   user,
   currentUser,
   xrcService,
+  experienceId = "xeevia",
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [showServices, setShowServices] = useState(false);
+  const items = experienceId === "xeevia" ? navItems : experienceNavItems;
 
   return (
     <>
@@ -126,7 +138,7 @@ const Sidebar = ({
 
           {/* Nav */}
           <nav className="nav-container">
-            {navItems.map((item, idx) => {
+            {items.map((item, idx) => {
               const Icon     = item.icon;
               const isActive  = activeTab === item.id;
               const isHovered = hoveredItem === item.id;

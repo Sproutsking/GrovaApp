@@ -53,12 +53,13 @@ const rankStyle = (rank) => {
 };
 
 // ── Live sessions fetcher (currently live only) ───────────────────────────────
-const fetchLiveSessions = async () => {
+const fetchLiveSessions = async (experienceId = "xeevia") => {
   const { data, error } = await supabase
     .from("live_sessions")
     .select(`id, title, category, mode, peak_viewers, total_likes, started_at, livekit_room, is_private,
              profiles:user_id (id, full_name, username, avatar_id, verified)`)
     .eq("status", "live")
+    .eq("experience_id", experienceId)
     .eq("is_private", false)
     .order("peak_viewers", { ascending: false })
     .limit(20);
@@ -70,7 +71,7 @@ const fetchLiveSessions = async () => {
 };
 
 // ── Top streamers fetcher ─────────────────────────────────────────────────────
-const fetchTopStreamers = async () => {
+const fetchTopStreamers = async (experienceId = "xeevia") => {
   let ranked = [];
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc("get_top_streamers");
@@ -87,6 +88,7 @@ const fetchTopStreamers = async () => {
         .from("live_sessions")
         .select("user_id, peak_viewers, total_likes")
         .not("user_id", "is", null)
+        .eq("experience_id", experienceId)
         .order("peak_viewers", { ascending: false })
         .limit(1000);
       if (error) {
@@ -304,7 +306,7 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab, setFeedFilter, onJoinStream }) => {
+const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab, setFeedFilter, onJoinStream, experienceId = "xeevia" }) => {
   const [liveSessions,    setLiveSessions]    = useState([]);
   const [liveLoading,     setLiveLoading]     = useState(true);
   const [topStreamers,    setTopStreamers]    = useState([]);
@@ -335,7 +337,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
     const loadLive = async () => {
       try {
-        const d = await fetchLiveSessions();
+        const d = await fetchLiveSessions(experienceId);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
       finally { if (alive) setLiveLoading(false); }
@@ -357,7 +359,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         },
         async () => {
           try {
-            const d = await fetchLiveSessions();
+            const d = await fetchLiveSessions(experienceId);
             if (alive) setLiveSessions(d);
           } catch { /* silent */ }
         },
@@ -367,7 +369,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     // ── 15s poll — belt-and-suspenders so live strip never stays stale ────
     livePollRef.current = setInterval(async () => {
       try {
-        const d = await fetchLiveSessions();
+        const d = await fetchLiveSessions(experienceId);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
     }, 15_000);
@@ -377,7 +379,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       supabase.removeChannel(ch);
       clearInterval(livePollRef.current);
     };
-  }, []);
+  }, [experienceId]);
 
   // ── All other data ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -391,7 +393,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     setError(null);
     try {
       const [streamers, tags, creators] = await Promise.all([
-        fetchTopStreamers(),
+        fetchTopStreamers(experienceId),
         loadTrendingTags(),
         loadActiveCreators(),
       ]);
@@ -414,9 +416,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
   const loadTrendingTags = async () => {
     const [sR, pR, rR] = await Promise.all([
-      supabase.from("stories").select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
-      supabase.from("posts"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
-      supabase.from("reels"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
+      supabase.from("stories").select("category,views").eq("experience_id", experienceId).is("deleted_at", null).order("views", { ascending: false }).limit(100),
+      supabase.from("posts"  ).select("category,views").eq("experience_id", experienceId).is("deleted_at", null).order("views", { ascending: false }).limit(100),
+      supabase.from("reels"  ).select("category,views").eq("experience_id", experienceId).is("deleted_at", null).order("views", { ascending: false }).limit(100),
     ]);
     const map = {};
     [...(sR.data || []), ...(pR.data || []), ...(rR.data || [])].forEach((item) => {
@@ -433,9 +435,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
     const iso = cutoff.toISOString();
     const [pR, rR, sR] = await Promise.all([
-      supabase.from("posts"  ).select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
-      supabase.from("reels"  ).select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
-      supabase.from("stories").select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
+      supabase.from("posts"  ).select("user_id,likes,views,comments_count").eq("experience_id", experienceId).is("deleted_at", null).gte("created_at", iso),
+      supabase.from("reels"  ).select("user_id,likes,views,comments_count").eq("experience_id", experienceId).is("deleted_at", null).gte("created_at", iso),
+      supabase.from("stories").select("user_id,likes,views,comments_count").eq("experience_id", experienceId).is("deleted_at", null).gte("created_at", iso),
     ]);
     const stats = {};
     [...(pR.data || []), ...(rR.data || []), ...(sR.data || [])].forEach((item) => {
@@ -465,9 +467,9 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     setTagPostsLoading(true); setTagPosts([]);
     try {
       const [pR, rR, sR] = await Promise.all([
-        supabase.from("posts"  ).select("id,user_id,caption,category,views,likes,media_id,created_at"   ).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
-        supabase.from("reels"  ).select("id,user_id,caption,category,views,likes,thumbnail_id,created_at").eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
-        supabase.from("stories").select("id,user_id,caption,category,views,likes,media_id,created_at"   ).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+        supabase.from("posts"  ).select("id,user_id,caption,category,views,likes,media_id,created_at").eq("experience_id", experienceId).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+        supabase.from("reels"  ).select("id,user_id,caption,category,views,likes,thumbnail_id,created_at").eq("experience_id", experienceId).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
+        supabase.from("stories").select("id,user_id,caption,category,views,likes,media_id,created_at").eq("experience_id", experienceId).eq("category", tag.label).is("deleted_at", null).order("views", { ascending: false }).limit(10),
       ]);
       const all = [
         ...(pR.data || []).map((x) => ({ ...x, contentType: "post",  thumbField: "media_id"     })),

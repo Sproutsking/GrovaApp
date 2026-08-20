@@ -31,7 +31,7 @@ class CreateService {
   }
 
   // ==================== POST CREATION ====================
-  async createPost(postData, userId) {
+  async createPost(postData, userId, experienceId = "xeevia") {
     try {
       console.log("📝 Creating post...", { userId, isTextCard: postData.isTextCard });
 
@@ -62,6 +62,7 @@ class CreateService {
             },
             card_caption: cardCaption?.trim() || null,
             likes: 0, comments_count: 0, shares: 0, views: 0,
+            experience_id: experienceId,
           })
           .select("id")
           .single();
@@ -126,6 +127,7 @@ class CreateService {
           is_text_card:   false,
           card_caption:   null,
           likes: 0, comments_count: 0, shares: 0, views: 0,
+          experience_id: experienceId,
         })
         .select("id")
         .single();
@@ -148,7 +150,7 @@ class CreateService {
   }
 
   // ==================== REEL CREATION ====================
-  async createReel(reelData, userId, onProgress) {
+  async createReel(reelData, userId, onProgress, experienceId = "xeevia") {
     try {
       console.log("🎬 Creating reel...");
       const { video, caption, music, category } = reelData;
@@ -209,6 +211,7 @@ class CreateService {
           category: category || "Entertainment",
           duration: videoResult.duration ? Math.round(videoResult.duration) : null,
           likes: 0, comments_count: 0, shares: 0, views: 0,
+          experience_id: experienceId,
         })
         .select("id")
         .single();
@@ -231,7 +234,7 @@ class CreateService {
   }
 
   // ==================== STORY CREATION ====================
-  async createStory(storyData, userId) {
+  async createStory(storyData, userId, experienceId = "xeevia") {
     try {
       console.log("📖 Creating story...");
       const {
@@ -298,6 +301,7 @@ class CreateService {
           max_accesses:          maxAccesses ?? 1000,
           current_accesses:      0,
           likes: 0, comments_count: 0, views: 0,
+          experience_id: experienceId,
         })
         .select("id")
         .single();

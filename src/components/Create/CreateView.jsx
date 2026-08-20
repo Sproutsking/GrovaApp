@@ -37,7 +37,7 @@ const dispatchPublish = (item, type) => {
   );
 };
 
-const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose }) => {
+const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose, experienceId = "xeevia" }) => {
   const [activeTab,       setActiveTab]       = useState("post");
   const [loading,         setLoading]         = useState(false);
   const [uploadProgress,  setUploadProgress]  = useState(0);
@@ -390,7 +390,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         };
       }
 
-      const newPost = await createService.createPost(postData, currentUser.id);
+      const newPost = await createService.createPost(postData, currentUser.id, experienceId);
       dispatchPublish(newPost, "post");
       if (onPublishSuccess) onPublishSuccess(newPost, "post");
       setDistributedPostId(newPost.id);
@@ -432,7 +432,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       const newReel = await createService.createReel(
         { video: videoToUpload, caption: reelCaption.trim(), music: "Original Audio", category: reelCategory },
         currentUser.id,
-        (progress) => setUploadProgress(progress)
+        (progress) => setUploadProgress(progress),
+        experienceId
       );
       dispatchPublish(newReel, "reel");
       if (onPublishSuccess) onPublishSuccess(newReel, "reel");
@@ -478,7 +479,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
           titleColor,
           textColor,
         },
-        currentUser.id
+        currentUser.id,
+        experienceId
       );
       dispatchPublish(newStory, "story");
       if (onPublishSuccess) onPublishSuccess(newStory, "story");
@@ -523,7 +525,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
           isCulturePost: true
         },
         currentUser.id,
-        (progress) => setUploadProgress(progress)
+        (progress) => setUploadProgress(progress),
+        experienceId
       );
       dispatchPublish(newPost, "post");
       if (onPublishSuccess) onPublishSuccess(newPost, "post");

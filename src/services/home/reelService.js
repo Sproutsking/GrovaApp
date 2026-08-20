@@ -42,8 +42,8 @@ class ReelService {
   // ── GET REELS ───────────────────────────────────────────────────────────────
   async getReels(filters = {}, offset = 0, limit = 20) {
     try {
-      const { userId = null, category = null } = filters;
-      const cacheKey = `reels:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
+      const { userId = null, category = null, experienceId = "xeevia" } = filters;
+      const cacheKey = `reels:${experienceId}:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
       const cached = cacheService.get(cacheKey);
       if (cached) return cached;
 
@@ -61,6 +61,7 @@ class ReelService {
 
       if (userId) query = query.eq("user_id", userId);
       if (category) query = query.eq("category", category);
+      query = query.eq("experience_id", experienceId);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -109,6 +110,7 @@ class ReelService {
         music:          reelData.music || null,
         category:       reelData.category || "Entertainment",
         duration:       reelData.duration || null,
+        experience_id:  reelData.experienceId || "xeevia",
       };
 
       const { data, error } = await supabase

@@ -30,12 +30,12 @@ class CommunityService {
     } catch {}
   }
 
-  getCachedCommunities(userId) {
-    return this.cache.get(`communities:${userId}`) || [];
+  getCachedCommunities(userId, experienceId = "xeevia") {
+    return this.cache.get(`communities:${experienceId}:${userId}`) || [];
   }
 
-  getCachedUserCommunities(userId) {
-    return this.cache.get(`user-communities:${userId}`) || [];
+  getCachedUserCommunities(userId, experienceId = "xeevia") {
+    return this.cache.get(`user-communities:${experienceId}:${userId}`) || [];
   }
 
   // ─── PRESENCE / ONLINE TRACKING ───────────────────────────────────────────
@@ -121,26 +121,27 @@ class CommunityService {
 
   // ─── COMMUNITIES ──────────────────────────────────────────────────────────
 
-  async fetchCommunities(userId) {
-    const cacheKey = `communities:${userId}`;
+  async fetchCommunities(userId, experienceId = "xeevia") {
+    const cacheKey = `communities:${experienceId}:${userId}`;
     const cached = this.cache.get(cacheKey);
     const lastFetch = this.lastFetch.get(cacheKey) || 0;
     const age = Date.now() - lastFetch;
 
     if (cached && age < this.CACHE_TTL) {
-      if (age > 2 * 60 * 1000) this.fetchCommunitiesFresh(userId, cacheKey);
+      if (age > 2 * 60 * 1000) this.fetchCommunitiesFresh(userId, cacheKey, experienceId);
       return cached;
     }
-    return await this.fetchCommunitiesFresh(userId, cacheKey);
+    return await this.fetchCommunitiesFresh(userId, cacheKey, experienceId);
   }
 
-  async fetchCommunitiesFresh(userId, cacheKey) {
+  async fetchCommunitiesFresh(userId, cacheKey, experienceId = "xeevia") {
     try {
       const { data, error } = await supabase
         .from("communities")
         .select("*, online_count:community_members(count)")
         .or(`is_private.eq.false,owner_id.eq.${userId}`)
         .is("deleted_at", null)
+        .eq("experience_id", experienceId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -160,25 +161,26 @@ class CommunityService {
     }
   }
 
-  async fetchUserCommunities(userId) {
-    const cacheKey = `user-communities:${userId}`;
+  async fetchUserCommunities(userId, experienceId = "xeevia") {
+    const cacheKey = `user-communities:${experienceId}:${userId}`;
     const cached = this.cache.get(cacheKey);
     const lastFetch = this.lastFetch.get(cacheKey) || 0;
     const age = Date.now() - lastFetch;
 
     if (cached && age < this.CACHE_TTL) {
-      if (age > 2 * 60 * 1000) this.fetchUserCommunitiesFresh(userId, cacheKey);
+      if (age > 2 * 60 * 1000) this.fetchUserCommunitiesFresh(userId, cacheKey, experienceId);
       return cached;
     }
-    return await this.fetchUserCommunitiesFresh(userId, cacheKey);
+    return await this.fetchUserCommunitiesFresh(userId, cacheKey, experienceId);
   }
 
-  async fetchUserCommunitiesFresh(userId, cacheKey) {
+  async fetchUserCommunitiesFresh(userId, cacheKey, experienceId = "xeevia") {
     try {
       const { data, error } = await supabase
         .from("community_members")
         .select(`*, community:communities!community_id(*)`)
         .eq("user_id", userId)
+        .eq("community.experience_id", experienceId)
         .is("community.deleted_at", null);
 
       if (error) throw error;
@@ -271,7 +273,7 @@ class CommunityService {
    *  - an emoji string  e.g. "🚀"
    *  - a data-URL / storage path for a device image
    */
-  async createCommunity(communityData, userId) {
+  async createCommunity(communityData, userId, experienceId = "xeevia") {
     try {
       let iconValue = communityData.icon || "🌟";
 
@@ -293,6 +295,7 @@ class CommunityService {
           owner_id: userId,
           member_count: 1,
           online_count: 1,
+          experience_id: experienceId,
         })
         .select()
         .single();

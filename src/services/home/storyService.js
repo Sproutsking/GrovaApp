@@ -75,8 +75,8 @@ class StoryService {
   // ── GET STORIES ─────────────────────────────────────────────────────────────
   async getStories(filters = {}, offset = 0, limit = 20) {
     try {
-      const { userId = null, category = null } = filters;
-      const cacheKey = `stories:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
+      const { userId = null, category = null, experienceId = "xeevia" } = filters;
+      const cacheKey = `stories:${experienceId}:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
       const cached = cacheService.get(cacheKey);
       if (cached) return cached;
 
@@ -94,6 +94,7 @@ class StoryService {
 
       if (userId) query = query.eq("user_id", userId);
       if (category) query = query.eq("category", category);
+      query = query.eq("experience_id", experienceId);
 
       const { data, error } = await query;
       if (error) throw error;

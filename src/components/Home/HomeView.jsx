@@ -441,9 +441,9 @@ const HomeView = ({
     try {
       const [user, postsData, reelsData, storiesData, newsData] = await Promise.all([
         authService.getCurrentUser().catch(() => null),
-        postService.getPosts({}, 0, POSTS_PAGE).catch(() => []),
-        reelService.getReels({ limit: REELS_PAGE }).catch(() => []),
-        storyService.getStories({ limit: 20 }).catch(() => []),
+        postService.getPosts({ experienceId }, 0, POSTS_PAGE).catch(() => []),
+        reelService.getReels({ experienceId, limit: REELS_PAGE }).catch(() => []),
+        storyService.getStories({ experienceId, limit: 20 }).catch(() => []),
         newsService.getNewsPosts({ limit: NEWS_PAGE, offset: 0 }).catch(() => []),
       ]);
 
@@ -510,8 +510,8 @@ const HomeView = ({
       switch (tab) {
         case "feed": {
           const [pd, rd] = await Promise.all([
-            postService.getPosts({}, 0, POSTS_PAGE).catch(() => null),
-            reelService.getReels({ limit: REELS_PAGE }).catch(() => null),
+            postService.getPosts({ experienceId }, 0, POSTS_PAGE).catch(() => null),
+            reelService.getReels({ experienceId, limit: REELS_PAGE }).catch(() => null),
           ]);
           if (!mountedRef.current) return;
           const safePosts = Array.isArray(pd) ? pd : [];
@@ -526,7 +526,7 @@ const HomeView = ({
           break;
         }
         case "stories": {
-          const d = await storyService.getStories({ limit: 20 }).catch(() => null);
+          const d = await storyService.getStories({ experienceId, limit: 20 }).catch(() => null);
           if (!d || !mountedRef.current) return;
           const safe = Array.isArray(d) ? d : [];
           swrSet("stories", safe);
@@ -573,7 +573,7 @@ const HomeView = ({
     loadingMoreRef.current = true; setLoadingMore(true);
     const off = postsOffRef.current;
     try {
-      const next = await postService.getPosts({}, off, POSTS_PAGE);
+      const next = await postService.getPosts({ experienceId }, off, POSTS_PAGE);
       const safe = Array.isArray(next) ? next : [];
       if (!safe.length) { hasMorePostsRef.current = false; setHasMorePosts(false); }
       else {
@@ -591,7 +591,7 @@ const HomeView = ({
     loadingMoreRef.current = true; setReelsLoading(true);
     const off = reelsOffRef.current;
     try {
-      const next = await reelService.getReels({ limit: REELS_PAGE, offset: off }).catch(() => []);
+      const next = await reelService.getReels({ experienceId, limit: REELS_PAGE, offset: off }).catch(() => []);
       const safe = Array.isArray(next) ? next : [];
       if (!safe.length) { hasMoreReelsRef.current = false; setHasMoreReels(false); }
       else {
@@ -625,9 +625,9 @@ const HomeView = ({
     if (filter?.type === "tag") {
       const cat = filter.value;
       const [pd, rd, sd] = await Promise.all([
-        postService.getPosts({ category:cat }, 0, POSTS_PAGE).catch(() => []),
-        reelService.getReels({ limit:50, category:cat }).catch(() => []),
-        storyService.getStories({ limit:50, category:cat }).catch(() => []),
+        postService.getPosts({ experienceId, category:cat }, 0, POSTS_PAGE).catch(() => []),
+        reelService.getReels({ experienceId, limit:50, category:cat }).catch(() => []),
+        storyService.getStories({ experienceId, limit:50, category:cat }).catch(() => []),
       ]);
       if (!mountedRef.current) return;
       const safe = Array.isArray(pd) ? pd : [];
@@ -654,9 +654,9 @@ const HomeView = ({
       return;
     }
     const [pd, rd, sd, nd] = await Promise.all([
-      postService.getPosts({}, 0, POSTS_PAGE).catch(() => []),
-      reelService.getReels({ limit: REELS_PAGE }).catch(() => []),
-      storyService.getStories({ limit: 20 }).catch(() => []),
+      postService.getPosts({ experienceId }, 0, POSTS_PAGE).catch(() => []),
+      reelService.getReels({ experienceId, limit: REELS_PAGE }).catch(() => []),
+      storyService.getStories({ experienceId, limit: 20 }).catch(() => []),
       newsService.getNewsPosts({ limit: NEWS_PAGE, offset: 0 }).catch(() => []),
     ]);
     if (!mountedRef.current) return;
