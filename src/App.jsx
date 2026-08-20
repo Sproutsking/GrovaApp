@@ -59,6 +59,14 @@ import { usePullToRefresh }        from "./hooks/usePullToRefresh";
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
 import BoostStyles               from "./components/Boost/BoostStyles";
+import { ExperienceProvider }    from "./experiences/ExperienceContext";
+import { useExperience }         from "./experiences/ExperienceContext";
+import { ExperienceHome, ExperienceMarket } from "./experiences/ExperienceContent";
+import ExperienceSidebar from "./experiences/ExperienceSidebar";
+import ExperienceBottomNav from "./experiences/ExperienceBottomNav";
+import xrcService                from "./services/xrc";
+import HomeView                  from "./components/Home/HomeView";
+import TrendingSidebar           from "./components/Shared/TrendingSidebar";
 
 // Payment gate
 import { canAccessApp } from "./services/auth/paymentGate";
@@ -76,7 +84,6 @@ const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitch
 const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
 const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
 const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
-import xrcService              from "./services/xrc";
 // DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
 // Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
 // This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
@@ -89,13 +96,11 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
-import HomeView from "./components/Home/HomeView";
 const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
 const CreateView      = lazy(() => import("./components/Create/CreateView"));
 const AccountView     = lazy(() => import("./components/Account/AccountView"));
 const WalletView      = lazy(() => import("./components/wallet/WalletView"));
 const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
-import TrendingSidebar from "./components/Shared/TrendingSidebar";
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
 const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
@@ -115,6 +120,23 @@ const PSEUDO_TABS = new Set(["support", "notifications", "trending"]); // eslint
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const checkMobile = () => window.innerWidth <= 768;
+
+const EXPERIENCE_HOME_TABS = {
+  gaming: [
+    { id: "feed", Icon: () => <CompassIcon />, label: "Discover" },
+    { id: "players", Icon: () => <UsersIcon />, label: "Players" },
+    { id: "events", Icon: () => <EventsIcon />, label: "Events" },
+  ],
+  web3: [
+    { id: "feed", Icon: () => <CompassIcon />, label: "Discover" },
+    { id: "builders", Icon: () => <UsersIcon />, label: "Builders" },
+    { id: "protocols", Icon: () => <EventsIcon />, label: "Protocols" },
+  ],
+};
+
+const CompassIcon = () => <span aria-hidden style={{ fontSize: 13 }}>◈</span>;
+const UsersIcon = () => <span aria-hidden style={{ fontSize: 13 }}>◎</span>;
+const EventsIcon = () => <span aria-hidden style={{ fontSize: 13 }}>◇</span>;
 
 function hasOAuthCodeInUrl() {
   try {
@@ -217,6 +239,7 @@ function scheduleTabPrefetch() {
 // ── MainApp ───────────────────────────────────────────────────────────────────
 const MainApp = memo(() => {
   const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line
+  const { experienceId, experience } = useExperience();
 
   const [currentUser, setCurrentUser] = useState(() => ({
     id:       user?.id,
@@ -244,7 +267,7 @@ const MainApp = memo(() => {
   const [isOnline,           setIsOnline]           = useState(navigator.onLine);
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
   const [mountedTabs,        setMountedTabs]        = useState(new Set([
-    "home", "search", "create", "community", "account", "wallet",
+    "home", "search", "create", "community", "market", "account", "wallet",
     "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador"
   ]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
@@ -747,22 +770,34 @@ const MainApp = memo(() => {
 
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {
+    const isSpecializedExperience = experienceId !== "xeevia";
     const tabs = [
       {
         id: "home",
         el: (
           <Suspense fallback={<TabSkeleton />}>
             <div ref={feedRef}>
-              <HomeView
-                {...viewProps}
-                homeSection={homeSection}
-                setHomeSection={setHomeSection}
-                feedFilter={feedFilter}
-                onClearFilter={() => setFeedFilter(null)}
-                onJoinStream={handleJoinStream}
-                activeHomeTab={activeHomeTab}
-                setActiveHomeTab={setActiveHomeTab}
-              />
+              {isSpecializedExperience ? (
+                <ExperienceHome
+                  experience={experience}
+                  userId={user.id}
+                  currentUser={currentUser}
+                  homeSection={homeSection}
+                  setHomeSection={setHomeSection}
+                  onNavigate={handleTabChange}
+                />
+              ) : (
+                <HomeView
+                  {...viewProps}
+                  homeSection={homeSection}
+                  setHomeSection={setHomeSection}
+                  feedFilter={feedFilter}
+                  onClearFilter={() => setFeedFilter(null)}
+                  onJoinStream={handleJoinStream}
+                  activeHomeTab={activeHomeTab}
+                  setActiveHomeTab={setActiveHomeTab}
+                />
+              )}
             </div>
           </Suspense>
         ),
@@ -788,6 +823,14 @@ const MainApp = memo(() => {
         el: (
           <Suspense fallback={<TabSkeleton />}>
             <CommunityView {...viewProps} />
+          </Suspense>
+        ),
+      },
+      {
+        id: "market",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <ExperienceMarket experience={experience} onNavigate={handleTabChange} />
           </Suspense>
         ),
       },
@@ -949,6 +992,9 @@ const MainApp = memo(() => {
   // ── Sidebar ──────────────────────────────────────────────────────────────
   const renderSidebar = () => {
     if (isMobile || showAdminDashboard) return null;
+    if (experienceId !== "xeevia") {
+      return <ExperienceSidebar experience={experience} activeTab={activeTab} setActiveTab={handleTabChange} currentUser={currentUser} xrcService={xrcService} />;
+    }
     if (isAdmin) {
       return (
         <Suspense fallback={null}>
@@ -993,7 +1039,18 @@ const MainApp = memo(() => {
   };
 
   return (
-    <div className="app-container">
+    <div
+      className={`app-container${experienceId === "xeevia" ? "" : ` experience-app-${experienceId}`}`}
+      style={experienceId === "xeevia" ? undefined : {
+        "--accent": experience.accent,
+        "--accent-strong": experience.accent,
+        "--accent-bg-soft": `${experience.accent}18`,
+        "--accent-border": `${experience.accent}42`,
+        "--accent-glow": `${experience.accent}22`,
+        "--accent-shadow": `${experience.accent}55`,
+        "--accent-shadow-strong": `${experience.accent}88`,
+      }}
+    >
       <OfflineBanner visible={showOfflineBanner} />
 
       {showAdminDashboard && isAdmin && (
@@ -1040,6 +1097,7 @@ const MainApp = memo(() => {
             onSignOut={handleSignOut}
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
+            experienceHomeTabs={experienceId === "xeevia" ? undefined : EXPERIENCE_HOME_TABS[experienceId]}
           />
         </Suspense>
       )}
@@ -1058,6 +1116,7 @@ const MainApp = memo(() => {
             activeTab={activeTab}
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
+            experienceHomeTabs={experienceId === "xeevia" ? undefined : EXPERIENCE_HOME_TABS[experienceId]}
           />
         </Suspense>
       )}
@@ -1098,12 +1157,22 @@ const MainApp = memo(() => {
 
       {isMobile && (
         <Suspense fallback={null}>
-          <MobileBottomNav
-            activeTab={activeTab}
-            setActiveTab={handleTabChange}
-            currentUser={currentUser}
-            xrcService={xrcService}
-          />
+          {experienceId === "xeevia" ? (
+            <MobileBottomNav
+              activeTab={activeTab}
+              setActiveTab={handleTabChange}
+              currentUser={currentUser}
+              xrcService={xrcService}
+            />
+          ) : (
+            <ExperienceBottomNav
+              experience={experience}
+              activeTab={activeTab}
+              setActiveTab={handleTabChange}
+              currentUser={currentUser}
+              xrcService={xrcService}
+            />
+          )}
         </Suspense>
       )}
     </div>
@@ -1236,23 +1305,6 @@ function AppRouter() {
   const [profileTimedOut, setProfileTimedOut] = useState(false);
   const oauthInProgress = hasOAuthCodeInUrl();
 
-  // ── Handle public pages (no auth required) ────────────────────────────────
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  if (pathname === "/terms") {
-    return (
-      <Suspense fallback={<Splash />}>
-        <TermsOfService />
-      </Suspense>
-    );
-  }
-  if (pathname === "/privacy") {
-    return (
-      <Suspense fallback={<Splash />}>
-        <PrivacyPolicy />
-      </Suspense>
-    );
-  }
-
   useEffect(() => {
     if (!loading) return;
     const timer = setTimeout(() => {
@@ -1275,6 +1327,23 @@ function AppRouter() {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
 
+  // ── Handle public pages (no auth required) ────────────────────────────────
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  if (pathname === "/terms") {
+    return (
+      <Suspense fallback={<Splash />}>
+        <TermsOfService />
+      </Suspense>
+    );
+  }
+  if (pathname === "/privacy") {
+    return (
+      <Suspense fallback={<Splash />}>
+        <PrivacyPolicy />
+      </Suspense>
+    );
+  }
+
   if (!forceResolve && loading) return <Splash />;
   if (!user)                     return <AuthWall />;
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
@@ -1290,9 +1359,11 @@ function AppRouter() {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 const App = () => (
-  <AuthProvider>
-    <AppRouter />
-  </AuthProvider>
+  <ExperienceProvider>
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  </ExperienceProvider>
 );
 
 export default App;

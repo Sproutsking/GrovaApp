@@ -144,6 +144,7 @@ const MobileHeader = ({
   activeTab,
   activeHomeTab,
   setActiveHomeTab,
+  experienceHomeTabs,
 }) => {
   const [displayedText,     setDisplayedText]     = useState("");
   const [isTyping,          setIsTyping]           = useState(false);
@@ -335,7 +336,7 @@ const MobileHeader = ({
         {/* [4-TAB] Tab bar — only on home, now 4 tabs */}
         {isOnHome && (
           <nav className="mh-tab-bar" aria-label="Feed tabs">
-            {HOME_TABS.map(({ id, Icon, label }) => {
+            {(experienceHomeTabs || HOME_TABS).map(({ id, Icon, label }) => {
               const active = activeHomeTab === id;
               return (
                 <button

@@ -24,6 +24,7 @@ import AddAccountOverlay, {
   loadAccounts,
   saveAccountsToStorage,
 } from "../Auth/AddAccountOverlay";
+import { useExperience } from "../../experiences/ExperienceContext";
 
 const MAX_ACCOUNTS = 3;
 
@@ -110,6 +111,7 @@ const DropdownPortal = ({
   savedAccounts, currentUserId, onSwitchAccount, onRemoveAccount, onAddAccount,
   canAddMore,
 }) => {
+  const { experienceId, experience, experiences, selectExperience } = useExperience();
   const [pos,           setPos]           = useState({ top:0, left:0 });
   const [accordionOpen, setAccordionOpen] = useState(false);
 
@@ -212,6 +214,33 @@ const DropdownPortal = ({
       </div>
 
       <div className="ad-div-shimmer"/>
+
+      <div className="ad-experience-switcher">
+        <div className="ad-experience-heading">
+          <span>Current experience</span>
+          <strong style={{ color: experience.accent }}>{experience.name}</strong>
+        </div>
+        <div className="ad-experience-options" role="radiogroup" aria-label="Switch experience">
+          {Object.values(experiences).map((option) => {
+            const selected = option.id === experienceId;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                className={`ad-experience-option${selected ? " active" : ""}`}
+                style={{ "--experience-accent": option.accent }}
+                onClick={() => selectExperience(option.id)}
+              >
+                <span className="ad-experience-dot" />
+                <span>{option.name}</span>
+                {selected && <Check size={11} strokeWidth={3} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="ad-menu">
         <button className="ad-item account" onClick={onAccount}>
@@ -469,6 +498,15 @@ const AvatarDropdown = ({
         .ad-div-shimmer::before,.ad-div-shimmer::after { content:''; position:absolute; top:50%; transform:translateY(-50%); width:4px; height:4px; border-radius:50%; background:#84cc16; box-shadow:0 0 8px 2px rgba(132,204,22,0.7); }
         .ad-div-shimmer::before { left:12px;  animation:adDotPulse 2s ease-in-out infinite 0s; }
         .ad-div-shimmer::after  { right:12px; animation:adDotPulse 2s ease-in-out infinite 1s; }
+
+        .ad-experience-switcher { padding:10px 12px 9px; border-bottom:1px solid var(--surface-border); background:rgba(255,255,255,.018); }
+        .ad-experience-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; color:var(--text-secondary); font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        .ad-experience-heading strong { font-size:10px; letter-spacing:.02em; text-transform:none; }
+        .ad-experience-options { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+        .ad-experience-option { display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; padding:6px 3px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--text-muted); font:700 10px inherit; cursor:pointer; transition:all .16s ease; }
+        .ad-experience-option:hover { color:var(--experience-accent); background:color-mix(in srgb,var(--experience-accent) 10%,transparent); }
+        .ad-experience-option.active { color:var(--experience-accent); border-color:color-mix(in srgb,var(--experience-accent) 45%,transparent); background:color-mix(in srgb,var(--experience-accent) 12%,transparent); }
+        .ad-experience-dot { width:5px; height:5px; flex-shrink:0; border-radius:50%; background:currentColor; box-shadow:0 0 7px currentColor; }
 
         .ad-menu { padding:8px; display:flex; flex-direction:column; gap:3px; }
         .ad-item { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.07); cursor:pointer; transition:all 0.18s; text-align:left; width:100%; animation:adItemIn 0.22s ease both; }

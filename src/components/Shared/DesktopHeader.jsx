@@ -165,6 +165,7 @@ const DesktopHeader = ({
   onSignOut,
   activeHomeTab,
   setActiveHomeTab,
+  experienceHomeTabs,
 }) => {
   const isOnHome = activeTab === "home";
   const [displayedText,  setDisplayedText]  = useState("");
@@ -334,7 +335,7 @@ const DesktopHeader = ({
           {/* CENTRE — [4-TAB] now 4 tabs (only visible on Home) */}
           {isOnHome && (
             <nav className="dh-nav-strip" aria-label="Feed navigation">
-              {NAV_TABS.map(({ id, Icon, label }) => {
+              {(experienceHomeTabs || NAV_TABS).map(({ id, Icon, label }) => {
                 const isActive = activeHomeTab === id;
                 return (
                   <button

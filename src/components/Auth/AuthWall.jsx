@@ -27,6 +27,8 @@ import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import { AppLoader } from "../Shared/UnifiedLoader";
 import { Lock, Zap, Infinity, Flame, TrendingUp, Link2, DollarSign, Percent, Package } from "lucide-react";
+import { useExperience } from "../../experiences/ExperienceContext";
+import { EXPERIENCE_IDS } from "../../experiences/experienceConfig";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -1283,6 +1285,7 @@ function ProviderBtn({ icon, label, g1, g2, g3, delay, state, onClick }) {
 
 // ─── LOGIN VIEW ───────────────────────────────────────────────────────────────
 function LoginView() {
+  const { experienceId, experience, selectExperience, experiences } = useExperience();
   const [status, setStatus]   = useState("idle");
   const [provider, setProvider] = useState(null);
   const [errMsg, setErrMsg]   = useState("");
@@ -1326,8 +1329,8 @@ function LoginView() {
   if (status === "declined")
     return <DeclinedScreen message={errMsg} onRetry={retry} />;
 
-  const PROVIDERS = [
-    {
+  const PROVIDER_CATALOG = {
+    google: {
       id: "google",
       icon: <GI />,
       label: "Continue with Google",
@@ -1336,7 +1339,7 @@ function LoginView() {
       g3: "#FBBC05",
       delay: 0,
     },
-    {
+    x: {
       id: "x",
       icon: <XII />,
       label: "Continue with X",
@@ -1345,7 +1348,7 @@ function LoginView() {
       g3: "#333333",
       delay: 65,
     },
-    {
+    facebook: {
       id: "facebook",
       icon: <FbI />,
       label: "Continue with Facebook",
@@ -1354,7 +1357,7 @@ function LoginView() {
       g3: "#0d5abf",
       delay: 130,
     },
-    {
+    discord: {
       id: "discord",
       icon: <DcI />,
       label: "Continue with Discord",
@@ -1363,7 +1366,11 @@ function LoginView() {
       g3: "#3c4de0",
       delay: 195,
     },
-  ];
+  };
+  const PROVIDERS = experience.authProviders.map((providerId, index) => ({
+    ...PROVIDER_CATALOG[providerId],
+    delay: index * 65,
+  }));
 
   return (
     <div
@@ -1401,7 +1408,7 @@ function LoginView() {
             letterSpacing: "0.3px",
           }}
         >
-          Sign in to continue to Xeevia
+          Enter Xeevia through {experience.name}
         </div>
         <div
           style={{
@@ -1415,6 +1422,44 @@ function LoginView() {
             opacity: 0,
           }}
         />
+      </div>
+
+      <div
+        role="radiogroup"
+        aria-label="Choose your Xeevia experience"
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7, marginBottom: 18 }}
+      >
+        {[EXPERIENCE_IDS.XEEVIA, EXPERIENCE_IDS.GAMING, EXPERIENCE_IDS.WEB3].map((id) => {
+          const option = experiences[id];
+          const selected = experienceId === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => { setErrMsg(""); selectExperience(id); }}
+              style={{
+                minHeight: 42,
+                padding: "10px 7px",
+                borderRadius: 11,
+                border: `1px solid ${selected ? option.accent : "rgba(168,230,61,.12)"}`,
+                background: selected ? `${option.accent}18` : "rgba(255,255,255,.025)",
+                color: selected ? "#f5ffe8" : "#8fa18b",
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all .18s ease",
+                boxShadow: selected ? `0 0 18px ${option.accent}20` : "none",
+              }}
+            >
+              <span style={{ display: "block", fontSize: 11, fontWeight: 900, letterSpacing: ".05em", textAlign: "center" }}>{option.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginBottom: 10, color: "#789176", fontSize: 10, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", textAlign: "center" }}>
+        Continue with {experience.name}
       </div>
 
       {/* ── Inline error ── */}
