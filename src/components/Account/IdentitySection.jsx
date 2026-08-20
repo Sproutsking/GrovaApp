@@ -27,16 +27,73 @@
 //             muted gray in line with the rest of the palette.
 //   [CARD-5] Removed the dead .idPdesc paragraph (class was display:none;
 //             description was never actually shown).
+//
+// v4.2 CARD-REFINE PASS:
+//   [CARD-6] Card is now a true 3-column row (icon / name+meta / action) on a
+//             single line, so the icon sits left, the name+status block is
+//             vertically centered, and the action button is pinned to the
+//             right edge instead of dropping to a second row.
+//   [CARD-7] Icon shrunk (42px → 34px, 38px → 30px on mobile) so it takes up
+//             less of the card and the text block gets more room.
+//   [CARD-8] Card padding tightened (14px 16px → 11px 12px) so more of the
+//             card is content, not empty margin.
+//   [CARD-9] Added a hairline divider between the platform name and the
+//             status/handle line to separate the two text rows cleanly.
+//
+// v4.3 ICON+CHIP PASS:
+//   [CARD-10] Removed the per-card "connect note" line — was eating a row
+//              of vertical space for a hint that didn't earn it.
+//   [CARD-11] Status is now a compact pill (idStatusChip) instead of a full
+//              text row — near-zero padding, colored from the platform's
+//              own accent, sized to the label instead of stretching.
+//   [CARD-12] The connected handle now sits directly under the status pill
+//              on its own tight line ("account connected"), instead of
+//              inline next to the status label — reads cleaner, costs less
+//              width, and needs no extra divider since the name→meta
+//              divider above it already does that job.
+//   [CARD-13] Swapped the letter-monogram icon for each platform's real
+//              brand mark. Uses lucide-react's built-in brand icons where
+//              exact (GitHub, LinkedIn, Facebook, Instagram, YouTube,
+//              Twitch) and react-icons/si (Simple Icons) for the rest
+//              (Google, Apple, Discord, Reddit, X, TikTok, Telegram) since
+//              Lucide doesn't ship accurate marks for those. Falls back to
+//              meta.letter for anything not in the map, so unknown/future
+//              platforms never render blank.
+//              ⚠ NEW DEPENDENCY: requires `react-icons` — run
+//              `npm install react-icons` if it isn't already in the project.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Globe, CheckCircle, AlertCircle, Clock,
   RefreshCw, BarChart2, Shield, Zap, Layers, X,
+  Github, Linkedin, Facebook, Instagram, Youtube, Twitch,
 } from "lucide-react";
+import { SiGoogle, SiApple, SiDiscord, SiReddit, SiX, SiTiktok, SiTelegram } from "react-icons/si";
 import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegistry";
+
+// ── Real brand icon per platform key ──────────────────────────────────────────
+// Keyed to match CONNECTOR_DEFINITIONS keys. Add new entries here as new
+// platforms are onboarded; anything missing quietly falls back to the
+// platform's letter monogram (meta.letter) so nothing renders blank.
+const PLATFORM_ICONS = {
+  google:    SiGoogle,
+  apple:     SiApple,
+  github:    Github,
+  linkedin:  Linkedin,
+  discord:   SiDiscord,
+  reddit:    SiReddit,
+  facebook:  Facebook,
+  instagram: Instagram,
+  youtube:   Youtube,
+  twitch:    Twitch,
+  twitter:   SiX,
+  x:         SiX,
+  tiktok:    SiTiktok,
+  telegram:  SiTelegram,
+};
 
 // Safe import
 const safeTimeout = (promise, ms = 12000) => {
@@ -138,18 +195,19 @@ const CSS = `
   .idHowText { font-size:11px; color:#dfe7f2; line-height:1.55; }
 
   /* ── Platform cards ──
-     Grid, not flex: icon / text / action sit in fixed columns so every card
-     in the section lines up on the same three axes, and the action control
-     never has to wrap or stretch to fill leftover space. */
-  .idGrid { display:grid; grid-template-columns:1fr; gap:10px; }
+     Grid, not flex: icon / body / action sit in three fixed columns on a
+     single row, so the icon stays left, the name+status block is vertically
+     centered between it and the action, and the action control is pinned to
+     the right edge instead of dropping to a second row. */
+  .idGrid { display:grid; grid-template-columns:1fr; gap:8px; }
   @media(min-width:768px) { .idGrid { grid-template-columns:repeat(2, 1fr); } }
   .idCard {
     position:relative; overflow:hidden;
     background:rgba(255,255,255,.025);
     border:1px solid rgba(255,255,255,.07);
-    border-radius:16px; padding:14px 16px;
-    display:grid; grid-template-columns:42px minmax(0,1fr);
-    align-items:center; column-gap:14px; row-gap:9px;
+    border-radius:14px; padding:11px 12px;
+    display:grid; grid-template-columns:34px minmax(0,1fr) auto;
+    align-items:center; column-gap:11px;
     transition:border-color .2s, background .2s, transform .14s;
   }
   .idCard:hover { transform:translateX(3px); }
@@ -165,39 +223,45 @@ const CSS = `
   .idCard.scSoon    { opacity:.5; }
 
   .idIcon {
-    width:42px; height:42px; border-radius:11px;
+    width:34px; height:34px; border-radius:9px;
     display:flex; align-items:center; justify-content:center;
-    font-size:16px; font-weight:900; border:1px solid;
-    font-style:normal; transition:transform .18s; grid-column:1; grid-row:1 / span 2;
+    font-size:14px; font-weight:900; border:1px solid;
+    font-style:normal; transition:transform .18s; grid-column:1; grid-row:1;
+    flex-shrink:0;
   }
   .idCard:hover .idIcon { transform:scale(1.06); }
 
-  .idBody { min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .idBody { min-width:0; display:flex; flex-direction:column; grid-column:2; grid-row:1; }
   .idPname {
-    font-size:13.5px; font-weight:800; color:#f8fafc; margin:0;
+    font-size:13px; font-weight:800; color:#f8fafc; margin:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; min-width:0; }
+  .idDivider {
+    height:1px; width:100%;
+    background:rgba(255,255,255,.08);
+    margin:5px 0;
+  }
+  .idStatusRow { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; min-width:0; }
   .idLiveDot {
     display:inline-block; width:5px; height:5px; border-radius:50%; flex-shrink:0;
     background:#84cc16; animation:idPulse 2s ease-in-out infinite;
   }
   .idHandle { color:#9ca3af; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .idConnectNote { font-size:10px; color:#7d8590; margin-top:2px; line-height:1.5; }
+  .idConnectNote { font-size:10px; color:#7d8590; margin-top:4px; line-height:1.5; }
 
   .idCard > .idBtn,
   .idCard > .idSoonBadge {
-    grid-column:2; grid-row:2; justify-self:start; margin:0;
+    grid-column:3; grid-row:1; justify-self:end; margin:0;
   }
 
   /* ── Action buttons ──
      Fixed width so Link / Reconnect / Unlink / Soon all read as the same
      control, and never inflate to fill the card on small screens. */
   .idBtn {
-    width:84px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
-    padding:9px 8px; border-radius:11px; border:1px solid rgba(255,255,255,.14);
+    width:76px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+    padding:8px 6px; border-radius:10px; border:1px solid rgba(255,255,255,.14);
     background:rgba(255,255,255,.07); color:#f5f5f5;
-    font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+    font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;
     font-family:inherit; transition:background .14s, transform .1s, border-color .14s;
   }
   .idBtn:hover:not(:disabled) { background:rgba(255,255,255,.12); }
@@ -207,15 +271,15 @@ const CSS = `
   .idBtn.btnDisconnect { border-color:rgba(239,68,68,.28); color:#fbb0b0; }
   .idBtn.btnReconnect { border-color:rgba(245,158,11,.28); color:#ffe7a8; }
   .idSoonBadge {
-    width:84px; flex-shrink:0; text-align:center;
-    padding:6px 8px; border-radius:9px; font-size:10px; font-weight:800;
+    width:76px; flex-shrink:0; text-align:center;
+    padding:6px 6px; border-radius:9px; font-size:9.5px; font-weight:800;
     background:rgba(255,255,255,.04); color:#d6dde7;
     border:1px solid rgba(255,255,255,.07); letter-spacing:.4px; text-transform:uppercase;
   }
 
   /* ── Connecting overlay on card ── */
   .idConnecting {
-    position:absolute; inset:0; border-radius:16px;
+    position:absolute; inset:0; border-radius:14px;
     background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
     display:flex; align-items:center; justify-content:center; gap:10px;
     font-size:12px; font-weight:700; color:#c4b5fd;
@@ -312,9 +376,9 @@ const CSS = `
 
   @media(max-width:480px){
     .idRoot { padding:14px 14px 32px; gap:18px; }
-    .idCard { grid-template-columns:38px minmax(0,1fr); padding:12px 14px; column-gap:10px; }
-    .idIcon { width:38px; height:38px; font-size:14px; }
-    .idBtn, .idSoonBadge { width:72px; padding:8px 6px; font-size:10.5px; }
+    .idCard { grid-template-columns:30px minmax(0,1fr) auto; padding:10px 11px; column-gap:9px; }
+    .idIcon { width:30px; height:30px; font-size:12px; border-radius:8px; }
+    .idBtn, .idSoonBadge { width:64px; padding:7px 5px; font-size:10px; }
   }
 `;
 
@@ -564,6 +628,7 @@ const IdentitySection = ({ userId }) => {
                     {/* Body */}
                     <div className="idBody">
                       <p className="idPname">{meta.name}</p>
+                      <div className="idDivider" />
                       <div className="idStatusRow" style={{ color: cfg.color }}>
                         {status === "active"
                           ? <span className="idLiveDot" />
