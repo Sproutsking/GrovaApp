@@ -33,6 +33,7 @@ import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import VerificationDashboardPage from "./VerificationDashboardPage";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
   ShieldCheck, Users, MessageSquare,
@@ -304,7 +305,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [contentLoading, setContentLoading] = useState(false);
   const [verificationItems, setVerificationItems] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(openVerificationDashboard);
   const [verificationLoading, setVerificationLoading] = useState(true);
   const [stats,          setStats]          = useState({
     posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
@@ -356,6 +357,17 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   };
   const glowColor  = hasBoosted ? `${nameColor}50` : "transparent";
   const v          = hasBoosted ? BOOST_VISUAL?.[tier] : null;
+
+  const dashboardPage = (
+    <VerificationDashboardPage
+      profile={profile}
+      dashboard={dashboard}
+      verificationItems={verificationItems}
+      loading={verificationLoading}
+      onBack={() => { setShowDashboard(false); setSelectedSection(null); }}
+      onClose={onClose}
+    />
+  );
 
   // ── Follow button inline style ────────────────────────────────────────────
   const followBtnStyle = (() => {
@@ -553,7 +565,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     activeTab === "posts" ? posts : activeTab === "reels" ? reels : stories;
 
   // ── Render ────────────────────────────────────────────────────────────────
-  return ReactDOM.createPortal(
+  return showDashboard ? dashboardPage : ReactDOM.createPortal(
     <div
       className="upm-bd"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}

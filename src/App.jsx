@@ -342,6 +342,8 @@ const MainApp = memo(() => {
   // ── Notification deep-link navigate ──────────────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
     if (!path || path === "/") return;
+    setShowMessages(false);
+    setDmTargetUserId(null);
 
     if (path === "/messages" || path.startsWith("/messages")) {
       setShowMessages(true);
@@ -352,9 +354,13 @@ const MainApp = memo(() => {
     const postMatch    = path.match(/^\/post\/(.+)$/);
     const reelMatch    = path.match(/^\/reel\/(.+)$/);
     const storyMatch   = path.match(/^\/story\/(.+)$/);
+    const shareMatch   = path.match(/^\/share\/(post|reel|story)\/(.+)$/);
     const profileMatch = path.match(/^\/profile\/(.+)$/);
 
-    if (postMatch) {
+    if (shareMatch) {
+      const [, sharedType, sharedId] = shareMatch;
+      handleNotificationNavigate(`/${sharedType}/${sharedId}`);
+    } else if (postMatch) {
       setActiveTab("home"); setHomeSection("newsfeed");
       setDeepLinkTarget({ type: "post", id: postMatch[1] });
       setMountedTabs((p) => new Set([...p, "home"]));
@@ -756,6 +762,7 @@ const MainApp = memo(() => {
             <div ref={feedRef}>
               <HomeView
                 {...viewProps}
+                clearDeepLink={() => setDeepLinkTarget(null)}
                 homeSection={homeSection}
                 setHomeSection={setHomeSection}
                 feedFilter={feedFilter}
@@ -1016,6 +1023,7 @@ const MainApp = memo(() => {
             userId={user.id}
             onClose={() => setShowMessages(false)}
             targetUserId={dmTargetUserId}
+            onNavigate={handleNotificationNavigate}
           />
         </Suspense>
       </div>
@@ -1156,6 +1164,7 @@ const MainApp = memo(() => {
             currentUser={currentUserNorm}
             onClose={() => { setShowMessages(false); setDmTargetUserId(null); }}
             initialOtherUserId={dmTargetUserId}
+            onNavigate={handleNotificationNavigate}
           />
         </Suspense>
       )}

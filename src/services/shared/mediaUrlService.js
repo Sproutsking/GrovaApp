@@ -2,6 +2,8 @@
 // src/services/shared/mediaUrlService.js - COMPLETE WITH STORY SUPPORT
 // ============================================================================
 
+import { supabase } from "../config/supabase";
+
 class MediaUrlService {
   
   constructor() {
@@ -10,7 +12,7 @@ class MediaUrlService {
     this._preloadedMedia = new Set();
     
     if (!this.cloudName) {
-      console.error('❌ REACT_APP_CLOUDINARY_CLOUD_NAME not set in .env');
+      console.warn('⚠️ REACT_APP_CLOUDINARY_CLOUD_NAME not set in .env; falling back to Supabase avatar URLs');
     }
   }
 
@@ -233,14 +235,25 @@ class MediaUrlService {
   
   getAvatarUrl(avatarId, size = 400) {
     if (!avatarId) return null;
-    
-    return this.getImageUrl(avatarId, {
+
+    if (this._isHttpUrl(avatarId)) return avatarId.trim();
+
+    const cloudinaryUrl = this.getImageUrl(avatarId, {
       width: size,
       height: size,
       crop: 'thumb',
       gravity: 'face',
       quality: 'auto:good'
     });
+
+    if (cloudinaryUrl) return cloudinaryUrl;
+
+    try {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(avatarId);
+      if (data?.publicUrl) return data.publicUrl;
+    } catch {}
+
+    return null;
   }
 
   // ==================== GET POST IMAGE URL ====================

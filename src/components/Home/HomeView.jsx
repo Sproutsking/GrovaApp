@@ -350,6 +350,7 @@ const HomeView = ({
   userId,
   refreshTrigger,
   deepLinkTarget,
+  clearDeepLink,
   homeSection,
   setHomeSection,
   feedFilter    = null,
@@ -765,6 +766,30 @@ const HomeView = ({
       alert(err.message || "Unable to open story");
     }
   }, []);
+
+  useEffect(() => {
+    if (!deepLinkTarget?.id) return;
+    let cancelled = false;
+    const openTarget = async () => {
+      try {
+        if (deepLinkTarget.type === "post") {
+          const post = await postService.getPost(deepLinkTarget.id);
+          if (!cancelled && post) dispatchModal({ type: "OPEN_FULLSCREEN_POST", payload: post });
+        } else if (deepLinkTarget.type === "reel") {
+          const reel = await reelService.getReel(deepLinkTarget.id);
+          if (!cancelled && reel) dispatchModal({ type: "OPEN_FULLSCREEN_REELS", payload: reel });
+        } else if (deepLinkTarget.type === "story") {
+          const story = await storyService.getStory(deepLinkTarget.id);
+          if (!cancelled && story) setReadingStory(story);
+        }
+        if (!cancelled) clearDeepLink?.();
+      } catch (error) {
+        console.warn("[HomeView] deep link target unavailable:", error?.message);
+      }
+    };
+    openTarget();
+    return () => { cancelled = true; };
+  }, [deepLinkTarget, clearDeepLink]);
 
   const handleStoryUnlock = useCallback(async (story) => {
     if (!story || !resolvedUser) throw new Error("Unable to unlock this story");

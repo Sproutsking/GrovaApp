@@ -46,6 +46,7 @@ const ChatTab = ({
   onDeleteCommunity,
   onBack,
   onToggleSidebar,
+  onNavigate,
 }) => {
   // Seed channels from the shared cache synchronously — if this community
   // was ever hovered/visited before, the rail paints on the very first
@@ -493,6 +494,7 @@ const ChatTab = ({
               if (member?.user) setCommunityProfileTarget(member.user);
             }}
             onReply={(message) => { setReplyTo(message); setContextMenu(null); }}
+            onNavigate={onNavigate}
             onReactionClick={async (msgId, emoji) => {
               try {
                 const msg = messages.find((m) => m.id === msgId);

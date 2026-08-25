@@ -1,6 +1,7 @@
 // components/Community/components/MessageList.jsx - 0.5PX SHIFT UP ⚡
 import React from "react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
+import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
 
 const MessageList = ({
   messages,
@@ -15,6 +16,7 @@ const MessageList = ({
   onReply,
   onChannelMention,
   onRoleMention,
+  onNavigate,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -68,7 +70,7 @@ const MessageList = ({
     return parts.map((part, index) => {
       if (part.startsWith("#")) return <button key={index} className="msg-mention channel" onClick={() => onChannelMention?.(part.slice(1))}>{part}</button>;
       if (part.startsWith("@")) return <button key={index} className="msg-mention user" onClick={() => onRoleMention?.(part.slice(1))}>{part}</button>;
-      return <React.Fragment key={index}>{part}</React.Fragment>;
+      return <React.Fragment key={index}><LinkifiedText onNavigate={onNavigate}>{part}</LinkifiedText></React.Fragment>;
     });
   };
 
@@ -136,7 +138,7 @@ const MessageList = ({
                     {msg.user?.full_name || msg.user?.username || "Unknown"}
                   </button>
                 )}
-                <div className="msg-content">{renderContent(msg.content)}</div>
+                <div className="msg-content">{parseSharedContent(msg.content) ? <SharedContentMessage onNavigate={onNavigate}>{msg.content}</SharedContentMessage> : renderContent(msg.content)}</div>
                 <div className="msg-meta">
                   <span className="msg-time">{formatTime(msg.created_at)}</span>
                   {msg.edited && <span className="msg-edited">(edited)</span>}

@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import groupDMService from "../../services/messages/groupDMService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import backgroundService from "../../services/messages/BackgroundService";
+import LinkifiedText from "../Shared/LinkifiedText";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -419,7 +420,7 @@ const MsgBubble = memo(({ msg, isMe, prevSame, nextSame, members, onReply, onRea
         ].filter(Boolean).join(" ")}>
           {isGif
             ? <img src={gifUrl} alt="GIF" className="gcv-gif"/>
-            : <span className="gcv-txt">{msg.content}</span>
+            : <span className="gcv-txt"><LinkifiedText>{msg.content}</LinkifiedText></span>
           }
         </div>
 
@@ -473,7 +474,7 @@ const getDateLabel = ts => {
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═════════════════════════════════════════════════════════════════════════════
-const GroupChatView = ({ group: groupProp, currentUser, onBack }) => {
+const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) => {
   const [group,        setGroup]        = useState(groupProp);
   const [messages,     setMessages]     = useState([]);
   const [input,        setInput]        = useState("");
@@ -688,7 +689,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack }) => {
               const nextSame=next&&isSentByMe(next,currentUser)===isMe&&(next.user_id===msg.user_id||next.sender_id===msg.sender_id);
               let m2=msg;
               if(msg.reply_to_id&&!msg._replyMsg){const found=messages.find(x=>x.id===msg.reply_to_id);if(found)m2={...msg,_replyMsg:found};}
-              return <MsgBubble key={msg._tempId||msg.id||i} msg={m2} isMe={isMe} prevSame={prevSame} nextSame={nextSame} members={members} onReply={setReplyTo} onReact={handleReact}/>;
+              return <MsgBubble key={msg._tempId||msg.id||i} msg={m2} isMe={isMe} prevSame={prevSame} nextSame={nextSame} members={members} onReply={setReplyTo} onReact={handleReact} onNavigate={onNavigate}/>;
             })}
             {typing.length>0&&(
               <div className="gcv-row gcv-them">

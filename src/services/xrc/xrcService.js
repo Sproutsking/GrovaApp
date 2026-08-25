@@ -72,6 +72,10 @@ function detectContentType(raw) {
   return null;
 }
 
+function escapeIlike(value) {
+  return String(value || "").replace(/[\\%_,()]/g, "\\$&");
+}
+
 export function createXRCService(supabase) {
   const rootChain = createRootChainService(supabase);
   const verification = createVerificationService(supabase);
@@ -269,13 +273,18 @@ export function createXRCService(supabase) {
     // not present in an XRC payload.
     const profileQuery = raw.replace(/^@/, "").trim();
     if (profileQuery.length >= 2) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id,full_name,username,avatar_id,verified")
-        .or(`username.ilike.%${profileQuery}%,full_name.ilike.%${profileQuery}%`)
-        .is("deleted_at", null)
-        .limit(8)
-        .catch(() => ({ data: [] }));
+      let profiles = [];
+      try {
+        const safeQuery = escapeIlike(profileQuery);
+        const { data } = await supabase
+          .from("profiles")
+          .select("id,full_name,username,avatar_id,verified")
+          .or(`username.ilike.%${safeQuery}%,full_name.ilike.%${safeQuery}%`)
+          .limit(8);
+        profiles = data || [];
+      } catch (profileError) {
+        console.warn("[XRC] profile search failed:", profileError?.message);
+      }
 
       if (profiles?.length) {
         const histories = await Promise.all(
@@ -316,7 +325,26 @@ export function createXRCService(supabase) {
       }
     }
 
-    // ── Strategy D: Event type keyword (most common non-UUID search) ──
+    // ── Strategy D: platform content lookup ───────────────────────────
+    // A name can appear in a profile, post, reel, or story without an XRC
+    // record. Normalize those rows into Oracle records so one result surface
+    // can handle every kind of match.
+    const safeQuery = escapeIlike(profileQuery);
+    const contentMatches = await Promise.all([
+      supabase.from("posts").select("id,user_id,content,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)").ilike("content", `%${safeQuery}%`).order("created_at", { ascending: false }).limit(8).then((r) => r.data || []).catch(() => []),
+      supabase.from("reels").select("id,user_id,caption,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)").ilike("caption", `%${safeQuery}%`).order("created_at", { ascending: false }).limit(8).then((r) => r.data || []).catch(() => []),
+      supabase.from("stories").select("id,user_id,title,preview,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)").or(`title.ilike.%${safeQuery}%,preview.ilike.%${safeQuery}%`).order("created_at", { ascending: false }).limit(8).then((r) => r.data || []).catch(() => []),
+    ]);
+    const contentRecords = [
+      ...contentMatches[0].map((row) => ({ record_id: `post:${row.id}`, actor_id: row.user_id, stream_type: STREAM_TYPES.XCRC, payload: { event: "post_match", post_id: row.id, text: row.content }, timestamp: row.created_at, _profile: row.profiles, _matchType: "post" })),
+      ...contentMatches[1].map((row) => ({ record_id: `reel:${row.id}`, actor_id: row.user_id, stream_type: STREAM_TYPES.XCRC, payload: { event: "reel_match", reel_id: row.id, text: row.caption }, timestamp: row.created_at, _profile: row.profiles, _matchType: "reel" })),
+      ...contentMatches[2].map((row) => ({ record_id: `story:${row.id}`, actor_id: row.user_id, stream_type: STREAM_TYPES.XCRC, payload: { event: "story_match", story_id: row.id, text: row.title || row.preview }, timestamp: row.created_at, _profile: row.profiles, _matchType: "story" })),
+    ].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()).slice(0, limit);
+    if (contentRecords.length) {
+      return { records: contentRecords, total: contentRecords.length, strategy: "platform_search", contentType, isTimeline: false };
+    }
+
+    // ── Strategy E: Event type keyword (most common non-UUID search) ──
     let evResult = { data: [], error: null };
     try {
       const response = await supabase
@@ -340,7 +368,7 @@ export function createXRCService(supabase) {
       };
     }
 
-    // ── Strategy E: Generic text search in payload ────────────────────
+    // ── Strategy F: Generic text search in payload ────────────────────
     let recentRecs = [];
     try {
       const response = await supabase

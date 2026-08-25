@@ -437,20 +437,23 @@ class StatusUpdateService {
   // ══════════════════════════════════════════════════════════════════════════
 
   async toggleLike(statusId, userId) {
-    const { data: existing } = await supabase
+    const { data: existing, error: lookupError } = await supabase
       .from("status_likes")
       .select("id")
       .eq("status_id", statusId)
       .eq("user_id", userId)
       .maybeSingle();
+    if (lookupError) throw lookupError;
 
     if (existing) {
-      await supabase.from("status_likes").delete().eq("id", existing.id);
-      await atomicIncrement("status_updates", statusId, "likes", -1);
+      const { error } = await supabase.from("status_likes").delete().eq("id", existing.id);
+      if (error) throw error;
+      if (!(await atomicIncrement("status_updates", statusId, "likes", -1))) throw new Error("Could not update like count");
       return { liked: false };
     } else {
-      await supabase.from("status_likes").insert([{ status_id: statusId, user_id: userId }]);
-      await atomicIncrement("status_updates", statusId, "likes", 1);
+      const { error } = await supabase.from("status_likes").insert([{ status_id: statusId, user_id: userId }]);
+      if (error) throw error;
+      if (!(await atomicIncrement("status_updates", statusId, "likes", 1))) throw new Error("Could not update like count");
       return { liked: true };
     }
   }

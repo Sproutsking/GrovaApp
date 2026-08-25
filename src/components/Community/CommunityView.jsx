@@ -18,7 +18,7 @@ import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
 import "../../styles/CommunityView.css";
 
-const CommunityView = ({ userId, currentUser }) => {
+const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [view, setView] = useState("discover");
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
@@ -332,6 +332,7 @@ const CommunityView = ({ userId, currentUser }) => {
                 setView("channels");
               } : undefined}
               onToggleSidebar={isMobile ? () => setSidebarOpen(!sidebarOpen) : undefined}
+              onNavigate={onNavigate}
             />
           )
         )}

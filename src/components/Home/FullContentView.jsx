@@ -63,7 +63,9 @@ const FullContentView = ({
 
   const storyWithType = { ...story, type: "story" };
 
-  return (
+  const overlayNode = typeof document !== "undefined" ? document.body : null;
+
+  const content = (
     <>
       <div className="fullscreen-overlay" onClick={onClose}>
         <div className="fullscreen-container" onClick={(e) => e.stopPropagation()}>
@@ -164,10 +166,11 @@ const FullContentView = ({
 
       <style>{`
         .fullscreen-overlay {
-          position:fixed; top:0; left:0; right:0; bottom:0;
-          background:rgba(0,0,0,0.98); z-index:9999;
+          position:fixed; inset:0;
+          background:rgba(0,0,0,0.98); z-index:99999;
           display:flex; align-items:center; justify-content:center;
           animation:fadeIn 0.3s ease-out; backdrop-filter:blur(10px);
+          isolation:isolate;
         }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
@@ -249,6 +252,9 @@ const FullContentView = ({
       `}</style>
     </>
   );
+
+  if (!overlayNode) return content;
+  return ReactDOM.createPortal(content, overlayNode);
 };
 
 export default FullContentView;

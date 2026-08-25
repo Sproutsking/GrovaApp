@@ -27,8 +27,11 @@ export const buildShareUrl = (type, id, params = {}) => {
   return origin ? url.toString() : `${url.pathname}${url.search}`;
 };
 
-export const buildContentShareUrl = (contentType, content) =>
-  buildShareUrl("share", `${contentType}/${encodeId(content?.id)}`);
+export const buildContentShareUrl = (contentType, content) => {
+  const routeByType = { post: "post", reel: "reel", story: "story" };
+  const route = routeByType[contentType] || "post";
+  return buildShareUrl(route, content?.id);
+};
 
 export const buildPlatformShareUrl = (platform, { url, title = "Check this out on Xeevia!" }) => {
   const encodedUrl = encodeURIComponent(url);

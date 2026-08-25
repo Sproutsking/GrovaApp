@@ -147,15 +147,10 @@ const ShareModal = ({
     if (selectedUsers.length === 0 || !currentUser?.id) return;
     try {
       setSending(true);
-      const contentPreview =
-        content?.title ||
-        content?.caption ||
-        content?.content ||
-        "Check this out!";
-      const shortPreview = contentPreview.substring(0, 60);
+      const senderName = currentUser.fullName || currentUser.full_name || currentUser.name || currentUser.username || "Someone";
       const shareLink = shareMessage
-        ? `📎 Shared a ${contentType}: "${shortPreview}${contentPreview.length > 60 ? "..." : ""}"\n${shareUrl}\n\n${shareMessage}`
-        : `📎 Shared a ${contentType}: "${shortPreview}${contentPreview.length > 60 ? "..." : ""}"\n${shareUrl}`;
+        ? `${senderName} shared a ${contentType}\n${shareUrl}\n\n${shareMessage}`
+        : `${senderName} shared a ${contentType}\n${shareUrl}`;
 
       await Promise.all(
         selectedUsers.map(async (user) => {

@@ -2,6 +2,19 @@
 // Shared registry for the Xeevia evidence connectors.
 
 export const CONNECTOR_DEFINITIONS = {
+  email: {
+    key: "email",
+    name: "Email",
+    letter: "@",
+    color: "#60a5fa",
+    bg: "rgba(96,165,250,0.08)",
+    border: "rgba(96,165,250,0.16)",
+    desc: "Verified account email.",
+    category: "Identity",
+    live: false,
+    connectNote: "Your sign-in email is automatically verified here.",
+    evidenceTypes: ["email", "verification"],
+  },
   x: {
     key: "x",
     name: "X (Twitter)",

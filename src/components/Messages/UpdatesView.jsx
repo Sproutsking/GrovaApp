@@ -25,6 +25,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   memo,
 } from "react";
 import { supabase } from "../../services/config/supabase";
@@ -87,6 +88,14 @@ const fmtCountdown = (exp) => {
 const isNearExp  = (exp) => { const ms = new Date(exp).getTime() - Date.now(); return ms > 0 && ms < 3_600_000; };
 const getSeenKey = (uid) => `uv_seen_${uid}`;
 const cleanSoundName = (n = "") => n.replace(/\.(mp3|wav|ogg|m4a|aac|flac)$/i, "").replace(/[-_]/g, " ").trim();
+const getStatusSoundUrl = (name) => {
+  if (!name) return null;
+  if (/^https?:\/\//i.test(name)) return name;
+  const base = (process.env.REACT_APP_R2_PUBLIC_URL || "").replace(/\/$/, "");
+  if (!base) return null;
+  const file = /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(name) ? name : `${name}.mp3`;
+  return `${base}/${file.split("/").map(encodeURIComponent).join("/")}`;
+};
 
 // ── Video detection ───────────────────────────────────────────────────────────
 const isVideoUrl = (url) => {
@@ -200,7 +209,10 @@ HeartBurst.displayName = "HeartBurst";
 const UAv = memo(({ user, size = 50, ring = false, nearExp = false }) => {
   const [err, setErr] = useState(false);
   const avId  = user?.avatar_id || user?.avatarId;
-  const url   = !err && avId ? (mediaUrlService.getAvatarUrl?.(avId, 200) || null) : null;
+  const directUrl = user?.avatar_url || user?.avatarUrl || user?.avatar;
+  const url   = !err && directUrl?.startsWith?.("http")
+    ? directUrl
+    : !err && avId ? (mediaUrlService.getAvatarUrl?.(avId, 200) || null) : null;
   const safe  = url?.startsWith("http") ? url : null;
   const ini   = (user?.full_name || user?.username || "?").charAt(0).toUpperCase();
   return (
@@ -219,7 +231,7 @@ const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, hasNew=f
   const mu    = getMediaUrl(first?.image_id);
   const isVid = isVideoStatusFull(first);
   const SIZE=64, R=29, STROKE=3;
-  const GAP     = count>1 ? (count===2?8:count<=4?6:5) : 0;
+  const GAP     = count>1 ? (count===2?4:count<=4?4:3) : 0;
   const segDeg  = count>0 ? (360-GAP*count)/count : 360;
   const circum  = 2*Math.PI*R;
   const segLen  = (segDeg/360)*circum;
@@ -233,7 +245,7 @@ const StatusThumb = memo(({ statuses:sts, profile, isMe=false, onClick, hasNew=f
         <svg width={SIZE} height={SIZE} style={{position:"absolute",inset:0,transform:"rotate(-90deg)"}}>
           {count>0 ? Array.from({length:count}).map((_,i)=>{
             const off = (i*(segDeg+GAP)/360)*circum;
-            return <circle key={i} cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={ringCol} strokeWidth={STROKE} strokeDasharray={`${segLen} ${circum-segLen}`} strokeDashoffset={-off} strokeLinecap="round" opacity={.95}/>;
+            return <circle key={i} cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={ringCol} strokeWidth={STROKE} strokeDasharray={`${segLen} ${circum-segLen}`} strokeDashoffset={-off} strokeLinecap="butt" opacity={.95}/>;
           }) : <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="rgba(132,204,22,.25)" strokeWidth={STROKE} strokeDasharray="4 4"/>}
         </svg>
         <div style={{position:"absolute",inset:STROKE+3,borderRadius:"50%",overflow:"hidden",background:"linear-gradient(135deg,#0d0d0d,#1c1c1c)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -256,7 +268,7 @@ StatusThumb.displayName = "StatusThumb";
 // ══════════════════════════════════════════════════════════════════════════════
 // VideoPlayer
 // ══════════════════════════════════════════════════════════════════════════════
-const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgress, onEnded }) => {
+const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgress, onEnded, onUnmute }) => {
   const videoRef   = useRef(null);
   const cascadeRef = useRef([]);
   const [urlIdx,  setUrlIdx]  = useState(0);
@@ -273,6 +285,7 @@ const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgre
     if (!v) return;
     v.muted = muted;
     muted ? v.setAttribute("muted","") : v.removeAttribute("muted");
+    if (!muted) v.volume = 1;
   }, [muted]);
 
   useEffect(() => {
@@ -280,7 +293,6 @@ const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgre
     if (!v) return;
     if (paused) { v.pause(); return; }
     if (v.readyState >= 3) {
-      v.muted = true;
       v.play().catch(() => {});
     }
   }, [paused, urlIdx]);
@@ -288,7 +300,6 @@ const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgre
   const handleLoaded = useCallback(() => {
     setLoading(false);
     if (!paused && videoRef.current) {
-      videoRef.current.muted = true;
       videoRef.current.play().catch(() => {});
     }
   }, [paused]);
@@ -332,12 +343,21 @@ const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgre
         ref={videoRef}
         key={`vp-${activeUrl}`}
         src={activeUrl}
-        autoPlay playsInline loop muted preload="auto"
+        autoPlay playsInline loop preload="auto"
         style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:fullH?"cover":"contain", display:"block", background:"#000", transform:"translateZ(0)", willChange:"transform" }}
         onLoadedData={handleLoaded}
         onTimeUpdate={handleTimeUpdate}
         onError={handleError}
         onPlay={() => setLoading(false)}
+        onClick={(event) => {
+          if (!muted || !onUnmute) return;
+          event.stopPropagation();
+          const video = event.currentTarget;
+          video.muted = false;
+          video.volume = 1;
+          video.play().catch(() => {});
+          onUnmute();
+        }}
       />
     </div>
   );
@@ -345,11 +365,9 @@ const VideoPlayer = memo(({ src, fullH=false, muted=true, paused=false, onProgre
 VideoPlayer.displayName = "VideoPlayer";
 
 // ── StoryMedia ────────────────────────────────────────────────────────────────
-const StoryMedia = memo(({ story, mediaUrl, isVid, muted, paused, onProgress, onEnded, fullH=false }) => {
+const StoryMedia = memo(({ story, mediaUrl, isVid, muted, paused, onProgress, onEnded, onUnmute, fullH=false }) => {
   if (isVid && mediaUrl) {
-    return (
-      <VideoPlayer src={mediaUrl} fullH={fullH} muted={muted} paused={paused} onProgress={onProgress} onEnded={onEnded}/>
-    );
+    return <VideoPlayer src={mediaUrl} fullH={fullH} muted={muted} paused={paused} onProgress={onProgress} onEnded={onEnded} onUnmute={onUnmute}/>;
   }
   if (mediaUrl) {
     return (
@@ -374,7 +392,9 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
   const [sIdx, setSIdx]       = useState(startStoryIdx);
   const [prog, setProg]       = useState(0);
   const [paused, setPaused]   = useState(false);
-  const [muted, setMuted]     = useState(true);
+  const [muted, setMuted]     = useState(() => {
+    try { return localStorage.getItem(`uv_muted_${userId}`) !== "false"; } catch { return true; }
+  });
   const [showRep, setShowRep] = useState(false);
   const [repTxt, setRepTxt]   = useState("");
   const [sending, setSending] = useState(false);
@@ -387,6 +407,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
   const [lastTap, setLastTap] = useState(0);
 
   const timerRef    = useRef(null);
+  const soundRef    = useRef(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -396,13 +417,50 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
     return () => window.removeEventListener("resize", r);
   }, []);
 
-  const group    = allGroups[gIdx];
+  const orderedGroups = useMemo(() => allGroups.map((item) => ({
+    ...item,
+    statuses: [...(item.statuses || [])].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+  })), [allGroups]);
+  const group    = orderedGroups[gIdx];
   const story    = group?.statuses?.[sIdx];
   const isMyStory = group?.isMe || story?.user_id === userId;
   const isVid    = isVideoStatusFull(story);
   const mediaUrl = getMediaUrl(story?.image_id);
   const isLiked  = likedIds.has(story?.id || "");
   const nearE    = story ? isNearExp(story.expires_at) : false;
+  const setMutePreference = useCallback((value) => {
+    setMuted(value);
+    try { localStorage.setItem(`uv_muted_${userId}`, String(value)); } catch {}
+  }, [userId]);
+
+  useEffect(() => {
+    const url = getStatusSoundUrl(story?.music);
+    if (!url) {
+      soundRef.current?.pause();
+      soundRef.current = null;
+      return undefined;
+    }
+    const audio = new Audio(url);
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = 1;
+    soundRef.current = audio;
+    return () => {
+      audio.pause();
+      audio.src = "";
+      if (soundRef.current === audio) soundRef.current = null;
+    };
+  }, [story?.id, story?.music]);
+
+  useEffect(() => {
+    const audio = soundRef.current;
+    if (!audio) return;
+    if (paused || muted) {
+      audio.pause();
+      return;
+    }
+    audio.play().catch(() => {});
+  }, [paused, muted, story?.id]);
 
   useEffect(() => {
     if (!story) return;
@@ -425,12 +483,12 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
   }, [gIdx, sIdx, paused, isVid, showRep]); // eslint-disable-line
 
   const advance = useCallback(() => {
-    const g = allGroups[gIdx];
+    const g = orderedGroups[gIdx];
     if (!g) { onClose(); return; }
     if (sIdx < g.statuses.length - 1) { setSIdx((s) => s+1); setProg(0); }
-    else if (gIdx < allGroups.length - 1) { setGIdx((g) => g+1); setSIdx(0); setProg(0); }
+    else if (gIdx < orderedGroups.length - 1) { setGIdx((g) => g+1); setSIdx(0); setProg(0); }
     else onClose();
-  }, [gIdx, sIdx, allGroups, onClose]);
+  }, [gIdx, sIdx, orderedGroups, onClose]);
 
   const retreat = useCallback(() => {
     if (sIdx > 0) { setSIdx((s) => s-1); setProg(0); }
@@ -493,23 +551,25 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
         </div>
       )}
       <button onClick={handleLike} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:isLiked?"rgba(239,68,68,.18)":"rgba(0,0,0,.5)",border:isLiked?"1px solid rgba(239,68,68,.45)":"1px solid rgba(255,255,255,.2)",color:isLiked?"#ef4444":"#fff",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .15s",transform:isLiked?"scale(1.05)":"scale(1)"}}>
-        <Ic.Heart f={isLiked}/><span>{story.likes||0}</span>
+        <Ic.Heart f={isLiked}/>{isMyStory && <span>{story.likes||0}</span>}
       </button>
       {!isMyStory && (
         <button onClick={()=>{setShowRep(r=>!r);setPaused(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.2)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>
           <Ic.Reply/><span>Reply</span>
         </button>
       )}
-      <button onClick={handleRepost} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:repostDone?"rgba(132,204,22,.2)":"rgba(0,0,0,.5)",border:repostDone?"1px solid rgba(132,204,22,.5)":"1px solid rgba(255,255,255,.2)",color:repostDone?"#84cc16":"#fff",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
-        <Ic.Repost/><span>{repostDone?"Reposted!":"Repost"}</span>
-      </button>
+      {!isMyStory && (
+        <button onClick={handleRepost} style={{display:"flex",alignItems:"center",gap:5,padding:compact?"5px 10px":"8px 14px",borderRadius:24,background:repostDone?"rgba(132,204,22,.2)":"rgba(0,0,0,.5)",border:repostDone?"1px solid rgba(132,204,22,.5)":"1px solid rgba(255,255,255,.2)",color:repostDone?"#84cc16":"#fff",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
+          <Ic.Repost/><span>{repostDone?"Reposted!":"Repost"}</span>
+        </button>
+      )}
       {story.music && (
         <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:24,background:"rgba(132,204,22,.1)",border:"1px solid rgba(132,204,22,.3)"}}>
           <Ic.Music/><span style={{fontSize:11,color:"#84cc16",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanSoundName(story.music)}</span>
         </div>
       )}
       {isVid && (
-        <button onClick={()=>setMuted(m=>!m)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
+        <button onClick={()=>setMutePreference(!muted)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.14)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
           {muted?<Ic.SoundOff/>:<Ic.SoundOn/>}
         </button>
       )}
@@ -563,7 +623,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
           onPointerDown={()=>!isVid&&setPaused(true)} onPointerUp={()=>!isVid&&setPaused(false)}
           onClick={handleMediaTap}
         >
-          <StoryMedia story={story} mediaUrl={mediaUrl} isVid={isVid} muted={muted} paused={paused} onProgress={(p)=>setProg(p)} onEnded={advance} fullH/>
+          <StoryMedia story={story} mediaUrl={mediaUrl} isVid={isVid} muted={muted} paused={paused} onUnmute={() => setMutePreference(false)} onProgress={(p)=>setProg(p)} onEnded={advance} fullH/>
           {story.text && mediaUrl && (
             <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(0,0,0,.85),transparent)",padding:"28px 16px 14px"}}>
               <p style={{color:story.text_color||"#fff",fontSize:15,fontWeight:700,margin:0,lineHeight:1.4}}>{story.text}</p>
@@ -581,8 +641,8 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
     );
   }
 
-  const prevPeek = sIdx>0 ? {g:group,si:sIdx-1} : gIdx>0 ? {g:allGroups[gIdx-1],si:(allGroups[gIdx-1]?.statuses?.length||1)-1} : null;
-  const nextPeek = sIdx<(group?.statuses?.length||1)-1 ? {g:group,si:sIdx+1} : gIdx<allGroups.length-1 ? {g:allGroups[gIdx+1],si:0} : null;
+  const prevPeek = sIdx>0 ? {g:group,si:sIdx-1} : gIdx>0 ? {g:orderedGroups[gIdx-1],si:(orderedGroups[gIdx-1]?.statuses?.length||1)-1} : null;
+  const nextPeek = sIdx<(group?.statuses?.length||1)-1 ? {g:group,si:sIdx+1} : gIdx<orderedGroups.length-1 ? {g:orderedGroups[gIdx+1],si:0} : null;
 
   const PeekCard = ({ g, si=0, side, onClick }) => {
     const s = g?.statuses?.[si];
@@ -632,7 +692,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
             onMouseLeave={()=>!isVid&&setPaused(false)}
             onClick={handleMediaTap}
           >
-            <StoryMedia story={story} mediaUrl={mediaUrl} isVid={isVid} muted={muted} paused={paused} onProgress={(p)=>setProg(p)} onEnded={advance} fullH/>
+            <StoryMedia story={story} mediaUrl={mediaUrl} isVid={isVid} muted={muted} paused={paused} onUnmute={() => setMutePreference(false)} onProgress={(p)=>setProg(p)} onEnded={advance} fullH/>
             {story.text && mediaUrl && (
               <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(0,0,0,.85),transparent)",padding:"24px 14px 12px",zIndex:2}}>
                 <p style={{color:story.text_color||"#fff",fontSize:14,fontWeight:700,margin:0,lineHeight:1.4}}>{story.text}</p>
@@ -958,7 +1018,7 @@ const AddStatusModal = memo((props) => (
 AddStatusModal.displayName = "AddStatusModal";
 
 // ── Contact Row ───────────────────────────────────────────────────────────────
-const ContactRow = memo(({ group, isSeen, onClick, onRepost }) => {
+const ContactRow = memo(({ group, isSeen, onClick }) => {
   const first  = group.statuses[0];
   const mu     = getMediaUrl(first?.image_id);
   const isVid  = isVideoStatusFull(first);
@@ -967,7 +1027,7 @@ const ContactRow = memo(({ group, isSeen, onClick, onRepost }) => {
   const nearE  = !isSeen && first && isNearExp(first.expires_at);
   const ringCol = nearE?"#f59e0b":"#84cc16";
   const SIZE=52, R=24, STROKE=2.5;
-  const GAP    = count>1?(count<=3?7:5):0;
+  const GAP    = count>1?(count<=3?4:3):0;
   const segDeg = count>0?(360-GAP*count)/count:360;
   const circum = 2*Math.PI*R;
   const segLen = (segDeg/360)*circum;
@@ -981,7 +1041,7 @@ const ContactRow = memo(({ group, isSeen, onClick, onRepost }) => {
         <svg width={SIZE} height={SIZE} style={{position:"absolute",inset:0,transform:"rotate(-90deg)"}}>
           {!isSeen&&count>0 ? Array.from({length:count}).map((_,i)=>{
             const off = (i*(segDeg+GAP)/360)*circum;
-            return <circle key={i} cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={ringCol} strokeWidth={STROKE} strokeDasharray={`${segLen} ${circum-segLen}`} strokeDashoffset={-off} strokeLinecap="round" opacity={.95}/>;
+            return <circle key={i} cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={ringCol} strokeWidth={STROKE} strokeDasharray={`${segLen} ${circum-segLen}`} strokeDashoffset={-off} strokeLinecap="butt" opacity={.95}/>;
           }) : <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth={STROKE}/>}
         </svg>
         <div style={{position:"absolute",inset:STROKE+3,borderRadius:"50%",overflow:"hidden"}}>
@@ -1000,10 +1060,6 @@ const ContactRow = memo(({ group, isSeen, onClick, onRepost }) => {
         {first?.music && <div style={{fontSize:10,color:"rgba(132,204,22,.5)",marginTop:2,display:"flex",alignItems:"center",gap:3}}><Ic.Music/>{cleanSoundName(first.music)}</div>}
       </div>
       {mu&&!isVid&&<div style={{width:42,height:42,borderRadius:10,overflow:"hidden",flexShrink:0}}><img src={mu} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>}
-      <button onClick={(e)=>{e.stopPropagation();onRepost?.(first);}}
-        style={{width:32,height:32,borderRadius:"50%",background:"rgba(132,204,22,.07)",border:"1px solid rgba(132,204,22,.2)",color:"#84cc16",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}} title="Repost">
-        <Ic.Repost/>
-      </button>
       {!isSeen&&<div style={{width:9,height:9,borderRadius:"50%",background:"#84cc16",flexShrink:0,boxShadow:"0 0 6px rgba(132,204,22,.6)"}}/>}
     </div>
   );
@@ -1126,13 +1182,7 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
     setMyStatuses((p) => p.map((s) => s.id===statusId?{...s,likes:Math.max(0,(s.likes||0)+delta)}:s));
     setFeedGroups((p) => p.map((g) => ({...g,statuses:g.statuses.map((s) => s.id===statusId?{...s,likes:Math.max(0,(s.likes||0)+delta)}:s)})));
     try {
-      if (wasLiked) {
-        await supabase.from("status_likes").delete().eq("status_id",statusId).eq("user_id",userId);
-      } else {
-        await supabase.from("status_likes").insert({status_id:statusId,user_id:userId}).select();
-      }
-      const { data:curr } = await supabase.from("status_updates").select("likes").eq("id",statusId).maybeSingle();
-      if (curr) await supabase.from("status_updates").update({likes:Math.max(0,(curr.likes||0)+delta)}).eq("id",statusId);
+      await statusUpdateService.toggleLike(statusId, userId);
     } catch {
       setLikedIds((p) => { const n=new Set(p); wasLiked?n.add(statusId):n.delete(statusId); return n; });
     }
@@ -1154,12 +1204,11 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
 
   const handleDmReply = useCallback(async ({ replyText, status }) => {
     if (!replyText?.trim() || !status?.user_id || status.user_id===userId) return;
-    try {
-      const conv = await dmMessageService.createConversation(userId, status.user_id);
-      const payload = statusUpdateService.getReplyPayload(status, replyText);
-      await dmMessageService.sendMessage(conv.id, payload, userId);
-      onOpenDM?.({ userId:status.user_id });
-    } catch (e) { console.warn("[UpdatesView] DM reply:", e?.message); }
+    const conv = await dmMessageService.createConversation(userId, status.user_id);
+    const payload = statusUpdateService.getReplyPayload(status, replyText);
+    const message = await dmMessageService.sendMessage(conv.id, payload, userId);
+    if (!message) throw new Error("Reply could not be sent");
+    onOpenDM?.({ userId:status.user_id });
   }, [userId, onOpenDM]);
 
   const handleRepost = useCallback(async (status) => {
@@ -1194,15 +1243,24 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
     } catch {}
   }, [myStatuses, userId, loadStatuses]);
 
-  const myUser  = { id:userId, full_name:currentUser?.fullName||currentUser?.full_name||currentUser?.name||"You", avatar_id:currentUser?.avatarId||currentUser?.avatar_id };
+  const myUser  = {
+    id:userId,
+    full_name:currentUser?.fullName||currentUser?.full_name||currentUser?.name||"You",
+    avatar_id:currentUser?.avatarId||currentUser?.avatar_id,
+    avatar_url:currentUser?.avatar_url||currentUser?.avatarUrl||currentUser?.avatar,
+  };
   const myGroup = { user:myUser, statuses:myStatuses, isMe:true };
   const allGroups = [myGroup, ...feedGroups];
 
-  const openViewer = (groupIdx, storyIdx=0) => {
+  const openViewer = (groupIdx, storyIdx=null) => {
     setLiveNewDot(false);
-    const s = allGroups[groupIdx]?.statuses?.[storyIdx];
+    const group = allGroups[groupIdx];
+    const s = group?.statuses?.[storyIdx ?? group.statuses.length - 1];
     if (s) markSeen(s.id, s.user_id || allGroups[groupIdx]?.user?.id);
-    setViewer({ groupIdx, storyIdx });
+    const orderedIndex = s ? [...group.statuses]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .findIndex((item) => item.id === s.id) : 0;
+    setViewer({ groupIdx, storyIdx: orderedIndex >= 0 ? orderedIndex : 0 });
   };
 
   const atLimit      = myStatuses.length >= tierInfo.limit;
@@ -1280,7 +1338,7 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
             {liveNewDot && <span style={{width:8,height:8,borderRadius:"50%",background:"#ef4444",display:"inline-block",animation:"uvNewDot 1.5s ease-in-out infinite"}}/>}
           </div>
           {unseenGroups.map((g) => (
-            <ContactRow key={g.user?.id} group={g} isSeen={false} onRepost={handleRepost}
+            <ContactRow key={g.user?.id} group={g} isSeen={false}
               onClick={()=>{const idx=allGroups.indexOf(g);openViewer(idx<0?1:idx);}}/>
           ))}
         </>
@@ -1291,7 +1349,7 @@ const UpdatesView = ({ currentUser, userId, onOpenDM }) => {
         <>
           <div className="upd-section" style={{color:"#2a2a2a"}}>Viewed</div>
           {seenGroups.map((g) => (
-            <ContactRow key={g.user?.id} group={g} isSeen onRepost={handleRepost}
+            <ContactRow key={g.user?.id} group={g} isSeen
               onClick={()=>{const idx=allGroups.indexOf(g);openViewer(idx<0?1:idx);}}/>
           ))}
         </>

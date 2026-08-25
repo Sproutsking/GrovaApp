@@ -16,7 +16,7 @@
 //  [GROUP-2]  Groups reload on gc_notify + group_deleted events.
 // ============================================================================
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../../services/config/supabase";
 import dmMessageService from "../../services/messages/dmMessageService";
 import groupDMService from "../../services/messages/groupDMService";
@@ -31,6 +31,7 @@ import CallsView from "./CallsView";
 import ActiveCall from "./ActiveCall";
 import GroupChatView from "./GroupChatView";
 import IncomingCallPopup from "./IncomingCallPopup";
+import { shouldRenderIncomingCallPopup } from "./callUiState";
 
 /* ─── Icons ─── */
 const IChat = ({ a }) => (
@@ -196,7 +197,7 @@ const CreateGroupModal = ({ currentUser, onClose, onCreate }) => {
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN DMMessagesView
 // ════════════════════════════════════════════════════════════════════════════
-const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
+const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate }) => {
   const [tab,           setTab]           = useState("chats");
   const [view,          setView]          = useState("list");
   const [selectedConv,  setSelectedConv]  = useState(null);
@@ -216,11 +217,13 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const viewRef        = useRef("list");
   const activeGroupRef = useRef(null);
   const activeConvRef  = useRef(null);
+  const activeCallRef  = useRef(null);
 
   useEffect(() => { tabRef.current  = tab;  }, [tab]);
   useEffect(() => { viewRef.current = view; }, [view]);
   useEffect(() => { activeGroupRef.current = activeGroup; }, [activeGroup]);
   useEffect(() => { activeConvRef.current  = selectedConv; }, [selectedConv]);
+  useEffect(() => { activeCallRef.current  = activeCall; }, [activeCall]);
 
   const initialized = useRef(false);
   const unsubList   = useRef(null);
@@ -229,15 +232,20 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   const uid   = currentUser?.id       || "";
   const uName = currentUser?.fullName || currentUser?.full_name || currentUser?.name || "User";
   const uAvId = currentUser?.avatarId || currentUser?.avatar_id || null;
+  const callsUnreadKey = `dm_calls_unread_${uid}`;
 
-  const norm = {
+  useEffect(() => {
+    try { setCallsBadge(Number(localStorage.getItem(callsUnreadKey) || 0)); } catch {}
+  }, [callsUnreadKey]);
+
+  const norm = useMemo(() => ({
     id: uid, name: uName, fullName: uName,
     username:  currentUser?.username || "user",
     avatar:    currentUser?.avatar,
     avatarId:  uAvId,
     avatar_id: uAvId,
     verified:  currentUser?.verified || false,
-  };
+  }), [uid, uName, currentUser?.username, currentUser?.avatar, currentUser?.verified, uAvId]);
 
   // ── [BADGE-4] Broadcast total ─────────────────────────────────────────────
   const totalBadge = chatsBadge + updatesBadge + callsBadge;
@@ -255,7 +263,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     if (tabRef.current === "chats" && viewRef.current !== "list") {
       // Inside a specific chat — other convs can still accumulate
       try {
-        const total       = conversationState.getTotalUnreadCount?.() ?? 0;
+        const total       = conversationState.getUnreadConversationCount?.() ?? 0;
         const openConvId  = activeConvRef.current?.id;
         let   openUnread  = 0;
         if (openConvId) {
@@ -263,13 +271,13 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
           const openConv = convs.find(c => c.id === openConvId);
           openUnread    = openConv?.unreadCount ?? 0;
         }
-        setChatsBadge(Math.max(0, total - openUnread));
+        setChatsBadge(Math.max(0, total - (openUnread > 0 ? 1 : 0)));
       } catch {}
       return;
     }
     // Not on chats tab — accumulate
     try {
-      setChatsBadge(conversationState.getTotalUnreadCount?.() ?? 0);
+      setChatsBadge(conversationState.getUnreadConversationCount?.() ?? 0);
     } catch {}
   }, []);
 
@@ -282,22 +290,35 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
   useEffect(() => {
     if (!uid) return;
     const unsubIn   = callService.on("incoming_call", callData => {
-      setIncomingCall(prev => prev ? prev : callData);
+      setIncomingCall(prev => {
+        if (!callData) return prev;
+        if (activeCallRef.current) return null;
+        if (prev && prev.callId === callData.callId) return prev;
+        return prev || callData;
+      });
     });
     const unsubEnd  = callService.on("call_ended", ({ callId }) => {
       setIncomingCall(prev => (prev?.callId === callId ? null : prev));
+      if (activeCallRef.current?.callId === callId) {
+        setActiveCall(null);
+        setView("list");
+      }
     });
     const unsubMiss = callService.on("missed_call", () => {
       setIncomingCall(null);
       if (tabRef.current !== "calls") {
-        setCallsBadge(p => p + 1);
+        setCallsBadge(p => {
+          const next = p + 1;
+          try { localStorage.setItem(callsUnreadKey, String(next)); } catch {}
+          return next;
+        });
       }
     });
     const unsubDec  = callService.on("call_declined", () => {
       setIncomingCall(null);
     });
     return () => { unsubIn(); unsubEnd(); unsubMiss(); unsubDec(); };
-  }, [uid]);
+  }, [uid, callsUnreadKey]);
 
   // ── [BADGE-2] Wire UpdatesView badge setter ───────────────────────────────
   useEffect(() => {
@@ -417,6 +438,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
 
   const openCall = useCallback(callInfo => {
     if (!callInfo) return;
+    setIncomingCall(null);
     setActiveCall(callInfo); setView("call");
   }, []);
 
@@ -436,8 +458,11 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
     setView("list"); setTab(id);
     if (id === "chats")   setChatsBadge(0);
     if (id === "updates") setUpdatesBadge(0);
-    if (id === "calls")   setCallsBadge(0);
-  }, []);
+    if (id === "calls") {
+      setCallsBadge(0);
+      try { localStorage.removeItem(callsUnreadKey); } catch {}
+    }
+  }, [callsUnreadKey]);
 
   const handleUserSelect = useCallback(async user => {
     if (!user?.id || !uid) return;
@@ -549,7 +574,11 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
       <div className="dmh-panel">
 
         {/* INCOMING CALL POPUP */}
-        {incomingCall && (
+        {shouldRenderIncomingCallPopup({
+          incomingCall,
+          activeCall,
+          view,
+        }) && (
           <IncomingCallPopup
             call={incomingCall}
             onAccept={handleAcceptIncoming}
@@ -596,6 +625,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                 conversation={selectedConv}
                 currentUser={norm}
                 onBack={backToList}
+                onNavigate={onNavigate}
                 onStartCall={type => handleStartCall({
                   name:     selectedConv.otherUser?.full_name || "Call",
                   type,
@@ -614,6 +644,7 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId }) => {
                 group={activeGroup}
                 currentUser={norm}
                 onBack={backToList}
+                onNavigate={onNavigate}
                 onStartCall={openCall}
               />
             </div>

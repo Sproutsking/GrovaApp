@@ -44,6 +44,16 @@ const PLATFORM_CONFIGS = {
     scopes:   "tweet.read tweet.write users.read offline.access",
     label:    "X (Twitter)",
   },
+  google: {
+    provider: "google",
+    scopes: "openid email profile",
+    label: "Google",
+  },
+  discord: {
+    provider: "discord",
+    scopes: "identify email",
+    label: "Discord",
+  },
   facebook: {
     provider: "facebook",
     scopes:   "email public_profile pages_show_list pages_read_engagement pages_manage_posts",
@@ -74,6 +84,21 @@ class SocialConnectService {
       if (!user?.identities) return {};
 
       const imported = {};
+
+      if (user.email) {
+        const { data: emailConnection } = await supabase
+          .from("connections")
+          .upsert({
+            user_id: userId,
+            provider: "email",
+            platform_user_id: user.email,
+            auth_status: "active",
+            connected_via: "supabase_auth",
+          }, { onConflict: "user_id,provider" })
+          .select()
+          .maybeSingle();
+        if (emailConnection) imported.email = true;
+      }
 
       for (const identity of user.identities) {
         const provider = identity.provider;
@@ -136,6 +161,25 @@ class SocialConnectService {
     const config = PLATFORM_CONFIGS[platform];
     if (!config) throw new Error(`Unknown platform: ${platform}`);
 
+    // Link to the currently authenticated Supabase user. A separate popup
+    // sign-in creates or selects another auth session and cannot attach the
+    // provider identity to this account.
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user || user.id !== userId) throw new Error("Your session expired. Sign in again before linking an account.");
+    if (!supabase.auth.linkIdentity) throw new Error("Account linking is unavailable in this Supabase client.");
+    const { error: linkError } = await supabase.auth.linkIdentity({
+      provider: config.provider,
+      options: {
+        redirectTo: window.location.origin,
+        scopes: config.scopes,
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    if (linkError) throw linkError;
+    return { redirecting: true, platform };
+
+    /* Legacy popup flow retained below for reference during migration. */
+    /* istanbul ignore next */
     return new Promise((resolve, reject) => {
       // Position popup
       const left = Math.round(window.screenX + (window.outerWidth  - POPUP_W) / 2);
@@ -289,6 +333,8 @@ class SocialConnectService {
     const map = {
       twitter:       "x",
       facebook:      "facebook",
+      google:        "google",
+      discord:       "discord",
       linkedin_oidc: "linkedin",
       // Instagram shares Facebook's OAuth
     };

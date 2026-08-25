@@ -63,6 +63,9 @@ const HAS_R2  = R2_BASE.startsWith("http");
 let _schemaProbed = false;
 let _schemaCache = {
   file_url:     false,
+  audio_url:    false,
+  public_url:   false,
+  url:          false,
   sound_url:    false,
   storage_path: false,
   total_uses:   false,
@@ -103,6 +106,9 @@ export function resetSoundSchemaProbe() {
 function buildSelect(schema) {
   const cols = ["id", "name"];
   if (schema.file_url)     cols.push("file_url");
+  if (schema.audio_url)    cols.push("audio_url");
+  if (schema.public_url)   cols.push("public_url");
+  if (schema.url)          cols.push("url");
   if (schema.sound_url)    cols.push("sound_url");
   if (schema.storage_path) cols.push("storage_path");
   if (schema.total_uses)   cols.push("total_uses");
@@ -118,6 +124,9 @@ function buildSelect(schema) {
 function resolveAudioUrl(row, schema) {
   // 1. Explicit full URL stored in DB (most reliable)
   if (schema.file_url  && row.file_url  && row.file_url.startsWith("http"))  return row.file_url;
+  if (schema.audio_url && row.audio_url && row.audio_url.startsWith("http")) return row.audio_url;
+  if (schema.public_url && row.public_url && row.public_url.startsWith("http")) return row.public_url;
+  if (schema.url       && row.url       && row.url.startsWith("http"))       return row.url;
   if (schema.sound_url && row.sound_url && row.sound_url.startsWith("http")) return row.sound_url;
 
   // 2. R2 constructed from name (primary path for most setups)

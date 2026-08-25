@@ -186,6 +186,14 @@ class ConversationStateManager {
     return total;
   }
 
+  getUnreadConversationCount() {
+    let total = 0;
+    for (const count of this.state.unreadByConversation.values()) {
+      if (count > 0) total += 1;
+    }
+    return total;
+  }
+
   // ── SUBSCRIPTION ───────────────────────────────────────────────────────────
 
   subscribe(listener) {

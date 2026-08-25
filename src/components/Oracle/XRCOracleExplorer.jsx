@@ -15,6 +15,7 @@ import {
   GitBranch, Layers,
 } from "lucide-react";
 import UserProfileModal from "../Modals/UserProfileModal";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 
 // ── Stream visual identity ─────────────────────────────────────────────────
 const SV = {
@@ -61,6 +62,46 @@ const EVENT_ICONS = {
 };
 const humanEvent = (p) => EVENT_LABELS[p?.event] || (p?.event?.replace(/_/g," ") || "Event");
 const eventIcon  = (p) => EVENT_ICONS[p?.event] || "◎";
+
+const resultImageUrl = (record) => {
+  const profile = record?._profile;
+  const payload = record?.payload || {};
+  const value = profile?.avatar_id || profile?.avatarId || payload.image_url || payload.thumbnail_url || payload.cover_image_id || payload.thumbnail_id || payload.image_id;
+  if (!value) return null;
+  if (/^https?:\/\//i.test(String(value))) return String(value);
+  return mediaUrlService.getAvatarUrl(value, 160) || mediaUrlService.getImageUrl(value, { width: 160, height: 160, crop: "fill", gravity: "auto" });
+};
+
+export const resolveProfileTargetFromRecord = (record) => {
+  if (!record) return null;
+
+  const profile = record._profile || {};
+  const payload = record.payload || {};
+  const directId =
+    profile.id ||
+    profile.user_id ||
+    profile.userId ||
+    profile.profile_id ||
+    payload.user_id ||
+    payload.owner_id ||
+    payload.profile_id ||
+    record.actor_id ||
+    null;
+
+  if (!directId) return null;
+
+  return {
+    id: directId,
+    user_id: directId,
+    full_name: profile.full_name || profile.name || payload.full_name || payload.name || "Verified profile",
+    name: profile.full_name || profile.name || payload.full_name || payload.name || "Verified profile",
+    username: profile.username || payload.username || "unknown",
+    avatar_id: profile.avatar_id || profile.avatarId || payload.avatar_id || payload.avatarId || null,
+    avatar: profile.avatar || payload.avatar || profile.avatar_url || payload.avatar_url || null,
+    verified: Boolean(profile.verified ?? payload.verified ?? false),
+    verificationRecord: record,
+  };
+};
 
 const CopyBtn = ({ text }) => {
   const [c, setC] = useState(false);
@@ -376,7 +417,7 @@ const CSS = `
 }
 
 .xo3-search-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; position: relative;
 }
 
 /* Terminal-style search */
@@ -385,7 +426,7 @@ const CSS = `
   background: rgba(0,0,0,.55);
   border: 1px solid rgba(132,204,22,.12);
   border-radius: 11px;
-  overflow: hidden; position: relative;
+  overflow: hidden; position: relative; z-index: 1;
   transition: border-color .2s, box-shadow .2s;
   min-width: 0;
 }
@@ -414,7 +455,7 @@ const CSS = `
   color: #d4dce8; font-size: 13px;
   font-family: 'IBM Plex Mono', monospace; letter-spacing: .1px;
   caret-color: #84cc16; padding: 0 8px 0 0; height: 42px;
-  min-width: 0;
+  min-width: 0; pointer-events: auto; user-select: text; position: relative; z-index: 2;
 }
 .xo3-search-input::placeholder { color: rgba(255,255,255,.18); font-size: 12px; }
 .xo3-search-clear {
@@ -423,6 +464,19 @@ const CSS = `
   align-items: center; height: 42px; transition: color .12s; flex-shrink: 0;
 }
 .xo3-search-clear:hover { color: rgba(255,255,255,.55); }
+.xo3-search-suggestions {
+  position: absolute; top: 48px; left: 0; right: 130px; z-index: 20;
+  display: grid; gap: 3px; padding: 6px; background: rgba(5,8,6,.98);
+  border: 1px solid rgba(132,204,22,.25); border-radius: 10px;
+  box-shadow: 0 14px 30px rgba(0,0,0,.55);
+}
+.xo3-search-suggestions button {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
+  background: transparent; color: rgba(255,255,255,.75); text-align: left; cursor: pointer;
+}
+.xo3-search-suggestions button:hover { background: rgba(132,204,22,.1); color: #fff; }
+.xo3-search-suggestions code { color: #84cc16; font-size: 10px; }
 
 /* Search hints */
 .xo3-search-hints {
@@ -1226,8 +1280,19 @@ const OracleHeader = ({ stats, feed, phase, onBack, onClose, onRefresh, searchin
 };
 
 // ── Search Zone Component ─────────────────────────────────────────────────
-const SearchZone = ({ query, setQuery, onSearch, searching, inputRef }) => {
+const SearchZone = ({ query, setQuery, onSearch, searching, inputRef, liveResults = [] }) => {
   const [focused, setFocused] = useState(false);
+
+  const SEARCH_OPTIONS = [
+    { value: "post_created", label: "Posts" },
+    { value: "token_transfer", label: "Token transfers" },
+    { value: "wallet_deposit", label: "Wallet deposits" },
+    { value: "account_created", label: "Accounts" },
+    { value: "story_unlocked", label: "Stories" },
+  ];
+  const eventSuggestions = query.trim()
+    ? SEARCH_OPTIONS.filter((item) => item.value.includes(query.trim().toLowerCase()) || item.label.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 4)
+    : [];
 
   const HINTS = [
     { label: "post_created", display: "📝 post_created" },
@@ -1252,7 +1317,16 @@ const SearchZone = ({ query, setQuery, onSearch, searching, inputRef }) => {
             onChange={e => setQuery(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            onKeyDown={e => e.key === "Enter" && query.trim() && onSearch(query.trim())}
+            onKeyDown={e => {
+              if (e.key === "Enter" && query.trim()) {
+                e.preventDefault();
+                onSearch(query.trim());
+              }
+            }}
+            onPaste={e => {
+              const pasted = e.clipboardData?.getData("text");
+              if (pasted) setQuery(pasted);
+            }}
             placeholder="record ID · user UUID · post_created · any keyword…"
             autoComplete="off"
             spellCheck={false}
@@ -1263,6 +1337,21 @@ const SearchZone = ({ query, setQuery, onSearch, searching, inputRef }) => {
             </button>
           )}
         </div>
+        {focused && (liveResults.length > 0 || eventSuggestions.length > 0) && (
+          <div className="xo3-search-suggestions">
+            {liveResults.slice(0, 6).map((record) => (
+              <button key={record.record_id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onSearch(query.trim())}>
+                <span>{record._profile?.full_name || record._profile?.username || record.payload?.text || "Platform match"}</span>
+                <code>{record._matchType || record.payload?.event}</code>
+              </button>
+            ))}
+            {eventSuggestions.map((item) => (
+              <button key={item.value} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setQuery(item.value); onSearch(item.value); }}>
+                <span>{item.label}</span><code>{item.value}</code>
+              </button>
+            ))}
+          </div>
+        )}
         <button
           className="xo3-search-cta"
           onClick={() => query.trim() && onSearch(query.trim())}
@@ -1300,6 +1389,7 @@ const OracleResultCards = ({ records, onSelect }) => {
         const profile = record._profile;
         const label = profile?.full_name || profile?.username || humanEvent(record.payload);
         const subject = record.payload?.post_id || record.payload?.profile_id || record.payload?.transaction_id || record.payload?.tx_id || record.actor_id;
+        const imageUrl = resultImageUrl(record);
         return (
           <button
             key={`${record.record_id || index}`}
@@ -1307,7 +1397,9 @@ const OracleResultCards = ({ records, onSelect }) => {
             onClick={() => onSelect(record)}
             style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: 14, textAlign: "left", color: "#e8edf5", background: "rgba(255,255,255,.035)", border: `1px solid ${style.color}45`, borderRadius: 12, cursor: "pointer" }}
           >
-            <span style={{ width: 36, height: 36, borderRadius: 10, display: "grid", placeItems: "center", flexShrink: 0, color: style.color, background: style.dim, fontSize: 18 }}>{style.glyph}</span>
+            <span style={{ width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center", flexShrink: 0, color: style.color, background: style.dim, fontSize: 18, overflow: "hidden", border: `1px solid ${style.color}35` }}>
+              {imageUrl ? <img src={imageUrl} alt="" loading="lazy" onError={event => { event.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : style.glyph}
+            </span>
             <span style={{ minWidth: 0, flex: 1 }}>
               <strong style={{ display: "block", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</strong>
               <span style={{ display: "block", marginTop: 4, color: "rgba(255,255,255,.48)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{humanEvent(record.payload)} · {record.stream_type} · {trunc(subject, 22)}</span>
@@ -1336,6 +1428,7 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
   const [selectedNode,  setSelectedNode]  = useState(null);
   const [showDetail,    setShowDetail]    = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [liveResults, setLiveResults] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null);
   const [stats,         setStats]         = useState(null);
   const [feed,          setFeed]          = useState([]);
@@ -1366,6 +1459,24 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
     return () => clearTimeout(focusTimer);
   }, [loadOverview]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const raw = query.trim();
+    if (raw.length < 2 || !xrcService?.smartSearch) {
+      setLiveResults([]);
+      return undefined;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const result = await xrcService.smartSearch(raw, { limit: 8 });
+        if (!cancelled) setLiveResults(result?.records || []);
+      } catch {
+        if (!cancelled) setLiveResults([]);
+      }
+    }, 280);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [query, xrcService]);
+
   const oracleSearch = useCallback(async (q) => {
     if (!xrcService || !q.trim()) return;
     const raw = q.trim();
@@ -1384,8 +1495,9 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
         setError(`Nothing found for "${raw}". Try a username, profile/post link, transaction ID, record ID, or event type.`);
         setPhase("idle");
       }
-    } catch {
-      setError("Oracle is unreachable. Verify the chain service is running.");
+    } catch (searchError) {
+      console.error("[Oracle] smartSearch failed:", searchError);
+      setError(searchError?.message || "Oracle search failed. Please try again.");
       setPhase("idle");
     } finally { setSearching(false); }
   }, [xrcService]);
@@ -1417,18 +1529,9 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
   }, [xrcService]);
 
   const selectSearchResult = useCallback(async (record) => {
-    const actorId = record?.actor_id || record?.payload?.user_id || record?.payload?.owner_id;
-    const profile = record?._profile;
-    if (actorId) {
-      setProfileTarget({
-        id: actorId,
-        user_id: actorId,
-        name: profile?.full_name || "Verified profile",
-        username: profile?.username,
-        avatar_id: profile?.avatar_id,
-        verified: profile?.verified,
-        verificationRecord: record,
-      });
+    const profileTargetFromRecord = resolveProfileTargetFromRecord(record);
+    if (profileTargetFromRecord) {
+      setProfileTarget(profileTargetFromRecord);
       return;
     }
     await expandNetwork(record);
@@ -1476,6 +1579,7 @@ const XRCOracleExplorer = ({ onClose, xrcService, currentUser }) => {
           onSearch={oracleSearch}
           searching={searching}
           inputRef={inputRef}
+          liveResults={liveResults}
         />
 
         {/* ═══ STAGE ═══ */}

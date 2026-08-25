@@ -1,22 +1,17 @@
-jest.mock('onesignal-sdk', () => ({
-  __esModule: true,
-  default: {
-    init: jest.fn(),
-    getUserId: jest.fn(),
-    getDeviceState: jest.fn(),
-    setExternalUserId: jest.fn(),
-    Notifications: { requestPermission: jest.fn() },
-    Slidedown: { promptPush: jest.fn() },
-    User: {
-      onesignalId: null,
-      PushSubscription: {
-        id: jest.fn(),
-      },
+const OneSignal = {
+  init: jest.fn(),
+  getUserId: jest.fn(),
+  getDeviceState: jest.fn(),
+  setExternalUserId: jest.fn(),
+  Notifications: { requestPermission: jest.fn() },
+  Slidedown: { promptPush: jest.fn() },
+  User: {
+    onesignalId: null,
+    PushSubscription: {
+      id: jest.fn(),
     },
   },
-}));
-
-import OneSignal from 'onesignal-sdk';
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -29,13 +24,12 @@ beforeEach(() => {
     configurable: true,
     value: {},
   });
-  window.OneSignal = undefined;
+  window.OneSignal = OneSignal;
 });
 
 describe('onesignalService', () => {
   it('initializes the SDK with auto-registration enabled', async () => {
     OneSignal.init.mockResolvedValue(undefined);
-    window.OneSignal = OneSignal;
 
     const { initializeOneSignal } = await import('./onesignalService');
     await initializeOneSignal('user-1');
@@ -49,7 +43,6 @@ describe('onesignalService', () => {
     OneSignal.init.mockResolvedValue(undefined);
     OneSignal.getUserId.mockResolvedValue(null);
     OneSignal.getDeviceState.mockResolvedValue({ userId: 'device-456' });
-    window.OneSignal = OneSignal;
 
     const { getPlayerId } = await import('./onesignalService');
     const playerId = await getPlayerId('user-1');
@@ -63,7 +56,6 @@ describe('onesignalService', () => {
     OneSignal.getUserId.mockResolvedValue(null);
     OneSignal.getDeviceState.mockResolvedValue(null);
     OneSignal.User.PushSubscription.id.mockResolvedValue('sub-123');
-    window.OneSignal = OneSignal;
 
     const { getPlayerId } = await import('./onesignalService');
     const playerId = await getPlayerId('user-1');

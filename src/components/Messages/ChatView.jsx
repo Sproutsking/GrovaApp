@@ -15,6 +15,7 @@ import onlineStatusService from "../../services/messages/onlineStatusService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import backgroundService, { DOT_OVERLAY_CSS } from "../../services/messages/BackgroundService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shared/LinkifiedText";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -205,7 +206,7 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId }) => {
+const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
   const [ctxOpen,setCtx]=useState(false); const [ctxPos,setCtxPos]=useState({x:0,y:0});
   const [hovered,setHov]=useState(false); const [rAnim,setRAnim]=useState(false);
@@ -227,7 +228,9 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
     if(c.startsWith("↩ Replying to status:")){const m=c.match(/↩ Replying to status: "(.+)"/);return(<span><span style={{color:"#84cc16",fontSize:11,display:"block",marginBottom:3}}>↩ Status reply</span>{m?<em style={{opacity:.7}}>{`"${m[1]}"`}</em>:c}</span>);}
     if(c.startsWith("↗ Forwarded message")){const lines=c.split("\n");return(<span className="cv-forwarded"><span className="cv-forwarded-label">↗ Forwarded message</span><span className="cv-forwarded-body">{lines.slice(1).join("\n")}</span></span>);}
     if(c.startsWith("__GIF__:")){return <img src={c.replace("__GIF__:","")} alt="GIF" style={{maxWidth:220,maxHeight:170,borderRadius:10,display:"block",objectFit:"cover"}}/>;}
-    return c;
+    return parseSharedContent(c)
+      ? <SharedContentMessage onNavigate={onNavigate}>{c}</SharedContentMessage>
+      : <LinkifiedText onNavigate={onNavigate}>{c}</LinkifiedText>;
   };
   return (
     <div ref={rowRef} className={["cv-msg",isMe?"cv-me":"cv-them",msg._optimistic?"cv-opt":"",msg._failed?"cv-fail":"",rAnim?"cv-rpulse":""].filter(Boolean).join(" ")}
@@ -334,7 +337,7 @@ MessageInput.displayName="MessageInput";
 // ════════════════════════════════════════════════════════════════════════════
 // ChatView outer wrapper — null guard, no hooks
 // ════════════════════════════════════════════════════════════════════════════
-const ChatView = ({ conversation, currentUser, onBack, onStartCall }) => {
+const ChatView = ({ conversation, currentUser, onBack, onStartCall, onNavigate }) => {
   if (!conversation) return null;
   if (typeof conversation!=="object") return null;
   if (typeof conversation.id!=="string"||conversation.id.length===0) return null;
@@ -342,11 +345,11 @@ const ChatView = ({ conversation, currentUser, onBack, onStartCall }) => {
   if (typeof conversation.otherUser!=="object") return null;
   if (typeof conversation.otherUser.id!=="string"||conversation.otherUser.id.length===0) return null;
   if (!currentUser?.id) return null;
-  return <ChatViewInner conversation={conversation} currentUser={currentUser} onBack={onBack} onStartCall={onStartCall}/>;
+  return <ChatViewInner conversation={conversation} currentUser={currentUser} onBack={onBack} onStartCall={onStartCall} onNavigate={onNavigate}/>;
 };
 
 // ─── ChatViewInner ────────────────────────────────────────────────────────────
-const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
+const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavigate }) => {
   const [messages,setMessages]         = useState([]);
   const [loading,setLoading]           = useState(true);
   const [status,setStatus]             = useState({online:false,lastSeenText:"Offline"});
@@ -515,7 +518,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall }) => {
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime}/>;
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">
