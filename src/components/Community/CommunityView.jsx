@@ -158,12 +158,31 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   const handleJoinCommunity = async (communityId) => {
+    const community = allCommunities.find((item) => item.id === communityId);
+    if (!community || myCommunities.some((item) => item.id === communityId)) return;
+
+    // Update navigation and sidebar state immediately; persistence continues in the background.
+    const optimisticCommunity = { ...community, member_count: (community.member_count || 0) + 1 };
+    setMyCommunities((current) => [...current, optimisticCommunity]);
+    setSelectedCommunity(optimisticCommunity);
+    currentCommunityRef.current = communityId;
+    setSelectedChannel(null);
+    setView(isMobile ? "channels" : "chat");
+    if (isMobile) setSidebarOpen(false);
+
     try {
       await communityService.joinCommunity(communityId, userId);
       await loadCommunities();
       const joined = await communityService.fetchCommunityDetails(communityId);
       if (joined) handleSelectCommunity(joined);
     } catch (error) {
+      setMyCommunities((current) => current.filter((item) => item.id !== communityId));
+      if (currentCommunityRef.current === communityId) {
+        setSelectedCommunity(null);
+        setSelectedChannel(null);
+        currentCommunityRef.current = null;
+        setView("discover");
+      }
       console.error("Error joining community:", error);
       alert(error.message || "Failed to join community");
     }

@@ -102,8 +102,10 @@ const CardHeader = ({
     setIsFollowing(next);
     setIsLoading(true);
     try {
-      if (next) await followService.followUser(currentUser.id, profile.userId);
-      else await followService.unfollowUser(currentUser.id, profile.userId);
+      const result = next
+        ? await followService.followUser(currentUser.id, profile.userId)
+        : await followService.unfollowUser(currentUser.id, profile.userId);
+      if (result?.success === false) setIsFollowing(!next);
     } catch {
       setIsFollowing(!next);
     } finally {

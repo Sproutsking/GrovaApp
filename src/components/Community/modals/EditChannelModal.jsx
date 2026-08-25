@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { X, Hash, Volume2, Bell, ArrowLeft, Upload } from "lucide-react";
+import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile } from "lucide-react";
+import EmojiPanel from "../components/EmojiPanel";
 
 const EditChannelModal = ({ channel, onClose, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [iconFile, setIconFile] = useState(null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
 
   const channelTypes = [
     { value: "text", label: "Text Channel", icon: Hash },
@@ -51,9 +53,9 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
 
   return (
     <>
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
+      <div className="channel-modal-overlay" onClick={onClose}>
+        <div className="channel-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header channel-modal-header">
             <button className="modal-back" onClick={onClose} title="Back"><ArrowLeft size={20} /></button>
             <span className="modal-title">Edit Channel</span>
             <button className="close-modal" onClick={onClose}>
@@ -61,7 +63,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
             </button>
           </div>
 
-          <div className="modal-body">
+          <div className="modal-body channel-modal-body">
             {error && <div className="error-message">{error}</div>}
 
             <div className="form-group">
@@ -103,16 +105,12 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
 
             <div className="form-group">
               <label className="form-label">Channel Icon</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.icon}
-                onChange={(e) =>
-                  setFormData({ ...formData, icon: e.target.value })
-                }
-                placeholder="Enter emoji..."
-                maxLength={2}
-              />
+              <div className="channel-icon-row">
+                <button type="button" className="channel-icon-preview" onClick={() => setShowIconPicker((open) => !open)} aria-label="Choose channel icon">{formData.icon || "💬"}</button>
+                <input type="text" className="form-input" value={formData.icon} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} placeholder="Enter emoji" maxLength={2} />
+                <button type="button" className="channel-icon-picker-btn" onClick={() => setShowIconPicker((open) => !open)}><Smile size={15} /> Pick</button>
+                {showIconPicker && <div className="channel-icon-picker"><EmojiPanel onSelect={(icon) => { setFormData({ ...formData, icon }); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} style={{ position: "absolute", left: 0, top: "calc(100% + 8px)" }} /></div>}
+              </div>
               <label className="channel-icon-upload"><Upload size={14} /> Replace with image<input type="file" accept="image/*" onChange={(e) => setIconFile(e.target.files?.[0] || null)} /></label>
               {iconFile && <small className="help-text">{iconFile.name}</small>}
             </div>
@@ -149,7 +147,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
               </div>
             </div>
 
-            <div className="modal-actions">
+            <div className="modal-actions channel-modal-actions">
               <button
                 type="button"
                 className="action-btn secondary"
@@ -172,6 +170,16 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
       </div>
 
       <style>{`
+        .channel-modal-overlay{position:fixed;inset:0;background:rgba(5,7,10,.72);backdrop-filter:blur(12px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+        .channel-modal{width:min(620px,100%);max-height:min(760px,calc(100vh - 40px));background:linear-gradient(180deg,#171d18,#0b0f0c);border:1px solid rgba(156,255,0,.28);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(156,255,0,.08);overflow:auto;position:relative;}
+        .channel-modal-header{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(15,20,16,.96);border-bottom:1px solid rgba(156,255,0,.18);}
+        .channel-modal-body{padding:20px;}
+        .channel-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+        .channel-icon-row{display:flex;align-items:center;gap:8px;position:relative;}
+        .channel-icon-preview{width:44px;height:44px;border-radius:12px;border:1px solid rgba(156,255,0,.35);background:rgba(156,255,0,.1);font-size:24px;cursor:pointer;flex-shrink:0;}
+        .channel-icon-picker-btn{height:40px;border:1px solid rgba(156,255,0,.25);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;display:flex;align-items:center;gap:5px;padding:0 10px;cursor:pointer;white-space:nowrap;}
+        .channel-icon-picker{position:absolute;left:0;top:100%;z-index:20;}
+        @media(max-width:600px){.channel-modal-overlay{padding:10px;align-items:flex-end}.channel-modal{max-height:calc(100vh - 20px);border-radius:18px 18px 10px 10px}.channel-modal-body{padding:16px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
         .modal-overlay {
           position: fixed;
           top: 57px;

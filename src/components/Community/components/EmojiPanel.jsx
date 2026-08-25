@@ -12,7 +12,7 @@ import {
   Film,
 } from "lucide-react";
 
-const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
+const EmojiPanel = ({ onSelect, onClose, style = {}, panelRef: externalPanelRef, managePosition = true }) => {
   const [activeCategory, setActiveCategory] = useState("people");
   const [searchTerm, setSearchTerm] = useState("");
   const panelRef = useRef(null);
@@ -34,6 +34,7 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
   }, [onClose]);
 
   useEffect(() => {
+    if (!managePosition) return undefined;
     const placePanel = () => {
       if (!panelRef.current) return;
       const panel = panelRef.current;
@@ -52,7 +53,7 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
     placePanel();
     window.addEventListener("resize", placePanel);
     return () => window.removeEventListener("resize", placePanel);
-  }, [style.left, style.top]);
+  }, [managePosition, style.left, style.top]);
 
   const emojiCategories = {
     people: {
@@ -736,7 +737,10 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
 
   return (
     <div
-      ref={panelRef}
+      ref={(node) => {
+        panelRef.current = node;
+        if (externalPanelRef) externalPanelRef.current = node;
+      }}
       className="community-emoji-panel"
       style={style}
       onClick={(e) => e.stopPropagation()}
@@ -797,6 +801,10 @@ const EmojiPanel = ({ onSelect, onClose, style = {} }) => {
           box-shadow: 0 24px 70px rgba(0,0,0,0.82), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 42px rgba(156,255,0,0.12);
           z-index: 10000;
           isolation: isolate;
+        }
+
+        .community-emoji-panel[style*="position: fixed"] {
+          overflow: hidden;
         }
 
         .community-emoji-search {

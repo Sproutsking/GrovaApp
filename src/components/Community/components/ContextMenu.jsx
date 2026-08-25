@@ -9,10 +9,13 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
   const [showMore, setShowMore] = useState(false);
   const [showReactionPanel, setShowReactionPanel] = useState(false);
   const panelRef = useRef(null);
+  const reactionPanelRef = useRef(null);
+  const [reactionPanelStyle, setReactionPanelStyle] = useState({ position: "fixed", left: position?.x || 12, top: position?.y || 12, zIndex: 10000 });
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      if (panelRef.current && !panelRef.current.contains(event.target)) {
+      const activePanel = showReactionPanel ? reactionPanelRef.current : panelRef.current;
+      if (activePanel && !activePanel.contains(event.target)) {
         onClose?.();
       }
     };
@@ -23,7 +26,7 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, showReactionPanel]);
 
   useEffect(() => {
     if (!panelRef.current || !position) return;
@@ -31,6 +34,35 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
     panelRef.current.style.left = `${Math.max(12, Math.min(position.x, window.innerWidth - width - 12))}px`;
     panelRef.current.style.top = `${Math.max(12, Math.min(position.y, window.innerHeight - height - 12))}px`;
   }, [position, showMore]);
+
+  useEffect(() => {
+    if (!showReactionPanel || !reactionPanelRef.current || !position) return;
+    const placeReactionPanel = () => {
+      const { width, height } = reactionPanelRef.current.getBoundingClientRect();
+      const left = Math.max(12, Math.min(position.x, window.innerWidth - width - 12));
+      const availableBelow = window.innerHeight - position.y - 12;
+      const availableAbove = position.y - 12;
+      const canOpenBelow = height <= availableBelow;
+      const canOpenAbove = height <= availableAbove;
+      const top = canOpenBelow
+        ? position.y
+        : canOpenAbove
+          ? position.y - height
+          : availableBelow >= availableAbove
+            ? 12
+            : Math.max(12, position.y - height);
+      setReactionPanelStyle({
+        position: "fixed",
+        left,
+        top,
+        maxHeight: Math.max(180, window.innerHeight - 24),
+        zIndex: 10000,
+      });
+    };
+    placeReactionPanel();
+    window.addEventListener("resize", placeReactionPanel);
+    return () => window.removeEventListener("resize", placeReactionPanel);
+  }, [position, showReactionPanel]);
 
   if (!position || !message) return null;
   const canEdit = message.user_id === userId;
@@ -41,9 +73,11 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
     <div className="message-context-backdrop" onClick={onClose}>
       {showReactionPanel ? (
         <EmojiPanel
+          panelRef={reactionPanelRef}
+          managePosition={false}
           onSelect={(emoji) => onReaction?.(emoji)}
           onClose={onClose}
-          style={{ position: "fixed", left: position.x, top: position.y, zIndex: 10000 }}
+          style={reactionPanelStyle}
         />
       ) : <div ref={panelRef} className="message-context-menu" style={{ left: position.x, top: position.y }} onClick={(event) => event.stopPropagation()}>
         <button className="message-context-item primary" onClick={() => handle(onReply)}><Reply size={15} /><span>Reply</span></button>

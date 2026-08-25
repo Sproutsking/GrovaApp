@@ -286,11 +286,13 @@ const MessageList = ({
 
         /* "me" bubble for better blending */
         .msg-bubble.me {
-          background: linear-gradient(135deg, rgba(48,104,31,.96), rgba(20,48,25,.98) 58%, rgba(12,27,17,.98));
+          background: linear-gradient(135deg, rgba(34,78,24,.98), rgba(16,40,20,.99) 58%, rgba(9,23,14,1));
           border: 1px solid rgba(156,255,0,.42);
           box-shadow: 0 5px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.07);
           border-bottom-right-radius: 4px;
         }
+
+        .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         .msg-bubble.them.has-tail {
           border-bottom-left-radius: 3px;

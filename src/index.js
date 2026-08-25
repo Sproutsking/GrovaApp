@@ -632,7 +632,9 @@ const isLocalhost = Boolean(
   ),
 );
 
-if (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST) {
+// Never let the production offline cache mask HMR/source changes during development,
+// including Codespaces forwarded hosts that are not technically localhost.
+if (process.env.NODE_ENV === "development" || (isLocalhost && !process.env.REACT_APP_SW_LOCALHOST)) {
   serviceWorkerRegistration.unregister();
 } else {
   serviceWorkerRegistration.register({

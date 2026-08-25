@@ -237,8 +237,10 @@ const ReelCard = ({
       setTimeout(() => setShowFollowAnim(false), 800);
     }
     try {
-      if (next) await followService.followUser(currentUser.id, reel.user_id);
-      else await followService.unfollowUser(currentUser.id, reel.user_id);
+      const result = next
+        ? await followService.followUser(currentUser.id, reel.user_id)
+        : await followService.unfollowUser(currentUser.id, reel.user_id);
+      if (result?.success === false) setIsFollowing(!next);
     } catch {
       setIsFollowing(!next);
     }

@@ -44,6 +44,7 @@ import React, {
 import { supabase } from "../../services/config/supabase";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { hasAdminProfileFlag } from "../../services/auth/adminAccess";
+import { grantSignupEP } from "../../services/economy/epEconomyService";
 
 const AuthContext = createContext(null);
 
@@ -442,6 +443,12 @@ export default function AuthProvider({ children }) {
           lastGoodProfile.current = data;
           setProfile(data);
           writeProfileCache(data);
+
+          grantSignupEP(userId).catch((error) => {
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[AuthContext] Welcome EP allocation deferred:", error?.message);
+            }
+          });
 
           if (isPaidProfileData(data)) setPaid(true);
 

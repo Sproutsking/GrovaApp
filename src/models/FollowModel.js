@@ -8,14 +8,6 @@
 // ============================================================================
 
 import { supabase } from "../services/config/supabase";
-import pushService from "../services/notifications/pushService";
-
-// ── Push helper — never throws ────────────────────────────────────────────────
-async function _sendPush(params) {
-  try { await pushService.sendPushToUser(params); } catch (e) {
-    console.warn("[FollowModel] push failed (non-fatal):", e?.message);
-  }
-}
 
 class FollowModel {
   // Check if user is following another user
@@ -40,57 +32,11 @@ class FollowModel {
   // [PUSH-1] Sends push to the user being followed
   static async followUser(followerId, followingId) {
     try {
-      // Check if already following
-      const isAlreadyFollowing = await this.isFollowing(followerId, followingId);
-      if (isAlreadyFollowing) {
-        return { success: false, message: "Already following" };
-      }
-
-      // Create follow relationship
-      const { data, error } = await supabase
-        .from("follows")
-        .insert({ follower_id: followerId, following_id: followingId })
-        .select()
-        .single();
-
+      const { data, error } = await supabase.rpc("process_follow", {
+        p_following_id: followingId,
+      });
       if (error) throw error;
-
-      // Increment follower count
-      await supabase.rpc("increment_follower_count", { user_id: followingId });
-
-      // Award EP for following
-      await supabase.rpc("award_ep", {
-        p_user_id: followerId,
-        p_amount:  5,
-        p_reason:  "followed_user",
-      });
-
-      // [PUSH-1] Push to the followed user
-      const { data: followerProfile } = await supabase
-        .from("profiles")
-        .select("full_name, username")
-        .eq("id", followerId)
-        .single();
-
-      const followerName = followerProfile?.full_name || followerProfile?.username || "Someone";
-
-      _sendPush({
-        recipientUserId: followingId,
-        actorUserId:     followerId,
-        type:            "follow",
-        title:           "New follower",
-        message:         `${followerName} started following you`,
-        entityId:        null,
-        metadata: {
-          notification_id: `follow_${followerId}_${followingId}`,
-          actorName:       followerName,
-          actorId:         followerId,
-          actor_id:        followerId,
-          url:             `/profile/${followerId}`,
-        },
-      });
-
-      return { success: true, data };
+      return data || { success: false, error: "Follow failed" };
     } catch (error) {
       console.error("Error following user:", error);
       return { success: false, error: error.message };

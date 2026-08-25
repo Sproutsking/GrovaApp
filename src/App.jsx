@@ -60,9 +60,6 @@ import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
 import BoostStyles               from "./components/Boost/BoostStyles";
 
-// Payment gate
-import { canAccessApp } from "./services/auth/paymentGate";
-
 // Shared UI
 import DesktopHeader from "./components/Shared/DesktopHeader";
 import MobileHeader from "./components/Shared/MobileHeader";
@@ -1239,9 +1236,8 @@ MainApp.displayName = "MainApp";
 // ── AppRouter ─────────────────────────────────────────────────────────────────
 function AppRouter() {
   const {
-    user, profile, isAdmin, adminData,
+    user, profile,
     loading, profileLoading, adminRoleLoading,
-    getIsPaidCached,
   } = useAuth();
 
   const [forceResolve,    setForceResolve]    = useState(false);
@@ -1290,14 +1286,8 @@ function AppRouter() {
   if (!forceResolve && loading) return <Splash />;
   if (!user)                     return <AuthWall />;
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
-  if (!profile) {
-    const paidCache = getIsPaidCached ? getIsPaidCached() : false;
-    if (isAdmin || paidCache) return <MainApp />;
-    return <Splash />;
-  }
-  const paidCache = getIsPaidCached ? getIsPaidCached() : false;
-  if (canAccessApp({ profile, isAdmin, adminData, paidCache })) return <MainApp />;
-  return <AuthWall paywall />;
+  if (!profile) return <Splash />;
+  return <MainApp />;
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────

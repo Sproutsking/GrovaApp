@@ -496,16 +496,30 @@ const ChatTab = ({
             onReply={(message) => { setReplyTo(message); setContextMenu(null); }}
             onNavigate={onNavigate}
             onReactionClick={async (msgId, emoji) => {
+              const msg = messages.find((m) => m.id === msgId);
+              const previousReactions = msg?.reactions || {};
+              const hasReacted = previousReactions?.[emoji]?.users?.includes(userId);
+              const nextReactions = JSON.parse(JSON.stringify(previousReactions));
+              const entry = nextReactions[emoji] || { count: 0, users: [] };
+              entry.users = Array.isArray(entry.users) ? entry.users : [];
+              if (hasReacted) {
+                entry.users = entry.users.filter((id) => id !== userId);
+                entry.count = Math.max(0, (entry.count || 0) - 1);
+                if (!entry.count) delete nextReactions[emoji];
+              } else {
+                entry.users = [...entry.users, userId];
+                entry.count = (entry.count || 0) + 1;
+                nextReactions[emoji] = entry;
+              }
+              setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: nextReactions } : item));
               try {
-                const msg = messages.find((m) => m.id === msgId);
-                const hasReacted = msg?.reactions?.[emoji]?.users?.includes(userId);
                 if (hasReacted) {
                   await communityMessageService.removeReaction(msgId, userId, emoji);
                 } else {
                   await communityMessageService.addReaction(msgId, userId, emoji);
                 }
-                await loadMessages();
               } catch (error) {
+                setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: previousReactions } : item));
                 console.error("Error toggling reaction:", error);
               }
             }}

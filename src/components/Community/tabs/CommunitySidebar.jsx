@@ -57,11 +57,11 @@ const CommunitySidebar = ({
                 gradientCss={community.banner_gradient}
                 borderStyle={community.icon_border}
                 size={50}
-                radius={14}
+                shape="circle"
                 className="community-avatar-slot"
                 style={{
                   boxShadow: selectedCommunity?.id === community.id
-                    ? "0 0 0 1px var(--accent), 0 0 12px rgba(156,255,0,.18)"
+                    ? "0 0 12px rgba(156,255,0,.18)"
                     : "none",
                 }}
               />
@@ -234,7 +234,6 @@ const CommunitySidebar = ({
 
         .community-icon-wrap.active .cav-root {
           box-shadow:
-            0 0 0 2px var(--accent),
             0 10px 26px rgba(0,0,0,.45),
             0 0 0 1px rgba(255,255,255,.09) inset,
             0 0 34px -4px var(--cav-glow);

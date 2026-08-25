@@ -313,7 +313,8 @@ class CommunityMessageService {
       const { error } = await supabase
         .from("community_messages")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", messageId);
+        .eq("id", messageId)
+        .eq("user_id", userId);
 
       if (error) throw error;
       return true;

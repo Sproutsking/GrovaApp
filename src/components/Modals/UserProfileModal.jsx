@@ -551,8 +551,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     setFollowLoading(true);
     setStats((s) => ({ ...s, followers: s.followers + (next ? 1 : -1) }));
     try {
-      if (next) await followService.followUser(myId, targetId);
-      else      await followService.unfollowUser(myId, targetId);
+      const result = next
+        ? await followService.followUser(myId, targetId)
+        : await followService.unfollowUser(myId, targetId);
+      if (result?.success === false) {
+        setIsFollowing(!next);
+        setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));
+      }
     } catch {
       setIsFollowing(!next);
       setStats((s) => ({ ...s, followers: s.followers + (next ? -1 : 1) }));

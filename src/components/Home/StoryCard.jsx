@@ -88,8 +88,10 @@ const StoryCard = ({
     const next = !isFollowing;
     setIsFollowing(next); // optimistic
     try {
-      if (next) await followService.followUser(currentUser.id, story.user_id);
-      else      await followService.unfollowUser(currentUser.id, story.user_id);
+      const result = next
+        ? await followService.followUser(currentUser.id, story.user_id)
+        : await followService.unfollowUser(currentUser.id, story.user_id);
+      if (result?.success === false) setIsFollowing(!next);
     } catch {
       setIsFollowing(!next); // rollback
     }

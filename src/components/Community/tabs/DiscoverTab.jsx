@@ -235,7 +235,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                           gradientCss={c.banner_gradient}
                           borderStyle={c.icon_border}
                           size={46}
-                          radius={11}
+                          shape="circle"
                         />
                         {c.is_premium&&<div className="disc-premium"><Crown size={8} fill="#FFD700" color="#000"/></div>}
                       </div>

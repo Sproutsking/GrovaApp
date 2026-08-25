@@ -186,6 +186,11 @@ export function unregister() {
           if (success) console.log("[SWReg] Unregistered:", reg.scope);
         });
       });
+      if ("caches" in window) {
+        caches.keys().then((keys) => keys
+          .filter((key) => key.startsWith("xeevia-"))
+          .forEach((key) => caches.delete(key)));
+      }
     })
     .catch((err) => console.warn("[SWReg] unregister error:", err));
 }

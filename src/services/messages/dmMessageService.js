@@ -152,12 +152,60 @@ class DMMessageService {
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      conversationState.initMessages(conversationId, data || []);
-      return data || [];
+      const messages = data || [];
+      const ids = messages.map((message) => message.id).filter(Boolean);
+      if (ids.length) {
+        const { data: reactionRows, error: reactionError } = await supabase
+          .from("message_reactions")
+          .select("message_id, user_id, emoji")
+          .in("message_id", ids);
+        if (!reactionError) {
+          const byMessage = new Map();
+          (reactionRows || []).forEach(({ message_id, user_id, emoji }) => {
+            const reactions = byMessage.get(message_id) || {};
+            const entry = reactions[emoji] || { count: 0, users: [] };
+            entry.count += 1;
+            entry.users.push(user_id);
+            reactions[emoji] = entry;
+            byMessage.set(message_id, reactions);
+          });
+          messages.forEach((message) => { message.reactions = byMessage.get(message.id) || {}; });
+        }
+      }
+      conversationState.initMessages(conversationId, messages);
+      return messages;
     } catch (error) {
       console.error("❌ [DM] Load messages error:", error);
       return [];
     }
+  }
+
+  async deleteMessage(messageId, userId) {
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("id", messageId)
+      .eq("sender_id", userId);
+    if (error) throw error;
+    return true;
+  }
+
+  async addReaction(messageId, userId, emoji) {
+    const { error } = await supabase.from("message_reactions").upsert(
+      { message_id: messageId, user_id: userId, emoji },
+      { onConflict: "message_id,user_id,emoji" },
+    );
+    if (error) throw error;
+  }
+
+  async removeReaction(messageId, userId, emoji) {
+    const { error } = await supabase
+      .from("message_reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("user_id", userId)
+      .eq("emoji", emoji);
+    if (error) throw error;
   }
 
   async sendMessage(conversationId, content, senderId, replyToId = null) {

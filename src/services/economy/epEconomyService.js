@@ -27,6 +27,7 @@ export const XEV_TO_USD           = 0.025;
 
 export const EP_COSTS = Object.freeze({
   like:    2,
+  follow:  2,
   comment: 4,
   reply:   4,
   share:   10,
@@ -39,7 +40,7 @@ export const ECONOMY = Object.freeze({
   XEV_TO_USD,
   PLATFORM_FEE_PCT:     0.20,
   COMMENT_SPLIT_PCT:    0.50,
-  SIGNUP_BONUS_EP:      50,
+  SIGNUP_BONUS_EP:      10,
   DAILY_LOGIN_BONUS_EP: 5,
 });
 
@@ -429,38 +430,8 @@ export async function processEngagement({
     };
 
   } catch (err) {
-    // [FIX-2] Direct wallet fallback
-    try {
-      const ownerId       = await _resolveOwner(contentType, contentId);
-      const isSelf        = ownerId === actorId;
-      const distributable = Math.trunc(epCostInt * (1 - ECONOMY.PLATFORM_FEE_PCT));
-
-      if (!isSelf) {
-        await Promise.allSettled([
-          _fallbackDeductEP(actorId, epCostInt),
-          ownerId ? _fallbackAwardEP(ownerId, distributable) : Promise.resolve(),
-        ]);
-      }
-
-      // [PUSH-1] Also fire push on fallback path
-      _sendEngagementPush({
-        actorId,
-        contentType,
-        contentId,
-        engagementType,
-        isSelf,
-      });
-
-      return {
-        success:        true,
-        epCost:         epCostInt,
-        selfEngagement: isSelf,
-        fallback:       true,
-      };
-    } catch (fallbackErr) {
-      console.error('[epEconomyService] direct fallback failed:', fallbackErr.message);
-      return { success: true, epCost: epCostInt, fallback: true, epError: true };
-    }
+    console.error('[epEconomyService] engagement RPC failed:', err?.message);
+    return { success: false, epCost: epCostInt, error: 'Unable to verify EP. Please try again.' };
   }
 }
 

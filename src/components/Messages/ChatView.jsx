@@ -16,6 +16,7 @@ import conversationState from "../../services/messages/ConversationStateManager"
 import backgroundService, { DOT_OVERLAY_CSS } from "../../services/messages/BackgroundService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shared/LinkifiedText";
+import CommunityContextMenu from "../Community/components/ContextMenu";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -206,7 +207,7 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate }) => {
+const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
   const [ctxOpen,setCtx]=useState(false); const [ctxPos,setCtxPos]=useState({x:0,y:0});
   const [hovered,setHov]=useState(false); const [rAnim,setRAnim]=useState(false);
@@ -221,15 +222,15 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
   },[avatarUrl]);
   const handleCopy=()=>navigator.clipboard?.writeText(msg.content||"").catch(()=>{});
-  const handleDelete=async()=>{if(!isMe)return;try{await supabase.from("messages").delete().eq("id",msg.id);}catch(e){console.warn(e);}};
-  const renderContent=c=>{
+  const handleDelete=async()=>{if(!isMe)return;try{await dmMessageService.deleteMessage(msg.id, currentUserId);onDeleted?.(msg.id);}catch(e){console.warn(e);}};
+  const renderContent=(c, opts={})=>{
     if(!c||typeof c!=="string"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
       return <span className="cv-bad">[message unavailable]</span>;
     if(c.startsWith("↩ Replying to status:")){const m=c.match(/↩ Replying to status: "(.+)"/);return(<span><span style={{color:"#84cc16",fontSize:11,display:"block",marginBottom:3}}>↩ Status reply</span>{m?<em style={{opacity:.7}}>{`"${m[1]}"`}</em>:c}</span>);}
     if(c.startsWith("↗ Forwarded message")){const lines=c.split("\n");return(<span className="cv-forwarded"><span className="cv-forwarded-label">↗ Forwarded message</span><span className="cv-forwarded-body">{lines.slice(1).join("\n")}</span></span>);}
     if(c.startsWith("__GIF__:")){return <img src={c.replace("__GIF__:","")} alt="GIF" style={{maxWidth:220,maxHeight:170,borderRadius:10,display:"block",objectFit:"cover"}}/>;}
     return parseSharedContent(c)
-      ? <SharedContentMessage onNavigate={onNavigate}>{c}</SharedContentMessage>
+      ? <SharedContentMessage onNavigate={onNavigate} isMine={isMe} showSender={opts.showSender ?? true} senderDisplayName={opts.senderDisplayName || (isMe ? "You" : otherName || "Someone")}>{c}</SharedContentMessage>
       : <LinkifiedText onNavigate={onNavigate}>{c}</LinkifiedText>;
   };
   return (
@@ -242,13 +243,14 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
       {!isMe&&(showAv?(<div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherName} loading="eager" fetchPriority="high"/>:(otherName||"U").charAt(0)}</div>):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showAv&&!isMe?"cv-tail-l":"",showAv&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
-        <div className="cv-content">{renderContent(msg.content)}</div>
+        <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
+        {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
           <span className="cv-time">{fmtTime(msg.created_at)}</span>
           {isMe&&<span className="cv-st">{getTickStatus(msg)}</span>}
         </div>
       </div>
-      {ctxOpen&&<ContextMenu msg={msg} pos={ctxPos} isMe={isMe} onReply={()=>onReply?.(msg)} onCopy={handleCopy} onDelete={handleDelete} onClose={()=>setCtx(false)}/>}
+      {ctxOpen&&<CommunityContextMenu position={ctxPos} message={msg} userId={currentUserId} onReply={()=>onReply?.(msg)} onCopy={handleCopy} onDelete={handleDelete} onReaction={onReaction} onClose={()=>setCtx(false)}/>}
     </div>
   );
 });
@@ -445,6 +447,24 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     catch(e){console.error("send:",e);}
   };
 
+  const toggleReaction = useCallback(async (messageId, emoji) => {
+    const current = msgsRef.current.find((message) => message.id === messageId);
+    const previous = current?.reactions || {};
+    const hasReacted = previous[emoji]?.users?.includes(currentUser.id);
+    const next = JSON.parse(JSON.stringify(previous));
+    const entry = next[emoji] || { count: 0, users: [] };
+    entry.users = hasReacted ? entry.users.filter((id) => id !== currentUser.id) : [...entry.users, currentUser.id];
+    entry.count = hasReacted ? Math.max(0, entry.count - 1) : entry.count + 1;
+    if (!entry.count) delete next[emoji]; else next[emoji] = entry;
+    setMessages((items) => items.map((item) => item.id === messageId ? { ...item, reactions: next } : item));
+    try {
+      if (hasReacted) await dmMessageService.removeReaction(messageId, currentUser.id, emoji);
+      else await dmMessageService.addReaction(messageId, currentUser.id, emoji);
+    } catch {
+      setMessages((items) => items.map((item) => item.id === messageId ? { ...item, reactions: previous } : item));
+    }
+  }, [currentUser.id]);
+
   const scrollToMessage=useCallback(msgId=>{
     const el=containerRef.current?.querySelector(`[data-msg-id="${msgId}"]`);
     if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("cv-highlight");setTimeout(()=>el.classList.remove("cv-highlight"),1500);}
@@ -518,7 +538,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate}/>;
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">
@@ -593,6 +613,9 @@ export const CV_CSS = `
 .cv-tail-r.cv-bme{border-bottom-right-radius:4px;}
 .cv-content{font-size:14px;color:#f0f0f0;line-height:1.5;}
 .cv-bme .cv-content{color:#e8ffe8;}
+.cv-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.cv-reaction-pill{padding:3px 7px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;cursor:pointer;font-size:11px;}
+.cv-reaction-pill-on{background:rgba(132,204,22,.16);border-color:rgba(132,204,22,.45);color:#baff82;}
 .cv-forwarded{display:flex;flex-direction:column;gap:5px;padding:6px 8px;border-left:2px solid #84cc16;background:rgba(132,204,22,.08);border-radius:5px;white-space:pre-wrap;}
 .cv-forwarded-label{font-size:10px;font-weight:800;color:#9cff00;letter-spacing:.2px;}
 .cv-forwarded-body{font-size:13px;color:inherit;}
