@@ -15,8 +15,11 @@ import onlineStatusService from "../../services/messages/onlineStatusService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import backgroundService, { DOT_OVERLAY_CSS } from "../../services/messages/BackgroundService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import BoostAvatarRing from "../Shared/BoostAvatarRing";
+import { getBoostNameColor } from "../Shared/profileVisuals";
+import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shared/LinkifiedText";
-import CommunityContextMenu from "../Community/components/ContextMenu";
+import MessageContextMenu from "../Shared/MessageContextMenu";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -207,22 +210,44 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted }) => {
+const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, boostTier, boostThemeId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
   const [ctxOpen,setCtx]=useState(false); const [ctxPos,setCtxPos]=useState({x:0,y:0});
-  const [hovered,setHov]=useState(false); const [rAnim,setRAnim]=useState(false);
-  const touchX=useRef(null); const touchY=useRef(null); const lpTimer=useRef(null); const rowRef=useRef(null);
+  const [rAnim,setRAnim]=useState(false);
+  const touchX=useRef(null); const touchY=useRef(null); const suppressPointerMenu=useRef(false); const rowRef=useRef(null);
   const TH=60;
   const openCtx=(x,y)=>{setCtxPos({x,y});setCtx(true);};
-  const onTouchStart=e=>{touchX.current=e.touches[0].clientX;touchY.current=e.touches[0].clientY;lpTimer.current=setTimeout(()=>{const r=rowRef.current?.getBoundingClientRect()||{};openCtx(r.left+r.width/2-90,r.top-8);},500);};
-  const onTouchMove=e=>{const dx=e.touches[0].clientX-(touchX.current||0);const dy=Math.abs(e.touches[0].clientY-(touchY.current||0));if(dy>12){clearTimeout(lpTimer.current);return;}if(Math.abs(dx)>8){clearTimeout(lpTimer.current);setSw(true);setSX(Math.max(-90,Math.min(90,dx)));}};
-  const onTouchEnd=()=>{clearTimeout(lpTimer.current);if(swiping){if(Math.abs(swipeX)>=TH){setRAnim(true);setTimeout(()=>setRAnim(false),400);onReply?.(msg);}setSw(false);setSX(0);}};
-  const onContextMenu=e=>{e.preventDefault();openCtx(e.clientX,e.clientY);};
+  const onTouchStart=e=>{touchX.current=e.touches[0].clientX;touchY.current=e.touches[0].clientY;};
+  const onTouchMove=e=>{const dx=e.touches[0].clientX-(touchX.current||0);const dy=Math.abs(e.touches[0].clientY-(touchY.current||0));if(dy>12)return;if(Math.abs(dx)>8){setSw(true);setSX(Math.max(-90,Math.min(90,dx)));}};
+  const onTouchEnd=()=>{if(swiping){if(Math.abs(swipeX)>=TH){suppressPointerMenu.current=true;setRAnim(true);setTimeout(()=>setRAnim(false),400);onReply?.(msg);}setSw(false);setSX(0);}};
+  const onMessageClick=e=>{
+    if (suppressPointerMenu.current) {
+      suppressPointerMenu.current = false;
+      return;
+    }
+    if (touchX.current !== null && Math.abs(e.clientX - touchX.current) >= TH) {
+      touchX.current = null;
+      return;
+    }
+    touchX.current = null;
+    if (e.target.closest("button, a")) return;
+    const r=rowRef.current?.getBoundingClientRect();
+    if(r)openCtx(isMe?r.left+8:r.right-8,r.top+r.height/2);
+  };
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
   },[avatarUrl]);
   const handleCopy=()=>navigator.clipboard?.writeText(msg.content||"").catch(()=>{});
   const handleDelete=async()=>{if(!isMe)return;try{await dmMessageService.deleteMessage(msg.id, currentUserId);onDeleted?.(msg.id);}catch(e){console.warn(e);}};
+  const handleForward=async()=>{
+    if(!msg.content) return;
+    try {
+      await dmMessageService.sendMessage(msg.conversation_id, `↗ Forwarded message\n${msg.content}`, currentUserId);
+    } catch (error) {
+      console.warn("[DM] forward failed:", error);
+    }
+  };
+  const handleReport=()=>window.alert("Message reported.");
   const renderContent=(c, opts={})=>{
     if(!c||typeof c!=="string"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
       return <span className="cv-bad">[message unavailable]</span>;
@@ -235,15 +260,13 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
   };
   return (
     <div ref={rowRef} className={["cv-msg",isMe?"cv-me":"cv-them",msg._optimistic?"cv-opt":"",msg._failed?"cv-fail":"",rAnim?"cv-rpulse":""].filter(Boolean).join(" ")}
-      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      onContextMenu={onContextMenu} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {hovered&&!swiping&&!ctxOpen&&<button className={`cv-desktop-reply${isMe?" cv-dr-left":" cv-dr-right"}`} onClick={()=>onReply?.(msg)} title="Reply"><Ic.Reply/></button>}
-      {!isMe&&(showAv?(<div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherName} loading="eager" fetchPriority="high"/>:(otherName||"U").charAt(0)}</div>):<div className="cv-avatar-sp"/>)}
-      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showAv&&!isMe?"cv-tail-l":"",showAv&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
+      {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} />):<div className="cv-avatar-sp"/>)}
+      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
-        {!isMe&&showAv&&<div className="cv-msg-author">{otherName||"Unknown"}</div>}
+        {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameColor(boostTier, boostThemeId) || "#9cff00" }}>{otherName||"Unknown"}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
@@ -251,7 +274,20 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
           {isMe&&<span className="cv-st">{getTickStatus(msg)}</span>}
         </div>
       </div>
-      {ctxOpen&&<CommunityContextMenu position={ctxPos} message={msg} userId={currentUserId} onReply={()=>onReply?.(msg)} onCopy={handleCopy} onDelete={handleDelete} onReaction={onReaction} onClose={()=>setCtx(false)}/>}
+      {ctxOpen && (
+        <MessageContextMenu
+          position={ctxPos}
+          message={msg}
+          userId={currentUserId}
+          onReply={() => onReply?.(msg)}
+          onCopy={handleCopy}
+          onDelete={handleDelete}
+          onReaction={onReaction}
+          onForward={handleForward}
+          onReport={handleReport}
+          onClose={() => setCtx(false)}
+        />
+      )}
     </div>
   );
 });
@@ -370,10 +406,11 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const msgsRef=useRef([]); useEffect(()=>{msgsRef.current=messages;},[messages]);
 
   const convId=conversation.id; const otherUser=conversation.otherUser;
+  const otherBoost = useUserBoostTier(otherUser?.id);
   const bgs=backgroundService.getBackgrounds(); const activeBg=bgs[selectedBg];
   const bgStyle=backgroundService.getBgStyle(selectedBg); const isDefault=activeBg?.isDefault===true;
 
-  const scrollToBottom=(b="smooth")=>endRef.current?.scrollIntoView({behavior:b});
+  const scrollToBottom=(b="smooth")=>{endRef.current?.scrollIntoView({behavior:b});setShowJump(false);};
   const handleScroll=()=>{
     if(!containerRef.current)return;
     const{scrollTop,scrollHeight,clientHeight}=containerRef.current;
@@ -418,7 +455,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
   useEffect(()=>{
     const unsub=dmMessageService.subscribeToConversation(convId,{
-      onMessage:msg=>{if(isAtBottom.current)setTimeout(scrollToBottom,10);if(msg.sender_id!==currentUser.id&&msg.id){patchStatus([msg.id],"read");dmMessageService.markRead(convId,currentUser.id);}},
+      onMessage:msg=>{if(isAtBottom.current){setTimeout(scrollToBottom,10);}else{setShowJump(true);}if(msg.sender_id!==currentUser.id&&msg.id){patchStatus([msg.id],"read");dmMessageService.markRead(convId,currentUser.id);}},
       onDelivered:tempId=>{const m=msgsRef.current.find(x=>x.id===tempId||x._tempId===tempId);if(m?.id&&!m.id.startsWith("temp_"))patchStatus([m.id],"delivered");patchStatus([tempId],"delivered");},
       onRead:uid=>{if(uid!==currentUser.id)markOurRead();},
       onTyping:(uid,isTy,uname)=>{if(uid===otherUser?.id){setTyping({isTyping:isTy,userName:uname||otherUser?.full_name||"User"});if(isTy&&isAtBottom.current)setTimeout(scrollToBottom,100);}},
@@ -548,7 +585,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))}/>;
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">

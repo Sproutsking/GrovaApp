@@ -58,8 +58,8 @@ class DMMessageService {
         .select(
           `
           *,
-          user1:profiles!conversations_user1_id_fkey(id, full_name, username, avatar_id, verified),
-          user2:profiles!conversations_user2_id_fkey(id, full_name, username, avatar_id, verified)
+          user1:profiles!conversations_user1_id_fkey(id, full_name, username, avatar_id, verified, subscription_tier, boost_selections),
+          user2:profiles!conversations_user2_id_fkey(id, full_name, username, avatar_id, verified, subscription_tier, boost_selections)
         `,
         )
         .or(`user1_id.eq.${this.userId},user2_id.eq.${this.userId}`)

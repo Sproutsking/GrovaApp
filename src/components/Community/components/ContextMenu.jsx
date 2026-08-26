@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { Copy, Edit2, Flag, Forward, MoreHorizontal, Reply, Trash2 } from "lucide-react";
 import EmojiPanel from "./EmojiPanel";
 
@@ -77,8 +78,8 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
     onClose?.();
   };
 
-  return (
-    <div className="message-context-backdrop" onClick={onClose}>
+  return ReactDOM.createPortal((
+    <div className="message-context-backdrop" onClick={(event) => { event.stopPropagation(); onClose?.(); }}>
       {showReactionPanel ? (
         <EmojiPanel
           panelRef={reactionPanelRef}
@@ -143,7 +144,7 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
         .message-delete-confirm{background:#ef6262;border:1px solid #ff8585;color:#fff;box-shadow:0 4px 14px rgba(239,68,68,.2);}
       `}</style>
     </div>
-  );
+  ), document.body);
 };
 
 export default ContextMenu;
