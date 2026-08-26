@@ -1,8 +1,8 @@
 // ============================================================================
-// src/services/config/supabase.js — v3 IMPLICIT FLOW
+// src/services/config/supabase.js — v4 PKCE FLOW
 //
 // WHAT CHANGED vs v2:
-//   [A] flowType changed from "pkce" to "implicit".
+//   [A] OAuth uses the PKCE authorization-code flow.
 //
 //       PKCE flow works like this:
 //         1. App generates a code_verifier + code_challenge
@@ -11,17 +11,9 @@
 //         4. If the Service Worker intercepts step 2 before Supabase JS
 //            can read the ?code=, the exchange never happens → stuck splash
 //
-//       Implicit flow works like this:
-//         1. Supabase redirects back with #access_token= in the URL HASH
-//         2. Hashes are NEVER sent to the server, NEVER intercepted by SW
-//         3. Supabase JS reads the token directly from window.location.hash
-//         4. No network round-trip, no race condition, no stuck splash
-//
-//       The tradeoff: implicit flow tokens are shorter-lived and the
-//       access_token is visible in the hash briefly. For a social app
-//       with autoRefreshToken: true and our sessionRefresh manager, this
-//       is completely fine. PKCE is only strictly necessary for server-side
-//       apps where the token must never touch the browser at all.
+//       PKCE keeps access tokens out of the authorization URL and exchanges a
+//       short-lived code using a browser-held verifier before creating a session.
+//       This is the recommended flow for modern browser applications.
 //
 //   [B] storageKey kept as "xeevia-auth-token" — no migration needed.
 //       Implicit flow still uses the same storage adapter for persistence.
@@ -29,10 +21,8 @@
 //   [C] Everything else (storage fallback chain, env guards, singleton
 //       export) is identical to v2. No other files need to change.
 //
-// RESULT: The ?code= query param that was confusing oauthInProgress and
-//         freezing the splash screen can never appear again. The auth
-//         callback now lands as a hash fragment which is invisible to the
-//         Service Worker and cleaned by _detectAndCleanOAuth in AuthContext.
+// RESULT: OAuth returns with a short-lived ?code= value. AuthContext waits for
+//         Supabase JS to complete the exchange, then removes it from the URL.
 // ============================================================================
 
 import { createClient } from "@supabase/supabase-js";
@@ -132,7 +122,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
     storage: storageAdapter,
     storageKey: "xeevia-auth-token",
-    flowType: "implicit", // ← THE ONLY CHANGE FROM v2
+    flowType: "pkce",
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,

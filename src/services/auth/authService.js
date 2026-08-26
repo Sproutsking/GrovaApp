@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { getCallbackUrl } from "../config/authConfig";
 
 class AuthService {
   async getSession() {
@@ -50,7 +51,7 @@ class AuthService {
 
     if (!supported.includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
 
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = getCallbackUrl();
     const options = { redirectTo, skipBrowserRedirect: false };
 
     switch (provider) {
@@ -82,7 +83,7 @@ class AuthService {
       return await this._signInWithPopup(provider, options);
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options, flowType: "pkce" });
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
     if (error) throw error;
     return true;
   }
@@ -145,7 +146,7 @@ class AuthService {
             window.removeEventListener("message", onMessage);
             if (popup && !popup.closed) popup.close();
             console.warn('[AuthService] popup signin timed out — falling back to redirect');
-            const { error } = await supabase.auth.signInWithOAuth({ provider, options, flowType: 'pkce' });
+            const { error } = await supabase.auth.signInWithOAuth({ provider, options });
             if (error) return reject(error);
             resolve(true);
           } catch (e) {
@@ -187,7 +188,7 @@ class AuthService {
         }
 
         // Start OAuth redirect inside the popup
-        const { error } = await sb.auth.signInWithOAuth({ provider: '${provider}', options: ${JSON.stringify(options)}, flowType: 'pkce' });
+        const { error } = await sb.auth.signInWithOAuth({ provider: '${provider}', options: ${JSON.stringify(options)} });
         if (error) {
           document.getElementById('msg').textContent = 'Error: ' + (error.message || 'Sign-in failed');
         }
