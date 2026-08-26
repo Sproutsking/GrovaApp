@@ -220,6 +220,15 @@ const avatarGradient = (seed = "") => {
   return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
 };
 
+const readTrendingCache = () => {
+  try {
+    const cached = JSON.parse(localStorage.getItem("xv_trending_sidebar_cache") || "null");
+    return cached && typeof cached === "object" ? cached : {};
+  } catch {
+    return {};
+  }
+};
+
 const StreamerRow = ({ streamer, onClick }) => {
   const [imgErr, setImgErr] = useState(false);
   const rc = rankStyle(streamer.rank);
@@ -307,10 +316,13 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
 const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab, setFeedFilter, onJoinStream }) => {
   const [liveSessions,    setLiveSessions]    = useState([]);
   const [liveLoading,     setLiveLoading]     = useState(true);
-  const [topStreamers,    setTopStreamers]    = useState([]);
-  const [trendingTags,    setTrendingTags]    = useState([]);
-  const [eliteCreators,   setEliteCreators]   = useState([]);
-  const [loading,         setLoading]         = useState(true);
+  const [topStreamers,    setTopStreamers]    = useState(() => readTrendingCache().topStreamers || []);
+  const [trendingTags,    setTrendingTags]   = useState(() => readTrendingCache().trendingTags || []);
+  const [eliteCreators,   setEliteCreators]   = useState(() => readTrendingCache().eliteCreators || []);
+  const [loading,         setLoading]         = useState(() => {
+    const cached = readTrendingCache();
+    return !(cached.topStreamers?.length || cached.trendingTags?.length || cached.eliteCreators?.length);
+  });
   const [error,           setError]           = useState(null);
   const [refreshing,      setRefreshing]      = useState(false);
 
@@ -403,6 +415,13 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       }
       setTrendingTags(tags);
       setEliteCreators(creators);
+      try {
+        localStorage.setItem("xv_trending_sidebar_cache", JSON.stringify({
+          topStreamers: streamers.length ? streamers : streamersCache.current,
+          trendingTags: tags,
+          eliteCreators: creators,
+        }));
+      } catch {}
     } catch (e) {
       setError(e.message);
       if (streamersCache.current.length > 0) setTopStreamers(streamersCache.current);

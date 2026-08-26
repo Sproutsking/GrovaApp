@@ -385,7 +385,9 @@ const DMMessagesView = ({ currentUser, onClose, initialOtherUserId, onNavigate }
   useEffect(() => {
     if (!uid) return;
     onlineStatusService.start?.(uid);
-    dmMessageService.init(uid).then(() => setLoading(false)).catch(() => setLoading(false));
+    // Paint the DM shell immediately; conversation data hydrates in the background.
+    setLoading(false);
+    dmMessageService.init(uid).catch(() => {});
     unsubList.current = dmMessageService.subscribeToConversationList?.();
 
     syncChatsBadge();

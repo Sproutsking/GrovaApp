@@ -589,10 +589,9 @@ const ChatTab = ({
             setContextMenu(null);
           }}
           onDelete={async () => {
-            if (!window.confirm("Delete this message?")) { setContextMenu(null); return; }
             try {
               await communityMessageService.deleteMessage(contextMenu.message.id, userId, community.id);
-              await loadMessages();
+              setMessages((items) => items.filter((item) => item.id !== contextMenu.message.id));
             } catch (error) {
               console.error("Error deleting message:", error);
             }

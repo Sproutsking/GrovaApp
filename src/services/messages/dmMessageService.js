@@ -181,12 +181,11 @@ class DMMessageService {
   }
 
   async deleteMessage(messageId, userId) {
-    const { error } = await supabase
-      .from("messages")
-      .delete()
-      .eq("id", messageId)
-      .eq("sender_id", userId);
+    const { data, error } = await supabase.rpc("delete_direct_message", {
+      p_message_id: messageId,
+    });
     if (error) throw error;
+    if (!data) throw new Error("Message could not be deleted. It may already be removed or you may not own it.");
     return true;
   }
 

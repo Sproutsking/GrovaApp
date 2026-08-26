@@ -243,6 +243,7 @@ const MessageRow = memo(({ msg, isMe, showAv, avatarUrl, otherName, messages, on
       {!isMe&&(showAv?(<div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherName} loading="eager" fetchPriority="high"/>:(otherName||"U").charAt(0)}</div>):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showAv&&!isMe?"cv-tail-l":"",showAv&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
+        {!isMe&&showAv&&<div className="cv-msg-author">{otherName||"Unknown"}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
@@ -404,7 +405,16 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   },[currentUser.id,patchStatus]);
 
   useEffect(()=>{conversationState.setActive(convId);dmMessageService.markRead(convId,currentUser.id);return()=>conversationState.clearActive();},[convId,currentUser.id]);
-  useEffect(()=>{setLoading(true);setReadStatus({});dmMessageService.loadMessages(convId).then(msgs=>{setMessages(msgs);setLoading(false);seedFromMessages(msgs);setTimeout(()=>scrollToBottom("auto"),50);});},[convId,seedFromMessages]);
+  useEffect(()=>{
+    const cached=conversationState.getMessages?.(convId)||[];
+    setMessages(cached);
+    setLoading(cached.length===0);
+    setReadStatus({});
+    dmMessageService.loadMessages(convId).then(msgs=>{
+      setMessages(msgs); setLoading(false); seedFromMessages(msgs);
+      setTimeout(()=>scrollToBottom("auto"),50);
+    }).catch(()=>setLoading(false));
+  },[convId,seedFromMessages]);
 
   useEffect(()=>{
     const unsub=dmMessageService.subscribeToConversation(convId,{
@@ -607,14 +617,20 @@ export const CV_CSS = `
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
 .cv-avatar-sp{width:34px;flex-shrink:0;}
 .cv-bubble{max-width:72%;padding:8px 12px;border-radius:16px;word-break:break-word;will-change:transform;}
-.cv-bthem{background:rgba(18,18,18,.97);border:1px solid rgba(255,255,255,.07);}
-.cv-bme{background:linear-gradient(135deg,rgba(132,204,22,.2),rgba(101,163,13,.14));border:1px solid rgba(132,204,22,.25);}
+.cv-bthem{background:linear-gradient(145deg,rgba(31,34,31,.98),rgba(14,17,15,.98));border:1px solid rgba(255,255,255,.1);box-shadow:0 5px 18px rgba(0,0,0,.18);}
+.cv-bme{background:linear-gradient(135deg,rgba(34,78,24,.98),rgba(16,40,20,.99) 58%,rgba(9,23,14,1));border:1px solid rgba(156,255,0,.42);box-shadow:0 5px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.07);}
 .cv-tail-l.cv-bthem{border-bottom-left-radius:4px;}
 .cv-tail-r.cv-bme{border-bottom-right-radius:4px;}
-.cv-content{font-size:14px;color:#f0f0f0;line-height:1.5;}
-.cv-bme .cv-content{color:#e8ffe8;}
+.cv-tail-l.cv-bthem::before{content:"";position:absolute;bottom:-1px;left:-7px;width:0;height:0;border-style:solid;border-width:0 0 10px 8px;border-color:transparent transparent rgba(31,34,31,.98) transparent;}
+.cv-tail-l.cv-bthem::after{content:"";position:absolute;bottom:-1px;left:-8px;width:0;height:0;border-style:solid;border-width:0 0 11px 9px;border-color:transparent transparent rgba(255,255,255,.1) transparent;z-index:-1;}
+.cv-tail-r.cv-bme::before{content:"";position:absolute;bottom:-.5px;right:-7.5px;width:0;height:0;border-style:solid;border-width:0 0 10px 8px;border-color:transparent transparent rgba(34,78,24,.98) transparent;transform:scaleX(-1);}
+.cv-tail-r.cv-bme::after{content:"";position:absolute;bottom:-.5px;right:-8.5px;width:0;height:0;border-style:solid;border-width:0 0 11px 9px;border-color:transparent transparent rgba(156,255,0,.42) transparent;z-index:-1;transform:scaleX(-1);}
+.cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 4px;line-height:1.1;}
+.cv-content{font-size:14px;color:#f1f5ef;line-height:1.5;}
+.cv-bme .cv-content{color:#f1f9e8;}
 .cv-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
-.cv-reaction-pill{padding:3px 7px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;cursor:pointer;font-size:11px;}
+.cv-reaction-pill{padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aeb7aa;cursor:pointer;font-size:11px;transition:background .15s,border-color .15s,color .15s,transform .15s;}
+.cv-reaction-pill:hover{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.3);color:#d5f7bd;transform:translateY(-1px);}
 .cv-reaction-pill-on{background:rgba(132,204,22,.16);border-color:rgba(132,204,22,.45);color:#baff82;}
 .cv-forwarded{display:flex;flex-direction:column;gap:5px;padding:6px 8px;border-left:2px solid #84cc16;background:rgba(132,204,22,.08);border-radius:5px;white-space:pre-wrap;}
 .cv-forwarded-label{font-size:10px;font-weight:800;color:#9cff00;letter-spacing:.2px;}

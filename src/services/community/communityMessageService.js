@@ -310,13 +310,12 @@ class CommunityMessageService {
 
   async deleteMessage(messageId, userId, communityId) {
     try {
-      const { error } = await supabase
-        .from("community_messages")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", messageId)
-        .eq("user_id", userId);
+      const { data, error } = await supabase.rpc("delete_community_message", {
+        p_message_id: messageId,
+      });
 
       if (error) throw error;
+      if (!data) throw new Error("Message could not be deleted. It may already be removed or you may not own it.");
       return true;
     } catch (error) {
       console.error("Error deleting message:", error);
