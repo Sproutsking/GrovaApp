@@ -1,6 +1,6 @@
--- Preserve identity metadata supplied by OAuth providers when a user is created.
--- Provider avatars are external URLs, so keep them in avatar_metadata rather
--- than avatar_id, which is reserved for Supabase Storage object keys.
+-- Do not let profile initialization failures abort OAuth user creation.
+-- A profile can be repaired by the authenticated client after the session is
+-- established, but auth.users must be allowed to finish inserting first.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -16,7 +16,6 @@ declare
   provider_avatar_url text;
   provider_name text;
   provider_metadata jsonb;
-  suffix integer := 0;
 begin
   candidate_email := coalesce(new.email, new.id::text || '@users.xeevia.local');
   candidate_full_name := nullif(trim(coalesce(
@@ -39,7 +38,6 @@ begin
     base_username := 'user_' || substr(replace(new.id::text, '-', ''), 1, 8);
   end if;
   base_username := left(base_username, 24);
-  candidate_username := base_username;
 
   provider_avatar_url := nullif(trim(coalesce(
     new.raw_user_meta_data->>'avatar_url',
@@ -63,6 +61,7 @@ begin
   end;
 
   begin
+    candidate_username := base_username;
     insert into public.profiles (id, email, full_name, username, avatar_metadata)
     values (new.id, candidate_email, candidate_full_name, candidate_username, provider_metadata)
     on conflict (id) do update
@@ -76,11 +75,8 @@ begin
           end,
           updated_at = now();
   exception when unique_violation then
-    -- A provider username can already belong to another profile. The suffix
-    -- is tied to the auth id, so this retry cannot loop on another collision.
-    suffix := 1;
-    candidate_username := left(base_username, 20) || '_' || substr(replace(new.id::text, '-', ''), 1, 8);
     begin
+      candidate_username := left(base_username, 20) || '_' || substr(replace(new.id::text, '-', ''), 1, 8);
       insert into public.profiles (id, email, full_name, username, avatar_metadata)
       values (new.id, candidate_email, candidate_full_name, candidate_username, provider_metadata)
       on conflict (id) do update
