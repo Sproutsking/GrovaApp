@@ -24,6 +24,7 @@ import { getTierBadge }     from "../../services/account/profileTierService";
 import BoostAvatarRing      from "./BoostAvatarRing";
 import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 import { getBoostNameColor } from "./profileVisuals";
+import { getBoostNameDesign } from "../../services/boost/boostThemes";
 
 // ── Tier colour helpers ───────────────────────────────────────────────────────
 
@@ -79,6 +80,8 @@ const ProfilePreview = ({
           profile.boost_selections?.themeId ??
           profile.boostSelections?.themeId  ??
           null,
+        propFontId: profile.boost_selections?.fontId ?? profile.boostSelections?.fontId ?? null,
+        propColorId: profile.boost_selections?.colorId ?? profile.boostSelections?.colorId ?? null,
       };
     }
 
@@ -114,6 +117,8 @@ const ProfilePreview = ({
         profile.boost_selections?.themeId     ??
         profile.boostSelections?.themeId      ??
         null,
+      propFontId: profileData.boost_selections?.fontId ?? profile.boost_selections?.fontId ?? null,
+      propColorId: profileData.boost_selections?.colorId ?? profile.boost_selections?.colorId ?? null,
     };
   };
 
@@ -126,24 +131,31 @@ const ProfilePreview = ({
     propTier,
     propPaymentStatus,
     propThemeId,
+    propFontId,
+    propColorId,
   } = resolveUserData();
 
   // ── Live boost tier — the authoritative source ────────────────────────────
   const {
     tier:    liveTier,
     themeId: liveThemeId,
+    fontId: liveFontId,
+    colorId: liveColorId,
     loading: boostLoading,
   } = useUserBoostTier(userId);
 
   // While the hook's first fetch is in-flight, use prop values to prevent flash
   const tier          = boostLoading ? propTier    : (liveTier    ?? null);
   const themeId       = boostLoading ? propThemeId : (liveThemeId ?? null);
+  const fontId        = boostLoading ? propFontId : (liveFontId ?? null);
+  const colorId        = boostLoading ? propColorId : (liveColorId ?? null);
   const paymentStatus = propPaymentStatus;
 
   const hasBoostedTier   = ["silver", "gold", "diamond"].includes(tier);
   const nameColor        = getBoostNameColor(tier, themeId);
-  const displayNameColor = nameColor ?? "#ffffff";
-  const displayUserColor = nameColor ? `${nameColor}90` : "rgba(255,255,255,0.65)";
+  const nameDesign       = getBoostNameDesign(tier, fontId, colorId);
+  const displayNameColor = nameDesign.color?.color ?? nameColor ?? "#ffffff";
+  const displayUserColor = displayNameColor !== "#ffffff" ? `${displayNameColor}90` : "rgba(255,255,255,0.65)";
 
   // ── Avatar size table ─────────────────────────────────────────────────────
   const sizes = {
@@ -225,13 +237,16 @@ const ProfilePreview = ({
           <div
             style={{
               fontSize:     `${sz.name}px`,
+              fontFamily:   nameDesign.font?.family,
+              fontWeight:   nameDesign.font?.weight || 700,
+              letterSpacing: nameDesign.font?.spacing,
               fontWeight:   700,
               color:        displayNameColor,
               display:      "flex",
               alignItems:   "center",
               gap:          5,
               textShadow:   hasBoostedTier
-                ? `0 0 14px ${displayNameColor}50`
+                ? `0 0 14px ${nameDesign.color?.shadow || displayNameColor}90`
                 : "0 2px 6px rgba(0,0,0,0.9)",
               whiteSpace:   "nowrap",
               overflow:     "hidden",

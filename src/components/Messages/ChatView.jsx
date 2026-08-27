@@ -17,6 +17,7 @@ import backgroundService, { DOT_OVERLAY_CSS } from "../../services/messages/Back
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import BoostAvatarRing from "../Shared/BoostAvatarRing";
 import { getBoostNameColor } from "../Shared/profileVisuals";
+import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shared/LinkifiedText";
 import MessageContextMenu from "../Shared/MessageContextMenu";
@@ -210,7 +211,7 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, boostTier, boostThemeId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted }) => {
+const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
   const [ctxOpen,setCtx]=useState(false); const [ctxPos,setCtxPos]=useState({x:0,y:0});
   const [rAnim,setRAnim]=useState(false);
@@ -266,7 +267,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} />):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
-        {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameColor(boostTier, boostThemeId) || "#9cff00" }}>{otherName||"Unknown"}</div>}
+        {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
@@ -585,7 +586,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))}/>;
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} boostFontId={otherBoost.fontId} boostColorId={otherBoost.colorId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">

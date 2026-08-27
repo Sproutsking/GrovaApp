@@ -54,7 +54,7 @@ const _fetching = new Map();
 function _notify(userId) {
   const fns = _listeners.get(userId);
   if (!fns?.size) return;
-  const data = _cache.get(userId) ?? { tier: null, themeId: null };
+  const data = _cache.get(userId) ?? { tier: null, themeId: null, fontId: null, colorId: null };
   fns.forEach((fn) => fn({ ...data, loading: false }));
 }
 
@@ -65,7 +65,7 @@ async function _fetchBoost(userId) {
   try {
     const { data } = await supabase
       .from("profile_boosts")
-      .select("boost_tier, active_theme_id, status, expires_at")
+      .select("boost_tier, active_theme_id, theme_selections, status, expires_at")
       .eq("user_id", userId)
       .eq("status", "active")
       .gt("expires_at", new Date().toISOString())
@@ -76,10 +76,12 @@ async function _fetchBoost(userId) {
     _cache.set(userId, {
       tier:    data?.boost_tier      ?? null,
       themeId: data?.active_theme_id ?? null,
+      fontId: data?.theme_selections?.fontId ?? null,
+      colorId: data?.theme_selections?.colorId ?? null,
     });
   } catch {
     // On error keep whatever was cached, or set null so loading clears
-    if (!_cache.has(userId)) _cache.set(userId, { tier: null, themeId: null });
+    if (!_cache.has(userId)) _cache.set(userId, { tier: null, themeId: null, fontId: null, colorId: null });
   } finally {
     _fetching.set(userId, false);
     _notify(userId);
@@ -135,7 +137,7 @@ export function useUserBoostTier(userId) {
     const cached = _cache.get(userId);
     return cached
       ? { ...cached, loading: false }
-      : { tier: null, themeId: null, loading: true };
+      : { tier: null, themeId: null, fontId: null, colorId: null, loading: true };
   });
 
   // Stable ref to setState so we can safely register it once and deregister

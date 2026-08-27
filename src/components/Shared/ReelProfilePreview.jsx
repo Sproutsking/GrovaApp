@@ -20,6 +20,8 @@ import UserProfileModal                from "../Modals/UserProfileModal";
 import BoostAvatarRing                 from "./BoostAvatarRing";
 import { useUserBoostTier }            from "../../hooks/useUserBoostTier";
 import mediaUrlService                 from "../../services/shared/mediaUrlService";
+import { getBoostNameDesign }          from "../../services/boost/boostThemes";
+import { getBoostNameColor }           from "./profileVisuals";
 
 // ── Tier colour maps (shared with ProfilePreview) ─────────────────────────
 
@@ -74,6 +76,8 @@ const ReelProfilePreview = ({
           profile.boost_selections?.themeId ??
           profile.boostSelections?.themeId ??
           null,
+        propFontId: profile.boost_selections?.fontId ?? profile.boostSelections?.fontId ?? null,
+        propColorId: profile.boost_selections?.colorId ?? profile.boostSelections?.colorId ?? null,
       };
     }
 
@@ -106,6 +110,8 @@ const ReelProfilePreview = ({
         profileData.boost_selections?.themeId ??
         profile.boost_selections?.themeId ??
         null,
+      propFontId: profileData.boost_selections?.fontId ?? profile.boost_selections?.fontId ?? null,
+      propColorId: profileData.boost_selections?.colorId ?? profile.boost_selections?.colorId ?? null,
     };
   };
 
@@ -117,21 +123,26 @@ const ReelProfilePreview = ({
     verified,
     propTier,
     propThemeId,
+    propFontId,
+    propColorId,
   } = getUserData();
 
   // ── Single source of truth for boost tier ────────────────────────────
   // While loading, fall back to prop values so there's no unstyled flash.
   // After the first resolve, live data always wins.
-  const { tier: liveTier, themeId: liveThemeId, loading: boostLoading } =
+  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, loading: boostLoading } =
     useUserBoostTier(userId);
 
   const tier    = boostLoading ? propTier    : (liveTier    ?? null);
   const themeId = boostLoading ? propThemeId : (liveThemeId ?? null);
+  const fontId  = boostLoading ? propFontId : (liveFontId ?? null);
+  const colorId = boostLoading ? propColorId : (liveColorId ?? null);
 
   const hasBoostedTier   = ["silver", "gold", "diamond"].includes(tier);
-  const nameColor        = getNameColor(tier, themeId);
-  const displayNameColor = nameColor ?? "#ffffff";
-  const displayUserColor = nameColor ? `${nameColor}90` : "rgba(255,255,255,0.65)";
+  const nameDesign       = getBoostNameDesign(tier, fontId, colorId);
+  const nameColor        = getBoostNameColor(tier, themeId);
+  const displayNameColor = nameDesign.color?.color ?? nameColor ?? "#ffffff";
+  const displayUserColor = displayNameColor !== "#ffffff" ? `${displayNameColor}90` : "rgba(255,255,255,0.65)";
 
   // ── Sizes ─────────────────────────────────────────────────────────────
   const sizes = {
@@ -202,6 +213,9 @@ const ReelProfilePreview = ({
               className="rpp-name"
               style={{
                 fontSize:   sz.name,
+                fontFamily: nameDesign.font?.family,
+                fontWeight: nameDesign.font?.weight || 700,
+                letterSpacing: nameDesign.font?.spacing,
                 color:      displayNameColor,
                 textShadow: hasBoostedTier
                   ? `0 0 14px ${displayNameColor}50, 0 2px 6px rgba(0,0,0,0.9)`

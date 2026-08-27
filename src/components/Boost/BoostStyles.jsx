@@ -3,6 +3,7 @@
 import React from "react";
 
 const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Cinzel:wght@700&family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@700&family=Manrope:wght@800&family=Orbitron:wght@700&family=Playfair+Display:wght@700&family=Sora:wght@700&family=Space+Grotesk:wght@700&family=Space+Mono:wght@700&display=swap');
 /* ─── Silver ring ─────────────────────────────────────────────────────── */
 @keyframes silverPulse {
   0%,100% { box-shadow: 0 0 0 3px rgba(192,192,192,0.2), 0 0 20px rgba(192,192,192,0.5), 0 0 40px rgba(192,192,192,0.2); }

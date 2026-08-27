@@ -15,14 +15,35 @@
 import React, { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
-import { THEMES_BY_TIER, SHARED_KEYFRAMES } from "../../services/boost/boostThemes";
+import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS } from "../../services/boost/boostThemes";
+import boostService from "../../services/boost/boostService";
 
-const BoostThemePicker = ({ tier, activeId, userId, onPicked }) => {
+const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, userId, onPicked }) => {
+  const [fontId, setFontId] = useState(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
+  const [colorId, setColorId] = useState(activeColorId ?? BOOST_NAME_COLORS[tier]?.[0]?.id);
   const [selected, setSelected] = useState(activeId ?? null);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
 
   const themes = THEMES_BY_TIER[tier] ?? [];
+  const fonts = BOOST_NAME_FONTS[tier] ?? [];
+  const colors = BOOST_NAME_COLORS[tier] ?? [];
+
+  const saveNameDesign = async (nextFontId = fontId, nextColorId = colorId) => {
+    setFontId(nextFontId); setColorId(nextColorId); setSaving(true);
+    try {
+      const result = await boostService.updateBoostNameDesign(userId, nextFontId, nextColorId);
+      if (!result?.success) throw new Error(result?.error || "Design could not be saved");
+      setSaved(true);
+      onPicked?.({ fontId: nextFontId, colorId: nextColorId });
+      setTimeout(() => setSaved(false), 1800);
+    } catch (error) {
+      setSaved(false);
+      setFontId(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
+      setColorId(activeColorId ?? BOOST_NAME_COLORS[tier]?.[0]?.id);
+      console.warn("[BoostThemePicker] name design save failed:", error?.message);
+    } finally { setSaving(false); }
+  };
 
   // Silver only has 1 — just show it active, no picker
   if (!tier || themes.length === 0) return null;
@@ -51,31 +72,6 @@ const BoostThemePicker = ({ tier, activeId, userId, onPicked }) => {
     gold:    { color:"#fbbf24", label:"Gold Design" },
     diamond: { color:"#a78bfa", label:"Diamond Design" },
   }[tier] ?? { color:"#fff", label:"Design" };
-
-  if (themes.length === 1) {
-    // Silver — just show the single active theme as a confirmation pill
-    const t = themes[0];
-    return (
-      <div style={{
-        display:"flex", alignItems:"center", gap:8,
-        padding:"8px 14px", borderRadius:12,
-        background:`${tierMeta.color}12`,
-        border:`1px solid ${tierMeta.color}30`,
-      }}>
-        <span style={{ fontSize:16 }}>{t.emoji}</span>
-        <div>
-          <div style={{ fontSize:12, fontWeight:800, color:tierMeta.color }}>{t.name}</div>
-          <div style={{ fontSize:10, color:"#525252" }}>{t.tagline}</div>
-        </div>
-        <div style={{ marginLeft:"auto", width:18, height:18, borderRadius:"50%",
-          background:`${tierMeta.color}25`, border:`1px solid ${tierMeta.color}50`,
-          display:"flex", alignItems:"center", justifyContent:"center",
-        }}>
-          <Check size={10} color={tierMeta.color} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -156,6 +152,16 @@ const BoostThemePicker = ({ tier, activeId, userId, onPicked }) => {
               </button>
             );
           })}
+        </div>
+        <div style={{ marginTop:16 }}>
+          <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Name font · {fonts.length} unlocked</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:6 }}>
+            {fonts.map((font) => <button key={font.id} disabled={saving} onClick={() => saveNameDesign(font.id, colorId)} style={{ padding:"10px 8px", borderRadius:10, border:fontId===font.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.08)", background:fontId===font.id ? `${tierMeta.color}18` : "rgba(255,255,255,.03)", color:"#fff", fontFamily:font.family, fontSize:14, cursor:"pointer" }}>{font.label}</button>)}
+          </div>
+          <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Name color · {colors.length} unlocked</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+            {colors.map((color) => <button key={color.id} aria-label={color.label} title={color.label} disabled={saving} onClick={() => saveNameDesign(fontId, color.id)} style={{ width:28, height:28, borderRadius:"50%", border:colorId===color.id ? "2px solid #fff" : "1px solid rgba(255,255,255,.25)", background:color.color, boxShadow:`0 0 12px ${color.shadow}`, cursor:"pointer" }} />)}
+          </div>
         </div>
       </div>
     </>

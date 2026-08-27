@@ -85,6 +85,17 @@ export async function updateBoostTheme(userId, themeId) {
   return data ?? { success:false };
 }
 
+export async function updateBoostNameDesign(userId, fontId, colorId) {
+  const { data, error } = await supabase.rpc("update_boost_name_design", {
+    p_user_id: userId,
+    p_font_id: fontId,
+    p_color_id: colorId,
+  });
+  if (error) return { success: false, error: error.message };
+  _del(userId);
+  return data ?? { success: false, error: "No response from server" };
+}
+
 // ── Real-time subscription ────────────────────────────────────────────────
 export function subscribeToBoostChanges(userId, onChange) {
   const channel = supabase.channel(`boost_${userId}`)
@@ -128,5 +139,6 @@ export async function batchGetBoostTiers(userIds) {
 export default {
   getEPBalance, getActiveBoost, activateBoost, cancelBoost,
   toggleAutoRenew, updateBoostTheme, subscribeToBoostChanges,
+    updateBoostNameDesign,
   getUserBoostTier, batchGetBoostTiers,
 };

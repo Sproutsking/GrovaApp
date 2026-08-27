@@ -436,6 +436,74 @@ export const DIAMOND_THEMES = [
   },
 ];
 
+// ── Boost name design catalog ─────────────────────────────────────────────
+// Options are additive: existing theme IDs and profile data remain valid.
+export const BOOST_NAME_FONTS = {
+  silver: [
+    { id: "silver-classic", label: "Classic", family: "'DM Sans', sans-serif", weight: 700, spacing: "0" },
+    { id: "silver-editorial", label: "Editorial", family: "'Cormorant Garamond', serif", weight: 700, spacing: "0.01em" },
+  ],
+  gold: [
+    { id: "gold-classic", label: "Classic", family: "'DM Sans', sans-serif", weight: 700, spacing: "0" },
+    { id: "gold-editorial", label: "Editorial", family: "'Cormorant Garamond', serif", weight: 700, spacing: "0.01em" },
+    { id: "gold-display", label: "Display", family: "'Space Grotesk', sans-serif", weight: 700, spacing: "0.01em" },
+    { id: "gold-mono", label: "Signal", family: "'Space Mono', monospace", weight: 700, spacing: "0.02em" },
+    { id: "gold-soft", label: "Soft", family: "'Manrope', sans-serif", weight: 800, spacing: "0" },
+  ],
+  diamond: [
+    { id: "diamond-classic", label: "Classic", family: "'DM Sans', sans-serif", weight: 700, spacing: "0" },
+    { id: "diamond-editorial", label: "Editorial", family: "'Cormorant Garamond', serif", weight: 700, spacing: "0.015em" },
+    { id: "diamond-display", label: "Display", family: "'Space Grotesk', sans-serif", weight: 700, spacing: "0.01em" },
+    { id: "diamond-mono", label: "Signal", family: "'Space Mono', monospace", weight: 700, spacing: "0.02em" },
+    { id: "diamond-soft", label: "Soft", family: "'Manrope', sans-serif", weight: 800, spacing: "0" },
+    { id: "diamond-serif", label: "Nocturne", family: "'Playfair Display', serif", weight: 700, spacing: "0" },
+    { id: "diamond-tech", label: "Tech", family: "'Orbitron', sans-serif", weight: 700, spacing: "0.04em" },
+    { id: "diamond-hand", label: "Signature", family: "'Caveat', cursive", weight: 700, spacing: "0.01em" },
+    { id: "diamond-luxe", label: "Luxe", family: "'Cinzel', serif", weight: 700, spacing: "0.04em" },
+    { id: "diamond-future", label: "Future", family: "'Sora', sans-serif", weight: 700, spacing: "0.015em" },
+  ],
+};
+
+export const BOOST_NAME_COLORS = {
+  silver: [
+    { id: "silver-pearl", label: "Pearl", color: "#f1f5f9", shadow: "rgba(226,232,240,.55)" },
+    { id: "silver-steel", label: "Steel", color: "#94a3b8", shadow: "rgba(148,163,184,.55)" },
+    { id: "silver-ice", label: "Ice", color: "#bae6fd", shadow: "rgba(125,211,252,.55)" },
+  ],
+  gold: [
+    { id: "gold-sun", label: "Sun", color: "#fde68a", shadow: "rgba(251,191,36,.65)" },
+    { id: "gold-amber", label: "Amber", color: "#fbbf24", shadow: "rgba(245,158,11,.65)" },
+    { id: "gold-flame", label: "Flame", color: "#fb923c", shadow: "rgba(249,115,22,.65)" },
+    { id: "gold-rose", label: "Rose", color: "#fda4af", shadow: "rgba(244,63,94,.55)" },
+    { id: "gold-mint", label: "Mint", color: "#86efac", shadow: "rgba(34,197,94,.55)" },
+    { id: "gold-sky", label: "Sky", color: "#7dd3fc", shadow: "rgba(14,165,233,.55)" },
+  ],
+  diamond: [
+    { id: "diamond-prism", label: "Prism", color: "#f0abfc", shadow: "rgba(217,70,239,.7)" },
+    { id: "diamond-cosmos", label: "Cosmos", color: "#c4b5fd", shadow: "rgba(139,92,246,.75)" },
+    { id: "diamond-glacier", label: "Glacier", color: "#93c5fd", shadow: "rgba(59,130,246,.75)" },
+    { id: "diamond-emerald", label: "Emerald", color: "#6ee7b7", shadow: "rgba(16,185,129,.75)" },
+    { id: "diamond-rose", label: "Rose", color: "#f9a8d4", shadow: "rgba(236,72,153,.75)" },
+    { id: "diamond-inferno", label: "Inferno", color: "#fdba74", shadow: "rgba(249,115,22,.75)" },
+    { id: "diamond-aurora", label: "Aurora", color: "#67e8f9", shadow: "rgba(6,182,212,.75)" },
+    { id: "diamond-lime", label: "Lumen", color: "#bef264", shadow: "rgba(132,204,22,.75)" },
+    { id: "diamond-void", label: "Void", color: "#f8fafc", shadow: "rgba(148,163,184,.7)" },
+    { id: "diamond-royal", label: "Royal", color: "#a5b4fc", shadow: "rgba(99,102,241,.75)" },
+  ],
+};
+
+export function getBoostNameFont(tier, fontId) {
+  const fonts = BOOST_NAME_FONTS[tier] ?? [];
+  return fonts.find((font) => font.id === fontId) ?? fonts[0] ?? null;
+}
+
+export function getBoostNameDesign(tier, fontId, colorId) {
+  const font = getBoostNameFont(tier, fontId);
+  const colors = BOOST_NAME_COLORS[tier] ?? [];
+  const color = colors.find((item) => item.id === colorId) ?? colors[0] ?? null;
+  return { font, color };
+}
+
 // ── Shared drift keyframes (injected once globally) ───────────────────────
 export const SHARED_KEYFRAMES = `
   @keyframes drift1 {
@@ -487,4 +555,4 @@ export function getDefaultTheme(tierId) {
   return THEMES_BY_TIER[tierId]?.[0] ?? null;
 }
 
-export default { SILVER_THEMES, GOLD_THEMES, DIAMOND_THEMES, ALL_THEMES, THEMES_BY_TIER, getTheme, getDefaultTheme, SHARED_KEYFRAMES };
+export default { SILVER_THEMES, GOLD_THEMES, DIAMOND_THEMES, ALL_THEMES, THEMES_BY_TIER, BOOST_NAME_FONTS, BOOST_NAME_COLORS, getTheme, getDefaultTheme, getBoostNameFont, getBoostNameDesign, SHARED_KEYFRAMES };

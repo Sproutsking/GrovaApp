@@ -144,7 +144,7 @@ const SystemGrantBanner = ({ boost, userId }) => {
         }}>Active</div>
       </div>
       <div style={{ marginTop:12 }}>
-        <BoostThemePicker tier={boost.tier} activeId={boost.active_theme_id} userId={userId} />
+        <BoostThemePicker tier={boost.tier} activeId={boost.active_theme_id} activeFontId={boost.theme_selections?.fontId} activeColorId={boost.theme_selections?.colorId} userId={userId} />
       </div>
     </div>
   );
@@ -191,7 +191,7 @@ const ActiveBoostBanner = ({ boost, userId, onToggleAutoRenew, working, onCancel
         }}>+{EP_BONUS[boost.tier]}% EP bonus active</span>
       </div>
       <div style={{ marginBottom:12 }}>
-        <BoostThemePicker tier={boost.tier} activeId={boost.active_theme_id} userId={userId} />
+        <BoostThemePicker tier={boost.tier} activeId={boost.active_theme_id} activeFontId={boost.theme_selections?.fontId} activeColorId={boost.theme_selections?.colorId} userId={userId} />
       </div>
       <div style={{
         display:"flex", alignItems:"center", justifyContent:"space-between",
