@@ -13,6 +13,7 @@ import MobileTrendingModal from "./MobileTrendingModal";
 import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
 import { supabase } from "../../services/config/supabase";
+import { getBoostNameDesign } from "../../services/boost/boostThemes";
 
 // ── Boost colours ─────────────────────────────────────────────────────────────
 const TIER_GREETING_COLORS = {
@@ -27,10 +28,11 @@ const DIAMOND_THEME_COLORS = {
 const getGreetingColor = (profile) => {
   const tier    = profile?.subscription_tier ?? profile?.subscriptionTier ?? "standard";
   const themeId = profile?.boost_selections?.themeId ?? null;
+  const design = getBoostNameDesign(tier, profile?.boost_selections?.fontId, profile?.boost_selections?.colorId);
   if (!TIER_GREETING_COLORS[tier]) return null;
   if (tier === "diamond" && themeId && DIAMOND_THEME_COLORS[themeId])
     return DIAMOND_THEME_COLORS[themeId];
-  return TIER_GREETING_COLORS[tier];
+  return design.color?.color || TIER_GREETING_COLORS[tier];
 };
 
 // ── Messenger icon ────────────────────────────────────────────────────────────

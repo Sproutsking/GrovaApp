@@ -1,0 +1,6 @@
+import React from "react";
+import { PartyPopper } from "lucide-react";
+
+export default function WelcomeChannelCard({ community }) {
+  return <section className="welcome-card"><div className="welcome-mark"><PartyPopper size={22} /></div><div><span>Welcome to {community?.name || "the community"}</span><h1>Find your people. Make something memorable.</h1><p>Introduce yourself, explore the channels, and join the conversation.</p></div><style>{`.welcome-card{display:flex;gap:15px;align-items:flex-start;max-width:720px;margin:26px auto;padding:22px;border-radius:18px;border:1px solid rgba(156,255,0,.2);background:linear-gradient(145deg,rgba(29,45,25,.96),rgba(9,15,11,.98));box-shadow:0 18px 52px rgba(0,0,0,.28)}.welcome-mark{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#9cff00;background:rgba(156,255,0,.12);border:1px solid rgba(156,255,0,.28);flex-shrink:0}.welcome-card span{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9cff00}.welcome-card h1{margin:5px 0 5px;color:#f2faef;font-size:22px}.welcome-card p{margin:0;color:#91a891;font-size:12px;line-height:1.5}@media(max-width:600px){.welcome-card{margin:14px;padding:16px}.welcome-card h1{font-size:18px}}`}</style></section>;
+}

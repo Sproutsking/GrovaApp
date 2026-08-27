@@ -204,7 +204,7 @@ const ProfilePreview = ({
     verified,
     subscription_tier: tier,
     payment_status:    paymentStatus,
-    boost_selections:  { themeId },
+    boost_selections:  { themeId, fontId, colorId },
   };
 
   return (
@@ -230,6 +230,7 @@ const ProfilePreview = ({
           onClick={handleClick}
           borderRadius="circle"
           style={{ cursor: "pointer", flexShrink: 0 }}
+          accentColor={hasBoostedTier ? displayNameColor : undefined}
         />
 
         <div className="profile-preview-info">

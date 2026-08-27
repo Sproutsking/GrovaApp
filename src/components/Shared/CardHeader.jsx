@@ -12,6 +12,7 @@ import React, { useState, useEffect } from "react";
 import { UserPlus, UserCheck, MoreVertical, Loader } from "lucide-react";
 import followService from "../../services/social/followService";
 import BoostAvatarRing from "./BoostAvatarRing";
+import { getBoostNameDesign } from "../../services/boost/boostThemes";
 
 // ── relative time ─────────────────────────────────────────────────────────────
 const relativeTime = (dateStr) => {
@@ -81,9 +82,12 @@ const CardHeader = ({
     profile?.boost_selections?.themeId ??
     profile?.boostSelections?.themeId ??
     null;
+  const fontId = profile?.fontId ?? profile?.boost_selections?.fontId ?? profile?.boostSelections?.fontId ?? null;
+  const colorId = profile?.colorId ?? profile?.boost_selections?.colorId ?? profile?.boostSelections?.colorId ?? null;
+  const nameDesign = getBoostNameDesign(tier, fontId, colorId);
 
   const nameColor = hasBoostedTier
-    ? (getNameColor(tier, themeId) ?? "#fff")
+    ? (nameDesign.color?.color ?? getNameColor(tier, themeId) ?? "#fff")
     : "#fff";
   const glowColor = hasBoostedTier ? `${nameColor}50` : "transparent";
 
@@ -149,6 +153,7 @@ const CardHeader = ({
           showBadge={hasBoostedTier}
           borderRadius="circle"
           style={{ cursor: "pointer" }}
+          accentColor={hasBoostedTier ? nameColor : undefined}
         />
       </div>
 
@@ -165,6 +170,12 @@ const CardHeader = ({
             className="ch-name"
             style={{
               color: nameColor,
+              fontFamily: nameDesign.font?.family,
+              fontWeight: nameDesign.font?.weight || 700,
+              letterSpacing: nameDesign.font?.spacing,
+                            fontFamily: nameDesign.font?.family,
+                            fontWeight: nameDesign.font?.weight || 700,
+                            letterSpacing: nameDesign.font?.spacing,
               textShadow: hasBoostedTier ? `0 0 10px ${glowColor}` : "none",
               transition: "color 0.3s",
             }}

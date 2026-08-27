@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import ReactDOM from "react-dom";
 import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile } from "lucide-react";
 import EmojiPanel from "../components/EmojiPanel";
 
@@ -135,7 +136,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
                 <button type="button" className="channel-icon-preview" onClick={() => setShowIconPicker((open) => !open)} aria-label="Choose channel icon">{formData.icon || "💬"}</button>
                 <input type="text" className="form-input" placeholder="Enter emoji" value={formData.icon} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} maxLength={2} />
                 <button type="button" className="channel-icon-picker-btn" onClick={() => setShowIconPicker((open) => !open)}><Smile size={15} /> Pick</button>
-                {showIconPicker && <div className="channel-icon-picker"><EmojiPanel onSelect={(icon) => { setFormData({ ...formData, icon }); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} style={{ position: "absolute", left: 0, top: "calc(100% + 8px)" }} />}</div>}
+                {showIconPicker && ReactDOM.createPortal(<div className="channel-icon-picker"><EmojiPanel onSelect={(icon) => { setFormData({ ...formData, icon }); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} style={{ position: "fixed", left: 24, top: 120 }} /></div>, document.body)}
               </div>
               <label className="channel-icon-upload"><Upload size={14} /> Upload image<input type="file" accept="image/*" onChange={(e) => setIconFile(e.target.files?.[0] || null)} /></label>
               {iconFile && <small className="help-text">{iconFile.name}</small>}
@@ -192,7 +193,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
       </div>
 
       <style>{`
-        .channel-modal-overlay{position:fixed;inset:0;background:rgba(5,7,10,.72);backdrop-filter:blur(12px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+        .channel-modal-overlay{position:fixed;inset:0;background:rgba(5,7,10,.72);backdrop-filter:blur(12px);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;}
         .channel-modal{width:min(620px,100%);max-height:min(760px,calc(100vh - 40px));background:linear-gradient(180deg,#171d18,#0b0f0c);border:1px solid rgba(156,255,0,.28);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(156,255,0,.08);overflow:auto;position:relative;}
         .channel-modal-header{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(15,20,16,.96);border-bottom:1px solid rgba(156,255,0,.18);}
         .channel-modal-body{padding:20px;}

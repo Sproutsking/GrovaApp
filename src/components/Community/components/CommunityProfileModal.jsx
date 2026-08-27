@@ -7,6 +7,8 @@ import { BOOST_VISUAL } from "../../../services/account/profileTierService";
 import { useUserBoostTier } from "../../../hooks/useUserBoostTier";
 import BoostProfileCard from "../../Boost/BoostProfileCard";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
+import { getBoostNameDesign } from "../../../services/boost/boostThemes";
+import { getBoostNameColor } from "../../Shared/profileVisuals";
 
 const PIXEL_PALETTES = {
   standard: ["#9cff00", "#38bdf8", "#a78bfa", "#fbbf24"],
@@ -52,9 +54,12 @@ const CommunityProfileModal = ({
   const avatarUrl = user?.avatar_id ? mediaUrlService.getAvatarUrl(user.avatar_id, 240) : null;
   const displayName = user?.full_name || user?.username || "Unknown user";
   const isOwnProfile = Boolean(currentUserId && user?.id && currentUserId === user.id);
-  const { tier: liveTier, themeId: liveThemeId } = useUserBoostTier(user?.id);
+  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId } = useUserBoostTier(user?.id);
   const tier = liveTier || user?.subscription_tier || null;
   const themeId = liveThemeId || user?.boost_selections?.themeId || null;
+  const fontId = liveFontId || user?.boost_selections?.fontId || null;
+  const colorId = liveColorId || user?.boost_selections?.colorId || null;
+  const nameDesign = getBoostNameDesign(tier, fontId, colorId);
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
   const boostVisual = hasBoosted ? BOOST_VISUAL?.[tier] : null;
   const pixelTier = hasBoosted ? tier : "standard";
@@ -196,10 +201,11 @@ const CommunityProfileModal = ({
               showBadge={hasBoosted}
               badgeSize="sm"
               borderRadius="circle"
+              accentColor={hasBoosted ? nameDesign.color?.color : undefined}
             />
           </div>
           <div className="community-profile-heading">
-            <h2 style={hasBoosted ? { color: boostVisual?.color || "#fff", textShadow: `0 0 18px ${boostVisual?.glow || "rgba(156,255,0,.35)"}` } : undefined}>{displayName}</h2>
+            <h2 style={hasBoosted ? { color: nameDesign.color?.color || getBoostNameColor(tier, themeId) || "#fff", fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing, textShadow: `0 0 18px ${nameDesign.color?.shadow || boostVisual?.glow || "rgba(156,255,0,.35)"}` } : undefined}>{displayName}</h2>
             <span>@{user?.username || "unknown"}</span>
             {hasBoosted && <small className="community-profile-boost-label">{tier} boost</small>}
           </div>

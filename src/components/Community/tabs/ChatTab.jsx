@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Menu, ChevronLeft, ChevronRight, Plus, Lock, Palette,
-  ChevronDown, ArrowLeft, Settings2, Hash, Megaphone,
+  ChevronDown, ArrowLeft, Settings2, Hash, Megaphone, Volume2,
 } from "lucide-react";
 import MessageList from "../components/MessageList";
 import ContextMenu from "../components/ContextMenu";
@@ -25,13 +25,18 @@ import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
+import channelNotificationService from "../../../services/community/channelNotificationService";
 import UserProfileModal from "../../Modals/UserProfileModal";
 import CommunityProfileModal from "../components/CommunityProfileModal";
 import ForwardMessageModal from "../components/ForwardMessageModal";
+import VerificationPanel from "../verification/VerificationPanel";
+import WelcomeChannelCard from "../verification/WelcomeChannelCard";
+import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
   announcement: Megaphone,
+  voice: Volume2,
 };
 
 const ChatTab = ({
@@ -90,6 +95,8 @@ const ChatTab = ({
   const unsubscribeTyping = useRef(null);
   const typingTimeout = useRef(null);
   const isAtBottom = useRef(true);
+  const channelsRequestRef = useRef(0);
+  const messagesRequestRef = useRef(0);
 
   // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -149,10 +156,14 @@ const ChatTab = ({
   }, [community?.id]);
 
   const loadChannels = async () => {
+    const requestId = ++channelsRequestRef.current;
+    const communityId = community?.id;
+    if (!communityId) return;
     // 1) Instant paint from cache (if any) — no spinner, no blank rail.
-    const cached = communityCache.getChannels(community.id);
+    const cached = communityCache.getChannels(communityId);
     if (cached) {
-      roleService.getVisibleChannels(community.id, userId, cached).then((visibleChannels) => {
+      roleService.getVisibleChannels(communityId, userId, cached).then((visibleChannels) => {
+        if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
         setChannels(visibleChannels);
         if (visibleChannels.length > 0 && !selectedChannel) setSelectedChannel(visibleChannels[0]);
       }).catch(() => setChannels([]));
@@ -162,9 +173,11 @@ const ChatTab = ({
     // load shows the skeleton state; every other visit is silent.
     setChannelsRefreshing(!!cached);
     try {
-      const data = await channelService.fetchChannels(community.id);
-      communityCache.setChannels(community.id, data);
-      const visibleChannels = await roleService.getVisibleChannels(community.id, userId, data);
+      const data = await channelService.fetchChannels(communityId);
+      if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
+      communityCache.setChannels(communityId, data);
+      const visibleChannels = await roleService.getVisibleChannels(communityId, userId, data);
+      if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       setChannels(visibleChannels);
       setChannelsReady(true);
       if (visibleChannels.length > 0 && !selectedChannel) {
@@ -231,6 +244,7 @@ const ChatTab = ({
   // ── Messages + subscriptions ──────────────────────────────────────────────
   useEffect(() => {
     if (selectedChannel) {
+      channelNotificationService.markRead(selectedChannel.id).catch(() => {});
       // Seed synchronously from whatever's already in the state manager for
       // this channel. This does two things: (a) if we've visited this
       // channel before in this session, its messages appear the instant
@@ -253,6 +267,7 @@ const ChatTab = ({
 
   useEffect(() => {
     const unsub = communityState.subscribe(() => {
+      if (!selectedChannel?.id || !communityState.isActive(selectedChannel.id)) return;
       const msgs = communityState.getMessages(selectedChannel?.id);
       const typing = communityState.getTyping(selectedChannel?.id);
       setMessages([...msgs]);
@@ -281,8 +296,11 @@ const ChatTab = ({
 
   const loadMessages = async () => {
     if (!selectedChannel?.id) return;
+    const requestId = ++messagesRequestRef.current;
+    const channelId = selectedChannel.id;
     try {
-      await communityMessageService.loadMessages(selectedChannel.id);
+      await communityMessageService.loadMessages(channelId);
+      if (requestId !== messagesRequestRef.current || selectedChannel?.id !== channelId) return;
     } catch (error) {
       console.error("Error loading messages:", error);
     }
@@ -470,7 +488,7 @@ const ChatTab = ({
 
         {/* ── Messages ── */}
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-          <MessageList
+          {selectedChannel?.name?.toLowerCase().includes("verification") ? <VerificationPanel communityId={community.id} userId={userId} onVerified={async () => { await loadPermissions(); await loadChannels(); }} /> : selectedChannel?.name?.toLowerCase().includes("welcome") ? <WelcomeChannelCard community={community} /> : selectedChannel?.name?.toLowerCase() === "updates" ? <UpdatesChannelPanel communityId={community.id} channelId={selectedChannel.id} userId={userId} isOwner={isOwner} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}
@@ -495,6 +513,7 @@ const ChatTab = ({
             }}
             onReply={(message) => { setReplyTo(message); setContextMenu(null); }}
             onNavigate={onNavigate}
+            channelType={selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
               const msg = messages.find((m) => m.id === msgId);
               const previousReactions = msg?.reactions || {};
@@ -523,7 +542,7 @@ const ChatTab = ({
                 console.error("Error toggling reaction:", error);
               }
             }}
-          />
+          />}
           {showJump && (
             <button className="jump-btn" onClick={() => scrollToBottom()}>
               <ChevronDown size={18} />
@@ -591,6 +610,7 @@ const ChatTab = ({
           onDelete={async () => {
             try {
               await communityMessageService.deleteMessage(contextMenu.message.id, userId, community.id);
+              communityState.removeMessage(selectedChannel?.id, contextMenu.message.id);
               setMessages((items) => items.filter((item) => item.id !== contextMenu.message.id));
             } catch (error) {
               console.error("Error deleting message:", error);

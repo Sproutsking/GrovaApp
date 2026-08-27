@@ -205,6 +205,7 @@ const ReelProfilePreview = ({
             borderRadius="circle"
             onClick={handleProfileClick}
             style={{ cursor: "pointer", flexShrink: 0 }}
+            accentColor={hasBoostedTier ? displayNameColor : undefined}
           />
 
           <div className="rpp-text">
@@ -280,7 +281,7 @@ const ReelProfilePreview = ({
               avatar,
               verified,
               subscription_tier: tier,
-              boost_selections:  { themeId },
+              boost_selections:  { themeId, fontId, colorId },
             }}
             currentUser={currentUser}
             onClose={() => setShowProfileModal(false)}

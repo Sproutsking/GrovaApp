@@ -406,10 +406,13 @@ class CommunityService {
 
   async createDefaultChannels(communityId) {
     const channels = [
-      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", position: 0, permissions: {} },
-      { name: "welcome",      icon: "👋", description: "Welcome new members!",                    type: "text", position: 1, permissions: {} },
-      { name: "general",      icon: "💬", description: "General discussion",                      type: "text", position: 2, permissions: {} },
-      { name: "announcements",icon: "📢", description: "Important updates",                       type: "announcement", position: 3, permissions: { sendMessages: ["owner", "admin"] } },
+      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", position: 0, is_default: true },
+      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", position: 1, is_default: true },
+      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", position: 2, is_default: true },
+      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", position: 3, is_default: true },
+      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", position: 4, is_default: true },
+      { name: "general", icon: "💬", description: "General discussion", type: "text", position: 5, is_default: true },
+      { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", position: 6, is_default: true, integrations: { xeevia: true, x: false, facebook: false, instagram: false, tiktok: false, discord: false } },
     ];
     await supabase.from("community_channels").insert(channels.map((ch) => ({ ...ch, community_id: communityId })));
   }

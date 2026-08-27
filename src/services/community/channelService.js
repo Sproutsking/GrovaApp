@@ -48,6 +48,14 @@ class ChannelService {
 
   async createChannel(channelData, communityId) {
     try {
+      const { count, error: countError } = await supabase
+        .from("community_channels")
+        .select("id", { count: "exact", head: true })
+        .eq("community_id", communityId)
+        .eq("is_default", false)
+        .is("deleted_at", null);
+      if (countError) throw countError;
+      if ((count || 0) >= 9) throw new Error("This community has reached the 9 custom channel limit.");
       let icon = channelData.icon || "💬";
       if (channelData.iconFile) {
         const ext = channelData.iconFile.name.split(".").pop()?.toLowerCase() || "png";

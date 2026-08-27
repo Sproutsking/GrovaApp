@@ -358,6 +358,7 @@ const BoostAvatarRing = ({
   onClick,
   style,
   borderRadius = "circle",
+  accentColor,
 }) => {
   injectKeyframes();
 
@@ -405,6 +406,8 @@ const BoostAvatarRing = ({
           alignItems:   "center",
           justifyContent: "center",
           background:   fallbackGrad,
+          border:       accentColor ? `2px solid ${accentColor}` : undefined,
+          boxShadow:    accentColor ? `0 0 0 2px ${accentColor}55` : undefined,
         }}
       >
         {/* Letter fallback */}

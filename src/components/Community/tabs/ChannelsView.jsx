@@ -4,7 +4,7 @@
 // desktop/mobile already visited this community, it's instant here too) +
 // a premium visual pass matching the rest of the community rewrite.
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, X } from "lucide-react";
+import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, Volume2, X } from "lucide-react";
 import channelService from "../../../services/community/channelService";
 import permissionService from "../../../services/community/permissionService";
 import communityCache from "../../../services/community/communityCache";
@@ -13,6 +13,7 @@ import CreateChannelModal from "../modals/CreateChannelModal";
 const CHANNEL_TYPE_ICON = {
   text: Hash,
   announcement: Megaphone,
+  voice: Volume2,
 };
 
 const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack }) => {

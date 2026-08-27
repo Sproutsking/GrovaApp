@@ -68,6 +68,8 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         avatar_id: data.avatar_id,
         avatar_metadata: data.avatar_metadata,
         verified: data.verified || false,
+        subscription_tier: data.subscription_tier || null,
+        boost_selections: data.boost_selections || {},
       });
     } catch {
       setFullUserProfile({
@@ -75,6 +77,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
         username: currentUser?.username || "user",
         full_name: currentUser?.fullName || currentUser?.full_name || "User",
         avatar_id: null, avatar_metadata: null, verified: false,
+        subscription_tier: null, boost_selections: {},
       });
     }
   };
@@ -223,15 +226,19 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
 
   const handleDeleteCommunity = async (communityId) => {
     if (!window.confirm("Delete this community? This cannot be undone.")) return;
+    const removedCommunity = selectedCommunity?.id === communityId;
+    setMyCommunities((current) => current.filter((item) => item.id !== communityId));
+    setAllCommunities((current) => current.filter((item) => item.id !== communityId));
+    communityCache.clearCommunity(communityId);
+    if (removedCommunity) {
+      setSelectedCommunity(null); setSelectedChannel(null);
+      setView("discover"); currentCommunityRef.current = null;
+    }
     try {
       await communityService.deleteCommunity(communityId, userId);
-      communityCache.clearCommunity(communityId);
-      if (selectedCommunity?.id === communityId) {
-        setSelectedCommunity(null); setSelectedChannel(null);
-        setView("discover"); currentCommunityRef.current = null;
-      }
       await loadCommunities();
     } catch (error) {
+      await loadCommunities();
       alert(error.message || "Failed to delete community");
     }
   };

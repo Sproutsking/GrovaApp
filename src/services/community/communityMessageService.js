@@ -28,7 +28,9 @@ class CommunityMessageService {
             full_name,
             avatar_id,
             avatar_metadata,
-            verified
+            verified,
+            subscription_tier,
+            boost_selections
           )
         `)
         .eq("channel_id", channelId)
@@ -75,7 +77,9 @@ class CommunityMessageService {
         full_name: currentUser.full_name || currentUser.fullName || "Unknown User",
         avatar_id: currentUser.avatar_id || null,
         avatar_metadata: currentUser.avatar_metadata || null,
-        verified: currentUser.verified || false
+        verified: currentUser.verified || false,
+        subscription_tier: currentUser.subscription_tier || currentUser.subscriptionTier || null,
+        boost_selections: currentUser.boost_selections || currentUser.boostSelections || {}
       };
 
       console.log(`🚀 [SEND] Complete user object:`, userObject);
@@ -139,7 +143,9 @@ class CommunityMessageService {
             full_name,
             avatar_id,
             avatar_metadata,
-            verified
+            verified,
+            subscription_tier,
+            boost_selections
           )
         `)
         .single();

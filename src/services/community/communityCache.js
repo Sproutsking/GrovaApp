@@ -75,6 +75,11 @@ const communityCache = {
   clearCommunity(communityId) {
     channelsCache.delete(communityId);
     inFlight.delete(communityId);
+    try {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      delete stored[communityId];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    } catch {}
   },
 };
 

@@ -13,7 +13,7 @@ import { supabase } from "../../services/config/supabase";
 import dmMessageService from "../../services/messages/dmMessageService";
 import onlineStatusService from "../../services/messages/onlineStatusService";
 import conversationState from "../../services/messages/ConversationStateManager";
-import backgroundService, { DOT_OVERLAY_CSS } from "../../services/messages/BackgroundService";
+import backgroundService from "../../services/messages/BackgroundService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import BoostAvatarRing from "../Shared/BoostAvatarRing";
 import { getBoostNameColor } from "../Shared/profileVisuals";
@@ -211,13 +211,11 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted }) => {
+const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted, onOpenMenu }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
-  const [ctxOpen,setCtx]=useState(false); const [ctxPos,setCtxPos]=useState({x:0,y:0});
   const [rAnim,setRAnim]=useState(false);
   const touchX=useRef(null); const touchY=useRef(null); const suppressPointerMenu=useRef(false); const rowRef=useRef(null);
   const TH=60;
-  const openCtx=(x,y)=>{setCtxPos({x,y});setCtx(true);};
   const onTouchStart=e=>{touchX.current=e.touches[0].clientX;touchY.current=e.touches[0].clientY;};
   const onTouchMove=e=>{const dx=e.touches[0].clientX-(touchX.current||0);const dy=Math.abs(e.touches[0].clientY-(touchY.current||0));if(dy>12)return;if(Math.abs(dx)>8){setSw(true);setSX(Math.max(-90,Math.min(90,dx)));}};
   const onTouchEnd=()=>{if(swiping){if(Math.abs(swipeX)>=TH){suppressPointerMenu.current=true;setRAnim(true);setTimeout(()=>setRAnim(false),400);onReply?.(msg);}setSw(false);setSX(0);}};
@@ -226,29 +224,14 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       suppressPointerMenu.current = false;
       return;
     }
-    if (touchX.current !== null && Math.abs(e.clientX - touchX.current) >= TH) {
-      touchX.current = null;
-      return;
-    }
     touchX.current = null;
-    if (e.target.closest("button, a")) return;
-    const r=rowRef.current?.getBoundingClientRect();
-    if(r)openCtx(isMe?r.left+8:r.right-8,r.top+r.height/2);
+    if (e.target.closest("button, a, input, textarea")) return;
+    const r=e.currentTarget.getBoundingClientRect();
+    onOpenMenu?.(msg,{x:isMe?r.left+8:r.right-8,y:r.top+r.height/2});
   };
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
   },[avatarUrl]);
-  const handleCopy=()=>navigator.clipboard?.writeText(msg.content||"").catch(()=>{});
-  const handleDelete=async()=>{if(!isMe)return;try{await dmMessageService.deleteMessage(msg.id, currentUserId);onDeleted?.(msg.id);}catch(e){console.warn(e);}};
-  const handleForward=async()=>{
-    if(!msg.content) return;
-    try {
-      await dmMessageService.sendMessage(msg.conversation_id, `↗ Forwarded message\n${msg.content}`, currentUserId);
-    } catch (error) {
-      console.warn("[DM] forward failed:", error);
-    }
-  };
-  const handleReport=()=>window.alert("Message reported.");
   const renderContent=(c, opts={})=>{
     if(!c||typeof c!=="string"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
       return <span className="cv-bad">[message unavailable]</span>;
@@ -264,7 +247,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} />):<div className="cv-avatar-sp"/>)}
+      {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} />):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
@@ -275,20 +258,6 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
           {isMe&&<span className="cv-st">{getTickStatus(msg)}</span>}
         </div>
       </div>
-      {ctxOpen && (
-        <MessageContextMenu
-          position={ctxPos}
-          message={msg}
-          userId={currentUserId}
-          onReply={() => onReply?.(msg)}
-          onCopy={handleCopy}
-          onDelete={handleDelete}
-          onReaction={onReaction}
-          onForward={handleForward}
-          onReport={handleReport}
-          onClose={() => setCtx(false)}
-        />
-      )}
     </div>
   );
 });
@@ -400,10 +369,12 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const [selectedBg,setSelectedBg]     = useState(()=>backgroundService.getConversationBackground(conversation.id));
   const [readStatus,setReadStatus]     = useState({});
   const [replyTo,setReplyTo]           = useState(null);
+  const [messageMenu, setMessageMenu] = useState(null);
 
   const endRef=useRef(null); const containerRef=useRef(null);
   const tyTO=useRef(null); const isAtBottom=useRef(true);
   const unsubCh=useRef(null); const unsubDB=useRef(null);
+  const messagesRequestRef=useRef(0);
   const msgsRef=useRef([]); useEffect(()=>{msgsRef.current=messages;},[messages]);
 
   const convId=conversation.id; const otherUser=conversation.otherUser;
@@ -444,11 +415,13 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
   useEffect(()=>{conversationState.setActive(convId);dmMessageService.markRead(convId,currentUser.id);return()=>conversationState.clearActive();},[convId,currentUser.id]);
   useEffect(()=>{
+    const requestId = ++messagesRequestRef.current;
     const cached=conversationState.getMessages?.(convId)||[];
     setMessages(cached);
     setLoading(cached.length===0);
     setReadStatus({});
     dmMessageService.loadMessages(convId).then(msgs=>{
+      if (requestId !== messagesRequestRef.current) return;
       setMessages(msgs); setLoading(false); seedFromMessages(msgs);
       setTimeout(()=>scrollToBottom("auto"),50);
     }).catch(()=>setLoading(false));
@@ -586,7 +559,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} boostFontId={otherBoost.fontId} boostColorId={otherBoost.colorId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))}/>;
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} boostFontId={otherBoost.fontId} boostColorId={otherBoost.colorId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))} onOpenMenu={(message, position) => setMessageMenu({ message, position })}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">
@@ -598,6 +571,25 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
         </div>
         {showJump&&<button className="cv-jump-btn" onClick={()=>scrollToBottom()}><Ic.Down/></button>}
       </div>
+
+      {messageMenu && (
+        <MessageContextMenu
+          position={messageMenu.position}
+          message={messageMenu.message}
+          userId={currentUser.id}
+          onReply={() => setReplyTo(messageMenu.message)}
+          onCopy={() => navigator.clipboard?.writeText(messageMenu.message.content || "")}
+          onDelete={async () => {
+            if (messageMenu.message.sender_id !== currentUser.id) return;
+            await dmMessageService.deleteMessage(messageMenu.message.id, currentUser.id);
+            setMessages((items) => items.filter((item) => item.id !== messageMenu.message.id));
+          }}
+          onReaction={(emoji) => toggleReaction(messageMenu.message.id, emoji)}
+          onForward={() => dmMessageService.sendMessage(convId, `↗ Forwarded message\n${messageMenu.message.content}`, currentUser.id)}
+          onReport={() => window.alert("Message reported.")}
+          onClose={() => setMessageMenu(null)}
+        />
+      )}
 
       <MessageInput onSend={handleSend} onTyping={handleTypingLocal} replyTo={replyTo} onCancelReply={()=>setReplyTo(null)}/>
       <style>{CV_CSS}</style>

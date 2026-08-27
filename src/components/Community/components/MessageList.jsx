@@ -2,6 +2,8 @@
 import React from "react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
+import { getBoostNameDesign } from "../../../services/boost/boostThemes";
+import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 
 const MessageList = ({
   messages,
@@ -17,6 +19,7 @@ const MessageList = ({
   onChannelMention,
   onRoleMention,
   onNavigate,
+  channelType,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -93,11 +96,12 @@ const MessageList = ({
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
+          const nameDesign = getBoostNameDesign(msg.user?.subscription_tier, msg.user?.boost_selections?.fontId, msg.user?.boost_selections?.colorId);
 
           return (
             <div
               key={msg.id || msg.tempId || msg._tempId}
-              className={`msg-item ${isMe ? "me" : "them"} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
+              className={`msg-item ${isMe ? "me" : "them"} ${channelType === "announcement" ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
               onTouchStart={(e) => beginSwipe(e, msg)}
               onTouchMove={(e) => moveSwipe(e, msg)}
@@ -106,25 +110,18 @@ const MessageList = ({
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
               {showAvatar && (
-                <button className="msg-avatar" onClick={() => onProfileClick?.(msg.user)} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
-                  {avatarUrl ? (
-                    <img 
-                      src={avatarUrl} 
-                      alt={msg.user?.full_name || "User"} 
-                      onError={(e) => {
-                        console.error("Avatar load error:", e);
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div 
-                    className="msg-avatar-fallback"
-                    style={{ display: avatarUrl ? 'none' : 'flex' }}
-                  >
-                    {initial}
-                  </div>
-                </button>
+                <div className="msg-avatar" style={{ overflow: "visible" }} onClick={() => onProfileClick?.(msg.user)} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
+                  <BoostAvatarRing
+                    tier={msg.user?.subscription_tier}
+                    themeId={msg.user?.boost_selections?.themeId}
+                    accentColor={nameDesign.color?.color}
+                    size={36}
+                    src={avatarUrl}
+                    letter={initial}
+                    showBadge={false}
+                    style={{ cursor: "pointer" }}
+                  />
+                </div>
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" />}
 
@@ -134,7 +131,7 @@ const MessageList = ({
                   return original ? <div className="msg-reply-quote"><span>Replying to {original.user?.full_name || "member"}</span><strong>{original.content}</strong></div> : null;
                 })()}
                 {!isMe && showAvatar && (
-                  <button className="msg-user-name" onClick={() => onProfileClick?.(msg.user)}>
+                  <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                     {msg.user?.full_name || msg.user?.username || "Unknown"}
                   </button>
                 )}
@@ -276,6 +273,16 @@ const MessageList = ({
           backdrop-filter: blur(10px);
           position: relative;
         }
+        .msg-item.announcement .msg-bubble {
+          max-width: min(92%, 760px);
+          padding: 18px 22px 16px;
+          border-radius: 18px;
+          background: linear-gradient(145deg, rgba(28,42,25,.98), rgba(10,20,13,.98));
+          border: 1px solid rgba(156,255,0,.28);
+          box-shadow: 0 10px 32px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; }
+        .msg-item.announcement .msg-meta { margin-top: 10px; }
 
         /* Base bubble styles WITHOUT tails */
         .msg-bubble.them {

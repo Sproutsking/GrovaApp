@@ -1,3 +1,17 @@
+-- Backfill active boost identity into profiles for community and feed joins.
+update public.profiles p
+set subscription_tier = b.boost_tier,
+    boost_selections = coalesce(p.boost_selections, '{}'::jsonb)
+      || coalesce(b.theme_selections, '{}'::jsonb),
+    updated_at = now()
+from (
+  select distinct on (user_id) user_id, boost_tier, theme_selections
+  from public.profile_boosts
+  where status = 'active' and expires_at > now()
+  order by user_id, created_at desc
+) b
+where p.id = b.user_id;
+
 -- Persist tier-gated boost name typography and color choices securely.
 create or replace function public.update_boost_name_design(
   p_user_id uuid,
@@ -56,6 +70,17 @@ begin
   set theme_selections = next_selections,
       updated_at = now()
   where id = boost_row.id;
+
+  update public.profiles
+  set subscription_tier = boost_row.boost_tier,
+      boost_selections = coalesce(boost_selections, '{}'::jsonb)
+        || jsonb_build_object(
+          'themeId', boost_row.active_theme_id,
+          'fontId', p_font_id,
+          'colorId', p_color_id
+        ),
+      updated_at = now()
+  where id = p_user_id;
 
   return jsonb_build_object('success', true, 'fontId', p_font_id, 'colorId', p_color_id);
 end;
