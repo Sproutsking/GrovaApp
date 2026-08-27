@@ -628,9 +628,18 @@ export default function AuthProvider({ children }) {
     };
 
     const hasPKCECode = new URLSearchParams(window.location.search).has("code");
+    const pkceCode = new URLSearchParams(window.location.search).get("code");
 
     // ── PKCE retry logic: OAuth callback can take 600-1500ms ─────────────────
     const waitForPKCESession = async () => {
+      if (pkceCode) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(pkceCode);
+        if (!error && data?.session?.user) return data.session;
+        if (process.env.NODE_ENV === "development" && error) {
+          console.warn("[AuthContext] PKCE exchange deferred to session polling:", error.message);
+        }
+      }
+
       const maxRetries = 10;
       const delays = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500];
 
