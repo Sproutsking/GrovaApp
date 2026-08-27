@@ -170,6 +170,56 @@ function clearProfileCache() {
   } catch {}
 }
 
+async function bootstrapOAuthProfile(userId, authUser) {
+  if (!userId || !authUser) return null;
+
+  const metadata = authUser.user_metadata || {};
+  const email = authUser.email || `${userId}@users.xeevia.local`;
+  const fullName = String(
+    metadata.full_name || metadata.name || email.split("@")[0] || "Xeevia User",
+  ).trim().slice(0, 120) || "Xeevia User";
+  const rawUsername = String(
+    metadata.username || metadata.user_name || metadata.preferred_username || email.split("@")[0] || "user",
+  );
+  let username = rawUsername.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24);
+  if (username.length < 3) username = `user_${userId.replace(/-/g, "").slice(0, 8)}`;
+
+  const avatarUrl = metadata.avatar_url || metadata.picture || metadata.profile_image_url || null;
+  const avatarMetadata = avatarUrl
+    ? {
+        url: avatarUrl,
+        publicUrl: avatarUrl,
+        provider: authUser.app_metadata?.provider || metadata.provider || "oauth",
+        source: "oauth",
+      }
+    : {};
+  const profile = {
+    id: userId,
+    email,
+    full_name: fullName,
+    username,
+    avatar_metadata: avatarMetadata,
+  };
+
+  let { data, error } = await supabase
+    .from("profiles")
+    .upsert(profile, { onConflict: "id" })
+    .select("*")
+    .maybeSingle();
+
+  if (error?.code === "23505") {
+    profile.username = `${username.slice(0, 20)}_${userId.replace(/-/g, "").slice(0, 8)}`.slice(0, 30);
+    ({ data, error } = await supabase
+      .from("profiles")
+      .upsert(profile, { onConflict: "id" })
+      .select("*")
+      .maybeSingle());
+  }
+
+  if (error) throw error;
+  return data;
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -485,6 +535,16 @@ export default function AuthProvider({ children }) {
             // Run one immediate check, then start the interval
             enforceAccountStatus(userId);
             startEnforcement(userId);
+          }
+        } else if (retryIndex === 0) {
+          const { data: authData, error: authError } = await supabase.auth.getUser();
+          if (authError) throw authError;
+          const bootstrappedProfile = await bootstrapOAuthProfile(userId, authData?.user);
+          if (bootstrappedProfile) {
+            lastGoodProfile.current = bootstrappedProfile;
+            setProfile(bootstrappedProfile);
+            writeProfileCache(bootstrappedProfile);
+            lastFetchedUserId.current = userId;
           }
         } else if (lastGoodProfile.current) {
           setProfile(lastGoodProfile.current);
