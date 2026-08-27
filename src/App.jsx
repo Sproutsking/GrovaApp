@@ -1243,23 +1243,7 @@ function AppRouter() {
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
   const oauthInProgress = hasOAuthCodeInUrl();
-
-  // ── Handle public pages (no auth required) ────────────────────────────────
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  if (pathname === "/terms") {
-    return (
-      <Suspense fallback={<Splash />}>
-        <TermsOfService />
-      </Suspense>
-    );
-  }
-  if (pathname === "/privacy") {
-    return (
-      <Suspense fallback={<Splash />}>
-        <PrivacyPolicy />
-      </Suspense>
-    );
-  }
 
   useEffect(() => {
     if (!loading) return;
@@ -1282,6 +1266,22 @@ function AppRouter() {
   useEffect(() => {
     if (profile) setProfileTimedOut(false);
   }, [profile]);
+
+  // ── Handle public pages (no auth required) ────────────────────────────────
+  if (pathname === "/terms") {
+    return (
+      <Suspense fallback={<Splash />}>
+        <TermsOfService />
+      </Suspense>
+    );
+  }
+  if (pathname === "/privacy") {
+    return (
+      <Suspense fallback={<Splash />}>
+        <PrivacyPolicy />
+      </Suspense>
+    );
+  }
 
   if (!forceResolve && loading) return <Splash />;
   if (!user)                     return <AuthWall />;
