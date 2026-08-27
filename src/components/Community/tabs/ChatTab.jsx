@@ -32,6 +32,7 @@ import ForwardMessageModal from "../components/ForwardMessageModal";
 import VerificationPanel from "../verification/VerificationPanel";
 import WelcomeChannelCard from "../verification/WelcomeChannelCard";
 import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
+import TicketToolPanel from "../tools/TicketToolPanel";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -488,7 +489,7 @@ const ChatTab = ({
 
         {/* ── Messages ── */}
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-          {selectedChannel?.name?.toLowerCase().includes("verification") ? <VerificationPanel communityId={community.id} userId={userId} onVerified={async () => { await loadPermissions(); await loadChannels(); }} /> : selectedChannel?.name?.toLowerCase().includes("welcome") ? <WelcomeChannelCard community={community} /> : selectedChannel?.name?.toLowerCase() === "updates" ? <UpdatesChannelPanel communityId={community.id} channelId={selectedChannel.id} userId={userId} isOwner={isOwner} /> : <MessageList
+          {selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={async () => { await loadPermissions(); await loadChannels(); }} /> : selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} userEmail={currentUser?.email} /> : selectedChannel?.name?.toLowerCase().includes("welcome") ? <WelcomeChannelCard community={community} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel communityId={community.id} channelId={selectedChannel.id} userId={userId} isOwner={isOwner} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}

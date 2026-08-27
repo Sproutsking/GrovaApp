@@ -57,6 +57,16 @@ function getVisual(tier, themeId) {
   return base;
 }
 
+function StaticTierRing({ size, visual }) {
+  const radius = size / 2 + 2;
+  return (
+    <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", inset: -(radius - size / 2), pointerEvents: "none", overflow: "visible" }}>
+      <circle cx={radius} cy={radius} r={radius - 1.5} fill="none" stroke={visual.grad[0]} strokeWidth="2.5" />
+      <circle cx={radius} cy={radius} r={radius - 5} fill="none" stroke={visual.grad[1]} strokeWidth="1" strokeOpacity=".72" />
+    </svg>
+  );
+}
+
 // ── Keyframes (injected once via <style>) ─────────────────────────────────
 
 const KEYFRAMES = `
@@ -447,9 +457,7 @@ const BoostAvatarRing = ({
       </div>
 
       {/* SVG ring overlay — rendered outside the clipping div */}
-      {visual && tier === "silver"  && <SilverRing  size={size} />}
-      {visual && tier === "gold"    && <GoldRing    size={size} />}
-      {visual && tier === "diamond" && <DiamondRing size={size} visual={visual} />}
+      {visual && <StaticTierRing size={size} visual={visual} />}
 
       {/* Badge pip */}
       {showBadge && visual && (

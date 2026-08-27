@@ -151,7 +151,6 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           <div className="disc-stats-row">
             <span className="disc-stat-chip"><Globe size={10}/>{pub.length} communities</span>
             <span className="disc-stat-dot">·</span>
-            <span className="disc-stat-chip"><Users size={10}/>{audience.toLocaleString()} members</span>
           </div>
           <div className="disc-controls">
             <button className={`disc-ctrl${showSearch?" on":""}`} onClick={()=>setShowSearch(!showSearch)} title="Search">
@@ -169,21 +168,6 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                     <button key={id} className={`disc-dd-item${category===id?" on":""}`} onClick={()=>{setCategory(id);setShowCatDd(false);}}>
                       <Icon size={12}/>{label}
                       {category===id&&<CheckCircle size={11} style={{marginLeft:"auto",color:"#9cff00"}}/>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="disc-dd" ref={sortRef}>
-              <button className={`disc-ctrl has-lbl${showSortDd?" on":""}`} onClick={()=>setShowSortDd(!showSortDd)}>
-                <TrendingUp size={13}/><span>{selSort?.label}</span>
-                <ChevronDown size={10} style={{transition:"transform .18s",transform:showSortDd?"rotate(180deg)":"none"}}/>
-              </button>
-              {showSortDd&&(
-                <div className="disc-dd-menu disc-dd-right">
-                  {SORT_OPTIONS.map(({id,label})=>(
-                    <button key={id} className={`disc-dd-item${sort===id?" on":""}`} onClick={()=>{setSort(id);setShowSortDd(false);}}>
-                      {label}{sort===id&&<CheckCircle size={11} style={{marginLeft:"auto",color:"#9cff00"}}/>}
                     </button>
                   ))}
                 </div>
@@ -213,7 +197,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           ) : (
             filtered.map((c,idx)=>{
               const member = isMember(c.id);
-              const icon   = c.icon;
+              const icon   = typeof c.icon === "string" ? c.icon : c.name?.[0] || "🌟";
               return (
                 <div
                   key={c.id}
@@ -246,8 +230,6 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                           {c.is_private&&<Lock size={10} color="#888"/>}
                         </div>
                         <div className="disc-card-meta">
-                          <span className="disc-cs"><Users size={10}/>{(c.member_count||0).toLocaleString()}</span>
-                          <span className="disc-cs-dot">·</span>
                           <span className="disc-cs online"><span className="disc-pulse"/>{(c.online_count||0).toLocaleString()} online</span>
                         </div>
                       </div>

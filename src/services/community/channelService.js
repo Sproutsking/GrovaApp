@@ -31,6 +31,7 @@ class ChannelService {
         .select("*")
         .eq("community_id", communityId)
         .is("deleted_at", null)
+        .order("category", { ascending: true })
         .order("position", { ascending: true });
 
       if (error) throw error;
@@ -73,6 +74,8 @@ class ChannelService {
           description: channelData.description,
           type: channelData.type || "text",
           is_private: channelData.isPrivate || false,
+          category: channelData.category || "Channels",
+          tool_type: channelData.toolType || null,
         })
         .select()
         .single();

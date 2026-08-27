@@ -406,15 +406,18 @@ class CommunityService {
 
   async createDefaultChannels(communityId) {
     const channels = [
-      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", position: 0, is_default: true },
-      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", position: 1, is_default: true },
-      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", position: 2, is_default: true },
-      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", position: 3, is_default: true },
-      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", position: 4, is_default: true },
-      { name: "general", icon: "💬", description: "General discussion", type: "text", position: 5, is_default: true },
-      { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", position: 6, is_default: true, integrations: { xeevia: true, x: false, facebook: false, instagram: false, tiktok: false, discord: false } },
+      { name: "welcome", icon: "👋", description: "Start here", type: "text", tool_type: null, position: 0, is_default: true },
+      { name: "verify", icon: "✓", description: "Verify your membership", type: "text", tool_type: "verification", position: 1, is_default: true },
+      { name: "rules", icon: "§", description: "Community rules", type: "text", tool_type: null, position: 2, is_default: true },
     ];
-    await supabase.from("community_channels").insert(channels.map((ch) => ({ ...ch, community_id: communityId })));
+    const { data: createdChannels, error } = await supabase.from("community_channels").insert(channels.map((ch) => ({ ...ch, community_id: communityId, category: "Start here" }))).select("id, tool_type");
+    if (error) throw error;
+    const verifyChannel = createdChannels?.find((channel) => channel.tool_type === "verification");
+    await supabase.from("community_tool_settings").upsert([
+      { community_id: communityId, tool_type: "verification", enabled: true, channel_id: verifyChannel?.id || null },
+      { community_id: communityId, tool_type: "social_updates", enabled: false },
+      { community_id: communityId, tool_type: "tickets", enabled: false },
+    ], { onConflict: "community_id,tool_type" });
   }
 
   // ─── JOIN / LEAVE / DELETE / UPDATE ──────────────────────────────────────

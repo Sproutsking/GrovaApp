@@ -12,9 +12,11 @@ import {
   Image,
   Check,
   Upload,
+  Wrench,
 } from "lucide-react";
+import { supabase } from "../../../../services/config/supabase";
 
-const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
+const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, onClose }) => {
   const [settings, setSettings] = useState({
     name: "",
     description: "",
@@ -29,6 +31,7 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
   const [iconFile, setIconFile] = useState(null);
   const [iconPreview, setIconPreview] = useState(null);
   const [error, setError] = useState("");
+  const [tools, setTools] = useState([]);
   const fileInputRef = useRef(null);
 
   const backgroundThemes = [
@@ -110,6 +113,12 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
     }
   }, [community]);
 
+  useEffect(() => {
+    if (!community?.id) return;
+    supabase.from("community_tool_settings").select("*").eq("community_id", community.id)
+      .then(({ data }) => setTools(data || []));
+  }, [community?.id]);
+
   const handleIconChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -143,6 +152,30 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
 
   const isOwner = community?.owner_id === userId;
 
+  const updateTool = async (tool, patch) => {
+    const next = { ...tool, ...patch };
+    setTools((current) => current.map((item) => item.tool_type === tool.tool_type ? next : item));
+    const { error: toolError } = await supabase.from("community_tool_settings").upsert({
+      community_id: community.id,
+      tool_type: tool.tool_type,
+      enabled: next.enabled,
+      channel_id: next.channel_id || null,
+      config: next.config || {},
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "community_id,tool_type" });
+    if (toolError) {
+      setError(toolError.message);
+      setTools((current) => current.map((item) => item.tool_type === tool.tool_type ? tool : item));
+    }
+    if (next.channel_id) {
+      await supabase.from("community_channels")
+        .update({ tool_type: next.enabled ? tool.tool_type : null, updated_at: new Date().toISOString() })
+        .eq("id", next.channel_id);
+    }
+    onUpdate?.({ type: "tool", tool: next });
+  };
+
   if (!isOwner) {
     return (
       <div className="settings-unauthorized">
@@ -162,6 +195,24 @@ const CommunitySettingsSection = ({ community, userId, onUpdate, onClose }) => {
         </div>
 
         <div className="settings-form">
+          <div className="setting-group tools-group">
+            <label className="setting-label"><Wrench size={16} /> Community tools</label>
+            <p className="setting-hint tools-intro">Enable a tool, then choose the channel where members will see it.</p>
+            {["verification", "social_updates", "tickets"].map((toolType) => {
+              const tool = tools.find((item) => item.tool_type === toolType) || { tool_type: toolType, enabled: false, channel_id: "" };
+              const label = toolType === "social_updates" ? "Social updates" : toolType === "verification" ? "Verification" : "Tickets";
+              return (
+                <div className="tool-row" key={toolType}>
+                  <label className="tool-toggle"><input type="checkbox" checked={!!tool.enabled} onChange={(event) => updateTool(tool, { enabled: event.target.checked })} /><span>{label}</span></label>
+                  <select value={tool.channel_id || ""} onChange={(event) => updateTool(tool, { channel_id: event.target.value || null })}>
+                    <option value="">Choose channel</option>
+                    {channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+
           {/* Basic Info */}
           <div className="setting-group">
             <label className="setting-label">
