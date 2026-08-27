@@ -201,6 +201,18 @@ async function bootstrapOAuthProfile(userId, authUser) {
     avatar_metadata: avatarMetadata,
   };
 
+  const { data: rpcProfile, error: rpcError } = await supabase.rpc(
+    "bootstrap_oauth_profile",
+    {
+      p_user_id: userId,
+      p_email: email,
+      p_full_name: fullName,
+      p_username: username,
+      p_avatar_metadata: avatarMetadata,
+    },
+  );
+  if (!rpcError && rpcProfile) return rpcProfile;
+
   let { data, error } = await supabase
     .from("profiles")
     .upsert(profile, { onConflict: "id" })
