@@ -5,8 +5,10 @@
 // gradient/icon picker to the shared premium system (Aurora / Mesh /
 // Cosmic / Sunset / Pixel / Glass) with a layered, glowing preview.
 import React, { useState, useRef } from "react";
+import ReactDOM from "react-dom";
 import { X, Upload, ImagePlus, Shuffle, Check, Sparkles, AlignLeft, Lock, Globe, Palette, ArrowLeft } from "lucide-react";
 import { PREMIUM_GRADIENTS, CATEGORY_ORDER, CATEGORY_BLURB, getGradientById } from "../utils/communityVisuals";
+import EmojiPanel from "../components/EmojiPanel";
 
 const QUICK_EMOJIS = [
   "🚀","🌟","🔥","💎","⚡","🎯","🌊","🎨","🏆","🦁",
@@ -28,6 +30,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
   const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const fileInputRef = useRef(null);
   const activePreset = getGradientById(bannerGradientId);
@@ -162,6 +165,15 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
             </div>
 
             {iconMode === "emoji" ? (
+              <>
+                <button type="button" className="pick-emoji-btn" onClick={() => setShowEmojiPicker((open) => !open)}>
+                  <Sparkles size={14} /> Pick emoji
+                </button>
+                {showEmojiPicker && ReactDOM.createPortal(
+                  <div className="community-emoji-picker">
+                    <EmojiPanel onSelect={(emoji) => { setSelectedEmoji(emoji); setShowEmojiPicker(false); }} onClose={() => setShowEmojiPicker(false)} />
+                  </div>, document.body
+                )}
               <div className="emoji-grid-sm">
                 {QUICK_EMOJIS.map((em) => (
                   <button
@@ -171,6 +183,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
                   >{em}</button>
                 ))}
               </div>
+              </>
             ) : (
               <div className="upload-zone" onClick={() => fileInputRef.current?.click()}>
                 {iconPreview
@@ -527,6 +540,8 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
         .icon-tab.active { border-color: rgba(156,255,0,.5); color: #9cff00; background: rgba(156,255,0,.1); }
 
         .emoji-grid-sm { display: grid; grid-template-columns: repeat(10,1fr); gap: 4px; margin-top: 8px; }
+        .pick-emoji-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 12px; margin-top:8px; border-radius:8px; border:1px solid rgba(156,255,0,.3); background:rgba(156,255,0,.08); color:#caff9a; font-size:12px; font-weight:700; cursor:pointer; }
+        .community-emoji-picker { position:fixed; z-index:100001; top:50%; left:50%; transform:translate(-50%,-50%); max-width:calc(100vw - 20px); max-height:calc(100vh - 20px); }
         .emoji-btn {
           aspect-ratio:1; border-radius:8px; font-size:18px;
           background:rgba(18,18,18,.95); border:1.5px solid rgba(30,30,30,.9);

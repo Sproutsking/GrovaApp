@@ -57,8 +57,8 @@ const ChatTab = ({
   // Seed channels from the shared cache synchronously — if this community
   // was ever hovered/visited before, the rail paints on the very first
   // frame with zero blank state.
-  const [channels, setChannels] = useState(() => communityCache.getChannels(community?.id) || []);
-  const [channelsReady, setChannelsReady] = useState(() => !!communityCache.getChannels(community?.id));
+  const [channels, setChannels] = useState(() => communityCache.getChannels(community?.id) || community?.channels || []);
+  const [channelsReady, setChannelsReady] = useState(() => !!(communityCache.getChannels(community?.id) || community?.channels?.length));
   const [channelsRefreshing, setChannelsRefreshing] = useState(false);
   const [messages, setMessages] = useState(() =>
     selectedChannel ? [...(communityState.getMessages(selectedChannel.id) || [])] : []
@@ -161,23 +161,29 @@ const ChatTab = ({
     const communityId = community?.id;
     if (!communityId) return;
     // 1) Instant paint from cache (if any) — no spinner, no blank rail.
-    const cached = communityCache.getChannels(communityId);
-    if (cached) {
-      roleService.getVisibleChannels(communityId, userId, cached).then((visibleChannels) => {
+    const cachedChannels = communityCache.getChannels(communityId) || community?.channels || [];
+    const hasCachedChannels = Boolean(communityCache.getChannels(communityId) || community?.channels?.length);
+    if (hasCachedChannels) {
+      // Paint the known channel rail before permission refresh completes.
+      setChannels(cachedChannels);
+      setChannelsReady(true);
+      if (cachedChannels.length > 0 && !selectedChannel) setSelectedChannel(cachedChannels[0]);
+      roleService.getVisibleChannels(communityId, userId, cachedChannels).then((visibleChannels) => {
         if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
         setChannels(visibleChannels);
         if (visibleChannels.length > 0 && !selectedChannel) setSelectedChannel(visibleChannels[0]);
-      }).catch(() => setChannels([]));
-      setChannelsReady(true);
+      }).catch(() => {});
     }
     // 2) Revalidate in the background. Only the very first, never-cached
     // load shows the skeleton state; every other visit is silent.
-    setChannelsRefreshing(!!cached);
+    setChannelsRefreshing(hasCachedChannels);
     try {
       const data = await channelService.fetchChannels(communityId);
       if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       communityCache.setChannels(communityId, data);
-      const visibleChannels = await roleService.getVisibleChannels(communityId, userId, data);
+      const visibleChannels = isOwner
+        ? data
+        : await roleService.getVisibleChannels(communityId, userId, data);
       if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       setChannels(visibleChannels);
       setChannelsReady(true);

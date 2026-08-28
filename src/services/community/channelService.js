@@ -26,17 +26,25 @@ class ChannelService {
 
   async fetchChannelsFresh(communityId, cacheKey) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("community_channels")
         .select("*")
         .eq("community_id", communityId)
-        .is("deleted_at", null)
-        .order("category", { ascending: true })
-        .order("position", { ascending: true });
+        .is("deleted_at", null);
+      let result = await query.order("category", { ascending: true }).order("position", { ascending: true });
 
-      if (error) throw error;
+      // Older deployments do not have category yet; position is enough to
+      // keep the canonical channel order until migration 026 is applied.
+      if (result.error?.code === "42703") {
+        result = await query.order("position", { ascending: true });
+      }
 
-      const channels = data || [];
+      if (result.error) throw result.error;
+
+      let channels = result.data || [];
+      if (channels.length === 0) {
+        channels = await this.restoreDefaultChannels(communityId);
+      }
       this.cache.set(cacheKey, channels);
       this.lastFetch.set(cacheKey, Date.now());
 
@@ -45,6 +53,25 @@ class ChannelService {
       console.error("Error fetching channels:", error);
       return this.cache.get(cacheKey) || [];
     }
+  }
+
+  async restoreDefaultChannels(communityId) {
+    const defaults = [
+      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", tool_type: "verification", position: 0, is_default: true },
+      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", position: 1, is_default: true },
+      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", position: 2, is_default: true },
+      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", position: 3, is_default: true },
+      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", position: 4, is_default: true },
+      { name: "general", icon: "💬", description: "General discussion", type: "text", position: 5, is_default: true },
+      { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", tool_type: "social_updates", position: 6, is_default: true },
+    ].map((channel) => ({ ...channel, community_id: communityId, category: "Start here" }));
+    let result = await supabase.from("community_channels").insert(defaults).select("*");
+    if (result.error?.code === "42703") {
+      const legacyDefaults = defaults.map(({ category, tool_type, ...channel }) => channel);
+      result = await supabase.from("community_channels").insert(legacyDefaults).select("*");
+    }
+    if (result.error) throw result.error;
+    return result.data || [];
   }
 
   async createChannel(channelData, communityId) {
@@ -65,27 +92,32 @@ class ChannelService {
         if (upload.error) throw upload.error;
         icon = supabase.storage.from("community-assets").getPublicUrl(path).data.publicUrl;
       }
-      const { data, error } = await supabase
+      const payload = {
+        community_id: communityId,
+        name: channelData.name,
+        icon,
+        description: channelData.description,
+        type: channelData.type || "text",
+        is_private: channelData.isPrivate || false,
+        category: channelData.category || "Channels",
+        tool_type: channelData.toolType || null,
+      };
+      let result = await supabase
         .from("community_channels")
-        .insert({
-          community_id: communityId,
-          name: channelData.name,
-          icon,
-          description: channelData.description,
-          type: channelData.type || "text",
-          is_private: channelData.isPrivate || false,
-          category: channelData.category || "Channels",
-          tool_type: channelData.toolType || null,
-        })
+        .insert(payload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (result.error?.code === "42703") {
+        const { category, tool_type, ...legacyPayload } = payload;
+        result = await supabase.from("community_channels").insert(legacyPayload).select().single();
+      }
+      if (result.error) throw result.error;
 
       this.cache.delete(`channels:${communityId}`);
       this.lastFetch.delete(`channels:${communityId}`);
 
-      return data;
+      return result.data;
     } catch (error) {
       console.error("Error creating channel:", error);
       throw error;

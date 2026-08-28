@@ -1,9 +1,9 @@
 // src/components/Boost/BoostThemePicker.jsx
 // ============================================================================
 // BoostThemePicker — lets boosted users pick their profile design theme.
-// Silver: 1 theme (shown as "active", no picker needed).
-// Gold:   2 themes to choose from.
-// Diamond: 5 themes to choose from.
+// Silver: polished chrome options.
+// Gold:   warm metallic options.
+// Diamond: prismatic options.
 //
 // Props:
 //   tier       — 'silver' | 'gold' | 'diamond'
@@ -45,7 +45,6 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, userId,
     } finally { setSaving(false); }
   };
 
-  // Silver only has 1 — just show it active, no picker
   if (!tier || themes.length === 0) return null;
 
   const handlePick = async (themeId) => {

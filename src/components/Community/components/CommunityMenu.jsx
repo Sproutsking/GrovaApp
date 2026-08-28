@@ -126,8 +126,14 @@ const CommunityMenu = ({
 
   if (!show) return null;
 
-  // Online count: prefer community.online_count, fall back to members filter
-  const onlineCount = community?.online_count ?? members.filter((m) => m.is_online).length;
+  const countValue = (value) => {
+    if (Array.isArray(value)) return countValue(value[0]);
+    if (value && typeof value === "object") return countValue(value.count);
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const memberCount = countValue(community?.member_count) || members.length;
+  const onlineCount = countValue(community?.online_count) || members.filter((m) => m.is_online).length;
 
   return (
     <>
@@ -146,7 +152,7 @@ const CommunityMenu = ({
                     {community?.is_verified && <Star size={14} color="#9cff00" fill="#9cff00" />}
                   </div>
                   <div className="cm-head-stats">
-                    <span>{(community?.member_count || members.length).toLocaleString()} members</span>
+                    <span>{memberCount.toLocaleString()} members</span>
                     <span className="cm-dot">·</span>
                     <span className="cm-online">{onlineCount} online</span>
                   </div>
@@ -178,7 +184,7 @@ const CommunityMenu = ({
                     <div className="cm-stat">
                       <Users size={18} color="#9cff00" />
                       <div>
-                        <div className="cm-stat-val">{(community?.member_count || members.length).toLocaleString()}</div>
+                        <div className="cm-stat-val">{memberCount.toLocaleString()}</div>
                         <div className="cm-stat-lbl">Total Members</div>
                       </div>
                     </div>

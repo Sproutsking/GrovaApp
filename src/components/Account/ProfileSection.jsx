@@ -31,6 +31,7 @@ import { buildVerificationDashboardSections } from "../../services/evidence/veri
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
 import BoostAvatarRing  from "../Shared/BoostAvatarRing";
+import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import BoostThemePicker from "../Boost/BoostThemePicker";
 
 // ── Animated count ────────────────────────────────────────────────────────
@@ -227,6 +228,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   });
   // [B4] active theme id
   const [activeThemeId, setActiveThemeId] = useState(null);
+  const [activeFontId, setActiveFontId] = useState(null);
+  const [activeColorId, setActiveColorId] = useState(null);
   // [AMB-4] Ambassador profile data for badge + action button label
   const [ambassadorData, setAmbassadorData] = useState(null);
 
@@ -311,6 +314,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       if (profileData)  {
         setTierInfo(buildTierInfo(profileData));
         setActiveThemeId(profileData.boost_selections?.themeId ?? null);
+        setActiveFontId(profileData.boost_selections?.fontId ?? null);
+        setActiveColorId(profileData.boost_selections?.colorId ?? null);
       }
 
       // Build avatar URL — enhanced with multiple fallback strategies
@@ -688,7 +693,23 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               />
             </div>
 
-            <h2 className="profile-name">{profile.fullName}</h2>
+            <h2
+              className="profile-name"
+              style={(() => {
+                const design = getBoostNameDesign(profile.subscriptionTier, activeFontId, activeColorId);
+                return {
+                  color: hasBoostedTier ? (design.color?.color || "#fff") : "#fff",
+                  fontFamily: design.font?.family,
+                  fontWeight: design.font?.weight || 900,
+                  letterSpacing: design.font?.spacing,
+                  textShadow: hasBoostedTier && design.color?.shadow
+                    ? `0 0 18px ${design.color.shadow}`
+                    : "none",
+                };
+              })()}
+            >
+              {profile.fullName}
+            </h2>
 
             <div className="profile-badges-row">
               {profile.isPro    && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
@@ -733,8 +754,16 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 <BoostThemePicker
                   tier={profile.subscriptionTier}
                   activeId={activeThemeId}
+                  activeFontId={activeFontId}
+                  activeColorId={activeColorId}
                   userId={userId}
-                  onPicked={(themeId) => setActiveThemeId(themeId)}
+                  onPicked={(selection) => {
+                    if (typeof selection === "string") setActiveThemeId(selection);
+                    else {
+                      setActiveFontId(selection.fontId);
+                      setActiveColorId(selection.colorId);
+                    }
+                  }}
                 />
               </div>
             )}

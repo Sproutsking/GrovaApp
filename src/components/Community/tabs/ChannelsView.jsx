@@ -46,7 +46,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
       setChannelsReady(true);
     }
     try {
-      const data = await communityCache.prefetchChannels(community.id, channelService.fetchChannels);
+      const data = await communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id));
       setChannels(data);
       setChannelsReady(true);
     } catch (error) {

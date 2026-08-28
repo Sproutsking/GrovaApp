@@ -131,7 +131,7 @@ class RoleService {
   async canViewChannel(communityId, userId, channelName) {
     try {
       const role = await this.getUserRole(communityId, userId);
-      if (!role) return false;
+      if (!role) return true;
 
       const roleModel = RoleModel.fromAPI(role);
 
@@ -142,7 +142,7 @@ class RoleService {
 
       // Novis role can only see verification and welcome channels
       if (role.name.toLowerCase() === "novis") {
-        const allowedChannels = ["verification", "welcome"];
+        const allowedChannels = ["verification", "verify", "welcome"];
         return allowedChannels.some((allowed) =>
           channelName.toLowerCase().includes(allowed),
         );
@@ -162,7 +162,7 @@ class RoleService {
   async getVisibleChannels(communityId, userId, allChannels) {
     try {
       const role = await this.getUserRole(communityId, userId);
-      if (!role) return [];
+      if (!role) return (allChannels || []).filter((channel) => !channel.is_private);
 
       const roleModel = RoleModel.fromAPI(role);
 
@@ -177,6 +177,7 @@ class RoleService {
           const channelName = channel.name.toLowerCase();
           return (
             channelName.includes("verification") ||
+            channelName.includes("verify") ||
             channelName.includes("welcome")
           );
         });
@@ -190,7 +191,7 @@ class RoleService {
         .eq("community_id", communityId)
         .eq("user_id", userId)
         .single();
-      if (!membership?.role_id) return [];
+      if (!membership?.role_id) return allChannels.filter((channel) => !channel.is_private);
 
       const { data: overrides } = await supabase
         .from("channel_permission_overrides")
@@ -201,7 +202,7 @@ class RoleService {
       return allChannels.filter((channel) => overrideMap.get(channel.id) !== "deny");
     } catch (error) {
       console.error("Error getting visible channels:", error);
-      return [];
+      return (allChannels || []).filter((channel) => !channel.is_private);
     }
   }
 

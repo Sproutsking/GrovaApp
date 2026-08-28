@@ -107,13 +107,15 @@ const CommunitySidebar = ({
       <style jsx>{`
         .community-sidebar {
           width: 72px;
-          background: linear-gradient(180deg, var(--panel-strong) 0%, var(--panel) 100%);
+          background:
+            linear-gradient(180deg, rgba(25,32,22,.98) 0%, rgba(11,15,12,.99) 34%, rgba(8,10,10,1) 100%),
+            repeating-linear-gradient(135deg, rgba(156,255,0,.025) 0 1px, transparent 1px 12px);
           border-right: 2px solid var(--surface-border);
           display: flex;
           flex-direction: column;
           align-items: center;
           padding: 16px 0 12px 0;
-          gap: 8px;
+          gap: 10px;
           overflow-y: auto;
           overflow-x: hidden;
           box-shadow: inset -1px 0 0 rgba(255,255,255,0.02);
@@ -164,7 +166,7 @@ const CommunitySidebar = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
           width: 100%;
           padding: 0 12px;
         }
@@ -183,6 +185,7 @@ const CommunitySidebar = ({
           flex-shrink: 0;
           border: 1.5px solid transparent;
           box-shadow: none;
+          background: linear-gradient(145deg, rgba(47,62,38,.96), rgba(12,17,13,.99));
           background-size: 100% 100%;
           background-position: center;
           background-repeat: no-repeat;
@@ -190,7 +193,9 @@ const CommunitySidebar = ({
 
         .community-icon:hover {
           transform: translateY(-3px) scale(1.05);
-          box-shadow: none;
+          background: linear-gradient(145deg, rgba(49, 64, 37, 0.98), rgba(15, 22, 15, 0.98));
+          border-color: rgba(156, 255, 0, 0.26);
+          box-shadow: 0 8px 22px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.08);
         }
 
         .community-icon:active {
@@ -228,6 +233,10 @@ const CommunitySidebar = ({
           cursor: pointer;
           transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           flex-shrink: 0;
+        }
+        .community-icon-wrap .cav-root {
+          border: 1px solid rgba(255,255,255,.1);
+          box-shadow: 0 5px 16px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08);
         }
         .community-icon-wrap:hover { transform: translateY(-3px); }
         .community-icon-wrap:active { transform: translateY(-1px) scale(0.98); }

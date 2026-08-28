@@ -34,8 +34,8 @@ const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
               {community.is_private  && <span className="dm-private"><Lock size={12}/> Private</span>}
             </div>
             <div className="dm-stats">
-              <span className="dm-stat"><Users size={13}/>{(community.member_count||0).toLocaleString()} members</span>
-              <span className="dm-stat online"><span className="dm-online-dot"/>{(community.online_count||0).toLocaleString()} online</span>
+              <span className="dm-stat"><Users size={13}/>{countValue(community.member_count).toLocaleString()} members</span>
+              <span className="dm-stat online"><span className="dm-online-dot"/>{countValue(community.online_count).toLocaleString()} online</span>
               <span className="dm-stat"><Calendar size={13}/>{new Date(community.created_at).toLocaleDateString()}</span>
             </div>
             {community.description && <p className="dm-desc">{community.description}</p>}
@@ -101,6 +101,13 @@ const SORT_OPTIONS = [
   {id:"active",label:"Active"},{id:"newest",label:"Newest"},
 ];
 
+const countValue = (value) => {
+  if (Array.isArray(value)) return countValue(value[0]);
+  if (value && typeof value === "object") return countValue(value.count);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
   const [search, setSearch]         = useState("");
   const [category, setCategory]     = useState("all");
@@ -123,7 +130,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
 
   const isMember  = (id) => myCommunities.some((c) => c.id === id);
   const pub       = communities.filter((c) => !c.is_private);
-  const audience  = pub.reduce((a,c)=>a+(c.member_count||0),0);
+  const audience  = pub.reduce((a,c)=>a+countValue(c.member_count),0);
 
   const filtered = pub
     .filter((c) => {
@@ -132,10 +139,10 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
              (category === "all" || c.category === category);
     })
     .sort((a,b) => {
-      if (sort==="members") return (b.member_count||0)-(a.member_count||0);
-      if (sort==="active")  return (b.online_count||0)-(a.online_count||0);
+      if (sort==="members") return countValue(b.member_count)-countValue(a.member_count);
+      if (sort==="active")  return countValue(b.online_count)-countValue(a.online_count);
       if (sort==="newest")  return new Date(b.created_at)-new Date(a.created_at);
-      return (b.trending_score||b.member_count||0)-(a.trending_score||a.member_count||0);
+      return (b.trending_score||countValue(b.member_count))-(a.trending_score||countValue(a.member_count));
     });
 
   const selCat  = CATEGORIES.find(c=>c.id===category);
@@ -198,6 +205,8 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
             filtered.map((c,idx)=>{
               const member = isMember(c.id);
               const icon   = typeof c.icon === "string" ? c.icon : c.name?.[0] || "🌟";
+              const memberCount = countValue(c.member_count);
+              const onlineCount = countValue(c.online_count);
               return (
                 <div
                   key={c.id}
@@ -230,7 +239,8 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
                           {c.is_private&&<Lock size={10} color="#888"/>}
                         </div>
                         <div className="disc-card-meta">
-                          <span className="disc-cs online"><span className="disc-pulse"/>{(c.online_count||0).toLocaleString()} online</span>
+                          <span className="disc-cs"><Users size={10}/>{memberCount.toLocaleString()} members</span>
+                          <span className="disc-cs online"><span className="disc-pulse"/>{onlineCount.toLocaleString()} online</span>
                         </div>
                       </div>
                     </div>
@@ -331,7 +341,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
           position: absolute; top: calc(100% + 5px); left: 0;
           min-width: 155px; background: var(--glass-strong);
           border: 1px solid var(--surface-border); border-radius: 10px;
-          padding: 5px; z-index: 200;
+          padding: 5px; z-index: 200; max-width: calc(100vw - 16px); max-height: min(320px, 50vh); overflow-y: auto;
           box-shadow: 0 10px 28px var(--shadow);
           animation: ddIn .14s ease;
         }
@@ -345,6 +355,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
         }
         .disc-dd-item:hover { background: var(--accent-bg-soft); color: var(--text); }
         .disc-dd-item.on { background: var(--accent-bg-soft); color: var(--accent); }
+        .disc-controls > .disc-dd:last-child .disc-dd-menu { left: auto; right: 0; }
 
         /* Search */
         .disc-search-bar {

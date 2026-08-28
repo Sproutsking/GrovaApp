@@ -54,7 +54,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
     }
   };
 
-  return (
+  return ReactDOM.createPortal(
     <>
       <div className="channel-modal-overlay" onClick={onClose}>
         <div className="channel-modal" onClick={(e) => e.stopPropagation()}>
@@ -114,9 +114,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
             <div className="form-group">
               <label className="form-label">Channel Icon</label>
               <div className="channel-icon-row">
-                <button type="button" className="channel-icon-preview" onClick={() => setShowIconPicker((open) => !open)} aria-label="Choose channel icon">{formData.icon || "💬"}</button>
                 <input type="text" className="form-input" value={formData.icon} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} placeholder="Enter emoji" maxLength={2} />
-                <button type="button" className="channel-icon-picker-btn" onClick={() => setShowIconPicker((open) => !open)}><Smile size={15} /> Pick</button>
+                <button type="button" className="channel-icon-picker-btn" onClick={() => setShowIconPicker((open) => !open)}><Smile size={15} /> Pick emoji</button>
                 {showIconPicker && ReactDOM.createPortal(<div className="channel-icon-picker"><EmojiPanel onSelect={(icon) => { setFormData({ ...formData, icon }); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} style={{ position: "fixed", left: 24, top: 120 }} /></div>, document.body)}
               </div>
               <label className="channel-icon-upload"><Upload size={14} /> Replace with image<input type="file" accept="image/*" onChange={(e) => setIconFile(e.target.files?.[0] || null)} /></label>
@@ -563,7 +562,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
           }
         }
       `}</style>
-    </>
+    </>,
+    document.body
   );
 };
 

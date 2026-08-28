@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import {
   Save,
   X,
@@ -13,8 +14,10 @@ import {
   Check,
   Upload,
   Wrench,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
+import EmojiPanel from "../EmojiPanel";
 
 const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, onClose }) => {
   const [settings, setSettings] = useState({
@@ -33,6 +36,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
   const [error, setError] = useState("");
   const [tools, setTools] = useState([]);
   const fileInputRef = useRef(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const backgroundThemes = [
     {
@@ -154,7 +158,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
 
   const updateTool = async (tool, patch) => {
     const next = { ...tool, ...patch };
-    setTools((current) => current.map((item) => item.tool_type === tool.tool_type ? next : item));
+    setTools((current) => current.some((item) => item.tool_type === tool.tool_type)
+      ? current.map((item) => item.tool_type === tool.tool_type ? next : item)
+      : [...current, next]);
     const { error: toolError } = await supabase.from("community_tool_settings").upsert({
       community_id: community.id,
       tool_type: tool.tool_type,
@@ -202,7 +208,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
               const tool = tools.find((item) => item.tool_type === toolType) || { tool_type: toolType, enabled: false, channel_id: "" };
               const label = toolType === "social_updates" ? "Social updates" : toolType === "verification" ? "Verification" : "Tickets";
               return (
-                <div className="tool-row" key={toolType}>
+                <div className={`tool-row${tool.enabled ? " enabled" : ""}`} key={toolType}>
                   <label className="tool-toggle"><input type="checkbox" checked={!!tool.enabled} onChange={(event) => updateTool(tool, { enabled: event.target.checked })} /><span>{label}</span></label>
                   <select value={tool.channel_id || ""} onChange={(event) => updateTool(tool, { channel_id: event.target.value || null })}>
                     <option value="">Choose channel</option>
@@ -276,6 +282,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
                   placeholder="Or use an emoji"
                   maxLength={2}
                 />
+                <button type="button" className="pick-emoji-btn" onClick={() => setShowEmojiPicker((open) => !open)}>
+                  <Sparkles size={14} /> Pick emoji
+                </button>
+                {showEmojiPicker && ReactDOM.createPortal(
+                  <div className="community-emoji-picker">
+                    <EmojiPanel onSelect={(emoji) => { setSettings((current) => ({ ...current, icon: emoji })); setIconPreview(null); setShowEmojiPicker(false); }} onClose={() => setShowEmojiPicker(false)} />
+                  </div>, document.body
+                )}
               </div>
             </div>
             <span className="setting-hint">PNG, JPG, GIF up to 5 MB</span>
@@ -480,6 +494,25 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           margin-bottom: 28px;
         }
 
+        .tools-group {
+          margin: -20px -20px 28px;
+          padding: 20px;
+          border-bottom: 1px solid rgba(156, 255, 0, 0.2);
+        }
+
+        .tool-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .tool-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; color: #eee; font-size: 13px; font-weight: 700; }
+        .tool-toggle input { accent-color: #9cff00; }
+        .tool-row select { min-width: 150px; max-width: 55%; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(156,255,0,.25); background: #161a17; color: #eee; }
+
         .setting-label {
           display: flex;
           align-items: center;
@@ -571,6 +604,9 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           font-size: 14px;
           padding: 10px 12px;
         }
+
+        .pick-emoji-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 12px; margin:0 0 8px; border-radius:8px; border:1px solid rgba(156,255,0,.3); background:rgba(156,255,0,.08); color:#caff9a; font-size:12px; font-weight:700; cursor:pointer; }
+        .community-emoji-picker { position:fixed; z-index:100001; top:50%; left:50%; transform:translate(-50%,-50%); max-width:calc(100vw - 20px); max-height:calc(100vh - 20px); }
 
         .border-options { display: flex; flex-wrap: wrap; gap: 8px; }
 

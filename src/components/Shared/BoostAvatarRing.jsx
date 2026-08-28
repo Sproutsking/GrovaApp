@@ -58,11 +58,11 @@ function getVisual(tier, themeId) {
 }
 
 function StaticTierRing({ size, visual }) {
-  const radius = size / 2 + 2;
+  const radius = size / 2 + 1.5;
   return (
     <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", inset: -(radius - size / 2), pointerEvents: "none", overflow: "visible" }}>
-      <circle cx={radius} cy={radius} r={radius - 1.5} fill="none" stroke={visual.grad[0]} strokeWidth="2.5" />
-      <circle cx={radius} cy={radius} r={radius - 5} fill="none" stroke={visual.grad[1]} strokeWidth="1" strokeOpacity=".72" />
+      <circle cx={radius} cy={radius} r={radius - 1} fill="none" stroke={visual.grad[0]} strokeWidth="2" />
+      <circle cx={radius} cy={radius} r={radius - 4} fill="none" stroke={visual.grad[1]} strokeWidth="0.75" strokeOpacity=".72" />
     </svg>
   );
 }
@@ -416,8 +416,8 @@ const BoostAvatarRing = ({
           alignItems:   "center",
           justifyContent: "center",
           background:   fallbackGrad,
-          border:       accentColor ? `2px solid ${accentColor}` : undefined,
-          boxShadow:    accentColor ? `0 0 0 2px ${accentColor}55` : undefined,
+          border:       accentColor ? `1.5px solid ${accentColor}` : undefined,
+          boxShadow:    accentColor ? `0 0 0 1px ${accentColor}55` : undefined,
         }}
       >
         {/* Letter fallback */}

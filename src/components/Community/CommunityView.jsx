@@ -109,7 +109,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       // The cache deduplicates these requests and lets ChannelsView paint from
       // memory on first navigation instead of waiting on its mount effect.
       userComms.forEach((community) => {
-        communityCache.prefetchChannels(community.id, channelService.fetchChannels).catch(() => {});
+        communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id)).catch(() => {});
       });
     } catch (error) {
       console.error("Error loading communities:", error);
@@ -122,7 +122,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   // it runs, so it never conflicts with "no hover reveals" from the UI side.
   const handlePrefetchCommunity = (communityId) => {
     if (!communityId) return;
-    communityCache.prefetchChannels(communityId, channelService.fetchChannels).catch(() => {});
+    communityCache.prefetchChannels(communityId, (id) => channelService.fetchChannels(id)).catch(() => {});
   };
 
   // ── Community actions ─────────────────────────────────────────────────────
@@ -329,11 +329,11 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
             onJoin={handleJoinCommunity}
             onSelect={handleSelectCommunity}
           />
-        ) : view === "channels" && selectedCommunity && fullUserProfile ? (
+        ) : view === "channels" && selectedCommunity ? (
           <ChannelsView
             community={selectedCommunity}
             userId={userId}
-            currentUser={fullUserProfile}
+            currentUser={fullUserProfile || currentUser || { id: userId }}
             onSelectChannel={handleSelectChannel}
             onBack={() => {
               setSelectedCommunity(null); setSelectedChannel(null);
@@ -341,12 +341,12 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
             }}
           />
         ) : (
-          selectedCommunity && fullUserProfile && (
+          selectedCommunity && (
             <ChatTab
               key={selectedCommunity.id}
               community={selectedCommunity}
               userId={userId}
-              currentUser={fullUserProfile}
+              currentUser={fullUserProfile || currentUser || { id: userId }}
               selectedChannel={selectedChannel}
               setSelectedChannel={setSelectedChannel}
               onLeaveCommunity={() => handleLeaveCommunity(selectedCommunity.id)}

@@ -10,6 +10,20 @@ class CommunityService {
     this._restoreCachedLists();
   }
 
+  _normalizeCommunityCounts(communities) {
+    const count = (value) => {
+      if (Array.isArray(value)) return count(value[0]);
+      if (value && typeof value === "object") return count(value.count);
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    return (communities || []).map((community) => ({
+      ...community,
+      member_count: count(community.member_count),
+      online_count: count(community.online_count),
+    }));
+  }
+
   _restoreCachedLists() {
     try {
       const stored = JSON.parse(localStorage.getItem("xeevia_community_lists_v1") || "{}");
@@ -128,8 +142,10 @@ class CommunityService {
     const age = Date.now() - lastFetch;
 
     if (cached && age < this.CACHE_TTL) {
+      const normalized = this._normalizeCommunityCounts(cached);
+      this.cache.set(cacheKey, normalized);
       if (age > 2 * 60 * 1000) this.fetchCommunitiesFresh(userId, cacheKey);
-      return cached;
+      return normalized;
     }
     return await this.fetchCommunitiesFresh(userId, cacheKey);
   }
@@ -145,7 +161,7 @@ class CommunityService {
 
       if (error) throw error;
 
-      const communities = data || [];
+      const communities = this._normalizeCommunityCounts(data);
       this.cache.set(cacheKey, communities);
       this.lastFetch.set(cacheKey, Date.now());
       this._persistList(cacheKey, communities);
@@ -167,8 +183,10 @@ class CommunityService {
     const age = Date.now() - lastFetch;
 
     if (cached && age < this.CACHE_TTL) {
+      const normalized = this._normalizeCommunityCounts(cached);
+      this.cache.set(cacheKey, normalized);
       if (age > 2 * 60 * 1000) this.fetchUserCommunitiesFresh(userId, cacheKey);
-      return cached;
+      return normalized;
     }
     return await this.fetchUserCommunitiesFresh(userId, cacheKey);
   }
@@ -183,7 +201,7 @@ class CommunityService {
 
       if (error) throw error;
 
-      const communities = (data || []).map((m) => m.community).filter(Boolean);
+      const communities = this._normalizeCommunityCounts((data || []).map((m) => m.community).filter(Boolean));
       this.cache.set(cacheKey, communities);
       this.lastFetch.set(cacheKey, Date.now());
       this._persistList(cacheKey, communities);
@@ -406,12 +424,22 @@ class CommunityService {
 
   async createDefaultChannels(communityId) {
     const channels = [
-      { name: "welcome", icon: "👋", description: "Start here", type: "text", tool_type: null, position: 0, is_default: true },
-      { name: "verify", icon: "✓", description: "Verify your membership", type: "text", tool_type: "verification", position: 1, is_default: true },
-      { name: "rules", icon: "§", description: "Community rules", type: "text", tool_type: null, position: 2, is_default: true },
+      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", tool_type: "verification", position: 0, is_default: true },
+      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", tool_type: null, position: 1, is_default: true },
+      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", tool_type: null, position: 2, is_default: true },
+      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", tool_type: null, position: 3, is_default: true },
+      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", tool_type: null, position: 4, is_default: true },
+      { name: "general", icon: "💬", description: "General discussion", type: "text", tool_type: null, position: 5, is_default: true },
+      { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", tool_type: "social_updates", position: 6, is_default: true, integrations: { xeevia: true, x: false, facebook: false, instagram: false, tiktok: false, discord: false } },
     ];
-    const { data: createdChannels, error } = await supabase.from("community_channels").insert(channels.map((ch) => ({ ...ch, community_id: communityId, category: "Start here" }))).select("id, tool_type");
-    if (error) throw error;
+    const modernChannels = channels.map((ch) => ({ ...ch, community_id: communityId, category: "Start here" }));
+    let result = await supabase.from("community_channels").insert(modernChannels).select("id, tool_type");
+    if (result.error?.code === "42703") {
+      const legacyChannels = modernChannels.map(({ category, tool_type, ...channel }) => channel);
+      result = await supabase.from("community_channels").insert(legacyChannels).select("id");
+    }
+    if (result.error) throw result.error;
+    const createdChannels = result.data;
     const verifyChannel = createdChannels?.find((channel) => channel.tool_type === "verification");
     await supabase.from("community_tool_settings").upsert([
       { community_id: communityId, tool_type: "verification", enabled: true, channel_id: verifyChannel?.id || null },

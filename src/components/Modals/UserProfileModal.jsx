@@ -32,6 +32,7 @@ import { BOOST_VISUAL, getTierBadge } from "../../services/account/profileTierSe
 import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
+import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import VerificationDashboardPage from "./VerificationDashboardPage";
 import {
@@ -326,18 +327,23 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const showFollowBtn = !!myId && !isOwn;
 
   // ── Live boost tier ───────────────────────────────────────────────────────
-  const { tier: liveTier, themeId: liveThemeId, loading: boostLoading } =
+  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, loading: boostLoading } =
     useUserBoostTier(targetId);
 
   // Prop values (already resolved by ProfilePreview) serve as instant hints
   const propTier    = user?.subscription_tier ?? null;
   const propThemeId = user?.boost_selections?.themeId ?? null;
+  const propFontId  = user?.boost_selections?.fontId ?? null;
+  const propColorId = user?.boost_selections?.colorId ?? null;
 
   const tier    = boostLoading ? propTier    : (liveTier    ?? null);
   const themeId = boostLoading ? propThemeId : (liveThemeId ?? null);
+  const fontId  = boostLoading ? propFontId  : (liveFontId  ?? null);
+  const colorId = boostLoading ? propColorId : (liveColorId ?? null);
 
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
-  const nameColor  = hasBoosted ? getTierColor(tier, themeId) : "#ffffff";
+  const nameDesign = getBoostNameDesign(tier, fontId, colorId);
+  const nameColor  = hasBoosted ? (nameDesign.color?.color ?? getTierColor(tier, themeId)) : "#ffffff";
   const dashboard = buildPublicProfileDashboard(profile, verificationItems);
   const selectedSectionData = dashboard.sections.find((section) => section.id === selectedSection) || null;
   const verifiedCount = verificationItems.filter((item) => item?.verified).length;
@@ -619,6 +625,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   className="upm-name"
                   style={{
                     color:      nameColor,
+                    fontFamily: nameDesign.font?.family,
+                    fontWeight: nameDesign.font?.weight || 900,
+                    letterSpacing: nameDesign.font?.spacing,
                     textShadow: hasBoosted
                       ? `0 0 28px ${glowColor}, 0 0 56px ${glowColor}80`
                       : "none",

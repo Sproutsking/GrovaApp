@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useMemo } from "react";
+import { getTheme } from "../../services/boost/boostThemes";
 
 const THEMES = {
 
@@ -484,7 +485,21 @@ const BoostProfileCard = ({ tier, themeId, style = {}, className = "", children 
   const theme = useMemo(() => {
     if (!tier || !["silver","gold","diamond"].includes(tier)) return null;
     const key = themeId ?? { silver:"silver-chrome", gold:"gold-dynasty", diamond:"diamond-cosmos" }[tier];
-    return THEMES[key] ?? null;
+    const localTheme = THEMES[key];
+    if (localTheme) return localTheme;
+
+    // Keep newly added picker themes visible everywhere without maintaining a
+    // second full visual catalog in this display component.
+    const sharedTheme = getTheme(tier, key);
+    if (!sharedTheme) return null;
+    return {
+      tier,
+      bg: sharedTheme.card?.background ?? "#080b11",
+      radials: [],
+      gemColor: sharedTheme.gemColor,
+      frame: sharedTheme.frame ?? {},
+      overlays: [],
+    };
   }, [tier, themeId]);
 
   if (!theme) return <div className={className} style={style}>{children}</div>;

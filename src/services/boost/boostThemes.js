@@ -91,6 +91,33 @@ export const SILVER_THEMES = [
       { char:"·", size:10, top:"47%",  left:"90%",  opacity:0.20, blur:0,   anim:"drift4",            dur:"6.2s", delay:"0.3s" },
     ],
   },
+  {
+    id:      "silver-mercury",
+    tier:    "silver",
+    name:    "Liquid Mercury",
+    emoji:   "◈",
+    tagline: "Polished steel with a liquid edge",
+    preview: "linear-gradient(135deg,#090b10 0%,#64748b 48%,#111827 100%)",
+    avatar: {
+      border:     "2.5px solid #e2e8f0",
+      boxShadow:  "0 0 0 3px rgba(226,232,240,0.24), 0 0 26px rgba(148,163,184,0.7), 0 0 52px rgba(226,232,240,0.24)",
+      animation:  "silverPulse 3.4s ease-in-out infinite",
+    },
+    card: {
+      background: "linear-gradient(135deg, rgba(226,232,240,0.13), transparent 28%), linear-gradient(315deg, rgba(100,116,139,0.2), transparent 42%), #080b11",
+    },
+    frame: {
+      border:     "1.5px solid rgba(226,232,240,0.5)",
+      boxShadow:  "0 0 0 1px rgba(255,255,255,0.08), inset 0 0 42px rgba(148,163,184,0.12), 0 8px 56px rgba(0,0,0,0.78), 0 0 58px rgba(148,163,184,0.22)",
+    },
+    overlay: {
+      type:           "sheen",
+      background:     "linear-gradient(118deg, transparent 22%, rgba(255,255,255,0.06) 42%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.06) 58%, transparent 78%)",
+      backgroundSize: "260% 100%",
+      animation:      "silverSheen 5.5s ease-in-out infinite",
+    },
+    keyframes: "",
+  },
 ];
 
 // ── GOLD THEMES ───────────────────────────────────────────────────────────
