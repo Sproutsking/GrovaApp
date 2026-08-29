@@ -268,10 +268,11 @@ const MessageList = ({
 
         .msg-bubble {
           max-width: 70%;
-          padding: 8px 12px;
-          border-radius: 16px;
+          padding: 7px 11px 6px;
+          border-radius: 14px;
           backdrop-filter: blur(10px);
           position: relative;
+          box-shadow: 0 4px 16px rgba(0,0,0,.12);
         }
         .msg-item.announcement .msg-bubble {
           max-width: min(92%, 760px);
@@ -284,25 +285,24 @@ const MessageList = ({
         .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; }
         .msg-item.announcement .msg-meta { margin-top: 10px; }
 
-        /* Base bubble styles WITHOUT tails */
+        /* Base bubble styles */
         .msg-bubble.them {
-          background: var(--surface-elevated);
-          border: 1px solid var(--surface-border);
+          background: rgba(18,20,19,.97);
+          border: 1px solid rgba(255,255,255,.08);
           border-bottom-left-radius: 4px;
         }
 
-        /* "me" bubble for better blending */
         .msg-bubble.me {
-          background: linear-gradient(135deg, rgba(34,78,24,.98), rgba(16,40,20,.99) 58%, rgba(9,23,14,1));
-          border: 1px solid rgba(156,255,0,.42);
-          box-shadow: 0 5px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.07);
+          background: linear-gradient(135deg, rgba(31,84,34,.98), rgba(17,38,20,.99) 62%, rgba(9,21,13,1));
+          border: 1px solid rgba(156,255,0,.26);
+          box-shadow: 0 6px 18px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
           border-bottom-right-radius: 4px;
         }
 
         .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         .msg-bubble.them.has-tail {
-          border-bottom-left-radius: 3px;
+          border-bottom-left-radius: 4px;
         }
 
         .msg-bubble.them.has-tail::before {
@@ -314,7 +314,7 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 10px 8px;
-          border-color: transparent transparent var(--surface-elevated) transparent;
+          border-color: transparent transparent rgba(18,20,19,.97) transparent;
         }
 
         .msg-bubble.them.has-tail::after {
@@ -326,37 +326,37 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 11px 9px;
-          border-color: transparent transparent var(--surface-border) transparent;
+          border-color: transparent transparent rgba(255,255,255,.08) transparent;
           z-index: -1;
         }
 
         .msg-bubble.me.has-tail {
-          border-bottom-right-radius: 3px;
+          border-bottom-right-radius: 4px;
         }
 
         .msg-bubble.me.has-tail::before {
           content: '';
           position: absolute;
-          bottom: -0.5px;
-          right: -7.5px;
+          bottom: -1px;
+          right: -7px;
           width: 0;
           height: 0;
           border-style: solid;
           border-width: 0 0 10px 8px;
-          border-color: transparent transparent rgba(48,104,31,.96) transparent;
+          border-color: transparent transparent rgba(31,84,34,.98) transparent;
           transform: scaleX(-1);
         }
 
         .msg-bubble.me.has-tail::after {
           content: '';
           position: absolute;
-          bottom: -0.5px;
-          right: -8.5px;
+          bottom: -1px;
+          right: -8px;
           width: 0;
           height: 0;
           border-style: solid;
           border-width: 0 0 11px 9px;
-          border-color: transparent transparent rgba(156,255,0,.42) transparent;
+          border-color: transparent transparent rgba(156,255,0,.26) transparent;
           z-index: -1;
           transform: scaleX(-1);
         }
