@@ -19,7 +19,7 @@ class CommunityService {
     };
     return (communities || []).map((community) => ({
       ...community,
-      member_count: count(community.member_count),
+      member_count: count(community.member_count ?? community.member_total),
       online_count: count(community.online_count),
     }));
   }
@@ -154,7 +154,7 @@ class CommunityService {
     try {
       const { data, error } = await supabase
         .from("communities")
-        .select("*, online_count:community_members(count)")
+        .select("*, member_total:community_members(count), online_count:community_members(count)")
         .or(`is_private.eq.false,owner_id.eq.${userId}`)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
@@ -272,7 +272,16 @@ class CommunityService {
         .eq("community_id", communityId)
         .eq("is_online", true);
 
-      const community = { ...data, online_count: onlineCount || 0 };
+      const { count: memberCount } = await supabase
+        .from("community_members")
+        .select("id", { count: "exact", head: true })
+        .eq("community_id", communityId);
+
+      const community = {
+        ...data,
+        member_count: memberCount || 0,
+        online_count: onlineCount || 0,
+      };
       this.cache.set(cacheKey, community);
       this.lastFetch.set(cacheKey, Date.now());
       return community;
@@ -424,15 +433,15 @@ class CommunityService {
 
   async createDefaultChannels(communityId) {
     const channels = [
-      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", tool_type: "verification", position: 0, is_default: true },
-      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", tool_type: null, position: 1, is_default: true },
-      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", tool_type: null, position: 2, is_default: true },
-      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", tool_type: null, position: 3, is_default: true },
-      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", tool_type: null, position: 4, is_default: true },
-      { name: "general", icon: "💬", description: "General discussion", type: "text", tool_type: null, position: 5, is_default: true },
+      { name: "verification", icon: "✅", description: "Verify yourself to access the community", type: "text", tool_type: "verification", position: 0, is_default: true, integrations: {} },
+      { name: "announcements", icon: "📢", description: "Official community announcements", type: "announcement", tool_type: null, position: 1, is_default: true, integrations: {} },
+      { name: "welcome", icon: "👋", description: "Welcome new members", type: "text", tool_type: null, position: 2, is_default: true, integrations: {} },
+      { name: "voice", icon: "🔊", description: "Voice conversations", type: "voice", tool_type: null, position: 3, is_default: true, integrations: {} },
+      { name: "support", icon: "🛟", description: "Get help from the community team", type: "text", tool_type: null, position: 4, is_default: true, integrations: {} },
+      { name: "general", icon: "💬", description: "General discussion", type: "text", tool_type: null, position: 5, is_default: true, integrations: {} },
       { name: "updates", icon: "✦", description: "Xeevia and connected social updates", type: "text", tool_type: "social_updates", position: 6, is_default: true, integrations: { xeevia: true, x: false, facebook: false, instagram: false, tiktok: false, discord: false } },
     ];
-    const modernChannels = channels.map((ch) => ({ ...ch, community_id: communityId, category: "Start here" }));
+    const modernChannels = channels.map((ch) => ({ ...ch, community_id: communityId, category: "Start here", style: {}, can_lock: false, is_locked: false }))
     let result = await supabase.from("community_channels").insert(modernChannels).select("id, tool_type");
     if (result.error?.code === "42703") {
       const legacyChannels = modernChannels.map(({ category, tool_type, ...channel }) => channel);

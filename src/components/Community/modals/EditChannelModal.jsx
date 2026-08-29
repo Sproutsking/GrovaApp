@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ReactDOM from "react-dom";
-import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile } from "lucide-react";
+import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile, Lock } from "lucide-react";
 import EmojiPanel from "../components/EmojiPanel";
 
 const EditChannelModal = ({ channel, onClose, onUpdate }) => {
@@ -10,6 +10,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
     description: channel.description || "",
     type: channel.type,
     is_private: channel.is_private,
+    is_locked: channel.is_locked || false,
     category: channel.category || "Channels",
   });
   const [saving, setSaving] = useState(false);
@@ -46,6 +47,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
         description: formData.description.trim() || null,
         type: formData.type,
         is_private: formData.is_private,
+        is_locked: formData.is_locked,
         category: formData.category.trim() || "Channels",
       });
     } catch (err) {
@@ -150,6 +152,24 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
                 </div>
                 <span className="checkbox-label">
                   Make this channel private
+                </span>
+              </div>
+
+              <div className="checkbox-item">
+                <div
+                  className={`checkbox ${formData.is_locked ? "checked" : ""}`}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      is_locked: !formData.is_locked,
+                    })
+                  }
+                >
+                  {formData.is_locked && <span>✓</span>}
+                </div>
+                <span className="checkbox-label">
+                  <Lock size={14} style={{ marginRight: "6px" }} />
+                  Lock channel (read-only, members cannot type)
                 </span>
               </div>
             </div>

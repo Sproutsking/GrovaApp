@@ -101,6 +101,8 @@ class ChannelService {
         is_private: channelData.isPrivate || false,
         category: channelData.category || "Channels",
         tool_type: channelData.toolType || null,
+        integrations: channelData.integrations || {},
+        style: channelData.style || {},
       };
       let result = await supabase
         .from("community_channels")

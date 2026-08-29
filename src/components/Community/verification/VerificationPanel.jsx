@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Check, LockKeyhole, ShieldCheck, WalletCards, BadgeCheck, MailCheck, UserRoundCheck } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 
@@ -13,6 +13,7 @@ const OPTIONS = [
 
 export default function VerificationPanel({ communityId, userId, onVerified }) {
   const [selected, setSelected] = useState("reaction-role");
+  const [message, setMessage] = useState("Confirm you agree with the community rules to unlock access.");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -34,9 +35,18 @@ export default function VerificationPanel({ communityId, userId, onVerified }) {
     setWorking(false);
   };
 
+  useEffect(() => {
+    let mounted = true;
+    supabase.from("community_tool_settings").select("config").eq("community_id", communityId).eq("tool_type", "verification").maybeSingle()
+      .then(({ data }) => {
+        if (mounted && data?.config?.message) setMessage(data.config.message);
+      });
+    return () => { mounted = false; };
+  }, [communityId]);
+
   return (
     <section className="verification-panel">
-      <div className="verification-hero"><div className="verification-icon"><ShieldCheck size={24} /></div><div><div className="verification-kicker">Member access</div><h1>Verify to enter</h1><p>Choose a verification method. Reaction role is ready now; the other methods are prepared for future integrations.</p></div></div>
+      <div className="verification-hero"><div className="verification-icon"><ShieldCheck size={24} /></div><div><div className="verification-kicker">Member access</div><h1>Verify to enter</h1><p>{message}</p></div></div>
       <div className="verification-grid">{OPTIONS.map(({ id, label, icon: Icon, description }) => <button key={id} className={`verification-option${selected === id ? " selected" : ""}`} onClick={() => { setSelected(id); setError(""); }}><Icon size={18} /><span><strong>{label}</strong><small>{description}</small></span>{id === "reaction-role" && selected === id && <Check size={16} />}</button>)}</div>
       {error && <div className="verification-error">{error}</div>}
       {done ? <div className="verification-success"><Check size={18} /> Verified. Your community access is being updated.</div> : <button className="verification-submit" onClick={verify} disabled={selected !== "reaction-role" || working}>{working ? "Verifying..." : selected === "reaction-role" ? "I agree and verify" : "Coming soon"}</button>}

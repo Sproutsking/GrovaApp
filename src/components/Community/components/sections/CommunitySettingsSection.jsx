@@ -111,6 +111,8 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           community.banner_gradient ||
           "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         iconBorder: community.icon_border || "default",
+        welcomeTitle: community.settings?.welcome_title || "Find your people. Make something memorable.",
+        welcomeDescription: community.settings?.welcome_description || "Introduce yourself, explore the channels, and join the conversation.",
       });
       setIconPreview(community.icon?.startsWith("http") ? community.icon : null);
       setIconFile(null);
@@ -143,7 +145,14 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
     try {
       setLoading(true);
       setError("");
-      await onUpdate({ ...settings, iconFile });
+      const payload = { ...settings, iconFile };
+      if (settings.welcomeTitle || settings.welcomeDescription) {
+        payload.welcomeCard = {
+          title: settings.welcomeTitle,
+          description: settings.welcomeDescription,
+        };
+      }
+      await onUpdate(payload);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
@@ -204,19 +213,55 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           <div className="setting-group tools-group">
             <label className="setting-label"><Wrench size={16} /> Community tools</label>
             <p className="setting-hint tools-intro">Enable a tool, then choose the channel where members will see it.</p>
-            {["verification", "social_updates", "tickets"].map((toolType) => {
-              const tool = tools.find((item) => item.tool_type === toolType) || { tool_type: toolType, enabled: false, channel_id: "" };
-              const label = toolType === "social_updates" ? "Social updates" : toolType === "verification" ? "Verification" : "Tickets";
+              {['verification', 'social_updates', 'tickets'].map((toolType) => {
+                const tool = tools.find((item) => item.tool_type === toolType) || { tool_type: toolType, enabled: false, channel_id: "", config: {} };
+                const label = toolType === "social_updates" ? "Social updates" : toolType === "verification" ? "Verification" : "Tickets";
+                const config = tool.config || {};
               return (
                 <div className={`tool-row${tool.enabled ? " enabled" : ""}`} key={toolType}>
-                  <label className="tool-toggle"><input type="checkbox" checked={!!tool.enabled} onChange={(event) => updateTool(tool, { enabled: event.target.checked })} /><span>{label}</span></label>
-                  <select value={tool.channel_id || ""} onChange={(event) => updateTool(tool, { channel_id: event.target.value || null })}>
-                    <option value="">Choose channel</option>
-                    {channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
-                  </select>
+                    <div className="tool-row-main">
+                      <label className="tool-toggle"><input type="checkbox" checked={!!tool.enabled} onChange={(event) => updateTool(tool, { enabled: event.target.checked })} /><span>{label}</span></label>
+                      <select value={tool.channel_id || ""} onChange={(event) => updateTool(tool, { channel_id: event.target.value || null })}>
+                        <option value="">Choose channel</option>
+                        {channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
+                      </select>
+                    </div>
+                    {toolType === "verification" && tool.enabled && (
+                      <textarea className="tool-config-input" value={config.message || ""} onChange={(event) => updateTool(tool, { config: { ...config, message: event.target.value } })} placeholder="Verification message shown to members..." rows={3} maxLength={1000} />
+                    )}
+                    {toolType === "social_updates" && tool.enabled && (
+                      <>
+                        <input type="text" className="tool-config-input" style={{ resize: 'none' }} value={config.title || ""} onChange={(event) => updateTool(tool, { config: { ...config, title: event.target.value } })} placeholder="Updates channel title..." maxLength={100} />
+                        <textarea className="tool-config-input" value={config.description || ""} onChange={(event) => updateTool(tool, { config: { ...config, description: event.target.value } })} placeholder="Updates channel description..." rows={2} maxLength={500} />
+                      </>
+                    )}
                 </div>
               );
             })}
+          </div>
+
+          {/* Welcome Card Editor */}
+          <div className="setting-group">
+            <label className="setting-label">
+              <Sparkles size={16} /> Welcome Card
+            </label>
+            <p className="setting-hint">Customize the welcome message shown in the welcome channel.</p>
+            <input 
+              type="text" 
+              className="setting-input" 
+              value={settings.welcomeTitle || "Find your people. Make something memorable."} 
+              onChange={(e) => setSettings({ ...settings, welcomeTitle: e.target.value })} 
+              placeholder="Welcome title..." 
+              maxLength={150} 
+            />
+            <textarea 
+              className="setting-textarea" 
+              value={settings.welcomeDescription || "Introduce yourself, explore the channels, and join the conversation."} 
+              onChange={(e) => setSettings({ ...settings, welcomeDescription: e.target.value })} 
+              placeholder="Welcome description..." 
+              rows={3} 
+              maxLength={500} 
+            />
           </div>
 
           {/* Basic Info */}
@@ -502,12 +547,16 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
 
         .tool-row {
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
           padding: 12px 0;
           border-top: 1px solid rgba(255, 255, 255, 0.07);
         }
+
+        .tool-row-main { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .tool-config-input { width: 100%; box-sizing: border-box; padding: 10px 12px; resize: vertical; border-radius: 8px; border: 1px solid rgba(156,255,0,.25); background: #161a17; color: #eee; font: inherit; font-size: 12px; }
 
         .tool-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; color: #eee; font-size: 13px; font-weight: 700; }
         .tool-toggle input { accent-color: #9cff00; }

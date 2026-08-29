@@ -340,6 +340,12 @@ const ChatTab = ({
   const handleSendMessage = async () => {
     const content = messageInput.trim();
     if (!content || sending || !selectedChannel?.id) return;
+    
+    // Prevent sending if channel is locked
+    if (selectedChannel?.is_locked) {
+      alert("This channel is locked. You can only read messages here.");
+      return;
+    }
 
     if (editingMessage) {
       try {
@@ -458,23 +464,32 @@ const ChatTab = ({
               ))}
             </div>
           ) : (
-            channels.map((channel) => (
-              <div
-                key={channel.id}
-                className={`channel-item${selectedChannel?.id === channel.id ? " active" : ""}`}
-                onClick={() => setSelectedChannel(channel)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  if (canManageChannels || canManageRoles) {
-                    setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
-                  }
-                }}
-                title={channel.name}
-              >
-                <span className="channel-item-icon">{renderChannelIcon(channel)}</span>
-                <span className="channel-item-name">{channel.name}</span>
-                {channel.is_private && <Lock size={12} className="channel-item-lock" />}
-              </div>
+            Object.entries(channels.reduce((groups, channel) => {
+              const category = channel.category || "Channels";
+              groups[category] = [...(groups[category] || []), channel];
+              return groups;
+            }, {})).map(([category, categoryChannels]) => (
+              <React.Fragment key={category}>
+                <div className="channel-category-label">{category}</div>
+                {categoryChannels.map((channel) => (
+                  <div
+                    key={channel.id}
+                    className={`channel-item${selectedChannel?.id === channel.id ? " active" : ""}`}
+                    onClick={() => setSelectedChannel(channel)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (canManageChannels || canManageRoles) {
+                        setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
+                      }
+                    }}
+                    title={channel.name}
+                  >
+                    <span className="channel-item-icon">{renderChannelIcon(channel)}</span>
+                    <span className="channel-item-name">{channel.name}</span>
+                    {(channel.is_private || channel.is_locked) && <Lock size={12} className="channel-item-lock" />}
+                  </div>
+                ))}
+              </React.Fragment>
             ))
           )}
         </div>
@@ -569,9 +584,9 @@ const ChatTab = ({
             value={messageInput}
             onChange={setMessageInput}
             onSend={handleSendMessage}
-            disabled={sending || !canSendMessages}
+            disabled={sending || !canSendMessages || selectedChannel?.is_locked}
             placeholder={`Message #${selectedChannel?.name || "channel"}`}
-            title={!canSendMessages ? "Your role cannot send messages in this channel" : undefined}
+            title={selectedChannel?.is_locked ? "This channel is locked - read only" : !canSendMessages ? "Your role cannot send messages in this channel" : undefined}
             editingMessage={editingMessage}
             onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
             typingUsers={typingUsers}
@@ -991,6 +1006,15 @@ const ChatTab = ({
           position: relative;
         }
 
+        .channel-category-label {
+          padding: 10px 8px 3px;
+          color: rgba(255,255,255,0.35);
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+        }
+
         .channel-item:hover {
           background: rgba(156,255,0,0.065);
           border-color: rgba(156,255,0,0.22);
@@ -1048,7 +1072,11 @@ const ChatTab = ({
           overflow-y: auto;
           overflow-x: hidden;
           position: relative;
+          padding: 0 12px;
+          box-sizing: border-box;
         }
+
+        .chat-msgs > section { box-sizing: border-box; width: 100%; }
 
         .chat-msgs::-webkit-scrollbar { width: 5px; }
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
