@@ -35,6 +35,8 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
   const [iconPreview, setIconPreview] = useState(null);
   const [error, setError] = useState("");
   const [tools, setTools] = useState([]);
+  const [selectedToolType, setSelectedToolType] = useState(null);
+  const [selectedToolMode, setSelectedToolMode] = useState(null);
   const fileInputRef = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -98,6 +100,30 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
     "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)",
     "linear-gradient(135deg, #f77062 0%, #fe5196 100%)",
   ];
+
+  const toolCatalog = {
+    verification: {
+      label: "Verification",
+      modes: [
+        { id: "rules_gate", label: "Rules gate", description: "Members must confirm the community rules before access." },
+        { id: "custom_message", label: "Custom message", description: "Show a custom verification note to new members." },
+      ],
+    },
+    social_updates: {
+      label: "Social updates",
+      modes: [
+        { id: "news_feed", label: "News feed", description: "Broadcast updates and announcements in one place." },
+        { id: "brand_broadcast", label: "Brand broadcast", description: "Push official creator and brand updates through the channel." },
+      ],
+    },
+    tickets: {
+      label: "Tickets",
+      modes: [
+        { id: "support_queue", label: "Support queue", description: "Create a support ticket thread for member requests." },
+        { id: "private_inbox", label: "Private inbox", description: "Route member issues into a private support channel." },
+      ],
+    },
+  };
 
   useEffect(() => {
     if (community) {
@@ -212,29 +238,138 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         <div className="settings-form">
           <div className="setting-group tools-group">
             <label className="setting-label"><Wrench size={16} /> Community tools</label>
-            <p className="setting-hint tools-intro">Enable a tool, then choose the channel where members will see it.</p>
-              {['verification', 'social_updates', 'tickets'].map((toolType) => {
-                const tool = tools.find((item) => item.tool_type === toolType) || { tool_type: toolType, enabled: false, channel_id: "", config: {} };
-                const label = toolType === "social_updates" ? "Social updates" : toolType === "verification" ? "Verification" : "Tickets";
-                const config = tool.config || {};
+            <p className="setting-hint tools-intro">Choose a tool, open its setup, then finish it on the selected channel.</p>
+            {['verification', 'social_updates', 'tickets'].map((toolType) => {
+              const tool = tools.find((item) => item.tool_type === toolType) || { tool_type: toolType, enabled: false, channel_id: "", config: {} };
+              const label = toolCatalog[toolType]?.label || toolType;
+              const config = tool.config || {};
+              const open = selectedToolType === toolType;
+              const activeMode = config.mode || selectedToolMode;
+
               return (
                 <div className={`tool-row${tool.enabled ? " enabled" : ""}`} key={toolType}>
-                    <div className="tool-row-main">
-                      <label className="tool-toggle"><input type="checkbox" checked={!!tool.enabled} onChange={(event) => updateTool(tool, { enabled: event.target.checked })} /><span>{label}</span></label>
-                      <select value={tool.channel_id || ""} onChange={(event) => updateTool(tool, { channel_id: event.target.value || null })}>
-                        <option value="">Choose channel</option>
-                        {channels.filter((channel) => channel.type !== "voice").map((channel) => <option key={channel.id} value={channel.id}>#{channel.name}</option>)}
-                      </select>
+                  <button
+                    type="button"
+                    className="tool-main-button"
+                    onClick={() => setSelectedToolType(open ? null : toolType)}
+                  >
+                    <span className="tool-title-row">
+                      <span>{label}</span>
+                      <span className={`tool-badge ${tool.enabled ? "active" : "idle"}`}>{tool.enabled ? "Enabled" : "Off"}</span>
+                    </span>
+                  </button>
+
+                  {open && (
+                    <div className="tool-layer-panel">
+                      <div className="tool-layer-box">
+                        <div className="tool-layer-label">1. Select tool type</div>
+                        <div className="tool-option-grid">
+                          {(toolCatalog[toolType]?.modes || []).map((mode) => (
+                            <button
+                              key={mode.id}
+                              type="button"
+                              className={`tool-option ${config.mode === mode.id ? "selected" : ""}`}
+                              onClick={() => {
+                                setSelectedToolMode(mode.id);
+                                updateTool(tool, { enabled: true, config: { ...config, mode: mode.id } });
+                              }}
+                            >
+                              <strong>{mode.label}</strong>
+                              <span>{mode.description}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {activeMode && (
+                        <div className="tool-layer-box">
+                          <div className="tool-layer-label">2. Set up selected option</div>
+
+                          {toolType === "verification" && (
+                            <>
+                              <textarea
+                                className="tool-config-input"
+                                value={config.message || "Confirm you agree with the community rules to unlock access."}
+                                onChange={(event) => updateTool(tool, { config: { ...config, message: event.target.value, mode: activeMode } })}
+                                placeholder="Verification message shown to members..."
+                                rows={3}
+                                maxLength={1000}
+                              />
+                            </>
+                          )}
+
+                          {toolType === "social_updates" && (
+                            <>
+                              <input
+                                type="text"
+                                className="tool-config-input"
+                                style={{ resize: 'none' }}
+                                value={config.title || "Community updates"}
+                                onChange={(event) => updateTool(tool, { config: { ...config, title: event.target.value, mode: activeMode } })}
+                                placeholder="Updates title..."
+                                maxLength={100}
+                              />
+                              <textarea
+                                className="tool-config-input"
+                                value={config.description || "Latest updates from the community and creator channels."}
+                                onChange={(event) => updateTool(tool, { config: { ...config, description: event.target.value, mode: activeMode } })}
+                                placeholder="Updates description..."
+                                rows={2}
+                                maxLength={500}
+                              />
+                            </>
+                          )}
+
+                          {toolType === "tickets" && (
+                            <>
+                              <input
+                                type="text"
+                                className="tool-config-input"
+                                style={{ resize: 'none' }}
+                                value={config.title || "Open ticket support"}
+                                onChange={(event) => updateTool(tool, { config: { ...config, title: event.target.value, mode: activeMode } })}
+                                placeholder="Ticket title..."
+                                maxLength={100}
+                              />
+                              <textarea
+                                className="tool-config-input"
+                                value={config.description || "Members can tell us what they need help with."}
+                                onChange={(event) => updateTool(tool, { config: { ...config, description: event.target.value, mode: activeMode } })}
+                                placeholder="Ticket instructions..."
+                                rows={2}
+                                maxLength={500}
+                              />
+                            </>
+                          )}
+
+                          <div className="tool-channel-row">
+                            <label className="tool-channel-label">Channel</label>
+                            <select
+                              value={tool.channel_id || ""}
+                              onChange={(event) => updateTool(tool, { channel_id: event.target.value || null, enabled: true, config: { ...config, mode: activeMode } })}
+                            >
+                              <option value="">Choose channel</option>
+                              {channels.filter((channel) => channel.type !== "voice").map((channel) => (
+                                <option key={channel.id} value={channel.id}>#{channel.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="tool-finish-btn"
+                            onClick={() => {
+                              setSelectedToolType(null);
+                              setSelectedToolMode(null);
+                              updateTool(tool, { enabled: true, channel_id: tool.channel_id || null, config: { ...config, mode: activeMode } });
+                            }}
+                          >
+                            Finish setup
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {toolType === "verification" && tool.enabled && (
-                      <textarea className="tool-config-input" value={config.message || ""} onChange={(event) => updateTool(tool, { config: { ...config, message: event.target.value } })} placeholder="Verification message shown to members..." rows={3} maxLength={1000} />
-                    )}
-                    {toolType === "social_updates" && tool.enabled && (
-                      <>
-                        <input type="text" className="tool-config-input" style={{ resize: 'none' }} value={config.title || ""} onChange={(event) => updateTool(tool, { config: { ...config, title: event.target.value } })} placeholder="Updates channel title..." maxLength={100} />
-                        <textarea className="tool-config-input" value={config.description || ""} onChange={(event) => updateTool(tool, { config: { ...config, description: event.target.value } })} placeholder="Updates channel description..." rows={2} maxLength={500} />
-                      </>
-                    )}
+                  )}
                 </div>
               );
             })}
@@ -548,14 +683,137 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         .tool-row {
           display: flex;
           flex-direction: column;
-          align-items: center;
+          align-items: stretch;
           justify-content: space-between;
           gap: 12px;
           padding: 12px 0;
           border-top: 1px solid rgba(255, 255, 255, 0.07);
         }
 
-        .tool-row-main { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .tool-main-button {
+          width: 100%;
+          border: 1px solid rgba(156, 255, 0, 0.18);
+          background: rgba(13, 17, 12, 0.75);
+          border-radius: 10px;
+          color: #f3f5f0;
+          padding: 12px 14px;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .tool-title-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .tool-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 58px;
+          padding: 4px 8px;
+          border-radius: 999px;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .tool-badge.active { background: rgba(156,255,0,0.14); color: #9cff00; }
+        .tool-badge.idle { background: rgba(255,255,255,0.05); color: #8b8b8b; }
+
+        .tool-layer-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 4px;
+        }
+
+        .tool-layer-box {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(156,255,0,.18);
+          background: rgba(17, 21, 17, 0.8);
+        }
+
+        .tool-layer-label {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #9cff00;
+        }
+
+        .tool-option-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+
+        .tool-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          border-radius: 8px;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(24, 28, 24, 0.8);
+          color: #e8efe7;
+          padding: 10px 12px;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .tool-option strong {
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .tool-option span {
+          font-size: 11px;
+          color: #9ca89d;
+          line-height: 1.4;
+        }
+
+        .tool-option.selected {
+          border-color: rgba(156,255,0,.45);
+          background: rgba(156,255,0,.08);
+        }
+
+        .tool-channel-row {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .tool-channel-label {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #aaa;
+        }
+
+        .tool-finish-btn {
+          border: none;
+          border-radius: 8px;
+          background: linear-gradient(135deg, #9cff00, #75ec8d);
+          color: #0c130d;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          padding: 10px 12px;
+          cursor: pointer;
+        }
+
         .tool-config-input { width: 100%; box-sizing: border-box; padding: 10px 12px; resize: vertical; border-radius: 8px; border: 1px solid rgba(156,255,0,.25); background: #161a17; color: #eee; font: inherit; font-size: 12px; }
 
         .tool-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; color: #eee; font-size: 13px; font-weight: 700; }

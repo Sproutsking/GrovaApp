@@ -29,9 +29,6 @@ import channelNotificationService from "../../../services/community/channelNotif
 import UserProfileModal from "../../Modals/UserProfileModal";
 import CommunityProfileModal from "../components/CommunityProfileModal";
 import ForwardMessageModal from "../components/ForwardMessageModal";
-import VerificationPanel from "../verification/VerificationPanel";
-import WelcomeChannelCard from "../verification/WelcomeChannelCard";
-import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
 import TicketToolPanel from "../tools/TicketToolPanel";
 
 const CHANNEL_TYPE_ICON = {
@@ -510,7 +507,7 @@ const ChatTab = ({
 
         {/* ── Messages ── */}
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-          {selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={async () => { await loadPermissions(); await loadChannels(); }} /> : selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} userEmail={currentUser?.email} /> : selectedChannel?.name?.toLowerCase().includes("welcome") ? <WelcomeChannelCard community={community} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel communityId={community.id} channelId={selectedChannel.id} userId={userId} isOwner={isOwner} /> : <MessageList
+          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} userEmail={currentUser?.email} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}
@@ -860,23 +857,23 @@ const ChatTab = ({
            premium treatment — layered background, crisp border-right,
            and a header that always has a bottom border. ── */
         .channels-container {
-          width: 212px;
-          min-width: 212px;
-          max-width: 212px;
+          width: 232px;
+          min-width: 232px;
+          max-width: 232px;
           height: 100%;
           position: relative;
           background:
-            radial-gradient(120% 60% at 0% 0%, rgba(156,255,0,0.07), transparent 55%),
-            radial-gradient(140% 70% at 100% 100%, rgba(102,126,234,0.08), transparent 55%),
-            linear-gradient(180deg, rgba(15,17,22,0.99) 0%, rgba(9,10,14,0.98) 55%, rgba(7,8,11,0.99) 100%);
-          border-right: 1.5px solid rgba(156,255,0,0.14);
+            radial-gradient(120% 70% at 0% 0%, rgba(156,255,0,0.12), transparent 48%),
+            radial-gradient(110% 80% at 100% 100%, rgba(91,129,255,0.14), transparent 56%),
+            linear-gradient(180deg, rgba(11,13,18,0.98) 0%, rgba(9,11,16,0.98) 42%, rgba(8,9,13,0.99) 100%);
+          border-right: 1.5px solid rgba(156,255,0,0.12);
           display: flex;
           flex-direction: column;
           flex-shrink: 0;
           overflow: hidden;
           box-shadow:
-            inset -1px 0 0 rgba(255,255,255,0.025),
-            8px 0 24px -18px rgba(0,0,0,0.6);
+            inset -1px 0 0 rgba(255,255,255,0.03),
+            22px 0 40px -30px rgba(0,0,0,0.7);
         }
 
         .channels-header {
@@ -884,9 +881,10 @@ const ChatTab = ({
           align-items: center;
           gap: 8px;
           padding: 14px 12px 12px;
-          border-bottom: 1.5px solid rgba(156,255,0,0.14);
-          background: linear-gradient(180deg, rgba(156,255,0,0.045) 0%, rgba(10,12,16,0) 100%);
+          border-bottom: 1px solid rgba(156,255,0,0.12);
+          background: linear-gradient(180deg, rgba(156,255,0,0.06) 0%, rgba(20,23,29,0.18) 100%);
           flex-shrink: 0;
+          backdrop-filter: blur(8px);
         }
         .channels-header.has-manage { justify-content: space-between; }
         .channels-header.no-manage  { justify-content: center; }
@@ -894,22 +892,23 @@ const ChatTab = ({
         .channels-plus-btn {
           width: 34px;
           height: 34px;
-          border-radius: 10px;
-          border: 1px solid rgba(156,255,0,0.16);
-          background: rgba(156,255,0,0.07);
+          border-radius: 12px;
+          border: 1px solid rgba(156,255,0,0.22);
+          background: linear-gradient(180deg, rgba(156,255,0,0.12), rgba(156,255,0,0.04));
           color: var(--accent);
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
           flex-shrink: 0;
-          transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+          transition: all 0.2s ease;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px -12px rgba(156,255,0,0.5);
         }
         .channels-plus-btn:hover {
-          background: rgba(156,255,0,0.14);
-          border-color: rgba(156,255,0,0.3);
+          background: linear-gradient(180deg, rgba(156,255,0,0.2), rgba(156,255,0,0.08));
+          border-color: rgba(156,255,0,0.38);
           transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(156,255,0,0.14);
+          box-shadow: 0 10px 24px rgba(156,255,0,0.18);
         }
         .channels-plus-btn:active { transform: translateY(0) scale(0.96); }
 
@@ -919,23 +918,24 @@ const ChatTab = ({
           gap: 6px;
           padding: 0 12px;
           height: 34px;
-          border-radius: 10px;
-          border: 1px solid rgba(156,255,0,0.16);
-          background: rgba(156,255,0,0.07);
+          border-radius: 12px;
+          border: 1px solid rgba(156,255,0,0.18);
+          background: linear-gradient(180deg, rgba(156,255,0,0.1), rgba(156,255,0,0.04));
           color: var(--accent);
           font-size: 10px;
           font-weight: 800;
           cursor: pointer;
-          transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+          transition: all 0.2s ease;
           letter-spacing: 0.5px;
           text-transform: uppercase;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
         }
         .channels-header.has-manage .channels-menu-btn { flex-shrink: 0; }
         .channels-menu-btn:hover {
-          background: rgba(156,255,0,0.14);
-          border-color: rgba(156,255,0,0.3);
+          background: linear-gradient(180deg, rgba(156,255,0,0.18), rgba(156,255,0,0.1));
+          border-color: rgba(156,255,0,0.35);
           transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(156,255,0,0.14);
+          box-shadow: 0 10px 24px rgba(156,255,0,0.18);
         }
         .channels-menu-btn:active { transform: translateY(0) scale(0.97); }
 
@@ -946,7 +946,8 @@ const ChatTab = ({
           padding: 12px 8px 12px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
+          background: linear-gradient(180deg, rgba(17,20,24,0.2), rgba(17,20,24,0.02));
         }
 
         .channels-list::-webkit-scrollbar { width: 4px; }
@@ -963,7 +964,7 @@ const ChatTab = ({
           padding: 2px 8px 10px;
           font-size: 10px;
           font-weight: 800;
-          color: rgba(255,255,255,0.32);
+          color: rgba(255,255,255,0.38);
           text-transform: uppercase;
           letter-spacing: 0.8px;
         }
@@ -995,20 +996,21 @@ const ChatTab = ({
           width: 100%;
           min-height: 42px;
           padding: 0 11px;
-          border-radius: 11px;
-          border: 1px solid rgba(255,255,255,0.055);
-          background: rgba(255,255,255,0.018);
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.05);
+          background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01));
           color: rgba(255,255,255,0.72);
           font-size: 13px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
           position: relative;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
         }
 
         .channel-category-label {
           padding: 10px 8px 3px;
-          color: rgba(255,255,255,0.35);
+          color: rgba(255,255,255,0.38);
           font-size: 9px;
           font-weight: 800;
           letter-spacing: 0.8px;
@@ -1016,17 +1018,18 @@ const ChatTab = ({
         }
 
         .channel-item:hover {
-          background: rgba(156,255,0,0.065);
+          background: linear-gradient(180deg, rgba(156,255,0,0.08), rgba(92,105,255,0.04));
           border-color: rgba(156,255,0,0.22);
           transform: translateX(2px);
           color: rgba(255,255,255,0.92);
+          box-shadow: 0 10px 18px -14px rgba(156,255,0,0.32);
         }
 
         .channel-item.active {
-          background: linear-gradient(135deg, rgba(156,255,0,0.14), rgba(102,126,234,0.06));
+          background: linear-gradient(135deg, rgba(156,255,0,0.13), rgba(92,105,255,0.07));
           border-color: rgba(156,255,0,0.3);
           color: var(--accent);
-          box-shadow: inset 0 0 0 1px rgba(156,255,0,0.08), 0 4px 16px -6px rgba(156,255,0,0.25);
+          box-shadow: inset 0 0 0 1px rgba(156,255,0,0.08), 0 12px 24px -16px rgba(156,255,0,0.32);
         }
 
         .channel-item.active::before {
