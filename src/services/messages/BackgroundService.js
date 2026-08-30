@@ -29,7 +29,12 @@ import bg_pink_faced       from "../../components/Messages/Assets/Pink_faced_emo
 import bg_sweet_girl       from "../../components/Messages/Assets/Sweet_girl_background.png";
 import bg_time             from "../../components/Messages/Assets/Time.png";
 import bg_write_up         from "../../components/Messages/Assets/Write_up_background.png";
-import bg_please_follow    from "../../components/Messages/Assets/𝐩𝖑𝖊𝖆𝖘𝐞 𝐡𝖎𝖙 𝐭𝖍𝖊 𝐟𝖔𝖑𝖑𝖔𝐰….jpg";
+import bg_hi               from "../../components/Messages/Assets/hi_wallpaper.jpeg";
+import bg_love_it          from "../../components/Messages/Assets/love_it_wallpaper.jpeg";
+import bg_wallpaper_glow   from "../../components/Messages/Assets/wallpaper_glow.jpeg";
+import bg_geg              from "../../components/Messages/Assets/geg_wallpaper.jpeg";
+import bg_heart_love       from "../../components/Messages/Assets/heart_love_wallpaper.jpeg";
+import bg_please_follow    from "../../components/Messages/Assets/please_follow_wallpaper.jpg";
 
 // ── Default "Grid" background ─────────────────────────────────────────────
 // Pure CSS using multiple layered backgrounds — no image file needed.
@@ -145,6 +150,11 @@ class BackgroundService {
       { name: "Me",             value: null, image: bg_me            },
       { name: "Niga",           value: null, image: bg_niga          },
       { name: "Please Follow",  value: null, image: bg_please_follow },
+      { name: "Hi!",            value: null, image: bg_hi            },
+      { name: "Love It",        value: null, image: bg_love_it       },
+      { name: "Wallpaper Glow", value: null, image: bg_wallpaper_glow },
+      { name: "Geg",            value: null, image: bg_geg           },
+      { name: "Heart Love",    value: null, image: bg_heart_love    },
 
       // ── Emoji / fun ───────────────────────────────────────────────────
       { name: "Emoji Faces",    value: null, image: bg_emoji_faced    },
@@ -194,7 +204,15 @@ class BackgroundService {
     const bg = this.backgrounds[index];
     if (!bg) return { background: "#000" };
     if (bg.isDefault) return getDefaultBgStyle();
-    if (bg.image)  return { backgroundImage: `url(${bg.image})`, backgroundSize: "cover", backgroundPosition: "center" };
+    if (bg.image) {
+      return {
+        backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)), url(${bg.image})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundColor: "#f4f6f5",
+      };
+    }
     if (bg.value)  return { background: bg.value };
     return { background: "#000" };
   }

@@ -29,6 +29,7 @@ import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
 import { buildVerificationDashboardSections } from "../../services/evidence/verificationDashboardModel";
 import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import TierBadgePill from "../Shared/TierBadgePill";
 
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
@@ -87,30 +88,6 @@ const AccessBadge = ({ accessStatus }) => {
       color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30`,
     }}>
       ✓ {cfg.label}
-    </span>
-  );
-};
-
-const TierBadgePill = ({ tier, paymentStatus }) => {
-  const badge = getTierBadge(tier, paymentStatus);
-  if (!badge) return null;
-  return (
-    <span style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 4,
-      padding: "2px 8px",
-      borderRadius: 20,
-      fontSize: 10,
-      fontWeight: 800,
-      color: badge.color,
-      background: `${badge.color}18`,
-      border: `1px solid ${badge.color}35`,
-      boxShadow: `0 0 6px ${badge.glow}`,
-      flexShrink: 0,
-      transition: "color 0.4s ease, background 0.4s ease, border-color 0.4s ease",
-    }}>
-      {badge.emoji} {badge.label}
     </span>
   );
 };

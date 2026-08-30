@@ -35,6 +35,7 @@ import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import VerificationDashboardPage from "./VerificationDashboardPage";
+import TierBadgePill from "../Shared/TierBadgePill";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
   ShieldCheck, Users, MessageSquare,
@@ -173,32 +174,6 @@ const resolveMyId = (cu) =>
   cu?.userId  ||
   cu?.user_id ||
   null;
-
-// ── Tier badge pill ───────────────────────────────────────────────────────────
-
-const TierBadgePill = ({ tier, paymentStatus }) => {
-  const b = getTierBadge(tier, paymentStatus);
-  if (!b) return null;
-  return (
-    <span style={{
-      display:      "inline-flex",
-      alignItems:   "center",
-      gap:          4,
-      padding:      "2px 8px",
-      borderRadius: 20,
-      fontSize:     10,
-      fontWeight:   800,
-      color:        b.color,
-      background:   `${b.color}18`,
-      border:       `1px solid ${b.color}35`,
-      boxShadow:    `0 0 6px ${b.glow}`,
-      flexShrink:   0,
-      transition:   "color 0.4s ease, background 0.4s ease, border-color 0.4s ease",
-    }}>
-      {b.emoji} {b.label}
-    </span>
-  );
-};
 
 // ── Content grid card ─────────────────────────────────────────────────────────
 
