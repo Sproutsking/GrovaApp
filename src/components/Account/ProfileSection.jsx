@@ -92,6 +92,21 @@ const AccessBadge = ({ accessStatus }) => {
   );
 };
 
+const LiveDot = ({ color = "#84cc16", size = 5 }) => (
+  <span
+    aria-hidden="true"
+    style={{
+      display: "inline-block",
+      width: size,
+      height: size,
+      borderRadius: "50%",
+      background: color,
+      boxShadow: `0 0 8px ${color}`,
+      flexShrink: 0,
+    }}
+  />
+);
+
 // [AMB-3] Ambassador level badge shown on profile header
 const AmbassadorBadge = ({ level, name }) => {
   const levelColors = {
