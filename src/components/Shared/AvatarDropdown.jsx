@@ -117,22 +117,23 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
       style={{
         flex: 1,
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: "4px",
-        padding: "8px 6px",
+        gap: "5px",
+        minHeight: "32px",
+        padding: "6px 8px",
         background: isActive ? "var(--primary-surface, rgba(132,204,22,0.15))" : "var(--surface)",
         border: isActive ? "1.5px solid var(--primary, #84cc16)" : "1px solid var(--surface-border)",
         borderRadius: "10px",
         cursor: "pointer",
         transition: "background-color 0.06s cubic-bezier(0.34,1.56,0.64,1), border-color 0.06s cubic-bezier(0.34,1.56,0.64,1), color 0.06s cubic-bezier(0.34,1.56,0.64,1), transform 0.04s cubic-bezier(0.34,1.56,0.64,1), opacity 0.06s cubic-bezier(0.34,1.56,0.64,1)",
-        transform: isActive ? "scale(1.02) translateY(-2px)" : "scale(1) translateY(0)",
+        transform: isActive ? "scale(1.01) translateY(-1px)" : "scale(1) translateY(0)",
         willChange: "transform, opacity",
         color: isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
         fontSize: "11px",
         fontWeight: isActive ? 700 : 600,
         fontFamily: "inherit",
+        lineHeight: 1,
       }}
       onMouseEnter={(e) => {
         if (!isActive) {
@@ -273,10 +274,10 @@ const DropdownPortal = ({
         <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", padding: "0 12px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
           Experience Mode
         </p>
-        <div style={{ display: "flex", gap: "6px", padding: "0 8px" }}>
-          <TrinitylensButton mode="everyday" label="Main" icon={<Zap size={12}/>} onAccount={onAccount}/>
-          <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={12}/>} onAccount={onAccount}/>
-          <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={12}/>} onAccount={onAccount}/>
+        <div style={{ display: "flex", gap: "4px", padding: "0 8px" }}>
+          <TrinitylensButton mode="everyday" label="Main" icon={<Zap size={11}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={11}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={11}/>} onAccount={onAccount}/>
         </div>
       </div>
 
@@ -299,7 +300,7 @@ const DropdownPortal = ({
         </button>
         <button className="ad-item boost" onClick={onBoost}>
           <div className="ad-item-icon ad-icon-boost"><Crown size={15} color="#fbbf24"/></div>
-          <span className="ad-item-label">Boost</span>
+          <span className="ad-item-label">Profile Upgrade</span>
           <span className="ad-item-arrow">›</span>
         </button>
         <div className="ad-div-danger">

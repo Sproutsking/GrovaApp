@@ -37,7 +37,7 @@ const ALL_SERVICES = [
   { id:"saved",     Icon:BookMarked, label:"Saved",      color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  section:"Account",  desc:"Bookmarked items"  },
   { id:"profile",   Icon:UserCog,    label:"Profile",    color:"#84cc16", bg:"rgba(132,204,22,0.12)",  section:"Account",  desc:"Edit your profile" },
   { id:"rewards",   Icon:Gift,       label:"Rewards",    color:"#f472b6", bg:"rgba(244,114,182,0.12)", section:"Account",  desc:"Earn & redeem"     },
-  { id:"upgrade",   Icon:Sparkles,   label:"Boost",      color:"#fbbf24", bg:"rgba(251,191,36,0.14)",  section:"Account",  desc:"Boost profile"     },
+  { id:"upgrade",   Icon:Sparkles,   label:"Profile Upgrade", color:"#fbbf24", bg:"rgba(251,191,36,0.14)",  section:"Account",  desc:"Upgrade profile"  },
   { id:"giftcards", Icon:CreditCard, label:"Gift Cards", color:"#34d399", bg:"rgba(52,211,153,0.12)",  section:"More",     desc:"Buy & send gifts"  },
   { id:"support",   Icon:HelpCircle, label:"Support",    color:"#60a5fa", bg:"rgba(96,165,250,0.12)",  section:"More",     desc:"Get help"          },
   { id:"settings",  Icon:Settings,   label:"Settings",   color:"#a3a3a3", bg:"rgba(163,163,163,0.1)",  section:"More",     desc:"Preferences"       },

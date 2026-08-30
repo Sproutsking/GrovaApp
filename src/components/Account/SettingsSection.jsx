@@ -550,7 +550,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
               }}>
                 {hasBoost ? tierCfg.emoji : <User size={16}/>}
               </div>
-              <h3 className="sset-title">Profile Boost</h3>
+              <h3 className="sset-title">Profile Upgrade</h3>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {hasBoost && (
@@ -607,7 +607,7 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
 
                   {/* Manage boost → opens UpgradeView */}
                   <button className="sset-manage-btn" onClick={() => onOpenUpgrade?.()}>
-                    <Zap size={13}/> Manage Boost
+                    <Zap size={13}/> Manage Profile Upgrade
                   </button>
                 </div>
               ) : (

@@ -178,7 +178,7 @@ const ActiveBoostBanner = ({ boost, userId, onToggleAutoRenew, working, onCancel
   const days = daysUntil(boost.expires_at);
   return (
     <div style={{
-      margin:"16px 0 0", padding:16, borderRadius:18,
+      margin:"16px 4px 0", padding:16, borderRadius:18,
       background:`${v.color}10`, border:`1.5px solid ${v.color}38`,
       boxShadow:`0 4px 24px ${v.glow}`,
     }}>
@@ -724,7 +724,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
           cursor:"pointer", color:"#737373", fontSize:18,
         }}>‹</button>
         <span style={{ fontSize:17, fontWeight:900, color:"#fff", flex:1 }}>
-          {boost ? "Manage Boost" : "Boost Your Profile"}
+          {boost ? "Manage Profile Upgrade" : "Profile Upgrade"}
         </span>
         <div style={{
           display:"flex", alignItems:"center", gap:5, padding:"4px 10px",
@@ -747,7 +747,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
         <div style={{
           maxWidth: isWide ? 920 : "100%",
           margin:"0 auto",
-          padding: isWide ? "0 24px 40px" : "0 0 40px",
+          padding: isWide ? "0 24px 40px" : "0 4px 40px",
         }}>
 
           {/* ── TWO-COLUMN WRAPPER ────────────────────────────────────── */}
@@ -821,7 +821,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
                     animation:"float 3s ease-in-out infinite", fontSize:34,
                   }}>👑</div>
                   <h2 style={{ fontSize:24, fontWeight:900, color:"#fff", margin:"0 0 8px" }}>
-                    Boost Your Profile
+                    Profile Upgrade
                   </h2>
                   <p style={{ fontSize:13, color:"#a3a3a3", lineHeight:1.7, margin:"0 0 8px" }}>
                     Unlock a premium profile identity with a custom avatar glow,<br/>
