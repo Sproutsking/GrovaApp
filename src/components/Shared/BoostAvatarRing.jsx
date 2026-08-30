@@ -57,10 +57,10 @@ function getVisual(tier, themeId) {
   return base;
 }
 
-function StaticTierRing({ size, visual }) {
+function StaticTierRing({ size, visual, bleed = 0 }) {
   const radius = size / 2 + 1.5;
   return (
-    <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", inset: -(radius - size / 2), pointerEvents: "none", overflow: "visible" }}>
+    <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", left: bleed - (radius - size / 2), top: bleed - (radius - size / 2), pointerEvents: "none", overflow: "visible" }}>
       <circle cx={radius} cy={radius} r={radius - 1} fill="none" stroke={visual.grad[0]} strokeWidth="2" />
       <circle cx={radius} cy={radius} r={radius - 4} fill="none" stroke={visual.grad[1]} strokeWidth="0.75" strokeOpacity=".72" />
     </svg>
@@ -118,7 +118,7 @@ function injectKeyframes() {
 // ── Ring renderers ────────────────────────────────────────────────────────
 
 // SILVER — rotating precision dashes (two counter-rotating layers)
-function SilverRing({ size }) {
+function SilverRing({ size, bleed = 0 }) {
   const r    = size / 2 + 3;
   const cx   = r;
   const cy   = r;
@@ -128,7 +128,7 @@ function SilverRing({ size }) {
   return (
     <svg
       width={r * 2} height={r * 2}
-      style={{ position:"absolute", inset: -(r - size/2), pointerEvents:"none", overflow:"visible" }}
+      style={{ position:"absolute", left: bleed - (r - size/2), top: bleed - (r - size/2), pointerEvents:"none", overflow:"visible" }}
     >
       <defs>
         <linearGradient id="sg0" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -174,7 +174,7 @@ function SilverRing({ size }) {
 }
 
 // GOLD — three molten particles in staggered elliptical orbit paths
-function GoldRing({ size }) {
+function GoldRing({ size, bleed = 0 }) {
   const orb   = size / 2 + 4;
   const total = orb * 2;
   const cx    = orb;
@@ -195,7 +195,7 @@ function GoldRing({ size }) {
   return (
     <svg
       width={total} height={total}
-      style={{ position:"absolute", inset: -(orb - size/2), pointerEvents:"none", overflow:"visible" }}
+      style={{ position:"absolute", left: bleed - (orb - size/2), top: bleed - (orb - size/2), pointerEvents:"none", overflow:"visible" }}
     >
       <defs>
         <linearGradient id="gg0" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -265,7 +265,7 @@ function GoldRing({ size }) {
 }
 
 // DIAMOND — prismatic conic arc that walks through spectrum, two counter-rotating layers
-function DiamondRing({ size, visual }) {
+function DiamondRing({ size, visual, bleed = 0 }) {
   const r     = size / 2 + 4;
   const total = r * 2;
   const cx    = r;
@@ -280,7 +280,7 @@ function DiamondRing({ size, visual }) {
   return (
     <svg
       width={total} height={total}
-      style={{ position:"absolute", inset: -(r - size/2), pointerEvents:"none", overflow:"visible" }}
+      style={{ position:"absolute", left: bleed - (r - size/2), top: bleed - (r - size/2), pointerEvents:"none", overflow:"visible" }}
     >
       <defs>
         {/* Primary spectrum gradient */}
@@ -377,6 +377,7 @@ const BoostAvatarRing = ({
 
   const visual = getVisual(tier, themeId);
   const br     = borderRadius === "circle" ? "50%" : "28%";
+  const ringBleed = visual ? 6 : 0;
 
   const badgeW  = badgeSize === "md" ? 22 : 16;
   const badgeFs = badgeSize === "md" ? 11 : 8;
@@ -397,9 +398,9 @@ const BoostAvatarRing = ({
       style={{
         position:   "relative",
         flexShrink: 0,
-        width:      size,
-        height:     size,
-        borderRadius: br,
+        width:      size + ringBleed * 2,
+        height:     size + ringBleed * 2,
+        borderRadius: borderRadius === "circle" ? "50%" : "32%",
         cursor:     onClick ? "pointer" : "default",
         ...style,
       }}
@@ -407,11 +408,10 @@ const BoostAvatarRing = ({
       {/* Avatar circle — clips image/letter */}
       <div
         style={{
-          width:        "100%",
-          height:       "100%",
+          position:     "absolute",
+          inset:        ringBleed,
           borderRadius: br,
           overflow:     "hidden",
-          position:     "relative",
           display:      "flex",
           alignItems:   "center",
           justifyContent: "center",
@@ -420,6 +420,18 @@ const BoostAvatarRing = ({
           boxShadow:    accentColor ? `0 0 0 1px ${accentColor}55` : undefined,
         }}
       >
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            borderRadius: br,
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
         {/* Letter fallback */}
         <span
           style={{
@@ -436,7 +448,7 @@ const BoostAvatarRing = ({
         </span>
 
         {/* Avatar image */}
-        {isValidImg && (
+          {isValidImg && (
           <img
             src={src}
             alt=""
@@ -453,11 +465,12 @@ const BoostAvatarRing = ({
               transition: "opacity 0.3s",
             }}
           />
-        )}
+          )}
+        </div>
       </div>
 
       {/* SVG ring overlay — rendered outside the clipping div */}
-      {visual && <StaticTierRing size={size} visual={visual} />}
+      {visual && <StaticTierRing size={size} visual={visual} bleed={ringBleed} />}
 
       {/* Badge pip */}
       {showBadge && visual && (

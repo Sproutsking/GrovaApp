@@ -36,6 +36,17 @@ import SectionHeader        from "../Shared/SectionHeader";
 const DESKTOP_HEADER_H  = 58;
 const MOBILE_HEADER_H   = 47;
 const STREAMERS_PREVIEW = 3;
+const MODE_KEYWORDS = {
+  gaming: ["gaming", "game", "esports", "sport", "sports"],
+  web3: ["web3", "blockchain", "crypto", "defi", "nft", "token", "finance"],
+};
+
+const matchesTrinityMode = (item, mode) => {
+  if (!mode || mode === "everyday") return true;
+  const keywords = MODE_KEYWORDS[mode] || [];
+  const value = `${item?.mode || ""} ${item?.category || ""}`.toLowerCase();
+  return keywords.some((keyword) => value.includes(keyword));
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => {
@@ -54,7 +65,7 @@ const rankStyle = (rank) => {
 };
 
 // ── Live sessions fetcher (currently live only) ───────────────────────────────
-const fetchLiveSessions = async () => {
+const fetchLiveSessions = async (mode = "everyday") => {
   const { data, error } = await supabase
     .from("live_sessions")
     .select(`id, title, category, mode, peak_viewers, total_likes, started_at, livekit_room, is_private,
@@ -62,19 +73,21 @@ const fetchLiveSessions = async () => {
     .eq("status", "live")
     .eq("is_private", false)
     .order("peak_viewers", { ascending: false })
-    .limit(20);
+    .limit(50);
   if (error) {
     if (error.code === "42P01" || error.message?.includes("does not exist")) return [];
     throw error;
   }
-  return data || [];
+  return (data || []).filter((session) => matchesTrinityMode(session, mode)).slice(0, 20);
 };
 
 // ── Top streamers fetcher ─────────────────────────────────────────────────────
-const fetchTopStreamers = async () => {
+const fetchTopStreamers = async (mode = "everyday") => {
   let ranked = [];
   try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc("get_top_streamers");
+    const { data: rpcData, error: rpcError } = mode === "everyday"
+      ? await supabase.rpc("get_top_streamers")
+      : { data: null, error: new Error("mode filtering requires source rows") };
     if (!rpcError && rpcData && rpcData.length > 0) {
       ranked = rpcData.map((row, i) => ({
         userId:      row.user_id,
@@ -86,7 +99,7 @@ const fetchTopStreamers = async () => {
     } else {
       const { data, error } = await supabase
         .from("live_sessions")
-        .select("user_id, peak_viewers, total_likes")
+        .select("user_id, mode, category, peak_viewers, total_likes")
         .not("user_id", "is", null)
         .order("peak_viewers", { ascending: false })
         .limit(1000);
@@ -95,7 +108,7 @@ const fetchTopStreamers = async () => {
         throw error;
       }
       const map = {};
-      (data || []).forEach((s) => {
+      (data || []).filter((session) => matchesTrinityMode(session, mode)).forEach((s) => {
         const uid = s.user_id;
         if (!map[uid]) map[uid] = { peakViewers: 0, totalLikes: 0, sessions: 0 };
         map[uid].peakViewers  = Math.max(map[uid].peakViewers, s.peak_viewers  || 0);
@@ -349,7 +362,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
     const loadLive = async () => {
       try {
-        const d = await fetchLiveSessions();
+        const d = await fetchLiveSessions(activeTrinityLens);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
       finally { if (alive) setLiveLoading(false); }
@@ -371,7 +384,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
         },
         async () => {
           try {
-            const d = await fetchLiveSessions();
+            const d = await fetchLiveSessions(activeTrinityLens);
             if (alive) setLiveSessions(d);
           } catch { /* silent */ }
         },
@@ -381,7 +394,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     // ── 15s poll — belt-and-suspenders so live strip never stays stale ────
     livePollRef.current = setInterval(async () => {
       try {
-        const d = await fetchLiveSessions();
+        const d = await fetchLiveSessions(activeTrinityLens);
         if (alive) setLiveSessions(d);
       } catch { /* silent */ }
     }, 15_000);
@@ -391,23 +404,27 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       supabase.removeChannel(ch);
       clearInterval(livePollRef.current);
     };
-  }, []);
+  }, [activeTrinityLens]);
 
   // ── All other data ────────────────────────────────────────────────────────
   useEffect(() => {
-    loadAll(true);
+    streamersCache.current = [];
+    setTopStreamers([]);
+    setTrendingTags([]);
+    setEliteCreators([]);
+    loadAll(true, activeTrinityLens);
     const iv = setInterval(() => loadAll(false), 10 * 60 * 1000);
     return () => clearInterval(iv);
-  }, []); // eslint-disable-line
+  }, [activeTrinityLens]);
 
-  const loadAll = async (initial = false) => {
+  const loadAll = async (initial = false, mode = activeTrinityLens) => {
     if (initial) setLoading(true);
     setError(null);
     try {
       const [streamers, tags, creators] = await Promise.all([
-        fetchTopStreamers(),
-        loadTrendingTags(),
-        loadActiveCreators(),
+        fetchTopStreamers(mode),
+        loadTrendingTags(mode),
+        loadActiveCreators(mode),
       ]);
       if (streamers.length > 0) {
         setTopStreamers(streamers);
@@ -433,7 +450,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     }
   };
 
-  const loadTrendingTags = async () => {
+  const loadTrendingTags = async (mode = activeTrinityLens) => {
     const [sR, pR, rR] = await Promise.all([
       supabase.from("stories").select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
       supabase.from("posts"  ).select("category,views").is("deleted_at", null).order("views", { ascending: false }).limit(100),
@@ -447,10 +464,11 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
     });
     return Object.entries(map)
       .map(([label, d]) => ({ label, views: d.views, posts: d.count, trendScore: d.views * 0.7 + d.count * 100 * 0.3 }))
+      .filter((tag) => matchesTrinityMode({ category: tag.label }, mode))
       .sort((a, b) => b.trendScore - a.trendScore).slice(0, 30);
   };
 
-  const loadActiveCreators = async () => {
+  const loadActiveCreators = async (mode = activeTrinityLens) => {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
     const iso = cutoff.toISOString();
     const [pR, rR, sR] = await Promise.all([
@@ -459,7 +477,7 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
       supabase.from("stories").select("user_id,likes,views,comments_count").is("deleted_at", null).gte("created_at", iso),
     ]);
     const stats = {};
-    [...(pR.data || []), ...(rR.data || []), ...(sR.data || [])].forEach((item) => {
+    [...(pR.data || []), ...(rR.data || []), ...(sR.data || [])].filter((item) => matchesTrinityMode(item, mode)).forEach((item) => {
       const uid = item.user_id;
       if (!stats[uid]) stats[uid] = { likes: 0, views: 0, comments: 0, posts: 0 };
       stats[uid].likes += item.likes || 0; stats[uid].views += item.views || 0;

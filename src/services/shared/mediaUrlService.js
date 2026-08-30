@@ -125,7 +125,7 @@ class MediaUrlService {
       height,
       crop = 'fill',
       gravity = 'auto',
-      quality = 'auto:good',
+      quality = 'auto:best',
       format = 'auto',
       fetch_format = 'auto'
     } = options;
@@ -243,7 +243,7 @@ class MediaUrlService {
       height: size,
       crop: 'thumb',
       gravity: 'face',
-      quality: 'auto:good'
+      quality: 'auto:best'
     });
 
     if (cloudinaryUrl) return cloudinaryUrl;
