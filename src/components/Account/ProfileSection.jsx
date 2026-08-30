@@ -114,6 +114,24 @@ const AmbassadorBadge = ({ level, name }) => {
   );
 };
 
+// ── Tri-stat pill (for the live profile summary row) ─────────────────────
+const TriStatPill = ({ icon: Icon, animTarget, value, label, accent, glowColor }) => {
+  const animatedValue = useAnimatedCount(Number(animTarget ?? value ?? 0), 450);
+  return (
+    <div className="tri-stat-pill" style={{ "--accent": accent, "--glow": glowColor }}>
+      <div className="tri-stat-inner">
+        <div className="tri-stat-icon-wrap" style={{ background: `${accent}18`, borderColor: `${accent}35`, color: accent }}>
+          <Icon size={15} />
+        </div>
+        <div className="tri-stat-text">
+          <div className="tri-stat-value" style={{ color: accent }}>{fmt(animatedValue)}</div>
+          <div className="tri-stat-label">{label}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Four-stat adaptive row (unchanged) ───────────────────────────────────
 const FourStatRow = ({ stats }) => {
   const maxLen  = Math.max(...stats.map(s => String(s.value).length));
