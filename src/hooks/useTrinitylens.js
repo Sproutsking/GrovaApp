@@ -15,6 +15,12 @@ export const normalizeTrinityLens = (value) => {
   return 'everyday';
 };
 
+// ── Animation config for instant, smooth mode transitions ──────────────────
+export const TRINITY_TRANSITION_CONFIG = {
+  duration: 180,  // ms — instant feel, ~6 frames at 60fps
+  easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',  // snappy, precise
+};
+
 const useTrinitylens = create(
   persist(
     (set) => ({

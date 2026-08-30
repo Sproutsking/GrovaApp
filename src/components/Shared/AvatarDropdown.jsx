@@ -126,7 +126,9 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
         border: isActive ? "1.5px solid var(--primary, #84cc16)" : "1px solid var(--surface-border)",
         borderRadius: "10px",
         cursor: "pointer",
-        transition: "all 0.15s ease",
+        transition: "background-color 0.06s cubic-bezier(0.34,1.56,0.64,1), border-color 0.06s cubic-bezier(0.34,1.56,0.64,1), color 0.06s cubic-bezier(0.34,1.56,0.64,1), transform 0.04s cubic-bezier(0.34,1.56,0.64,1), opacity 0.06s cubic-bezier(0.34,1.56,0.64,1)",
+        transform: isActive ? "scale(1.02) translateY(-2px)" : "scale(1) translateY(0)",
+        willChange: "transform, opacity",
         color: isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
         fontSize: "11px",
         fontWeight: isActive ? 700 : 600,
@@ -137,6 +139,7 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
           e.currentTarget.style.background = "var(--surface-strong)";
           e.currentTarget.style.borderColor = "var(--primary, #84cc16)";
           e.currentTarget.style.color = "var(--primary, #84cc16)";
+          e.currentTarget.style.transform = "translateY(-1px)";
         }
       }}
       onMouseLeave={(e) => {
@@ -144,6 +147,7 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
           e.currentTarget.style.background = "var(--surface)";
           e.currentTarget.style.borderColor = "var(--surface-border)";
           e.currentTarget.style.color = "var(--text-secondary)";
+          e.currentTarget.style.transform = "translateY(0)";
         }
       }}
     >

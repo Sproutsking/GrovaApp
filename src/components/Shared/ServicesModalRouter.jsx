@@ -15,7 +15,7 @@ const ServicesModalRouter = (props) => {
   const { activeTrinityLens } = useTrinitylens();
   const safeLens = normalizeTrinityLens(activeTrinityLens);
 
-  return <ServicesModal {...props} trinityLens={safeLens} />;
+  return <div style={{ willChange: "contents" }}><ServicesModal {...props} trinityLens={safeLens} /></div>;
 };
 
 export default ServicesModalRouter;

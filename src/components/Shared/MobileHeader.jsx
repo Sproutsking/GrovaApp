@@ -158,6 +158,8 @@ const MobileHeader = ({
   setActiveHomeTab,
 }) => {
   const { activeTrinityLens } = useTrinitylens();
+  // ── Instant trinity mode transition ────────────────────────────────────────
+  const trinityTransition = 'all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
   const mobileTabs = activeTrinityLens === "everyday" ? HOME_TABS : TRINITY_TABS[activeTrinityLens];
   const selectedHomeTab = mobileTabs.some(tab => tab.id === activeHomeTab) ? activeHomeTab : mobileTabs[0].id;
   const [displayedText,     setDisplayedText]     = useState("");
@@ -406,14 +408,14 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
     .mh-header { position: sticky; top: 0; z-index: 100; background: var(--bg-strong); border-bottom: 1px solid var(--border); margin: 0; padding: 0; }
     .mh-content { display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; gap: 8px; margin: 0; min-height: 44px; }
     .mh-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-    .mh-greeting-box { display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 22px; padding: 2px 8px; background: ${boxBg}; border: 1px solid color-mix(in srgb, ${boxBorder} 60%, var(--surface-border)); border-radius: 7px; overflow: hidden; transition: background 0.4s, border-color 0.4s; }
-    .mh-greeting-icon { color: ${iconColor}; flex-shrink: 0; opacity: ${displayedText ? "1" : "0"}; transition: opacity 0.3s, color 0.4s; }
+    .mh-greeting-box { display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 22px; padding: 2px 8px; background: ${boxBg}; border: 1px solid color-mix(in srgb, ${boxBorder} 60%, var(--surface-border)); border-radius: 7px; overflow: hidden; transition: background 0.12s, border-color 0.12s; }
+    .mh-greeting-icon { color: ${iconColor}; flex-shrink: 0; opacity: ${displayedText ? "1" : "0"}; transition: opacity 0.12s, color 0.12s; }
     .mh-greeting-text { font-size: 10px; font-weight: 600; ${textStyle} white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; letter-spacing: 0.1px; }
     .mh-greeting-text::after { content: ""; position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 1.5px; height: 85%; background: ${cursorColor}; border-radius: 1px; animation: ${isTyping ? "mhBlink 0.9s ease-in-out infinite" : "none"}; }
     @keyframes mhBlink { 0%,45%{opacity:1} 50%,95%{opacity:0} 100%{opacity:1} }
 
     .mh-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-    .mh-btn { position: relative; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s; border: 1px solid var(--surface-border); background: var(--surface-muted); color: var(--text-muted); }
+    .mh-btn { position: relative; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.06s cubic-bezier(0.34,1.56,0.64,1); border: 1px solid var(--surface-border); background: var(--surface-muted); color: var(--text-muted); willChange: "transform, opacity"; }
     .mh-btn.trending     { border-color: rgba(132,204,22,0.2);  background: rgba(132,204,22,0.04);  color: #84cc16; }
     .mh-btn.messages     { border-color: rgba(163,230,53,0.2);  background: rgba(163,230,53,0.03); }
     .mh-btn.notification { border-color: rgba(132,204,22,0.14); color: #84cc16; }
@@ -428,7 +430,7 @@ const mobileHeaderStyles = (isTyping, displayedText, tierColor, hasBoosted, isOn
 
     /* [4-TAB] Tab bar */
     .mh-tab-bar { display: flex; border-top: 1px solid var(--border); background: var(--bg-strong); }
-    .mh-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 38px; background: transparent; border: none; color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: color 0.18s ease, background 0.18s ease; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
+    .mh-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 38px; background: transparent; border: none; color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: color 0.06s cubic-bezier(0.34,1.56,0.64,1), background 0.06s cubic-bezier(0.34,1.56,0.64,1), border-bottom-color 0.06s cubic-bezier(0.34,1.56,0.64,1); border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; willChange: "color, transform"; }
     .mh-tab:hover { color: var(--text-secondary); }
     .mh-tab--active { color: #84cc16; border-bottom-color: #84cc16; background: rgba(132,204,22,0.04); }
     /* News tab uses blue accent */

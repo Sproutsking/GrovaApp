@@ -19,6 +19,7 @@ import {
 import { useBoost } from "../../hooks/useBoost";
 import { BOOST_TIERS, BOOST_VISUAL } from "../../services/account/profileTierService";
 import { THEMES_BY_TIER, getDefaultTheme } from "../../services/boost/boostThemes";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import BoostThemePicker from "../Boost/BoostThemePicker";
 import BoostProfileCard from "../Boost/BoostProfileCard";
 
@@ -55,8 +56,15 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
   const v      = BOOST_VISUAL[tierId];
   const themes = THEMES_BY_TIER[tierId] ?? [];
   const theme  = themes.find(t => t.id === themeId) ?? themes[0];
-  const letter = (currentUser?.fullName || "U").charAt(0).toUpperCase();
+  const letter = (currentUser?.fullName || currentUser?.full_name || currentUser?.username || "U").charAt(0).toUpperCase();
   const avatarAnim = theme?.avatar.animation ?? (v?.animStyle ?? "none");
+
+  const avatarUrl =
+    currentUser?.avatarUrl ||
+    currentUser?.avatar_url ||
+    currentUser?.avatar ||
+    (currentUser?.avatar_id ? mediaUrlService.getAvatarUrl(currentUser.avatar_id, 300) : null) ||
+    (currentUser?.profile?.avatarUrl || currentUser?.profile?.avatar || null);
 
   return (
     <BoostProfileCard tier={tierId} themeId={theme?.id} style={{
@@ -70,10 +78,24 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
           boxShadow: theme?.avatar.boxShadow ?? v?.boxShadow,
           animation: avatarAnim,
           display:"flex", alignItems:"center", justifyContent:"center",
-          background: v ? `linear-gradient(135deg,${v.grad[0]},${v.grad[1]})` : "#222",
+          background: avatarUrl ? "transparent" : (v ? `linear-gradient(135deg,${v.grad[0]},${v.grad[1]})` : "#222"),
           fontSize:28, fontWeight:900, color:"#000",
+          overflow:"hidden",
+          position:"relative",
         }}>
-          {letter}
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{
+                width:"100%", height:"100%", objectFit:"cover",
+                display:"block", background:"rgba(0,0,0,0.18)",
+              }}
+            />
+          ) : (
+            <span style={{ position:"relative", zIndex:1 }}>{letter}</span>
+          )}
         </div>
         {v && (
           <div style={{
@@ -88,7 +110,7 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
       </div>
       <div style={{ textAlign:"center" }}>
         <div style={{ fontSize:15, fontWeight:900, color:"#fff", marginBottom:2 }}>
-          {currentUser?.fullName ?? "Your Name"}
+          {currentUser?.fullName || currentUser?.full_name || "Your Name"}
           <span style={{ marginLeft:6, fontSize:13 }}>{v?.badge}</span>
         </div>
         <div style={{ fontSize:12, color: v?.color ?? "#737373" }}>
@@ -308,7 +330,7 @@ const TierCard = ({
               EP/{billing==="yearly"?"yr":"mo"}
             </span>
           </div>
-          <div style={{ fontSize:9, color:"#525252" }}>
+          <div style={{ fontSize:9, color:"#84cc16", fontWeight:700, marginTop:2 }}>
             ≡ ${cfg.usd_display[billing]}{billing==="yearly"?"/yr":"/mo"}
           </div>
           {billing==="yearly" && savings>0 && (
@@ -610,7 +632,7 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
           activateBoost, cancelBoost, toggleAutoRenew } = useBoost(userId);
 
   const [billing,       setBilling]       = useState("monthly");
-  const [expanded,      setExpanded]      = useState("gold");
+  const [expanded,      setExpanded]      = useState(null);
   const [selected,      setSelected]      = useState(null);
   const [autoRenew,     setAutoRenew]     = useState(false);
   const [success,       setSuccess]       = useState(null);

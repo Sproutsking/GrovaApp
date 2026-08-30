@@ -173,6 +173,8 @@ const DesktopHeader = ({
 }) => {
   const isOnHome = activeTab === "home";
   const { activeTrinityLens } = useTrinitylens();
+  // ── Instant trinity mode transition ────────────────────────────────────────
+  const trinityTransition = 'all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
   const headerTabs = activeTrinityLens === "everyday" ? NAV_TABS : TRINITY_TABS[activeTrinityLens];
   const selectedHomeTab = headerTabs.some(tab => tab.id === activeHomeTab) ? activeHomeTab : headerTabs[0].id;
   const [displayedText,  setDisplayedText]  = useState("");
@@ -431,18 +433,18 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     border: 1px solid ${hasBoosted ? `${greetingColor}18` : "var(--surface-border)"};
     border-radius: 9px;
     min-height: 28px; min-width: 36px;
-    transition: background 0.4s, border-color 0.4s;
+    transition: background 0.12s, border-color 0.12s;
   }
   .dh-greeting-icon {
     color: ${greetingColor}; flex-shrink: 0;
     opacity: ${displayedText ? "1" : "0"};
-    transition: opacity 0.3s, color 0.4s;
+    transition: opacity 0.12s, color 0.12s;
   }
   .dh-greeting-text {
     font-size: 12px; font-weight: 600;
     color: ${greetingColor};
     white-space: nowrap; position: relative;
-    transition: color 0.4s;
+    transition: color 0.12s;
     ${hasBoosted ? `text-shadow: 0 0 10px ${greetingColor}50;` : ""}
   }
   .dh-greeting-text::after {
@@ -471,8 +473,9 @@ const desktopHeaderStyles = (isTyping, displayedText, greetingColor, hasBoosted)
     background: transparent; color: var(--text-muted);
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.01em;
     cursor: pointer;
-    transition: color 0.18s, background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s;
+    transition: color 0.06s cubic-bezier(0.34,1.56,0.64,1), background 0.06s cubic-bezier(0.34,1.56,0.64,1), border-color 0.06s cubic-bezier(0.34,1.56,0.64,1), transform 0.04s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.06s cubic-bezier(0.34,1.56,0.64,1);
     white-space: nowrap; font-family: inherit; user-select: none;
+    willChange: "transform, opacity";
   }
   .dh-nav-tab:hover { color: var(--text-secondary); background: var(--surface-highlight); transform: translateY(-0.5px); }
   .dh-nav-tab:active { transform: scale(0.97); }
