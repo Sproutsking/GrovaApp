@@ -91,6 +91,30 @@ const AccessBadge = ({ accessStatus }) => {
   );
 };
 
+const TierBadgePill = ({ tier, paymentStatus }) => {
+  const badge = getTierBadge(tier, paymentStatus);
+  if (!badge) return null;
+  return (
+    <span style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 4,
+      padding: "2px 8px",
+      borderRadius: 20,
+      fontSize: 10,
+      fontWeight: 800,
+      color: badge.color,
+      background: `${badge.color}18`,
+      border: `1px solid ${badge.color}35`,
+      boxShadow: `0 0 6px ${badge.glow}`,
+      flexShrink: 0,
+      transition: "color 0.4s ease, background 0.4s ease, border-color 0.4s ease",
+    }}>
+      {badge.emoji} {badge.label}
+    </span>
+  );
+};
+
 // [AMB-3] Ambassador level badge shown on profile header
 const AmbassadorBadge = ({ level, name }) => {
   const levelColors = {
