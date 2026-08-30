@@ -793,7 +793,7 @@ const CSS = `
 .gcv-back:hover{background:rgba(132,204,22,.1);}
 .gcv-head-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .gcv-head-av{width:38px;height:38px;flex-shrink:0;}
-.gcv-head-av-in{width:38px;height:38px;border-radius:50%;background:rgba(132,204,22,.1);border:1.5px solid rgba(132,204,22,.25);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.gcv-head-av-in{width:38px;height:38px;border-radius:50%;background:rgba(132,204,22,.1);outline:1.5px solid rgba(132,204,22,.25);outline-offset:3px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;}
 .gcv-head-txt{flex:1;min-width:0;}
 .gcv-head-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .gcv-head-sub{font-size:11px;color:#555;transition:color .2s;}

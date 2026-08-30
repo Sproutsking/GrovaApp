@@ -265,7 +265,7 @@ class MediaUrlService {
       width,
       crop: 'fill',
       gravity: 'auto',
-      quality: 'auto:good'
+      quality: 'auto:best'
     });
   }
 
@@ -278,7 +278,7 @@ class MediaUrlService {
       width,
       crop: 'fill',
       gravity: 'auto',
-      quality: 'auto:good'
+      quality: 'auto:best'
     });
   }
 
@@ -288,7 +288,7 @@ class MediaUrlService {
     if (!videoId) return null;
     
     return this.getVideoUrl(videoId, {
-      quality: 'auto:good',
+      quality: 'auto:best',
       format: 'mp4'
     });
   }
@@ -315,7 +315,7 @@ class MediaUrlService {
         const url = this.getImageUrl(imageId, {
           width,
           crop: 'scale',
-          quality: 'auto:good'
+          quality: 'auto:best'
         });
         return `${url} ${width}w`;
       })

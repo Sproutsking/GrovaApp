@@ -514,7 +514,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
         <button className="cv-back-btn" onClick={onBack}><Ic.Back/></button>
         <div className="cv-head-info">
           <div className="cv-head-av-wrap">
-            <div className="cv-head-av">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name} loading="eager" fetchPriority="high"/>:(otherUser?.full_name||"U").charAt(0).toUpperCase()}</div>
+            <div className="cv-head-av-frame"><div className="cv-head-av">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name} loading="eager" fetchPriority="high"/>:(otherUser?.full_name||"U").charAt(0).toUpperCase()}</div></div>
             <div className={`cv-head-dot${status.online?" cv-dot-on":""}`}/>
           </div>
           <div className="cv-head-text">
@@ -604,7 +604,8 @@ export const CV_CSS = `
 .cv-back-btn:hover{background:rgba(132,204,22,.1);}
 .cv-head-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .cv-head-av-wrap{position:relative;flex-shrink:0;width:38px;height:38px;}
-.cv-head-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.25);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#84cc16;overflow:hidden;}
+.cv-head-av-frame{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(132,204,22,.28);box-shadow:0 0 0 3px rgba(132,204,22,.06);flex-shrink:0;}
+.cv-head-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#84cc16;overflow:hidden;}
 .cv-head-av img{width:100%;height:100%;object-fit:cover;}
 .cv-head-dot{position:absolute;bottom:-1px;right:-1px;width:11px;height:11px;border-radius:50%;border:2.5px solid #000;background:#333;z-index:2;transition:background .3s;}
 .cv-head-dot.cv-dot-on{background:#22c55e;}

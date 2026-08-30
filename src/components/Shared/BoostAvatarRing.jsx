@@ -9,7 +9,7 @@
 // DIAMOND — prismatic conic arc that walks through the full spectrum: gem-light
 // ============================================================================
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 // ── Tier visual definitions ───────────────────────────────────────────────
 
@@ -375,6 +375,11 @@ const BoostAvatarRing = ({
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError,  setImgError]  = useState(false);
 
+  useEffect(() => {
+    setImgLoaded(false);
+    setImgError(false);
+  }, [src]);
+
   const visual = getVisual(tier, themeId);
   const br     = borderRadius === "circle" ? "50%" : "28%";
   const ringBleed = visual ? 6 : 0;
@@ -461,6 +466,7 @@ const BoostAvatarRing = ({
               width:      "100%",
               height:     "100%",
               objectFit:  "cover",
+              objectPosition: "center",
               opacity:    imgLoaded ? 1 : 0,
               transition: "opacity 0.3s",
             }}
