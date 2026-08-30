@@ -83,9 +83,17 @@ export const resolveProfileTargetFromRecord = (record) => {
     profile.userId ||
     profile.profile_id ||
     payload.user_id ||
+    payload.userId ||
     payload.owner_id ||
+    payload.ownerId ||
     payload.profile_id ||
+    payload.profileId ||
+    record.user_id ||
+    record.profile_id ||
+    record.userId ||
+    record.profileId ||
     record.actor_id ||
+    record.actorId ||
     null;
 
   if (!directId) return null;

@@ -23,14 +23,15 @@ const CATEGORIES = [
   { id:"crypto", label:"Crypto", Icon:Bitcoin   },
 ];
 
-function makeDbQuery(category) {
+function makeDbQuery(category, sourceCategory = null) {
   let cancelled = false;
   const promise = (async () => {
     try {
       let q = supabase.from("news_posts")
         .select("id,title,description,image_url,source_name,source_url,article_url,category,region,asset_tag,url_hash,published_at,is_active")
         .eq("is_active", true).order("published_at",{ascending:false}).limit(200);
-      if (category) q = q.eq("category", category);
+      if (sourceCategory) q = q.eq("category", sourceCategory);
+      else if (category) q = q.eq("category", category);
       const { data, error } = await q;
       if (cancelled||error) return [];
       return filterByAge(data||[]).map(r => {
@@ -169,13 +170,13 @@ const BreakingWrapper=({post,currentUser})=>(<div style={{marginBottom:6}}><div 
 
 // ── NewsTab ───────────────────────────────────────────────────────────────────
 const NewsTab = React.forwardRef(function NewsTab(
-  { newsPosts:initialNews=[], hasMore=false, isLoadingMore=false, onLoadMore, currentUser, isActive=false },
+  { newsPosts:initialNews=[], hasMore=false, isLoadingMore=false, onLoadMore, currentUser, isActive=false, sourceCategory=null },
   ref
 ) {
   const { sync:prefetchedSync } = getPrefetchedArticles();
   const initialArticles = prefetchedSync
     ? prefetchedSync
-    : filterByAge(initialNews.map(a=>({...a,liveStatus:detectLiveStatus(a.title||"",a.published_at||""),tier:getTier(a.published_at)})));
+    : filterByAge(initialNews.filter(a => !sourceCategory || a.category === sourceCategory).map(a=>({...a,liveStatus:detectLiveStatus(a.title||"",a.published_at||""),tier:getTier(a.published_at)})));
 
   const [articles,    setArticles]    = useState(initialArticles);
   const [videos,      setVideos]      = useState([]);
@@ -212,7 +213,8 @@ const NewsTab = React.forwardRef(function NewsTab(
     const engine=getNewsEngine();
     const unsubArt=engine.on("newArticles",items=>{
       setInitialDone(true);
-      const filtered=activeFilter?items.filter(a=>(a.category||"").toLowerCase()===activeFilter):items;
+      const scoped=sourceCategory?items.filter(a=>(a.category||"").toLowerCase()===sourceCategory.toLowerCase()):items;
+      const filtered=activeFilter?scoped.filter(a=>(a.category||"").toLowerCase()===activeFilter):scoped;
       if(!filtered.length)return;
       const urgent=filtered.filter(a=>(a.tier??TIER.RECENT)<=TIER.BREAKING);
       const nonUrgent=filtered.filter(a=>(a.tier??TIER.RECENT)>TIER.BREAKING);
@@ -229,7 +231,7 @@ const NewsTab = React.forwardRef(function NewsTab(
     if(!filterMountRef.current){filterMountRef.current=true;return;}
     if(cancelDbRef.current)cancelDbRef.current();
     setFetching(true);
-    const{promise,cancel}=makeDbQuery(activeFilter);cancelDbRef.current=cancel;
+    const{promise,cancel}=makeDbQuery(activeFilter, sourceCategory);cancelDbRef.current=cancel;
     promise.then(data=>{setFetching(false);if(data.length)setArticles(data);});
     return()=>cancel();
   },[activeFilter]);
@@ -247,10 +249,10 @@ const NewsTab = React.forwardRef(function NewsTab(
     if(cancelDbRef.current)cancelDbRef.current();
     const engine=getNewsEngine();engine._fetchAllSources?.();engine._fetchAllVideos?.();
     const refetchPromise=bustAndRefetch();
-    const{promise,cancel}=activeFilter?makeDbQuery(activeFilter):{promise:refetchPromise,cancel:()=>{}};
+    const{promise,cancel}=activeFilter?makeDbQuery(activeFilter, sourceCategory):{promise:refetchPromise,cancel:()=>{}};
     cancelDbRef.current=cancel;const data=await promise;
     if(data.length){engine.seedInFeed(data);setArticles(data);}setFetching(false);
-  },[fetching,activeFilter]);
+  },[fetching,activeFilter,sourceCategory]);
 
   const handleSentinel=useCallback(()=>{if(!isLoadingMore&&hasMore&&onLoadMore)onLoadMore();},[isLoadingMore,hasMore,onLoadMore]);
 

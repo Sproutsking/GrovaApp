@@ -17,7 +17,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   X, Zap, Home, Search, Users, Wallet, TrendingUp, Hash,
   Gift, BarChart2, BookMarked, UserCog, HelpCircle, Settings,
-  Radio, CreditCard, Sparkles, ChevronRight,
+  Radio, CreditCard, Sparkles, ChevronRight, Newspaper, Trophy,
 } from "lucide-react";
 
 const OracleIcon = () => <span style={{ fontSize: 15, lineHeight: 1 }}>⛓</span>;
@@ -27,6 +27,8 @@ const ALL_SERVICES = [
   { id:"search",    Icon:Search,     label:"Explore",    color:"#60a5fa", bg:"rgba(96,165,250,0.12)",  section:"Navigate", desc:"Discover content"  },
   { id:"community", Icon:Users,      label:"Community",  color:"#a78bfa", bg:"rgba(167,139,250,0.12)", section:"Navigate", desc:"Your communities"  },
   { id:"wallet",    Icon:Wallet,     label:"Wallet",     color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  section:"Navigate", desc:"GT & EP balance"   },
+  { id:"news",      Icon:Newspaper,  label:"News",       color:"#60a5fa", bg:"rgba(96,165,250,0.12)",  section:"Discover", desc:"Headlines & updates" },
+  { id:"sports",    Icon:Trophy,     label:"Sports",     color:"#fb7185", bg:"rgba(251,113,133,0.12)", section:"Discover", desc:"Live moments & scores" },
   { id:"oracle",    Icon:OracleIcon, label:"XRC Oracle", color:"#a855f7", bg:"rgba(168,85,247,0.14)",  section:"Discover", desc:"Chain explorer"    },
   { id:"trending",  Icon:TrendingUp, label:"Trending",   color:"#f97316", bg:"rgba(249,115,22,0.12)",  section:"Discover", desc:"What's hot now"    },
   { id:"tags",      Icon:Hash,       label:"Tags",       color:"#34d399", bg:"rgba(52,211,153,0.12)",  section:"Discover", desc:"Browse by tag"     },
@@ -35,7 +37,7 @@ const ALL_SERVICES = [
   { id:"saved",     Icon:BookMarked, label:"Saved",      color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  section:"Account",  desc:"Bookmarked items"  },
   { id:"profile",   Icon:UserCog,    label:"Profile",    color:"#84cc16", bg:"rgba(132,204,22,0.12)",  section:"Account",  desc:"Edit your profile" },
   { id:"rewards",   Icon:Gift,       label:"Rewards",    color:"#f472b6", bg:"rgba(244,114,182,0.12)", section:"Account",  desc:"Earn & redeem"     },
-  { id:"upgrade",   Icon:Sparkles,   label:"Upgrade",    color:"#fbbf24", bg:"rgba(251,191,36,0.14)",  section:"Account",  desc:"Boost profile"     },
+  { id:"upgrade",   Icon:Sparkles,   label:"Boost",      color:"#fbbf24", bg:"rgba(251,191,36,0.14)",  section:"Account",  desc:"Boost profile"     },
   { id:"giftcards", Icon:CreditCard, label:"Gift Cards", color:"#34d399", bg:"rgba(52,211,153,0.12)",  section:"More",     desc:"Buy & send gifts"  },
   { id:"support",   Icon:HelpCircle, label:"Support",    color:"#60a5fa", bg:"rgba(96,165,250,0.12)",  section:"More",     desc:"Get help"          },
   { id:"settings",  Icon:Settings,   label:"Settings",   color:"#a3a3a3", bg:"rgba(163,163,163,0.1)",  section:"More",     desc:"Preferences"       },
@@ -43,17 +45,35 @@ const ALL_SERVICES = [
 
 const SECTIONS = ["Navigate", "Discover", "Account", "More"];
 
+const LENS_SERVICES = {
+  gaming: [
+    ["wallet", "Item Markets", "Trade game assets with escrow"],
+    ["community", "Matchmaking Hubs", "Find players, teams and clans"],
+    ["community", "Clan Tools", "Build and manage your clan"],
+    ["stream", "Live Gaming", "Watch and join live sessions"],
+    ["rewards", "Tournaments", "Track rewards and competitions"],
+  ],
+  web3: [
+    ["analytics", "Block Analytics", "Track wallet and network activity"],
+    ["trending", "Market Watch", "Monitor token and protocol activity"],
+    ["wallet", "Web3 Wallet", "Sign, stake and swap assets"],
+    ["upgrade", "Web3 Tooling", "Access advanced protocol tools"],
+    ["oracle", "XRC Oracle", "On-chain data and protocol feeds"],
+  ],
+};
+
 function resolveTab(id) {
   const map = {
     home:"home", search:"search", community:"community", wallet:"wallet",
-    trending:"trending", tags:"search", stream:"stream", analytics:"analytics",
-    profile:"account", rewards:"rewards", upgrade:"upgrade",
-    giftcards:"giftcards", support:"support", settings:"account",
+    news:"home", sports:"home", trending:"trending", tags:"search",
+    stream:"stream", analytics:"analytics", profile:"account",
+    rewards:"rewards", upgrade:"upgrade", giftcards:"giftcards",
+    support:"support", settings:"account",
   };
   return map[id] || id;
 }
 
-const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenSaved }) => {
+const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, xrcService, onOpenSaved, trinityLens = "everyday" }) => {
   const [closing,    setClosing]    = useState(false);
   const [query,      setQuery]      = useState("");
   const [hovered,    setHovered]    = useState(null);
@@ -107,15 +127,28 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
     };
   }, []);
 
+  const lensServices = useMemo(() => {
+    const definitions = LENS_SERVICES[trinityLens];
+    if (!definitions) return ALL_SERVICES;
+    return definitions.map(([id, label, desc]) => ({
+      ...ALL_SERVICES.find(service => service.id === id),
+      id,
+      label,
+      desc,
+      section: "Navigate",
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [trinityLens]);
+  const visibleSections = trinityLens === "everyday" ? SECTIONS : ["Navigate"];
+
   const filtered = useMemo(() => {
     if (!query.trim()) return null;
     const q = query.toLowerCase();
-    return ALL_SERVICES.filter(s =>
+    return lensServices.filter(s =>
       s.label.toLowerCase().includes(q) ||
       s.desc.toLowerCase().includes(q) ||
       s.section.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, lensServices]);
 
   const close = () => {
     // Unlock scroll before closing
@@ -147,6 +180,15 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
       return;
     }
 
+    if (id === "news" || id === "sports") {
+      setActiveTab("home");
+      if (typeof setActiveHomeTab === "function") setActiveHomeTab(id);
+      setClosing(true);
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = setTimeout(onClose, 120);
+      return;
+    }
+
     setActiveTab(resolveTab(id));
     setClosing(true);
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -156,7 +198,7 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
   // ── Desktop tile ──────────────────────────────────────────────────────────
   const renderDesktopItem = (svc, idx) => (
     <button
-      key={svc.id}
+      key={`${svc.id}-${svc.label}`}
       className="dsm-item"
       data-oracle={svc.id === "oracle" ? "true" : undefined}
       style={{ "--c": svc.color, "--bg": svc.bg, animationDelay: `${idx * 0.028}s` }}
@@ -173,7 +215,7 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
 
   // ── Mobile tile ───────────────────────────────────────────────────────────
   const renderMobileItem = (svc, idx) => (
-    <button key={svc.id}
+    <button key={`${svc.id}-${svc.label}`}
       className="sm-item"
       data-oracle={svc.id === "oracle" ? "true" : undefined}
       style={{ "--c": svc.color, "--bg": svc.bg, animationDelay: `${idx * 0.032}s` }}
@@ -231,6 +273,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
           z-index: 99999;
 
           width: min(640px, calc(100vw - 40px));
+          height: min(720px, calc(100vh - 40px));
+          min-height: 520px;
           max-height: min(90vh, 720px);
           overflow: hidden;
           display: flex;
@@ -562,8 +606,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
                   }
                 </>
               ) : (
-                SECTIONS.map((sec, si) => {
-                  const items = ALL_SERVICES.filter(s => s.section === sec);
+                visibleSections.map((sec, si) => {
+                  const items = lensServices.filter(s => s.section === sec);
                   return (
                     <React.Fragment key={sec}>
                       {si > 0 && <div className="dsm-divider" />}
@@ -626,8 +670,8 @@ const ServicesModal = ({ onClose, setActiveTab, currentUser, xrcService, onOpenS
               </div>
             ) : (
               <div className="sm-secs">
-                {SECTIONS.map(sec => {
-                  const items = ALL_SERVICES.filter(s => s.section === sec);
+                {visibleSections.map(sec => {
+                  const items = lensServices.filter(s => s.section === sec);
                   return (
                     <div key={sec}>
                       <p className="sm-sec-lbl">{sec}</p>

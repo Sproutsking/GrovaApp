@@ -27,12 +27,24 @@ import FollowersModal      from "../Modals/FollowersModal";
 import MyContentSection    from "./MyContentSection";
 import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
 import { buildVerificationDashboardSections } from "../../services/evidence/verificationDashboardModel";
+import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
+import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
 import BoostAvatarRing  from "../Shared/BoostAvatarRing";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import BoostThemePicker from "../Boost/BoostThemePicker";
+
+const fmt = (value) => {
+  if (value == null) return "0";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0";
+  if (number >= 1_000_000_000) return `${(number / 1_000_000_000).toFixed(1)}B`;
+  if (number >= 1_000_000) return `${(number / 1_000_000).toFixed(1)}M`;
+  if (number >= 1_000) return `${(number / 1_000).toFixed(1)}K`;
+  return Math.floor(number).toString();
+};
 
 // ── Animated count ────────────────────────────────────────────────────────
 const useAnimatedCount = (target, duration = 600) => {
@@ -48,86 +60,16 @@ const useAnimatedCount = (target, duration = 600) => {
       const progress = Math.min(elapsed / duration, 1);
       const eased    = 1 - Math.pow(1 - progress, 3);
       setDisplay(Math.round(start + (end - start) * eased));
-      if (progress < 1) raf.current = requestAnimationFrame(tick);
-      else prev.current = end;
+      if (progress < 1) {
+        raf.current = requestAnimationFrame(tick);
+      } else {
+        prev.current = end;
+      }
     };
     raf.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf.current);
   }, [target, duration]);
   return display;
-};
-
-const fmt = (num) => {
-  if (num == null) return "0";
-  const v = Number(num);
-  if (v >= 1_000_000_000) return `${(v/1_000_000_000).toFixed(1)}B`;
-  if (v >= 1_000_000)     return `${(v/1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)         return `${(v/1_000).toFixed(1)}K`;
-  return Math.floor(v).toString();
-};
-
-const LiveDot = () => (
-  <span style={{
-    display:"inline-block", width:6, height:6, borderRadius:"50%",
-    background:"#84cc16", marginLeft:4, flexShrink:0,
-    boxShadow:"0 0 0 0 rgba(132,204,22,0.6)",
-    animation:"livePulse 1.8s ease-out infinite",
-  }} />
-);
-
-const TriStatPill = ({ icon: Icon, value, label, accent, glowColor, animTarget }) => {
-  const displayed = useAnimatedCount(animTarget ?? value, 700);
-  return (
-    <div className="tri-stat-pill" style={{ "--accent": accent, "--glow": glowColor }}>
-      <div className="tri-stat-inner">
-        <div className="tri-stat-icon-wrap">
-          <Icon size={15} style={{ color: accent }} />
-        </div>
-        <div className="tri-stat-text">
-          <span className="tri-stat-value">{fmt(displayed)}</span>
-          <span className="tri-stat-label">{label}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ConfirmLogout = ({ onConfirm, onCancel }) => (
-  <>
-    <div onClick={onCancel} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", zIndex:9998 }} />
-    <div style={{
-      position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
-      background:"#111", border:"1px solid rgba(239,68,68,0.3)", borderRadius:"20px",
-      padding:"28px 24px", width:"min(300px, calc(100vw - 40px))", zIndex:9999,
-      boxShadow:"0 24px 80px rgba(0,0,0,0.95)",
-    }}>
-      <div style={{ width:44, height:44, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 14px" }}>
-        <LogOut size={20} color="#ef4444" />
-      </div>
-      <p style={{ color:"#f5f5f5", fontSize:"15px", fontWeight:700, textAlign:"center", marginBottom:6 }}>Sign out?</p>
-      <p style={{ color:"#737373", fontSize:"13px", textAlign:"center", marginBottom:22 }}>You'll need to sign back in to access your account.</p>
-      <div style={{ display:"flex", gap:10 }}>
-        <button onClick={onCancel} style={{ flex:1, padding:"11px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"11px", color:"#a3a3a3", fontSize:"14px", fontWeight:600, cursor:"pointer" }}>Cancel</button>
-        <button onClick={onConfirm} style={{ flex:1, padding:"11px", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.45)", borderRadius:"11px", color:"#ef4444", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>Sign Out</button>
-      </div>
-    </div>
-  </>
-);
-
-const TierBadgePill = ({ tier, paymentStatus }) => {
-  const badge = getTierBadge(tier, paymentStatus);
-  if (!badge) return null;
-  return (
-    <span style={{
-      display:"inline-flex", alignItems:"center", gap:4,
-      padding:"2px 8px", borderRadius:20, fontSize:10, fontWeight:800,
-      color:badge.color, background:`${badge.color}15`,
-      border:`1px solid ${badge.color}35`,
-      boxShadow:`0 0 8px ${badge.glow}`, flexShrink:0,
-    }}>
-      {badge.emoji} {badge.label}
-    </span>
-  );
 };
 
 const AccessBadge = ({ accessStatus }) => {
@@ -795,6 +737,31 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             }
           }}
         />
+
+        {showVerificationDashboard && (
+          <VerificationDashboardPage
+            profile={
+              profile
+                ? {
+                    ...profile,
+                    avatarUrl: profile.avatar,
+                    fullName: profile.fullName,
+                  }
+                : null
+            }
+            dashboard={buildPublicProfileDashboard(profile, verificationItems)}
+            verificationItems={verificationItems}
+            loading={verificationLoading}
+            onBack={() => {
+              setShowVerificationDashboard(false);
+              setSelectedSection(null);
+            }}
+            onClose={() => {
+              setShowVerificationDashboard(false);
+              setSelectedSection(null);
+            }}
+          />
+        )}
 
         {showVerificationDashboard && (
           <div style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(168,85,247,0.35)", background: "radial-gradient(circle at top left, rgba(168,85,247,0.18), transparent 28%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.9))", padding: 18, boxShadow: "0 24px 70px rgba(168,85,247,0.24)" }}>

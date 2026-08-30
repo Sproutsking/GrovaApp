@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Home, Search, LayoutGrid, Users, Wallet } from "lucide-react";
-import ServicesModal from "./ServicesModal";
+import ServicesModalRouter from "./ServicesModalRouter";
 
 const NAV_ITEMS = [
   { id: "home", Icon: Home, label: "Home" },
@@ -424,7 +424,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService }) =
       </button>
 
       {showServices && (
-        <ServicesModal
+        <ServicesModalRouter
           onClose={() => setShowServices(false)}
           setActiveTab={(tab) => {
             setActiveTab(tab);

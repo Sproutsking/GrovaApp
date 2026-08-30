@@ -26,6 +26,7 @@
 // ════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import useTrinitylens from "../../../hooks/useTrinitylens";
 import {
   ArrowUpRight,
   Download,
@@ -555,6 +556,7 @@ export default function OverviewTab({
   showPayWave,
   currentUser,
 }) {
+  const { activeTrinityLens } = useTrinitylens();
   const [hideBalance, setHide] = useState(false);
   const { format } = useCurrency();
 
@@ -588,12 +590,12 @@ export default function OverviewTab({
 
   // ── Secondary action definitions ───────────────────────────────
   const secondaryActions = [
-    { icon: Repeat,    label: "Swap",     tab: "swap",     variant: "default" },
-    { icon: TrendingUp,label: "Trade",    tab: "trade",    variant: "default" },
+    { icon: Repeat,    label: activeTrinityLens === "web3" ? "Token Swap" : "Swap", tab: "swap", variant: "default" },
+    { icon: TrendingUp, label: activeTrinityLens === "gaming" ? "Game Trade" : activeTrinityLens === "web3" ? "Stake / Trade" : "Trade", tab: "trade", variant: "default" },
     ...(showPayWave
       ? [{ icon: Wifi, label: "PayWave",  tab: "paywave",  variant: "paywave" }]
       : []),
-    { icon: Settings,  label: "Settings", tab: "settings", variant: "default" },
+    { icon: Settings,  label: activeTrinityLens === "gaming" ? "Game Assets" : activeTrinityLens === "web3" ? "Signatures" : "Settings", tab: "settings", variant: "default" },
   ];
 
   const secondaryCols = secondaryActions.length === 3 ? "three-cols" : "";

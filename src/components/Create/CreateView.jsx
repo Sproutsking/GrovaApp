@@ -29,6 +29,7 @@ import SmartTextarea      from "../SmartTextarea/SmartTextarea";
 import useDistribution    from "../../hooks/useDistribution";          // [D4]
 import PlatformSelector   from "../Distribution/PlatformSelector";
 import DistributionStatus from "../Distribution/DistributionStatus";
+import useTrinitylens from "../../hooks/useTrinitylens";
 
 // ── Helper: fire the optimistic publish event ─────────────────────────────────
 const dispatchPublish = (item, type) => {
@@ -38,6 +39,7 @@ const dispatchPublish = (item, type) => {
 };
 
 const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, onPublishSuccess, onClose }) => {
+  const { activeTrinityLens } = useTrinitylens();
   const [activeTab,       setActiveTab]       = useState("post");
   const [loading,         setLoading]         = useState(false);
   const [uploadProgress,  setUploadProgress]  = useState(0);
@@ -135,6 +137,20 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     "Art & Design","Blockchain","NFT Showcase","Web3","Lifestyle","Beauty","DIY",
     "Challenges","Pranks","Animals","Nature","Science","ASMR","Magic","Dance Covers",
   ];
+  const modePostCategories = activeTrinityLens === "gaming"
+    ? ["Gaming", "Esports", "Game Guides", "Game Reviews", "Gaming News"]
+    : activeTrinityLens === "web3"
+      ? ["Web3", "Blockchain", "DeFi", "DAOs", "Crypto News"]
+      : postCategories;
+  const modeReelCategories = activeTrinityLens === "gaming"
+    ? ["Gaming", "Esports", "Game Clips", "Game Guides", "Live Highlights"]
+    : activeTrinityLens === "web3"
+      ? ["Web3", "Crypto News", "Token Analysis", "NFT Showcase", "Protocol Updates"]
+      : reelCategories;
+  useEffect(() => {
+    setPostCategory(modePostCategories[0]);
+    setReelCategory(modeReelCategories[0]);
+  }, [activeTrinityLens]);
   const storyCategories = [
     "Folklore","Life Journey","Philosophy","Innovation","Romance","Adventure","Mystery",
     "Wisdom","Crypto Stories","Blockchain Tales","Tech Fiction","Entrepreneurship",
@@ -799,7 +815,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
               <label className="form-label"><Sparkles size={12} /> Category</label>
               <select className="category-select" value={postCategory}
                 onChange={(e) => setPostCategory(e.target.value)} disabled={loading}>
-                {postCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                {modePostCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
 
@@ -852,7 +868,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
               <label className="form-label"><Sparkles size={12} /> Category</label>
               <select className="category-select" value={reelCategory}
                 onChange={(e) => setReelCategory(e.target.value)} disabled={loading}>
-                {reelCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                {modeReelCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
 

@@ -356,6 +356,7 @@ const HomeView = ({
   feedFilter    = null,
   onClearFilter = null,
   onJoinStream  = null,
+  trinityLens   = "everyday",
   activeHomeTab,
   setActiveHomeTab,
 }) => {
@@ -404,8 +405,24 @@ const HomeView = ({
   const tabFetchedAt   = useRef({ feed:0, stories:0, news:0, culture:0 });
 
   const currentTab   = activeHomeTab || "feed";
+  const modeCategory = trinityLens === "gaming" ? "Gaming" : trinityLens === "web3" ? "Web3" : null;
+  const newsCategory = trinityLens === "gaming" ? "global" : trinityLens === "web3" ? "crypto" : null;
   const savedFolders = ["Favorites", "Inspiration", "Later"];
   const resolvedUser = currentUser || currentUserProp;
+  const sportsPosts = useMemo(() => {
+    const source = Array.isArray(posts) ? posts : [];
+    return source.filter((p) => {
+      const text = `${p?.category || ""} ${p?.title || ""} ${p?.description || ""}`.toLowerCase();
+      return text.includes("sport") || text.includes("football") || text.includes("basketball") || text.includes("match") || text.includes("league");
+    });
+  }, [posts]);
+  const sportsReels = useMemo(() => {
+    const source = Array.isArray(reels) ? reels : [];
+    return source.filter((r) => {
+      const text = `${r?.category || ""} ${r?.title || ""} ${r?.description || ""}`.toLowerCase();
+      return text.includes("sport") || text.includes("football") || text.includes("basketball") || text.includes("match") || text.includes("league");
+    });
+  }, [reels]);
 
   const stableNews = useMemo(() => newsPosts, [newsPosts.length, newsPosts[0]?.id]); // eslint-disable-line
 
@@ -442,10 +459,10 @@ const HomeView = ({
     try {
       const [user, postsData, reelsData, storiesData, newsData] = await Promise.all([
         authService.getCurrentUser().catch(() => null),
-        postService.getPosts({}, 0, POSTS_PAGE).catch(() => []),
-        reelService.getReels({ limit: REELS_PAGE }).catch(() => []),
+        postService.getPosts(modeCategory ? { category: modeCategory } : {}, 0, POSTS_PAGE).catch(() => []),
+        reelService.getReels(modeCategory ? { category: modeCategory, limit: REELS_PAGE } : { limit: REELS_PAGE }).catch(() => []),
         storyService.getStories({ limit: 20 }).catch(() => []),
-        newsService.getNewsPosts({ limit: NEWS_PAGE, offset: 0 }).catch(() => []),
+        newsService.getNewsPosts({ limit: NEWS_PAGE, category: newsCategory, offset: 0 }).catch(() => []),
       ]);
 
       if (!mountedRef.current) return;
@@ -867,6 +884,10 @@ const HomeView = ({
       setActiveHomeTab?.("discovery");
       return;
     }
+    if (dest === "sports") {
+      setActiveHomeTab?.("sports");
+      return;
+    }
     if (typeof setActiveHomeTab === "function" && dest) {
       setActiveHomeTab(dest);
     }
@@ -974,6 +995,35 @@ const HomeView = ({
               )}
             </div>
 
+            {/* ── SPORTS TAB ── */}
+            <div style={{ display: currentTab==="sports" ? "block" : "none" }}>
+              {(sportsPosts.length > 0 || sportsReels.length > 0) ? (
+                <FeedTab
+                  posts={sportsPosts}
+                  reels={sportsReels}
+                  currentUser={resolvedUser}
+                  onAuthorClick={handleAuthorClick}
+                  onActionMenu={handleActionMenu}
+                  onComment={handleComment}
+                  onOpenFullScreen={(id) => {
+                    const post = sportsPosts.find(p => p.id === id);
+                    const reel = sportsReels.find(r => r.id === id);
+                    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
+                    else if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
+                  }}
+                  onLoadMore={loadMorePosts}
+                  hasMore={hasMorePosts}
+                  isLoadingMore={loadingMore}
+                  isActive={currentTab==="sports"}
+                  setActiveHomeTab={handlePipelineNavigate}
+                />
+              ) : !showSkeleton ? (
+                <EmptyState icon={<Newspaper size={38} />}
+                  title="No sports content yet"
+                  text="Sport clips and updates will appear here when they are posted." />
+              ) : null}
+            </div>
+
             {/* ── NEWS TAB ── */}
             <div style={{ display: currentTab==="news" ? "block" : "none" }}>
               <NewsTab
@@ -984,6 +1034,7 @@ const HomeView = ({
                 hasMore={hasMoreNews}
                 isLoadingMore={newsLoading}
                 isActive={currentTab==="news"}
+                sourceCategory={newsCategory}
               />
             </div>
 

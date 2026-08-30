@@ -58,7 +58,6 @@ import { usePullToRefresh }        from "./hooks/usePullToRefresh";
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
-import BoostStyles               from "./components/Boost/BoostStyles";
 
 // Shared UI
 import DesktopHeader from "./components/Shared/DesktopHeader";
@@ -66,6 +65,10 @@ import MobileHeader from "./components/Shared/MobileHeader";
 import MobileBottomNav from "./components/Shared/MobileBottomNav";
 import Sidebar from "./components/Shared/Sidebar";
 import AdminSidebar from "./components/Shared/AdminSidebar";
+import HomeViewRouter from "./components/Home/HomeViewRouter";
+import TrendingSidebar from "./components/Shared/TrendingSidebar";
+import xrcService from "./services/xrc";
+
 const SupportSidebar = lazy(() => import("./components/Shared/SupportSidebar"));
 const NotificationSidebar = lazy(() => import("./components/Shared/NotificationSidebar"));
 const InAppNotificationToast = lazy(() => import("./components/Shared/InAppNotificationToast"));
@@ -73,7 +76,6 @@ const AccountSwitchPrompt = lazy(() => import("./components/Shared/AccountSwitch
 const PullToRefreshIndicator = lazy(() => import("./components/Shared/PullToRefreshIndicator"));
 const NetworkError = lazy(() => import("./components/Shared/NetworkError"));
 const IncomingCallToast = lazy(() => import("./components/Messages/IncomingCallToast"));
-import xrcService              from "./services/xrc";
 // DEV REMINDER: Keep account/security/profile writes inside XRC-aware services.
 // Never bypass `xrcService.writeRecord` or direct profile updates for verified user writes.
 // This ensures audit trails can trace posts, wallet transfers, profile changes, and security updates.
@@ -86,13 +88,11 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 
 // ── TRACK A: Keep-alive tab views ─────────────────────────────────────────────
-import HomeView from "./components/Home/HomeView";
 const ExploreView     = lazy(() => import("./components/Explore/ExploreView"));
 const CreateView      = lazy(() => import("./components/Create/CreateView"));
 const AccountView     = lazy(() => import("./components/Account/AccountView"));
-const WalletView      = lazy(() => import("./components/wallet/WalletView"));
+const WalletViewRouter      = lazy(() => import("./components/wallet/WalletViewRouter"));
 const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
-import TrendingSidebar from "./components/Shared/TrendingSidebar";
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
 const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
@@ -323,7 +323,7 @@ const MainApp = memo(() => {
     if (normalized && normalized !== themeMode) {
       setThemeMode(normalized);
     }
-  }, [profile?.preferences]);
+  }, [profile?.preferences, themeMode]);
 
   useEffect(() => {
     const openCommunityDm = (event) => {
@@ -747,7 +747,7 @@ const MainApp = memo(() => {
   }, []);
 
   const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode };
-  const showTrending = activeTab !== "community" && activeTab !== "wallet";
+  const showTrending = activeTab !== "wallet";
 
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {
@@ -757,7 +757,7 @@ const MainApp = memo(() => {
         el: (
           <Suspense fallback={<TabSkeleton />}>
             <div ref={feedRef}>
-              <HomeView
+              <HomeViewRouter
                 {...viewProps}
                 clearDeepLink={() => setDeepLinkTarget(null)}
                 homeSection={homeSection}
@@ -817,7 +817,7 @@ const MainApp = memo(() => {
         id: "wallet",
         el: (
           <Suspense fallback={<TabSkeleton />}>
-            <WalletView
+            <WalletViewRouter
               userBalance={userBalance}
               setUserBalance={setUserBalance}
               isMobile={isMobile}
@@ -983,6 +983,7 @@ const MainApp = memo(() => {
           onSignOut={handleSignOut}
           user={user}
           xrcService={xrcService}
+          setActiveHomeTab={setActiveHomeTab}
         />
       </Suspense>
     );
@@ -1237,12 +1238,12 @@ MainApp.displayName = "MainApp";
 function AppRouter() {
   const {
     user, profile,
-    loading, profileLoading, adminRoleLoading,
+    loading, profileLoading,
   } = useAuth();
 
   const [forceResolve,    setForceResolve]    = useState(false);
   const [profileTimedOut, setProfileTimedOut] = useState(false);
-  const oauthInProgress = hasOAuthCodeInUrl();
+  hasOAuthCodeInUrl();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
   useEffect(() => {

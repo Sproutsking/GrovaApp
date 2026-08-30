@@ -21,8 +21,9 @@ import ReactDOM from "react-dom";
 import {
   TrendingUp, X, Eye, Sparkles, Flame, Crown, ChevronRight,
   RefreshCw, ArrowRight, ArrowLeft, Hash, FileText, Play,
-  BookOpen, Zap, Radio, Tv,
+  BookOpen, Zap, Radio, Tv, BarChart2, Gamepad2,
 } from "lucide-react";
+import useTrinitylens from "../../hooks/useTrinitylens";
 
 import { supabase }         from "../../services/config/supabase";
 import mediaUrlService      from "../../services/shared/mediaUrlService";
@@ -314,6 +315,7 @@ const StreamerCircle = ({ session, onJoin, isOwn }) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab, setFeedFilter, onJoinStream }) => {
+  const { activeTrinityLens } = useTrinitylens();
   const [liveSessions,    setLiveSessions]    = useState([]);
   const [liveLoading,     setLiveLoading]     = useState(true);
   const [topStreamers,    setTopStreamers]    = useState(() => readTrendingCache().topStreamers || []);
@@ -587,6 +589,19 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
 
   const topTags      = trendingTags.slice(0, 3);
   const topCreators  = eliteCreators.slice(0, 3);
+  const modeSignals = activeTrinityLens === "web3"
+    ? [
+        { label: "$XEV momentum", value: "+12.5%", tone: "up" },
+        { label: "On-chain activity", value: "Live", tone: "live" },
+        { label: "Wallet watchlist", value: "4 assets", tone: "flat" },
+      ]
+    : activeTrinityLens === "gaming"
+      ? [
+          { label: "Players online", value: "Live", tone: "live" },
+          { label: "Open matches", value: "Find a game", tone: "flat" },
+          { label: "Item markets", value: "Active", tone: "up" },
+        ]
+      : [];
 
   return (
     <>
@@ -893,6 +908,27 @@ const TrendingSidebar = ({ currentUser, isMobile = false, onClose, setActiveTab,
               </>
             )}
           </div>
+
+          {modeSignals.length > 0 && (
+            <div className="ts-section">
+              <SectionHeader
+                icon={activeTrinityLens === "web3" ? BarChart2 : Gamepad2}
+                iconColor="var(--accent)"
+                iconBg="var(--accent-bg-soft)"
+                iconBorder="var(--accent-border)"
+                title={activeTrinityLens === "web3" ? "Signals" : "Gaming Pulse"}
+              />
+              <div className="ts-divider" />
+              <div className="tag-list">
+                {modeSignals.map((signal) => (
+                  <div className="tag-row" key={signal.label}>
+                    <div className={`tag-num${signal.tone === "up" ? " hot" : ""}`}>•</div>
+                    <div className="tag-body"><span className="tag-name">{signal.label}</span><span className="tag-meta">{signal.value}</span></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── TOP CREATORS ── */}
           <div className="ts-section">

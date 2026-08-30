@@ -26,22 +26,23 @@ import { walletService } from "../../services/wallet/walletService";
 import { CurrencyProvider } from "../../contexts/CurrencyContext";
 import { useAuth } from "../Auth/AuthContext";
 import { supabase } from "../../services/config/supabase";
+import useTrinitylens from "../../hooks/useTrinitylens";
 
 // ── Nigerian / OPay region detection ────────────────────────────
 function isNigerianUser(profile) {
   if (!profile) return false;
   if (profile?.region) {
     const r = profile.region.toLowerCase();
-    if (r.includes("ng") || r.includes("nigeria")) return true;
+    if (r === "ng" || r.includes("nigeria")) return true;
   }
   if (profile?.phone) {
     const clean = profile.phone.replace(/[\s\-()\+]/g, "");
-    if (clean.startsWith("234") || clean.startsWith("+234")) return true;
+    if (clean.startsWith("234")) return true;
     if (/^0[789][01]/.test(clean)) return true;
   }
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (tz.toLowerCase().includes("lagos") || tz.toLowerCase().includes("africa/")) return true;
+    if (tz.toLowerCase().includes("lagos")) return true;
   } catch {}
   return false;
 }
@@ -291,6 +292,7 @@ const LAYOUT_CSS = `
 
 // ── Right Sidebar ─────────────────────────────────────────────
 function WalletSidebar() {
+  const { activeTrinityLens } = useTrinitylens();
   const [markets, setMarkets] = useState([
     { sym: "BTC",  val: null,    chg: null,        up: true },
     { sym: "ETH",  val: null,    chg: null,        up: true },
@@ -307,6 +309,25 @@ function WalletSidebar() {
   ]);
 
   const [cryptoStale, setCryptoStale] = useState(true);
+  const sidebarMarkets = activeTrinityLens === "gaming"
+    ? [
+        { sym: "XP", val: "0", chg: "Player XP", up: true },
+        { sym: "COINS", val: "0", chg: "Virtual coins", up: true },
+        { sym: "ITEMS", val: "0", chg: "Game assets", up: true },
+        { sym: "ESCROW", val: "0", chg: "Protected", up: true },
+      ]
+    : markets;
+  const modeRail = activeTrinityLens === "gaming"
+    ? {
+        title: "Gaming Economy",
+        rows: [["Game assets", "Ready"], ["Escrow", "Protected"], ["Player tips", "Instant"]],
+      }
+    : activeTrinityLens === "web3"
+      ? {
+          title: "On-chain Pulse",
+          rows: [["Network", "XRC"], ["Signatures", "Secure"], ["Staking", "Available"]],
+        }
+      : null;
 
   const fmtPrice = (n) => {
     if (n == null) return null;
@@ -401,11 +422,11 @@ function WalletSidebar() {
   }, []);
 
   useEffect(() => {
-    fetchCrypto();
+    if (activeTrinityLens !== "gaming") fetchCrypto();
     fetchPlatformStats();
-    const t = setInterval(fetchCrypto, 60_000);
+    const t = activeTrinityLens === "gaming" ? null : setInterval(fetchCrypto, 60_000);
     return () => clearInterval(t);
-  }, [fetchCrypto, fetchPlatformStats]);
+  }, [activeTrinityLens, fetchCrypto, fetchPlatformStats]);
 
   return (
     <>
@@ -415,10 +436,22 @@ function WalletSidebar() {
         <br /><span style={{ color: "rgba(255,255,255,0.18)" }}>Token sale coming soon.</span>
       </div>
 
+      {modeRail && (
+        <div className="wvs-card lime">
+          <div className="wvs-title lime">{modeRail.title}</div>
+          {modeRail.rows.map(([label, value]) => (
+            <div className="wvs-row" key={label}>
+              <span className="wvs-stat-label">{label}</span>
+              <span className="wvs-stat-val" style={{ color: "#a3e635" }}>{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="wvs-card lime">
         <div className="wvs-title lime">
           <div className="wvs-pulse" />
-          Crypto Markets
+          {activeTrinityLens === "gaming" ? "Gaming Markets" : "Crypto Markets"}
           <span style={{
             marginLeft: "auto", fontSize: 9, fontFamily: "monospace",
             color: cryptoStale ? "rgba(248,113,113,0.5)" : "rgba(132,204,22,0.55)",
@@ -427,7 +460,7 @@ function WalletSidebar() {
             {cryptoStale ? "STALE" : "LIVE"}
           </span>
         </div>
-        {markets.map((m) => (
+        {sidebarMarkets.map((m) => (
           <div key={m.sym} className="wvs-row">
             <span className="wvs-sym">{m.sym}</span>
             <div style={{ textAlign: "right" }}>

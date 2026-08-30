@@ -17,13 +17,15 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import {
   User, LogOut, ChevronDown, Crown, Shield,
-  Plus, Check, RefreshCw, Trash2,
+  Plus, Check, RefreshCw, Trash2, Sun,
+  Gamepad2, Zap, Coins,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import AddAccountOverlay, {
   loadAccounts,
   saveAccountsToStorage,
 } from "../Auth/AddAccountOverlay";
+import useTrinitylens from "../../hooks/useTrinitylens";
 
 const MAX_ACCOUNTS = 3;
 
@@ -104,14 +106,63 @@ const AccountRow = ({ account, isCurrent, onSwitch, onRemove, idx }) => (
 );
 
 // ── Portalled Dropdown Panel ──────────────────────────────────────────────────
+const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
+  const { activeTrinityLens, setActiveTrinityLens } = useTrinitylens();
+  const isActive = activeTrinityLens === mode;
+
+  return (
+    <button
+      onClick={() => setActiveTrinityLens(mode)}
+      title={`Switch to ${label} mode`}
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "4px",
+        padding: "8px 6px",
+        background: isActive ? "var(--primary-surface, rgba(132,204,22,0.15))" : "var(--surface)",
+        border: isActive ? "1.5px solid var(--primary, #84cc16)" : "1px solid var(--surface-border)",
+        borderRadius: "10px",
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+        color: isActive ? "var(--primary, #84cc16)" : "var(--text-secondary)",
+        fontSize: "11px",
+        fontWeight: isActive ? 700 : 600,
+        fontFamily: "inherit",
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "var(--surface-strong)";
+          e.currentTarget.style.borderColor = "var(--primary, #84cc16)";
+          e.currentTarget.style.color = "var(--primary, #84cc16)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "var(--surface)";
+          e.currentTarget.style.borderColor = "var(--surface-border)";
+          e.currentTarget.style.color = "var(--text-secondary)";
+        }
+      }}
+    >
+      <span style={{ fontSize: "14px", lineHeight: 1 }}>{icon}</span>
+      {label}
+    </button>
+  );
+};
+
+// ── Portalled Dropdown Panel ──────────────────────────────────────────────────
 const DropdownPortal = ({
   anchorRef, profile, avatarUrl, imageLoaded, imageError,
-  isValidAvatar, fallbackLetter, onAccount, onLogout,
+  isValidAvatar, fallbackLetter, onAccount, onBoost, onLogout,
   savedAccounts, currentUserId, onSwitchAccount, onRemoveAccount, onAddAccount,
   canAddMore,
 }) => {
   const [pos,           setPos]           = useState({ top:0, left:0 });
   const [accordionOpen, setAccordionOpen] = useState(false);
+  const [themeNotice,   setThemeNotice]   = useState(false);
 
   const recalc = useCallback(() => {
     if (!anchorRef.current) return;
@@ -213,10 +264,38 @@ const DropdownPortal = ({
 
       <div className="ad-div-shimmer"/>
 
+      {/* ── Trinity Mode Selector ── */}
+      <div style={{ padding: "8px 0 12px", borderBottom: "1px solid var(--surface-border)" }}>
+        <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", padding: "0 12px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          Experience Mode
+        </p>
+        <div style={{ display: "flex", gap: "6px", padding: "0 8px" }}>
+          <TrinitylensButton mode="everyday" label="Main" icon={<Zap size={12}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="gaming" label="Gaming" icon={<Gamepad2 size={12}/>} onAccount={onAccount}/>
+          <TrinitylensButton mode="web3" label="Web3" icon={<Coins size={12}/>} onAccount={onAccount}/>
+        </div>
+      </div>
+
+      <div style={{ padding: "10px 8px", borderBottom: "1px solid var(--surface-border)" }}>
+        <button
+          onClick={() => setThemeNotice(true)}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "9px 10px", background: "var(--surface)", border: "1px solid var(--surface-border)", borderRadius: "10px", color: "var(--text-secondary)", cursor: "pointer", fontSize: "12px", fontWeight: 700, fontFamily: "inherit" }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Sun size={14} color="#fbbf24" /> Theme</span>
+          <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Coming soon</span>
+        </button>
+        {themeNotice && <div style={{ padding: "7px 4px 0", color: "var(--text-tertiary)", fontSize: "10px", textAlign: "center" }}>Theme preferences are coming soon.</div>}
+      </div>
+
       <div className="ad-menu">
         <button className="ad-item account" onClick={onAccount}>
           <div className="ad-item-icon ad-icon-account"><User size={15} color="#84cc16"/></div>
           <span className="ad-item-label">Account</span>
+          <span className="ad-item-arrow">›</span>
+        </button>
+        <button className="ad-item boost" onClick={onBoost}>
+          <div className="ad-item-icon ad-icon-boost"><Crown size={15} color="#fbbf24"/></div>
+          <span className="ad-item-label">Boost</span>
           <span className="ad-item-arrow">›</span>
         </button>
         <div className="ad-div-danger">
@@ -240,7 +319,7 @@ const AvatarDropdown = ({
   profile, userId, avatarUrl, fallbackLetter,
   isValidAvatar, imageLoaded, imageError,
   onImageLoad, onImageError,
-  onOpenAccount, onSignOut,
+  onOpenAccount, onOpenBoost, onSignOut,
   isMobile = false,
 }) => {
   const [open,              setOpen]              = useState(false);
@@ -476,18 +555,24 @@ const AvatarDropdown = ({
         .ad-item:nth-child(3) { animation-delay:0.09s; }
         .ad-item.account { background:rgba(132,204,22,0.07); border-color:rgba(132,204,22,0.18); }
         .ad-item.account:hover { background:rgba(132,204,22,0.14); border-color:rgba(132,204,22,0.4); transform:translateX(2px); box-shadow:0 4px 16px rgba(132,204,22,0.15); }
+        .ad-item.boost { background:rgba(251,191,36,0.07); border-color:rgba(251,191,36,0.18); }
+        .ad-item.boost:hover { background:rgba(251,191,36,0.14); border-color:rgba(251,191,36,0.4); transform:translateX(2px); box-shadow:0 4px 16px rgba(251,191,36,0.12); }
         .ad-item.logout  { background:rgba(239,68,68,0.07); border-color:rgba(239,68,68,0.18); }
         .ad-item.logout:hover { background:rgba(239,68,68,0.13); border-color:rgba(239,68,68,0.4); transform:translateX(2px); box-shadow:0 4px 16px rgba(239,68,68,0.12); }
         .ad-item-icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.18s; }
         .ad-icon-account { background:rgba(132,204,22,0.12); border:1px solid rgba(132,204,22,0.25); }
+        .ad-icon-boost  { background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25); }
         .ad-icon-logout  { background:rgba(239,68,68,0.1);  border:1px solid rgba(239,68,68,0.25); }
         .ad-item:hover .ad-icon-account { background:rgba(132,204,22,0.22); }
+        .ad-item:hover .ad-icon-boost  { background:rgba(251,191,36,0.22); }
         .ad-item:hover .ad-icon-logout  { background:rgba(239,68,68,0.18); }
         .ad-item-label { flex:1; font-size:13px; font-weight:800; letter-spacing:0.1px; }
         .ad-item.account .ad-item-label { color:#c4f07c; }
+        .ad-item.boost .ad-item-label { color:#f9d66b; }
         .ad-item.logout  .ad-item-label { color:#f87171; }
         .ad-item-arrow { font-size:16px; line-height:1; font-weight:300; transition:transform 0.18s, opacity 0.18s; opacity:0.35; }
         .ad-item.account .ad-item-arrow { color:#84cc16; }
+        .ad-item.boost .ad-item-arrow { color:#fbbf24; }
         .ad-item.logout  .ad-item-arrow { color:#ef4444; }
         .ad-item:hover .ad-item-arrow { opacity:1; transform:translateX(3px); }
 
@@ -537,6 +622,7 @@ const AvatarDropdown = ({
             currentUserId={userId}
             canAddMore={canAddMore}
             onAccount={() => { setOpen(false); onOpenAccount?.(); }}
+            onBoost={() => { setOpen(false); onOpenBoost?.(); }}
             onLogout={() => { setOpen(false); setShowLogoutConfirm(true); }}
             onSwitchAccount={handleSwitchAccount}
             onRemoveAccount={handleRemoveAccount}

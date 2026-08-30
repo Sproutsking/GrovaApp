@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Home, Search, PlusSquare, Wallet, Users, LayoutGrid } from "lucide-react";
 import Logo from "./Assets/Logo.png";
-import ServicesModal from "./ServicesModal";
+import ServicesModalRouter from "./ServicesModalRouter";
 
 const navItems = [
   {
@@ -65,6 +65,7 @@ const Sidebar = ({
   user,
   currentUser,
   xrcService,
+  setActiveHomeTab,
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [showServices, setShowServices] = useState(false);
@@ -236,9 +237,13 @@ const Sidebar = ({
       </div>
 
       {showServices && (
-        <ServicesModal
+        <ServicesModalRouter
           onClose={() => setShowServices(false)}
           setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
+          setActiveHomeTab={(tab) => {
+            if (typeof setActiveHomeTab === "function") setActiveHomeTab(tab);
+            setShowServices(false);
+          }}
           currentUser={currentUser || user}
           xrcService={xrcService}
         />

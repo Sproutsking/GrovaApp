@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, HeadsetIcon, Clock, TrendingUp } from "lucide-react";
+import { Bell, HeadsetIcon, Clock, TrendingUp, Gamepad2, Coins, Radio, BarChart2, Trophy } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
@@ -14,6 +14,7 @@ import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
 import { supabase } from "../../services/config/supabase";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
+import useTrinitylens from "../../hooks/useTrinitylens";
 
 // ── Boost colours ─────────────────────────────────────────────────────────────
 const TIER_GREETING_COLORS = {
@@ -69,15 +70,6 @@ const PostsTabIcon = ({ active }) => (
   </svg>
 );
 
-const ReelsTabIcon = ({ active }) => (
-  <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-    <circle cx="7.5" cy="7.5" r="6.5"
-      fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.4"/>
-    <path d="M6 5L10.5 7.5L6 10V5Z"
-      fill={active ? "rgba(0,0,0,0.72)" : "currentColor"}/>
-  </svg>
-);
-
 const StoriesTabIcon = ({ active }) => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
     <path d="M7.5 1L9.18 5.3H13.8L10.06 7.97L11.41 12.5L7.5 9.6L3.59 12.5L4.94 7.97L1.2 5.3H5.82L7.5 1Z"
@@ -107,9 +99,27 @@ const HOME_TABS = [
   { id: "feed",      Icon: PostsTabIcon,     label: "Feed"      },
   { id: "stories",   Icon: StoriesTabIcon,   label: "Stories"   },
   { id: "news",      Icon: NewsTabIcon,      label: "News"      },
+  { id: "sports",    Icon: Trophy,           label: "Sports"    },
   { id: "culture",   Icon: CultureTabIcon,   label: "Culture"   },
 
 ];
+
+const TRINITY_TABS = {
+  gaming: [
+    { id: "feed", Icon: PostsTabIcon, label: "Feed" },
+    { id: "clips", Icon: Gamepad2, label: "Clips" },
+    { id: "news", Icon: NewsTabIcon, label: "News" },
+    { id: "sports", Icon: Trophy, label: "Sports" },
+    { id: "live", Icon: Radio, label: "Live" },
+  ],
+  web3: [
+    { id: "feed", Icon: PostsTabIcon, label: "Feed" },
+    { id: "news", Icon: NewsTabIcon, label: "News" },
+    { id: "alpha", Icon: TrendingUp, label: "Alpha" },
+    { id: "tokens", Icon: Coins, label: "Tokens" },
+    { id: "signals", Icon: BarChart2, label: "Signals" },
+  ],
+};
 
 // ── Fetch unread data ─────────────────────────────────────────────────────────
 const fetchUnreadData = async (userId) => {
@@ -147,6 +157,9 @@ const MobileHeader = ({
   activeHomeTab,
   setActiveHomeTab,
 }) => {
+  const { activeTrinityLens } = useTrinitylens();
+  const mobileTabs = activeTrinityLens === "everyday" ? HOME_TABS : TRINITY_TABS[activeTrinityLens];
+  const selectedHomeTab = mobileTabs.some(tab => tab.id === activeHomeTab) ? activeHomeTab : mobileTabs[0].id;
   const [displayedText,     setDisplayedText]     = useState("");
   const [isTyping,          setIsTyping]           = useState(false);
   const [greetingText,      setGreetingText]       = useState(getGreeting?.() || "Good Morning");
@@ -298,6 +311,7 @@ const MobileHeader = ({
               onImageLoad={() => { setImageLoaded(true);  setImageError(false); }}
               onImageError={() => { setImageLoaded(false); setImageError(true); }}
               onOpenAccount={() => setActiveTab("account")}
+              onOpenBoost={() => setActiveTab("upgrade")}
               onSignOut={onSignOut} isMobile={true}
               boostTier={hasBoosted ? tier    : null}
               boostThemeId={hasBoosted ? themeId : null}
@@ -337,8 +351,8 @@ const MobileHeader = ({
         {/* [4-TAB] Tab bar — only on home, now 4 tabs */}
         {isOnHome && (
           <nav className="mh-tab-bar" aria-label="Feed tabs">
-            {HOME_TABS.map(({ id, Icon, label }) => {
-              const active = activeHomeTab === id;
+            {mobileTabs.map(({ id, Icon, label }) => {
+              const active = selectedHomeTab === id;
               return (
                 <button
                   key={id}

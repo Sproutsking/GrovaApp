@@ -1,6 +1,6 @@
 // src/components/Shared/AdminSidebar.jsx
 import React, { useState, useEffect } from "react";
-import ServicesModal from "./ServicesModal";
+import ServicesModalRouter from "./ServicesModalRouter";
 import SectionHeader from "./SectionHeader";
 
 // ─────────────────────────────────────────────
@@ -613,7 +613,7 @@ export default function AdminSidebar({
       </aside>
 
       {showServices && (
-        <ServicesModal
+        <ServicesModalRouter
           onClose={() => setShowServices(false)}
           setActiveTab={(tab) => { setActiveTab(tab); setShowServices(false); }}
           currentUser={currentUser || user}

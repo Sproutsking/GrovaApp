@@ -464,9 +464,10 @@ const ConfirmSheet = ({
 
   return (
     <div style={{
-      background:"rgba(10,10,10,0.97)", backdropFilter:"blur(20px)",
-      border:`1px solid ${v.color}30`, borderRadius:20, padding:16,
-      boxShadow:"0 -4px 32px rgba(0,0,0,0.6)",
+      background:"linear-gradient(180deg, rgba(15,15,15,0.96), rgba(10,10,10,0.98))",
+      backdropFilter:"blur(18px)",
+      border:`1px solid ${v.color}35`, borderRadius:20, padding:16,
+      boxShadow:"0 12px 28px rgba(0,0,0,0.28)",
       animation:"cardIn 0.3s cubic-bezier(0.34,1.4,0.64,1)",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
@@ -671,22 +672,28 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
 
   return (
     <div style={{
-      position:"fixed", inset:0, zIndex:9500, background:"#060606", overflowY:"auto",
+      position:"fixed", inset:0, zIndex:9500, background:"radial-gradient(circle at top, rgba(251,191,36,0.12), rgba(6,6,6,0.98) 35%)", overflowY:"auto",
       fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-    }}>
+      color:"#f5f5f5",
+    }} className="boost-shell">
       <style>{`
         @keyframes cardIn  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         @keyframes popIn   { 0%{transform:scale(0.8);opacity:0} 60%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1} }
         @keyframes spin    { to{transform:rotate(360deg)} }
         @keyframes float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        .boost-shell {
+          background: radial-gradient(circle at top, rgba(251,191,36,0.12), rgba(7,7,7,0.96) 28%), #070707;
+        }
+        .boost-shell * { box-sizing: border-box; }
       `}</style>
 
       {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
       <div style={{
         position:"sticky", top:0, zIndex:10,
         display:"flex", alignItems:"center", gap:12, padding:"12px 16px",
-        background:"rgba(6,6,6,0.97)", backdropFilter:"blur(20px)",
-        borderBottom:"1px solid rgba(251,191,36,0.12)",
+        background:"rgba(12,12,12,0.82)", backdropFilter:"blur(18px)",
+        borderBottom:"1px solid rgba(245,158,11,0.15)",
+        boxShadow:"0 8px 30px rgba(0,0,0,0.18)",
       }}>
         <button onClick={onClose} style={{
           width:34, height:34, borderRadius:10,
@@ -776,26 +783,30 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
               {/* Hero (no boost yet) */}
               {!boost && (
                 <div style={{
-                  padding:"32px 20px 24px", textAlign:"center",
-                  background:"radial-gradient(ellipse at top,rgba(251,191,36,0.06) 0%,transparent 60%)",
+                  padding:"28px 20px 18px", textAlign:"center",
+                  background:"linear-gradient(180deg, rgba(251,191,36,0.08), rgba(255,255,255,0.02))",
+                  border:"1px solid rgba(251,191,36,0.16)",
+                  borderRadius:22,
+                  boxShadow:"0 12px 30px rgba(0,0,0,0.22)",
+                  marginTop:18,
                 }}>
                   <div style={{
-                    width:72, height:72, borderRadius:22, margin:"0 auto 18px",
+                    width:74, height:74, borderRadius:20, margin:"0 auto 16px",
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    background:"linear-gradient(135deg,rgba(251,191,36,0.2),rgba(251,191,36,0.06))",
-                    border:"1px solid rgba(251,191,36,0.3)",
-                    boxShadow:"0 8px 32px rgba(251,191,36,0.2)",
+                    background:"linear-gradient(135deg, rgba(251,191,36,0.26), rgba(251,191,36,0.08))",
+                    border:"1px solid rgba(251,191,36,0.35)",
+                    boxShadow:"0 10px 28px rgba(251,191,36,0.18)",
                     animation:"float 3s ease-in-out infinite", fontSize:34,
                   }}>👑</div>
                   <h2 style={{ fontSize:24, fontWeight:900, color:"#fff", margin:"0 0 8px" }}>
                     Boost Your Profile
                   </h2>
-                  <p style={{ fontSize:13, color:"#525252", lineHeight:1.7, margin:"0 0 4px" }}>
-                    Unlock a stunning profile design, animated avatar ring,<br/>
-                    and exclusive creator perks.
+                  <p style={{ fontSize:13, color:"#a3a3a3", lineHeight:1.7, margin:"0 0 8px" }}>
+                    Unlock a premium profile identity with a custom avatar glow,<br/>
+                    richer visual treatment, and upgraded creator visibility.
                   </p>
-                  <p style={{ fontSize:11, color:"#383838", margin:0 }}>
-                    Economy: $1 = 100 EP · Secure instant payment · Cancel anytime
+                  <p style={{ fontSize:11, color:"#6b7280", margin:0 }}>
+                    Economy: $1 = 100 EP · Instant payment · Cancel anytime
                   </p>
                 </div>
               )}

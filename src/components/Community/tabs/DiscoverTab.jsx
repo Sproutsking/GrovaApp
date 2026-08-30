@@ -7,6 +7,7 @@ import {
   Info, Lock, Hash, MessageCircle, Calendar, Shield,
 } from "lucide-react";
 import CommunityAvatar from "../utils/communityVisuals";
+import useTrinitylens from "../../../hooks/useTrinitylens";
 
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 const CommunityDetailModal = ({ community, isMember, onClose, onJoin }) => {
@@ -96,6 +97,18 @@ const CATEGORIES = [
   {id:"technology",label:"Tech",Icon:Zap},{id:"creative",label:"Creative",Icon:Sparkles},
   {id:"gaming",label:"Gaming",Icon:Star},{id:"business",label:"Business",Icon:TrendingUp},
 ];
+const MODE_CATEGORIES = {
+  gaming: [
+    { id: "all", label: "All", Icon: Globe },
+    { id: "gaming", label: "Gaming", Icon: Star },
+    { id: "technology", label: "Game Tech", Icon: Zap },
+  ],
+  web3: [
+    { id: "all", label: "All", Icon: Globe },
+    { id: "blockchain", label: "Blockchain", Icon: Crown },
+    { id: "business", label: "DeFi & Markets", Icon: TrendingUp },
+  ],
+};
 const SORT_OPTIONS = [
   {id:"trending",label:"Trending"},{id:"members",label:"Members"},
   {id:"active",label:"Active"},{id:"newest",label:"Newest"},
@@ -109,6 +122,8 @@ const countValue = (value) => {
 };
 
 const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
+  const { activeTrinityLens } = useTrinitylens();
+  const visibleCategories = MODE_CATEGORIES[activeTrinityLens] || CATEGORIES.slice(0, 3);
   const [search, setSearch]         = useState("");
   const [category, setCategory]     = useState("all");
   const [sort, setSort]             = useState("trending");
@@ -118,6 +133,10 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
   const [detail, setDetail]         = useState(null);
   const catRef  = useRef(null);
   const sortRef = useRef(null);
+
+  useEffect(() => {
+    if (!visibleCategories.some((item) => item.id === category)) setCategory("all");
+  }, [activeTrinityLens]);
 
   useEffect(() => {
     const h = (e) => {
@@ -145,7 +164,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
       return (b.trending_score||countValue(b.member_count))-(a.trending_score||countValue(a.member_count));
     });
 
-  const selCat  = CATEGORIES.find(c=>c.id===category);
+  const selCat  = visibleCategories.find(c=>c.id===category) || visibleCategories[0];
   const selSort = SORT_OPTIONS.find(s=>s.id===sort);
 
   return (
@@ -171,7 +190,7 @@ const DiscoverTab = ({ communities, myCommunities, onJoin, onSelect }) => {
               </button>
               {showCatDd&&(
                 <div className="disc-dd-menu">
-                  {CATEGORIES.map(({id,label,Icon})=>(
+                  {visibleCategories.map(({id,label,Icon})=>(
                     <button key={id} className={`disc-dd-item${category===id?" on":""}`} onClick={()=>{setCategory(id);setShowCatDd(false);}}>
                       <Icon size={12}/>{label}
                       {category===id&&<CheckCircle size={11} style={{marginLeft:"auto",color:"#9cff00"}}/>}

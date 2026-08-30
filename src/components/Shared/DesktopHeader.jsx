@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Clock, Bell, HelpCircle } from "lucide-react";
+import { Clock, Bell, HelpCircle, Gamepad2, Coins, Radio, BarChart2, TrendingUp, Trophy } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
@@ -13,6 +13,7 @@ import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
 import { supabase } from "../../services/config/supabase";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
+import useTrinitylens from "../../hooks/useTrinitylens";
 
 // ── Boost tier colours ────────────────────────────────────────────────────────
 const TIER_GREETING_COLORS = {
@@ -58,22 +59,6 @@ const PostsIcon = ({ active }) => (
       fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5"/>
     <rect x="9.85" y="9.85" width="6.3" height="6.3" rx="1.4"
       fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="1.8 1.6"/>
-  </svg>
-);
-
-const ReelsIcon = ({ active }) => (
-  <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-    {active ? (
-      <>
-        <circle cx="8.5" cy="8.5" r="7.5" fill="currentColor"/>
-        <path d="M7 5.8L12.1 8.5L7 11.2V5.8Z" fill="rgba(0,0,0,0.72)"/>
-      </>
-    ) : (
-      <>
-        <circle cx="8.5" cy="8.5" r="7" stroke="currentColor" strokeWidth="1.5"/>
-        <path d="M7 5.8L12.1 8.5L7 11.2V5.8Z" fill="currentColor"/>
-      </>
-    )}
   </svg>
 );
 
@@ -124,8 +109,26 @@ const NAV_TABS = [
   { id: "feed",    Icon: PostsIcon,   label: "Feed"    },
   { id: "stories", Icon: StoriesIcon, label: "Stories" },
   { id: "news",    Icon: NewsIcon,    label: "News"    },
+  { id: "sports",  Icon: Trophy,      label: "Sports"  },
   { id: "culture", Icon: CultureIcon, label: "Culture" },
 ];
+
+const TRINITY_TABS = {
+  gaming: [
+    { id: "feed",   Icon: PostsIcon, label: "Feed" },
+    { id: "clips",  Icon: Gamepad2, label: "Clips" },
+    { id: "news",   Icon: NewsIcon,  label: "News" },
+    { id: "sports", Icon: Trophy,    label: "Sports" },
+    { id: "live",   Icon: Radio,     label: "Live" },
+  ],
+  web3: [
+    { id: "feed",   Icon: PostsIcon,   label: "Feed" },
+    { id: "news",   Icon: NewsIcon,    label: "News" },
+    { id: "alpha",   Icon: TrendingUp, label: "Alpha" },
+    { id: "tokens",  Icon: Coins,      label: "Tokens" },
+    { id: "signals", Icon: BarChart2,  label: "Signals" },
+  ],
+};
 
 // ── Fetch unread data ─────────────────────────────────────────────────────────
 const fetchUnreadData = async (userId) => {
@@ -169,6 +172,9 @@ const DesktopHeader = ({
   setActiveHomeTab,
 }) => {
   const isOnHome = activeTab === "home";
+  const { activeTrinityLens } = useTrinitylens();
+  const headerTabs = activeTrinityLens === "everyday" ? NAV_TABS : TRINITY_TABS[activeTrinityLens];
+  const selectedHomeTab = headerTabs.some(tab => tab.id === activeHomeTab) ? activeHomeTab : headerTabs[0].id;
   const [displayedText,  setDisplayedText]  = useState("");
   const [isTyping,       setIsTyping]        = useState(false);
   const [greetingText,   setGreetingText]    = useState(getGreeting());
@@ -323,6 +329,7 @@ const DesktopHeader = ({
               onImageLoad={() => { setImageLoaded(true);  setImageError(false); }}
               onImageError={() => { setImageLoaded(false); setImageError(true); }}
               onOpenAccount={() => setActiveTab("account")}
+              onOpenBoost={() => setActiveTab("upgrade")}
               onSignOut={onSignOut} isMobile={false}
               boostTier={hasBoosted ? tier    : null}
               boostThemeId={hasBoosted ? themeId : null}
@@ -336,8 +343,8 @@ const DesktopHeader = ({
           {/* CENTRE — [4-TAB] now 4 tabs (only visible on Home) */}
           {isOnHome && (
             <nav className="dh-nav-strip" aria-label="Feed navigation">
-              {NAV_TABS.map(({ id, Icon, label }) => {
-                const isActive = activeHomeTab === id;
+              {headerTabs.map(({ id, Icon, label }) => {
+                const isActive = selectedHomeTab === id;
                 return (
                   <button
                     key={id}
