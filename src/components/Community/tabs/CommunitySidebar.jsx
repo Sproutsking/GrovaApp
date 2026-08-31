@@ -231,21 +231,27 @@ const CommunitySidebar = ({
         .community-icon-wrap {
           position: relative;
           cursor: pointer;
+          display:flex; align-items:center; justify-content:center;
+          padding: 2px 0;
           transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           flex-shrink: 0;
         }
         .community-icon-wrap .cav-root {
+          width: 50px !important;
+          height: 50px !important;
           border: 1px solid rgba(255,255,255,.1);
           box-shadow: 0 5px 16px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08);
+          display:flex; align-items:center; justify-content:center;
         }
         .community-icon-wrap:hover { transform: translateY(-3px); }
         .community-icon-wrap:active { transform: translateY(-1px) scale(0.98); }
 
         .community-icon-wrap.active .cav-root {
+          border-color: rgba(156,255,0,.45);
           box-shadow:
             0 10px 26px rgba(0,0,0,.45),
-            0 0 0 1px rgba(255,255,255,.09) inset,
-            0 0 34px -4px var(--cav-glow);
+            0 0 0 1px rgba(156,255,0,.22) inset,
+            0 0 26px -4px var(--cav-glow);
         }
 
         .community-icon-wrap:not(.active) .cav-root {
@@ -255,14 +261,14 @@ const CommunitySidebar = ({
         .community-icon-wrap.active::before {
           content: "";
           position: absolute;
-          left: -12px;
+          left: -10px;
           top: 50%;
           transform: translateY(-50%);
           width: 4px;
-          height: 26px;
-          background: linear-gradient(180deg, var(--accent), transparent);
-          border-radius: 0 2px 2px 0;
-          box-shadow: 0 0 8px rgba(156,255,0,0.5);
+          height: 28px;
+          background: linear-gradient(180deg, var(--accent), rgba(156,255,0,.4));
+          border-radius: 0 4px 4px 0;
+          box-shadow: 0 0 10px rgba(156,255,0,0.5);
         }
 
         .community-icon.create {

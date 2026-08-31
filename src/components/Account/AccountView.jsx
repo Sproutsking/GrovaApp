@@ -290,72 +290,97 @@ const AccountView = ({
     { id: "settings",  icon: <Settings size={16} />,        label: "Settings"  },
   ];
 
+  const isDesktopWide = typeof window !== "undefined" && window.innerWidth >= 1024;
+
   return (
-    <div className="account-view">
+    <div className="account-view" style={{ display: "flex", flexDirection: "row", minHeight: "100vh" }}>
       <style>{ACCOUNT_CSS}</style>
 
-      {/* ── Tab Navigation ── */}
-      <div className={`account-tabs account-tabs--${themeMode === "dark" ? "dark" : "light"}`} role="tablist">
-        {TABS.map(({ id, icon, label }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={accountSection === id}
-            onClick={() => setAccountSection(id)}
-            className={`account-tab${accountSection === id ? " account-tab-active" : ""}`}
-          >
-            {icon}
-            <span>{label}</span>
-          </button>
-        ))}
+      {/* ── Main content column ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* ── Tab Navigation ── */}
+        <div className={`account-tabs account-tabs--${themeMode === "dark" ? "dark" : "light"}`} role="tablist">
+          {TABS.map(({ id, icon, label }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={accountSection === id}
+              onClick={() => setAccountSection(id)}
+              className={`account-tab${accountSection === id ? " account-tab-active" : ""}`}
+            >
+              {icon}
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Section Panels — All pre-rendered for instant switching ── */}
+        {(accountSection === "profile" || preRendered) && (
+          <div style={{ display: accountSection === "profile" ? "block" : "none" }}>
+            <ProfileSection
+              currentUser={currentUser}
+              userId={userId}
+              onProfileUpdate={loadBasicProfile}
+              onSignOut={onSignOut}
+              onNavigate={onNavigate}
+            />
+          </div>
+        )}
+
+        {(accountSection === "identity" || preRendered) && (
+          <div style={{ display: accountSection === "identity" ? "block" : "none" }}>
+            <IdentitySection userId={userId} />
+          </div>
+        )}
+
+        {(accountSection === "dashboard" || preRendered) && (
+          <div style={{ display: accountSection === "dashboard" ? "block" : "none" }}>
+            <DashboardSection
+              currentUser={currentUser}
+              profile={profileData}
+              setActiveTab={setAccountSection}
+              onNavigate={onNavigate}
+              onOpenSaved={onOpenSaved}
+            />
+          </div>
+        )}
+
+        {(accountSection === "security" || preRendered) && (
+          <div style={{ display: accountSection === "security" ? "block" : "none" }}>
+            <SecuritySection userId={userId} />
+          </div>
+        )}
+
+        {(accountSection === "settings" || preRendered) && (
+          <div style={{ display: accountSection === "settings" ? "block" : "none" }}>
+            <SettingsSection
+              isSubscribed={isSubscribed}
+              userId={userId}
+              themeMode={themeMode}
+              setThemeMode={setThemeMode}
+            />
+          </div>
+        )}
       </div>
 
-      {/* ── Section Panels — All pre-rendered for instant switching ── */}
-      {(accountSection === "profile" || preRendered) && (
-        <div style={{ display: accountSection === "profile" ? "block" : "none" }}>
-          <ProfileSection
-            currentUser={currentUser}
-            userId={userId}
-            onProfileUpdate={loadBasicProfile}
-            onSignOut={onSignOut}
-            onNavigate={onNavigate}
-          />
-        </div>
-      )}
-
-      {(accountSection === "identity" || preRendered) && (
-        <div style={{ display: accountSection === "identity" ? "block" : "none" }}>
-          <IdentitySection userId={userId} />
-        </div>
-      )}
-
-      {(accountSection === "dashboard" || preRendered) && (
-        <div style={{ display: accountSection === "dashboard" ? "block" : "none" }}>
-          <DashboardSection
-            currentUser={currentUser}
-            profile={profileData}
-            setActiveTab={setAccountSection}
-            onNavigate={onNavigate}
-            onOpenSaved={onOpenSaved}
-          />
-        </div>
-      )}
-
-      {(accountSection === "security" || preRendered) && (
-        <div style={{ display: accountSection === "security" ? "block" : "none" }}>
-          <SecuritySection userId={userId} />
-        </div>
-      )}
-
-      {(accountSection === "settings" || preRendered) && (
-        <div style={{ display: accountSection === "settings" ? "block" : "none" }}>
-          <SettingsSection
-            isSubscribed={isSubscribed}
-            userId={userId}
-            themeMode={themeMode}
-            setThemeMode={setThemeMode}
-          />
+      {/* ── Desktop trending sidebar (1024px+) ── */}
+      {isDesktopWide && (
+        <div style={{
+          width: 280,
+          flexShrink: 0,
+          borderLeft: `1px solid ${themeMode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(132,204,22,0.15)"}`,
+          background: themeMode === "dark" ? "rgba(0,0,0,0.2)" : "rgba(249,250,251,0.5)",
+          overflowY: "auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+          minHeight: "100%",
+        }}>
+          <div style={{ textAlign: "center", color: themeMode === "dark" ? "rgba(255,255,255,0.4)" : "rgba(100,116,139,0.6)", fontSize: 13, fontWeight: 600 }}>
+            Trending in Your Network
+          </div>
         </div>
       )}
     </div>

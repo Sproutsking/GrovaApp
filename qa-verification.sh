@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+ #!/usr/bin/env bash
 # 🔍 PRODUCTION QUALITY ASSURANCE VERIFICATION
 # Automated checks to confirm components are production-ready
 

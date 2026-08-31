@@ -68,9 +68,12 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
 
   return (
     <BoostProfileCard tier={tierId} themeId={theme?.id} style={{
-      borderRadius:20, padding:"20px 24px",
-      display:"flex", flexDirection:"column", alignItems:"center", gap:16,
+      borderRadius:20, padding:"24px 20px 20px",
+      minHeight:250, display:"flex", flexDirection:"column", alignItems:"center", gap:16,
     }}>
+      <div style={{ position:"absolute", top:12, left:14, fontSize:9, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:v?.color ?? "#fff" }}>
+        {v?.badgeLabel ?? tierId} boost
+      </div>
       <div style={{ position:"relative" }}>
         <div style={{
           width:72, height:72, borderRadius:"50%",
@@ -109,9 +112,10 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
         )}
       </div>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:15, fontWeight:900, color:"#fff", marginBottom:2 }}>
-          {currentUser?.fullName || currentUser?.full_name || "Your Name"}
-          <span style={{ marginLeft:6, fontSize:13 }}>{v?.badge}</span>
+        <div style={{ fontSize:15, fontWeight:900, color:"#fff", marginBottom:2, display:"flex", alignItems:"center", justifyContent:"center", gap:6, flexWrap:"wrap" }}>
+          <span>{currentUser?.fullName || currentUser?.full_name || "Your Name"}</span>
+          <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:"#22c55e", color:"#ffffff", fontSize:12, fontWeight:900, lineHeight:1, boxShadow:"0 0 12px rgba(34,197,94,0.5)" }} title="Verified paid member" aria-label="Verified paid member">✓</span>
+          <span style={{ fontSize:13 }}>{v?.badge}</span>
         </div>
         <div style={{ fontSize:12, color: v?.color ?? "#737373" }}>
           @{currentUser?.username ?? "username"}
@@ -125,6 +129,9 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
             {theme.emoji} {theme.name}
           </div>
         )}
+        <div style={{ marginTop:6, fontSize:10, fontWeight:800, color:"#4ade80", letterSpacing:"0.05em", textTransform:"uppercase" }}>
+          ✓ Verified paid member
+        </div>
         {/* EP bonus pill */}
         <div style={{
           marginTop:6, padding:"2px 10px", borderRadius:10, display:"inline-block",
@@ -327,14 +334,14 @@ const TierCard = ({
             border:     canAfford ? `1px solid ${v.color}35` : "1px solid rgba(239,68,68,0.3)",
           }}>
             <span style={{ fontSize:16, fontWeight:900, color:canAfford?v.color:"#ef4444" }}>
-              {fmtEP(epCost)}
+              {cfg.usd_display[billing]}
             </span>
             <span style={{ fontSize:10, color:"#737373", fontWeight:700 }}>
-              EP/{billing==="yearly"?"yr":"mo"}
+              {billing==="yearly"?"/yr":"/mo"}
             </span>
           </div>
           <div style={{ fontSize:9, color:"#84cc16", fontWeight:700, marginTop:2 }}>
-            ≡ ${cfg.usd_display[billing]}{billing==="yearly"?"/yr":"/mo"}
+            ≡ {fmtEP(epCost)} EP/{billing==="yearly"?"yr":"mo"}
           </div>
           {billing==="yearly" && savings>0 && (
             <div style={{ fontSize:9, color:"#22c55e", fontWeight:800 }}>

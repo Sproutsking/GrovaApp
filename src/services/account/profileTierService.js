@@ -14,8 +14,8 @@
 export const BOOST_TIERS = {
   silver: {
     name: "Silver Boost",
-    ep_price: { monthly: 200, yearly: 1_800 },
-    usd_display: { monthly: "$2", yearly: "$18" },
+    ep_price: { monthly: 100, yearly: 900 },
+    usd_display: { monthly: "$1", yearly: "$9" },
     ep_bonus_pct: 0,
     theme_count: 1,
     benefits: [
@@ -27,8 +27,8 @@ export const BOOST_TIERS = {
   },
   gold: {
     name: "Gold Boost",
-    ep_price: { monthly: 500, yearly: 5_000 },
-    usd_display: { monthly: "$5", yearly: "$50" },
+    ep_price: { monthly: 200, yearly: 1_600 },
+    usd_display: { monthly: "$2", yearly: "$16" },
     ep_bonus_pct: 10,
     theme_count: 2,
     benefits: [
@@ -41,8 +41,8 @@ export const BOOST_TIERS = {
   },
   diamond: {
     name: "Diamond Boost",
-    ep_price: { monthly: 1_100, yearly: 10_000 },
-    usd_display: { monthly: "$11", yearly: "$100" },
+    ep_price: { monthly: 300, yearly: 2_700 },
+    usd_display: { monthly: "$3", yearly: "$27" },
     ep_bonus_pct: 25,
     theme_count: 5,
     benefits: [

@@ -62,7 +62,7 @@ function StaticTierRing({ size, visual, bleed = 0 }) {
   return (
     <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", left: bleed - (radius - size / 2), top: bleed - (radius - size / 2), pointerEvents: "none", overflow: "visible" }}>
       <circle cx={radius} cy={radius} r={radius - 1} fill="none" stroke={visual.grad[0]} strokeWidth="2" />
-      <circle cx={radius} cy={radius} r={radius - 4} fill="none" stroke={visual.grad[1]} strokeWidth="0.75" strokeOpacity=".72" />
+      <circle cx={radius} cy={radius} r={radius + 2.5} fill="none" stroke={visual.grad[1]} strokeWidth="0.75" strokeOpacity=".72" />
     </svg>
   );
 }
@@ -381,8 +381,10 @@ const BoostAvatarRing = ({
   }, [src]);
 
   const visual = getVisual(tier, themeId);
-  const br     = borderRadius === "circle" ? "50%" : "28%";
-  const ringBleed = visual ? 6 : 0;
+  const normalizedRadius = typeof borderRadius === "string" ? borderRadius.toLowerCase() : "";
+  const br = normalizedRadius === "circle" || normalizedRadius === "rounded" || normalizedRadius === "round" ? "50%" : "28%";
+  const ringBleed = visual ? 10 : 0;
+  const showBadgeBg = showBadge && visual;
 
   const badgeW  = badgeSize === "md" ? 22 : 16;
   const badgeFs = badgeSize === "md" ? 11 : 8;
@@ -405,7 +407,7 @@ const BoostAvatarRing = ({
         flexShrink: 0,
         width:      size + ringBleed * 2,
         height:     size + ringBleed * 2,
-        borderRadius: borderRadius === "circle" ? "50%" : "32%",
+            borderRadius: br,
         cursor:     onClick ? "pointer" : "default",
         ...style,
       }}
@@ -435,43 +437,50 @@ const BoostAvatarRing = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            background: fallbackGrad,
           }}
         >
-        {/* Letter fallback */}
-        <span
-          style={{
-            position:   "absolute",
-            fontSize:   Math.round(size * 0.42),
-            fontWeight: 900,
-            color:      visual ? "#000" : "rgba(255,255,255,0.9)",
-            userSelect: "none",
-            lineHeight: 1,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {(letter || "U").charAt(0).toUpperCase()}
-        </span>
-
-        {/* Avatar image */}
           {isValidImg && (
-          <img
-            src={src}
-            alt=""
-            crossOrigin="anonymous"
-            onLoad={() => setImgLoaded(true)}
-            onError={() => setImgError(true)}
-            style={{
-              position:   "absolute",
-              inset:      0,
-              width:      "100%",
-              height:     "100%",
-              objectFit:  "cover",
-              objectPosition: "center",
-              opacity:    imgLoaded ? 1 : 0,
-              transition: "opacity 0.3s",
-            }}
-          />
+            <img
+              src={src}
+              alt=""
+              crossOrigin="anonymous"
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
+              style={{
+                position:   "absolute",
+                inset:      0,
+                width:      "100%",
+                height:     "100%",
+                objectFit:  "cover",
+                objectPosition: "center",
+                opacity:    imgLoaded ? 1 : 0,
+                transition: "opacity 0.3s ease",
+                zIndex:     2,
+              }}
+            />
           )}
+
+          {!isValidImg || imgError || !imgLoaded ? (
+            <span
+              style={{
+                position:   "absolute",
+                inset:      0,
+                display:    "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize:   Math.round(size * 0.42),
+                fontWeight: 900,
+                color:      visual ? "#000" : "rgba(255,255,255,0.9)",
+                userSelect: "none",
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+                zIndex:     3,
+              }}
+            >
+              {(letter || "U").charAt(0).toUpperCase()}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -501,6 +510,34 @@ const BoostAvatarRing = ({
         >
           {visual.badge}
         </div>
+      )}
+
+      {showBadge && visual && (
+        <span
+          title="Verified paid member"
+          aria-label="Verified paid member"
+          style={{
+            position: "absolute",
+            top: -2,
+            right: -2,
+            width: badgeW,
+            height: badgeW,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#22c55e",
+            border: "2px solid #060606",
+            color: "#041108",
+            fontSize: badgeFs + 1,
+            fontWeight: 900,
+            lineHeight: 1,
+            zIndex: 4,
+            boxShadow: "0 2px 8px rgba(34,197,94,.55)",
+          }}
+        >
+          ✓
+        </span>
       )}
     </div>
   );

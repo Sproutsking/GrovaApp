@@ -193,6 +193,8 @@ export const CommunityAvatar = ({
       <style>{`
         .cav-root{
           position:relative; flex-shrink:0; isolation:isolate;
+          display:flex; align-items:center; justify-content:center;
+          overflow:hidden; box-sizing:border-box;
           box-shadow: var(--cav-shadow, none);
           transition: box-shadow .3s ease, transform .25s cubic-bezier(.34,1.56,.64,1);
         }
@@ -225,8 +227,9 @@ export const CommunityAvatar = ({
           position:absolute; inset:0;
           display:flex; align-items:center; justify-content:center;
           overflow:hidden; color:#fff; font-weight:800; line-height:1;
+          z-index:3;
         }
-        .cav-img{ width:100%; height:100%; object-fit:cover; display:block; }
+        .cav-img{ width:100%; height:100%; object-fit:cover; display:block; object-position:center; }
         .cav-emoji{ filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
         @media (prefers-reduced-motion: reduce){
           .cav-motion .cav-bg{ animation:none; }
