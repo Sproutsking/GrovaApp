@@ -21,18 +21,37 @@ export default function VerificationPanel({ communityId, userId, onVerified }) {
   const verify = async () => {
     if (selected !== "reaction-role" || working) return;
     setWorking(true); setError("");
-    const { data, error: rpcError } = await supabase.rpc("verify_community_member", {
-      p_community_id: communityId,
-      p_user_id: userId,
-      p_method: selected,
-    });
-    if (rpcError || !data?.success) {
-      setError(rpcError?.message || data?.error || "Verification could not be completed.");
-    } else {
-      setDone(true);
-      onVerified?.();
+    try {
+      const { data, error: rpcError } = await supabase.rpc("verify_community_member", {
+        p_community_id: communityId,
+        p_user_id: userId,
+        p_method: selected,
+      });
+
+      if (rpcError || !data?.success) {
+        throw new Error(rpcError?.message || data?.error || "Verification could not be completed.");
+      }
+
+      const { data: memberRow, error: memberError } = await supabase
+        .from("community_members")
+        .select("role_id")
+        .eq("community_id", communityId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (memberError) throw memberError;
+      if (memberRow?.role_id) {
+        setDone(true);
+        onVerified?.();
+        return;
+      }
+
+      throw new Error("Verification succeeded but your role was not updated. Please refresh and try again.");
+    } catch (err) {
+      setError(err?.message || "Verification could not be completed.");
+    } finally {
+      setWorking(false);
     }
-    setWorking(false);
   };
 
   useEffect(() => {

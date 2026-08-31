@@ -706,6 +706,7 @@ const MembersSection = ({ community, userId }) => {
         .member-avatar {
           width: 56px;
           height: 56px;
+          min-width: 56px;
           border-radius: 50%;
           border: 3px solid rgba(156, 255, 0, 0.2);
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -713,14 +714,17 @@ const MembersSection = ({ community, userId }) => {
           align-items: center;
           justify-content: center;
           position: relative;
-          overflow: visible;
+          overflow: hidden;
           transition: all 0.3s;
+          box-shadow: 0 0 0 2px rgba(15, 15, 15, 0.8);
         }
 
         .member-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          object-position: center;
+          display: block;
           border-radius: 50%;
         }
 

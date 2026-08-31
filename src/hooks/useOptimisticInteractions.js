@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../services/config/supabase";
+import { processEngagement } from "../services/economy/epEconomyService";
 import optimisticStore from "../stores/optimisticStore";
 import LikeModel from "../models/LikeModel";
 
@@ -27,30 +28,8 @@ const EP_COSTS = {
 };
 
 // ── EP helpers ────────────────────────────────────────────────────────────────
-async function deductEP(userId, amount, reason) {
-  try {
-    const { data } = await supabase.rpc("deduct_ep", {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-    });
-    return !!data;
-  } catch {
-    return false;
-  }
-}
-
-async function awardEP(userId, amount, reason) {
-  try {
-    await supabase.rpc("award_ep", {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-    });
-  } catch {
-    /* silent — awards are best-effort */
-  }
-}
+// Use the production engagement ledger instead of legacy undefined RPC names.
+// This prevents the "Unable to verify EP" failure on real likes.
 
 // ── Session-scoped view deduplication (never count own, once per session) ─────
 const viewedThisSession = new Set();
@@ -232,21 +211,21 @@ export function useOptimisticInteractions(content, currentUser) {
     optimisticStore.adjustEPBalance(-EP_COSTS.like);
 
     try {
-      const epOk = await deductEP(userId, EP_COSTS.like, `like_${contentType}`);
-      if (!epOk) {
+      const epResult = await processEngagement({
+        actorId: userId,
+        contentType,
+        contentId,
+        engagementType: "like",
+      });
+
+      if (!epResult?.success) {
         // EP deduction failed — rollback
         setLiked(false);
         setLikeCount(prevCount);
         optimisticStore.setLikeState(contentType, contentId, userId, false);
         optimisticStore.invalidateEPCache();
-        showEpError(`Need ${EP_COSTS.like} EP to like`);
+        showEpError(epResult?.error || `Need ${EP_COSTS.like} EP to like`);
         return;
-      }
-
-      // Award creator EP (fire-and-forget)
-      if (content?.user_id && content.user_id !== userId) {
-        const fee = content?.profiles?.is_pro ? 0.08 : 0.18;
-        awardEP(content.user_id, EP_COSTS.like * (1 - fee), "received_like");
       }
 
       await LikeModel.toggleLike(contentType, contentId, userId);

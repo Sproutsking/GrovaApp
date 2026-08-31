@@ -620,18 +620,28 @@ class CommunityService {
 
   async deleteCommunity(communityId, userId) {
     try {
-      const { data: community } = await supabase
+      if (!communityId || !userId) {
+        throw new Error("Community and user are required to delete a community.");
+      }
+
+      const { data: community, error: fetchError } = await supabase
         .from("communities")
-        .select("owner_id")
+        .select("id, owner_id, deleted_at")
         .eq("id", communityId)
-        .single();
+        .maybeSingle();
 
-      if (community?.owner_id !== userId) throw new Error("Only the owner can delete this community");
+      if (fetchError) throw fetchError;
+      if (!community) throw new Error("Community not found.");
+      if (community.deleted_at) throw new Error("This community has already been deleted.");
+      if (community.owner_id !== userId) throw new Error("Only the owner can delete this community");
 
-      await supabase
+      const { error: deleteError } = await supabase
         .from("communities")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", communityId);
+        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", communityId)
+        .eq("owner_id", userId);
+
+      if (deleteError) throw deleteError;
 
       await this.markOffline(communityId, userId);
       this.invalidateUserCache(userId);

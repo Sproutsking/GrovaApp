@@ -747,7 +747,7 @@ const MainApp = memo(() => {
   }, []);
 
   const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode };
-  const showTrending = activeTab !== "wallet";
+  const showTrending = ["home", "search", "create"].includes(activeTab);
 
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {

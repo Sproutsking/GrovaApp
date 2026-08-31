@@ -181,6 +181,22 @@ class DMMessageService {
   }
 
   async deleteMessage(messageId, userId) {
+    if (!messageId || !userId) {
+      throw new Error("Message and user are required to delete a message.");
+    }
+
+    const { data: message, error: fetchError } = await supabase
+      .from("messages")
+      .select("id, sender_id")
+      .eq("id", messageId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (!message) throw new Error("Message not found.");
+    if (message.sender_id !== userId) {
+      throw new Error("You can only delete your own direct messages.");
+    }
+
     const { data, error } = await supabase.rpc("delete_direct_message", {
       p_message_id: messageId,
     });

@@ -159,11 +159,67 @@ const TrinitylensButton = ({ mode, label, icon, onAccount }) => {
 };
 
 // ── Portalled Dropdown Panel ──────────────────────────────────────────────────
+const SwitchAccountModal = ({ accounts, currentUserId, onClose, onSwitchAccount }) => (
+  ReactDOM.createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000001, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div style={{ width: "min(520px, 100%)", background: "rgba(12,14,18,0.97)", border: "1px solid rgba(132,204,22,0.22)", borderRadius: 22, boxShadow: "0 30px 80px rgba(0,0,0,0.55)", padding: 20, animation: "adSlideUp 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#84cc16", fontWeight: 800 }}>Account switch</div>
+            <h3 style={{ margin: "8px 0 0", color: "#fff", fontSize: 22, fontWeight: 900 }}>Choose a profile</h3>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Close account switcher">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+          {accounts.map((account) => {
+            const isCurrent = account.id === currentUserId;
+            return (
+              <button
+                key={account.id}
+                type="button"
+                onClick={() => { if (!isCurrent) onSwitchAccount(account); onClose(); }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+                  padding: 14, borderRadius: 16, border: isCurrent ? "1px solid rgba(132,204,22,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                  background: isCurrent ? "rgba(132,204,22,0.08)" : "rgba(255,255,255,0.02)", cursor: isCurrent ? "default" : "pointer",
+                  color: "#fff", textAlign: "center", position: "relative", transition: "transform 0.18s ease, border-color 0.18s ease",
+                }}
+              >
+                <div style={{ width: 60, height: 60, borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg, #84cc16 0%, #496a1b 100%)", border: "1px solid rgba(132,204,22,0.4)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                  {account.avatar ? <img src={account.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22, fontWeight: 900, color: "#000" }}>{(account.fullName || "U").charAt(0).toUpperCase()}</span>}
+                </div>
+                <div style={{ width: "100%" }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{account.fullName || "User"}</div>
+                  <div style={{ marginTop: 4, color: "#8b93a5", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{account.username || "user"}</div>
+                </div>
+                {isCurrent ? (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 999, background: "rgba(132,204,22,0.12)", border: "1px solid rgba(132,204,22,0.32)", color: "#84cc16", fontWeight: 800, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <Check size={10} /> Active
+                  </div>
+                ) : (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 999, background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", color: "#60a5fa", fontWeight: 800, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <RefreshCw size={10} /> Switch
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+);
+
 const DropdownPortal = ({
   anchorRef, profile, avatarUrl, imageLoaded, imageError,
   isValidAvatar, fallbackLetter, onAccount, onBoost, onLogout,
   savedAccounts, currentUserId, onSwitchAccount, onRemoveAccount, onAddAccount,
   canAddMore,
+  onOpenSwitchModal,
 }) => {
   const [pos,           setPos]           = useState({ top:0, left:0 });
   const [accordionOpen, setAccordionOpen] = useState(false);
@@ -298,6 +354,11 @@ const DropdownPortal = ({
           <span className="ad-item-label">Account</span>
           <span className="ad-item-arrow">›</span>
         </button>
+        <button className="ad-item boost" onClick={onOpenSwitchModal}>
+          <div className="ad-item-icon ad-icon-boost"><RefreshCw size={15} color="#fbbf24"/></div>
+          <span className="ad-item-label">Switch Account</span>
+          <span className="ad-item-arrow">›</span>
+        </button>
         <button className="ad-item boost" onClick={onBoost}>
           <div className="ad-item-icon ad-icon-boost"><Crown size={15} color="#fbbf24"/></div>
           <span className="ad-item-label">Profile Upgrade</span>
@@ -330,6 +391,7 @@ const AvatarDropdown = ({
   const [open,              setOpen]              = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showAddOverlay,    setShowAddOverlay]    = useState(false);
+  const [showSwitchModal,   setShowSwitchModal]   = useState(false);
   const [savedAccounts,     setSavedAccounts]     = useState(() => loadAccounts());
 
   const wrapRef = useRef(null);
@@ -632,9 +694,22 @@ const AvatarDropdown = ({
             onSwitchAccount={handleSwitchAccount}
             onRemoveAccount={handleRemoveAccount}
             onAddAccount={handleAddAccount}
+            onOpenSwitchModal={() => { setOpen(false); setShowSwitchModal(true); }}
           />
         )}
       </div>
+
+      {showSwitchModal && (
+        <SwitchAccountModal
+          accounts={savedAccounts}
+          currentUserId={userId}
+          onClose={() => setShowSwitchModal(false)}
+          onSwitchAccount={(account) => {
+            setShowSwitchModal(false);
+            handleSwitchAccount(account);
+          }}
+        />
+      )}
 
       {showLogoutConfirm && (
         <LogoutConfirm

@@ -40,10 +40,10 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
         .vdp-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
         .vdp-nav button{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:10px;padding:10px 13px;font-size:12px;font-weight:800;cursor:pointer}
         .vdp-kicker{color:#84cc16;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
-        .vdp-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;padding:28px;border:1px solid rgba(132,204,22,.2);border-radius:22px;background:linear-gradient(135deg,rgba(132,204,22,.1),rgba(255,255,255,.035) 48%,rgba(96,165,250,.08));box-shadow:0 24px 80px rgba(0,0,0,.28)}
-        .vdp-title{font-size:clamp(28px,4vw,48px);line-height:1.02;margin:8px 0 8px;font-weight:950;letter-spacing:-.03em}
-        .vdp-sub{margin:0;color:#aeb8c7;font-size:14px;line-height:1.6;max-width:620px}
-        .vdp-avatar-frame{width:130px;height:130px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(132,204,22,.28);box-shadow:0 0 0 9px rgba(132,204,22,.08),0 0 30px rgba(132,204,22,.12)}
+        .vdp-hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;padding:28px;border:1px solid rgba(132,204,22,.2);border-radius:22px;background:linear-gradient(135deg,rgba(132,204,22,.1),rgba(255,255,255,.035) 48%,rgba(96,165,250,.08));box-shadow:0 24px 80px rgba(0,0,0,.28)}
+        .vdp-title{font-size:clamp(28px,4vw,48px);line-height:1.02;margin:8px 0 8px;font-weight:950;letter-spacing:-.03em;text-align:left}
+        .vdp-sub{margin:0;color:#aeb8c7;font-size:14px;line-height:1.6;max-width:620px;text-align:left}
+        .vdp-avatar-frame{width:130px;height:130px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(132,204,22,.28);box-shadow:0 0 0 9px rgba(132,204,22,.08),0 0 30px rgba(132,204,22,.12);justify-self:start}
         .vdp-avatar{width:112px;height:112px;border-radius:50%;object-fit:cover;border:3px solid rgba(132,204,22,.55);image-rendering:auto;display:block}
         .vdp-avatar-fallback{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:#17220c;color:#84cc16;font-size:42px;font-weight:950;border:3px solid rgba(132,204,22,.55)}
         .vdp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}

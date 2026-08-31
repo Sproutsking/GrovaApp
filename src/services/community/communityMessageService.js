@@ -316,6 +316,31 @@ class CommunityMessageService {
 
   async deleteMessage(messageId, userId, communityId) {
     try {
+      if (!messageId || !userId) {
+        throw new Error("Message and user are required to delete a message.");
+      }
+
+      const { data: message, error: fetchError } = await supabase
+        .from("community_messages")
+        .select("id, user_id, community_id, deleted_at")
+        .eq("id", messageId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      if (!message) throw new Error("Message not found.");
+      if (message.deleted_at) throw new Error("This message is already deleted.");
+      if (message.user_id !== userId && communityId) {
+        const { data: member, error: memberError } = await supabase
+          .from("community_members")
+          .select("role_id")
+          .eq("community_id", communityId)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (memberError) throw memberError;
+        if (!member) throw new Error("You do not have access to delete this message.");
+      }
+
       const { data, error } = await supabase.rpc("delete_community_message", {
         p_message_id: messageId,
       });
