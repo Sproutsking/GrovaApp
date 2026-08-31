@@ -267,12 +267,14 @@ const TierCard = ({
 
   return (
     <div style={{
-      background:   isSel ? `${v.color}08` : "rgba(255,255,255,0.025)",
-      border:       `1.5px solid ${isSel ? v.color+"50" : "rgba(255,255,255,0.07)"}`,
-      borderRadius: 20, overflow:"hidden", position:"relative",
-      transition:   "border-color 0.25s, box-shadow 0.25s",
-      boxShadow:    isSel ? `0 8px 32px ${v.glow}` : "none",
-      animation:    "cardIn 0.3s ease both",
+      background: isSel
+        ? `linear-gradient(180deg, ${v.color}14, rgba(10,10,10,0.96))`
+        : "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(10,10,10,0.92))",
+      border: `1.5px solid ${isSel ? v.color + "66" : "rgba(255,255,255,0.08)"}`,
+      borderRadius: 22, overflow:"hidden", position:"relative",
+      transition: "all 0.25s ease",
+      boxShadow: isSel ? `0 12px 36px ${v.glow}, inset 0 1px 0 rgba(255,255,255,0.1)` : "inset 0 1px 0 rgba(255,255,255,0.04)",
+      animation: "cardIn 0.3s ease both",
       animationDelay: `${TIERS.indexOf(tier)*0.07}s`,
     }}>
       {tier?.popular && (
@@ -295,8 +297,9 @@ const TierCard = ({
       {/* Header row */}
       <div onClick={onExpand} style={{
         display:"flex", alignItems:"center", justifyContent:"space-between",
-        padding:`${tier?.popular?26:16}px 16px 16px`,
+        padding:`${tier?.popular ? 26 : 18}px 16px 16px`,
         cursor:"pointer",
+        background: `linear-gradient(135deg, ${v.color}08, transparent 55%)`,
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{
@@ -486,10 +489,10 @@ const ConfirmSheet = ({
 
   return (
     <div style={{
-      background:"linear-gradient(180deg, rgba(15,15,15,0.96), rgba(10,10,10,0.98))",
+      background:"linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
       backdropFilter:"blur(18px)",
-      border:`1px solid ${v.color}35`, borderRadius:20, padding:16,
-      boxShadow:"0 12px 28px rgba(0,0,0,0.28)",
+      border:`1px solid ${v.color}35`, borderRadius:22, padding:18,
+      boxShadow:`0 18px 44px rgba(0,0,0,0.32), 0 0 0 1px ${v.color}18 inset`,
       animation:"cardIn 0.3s cubic-bezier(0.34,1.4,0.64,1)",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
@@ -713,7 +716,8 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
       <div style={{
         position:"sticky", top:0, zIndex:10,
         display:"flex", alignItems:"center", gap:12, padding:"12px 16px",
-        background:"rgba(12,12,12,0.82)", backdropFilter:"blur(18px)",
+        background:"linear-gradient(180deg, rgba(14,14,14,0.88), rgba(14,14,14,0.72))",
+        backdropFilter:"blur(18px)",
         borderBottom:"1px solid rgba(245,158,11,0.15)",
         boxShadow:"0 8px 30px rgba(0,0,0,0.18)",
       }}>
@@ -806,30 +810,52 @@ const UpgradeView = ({ currentUser, userId: userIdProp, onClose }) => {
               {!boost && (
                 <div style={{
                   padding:"28px 20px 18px", textAlign:"center",
-                  background:"linear-gradient(180deg, rgba(251,191,36,0.08), rgba(255,255,255,0.02))",
-                  border:"1px solid rgba(251,191,36,0.16)",
-                  borderRadius:22,
-                  boxShadow:"0 12px 30px rgba(0,0,0,0.22)",
+                  background:"radial-gradient(circle at top, rgba(251,191,36,0.18), rgba(15,15,15,0.94) 34%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(9,9,9,0.94))",
+                  border:"1px solid rgba(251,191,36,0.18)",
+                  borderRadius:24,
+                  boxShadow:"0 18px 40px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)",
                   marginTop:18,
+                  position:"relative",
+                  overflow:"hidden",
                 }}>
                   <div style={{
-                    width:74, height:74, borderRadius:20, margin:"0 auto 16px",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    background:"linear-gradient(135deg, rgba(251,191,36,0.26), rgba(251,191,36,0.08))",
-                    border:"1px solid rgba(251,191,36,0.35)",
-                    boxShadow:"0 10px 28px rgba(251,191,36,0.18)",
-                    animation:"float 3s ease-in-out infinite", fontSize:34,
-                  }}>👑</div>
-                  <h2 style={{ fontSize:24, fontWeight:900, color:"#fff", margin:"0 0 8px" }}>
-                    Profile Upgrade
-                  </h2>
-                  <p style={{ fontSize:13, color:"#a3a3a3", lineHeight:1.7, margin:"0 0 8px" }}>
-                    Unlock a premium profile identity with a custom avatar glow,<br/>
-                    richer visual treatment, and upgraded creator visibility.
-                  </p>
-                  <p style={{ fontSize:11, color:"#6b7280", margin:0 }}>
-                    Economy: $1 = 100 EP · Instant payment · Cancel anytime
-                  </p>
+                    position:"absolute", inset:0,
+                    background:"radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.14), transparent 40%)",
+                    pointerEvents:"none",
+                  }} />
+                  <div style={{ position:"relative", zIndex:1 }}>
+                    <div style={{
+                      width:84, height:84, borderRadius:22, margin:"0 auto 16px",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      background:"linear-gradient(135deg, rgba(251,191,36,0.34), rgba(251,191,36,0.1))",
+                      border:"1px solid rgba(251,191,36,0.38)",
+                      boxShadow:"0 12px 30px rgba(251,191,36,0.22)",
+                      animation:"float 3s ease-in-out infinite", fontSize:36,
+                    }}>👑</div>
+                    <div style={{ fontSize:11, color:"#fbbf24", fontWeight:900, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>
+                      Premium identity
+                    </div>
+                    <h2 style={{ fontSize:28, fontWeight:900, color:"#fff", margin:"0 0 10px" }}>
+                      Upgrade your profile presence
+                    </h2>
+                    <p style={{ fontSize:13, color:"#d4d4d4", lineHeight:1.75, margin:"0 0 12px" }}>
+                      Unlock luxury tier styling, animated profile visuals, elite theme packs,
+                      and stronger creator visibility across the app.
+                    </p>
+                    <div style={{ display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+                      {['Silver','Gold','Diamond'].map((label) => (
+                        <span key={label} style={{
+                          padding:"6px 10px", borderRadius:999,
+                          border:"1px solid rgba(255,255,255,0.1)",
+                          background:"rgba(255,255,255,0.03)",
+                          fontSize:10, fontWeight:800, color:"#f5f5f5",
+                        }}>{label}</span>
+                      ))}
+                    </div>
+                    <p style={{ fontSize:11, color:"#9ca3af", margin:0 }}>
+                      Economy: $1 = 100 EP · Instant payment · Cancel anytime
+                    </p>
+                  </div>
                 </div>
               )}
 

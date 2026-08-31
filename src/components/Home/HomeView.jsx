@@ -36,7 +36,10 @@ import React, {
 } from "react";
 import {
   Image, Film, BookOpen, RefreshCw, X, Hash, FileText, Newspaper,
+  ArrowLeft,
 } from "lucide-react";
+
+import { SPORTS_SECTION_OPTIONS } from "./sportsSectionModel";
 
 import FeedTab          from "./FeedTab";
 import NewsTab          from "./NewsTab";
@@ -366,6 +369,7 @@ const HomeView = ({
   const [reels,     setReels]     = useState(() => swrVal("reels")   || readHomeCache("reels")   || []);
   const [stories,   setStories]   = useState(() => swrVal("stories") || readHomeCache("stories") || []);
   const [currentUser, setCurrentUser] = useState(null);
+  const [sportLiveSessions, setSportLiveSessions] = useState([]);
 
   const hasCachedFeed = ((swrVal("posts") || readHomeCache("posts") || []).length > 0) ||
                         ((swrVal("reels") || readHomeCache("reels") || []).length > 0);
@@ -385,6 +389,7 @@ const HomeView = ({
 
   const [modals, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
   const [readingStory, setReadingStory] = useState(null);
+  const [sportsSection, setSportsSection] = useState(null);
 
   const feedTabRef     = useRef(null);
   const reelTabRef     = useRef(null);
@@ -409,20 +414,79 @@ const HomeView = ({
   const newsCategory = trinityLens === "gaming" ? "global" : trinityLens === "web3" ? "crypto" : null;
   const savedFolders = ["Favorites", "Inspiration", "Later"];
   const resolvedUser = currentUser || currentUserProp;
+
+  const sportsLiveMatches = useMemo(() => {
+    if (!Array.isArray(sportLiveSessions)) return [];
+    return sportLiveSessions.slice(0, 6);
+  }, [sportLiveSessions]);
+
   const sportsPosts = useMemo(() => {
     const source = Array.isArray(posts) ? posts : [];
+    const sportPatterns = ["sport", "football", "basketball", "match", "league", "fixture", "live score", "transfer", "cup"];
     return source.filter((p) => {
       const text = `${p?.category || ""} ${p?.title || ""} ${p?.description || ""}`.toLowerCase();
-      return text.includes("sport") || text.includes("football") || text.includes("basketball") || text.includes("match") || text.includes("league");
+      return sportPatterns.some((pattern) => text.includes(pattern));
     });
   }, [posts]);
+
   const sportsReels = useMemo(() => {
     const source = Array.isArray(reels) ? reels : [];
+    const sportPatterns = ["sport", "football", "basketball", "match", "league", "fixture", "live score", "transfer", "cup"];
     return source.filter((r) => {
       const text = `${r?.category || ""} ${r?.title || ""} ${r?.description || ""}`.toLowerCase();
-      return text.includes("sport") || text.includes("football") || text.includes("basketball") || text.includes("match") || text.includes("league");
+      return sportPatterns.some((pattern) => text.includes(pattern));
     });
   }, [reels]);
+
+  const sportsFixtures = useMemo(() => {
+    const fixtures = sportsPosts.slice(0, 3).map((post, index) => ({
+      id: post.id || `${post.category || "sport"}-${index}`,
+      league: post.category || "Sports",
+      home: post.profiles?.full_name || "Team A",
+      away: "Live update",
+      kickoff: new Date(post.created_at || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      status: "Live data",
+      raw: post,
+    }));
+
+    if (fixtures.length === 0 && sportLiveSessions.length > 0) {
+      return sportLiveSessions.slice(0, 3).map((match, index) => ({
+        id: match.id || `fixture-${index}`,
+        league: match.category || "League",
+        home: match.title || "Home team",
+        away: "Opponent",
+        kickoff: match.started_at ? new Date(match.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Now",
+        status: match.status || "Live",
+        raw: match,
+      }));
+    }
+
+    return fixtures;
+  }, [sportsPosts, sportLiveSessions]);
+
+  const liveScores = useMemo(() => {
+    const scores = sportsPosts.slice(0, 3).map((post, index) => ({
+      id: post.id || `score-${index}`,
+      match: (post.title || post.description || "Sports update").slice(0, 32),
+      status: "Update",
+      result: post.likes ? `${post.likes} likes` : "Live",
+      detail: post.category || "Sports",
+      raw: post,
+    }));
+
+    if (scores.length === 0 && sportLiveSessions.length > 0) {
+      return sportLiveSessions.slice(0, 3).map((match, index) => ({
+        id: match.id || `score-${index}`,
+        match: (match.title || "Live match").slice(0, 32),
+        status: "Live",
+        result: `${match.peak_viewers || 0} watching`,
+        detail: match.category || "Sports",
+        raw: match,
+      }));
+    }
+
+    return scores;
+  }, [sportsPosts, sportLiveSessions]);
 
   const stableNews = useMemo(() => newsPosts, [newsPosts.length, newsPosts[0]?.id]); // eslint-disable-line
 
@@ -431,9 +495,45 @@ const HomeView = ({
     initializeHome();
     const onPublish = e => handlePublishSuccess(e.detail?.item, e.detail?.type);
     window.addEventListener("grova:publish", onPublish);
+
+    const loadSportSessions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("live_sessions")
+          .select("id,title,category,status,peak_viewers,started_at,livekit_room,profiles:user_id(full_name,username,avatar_id)")
+          .eq("status", "live")
+          .order("peak_viewers", { ascending: false })
+          .limit(8);
+
+        if (error) {
+          setSportLiveSessions([]);
+          return;
+        }
+
+        const mapped = (data || []).filter((session) => {
+          const text = `${session?.title || ""} ${session?.category || ""}`.toLowerCase();
+          return ["sport", "football", "basketball", "match", "league", "cup", "transfer"].some((token) => text.includes(token));
+        });
+
+        if (mountedRef.current) setSportLiveSessions(mapped);
+      } catch {
+        if (mountedRef.current) setSportLiveSessions([]);
+      }
+    };
+
+    loadSportSessions();
+
+    const sportsChannel = supabase
+      .channel("home_sports_live_data")
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_sessions" }, () => {
+        loadSportSessions();
+      })
+      .subscribe();
+
     return () => {
       mountedRef.current = false;
       rtCleanup.current.forEach(fn => fn?.());
+      supabase.removeChannel(sportsChannel);
       window.removeEventListener("grova:publish", onPublish);
     };
   }, []); // eslint-disable-line
@@ -997,31 +1097,110 @@ const HomeView = ({
 
             {/* ── SPORTS TAB ── */}
             <div style={{ display: currentTab==="sports" ? "block" : "none" }}>
-              {(sportsPosts.length > 0 || sportsReels.length > 0) ? (
-                <FeedTab
-                  posts={sportsPosts}
-                  reels={sportsReels}
-                  currentUser={resolvedUser}
-                  onAuthorClick={handleAuthorClick}
-                  onActionMenu={handleActionMenu}
-                  onComment={handleComment}
-                  onOpenFullScreen={(id) => {
-                    const post = sportsPosts.find(p => p.id === id);
-                    const reel = sportsReels.find(r => r.id === id);
-                    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
-                    else if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
-                  }}
-                  onLoadMore={loadMorePosts}
-                  hasMore={hasMorePosts}
-                  isLoadingMore={loadingMore}
-                  isActive={currentTab==="sports"}
-                  setActiveHomeTab={handlePipelineNavigate}
-                />
-              ) : !showSkeleton ? (
-                <EmptyState icon={<Newspaper size={38} />}
-                  title="No sports content yet"
-                  text="Sport clips and updates will appear here when they are posted." />
-              ) : null}
+              {currentTab === "sports" && (
+                <div style={{ padding: "0 0 24px" }}>
+                  {!sportsSection ? (
+                    <div style={{ padding: "12px 12px 0" }}>
+                      <div style={{ margin: "0 0 18px", padding: "18px 16px", borderRadius: 20, background: "linear-gradient(135deg, rgba(37,99,235,0.14), rgba(59,130,246,0.04))", border: "1px solid rgba(96,165,250,0.18)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", color: "#93c5fd", textTransform: "uppercase" }}>Sports Hub</div>
+                            <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>Real sports feed</div>
+                          </div>
+                          <div style={{ padding: "6px 10px", borderRadius: 999, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)", color: "#4ade80", fontSize: 11, fontWeight: 800 }}>{sportsLiveMatches.length} live</div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 10 }}>
+                          {[
+                            { label: "Live", value: sportsLiveMatches.length },
+                            { label: "Fixtures", value: sportsFixtures.length },
+                            { label: "Updates", value: liveScores.length },
+                          ].map((stat) => (
+                            <div key={stat.label} style={{ background: "rgba(15,23,42,0.4)", border: "1px solid rgba(148,163,184,0.18)", borderRadius: 14, padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{stat.label}</div>
+                              <div style={{ fontSize: 24, fontWeight: 900, color: "var(--text)" }}>{stat.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 12, marginBottom: 8 }}>
+                        {SPORTS_SECTION_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSportsSection(option.id)}
+                            style={{
+                              border: "1px solid rgba(148,163,184,0.2)",
+                              borderRadius: 18,
+                              background: option.id === "live" ? "rgba(239,68,68,0.08)" : option.id === "score" ? "rgba(16,185,129,0.08)" : "rgba(96,165,250,0.08)",
+                              padding: "14px 10px 12px",
+                              color: "var(--text)",
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 8,
+                              minHeight: 98,
+                            }}
+                          >
+                            <div style={{ fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{option.label}</div>
+                            <div style={{ width: 28, height: 28, borderRadius: 10, background: option.accent, opacity: 0.18, border: `1px solid ${option.accent}` }} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: "12px 12px 0" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, padding: "8px 4px 12px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setSportsSection(null)}
+                          style={{
+                            border: "1px solid rgba(148,163,184,0.2)",
+                            borderRadius: 12,
+                            background: "rgba(15,23,42,0.55)",
+                            color: "var(--text)",
+                            width: 38,
+                            height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                          }}
+                          aria-label="Back to sports overview"
+                        >
+                          <ArrowLeft size={18} />
+                        </button>
+                        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-secondary)" }}>
+                          {SPORTS_SECTION_OPTIONS.find((opt) => opt.id === sportsSection)?.title || "Sports"}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: "18px 16px", borderRadius: 18, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(148,163,184,0.18)" }}>
+                        {sportsSection === "live" && (
+                          <div style={{ color: "var(--text)", fontWeight: 700, lineHeight: 1.6 }}>
+                            No live sports sessions yet from the real database.
+                          </div>
+                        )}
+
+                        {sportsSection === "fixtures" && (
+                          <div style={{ color: "var(--text)", fontWeight: 700, lineHeight: 1.6 }}>
+                            No real fixtures are available yet from the app data sources.
+                          </div>
+                        )}
+
+                        {sportsSection === "score" && (
+                          <div style={{ color: "var(--text)", fontWeight: 700, lineHeight: 1.6 }}>
+                            No real score updates are available yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── NEWS TAB ── */}

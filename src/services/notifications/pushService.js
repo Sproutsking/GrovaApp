@@ -1,57 +1,32 @@
 // ============================================================================
-// src/services/notifications/pushService.js — v15 SECRET NAME FIX
+// src/services/notifications/pushService.js — v16 FIREBASE FCM INTEGRATION
 // ============================================================================
-// FIXES vs v14:
-//   [FIX-CRITICAL] diagnose() now explicitly checks that the Edge Function is
-//            reading VAPID_PUBLIC_KEY (not REACT_APP_VAPID_PUBLIC_KEY) and
-//            warns clearly when the key prefix returned by the health check
-//            doesn't match the .env key. This is the #1 reason push fails.
-//   [FIX-1] attachBridgeEarly() public method (from v14)
-//   [FIX-2] start() offline retry (from v14)
-//   [FIX-3] _doSubscribe VAPID key mismatch detection (from v14)
-//   [FIX-4] sendPushToUser self-send guard (from v14)
-//   [FIX-5] diagnose() side-by-side key comparison (from v14)
-//   [FIX-6] _saveSubscription stale-endpoint cleanup (from v14)
-//   All v14 logic preserved exactly.
+// Refactored for Firebase Cloud Messaging (FCM) as the primary push provider.
+// Maintains backward compatibility with legacy VAPID-based browser push.
+// Service worker bridge and deep-link routing preserved exactly.
 // ============================================================================
 
 import { supabase } from "../config/supabase";
 import {
-  enablePushNotifications as enableOneSignal,
-  getPlayerId as getOneSignalPlayerId,
-  isOneSignalSupported,
-  requestPermission as requestOneSignalPermission,
-  unsubscribe as unsubscribeOneSignal,
-} from "./onesignalService";
+  enablePushNotifications as enableFirebase,
+  getFcmToken as getFirebaseFcmToken,
+  isFirebaseSupported,
+  requestPermission as requestFirebasePermission,
+  unsubscribe as unsubscribeFirebase,
+} from "./firebaseService";
 
-// ── Legacy VAPID path (kept only for reference / diagnostics) ─────────────
-// The active provider is now OneSignal. Any older VAPID-based browser push
-// logic remains isolated here and is not used by the app's public API.
-function getVapidKey() {
-  const k = process.env.REACT_APP_VAPID_PUBLIC_KEY;
-  if (!k) {
-    console.warn(
-      "[Push] Legacy VAPID config missing. OneSignal is the active provider.",
-    );
-    return null;
-  }
-  if (k.length < 80) {
-    console.warn(
-      "[Push] Legacy VAPID config looks incomplete. OneSignal is the active provider.",
-    );
-    return null;
-  }
-  return k;
+// ── Firebase config check ───────────────────────────────────────────────────
+function isFirebaseConfigured() {
+  return Boolean(
+    process.env.REACT_APP_FIREBASE_PROJECT_ID &&
+    process.env.REACT_APP_FIREBASE_SENDER_ID
+  );
 }
 
-function isOneSignalConfigured() {
-  return Boolean(process.env.REACT_APP_ONESIGNAL_APP_ID);
-}
-
-// ── Edge function invoker ─────────────────────────────────────────────────────
-async function _invoke(body) {
+// ── Edge function invoker ───────────────────────────────────────────────────
+async function _invoke(body, functionName = "send-push-fcm") {
   try {
-    const { error } = await supabase.functions.invoke("send-push", { body });
+    const { error } = await supabase.functions.invoke(functionName, { body });
     if (error) {
       console.error(
         "[Push] Edge fn error:",
@@ -87,7 +62,7 @@ class EventBus {
   }
 }
 
-// ── VAPID key → Uint8Array ────────────────────────────────────────────────────
+// ── VAPID key → Uint8Array (for legacy support) ────────────────────────────
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -95,6 +70,19 @@ function urlBase64ToUint8Array(base64String) {
   const output = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) output[i] = rawData.charCodeAt(i);
   return output;
+}
+
+function getVapidKey() {
+  const k = process.env.REACT_APP_VAPID_PUBLIC_KEY;
+  if (!k) {
+    console.debug("[Push] Legacy VAPID config missing");
+    return null;
+  }
+  if (k.length < 80) {
+    console.debug("[Push] Legacy VAPID config looks incomplete");
+    return null;
+  }
+  return k;
 }
 
 // ── Module state ──────────────────────────────────────────────────────────────
@@ -173,7 +161,7 @@ function _attachBridge() {
     }
   });
 
-  // Drain any payloads that arrived while the app was closed / reloading.
+  // Drain any payloads that arrived while the app was closed
   navigator.serviceWorker.ready
     .then(() => {
       setTimeout(() => {
@@ -215,101 +203,120 @@ function _attachVisibilityCheck() {
   });
 }
 
-// ── Save subscription to Supabase ─────────────────────────────────────────────
-async function _saveSubscription(userId, subscription) {
-  const playerId = subscription?.playerId || subscription?.onesignal_player_id;
-
-  if (playerId) {
-    const record = {
-      user_id: userId,
-      endpoint: `onesignal://${playerId}`,
-      p256dh: null,
-      auth: null,
-      user_agent: navigator.userAgent.slice(0, 500),
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    };
-
-    await supabase
-      .from("push_subscriptions")
-      .delete()
-      .eq("user_id", userId)
-      .eq("endpoint", record.endpoint)
-      .eq("is_active", false);
-
-    const { error: upsertErr } = await supabase
-      .from("push_subscriptions")
-      .upsert(record, { onConflict: "user_id,endpoint" });
-
-    if (!upsertErr) return;
-
-    await supabase.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", record.endpoint);
-    const { error: insertErr } = await supabase.from("push_subscriptions").insert(record);
-    if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
-    return;
+// ── Save FCM token to Supabase ──────────────────────────────────────────────
+async function _saveFcmToken(userId, fcmToken) {
+  if (!fcmToken) {
+    throw new Error("FCM token is required");
   }
 
-  const json = subscription?.toJSON?.();
-  if (!json?.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
-    throw new Error("Subscription is missing endpoint, p256dh, or auth fields");
-  }
   const record = {
     user_id: userId,
-    endpoint: json.endpoint,
-    p256dh: json.keys.p256dh,
-    auth: json.keys.auth,
+    fcm_token: fcmToken,
+    provider: "fcm",
     user_agent: navigator.userAgent.slice(0, 500),
     is_active: true,
     updated_at: new Date().toISOString(),
   };
 
-  // Clean up any inactive rows for this endpoint first
+  // Clean up any inactive rows for this token first
+  await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("fcm_token", fcmToken)
+    .eq("is_active", false)
+    .catch(() => {});
+
+  // Upsert
+  const { error: upsertErr } = await supabase
+    .from("push_subscriptions")
+    .upsert(record, { onConflict: "user_id,fcm_token" });
+
+  if (!upsertErr) {
+    console.log("[Push] ✅ FCM token saved to DB");
+    return;
+  }
+
+  // Upsert failed — try delete+insert
+  console.warn("[Push] Upsert failed:", upsertErr.message, "— trying delete+insert");
+  await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("fcm_token", fcmToken)
+    .catch(() => {});
+  const { error: insertErr } = await supabase
+    .from("push_subscriptions")
+    .insert(record);
+  if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
+  console.log("[Push] ✅ FCM token inserted to DB (fallback)");
+}
+
+// ── Save legacy VAPID subscription to Supabase ──────────────────────────────
+async function _saveLegacySubscription(userId, subscription) {
+  const json = subscription?.toJSON?.();
+  if (!json?.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
+    throw new Error("Subscription missing endpoint, p256dh, or auth");
+  }
+
+  const record = {
+    user_id: userId,
+    endpoint: json.endpoint,
+    p256dh: json.keys.p256dh,
+    auth: json.keys.auth,
+    provider: "legacy",
+    user_agent: navigator.userAgent.slice(0, 500),
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Clean up inactive rows
   await supabase
     .from("push_subscriptions")
     .delete()
     .eq("user_id", userId)
     .eq("endpoint", json.endpoint)
-    .eq("is_active", false);
+    .eq("is_active", false)
+    .catch(() => {});
 
-  // Upsert (requires unique constraint on user_id,endpoint)
   const { error: upsertErr } = await supabase
     .from("push_subscriptions")
     .upsert(record, { onConflict: "user_id,endpoint" });
 
   if (!upsertErr) {
-    console.log("[Push] ✅ Subscription upserted to DB");
+    console.log("[Push] ✅ Legacy subscription saved");
     return;
   }
 
-  // Upsert failed — delete stale row and insert fresh
-  console.warn(
-    "[Push] Upsert failed:",
-    upsertErr.message,
-    "— trying delete+insert",
-  );
+  console.warn("[Push] Upsert failed — trying delete+insert");
   await supabase
     .from("push_subscriptions")
     .delete()
     .eq("user_id", userId)
-    .eq("endpoint", json.endpoint);
+    .eq("endpoint", json.endpoint)
+    .catch(() => {});
   const { error: insertErr } = await supabase
     .from("push_subscriptions")
     .insert(record);
   if (insertErr) throw new Error("Insert also failed: " + insertErr.message);
-  console.log("[Push] ✅ Subscription inserted to DB (fallback)");
+  console.log("[Push] ✅ Legacy subscription inserted (fallback)");
 }
 
-async function _saveWithRetry(userId, subscription, attempt = 0) {
+async function _saveWithRetry(userId, data, attempt = 0) {
   const delays = [3000, 10000, 30000];
   try {
-    await _saveSubscription(userId, subscription);
+    if (data?.fcmToken) {
+      await _saveFcmToken(userId, data.fcmToken);
+    } else {
+      await _saveLegacySubscription(userId, data);
+    }
   } catch (err) {
     if (attempt < delays.length) {
       console.warn(
-        `[Push] Save attempt ${attempt + 1} failed. Retry in ${delays[attempt] / 1000}s`,
+        `[Push] Save attempt ${attempt + 1} failed. Retry in ${delays[attempt] / 1000}s`
       );
       await new Promise((r) => setTimeout(r, delays[attempt]));
-      return _saveWithRetry(userId, subscription, attempt + 1);
+      return _saveWithRetry(userId, data, attempt + 1);
     }
     console.error("[Push] ❌ All save attempts failed:", err.message);
   }
@@ -321,40 +328,43 @@ async function _doSubscribe(userId) {
   _subscribing = true;
 
   try {
-    if (isOneSignalSupported() && isOneSignalConfigured()) {
-      const granted = await requestOneSignalPermission(userId);
+    // Try Firebase FCM first (primary for mobile)
+    if (isFirebaseSupported() && isFirebaseConfigured()) {
+      const granted = await requestFirebasePermission(userId);
       if (!granted) {
-        console.warn("[Push] OneSignal permission not granted");
+        console.warn("[Push] Firebase permission not granted");
         return null;
       }
 
-      const ok = await enableOneSignal(userId);
+      const ok = await enableFirebase(userId);
       if (!ok) return null;
 
-      let playerId = await getOneSignalPlayerId(userId);
-      if (!playerId) {
+      let fcmToken = await getFirebaseFcmToken(userId);
+      if (!fcmToken) {
+        // Wait for token
         for (let attempt = 0; attempt < 6; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, 1500));
-          playerId = await getOneSignalPlayerId(userId);
-          if (playerId) break;
+          fcmToken = await getFirebaseFcmToken(userId);
+          if (fcmToken) break;
         }
       }
-      if (!playerId) {
-        console.warn("[Push] OneSignal player ID not available yet after registration");
+      if (!fcmToken) {
+        console.warn("[Push] Firebase token not available after registration");
         return null;
       }
 
-      await _saveWithRetry(userId, { playerId });
-      console.log("[Push] ✅ OneSignal subscription registered");
-      return { provider: "onesignal", playerId };
+      await _saveWithRetry(userId, { fcmToken });
+      console.log("[Push] ✅ Firebase FCM subscription registered");
+      return { provider: "fcm", fcmToken };
     }
 
+    // Fallback to legacy VAPID
     const vapidKey = getVapidKey();
     if (!vapidKey) return null;
 
     const reg = await _getReg();
     if (!reg) {
-      console.error("[Push] No SW registration available");
+      console.error("[Push] No SW registration");
       return null;
     }
 
@@ -369,9 +379,7 @@ async function _doSubscribe(userId) {
           currentKeyBytes.length !== existingKeyBytes.length ||
           currentKeyBytes.some((b, i) => b !== existingKeyBytes[i]);
         if (keyChanged) {
-          console.warn(
-            "[Push] VAPID key changed — unsubscribing stale subscription",
-          );
+          console.warn("[Push] VAPID key changed — unsubscribing");
           await sub.unsubscribe().catch(() => {});
           sub = null;
         }
@@ -390,15 +398,15 @@ async function _doSubscribe(userId) {
     });
 
     await _saveWithRetry(userId, sub);
-    console.log("[Push] ✅ New subscription created and saved");
+    console.log("[Push] ✅ New subscription created");
     return sub;
   } catch (err) {
     if (err.name === "NotAllowedError") {
-      console.warn("[Push] Permission denied by user");
+      console.warn("[Push] Permission denied");
       return null;
     }
     if (err.name === "InvalidStateError") {
-      console.warn("[Push] SW not yet active — waiting for activation");
+      console.warn("[Push] SW not yet active");
       const reg = await _getReg().catch(() => null);
       if (reg?.installing) {
         await new Promise((resolve) => {
@@ -435,12 +443,10 @@ async function _doSubscribe(userId) {
 // PUBLIC API
 // ============================================================================
 export const pushService = {
-  // ── Early bridge attachment ────────────────────────────────────────────────
   attachBridgeEarly() {
     _attachBridge();
   },
 
-  // ── Event bus ──────────────────────────────────────────────────────────────
   on(event, fn) {
     return _bus.on(event, fn);
   },
@@ -448,12 +454,12 @@ export const pushService = {
     _bus.emit(event, data);
   },
 
-  // ── Feature detection ──────────────────────────────────────────────────────
   isSupported() {
-    return isOneSignalSupported() || (
-      "Notification" in window &&
-      "serviceWorker" in navigator &&
-      "PushManager" in window
+    return (
+      isFirebaseSupported() ||
+      ("Notification" in window &&
+        "serviceWorker" in navigator &&
+        "PushManager" in window)
     );
   },
 
@@ -464,9 +470,6 @@ export const pushService = {
   async isSubscribed() {
     try {
       if (!this.isSupported()) return false;
-      if (isOneSignalSupported() && isOneSignalConfigured()) {
-        return Notification.permission === "granted";
-      }
       const reg = await _getReg();
       return !!(await reg?.pushManager.getSubscription());
     } catch {
@@ -474,13 +477,9 @@ export const pushService = {
     }
   },
 
-  // ── Permission request — MUST be called from a user gesture ───────────────
   async requestPermission() {
     try {
       if (!this.isSupported()) return false;
-      if (isOneSignalSupported() && isOneSignalConfigured()) {
-        return requestOneSignalPermission(_userId);
-      }
       if (Notification.permission === "granted") return true;
       if (Notification.permission === "denied") return false;
       return (await Notification.requestPermission()) === "granted";
@@ -489,7 +488,6 @@ export const pushService = {
     }
   },
 
-  // ── Full enable (permission + subscribe) ──────────────────────────────────
   async enablePushNotifications(userId) {
     const uid = userId || _userId;
     if (!uid || !this.isSupported()) return false;
@@ -511,16 +509,16 @@ export const pushService = {
   async unsubscribe(userId) {
     try {
       const uid = userId || _userId;
-      if (isOneSignalSupported() && isOneSignalConfigured()) {
-        await unsubscribeOneSignal(uid);
+      if (isFirebaseSupported() && isFirebaseConfigured()) {
+        await unsubscribeFirebase(uid);
         if (uid) {
           await supabase
             .from("push_subscriptions")
             .update({ is_active: false, updated_at: new Date().toISOString() })
             .eq("user_id", uid)
-            .like("endpoint", "onesignal:%");
+            .eq("provider", "fcm");
         }
-        console.log("[Push] ✅ Unsubscribed from OneSignal");
+        console.log("[Push] ✅ Unsubscribed from Firebase FCM");
         return;
       }
 
@@ -542,7 +540,6 @@ export const pushService = {
     }
   },
 
-  // ── Send a push notification to another user ───────────────────────────────
   async sendPushToUser({
     recipientUserId,
     actorUserId = null,
@@ -554,7 +551,6 @@ export const pushService = {
   }) {
     if (!recipientUserId) return false;
 
-    // Self-send guard: only skip if we know both IDs and they match
     if (
       _userId &&
       actorUserId &&
@@ -564,18 +560,20 @@ export const pushService = {
       return false;
     }
 
-    return _invoke({
-      recipient_user_id: recipientUserId,
-      actor_user_id: actorUserId,
-      type,
-      title,
-      message,
-      entity_id: entityId,
-      metadata,
-    });
+    return _invoke(
+      {
+        recipient_user_id: recipientUserId,
+        actor_user_id: actorUserId,
+        type,
+        title,
+        message,
+        entity_id: entityId,
+        metadata,
+      },
+      "send-push-fcm"
+    );
   },
 
-  // ── Show a local test notification ────────────────────────────────────────
   async testNotification() {
     if (!this.isSupported() || Notification.permission !== "granted") {
       console.warn("[Push] Cannot test — permission not granted");
@@ -584,24 +582,22 @@ export const pushService = {
     const reg = await _getReg();
     if (!reg) return false;
     await reg.showNotification("✅ Push Notifications Active", {
-      body: "Xeevia push notifications are working correctly!",
+      body: "Xeevia push notifications are working!",
       icon: "/logo192.png",
       badge: "/logo192.png",
       tag: `test_${Date.now()}`,
       vibrate: [200, 100, 200],
-      data: { url: "/", type: "test" },
+      data: { url: "/", type: "test", deeplink_path: "/" },
     });
     return true;
   },
 
-  // ── Clear OS app badge ─────────────────────────────────────────────────────
   clearBadge() {
     try {
       navigator.serviceWorker.controller?.postMessage({ type: "CLEAR_BADGE" });
     } catch (_) {}
   },
 
-  // ── MAIN ENTRY POINT ───────────────────────────────────────────────────────
   async start(userId) {
     if (!this.isSupported()) {
       console.log("[Push] Not supported in this browser");
@@ -632,88 +628,27 @@ export const pushService = {
     } else if (perm === "default") {
       console.log(
         "[Push] Permission not yet granted.\n" +
-          "Listen for 'push:needs_permission' on window and call:\n" +
-          "  pushService.enablePushNotifications(userId)  from a user gesture.",
+          "Listen for 'push:needs_permission' and call:\n" +
+          "  pushService.enablePushNotifications(userId)"
       );
       try {
         window.dispatchEvent(
-          new CustomEvent("push:needs_permission", { detail: { userId } }),
+          new CustomEvent("push:needs_permission", { detail: { userId } })
         );
       } catch {}
     } else {
-      console.log(
-        "[Push] Permission blocked — user must re-enable in browser settings",
-      );
-    }
-
-    if (typeof window !== "undefined") {
-      window.__pushDiagnose = () => this.diagnose();
-      console.log(
-        "[Push] Tip: run window.__pushDiagnose() in console to debug push issues",
-      );
+      console.log("[Push] Permission blocked — enable in browser settings");
     }
   },
 
-  // ── Full diagnostic report ─────────────────────────────────────────────────
-  async diagnose() {
-    console.group("🔍 Push Diagnosis Report");
-    const vapidKey = getVapidKey();
-    console.log("Provider:           ", isOneSignalConfigured() ? "OneSignal" : "legacy fallback");
-    console.log("Supported:           ", this.isSupported());
-    console.log("Permission:          ", this.getPermission());
-    console.log("OneSignal App ID:   ", process.env.REACT_APP_ONESIGNAL_APP_ID ? "✅ configured" : "❌ missing");
-    console.log(
-      "Legacy VAPID key (.env):",
-      vapidKey ? vapidKey.slice(0, 25) + "…" : "❌ not used",
-    );
-    console.log("User ID:             ", _userId || "not set");
-    console.log("Bridge attached:     ", _bridgeAttached);
-    console.log("Started:             ", _started);
-    console.log("Online:              ", navigator.onLine);
-
-    const reg = await _getReg().catch(() => null);
-    console.log("SW registration:     ", reg ? "✅ " + reg.scope : "❌ NONE");
-    console.log("SW state:            ", reg?.active?.state || "none");
-    console.log(
-      "SW controller:       ",
-      navigator.serviceWorker?.controller ? "✅" : "❌ null",
-    );
-
-    if (_userId) {
-      const { data, error } = await supabase
-        .from("push_subscriptions")
-        .select("id, endpoint, is_active, updated_at")
-        .eq("user_id", _userId);
-      if (error) {
-        console.log("DB subs:             ❌", error.message);
-      } else {
-        console.log("DB subs:             ", data?.length || 0, "row(s)");
-        data?.forEach((r, i) =>
-          console.log(
-            `  [${i}] active=${r.is_active} updated=${r.updated_at?.slice(0, 16)} ep=${r.endpoint?.slice(0, 55)}…`,
-          ),
-        );
-      }
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke("send-push", {
-        body: { health: true },
-      });
-      console.log(
-        "Edge Function:       ",
-        error ? "❌ " + error.message : "✅ reachable",
-        data || "",
-      );
-    } catch (e) {
-      console.log("Edge Function:       ❌ fetch failed:", e.message);
-    }
-
-    console.log("\n⚠️  CHECKLIST:");
-    console.log("  1. Add REACT_APP_ONESIGNAL_APP_ID to your .env file");
-    console.log("  2. Ensure the Supabase edge function has ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY");
-    console.log("  3. Keep pushService.attachBridgeEarly() enabled in src/index.js");
-    console.groupEnd();
+  getStatus() {
+    return {
+      started: _started,
+      userId: _userId,
+      permission: this.getPermission(),
+      supported: this.isSupported(),
+      firebaseConfigured: isFirebaseConfigured(),
+    };
   },
 };
 

@@ -912,11 +912,19 @@ const DashboardSection = ({
 
         {/* ── UPGRADE BANNER (non-pro) — [FIX-NAV] navigate("upgrade") */}
         {!isPro && (
-          <div className="ds-upgrade" onClick={() => navigate("upgrade")}>
-            <div className="ds-upgrade-icon">👑</div>
+          <div className="ds-upgrade" onClick={() => navigate("upgrade")} style={{
+            background:"radial-gradient(circle at top left, rgba(251,191,36,0.18), rgba(17,17,17,0.92) 45%), linear-gradient(180deg, rgba(255,255,255,0.03), rgba(12,12,12,0.96))",
+            border:"1px solid rgba(251,191,36,0.18)",
+            boxShadow:"0 12px 30px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)",
+          }}>
+            <div className="ds-upgrade-icon" style={{
+              background:"linear-gradient(135deg, rgba(251,191,36,0.26), rgba(251,191,36,0.08))",
+              border:"1px solid rgba(251,191,36,0.28)",
+              boxShadow:"0 0 18px rgba(251,191,36,0.14)",
+            }}>👑</div>
             <div style={{ flex:1 }}>
-              <p style={{ fontSize:13, fontWeight:900, color:"#fbbf24", margin:"0 0 1px" }}>Upgrade your profile</p>
-              <p style={{ fontSize:10, color:"#484848", margin:0 }}>Unlock Silver, Gold or Diamond boost</p>
+              <p style={{ fontSize:13, fontWeight:900, color:"#fbbf24", margin:"0 0 2px" }}>Premium profile upgrade</p>
+              <p style={{ fontSize:10, color:"#d4d4d4", margin:0 }}>Silver · Gold · Diamond styles + vivid boosted identity</p>
             </div>
             <ChevronRight size={12} color="#fbbf24" />
           </div>

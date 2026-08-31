@@ -10,13 +10,14 @@ export const BackNavigationProvider = ({ children }) => {
   const handlersRef = useRef([]);
 
   const register = useCallback((handler) => {
-    handlersRef.current.push(handler);
-    return () => { handlersRef.current = handlersRef.current.filter(h => h !== handler); };
+    handlersRef.current = [...handlersRef.current, handler];
+    return () => {
+      handlersRef.current = handlersRef.current.filter((h) => h !== handler);
+    };
   }, []);
 
   const hasHandlers = useCallback(() => handlersRef.current.length > 0, []);
 
-  // triggerBack: call the top-most handler. Supports async handlers.
   const triggerBack = useCallback(async () => {
     const handlers = handlersRef.current;
     if (handlers.length === 0) return false;
@@ -25,30 +26,31 @@ export const BackNavigationProvider = ({ children }) => {
       const result = await Promise.resolve(handler());
       return result !== false;
     } catch (e) {
-      // If a handler throws, treat as handled to avoid falling through.
       return true;
     }
   }, []);
 
   useEffect(() => {
-    if (window.history.state == null) {
-      window.history.replaceState({ __back_navigation: true }, "");
-    }
+    if (typeof window === "undefined") return undefined;
+
+    const ensureSeed = () => {
+      const state = window.history.state || {};
+      if (!state.__back_navigation && !state.__app_route) {
+        window.history.replaceState({ __back_navigation: true }, "");
+      }
+    };
+
+    ensureSeed();
 
     const onPop = async (e) => {
       try {
         const handled = await triggerBack();
         if (handled) {
-          // Prevent other popstate listeners (app routing) from handling
           try { e.stopImmediatePropagation(); } catch {}
-          // re-push a state so the app remains in place
           try { window.history.pushState({ __back_navigation: true }, ""); } catch {}
-        } else {
-          // allow default navigation
+          return;
         }
-      } catch (err) {
-        // swallow errors — don't block navigation on context errors
-      }
+      } catch {}
     };
 
     window.addEventListener("popstate", onPop);

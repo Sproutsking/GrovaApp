@@ -640,7 +640,13 @@ const SettingsSection = ({ userId, onOpenUpgrade, themeMode, setThemeMode }) => 
                     })}
                   </div>
 
-                  <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()}>
+                  <button className="sset-upgrade-btn" onClick={() => onOpenUpgrade?.()} style={{
+                    background:"radial-gradient(circle at top, rgba(251,191,36,0.28), rgba(251,191,36,0.08) 40%, rgba(15,15,15,0.96) 100%)",
+                    border:"1px solid rgba(251,191,36,0.32)",
+                    boxShadow:"0 10px 30px rgba(251,191,36,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
+                    color:"#fef3c7",
+                    fontWeight:900,
+                  }}>
                     👑 Upgrade Your Profile
                   </button>
 

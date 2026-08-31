@@ -34,6 +34,28 @@ function isSupported() {
   return isBrowser() && "Notification" in window && "serviceWorker" in navigator;
 }
 
+function waitForOneSignalSdk(timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    if (!isBrowser()) return resolve(null);
+    const api = window.OneSignal || OneSignal;
+    if (api) return resolve(api);
+
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      const current = window.OneSignal || OneSignal;
+      if (current) {
+        clearInterval(interval);
+        resolve(current);
+        return;
+      }
+      if (Date.now() - startedAt > timeoutMs) {
+        clearInterval(interval);
+        resolve(null);
+      }
+    }, 250);
+  });
+}
+
 function getOneSignalApi() {
   if (!isBrowser()) return null;
   if (typeof window?.OneSignal !== "undefined") return window.OneSignal;
@@ -139,6 +161,12 @@ async function _ensureInitialized(userId = null) {
 
   _initPromise = (async () => {
     try {
+      const api = await waitForOneSignalSdk();
+      if (!api) {
+        console.warn("[OneSignal] SDK not available on this runtime");
+        return false;
+      }
+
       const options = {
         appId: ONESIGNAL_APP_ID,
         safari_web_id: ONESIGNAL_SAFARI_WEB_ID || undefined,
@@ -148,12 +176,6 @@ async function _ensureInitialized(userId = null) {
         serviceWorkerParam: { scope: "/" },
         serviceWorkerPath: "/OneSignalSDKWorker.js",
       };
-
-      const api = getOneSignalApi();
-      if (!api) {
-        console.warn("[OneSignal] SDK not available on this runtime");
-        return false;
-      }
 
       if (typeof api?.init === "function") {
         await api.init(options);

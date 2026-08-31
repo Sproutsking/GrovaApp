@@ -1,0 +1,50 @@
+[debug] [2026-08-31T07:36:07.369Z] ----------------------------------------------------------------------
+[debug] [2026-08-31T07:36:07.371Z] Command:       /usr/local/share/nvm/versions/node/v24.14.0/bin/node /home/codespace/nvm/current/bin/firebase init hosting
+[debug] [2026-08-31T07:36:07.371Z] CLI Version:   15.28.2
+[debug] [2026-08-31T07:36:07.371Z] Platform:      linux
+[debug] [2026-08-31T07:36:07.372Z] Node Version:  v24.14.0
+[debug] [2026-08-31T07:36:07.372Z] Detected Agent: unknown
+[debug] [2026-08-31T07:36:07.372Z] Time:          Mon Aug 31 2026 07:36:07 GMT+0000 (Coordinated Universal Time)
+[debug] [2026-08-31T07:36:07.372Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /workspaces/GrovaApp
+
+Before we get started, keep in mind:
+
+  * You are currently outside your home directory
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-08-31T07:36:07.890Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-31T07:36:07.891Z] > authorizing via signed-in user (infinitesprout@gmail.com)
+[debug] [2026-08-31T07:36:07.906Z] Checked if tokens are valid: true, expires at: 1788163571852
+[debug] [2026-08-31T07:36:07.906Z] Checked if tokens are valid: true, expires at: 1788163571852
+[debug] [2026-08-31T07:36:07.908Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/xeevia-app [none]
+[debug] [2026-08-31T07:36:08.205Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/xeevia-app 200
+[debug] [2026-08-31T07:36:08.205Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/xeevia-app {"projectId":"xeevia-app","projectNumber":"871294046900","displayName":"Xeevia-app","name":"projects/xeevia-app","resources":{"hostingSite":"xeevia-app"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_997d236d-6f6b-45f5-bef8-84e776ff418d"}
+[info] i  Using project xeevia-app (Xeevia-app) . 
+[info] 
+=== Hosting Setup
+[debug] [2026-08-31T07:36:24.634Z] Checked if tokens are valid: true, expires at: 1788163571852
+[debug] [2026-08-31T07:36:24.635Z] Checked if tokens are valid: true, expires at: 1788163571852
+[debug] [2026-08-31T07:36:24.635Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/xeevia-app [none]
+[debug] [2026-08-31T07:36:24.873Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/xeevia-app 200
+[debug] [2026-08-31T07:36:24.873Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/xeevia-app {"projectId":"xeevia-app","projectNumber":"871294046900","displayName":"Xeevia-app","name":"projects/xeevia-app","resources":{"hostingSite":"xeevia-app"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_997d236d-6f6b-45f5-bef8-84e776ff418d"}
+[info] 
+[info] Your public directory is the folder (relative to your project directory) that
+[info] will contain Hosting assets to be uploaded with firebase deploy. If you
+[info] have a build process for your assets, use your build's output directory.
+[info] 
