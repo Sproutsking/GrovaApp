@@ -1,0 +1,8 @@
+
+> xeevia-app@0.1.0 build
+> cross-env DISABLE_ESLINT_PLUGIN=true GENERATE_SOURCEMAP=false react-scripts build
+
+(node:31466) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+The build failed because the process exited too early. Someone might have called `kill` or `killall`, or the system could be shutting down.
