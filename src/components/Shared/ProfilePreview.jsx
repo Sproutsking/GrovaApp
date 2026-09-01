@@ -26,6 +26,30 @@ import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 import { getBoostNameColor } from "./profileVisuals";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 
+const buildHighQualityAvatar = (avatar, size = 160) => {
+  if (!avatar || typeof avatar !== "string") return avatar;
+
+  const clean = avatar.trim();
+  if (!clean || (!clean.startsWith("http://") && !clean.startsWith("https://") && !clean.startsWith("blob:"))) {
+    return avatar;
+  }
+
+  try {
+    const url = new URL(clean);
+    const target = Math.max(180, size * 3);
+    url.searchParams.set("width", String(target));
+    url.searchParams.set("height", String(target));
+    url.searchParams.set("quality", "100");
+    url.searchParams.set("resize", "cover");
+    url.searchParams.set("format", "webp");
+    url.searchParams.set("auto", "format");
+    return url.toString();
+  } catch {
+    const separator = clean.includes("?") ? "&" : "?";
+    return `${clean}${separator}width=${Math.max(180, size * 3)}&height=${Math.max(180, size * 3)}&quality=100&resize=cover&format=webp&auto=format`;
+  }
+};
+
 // ── Tier colour helpers ───────────────────────────────────────────────────────
 
 // ── Tier badge emoji pill ─────────────────────────────────────────────────────
@@ -181,11 +205,14 @@ const ProfilePreview = ({
   let enhancedAvatar = avatar;
   if (avatar && typeof avatar === "string") {
     const cleanUrl = avatar.split("?")[0];
-    if (cleanUrl.includes("supabase") || cleanUrl.includes("cloudinary")) {
-      const targetPx = sz.avatar * 3;
-      enhancedAvatar = avatar.includes("?")
-        ? avatar
-        : `${cleanUrl}?quality=100&width=${targetPx}&height=${targetPx}&resize=cover&format=webp`;
+    if (
+      cleanUrl.includes("supabase") ||
+      cleanUrl.includes("cloudinary") ||
+      avatar.startsWith("http://") ||
+      avatar.startsWith("https://") ||
+      avatar.startsWith("blob:")
+    ) {
+      enhancedAvatar = buildHighQualityAvatar(avatar, sz.avatar);
     }
   }
   const isValidUrl =
@@ -249,28 +276,30 @@ const ProfilePreview = ({
           {/* Name — live tier colour, smooth transition */}
           <div
             style={{
-              fontSize:     `${sz.name}px`,
-              fontFamily:   nameDesign.font?.family,
-              fontWeight:   nameDesign.font?.weight || 700,
+              fontSize:      `${sz.name}px`,
+              fontFamily:    nameDesign.font?.family,
+              fontWeight:    700,
               letterSpacing: nameDesign.font?.spacing,
-              fontWeight:   700,
-              color:        displayNameColor,
-              display:      "flex",
-              alignItems:   "center",
-              gap:          5,
-              textShadow:   hasBoostedTier
+              color:         displayNameColor,
+              display:       "inline-flex",
+              alignItems:    "center",
+              gap:           6,
+              flexWrap:      "nowrap",
+              minWidth:      0,
+              lineHeight:    1.2,
+              textShadow:    hasBoostedTier
                 ? `0 0 14px ${nameDesign.color?.shadow || displayNameColor}90`
                 : "0 2px 6px rgba(0,0,0,0.9)",
-              whiteSpace:   "nowrap",
-              overflow:     "hidden",
-              textOverflow: "ellipsis",
-              transition:   "color 0.4s ease, text-shadow 0.4s ease",
+              whiteSpace:    "nowrap",
+              overflow:      "hidden",
+              textOverflow:  "ellipsis",
+              transition:    "color 0.4s ease, text-shadow 0.4s ease",
             }}
           >
-            <span>{author}</span>
+            <span style={{ display: "inline-block", minWidth: 0 }}>{author}</span>
 
             {verified && (
-              <div
+              <span
                 style={{
                   width:          18,
                   height:         18,
@@ -278,22 +307,24 @@ const ProfilePreview = ({
                   background:     hasBoostedTier
                     ? `linear-gradient(135deg,${displayNameColor},${displayNameColor}bb)`
                     : "linear-gradient(135deg,#22c55e,#4ade80)",
-                  display:        "flex",
+                  display:        "inline-flex",
                   alignItems:     "center",
                   justifyContent: "center",
                   color:          "#041108",
                   flexShrink:     0,
                   boxShadow:      `0 2px 8px ${displayNameColor || '#22c55e'}55`,
+                  border:         "1.5px solid rgba(255,255,255,0.7)",
                   transition:     "background 0.4s ease",
                   fontWeight:     900,
-                  fontSize:      12,
+                  fontSize:      11,
                   lineHeight:    1,
+                  transform:      "translateY(-1px)",
                 }}
                 aria-label="Verified account"
                 title="Verified account"
               >
                 ✓
-              </div>
+              </span>
             )}
 
             <TierBadge tier={tier} paymentStatus={paymentStatus} />
