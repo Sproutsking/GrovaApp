@@ -372,11 +372,9 @@ const BoostAvatarRing = ({
 }) => {
   injectKeyframes();
 
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [imgError,  setImgError]  = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    setImgLoaded(false);
     setImgError(false);
   }, [src]);
 
@@ -394,8 +392,9 @@ const BoostAvatarRing = ({
   const isValidImg =
     src &&
     typeof src === "string" &&
-    !imgError &&
     (src.startsWith("http") || src.startsWith("blob:"));
+
+  const shouldRenderImage = isValidImg && !imgError;
 
   const fallbackGrad = visual
     ? `linear-gradient(135deg,${visual.grad[0]},${visual.grad[1]})`
@@ -442,28 +441,28 @@ const BoostAvatarRing = ({
             background: fallbackGrad,
           }}
         >
-          {isValidImg && (
+          {shouldRenderImage && (
             <img
+              key={src || `${size}-${letter}`}
               src={src}
               alt=""
               crossOrigin="anonymous"
-              onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
               style={{
-                position:   "absolute",
-                inset:      0,
-                width:      "100%",
-                height:     "100%",
-                objectFit:  "cover",
+                position:       "absolute",
+                inset:          0,
+                width:          "100%",
+                height:         "100%",
+                objectFit:      "cover",
                 objectPosition: "center",
-                opacity:    imgLoaded ? 1 : 0,
-                transition: "opacity 0.3s ease",
-                zIndex:     2,
+                opacity:        1,
+                filter:         "saturate(1.08) contrast(1.04)",
+                zIndex:         2,
               }}
             />
           )}
 
-          {!isValidImg || imgError || !imgLoaded ? (
+          {!shouldRenderImage ? (
             <span
               style={{
                 position:   "absolute",

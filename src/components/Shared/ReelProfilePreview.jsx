@@ -23,30 +23,6 @@ import mediaUrlService                 from "../../services/shared/mediaUrlServi
 import { getBoostNameDesign }          from "../../services/boost/boostThemes";
 import { getBoostNameColor }           from "./profileVisuals";
 
-const buildHighQualityAvatar = (avatar, size = 160) => {
-  if (!avatar || typeof avatar !== "string") return avatar;
-
-  const clean = avatar.trim();
-  if (!clean || (!clean.startsWith("http://") && !clean.startsWith("https://") && !clean.startsWith("blob:"))) {
-    return avatar;
-  }
-
-  try {
-    const url = new URL(clean);
-    const target = Math.max(180, size * 3);
-    url.searchParams.set("width", String(target));
-    url.searchParams.set("height", String(target));
-    url.searchParams.set("quality", "100");
-    url.searchParams.set("resize", "cover");
-    url.searchParams.set("format", "webp");
-    url.searchParams.set("auto", "format");
-    return url.toString();
-  } catch {
-    const separator = clean.includes("?") ? "&" : "?";
-    return `${clean}${separator}width=${Math.max(180, size * 3)}&height=${Math.max(180, size * 3)}&quality=100&resize=cover&format=webp&auto=format`;
-  }
-};
-
 // ── Tier colour maps (shared with ProfilePreview) ─────────────────────────
 
 const TIER_NAME_COLORS = {
@@ -89,11 +65,23 @@ const ReelProfilePreview = ({
   // ── Resolve static user data from props ──────────────────────────────
   const getUserData = () => {
     if (profile.userId || profile.author) {
+      // Prioritize avatar_id and resolve it, fall back to avatar prop
+      let avatar = null;
+      if (profile.avatar_id) {
+        avatar = mediaUrlService.resolveAvatarUrl(profile.avatar_id, 140);
+      } else if (profile.avatar && typeof profile.avatar === 'string') {
+        if (profile.avatar.length === 1) {
+          avatar = profile.avatar; // Single letter fallback
+        } else {
+          avatar = mediaUrlService.resolveAvatarUrl(profile.avatar, 140);
+        }
+      }
+      
       return {
         userId:     profile.userId || profile.user_id || profile.id,
         author:     profile.author || profile.name || profile.full_name || "Unknown User",
         username:   profile.username || "unknown",
-        avatar:     profile.avatar,
+        avatar:     avatar,
         verified:   profile.verified || false,
         propTier:   profile.subscription_tier ?? profile.subscriptionTier ?? "standard",
         propThemeId:
@@ -193,20 +181,19 @@ const ReelProfilePreview = ({
     return () => clearInterval(id);
   }, [hasMusic]);
 
-  // ── Resolve avatar URL ────────────────────────────────────────────────
-  let enhancedAvatar = avatar;
-  if (avatar && typeof avatar === "string") {
-    const cleanUrl = avatar.split("?")[0];
-    if (
-      cleanUrl.includes("supabase") ||
-      cleanUrl.includes("cloudinary") ||
-      avatar.startsWith("http://") ||
-      avatar.startsWith("https://") ||
-      avatar.startsWith("blob:")
-    ) {
-      enhancedAvatar = buildHighQualityAvatar(avatar, sz.avatar);
-    }
-  }
+  // ── Ensure avatar is high-quality ────────────────────────────────────────
+  const enhancedAvatar =
+    avatar && typeof avatar === "string" && avatar.startsWith("http")
+      ? mediaUrlService.getOptimizedImageUrl(avatar, {
+          width: sz.avatar * 3,
+          height: sz.avatar * 3,
+          quality: "100",
+          format: "webp",
+          crop: "fill",
+          gravity: "face",
+        })
+      : avatar;
+
   const isValidUrl =
     enhancedAvatar &&
     typeof enhancedAvatar === "string" &&

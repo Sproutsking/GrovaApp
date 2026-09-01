@@ -254,6 +254,8 @@ const ConversationList = ({
           alt={group.name}
           style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
           onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+          loading="lazy"
+          fetchPriority="low"
         />
       );
     }
@@ -268,15 +270,35 @@ const ConversationList = ({
   });
   const filteredGroups = groups.filter(g => !sl || (g?.name || "").toLowerCase().includes(sl));
   const isEmpty = !loading && filteredConvs.length === 0 && filteredGroups.length === 0;
-  useEffect(()=>{
-    try{
-      (filteredConvs||[]).slice(0,8).forEach(c=>{
+
+  // Preload avatars for visible conversations on mount and when list changes
+  useEffect(() => {
+    try {
+      // Preload top 12 conversations with high priority
+      (filteredConvs || []).slice(0, 12).forEach((c, idx) => {
         const other = c.user1_id === currentUserId ? c.user2 : c.user1;
         const a = getAvatar(other);
-        if(a) mediaUrlService.preloadMediaUrl(a, { type: 'image', priority: 'high' });
+        if (a) {
+          mediaUrlService.preloadMediaUrl(a, {
+            type: 'image',
+            priority: idx < 4 ? 'high' : 'low'
+          });
+        }
       });
-    }catch(e){}
-  },[filteredConvs,currentUserId]);
+      
+      // Preload group icons
+      (filteredGroups || []).slice(0, 8).forEach((g) => {
+        if (g.icon && /^https?:\/\//.test(g.icon)) {
+          mediaUrlService.preloadMediaUrl(g.icon, {
+            type: 'image',
+            priority: 'low'
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('[ConversationList] Avatar preload error:', e);
+    }
+  }, [filteredConvs, filteredGroups, currentUserId]);
 
   return (
     <div className="cl-root">

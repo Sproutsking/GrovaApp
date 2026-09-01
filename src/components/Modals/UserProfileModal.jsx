@@ -404,13 +404,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       // Build avatar URL — DB record wins, then try every prop shape callers pass
       let avatarUrl = null;
       if (raw.avatar_id) {
-        const base = mediaUrlService.getAvatarUrl(raw.avatar_id, 300);
-        if (base && typeof base === "string") {
-          const clean = base.split("?")[0];
-          avatarUrl = clean.includes("supabase")
-            ? `${clean}?quality=100&width=300&height=300&resize=cover&format=webp`
-            : base;
-        }
+        avatarUrl = mediaUrlService.getOptimizedImageUrl(raw.avatar_id, {
+          width: 300,
+          height: 300,
+          quality: "100",
+          format: "webp",
+          crop: "fill",
+          gravity: "face",
+        });
       } else {
         const fallback =
           user?.avatar     ||
@@ -418,7 +419,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           user?.avatarUrl  ||
           null;
         if (fallback && typeof fallback === "string" && fallback.startsWith("http")) {
-          avatarUrl = fallback;
+          avatarUrl = mediaUrlService.getOptimizedImageUrl(fallback, {
+            width: 300,
+            height: 300,
+            quality: "100",
+            format: "webp",
+            crop: "fill",
+            gravity: "face",
+          }) || fallback;
         }
       }
 

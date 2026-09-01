@@ -4,12 +4,45 @@
 
 import { supabase } from "../config/supabase";
 
+// ─── LRU Cache Implementation for preloaded media ───────────────────────────
+class LRUCache {
+  constructor(maxSize = 500) {
+    this.maxSize = maxSize;
+    this.cache = new Map();
+  }
+
+  has(key) {
+    return this.cache.has(key);
+  }
+
+  add(key) {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    this.cache.set(key, true);
+    if (this.cache.size > this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+    }
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+
+  size() {
+    return this.cache.size;
+  }
+}
+
 class MediaUrlService {
   
   constructor() {
     this.cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
     this.urlCache = new Map();
-    this._preloadedMedia = new Set();
+    this.optimizedCache = new Map();
+    this._preloadedMedia = new LRUCache(500);
+    this._avatarUrlCache = new Map();
     
     if (!this.cloudName) {
       console.warn('⚠️ REACT_APP_CLOUDINARY_CLOUD_NAME not set in .env; falling back to Supabase avatar URLs');
@@ -20,11 +53,122 @@ class MediaUrlService {
     return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
   }
 
+  _cacheStamp(value) {
+    if (!value || typeof value !== 'string') return '0';
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+    }
+    return String(hash || 1);
+  }
+
+  _normalizeImageQuery(url, size = 400, force = false) {
+    if (!url || typeof url !== 'string') return url;
+    const trimmed = url.trim();
+    if (!trimmed || (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('blob:'))) {
+      return trimmed;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      const target = Math.max(80, Number(size) || 400);
+      parsed.searchParams.set('width', String(target));
+      parsed.searchParams.set('height', String(target));
+      parsed.searchParams.set('quality', '100');
+      parsed.searchParams.set('resize', 'cover');
+      parsed.searchParams.set('format', 'webp');
+      parsed.searchParams.set('auto', 'format');
+      parsed.searchParams.set('v', force ? String(Date.now()) : this._cacheStamp(trimmed));
+      return parsed.toString();
+    } catch {
+      const separator = trimmed.includes('?') ? '&' : '?';
+      const target = Math.max(80, Number(size) || 400);
+      const stamp = force ? String(Date.now()) : this._cacheStamp(trimmed);
+      return `${trimmed}${separator}width=${target}&height=${target}&quality=100&resize=cover&format=webp&auto=format&v=${stamp}`;
+    }
+  }
+
   _isVideoUrl(value) {
     return typeof value === 'string' && (
       /\/video\/upload\//i.test(value) ||
       /\.(mp4|webm|mov|m4v|avi)(?:[?#]|$)/i.test(value)
     );
+  }
+
+  _optimizeDirectImageUrl(source, options = {}) {
+    if (!this._isHttpUrl(source)) return source;
+
+    const {
+      width = 400,
+      height = width,
+      quality = '100',
+      format = 'webp',
+      crop = 'fill',
+      gravity = 'face',
+    } = options;
+
+    try {
+      const url = new URL(source.trim());
+
+      if (/res\.cloudinary\.com$/i.test(url.hostname) && /\/image\/upload\//i.test(url.pathname)) {
+        const marker = '/image/upload/';
+        const markerIndex = url.pathname.indexOf(marker);
+        const pathBefore = url.pathname.slice(0, markerIndex + marker.length);
+        const pathAfter = url.pathname.slice(markerIndex + marker.length);
+        const parts = pathAfter.split('/');
+        const hasTransform = /^(?:w_|h_|c_|g_|q_|f_|dpr_)/.test(parts[0] || '');
+        const publicPath = hasTransform ? parts.slice(1).join('/') : pathAfter;
+        url.pathname = `${pathBefore}w_${width},h_${height},c_${crop},g_${gravity},q_${quality},f_${format === 'auto' ? 'webp' : format},dpr_auto/${publicPath}`;
+        return url.toString();
+      }
+
+      if (/supabase\.co$/i.test(url.hostname) && /\/storage\/v1\/object\/public\//i.test(url.pathname)) {
+        url.searchParams.set('width', String(width));
+        url.searchParams.set('height', String(height));
+        url.searchParams.set('resize', crop === 'fill' ? 'cover' : 'contain');
+        url.searchParams.set('quality', '100');
+        url.searchParams.set('format', 'webp');
+        return url.toString();
+      }
+    } catch {}
+
+    return source.trim();
+  }
+
+  getOptimizedImageUrl(source, options = {}) {
+    if (!source) return null;
+
+    const normalizedOptions = {
+      width: 400,
+      height: 400,
+      quality: '100',
+      format: 'webp',
+      crop: 'fill',
+      gravity: 'face',
+      ...options,
+    };
+
+    if (typeof source === 'object') {
+      const direct = source.url || source.avatar_url || source.avatarUrl || source.image_url || source.publicUrl;
+      if (direct) return this.getOptimizedImageUrl(direct, normalizedOptions);
+      const id = source.avatar_id || source.id || source.public_id;
+      return id ? this.getOptimizedImageUrl(id, normalizedOptions) : null;
+    }
+
+    const cacheKey = JSON.stringify({ source, ...normalizedOptions });
+    if (this.optimizedCache.has(cacheKey)) {
+      return this.optimizedCache.get(cacheKey);
+    }
+
+    let optimized;
+    if (this._isHttpUrl(source)) {
+      optimized = this._optimizeDirectImageUrl(source, normalizedOptions);
+    } else {
+      optimized = this.getImageUrl(source, { quality: '100', format: 'webp', ...normalizedOptions });
+    }
+
+    this.optimizedCache.set(cacheKey, optimized);
+    return optimized;
   }
 
   _stripVideoExtension(value) {
@@ -40,6 +184,16 @@ class MediaUrlService {
 
   _isPreloaded(url) {
     return !!url && this._preloadedMedia.has(url);
+  }
+
+  // Get cache size info for monitoring
+  getCacheStats() {
+    return {
+      preloadedMedia: this._preloadedMedia.size(),
+      optimizedCache: this.optimizedCache.size,
+      urlCache: this.urlCache.size,
+      avatarUrlCache: this._avatarUrlCache.size,
+    };
   }
 
   _appendLink(url, as, rel, type, priority) {
@@ -125,9 +279,9 @@ class MediaUrlService {
       height,
       crop = 'fill',
       gravity = 'auto',
-      quality = 'auto:best',
-      format = 'auto',
-      fetch_format = 'auto'
+      quality = '100',
+      format = 'webp',
+      fetch_format = 'webp'
     } = options;
 
     const baseUrl = `https://res.cloudinary.com/${this.cloudName}`;
@@ -244,24 +398,66 @@ class MediaUrlService {
       return null;
     }
 
-    if (this._isHttpUrl(avatarSource)) return avatarSource.trim();
+    // Use stable cache key for avatar URLs (based on source + size)
+    const cacheKey = `${avatarSource}:${size}`;
+    if (this._avatarUrlCache.has(cacheKey)) {
+      return this._avatarUrlCache.get(cacheKey);
+    }
 
-    const cloudinaryUrl = this.getImageUrl(avatarSource, {
-      width: size,
-      height: size,
-      crop: 'thumb',
-      gravity: 'face',
-      quality: 'auto:best'
-    });
+    let result = null;
 
-    if (cloudinaryUrl) return cloudinaryUrl;
+    // For already-optimized or direct URLs, enhance them further
+    if (this._isHttpUrl(avatarSource)) {
+      result = this._optimizeDirectImageUrl(avatarSource, {
+        width: size,
+        height: size,
+        crop: 'fill',
+        gravity: 'face',
+        quality: '100',
+        format: 'webp',
+      });
+    } else {
+      // For Cloudinary public IDs, use HIGHEST quality
+      const cloudinaryUrl = this.getImageUrl(avatarSource, {
+        width: size,
+        height: size,
+        crop: 'thumb',
+        gravity: 'face',
+        quality: '100',
+        format: 'webp',
+      });
 
-    try {
-      const { data } = supabase.storage.from('avatars').getPublicUrl(avatarSource);
-      if (data?.publicUrl) return data.publicUrl;
-    } catch {}
+      if (cloudinaryUrl) {
+        // Use stable cache hash instead of Date.now()
+        const cacheHash = this._cacheStamp(avatarSource);
+        result = `${cloudinaryUrl}${cloudinaryUrl.includes('?') ? '&' : '?'}v=${cacheHash}`;
+      } else {
+        // Fallback to Supabase storage
+        try {
+          const { data } = supabase.storage.from('avatars').getPublicUrl(avatarSource);
+          if (data?.publicUrl) {
+            result = this._optimizeDirectImageUrl(data.publicUrl, {
+              width: size,
+              height: size,
+              quality: '100',
+              format: 'webp',
+            });
+          }
+        } catch {}
+      }
+    }
 
-    return null;
+    // Cache the resolved URL to prevent recomputation
+    if (result) {
+      this._avatarUrlCache.set(cacheKey, result);
+      // Prevent cache from growing unbounded (max 200 avatar URLs)
+      if (this._avatarUrlCache.size > 200) {
+        const oldestKey = this._avatarUrlCache.keys().next().value;
+        this._avatarUrlCache.delete(oldestKey);
+      }
+    }
+
+    return result;
   }
 
   getAvatarUrl(avatarId, size = 400) {
@@ -277,7 +473,8 @@ class MediaUrlService {
       width,
       crop: 'fill',
       gravity: 'auto',
-      quality: 'auto:best'
+      quality: '100',
+      format: 'webp'
     });
   }
 
@@ -290,7 +487,8 @@ class MediaUrlService {
       width,
       crop: 'fill',
       gravity: 'auto',
-      quality: 'auto:best'
+      quality: '100',
+      format: 'webp'
     });
   }
 
@@ -327,7 +525,8 @@ class MediaUrlService {
         const url = this.getImageUrl(imageId, {
           width,
           crop: 'scale',
-          quality: 'auto:best'
+          quality: '100',
+          format: 'webp'
         });
         return `${url} ${width}w`;
       })
@@ -359,7 +558,20 @@ class MediaUrlService {
   
   clearCache() {
     this.urlCache.clear();
-    console.log('🗑️ URL cache cleared');
+    this.optimizedCache.clear();
+    this._preloadedMedia.clear();
+    this._avatarUrlCache.clear();
+    console.log('🗑️ All image caches cleared');
+  }
+
+  clearPreloadCache() {
+    this._preloadedMedia.clear();
+    console.log('🗑️ Preload cache cleared');
+  }
+
+  clearAvatarCache() {
+    this._avatarUrlCache.clear();
+    console.log('🗑️ Avatar URL cache cleared');
   }
 
   removeFromCache(publicId) {

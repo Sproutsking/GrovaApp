@@ -602,9 +602,8 @@ const PostCard = ({
     id: post.user_id, userId: post.user_id, user_id: post.user_id,
     author:   post.profiles?.full_name || post.author   || "Unknown",
     username: post.profiles?.username  || post.username || "unknown",
-    avatar:   post.profiles?.avatar_id
-      ? mediaUrlService.getAvatarUrl(post.profiles.avatar_id, 200)
-      : post.avatar || null,
+    avatar_id: post.profiles?.avatar_id,
+    avatar:   post.avatar || null,
     verified: post.profiles?.verified || post.verified || false,
   };
 

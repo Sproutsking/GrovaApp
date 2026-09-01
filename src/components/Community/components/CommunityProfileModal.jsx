@@ -51,7 +51,11 @@ const CommunityProfileModal = ({
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const avatarUrl = user?.avatar_id ? mediaUrlService.getAvatarUrl(user.avatar_id, 240) : null;
+  const avatarUrl = user?.avatar_id
+    ? mediaUrlService.getOptimizedImageUrl(user.avatar_id, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" })
+    : (user?.avatar_url || user?.avatarUrl || user?.avatar
+      ? mediaUrlService.getOptimizedImageUrl(user.avatar_url || user.avatarUrl || user.avatar, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" })
+      : null);
   const displayName = user?.full_name || user?.username || "Unknown user";
   const isOwnProfile = Boolean(currentUserId && user?.id && currentUserId === user.id);
   const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId } = useUserBoostTier(user?.id);

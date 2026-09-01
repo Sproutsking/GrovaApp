@@ -195,10 +195,10 @@ const DesktopHeader = ({
   useEffect(() => { showMessagesRef.current = showMessages; }, [showMessages]);
 
   let avatarUrl = profile?.avatar;
-  if (avatarUrl && typeof avatarUrl === "string") {
-    const cleanUrl = avatarUrl.split("?")[0];
-    if (cleanUrl.includes("supabase"))
-      avatarUrl = `${cleanUrl}?quality=100&width=400&height=400&resize=cover&format=webp`;
+  if (profile?.avatar_id) {
+    avatarUrl = mediaUrlService.getOptimizedImageUrl(profile.avatar_id, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" }) || avatarUrl;
+  } else if (avatarUrl && typeof avatarUrl === "string") {
+    avatarUrl = mediaUrlService.getOptimizedImageUrl(avatarUrl, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" }) || avatarUrl;
   }
   const fallbackLetter = profile?.fullName?.charAt(0)?.toUpperCase() || "U";
   const isValidAvatar  =

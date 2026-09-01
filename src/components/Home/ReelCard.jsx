@@ -201,9 +201,8 @@ const ReelCard = ({
     userId: reel.user_id,
     author: reel.profiles?.full_name || reel.author || "Unknown",
     username: reel.profiles?.username || reel.username || "unknown",
-    avatar: reel.profiles?.avatar_id
-      ? mediaUrlService.getAvatarUrl(reel.profiles.avatar_id, 200)
-      : null,
+    avatar_id: reel.profiles?.avatar_id,
+    avatar: null,
     verified: reel.profiles?.verified || reel.verified || false,
   };
 

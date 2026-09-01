@@ -21,6 +21,7 @@ import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shared/LinkifiedText";
 import MessageContextMenu from "../Shared/MessageContextMenu";
+import OptimizedImage from "../Shared/OptimizedImage";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -237,7 +238,28 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       return <span className="cv-bad">[message unavailable]</span>;
     if(c.startsWith("↩ Replying to status:")){const m=c.match(/↩ Replying to status: "(.+)"/);return(<span><span style={{color:"#84cc16",fontSize:11,display:"block",marginBottom:3}}>↩ Status reply</span>{m?<em style={{opacity:.7}}>{`"${m[1]}"`}</em>:c}</span>);}
     if(c.startsWith("↗ Forwarded message")){const lines=c.split("\n");return(<span className="cv-forwarded"><span className="cv-forwarded-label">↗ Forwarded message</span><span className="cv-forwarded-body">{lines.slice(1).join("\n")}</span></span>);}
-    if(c.startsWith("__GIF__:")){return <img src={c.replace("__GIF__:","")} alt="GIF" style={{maxWidth:220,maxHeight:170,borderRadius:10,display:"block",objectFit:"cover"}}/>;}
+    if(c.startsWith("__GIF__:")){
+      const gifUrl = c.replace("__GIF__:","").trim();
+      if(!gifUrl) return null;
+      // Validate URL before rendering
+      if(!/^https?:\/\//.test(gifUrl)) return <span className="cv-bad">[invalid GIF]</span>;
+      return (
+        <div style={{width:220, height:170, borderRadius:10, overflow:"hidden"}}>
+          <OptimizedImage 
+            src={gifUrl} 
+            alt="GIF" 
+            width={220}
+            height={170}
+            maxWidth={220}
+            objectFit="cover"
+            loading="lazy"
+            fetchPriority="high"
+            enableOptimization={true}
+            quality="auto:best"
+          />
+        </div>
+      );
+    }
     return parseSharedContent(c)
       ? <SharedContentMessage onNavigate={onNavigate} isMine={isMe} showSender={opts.showSender ?? true} senderDisplayName={opts.senderDisplayName || (isMe ? "You" : otherName || "Someone")}>{c}</SharedContentMessage>
       : <LinkifiedText onNavigate={onNavigate}>{c}</LinkifiedText>;
