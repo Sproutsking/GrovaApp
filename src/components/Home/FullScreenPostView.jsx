@@ -261,9 +261,12 @@ const FullScreenPostView = ({
     );
   })();
 
+  const portalRoot = typeof document !== "undefined" ? document.body : null;
+  if (!portalRoot) return null;
+
   return ReactDOM.createPortal(
     <>{modal}<style>{CSS}</style></>,
-    document.body
+    portalRoot
   );
 };
 

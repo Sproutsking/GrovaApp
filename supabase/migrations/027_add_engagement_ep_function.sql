@@ -14,116 +14,134 @@ security definer
 set search_path = public
 as $$
 declare
-  actor_balance numeric;
-  content_owner_id uuid;
-  is_self_engagement boolean;
-  platform_fee numeric;
-  distributable numeric;
-  direct_owner_share numeric;
-  post_owner_share numeric;
-  split_applied boolean;
-  engagement_record record;
+  v_actor_balance numeric := 0;
+  v_content_owner_id uuid := null;
+  v_is_self_engagement boolean := false;
+  v_platform_fee numeric := 0;
+  v_distributable numeric := 0;
+  v_direct_owner_share numeric := 0;
+  v_post_owner_share numeric := 0;
+  v_split_applied boolean := false;
+  v_content_table text;
+  v_owner_balance numeric := 0;
 begin
-  -- Validate inputs
   if p_actor_id is null then
     return jsonb_build_object('success', false, 'error', 'Actor ID required');
   end if;
 
-  if auth.uid() is null or auth.uid() <> p_actor_id then
+  if auth.uid() is null then
+    return jsonb_build_object('success', false, 'error', 'Not authenticated');
+  end if;
+
+  if auth.uid() <> p_actor_id then
     return jsonb_build_object('success', false, 'error', 'Authenticated actor required');
   end if;
-  
+
+  if p_content_type is null or p_content_id is null then
+    return jsonb_build_object('success', false, 'error', 'Content reference required');
+  end if;
+
+  if p_ep_cost is null then
+    return jsonb_build_object('success', false, 'error', 'EP cost required');
+  end if;
+
   if p_ep_cost <= 0 then
-    return jsonb_build_object('success', true, 'free', true);
+    return jsonb_build_object('success', true, 'free', true, 'message', 'No EP charge required');
   end if;
 
   insert into public.wallets (user_id, xev_tokens, engagement_points, paywave_balance)
   values (p_actor_id, 0, 0, 0)
   on conflict (user_id) do nothing;
 
-  -- Get actor's current balance
-  select engagement_points into actor_balance
-    from public.wallets where user_id = p_actor_id for update;
-  
-  if coalesce(actor_balance, 0) < p_ep_cost then
+  select coalesce(engagement_points, 0) into v_actor_balance
+  from public.wallets
+  where user_id = p_actor_id
+  for update;
+
+  if coalesce(v_actor_balance, 0) < p_ep_cost then
     return jsonb_build_object(
       'success', false,
       'error', 'Insufficient EP',
       'required', p_ep_cost,
-      'balance', coalesce(actor_balance, 0)
+      'balance', coalesce(v_actor_balance, 0)
     );
   end if;
 
-  -- Get content owner based on content type
   case p_content_type
     when 'post' then
-      select user_id into content_owner_id from public.posts where id = p_content_id;
+      v_content_table := 'posts';
     when 'reel' then
-      select user_id into content_owner_id from public.reels where id = p_content_id;
+      v_content_table := 'reels';
     when 'story' then
-      select user_id into content_owner_id from public.stories where id = p_content_id;
+      v_content_table := 'stories';
     when 'comment' then
-      select user_id into content_owner_id from public.comments where id = p_content_id;
+      v_content_table := 'comments';
     else
       return jsonb_build_object('success', false, 'error', 'Unknown content type');
   end case;
 
-  if content_owner_id is null then
+  execute format(
+    'select user_id from public.%I where id = $1',
+    v_content_table
+  )
+  into v_content_owner_id
+  using p_content_id;
+
+  if v_content_owner_id is null then
     return jsonb_build_object('success', false, 'error', 'Content not found');
   end if;
 
   insert into public.wallets (user_id, xev_tokens, engagement_points, paywave_balance)
-  values (content_owner_id, 0, 0, 0)
+  values (v_content_owner_id, 0, 0, 0)
   on conflict (user_id) do nothing;
 
-  is_self_engagement := (p_actor_id = content_owner_id);
+  v_is_self_engagement := (p_actor_id = v_content_owner_id);
 
-  -- Deduct EP from actor (unless self-engagement)
-  if not is_self_engagement then
+  if not v_is_self_engagement then
     update public.wallets
-      set engagement_points = engagement_points - p_ep_cost,
-          updated_at = now()
-      where user_id = p_actor_id;
+    set engagement_points = coalesce(engagement_points, 0) - p_ep_cost,
+        updated_at = now()
+    where user_id = p_actor_id;
 
-    actor_balance := actor_balance - p_ep_cost;
+    v_actor_balance := coalesce(v_actor_balance, 0) - p_ep_cost;
 
-    -- Record transaction for actor
     insert into public.ep_transactions (user_id, amount, balance_after, type, reason, metadata)
     values (
       p_actor_id,
-      -p_ep_cost,
-      actor_balance,
+      -p_ep_cost::numeric,
+      v_actor_balance,
       'spend',
-      'Engagement - ' || p_engagement_type,
+      'Engagement - ' || coalesce(p_engagement_type, 'engagement'),
       jsonb_build_object(
         'engagement_type', p_engagement_type,
         'content_type', p_content_type,
         'content_id', p_content_id,
-        'recipient_id', content_owner_id
+        'recipient_id', v_content_owner_id
       )
     );
 
-    -- Award creator (platform fee: 15%, distributable: 85%)
-    platform_fee := (p_ep_cost * 0.15)::numeric;
-    distributable := p_ep_cost - platform_fee;
-    direct_owner_share := distributable;
-    post_owner_share := 0;
-    split_applied := false;
+    v_platform_fee := (p_ep_cost * 0.15)::numeric;
+    v_distributable := p_ep_cost - v_platform_fee;
+    v_direct_owner_share := v_distributable;
+    v_post_owner_share := 0;
+    v_split_applied := false;
 
-    -- Award to content owner
     update public.wallets
-      set engagement_points = coalesce(engagement_points, 0) + direct_owner_share,
-          updated_at = now()
-      where user_id = content_owner_id;
+    set engagement_points = coalesce(engagement_points, 0) + v_direct_owner_share,
+        updated_at = now()
+    where user_id = v_content_owner_id;
 
-    -- Record transaction for owner
+    select coalesce(engagement_points, 0) into v_owner_balance
+    from public.wallets
+    where user_id = v_content_owner_id;
+
     insert into public.ep_transactions (user_id, amount, balance_after, type, reason, metadata)
     values (
-      content_owner_id,
-      direct_owner_share::integer,
-      (select coalesce(engagement_points, 0) from public.wallets where user_id = content_owner_id),
+      v_content_owner_id,
+      v_direct_owner_share,
+      v_owner_balance,
       'bonus_grant',
-      'Creator share - ' || p_engagement_type,
+      'Creator share - ' || coalesce(p_engagement_type, 'engagement'),
       jsonb_build_object(
         'engagement_type', p_engagement_type,
         'content_type', p_content_type,
@@ -132,23 +150,23 @@ begin
       )
     );
   else
-    platform_fee := 0;
-    distributable := 0;
-    direct_owner_share := 0;
-    post_owner_share := 0;
-    split_applied := false;
+    v_platform_fee := 0;
+    v_distributable := 0;
+    v_direct_owner_share := 0;
+    v_post_owner_share := 0;
+    v_split_applied := false;
   end if;
 
   return jsonb_build_object(
     'success', true,
     'ep_cost', p_ep_cost,
-    'balance', actor_balance,
-    'self_engagement', is_self_engagement,
-    'platform_fee', platform_fee,
-    'distributable', distributable,
-    'direct_owner_share', direct_owner_share,
-    'post_owner_share', post_owner_share,
-    'split_applied', split_applied
+    'balance', v_actor_balance,
+    'self_engagement', v_is_self_engagement,
+    'platform_fee', v_platform_fee,
+    'distributable', v_distributable,
+    'direct_owner_share', v_direct_owner_share,
+    'post_owner_share', v_post_owner_share,
+    'split_applied', v_split_applied
   );
 
 exception when others then

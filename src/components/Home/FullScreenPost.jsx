@@ -319,6 +319,9 @@ const FullScreenPost = ({
     return comments.filter(c => c.parent_id === parentId);
   }, [comments]);
 
+  const portalRoot = typeof document !== "undefined" ? document.body : null;
+  if (!portalRoot) return null;
+
   return ReactDOM.createPortal(
     <div className="fullscreen-post-container">
       {/* Left/Top: Post Content */}

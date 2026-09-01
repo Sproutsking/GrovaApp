@@ -96,7 +96,16 @@ const ProfilePreview = ({
       (author || "user").toLowerCase().replace(/\s+/g, "_");
 
     let avatar = null;
-    const avatarSource = profileData.avatar_id || profileData.avatar_id || profileData.avatar_url || profileData.avatarUrl || profileData.avatar_metadata || profile.avatar_metadata || profile.avatar;
+    const avatarSource =
+      profileData.avatar_id ||
+      profileData.avatarId ||
+      profileData.avatar_url ||
+      profileData.avatarUrl ||
+      profile.avatar_url ||
+      profile.avatarUrl ||
+      profile.avatar ||
+      profileData.avatar_metadata ||
+      profile.avatar_metadata;
     if (avatarSource) {
       avatar = mediaUrlService.resolveAvatarUrl(avatarSource, 200);
     }

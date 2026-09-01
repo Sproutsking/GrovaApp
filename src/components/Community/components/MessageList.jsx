@@ -31,14 +31,11 @@ const MessageList = ({
 
   const getAvatar = (user) => {
     if (!user) return null;
-    
-    if (user.avatar_id) {
-      const url = mediaUrlService.getAvatarUrl(user.avatar_id, 200);
-      console.log(`🖼️ Avatar URL for ${user.full_name}:`, url);
-      return url;
-    }
-    
-    return null;
+
+    return mediaUrlService.resolveAvatarUrl(
+      user.avatar_url || user.avatarUrl || user.avatar_id || user.avatar,
+      200,
+    );
   };
 
   const getInitial = (user) => {
@@ -94,7 +91,7 @@ const MessageList = ({
           const showTail = !prev || prev.user_id !== msg.user_id;
           const showAvatar = !isMe && showTail;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
-          const avatarFootprint = hasBoostedProfile ? 56 : 36;
+          const avatarFootprint = 56;
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
@@ -199,6 +196,7 @@ const MessageList = ({
           display: flex;
           align-items: flex-end;
           gap: 8px;
+          margin-bottom: 4px;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
@@ -233,8 +231,8 @@ const MessageList = ({
         }
 
         .msg-avatar {
-          width: 36px;
-          height: 36px;
+          width: 56px;
+          height: 56px;
           border-radius: 50%;
           border: 2px solid var(--accent-border);
           overflow: visible;
@@ -282,7 +280,7 @@ const MessageList = ({
         }
 
         .msg-avatar-spacer {
-          width: 36px;
+          width: 56px;
           flex-shrink: 0;
         }
 
@@ -451,12 +449,12 @@ const MessageList = ({
 
         @media (max-width: 768px) {
           .msg-avatar {
-            width: 40px;
-            height: 40px;
+            width: 56px;
+            height: 56px;
           }
 
           .msg-avatar-spacer {
-            width: 40px;
+            width: 56px;
           }
 
           .msg-avatar-fallback {

@@ -91,11 +91,19 @@ const ReelProfilePreview = ({
       (author || "user").toLowerCase().replace(/\s+/g, "_");
 
     let avatar = null;
-    if (profileData.avatar_id) {
-      avatar = mediaUrlService.getAvatarUrl(profileData.avatar_id, 200);
-    } else if (profile.avatar) {
-      avatar = profile.avatar;
-    } else {
+    const avatarSource =
+      profileData.avatar_id ||
+      profileData.avatarId ||
+      profileData.avatar_url ||
+      profileData.avatarUrl ||
+      profile.avatar_url ||
+      profile.avatarUrl ||
+      profile.avatar;
+
+    if (avatarSource) {
+      avatar = mediaUrlService.resolveAvatarUrl(avatarSource, 200);
+    }
+    if (!avatar) {
       avatar = author.charAt(0).toUpperCase();
     }
 

@@ -358,6 +358,135 @@ async function _resolveOwner(contentType, contentId) {
   return _resolveContentOwner(contentType, contentId);
 }
 
+async function _fallbackProcessEngagement({
+  actorId,
+  contentType,
+  contentId,
+  engagementType,
+}) {
+  const epCost = EP_COSTS[engagementType] ?? 0;
+  if (epCost <= 0) {
+    return { success: true, epCost: 0, free: true };
+  }
+
+  const tableMap = { post: 'posts', reel: 'reels', story: 'stories', comment: 'comments' };
+  const table = tableMap[contentType];
+  if (!table) {
+    return { success: false, epCost, error: 'Unknown content type' };
+  }
+
+  const { data: ownerRow, error: ownerError } = await supabase
+    .from(table)
+    .select('user_id')
+    .eq('id', contentId)
+    .maybeSingle();
+
+  if (ownerError) {
+    throw ownerError;
+  }
+
+  const ownerId = ownerRow?.user_id;
+  if (!ownerId) {
+    return { success: false, epCost, error: 'Content not found' };
+  }
+
+  const actorWallet = await walletService.ensureWallet(actorId).catch(() => null);
+  const ownerWallet = await walletService.ensureWallet(ownerId).catch(() => null);
+
+  if (!actorWallet || !ownerWallet) {
+    return { success: false, epCost, error: 'Wallet initialisation failed' };
+  }
+
+  const actorBalance = Number(actorWallet.engagement_points ?? 0);
+  if (actorId === ownerId) {
+    return {
+      success: true,
+      epCost,
+      selfEngagement: true,
+      platformFee: 0,
+      distributable: 0,
+      directOwnerShare: 0,
+      postOwnerShare: 0,
+      splitApplied: false,
+    };
+  }
+
+  if (actorBalance < epCost) {
+    return {
+      success: false,
+      epCost,
+      error: 'Insufficient EP',
+      balance: actorBalance,
+      required: epCost,
+    };
+  }
+
+  const platformFee = Number((epCost * 0.15).toFixed(2));
+  const distributable = epCost - platformFee;
+  const nextActorBalance = actorBalance - epCost;
+  const nextOwnerBalance = Number(ownerWallet.engagement_points ?? 0) + distributable;
+
+  const { error: debitError } = await supabase
+    .from('wallets')
+    .update({
+      engagement_points: nextActorBalance,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', actorId);
+
+  if (debitError) throw debitError;
+
+  const { error: creditError } = await supabase
+    .from('wallets')
+    .update({
+      engagement_points: nextOwnerBalance,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', ownerId);
+
+  if (creditError) throw creditError;
+
+  await supabase.from('ep_transactions').insert([
+    {
+      user_id: actorId,
+      amount: -epCost,
+      balance_after: nextActorBalance,
+      type: 'spend',
+      reason: `Engagement - ${engagementType}`,
+      metadata: {
+        engagement_type: engagementType,
+        content_type: contentType,
+        content_id: contentId,
+        recipient_id: ownerId,
+      },
+    },
+    {
+      user_id: ownerId,
+      amount: distributable,
+      balance_after: nextOwnerBalance,
+      type: 'bonus_grant',
+      reason: `Creator share - ${engagementType}`,
+      metadata: {
+        engagement_type: engagementType,
+        content_type: contentType,
+        content_id: contentId,
+        actor_id: actorId,
+      },
+    },
+  ]);
+
+  return {
+    success: true,
+    epCost,
+    selfEngagement: false,
+    platformFee,
+    distributable,
+    directOwnerShare: distributable,
+    postOwnerShare: 0,
+    splitApplied: false,
+  };
+}
+
 // =============================================================================
 //  CORE: processEngagement
 //  [PUSH-1] Push fires after EP succeeds, never blocks EP processing
@@ -377,7 +506,6 @@ export async function processEngagement({
 
   invalidateEPCache(actorId);
 
-  // [FIX-1] Always integer — resolves Postgres overload ambiguity
   const epCostInt = Math.trunc(epCost);
 
   try {
@@ -399,7 +527,17 @@ export async function processEngagement({
       console.warn(
         `[epEconomyService] RPC ${isAmbiguity ? 'overload ambiguity' : 'error'}: ${error.message} — using direct wallet fallback`,
       );
-      throw error;
+      const fallback = await _fallbackProcessEngagement({ actorId, contentType, contentId, engagementType });
+      if (fallback.success) {
+        return fallback;
+      }
+      return {
+        success: false,
+        epCost: epCostInt,
+        error: fallback.error ?? error.message ?? 'EP processing failed.',
+        balance: fallback.balance,
+        required: fallback.required,
+      };
     }
 
     const result = data ?? {};
@@ -408,21 +546,19 @@ export async function processEngagement({
       const freshBalance = await getEPBalance(actorId);
       _setCache(actorId, freshBalance);
       return {
-        success:  false,
-        epCost:   epCostInt,
-        error:    result.error    ?? 'EP processing failed.',
-        balance:  result.balance  != null ? Number(result.balance)  : undefined,
+        success: false,
+        epCost: epCostInt,
+        error: result.error ?? 'EP processing failed.',
+        balance: result.balance != null ? Number(result.balance) : undefined,
         required: result.required != null ? Number(result.required) : undefined,
       };
     }
 
-    // Optimistically update balance cache
     if (!result.self_engagement) {
       const cached = _getCached(actorId);
       if (cached !== null) _setCache(actorId, Math.max(0, cached - epCostInt));
     }
 
-    // [PUSH-1] Fire push after confirmed EP success — never awaited
     _sendEngagementPush({
       actorId,
       contentType,
@@ -432,20 +568,29 @@ export async function processEngagement({
     });
 
     return {
-      success:          true,
-      epCost:           epCostInt,
-      selfEngagement:   result.self_engagement    ?? false,
-      platformFee:      Number(result.platform_fee       ?? 0),
-      distributable:    Number(result.distributable       ?? 0),
+      success: true,
+      epCost: epCostInt,
+      selfEngagement: result.self_engagement ?? false,
+      platformFee: Number(result.platform_fee ?? 0),
+      distributable: Number(result.distributable ?? 0),
       directOwnerShare: Number(result.direct_owner_share ?? 0),
-      postOwnerShare:   Number(result.post_owner_share   ?? 0),
-      splitApplied:     result.split_applied             ?? false,
+      postOwnerShare: Number(result.post_owner_share ?? 0),
+      splitApplied: result.split_applied ?? false,
     };
 
   } catch (err) {
     const errorMessage = err?.message || err?.error_description || 'EP processing failed.';
     console.error('[epEconomyService] engagement RPC failed:', errorMessage);
-    return { success: false, epCost: epCostInt, error: errorMessage };
+
+    try {
+      const fallback = await _fallbackProcessEngagement({ actorId, contentType, contentId, engagementType });
+      if (fallback.success) return fallback;
+      return { success: false, epCost: epCostInt, error: fallback.error ?? errorMessage };
+    } catch (fallbackErr) {
+      const fallbackMessage = fallbackErr?.message || fallbackErr?.error_description || 'EP processing failed.';
+      console.error('[epEconomyService] engagement fallback failed:', fallbackMessage);
+      return { success: false, epCost: epCostInt, error: fallbackMessage };
+    }
   }
 }
 
