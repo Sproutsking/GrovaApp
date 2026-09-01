@@ -150,7 +150,7 @@ const CardHeader = ({
           size={38}
           src={avatarSrc}
           letter={initial}
-          showBadge={hasBoostedTier}
+          showBadge={false}
           borderRadius="circle"
           style={{ cursor: "pointer" }}
           accentColor={hasBoostedTier ? nameColor : undefined}
@@ -182,9 +182,9 @@ const CardHeader = ({
           >
             {profile?.author || "Unknown"}
           </span>
-          {profile?.verified && (
-            <span className="ch-verified" style={{ color: nameColor }}>
-              ✦
+          {(profile?.verified || hasBoostedTier) && (
+            <span className="ch-verified" style={{ color: nameColor, background: nameColor ? `${nameColor}22` : '#22c55e22', borderColor: nameColor || '#22c55e' }}>
+              ✓
             </span>
           )}
         </div>

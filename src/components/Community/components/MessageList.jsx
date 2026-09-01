@@ -93,6 +93,8 @@ const MessageList = ({
           // Show tail on first message in a cluster (for both "me" and "them")
           const showTail = !prev || prev.user_id !== msg.user_id;
           const showAvatar = !isMe && showTail;
+          const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
+          const avatarFootprint = hasBoostedProfile ? 56 : 36;
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
@@ -110,7 +112,7 @@ const MessageList = ({
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
               {showAvatar && (
-                <div className="msg-avatar" style={{ overflow: "visible" }} onClick={() => onProfileClick?.(msg.user)} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
+                <div className="msg-avatar" style={{ width: avatarFootprint, height: avatarFootprint, border: "0", boxShadow: "none", overflow: "visible" }} onClick={() => onProfileClick?.(msg.user)} role="button" tabIndex={0} aria-label={`View ${msg.user?.full_name || msg.user?.username || "user"}'s profile`}>
                   <BoostAvatarRing
                     tier={msg.user?.subscription_tier}
                     themeId={msg.user?.boost_selections?.themeId}
@@ -123,7 +125,7 @@ const MessageList = ({
                   />
                 </div>
               )}
-              {!showAvatar && !isMe && <div className="msg-avatar-spacer" />}
+              {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
               <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}`}>
                 {msg.reply_to_id && (() => {
@@ -133,6 +135,7 @@ const MessageList = ({
                 {!isMe && showAvatar && (
                   <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                     {msg.user?.full_name || msg.user?.username || "Unknown"}
+                    {(msg.user?.verified || hasBoostedProfile) && <span className="msg-verified" aria-label="Verified account">✓</span>}
                   </button>
                 )}
                 <div className="msg-content">{parseSharedContent(msg.content) ? <SharedContentMessage onNavigate={onNavigate}>{msg.content}</SharedContentMessage> : renderContent(msg.content)}</div>
@@ -234,12 +237,29 @@ const MessageList = ({
           height: 36px;
           border-radius: 50%;
           border: 2px solid var(--accent-border);
-          overflow: hidden;
+          overflow: visible;
           flex-shrink: 0;
           position: relative;
           box-shadow: 0 2px 8px var(--shadow);
           padding: 0;
           cursor: pointer;
+        }
+
+        .msg-verified,
+        .community-profile-verified {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 15px;
+          height: 15px;
+          margin-left: 5px;
+          border-radius: 50%;
+          background: #84cc16;
+          color: #071007;
+          font-size: 10px;
+          font-weight: 900;
+          line-height: 1;
+          vertical-align: middle;
         }
 
         .msg-avatar img {

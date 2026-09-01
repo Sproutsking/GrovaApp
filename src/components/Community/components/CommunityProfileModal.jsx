@@ -198,14 +198,17 @@ const CommunityProfileModal = ({
               size={58}
               src={avatarUrl && !avatarFailed ? avatarUrl : null}
               letter={displayName.charAt(0).toUpperCase()}
-              showBadge={hasBoosted}
+              showBadge={false}
               badgeSize="sm"
               borderRadius="circle"
               accentColor={hasBoosted ? nameDesign.color?.color : undefined}
             />
           </div>
           <div className="community-profile-heading">
-            <h2 style={hasBoosted ? { color: nameDesign.color?.color || getBoostNameColor(tier, themeId) || "#fff", fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing, textShadow: `0 0 18px ${nameDesign.color?.shadow || boostVisual?.glow || "rgba(156,255,0,.35)"}` } : undefined}>{displayName}</h2>
+            <h2 style={hasBoosted ? { color: nameDesign.color?.color || getBoostNameColor(tier, themeId) || "#fff", fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing, textShadow: `0 0 18px ${nameDesign.color?.shadow || boostVisual?.glow || "rgba(156,255,0,.35)"}` } : undefined}>
+              {displayName}
+              {(user?.verified || hasBoosted) && <span className="community-profile-verified" aria-label="Verified account">✓</span>}
+            </h2>
             <span>@{user?.username || "unknown"}</span>
             {hasBoosted && <small className="community-profile-boost-label">{tier} boost</small>}
           </div>

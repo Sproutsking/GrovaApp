@@ -233,12 +233,20 @@ class MediaUrlService {
 
   // ==================== GET AVATAR URL ====================
   
-  getAvatarUrl(avatarId, size = 400) {
-    if (!avatarId) return null;
+  resolveAvatarUrl(avatarSource, size = 400) {
+    if (!avatarSource) return null;
 
-    if (this._isHttpUrl(avatarId)) return avatarId.trim();
+    if (typeof avatarSource === 'object') {
+      const direct = avatarSource.url || avatarSource.avatar_url || avatarSource.avatarUrl || avatarSource.image_url || avatarSource.publicUrl;
+      if (direct) return this.resolveAvatarUrl(direct, size);
+      const id = avatarSource.avatar_id || avatarSource.id || avatarSource.public_id;
+      if (id) return this.resolveAvatarUrl(id, size);
+      return null;
+    }
 
-    const cloudinaryUrl = this.getImageUrl(avatarId, {
+    if (this._isHttpUrl(avatarSource)) return avatarSource.trim();
+
+    const cloudinaryUrl = this.getImageUrl(avatarSource, {
       width: size,
       height: size,
       crop: 'thumb',
@@ -249,11 +257,15 @@ class MediaUrlService {
     if (cloudinaryUrl) return cloudinaryUrl;
 
     try {
-      const { data } = supabase.storage.from('avatars').getPublicUrl(avatarId);
+      const { data } = supabase.storage.from('avatars').getPublicUrl(avatarSource);
       if (data?.publicUrl) return data.publicUrl;
     } catch {}
 
     return null;
+  }
+
+  getAvatarUrl(avatarId, size = 400) {
+    return this.resolveAvatarUrl(avatarId, size);
   }
 
   // ==================== GET POST IMAGE URL ====================

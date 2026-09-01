@@ -389,6 +389,8 @@ const BoostAvatarRing = ({
   const badgeW  = badgeSize === "md" ? 22 : 16;
   const badgeFs = badgeSize === "md" ? 11 : 8;
 
+  const showTierBadge = false;
+
   const isValidImg =
     src &&
     typeof src === "string" &&
@@ -487,8 +489,8 @@ const BoostAvatarRing = ({
       {/* SVG ring overlay — rendered outside the clipping div */}
       {visual && <StaticTierRing size={size} visual={visual} bleed={ringBleed} />}
 
-      {/* Badge pip */}
-      {showBadge && visual && (
+      {/* Tier badge pip — only for boost status, never used as the verification badge */}
+      {showTierBadge && (
         <div
           style={{
             position:       "absolute",
@@ -510,34 +512,6 @@ const BoostAvatarRing = ({
         >
           {visual.badge}
         </div>
-      )}
-
-      {showBadge && visual && (
-        <span
-          title="Verified paid member"
-          aria-label="Verified paid member"
-          style={{
-            position: "absolute",
-            top: -2,
-            right: -2,
-            width: badgeW,
-            height: badgeW,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#22c55e",
-            border: "2px solid #060606",
-            color: "#041108",
-            fontSize: badgeFs + 1,
-            fontWeight: 900,
-            lineHeight: 1,
-            zIndex: 4,
-            boxShadow: "0 2px 8px rgba(34,197,94,.55)",
-          }}
-        >
-          ✓
-        </span>
       )}
     </div>
   );

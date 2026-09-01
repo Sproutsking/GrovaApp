@@ -589,7 +589,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                         : null
                     }
                     letter={(profile?.fullName || "U").charAt(0).toUpperCase()}
-                    showBadge={hasBoosted}
+                    showBadge={false}
                     badgeSize="md"
                     borderRadius="circle"
                   />
@@ -610,15 +610,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   }}
                 >
                   {profile?.fullName || "Unknown"}
+                  {(profile?.verified || hasBoosted) && <span className="upm-name-verified" aria-label="Verified account">✓</span>}
                 </h2>
 
                 {/* Badges */}
                 <div className="upm-badges">
                   {profile?.isPro && (
                     <span className="upm-b-pro"><Crown size={9} /> PRO</span>
-                  )}
-                  {profile?.verified && (
-                    <span className="upm-b-ver"><Shield size={9} /> Verified</span>
                   )}
                   <TierBadgePill tier={tier} paymentStatus={profile?.paymentStatus} />
                 </div>
@@ -892,7 +890,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
         .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; }
-        .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; }
+        .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; }
+        .upm-name-verified { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#84cc16; color:#071007; font-size:12px; font-weight:900; line-height:1; }
         .upm-badges { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
         .upm-b-pro { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#fbbf24; background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.35); }
         .upm-b-ver { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#84cc16; background:rgba(132,204,22,.1); border:1px solid rgba(132,204,22,.3); }

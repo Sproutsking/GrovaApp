@@ -93,6 +93,7 @@ const CreateView      = lazy(() => import("./components/Create/CreateView"));
 const AccountView     = lazy(() => import("./components/Account/AccountView"));
 const WalletViewRouter      = lazy(() => import("./components/wallet/WalletViewRouter"));
 const CommunityView   = lazy(() => import("./components/Community/CommunityView"));
+const SportsView      = lazy(() => import("./components/Sports/SportsView"));
 
 // ── TRACK B: Full-screen overlay views ───────────────────────────────────────
 const AnalyticsView  = lazy(() => import("./components/Analytics/AnalyticsView"));
@@ -243,7 +244,7 @@ const MainApp = memo(() => {
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
   const [mountedTabs,        setMountedTabs]        = useState(new Set([
     "home", "search", "create", "community", "account", "wallet",
-    "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador"
+    "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador", "sports"
   ]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
   const [themeMode,         setThemeMode]         = useState(() => {
@@ -747,7 +748,7 @@ const MainApp = memo(() => {
   }, []);
 
   const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode };
-  const showTrending = ["home", "search", "create", "account"].includes(activeTab);
+  const showTrending = ["home", "search", "create", "account", "sports"].includes(activeTab);
 
   // ── Tab content ──────────────────────────────────────────────────────────
   const renderContent = () => {
@@ -823,6 +824,17 @@ const MainApp = memo(() => {
               isMobile={isMobile}
               userId={user.id}
               refreshTrigger={refreshTrigger}
+            />
+          </Suspense>
+        ),
+      },
+      {
+        id: "sports",
+        el: (
+          <Suspense fallback={<TabSkeleton />}>
+            <SportsView
+              currentUser={currentUser}
+              userId={user.id}
             />
           </Suspense>
         ),

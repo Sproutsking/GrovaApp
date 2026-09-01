@@ -601,6 +601,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-section { padding: 20px; }
         .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; }
         .profile-name { font-size:26px;font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap; }
+        .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:12px;font-weight:900;line-height:1; }
         .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }
         .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:11px;font-weight:800;color:#fbbf24; }
         .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:11px;font-weight:800;color:#84cc16; }
@@ -663,7 +664,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 size={110}
                 src={profile.avatar && typeof profile.avatar === "string" && profile.avatar.startsWith("http") ? profile.avatar : null}
                 letter={profile.fullName?.charAt(0)?.toUpperCase() || "U"}
-                showBadge={true}
+                showBadge={false}
                 badgeSize="md"
                 borderRadius="rounded"
               />
@@ -685,11 +686,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               })()}
             >
               {profile.fullName}
+              {(profile.verified || hasBoostedTier) && <span className="profile-name-verified" aria-label="Verified account">✓</span>}
             </h2>
 
             <div className="profile-badges-row">
               {profile.isPro    && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
-              {profile.verified && <span className="profile-badge-verified"><Shield size={10}/> Verified</span>}
               <TierBadgePill tier={profile.subscriptionTier} paymentStatus={profile.paymentStatus} />
               {tierInfo && <AccessBadge accessStatus={tierInfo.accessStatus} />}
               {/* [AMB-3] Ambassador badge on profile header */}

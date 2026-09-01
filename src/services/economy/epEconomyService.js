@@ -18,6 +18,7 @@
 
 import { supabase }  from '../config/supabase';
 import pushService   from '../notifications/pushService';
+import { walletService } from '../wallet/walletService';
 
 // ── Fixed EP↔USD peg (never changes) ─────────────────────────────────────────
 export const EP_PER_USD           = 100;
@@ -273,9 +274,19 @@ export async function getEPBalance(userId) {
   const cached = _getCached(userId);
   if (cached !== null) return cached;
   try {
-    const { data, error } = await supabase
-      .from('wallets').select('engagement_points').eq('user_id', userId).single();
+    let { data, error } = await supabase
+      .from('wallets').select('engagement_points').eq('user_id', userId).maybeSingle();
+
     if (error) throw error;
+    if (!data) {
+      const ensured = await walletService.ensureWallet(userId).catch(() => null);
+      if (ensured) {
+        data = { engagement_points: ensured.engagement_points ?? 0 };
+      } else {
+        data = { engagement_points: 0 };
+      }
+    }
+
     const balance = Number(data?.engagement_points ?? 0);
     _setCache(userId, balance);
     return balance;
@@ -370,6 +381,8 @@ export async function processEngagement({
   const epCostInt = Math.trunc(epCost);
 
   try {
+    await walletService.ensureWallet(actorId);
+
     const { data, error } = await supabase.rpc('process_engagement_ep', {
       p_actor_id:        actorId,
       p_content_type:    contentType,
@@ -430,8 +443,9 @@ export async function processEngagement({
     };
 
   } catch (err) {
-    console.error('[epEconomyService] engagement RPC failed:', err?.message);
-    return { success: false, epCost: epCostInt, error: 'Unable to verify EP. Please try again.' };
+    const errorMessage = err?.message || err?.error_description || 'EP processing failed.';
+    console.error('[epEconomyService] engagement RPC failed:', errorMessage);
+    return { success: false, epCost: epCostInt, error: errorMessage };
   }
 }
 

@@ -28,10 +28,18 @@ begin
   if p_actor_id is null then
     return jsonb_build_object('success', false, 'error', 'Actor ID required');
   end if;
+
+  if auth.uid() is null or auth.uid() <> p_actor_id then
+    return jsonb_build_object('success', false, 'error', 'Authenticated actor required');
+  end if;
   
   if p_ep_cost <= 0 then
-    return jsonb_build_object('success', true, 'success', true, 'free', true);
+    return jsonb_build_object('success', true, 'free', true);
   end if;
+
+  insert into public.wallets (user_id, xev_tokens, engagement_points, paywave_balance)
+  values (p_actor_id, 0, 0, 0)
+  on conflict (user_id) do nothing;
 
   -- Get actor's current balance
   select engagement_points into actor_balance
@@ -63,6 +71,10 @@ begin
   if content_owner_id is null then
     return jsonb_build_object('success', false, 'error', 'Content not found');
   end if;
+
+  insert into public.wallets (user_id, xev_tokens, engagement_points, paywave_balance)
+  values (content_owner_id, 0, 0, 0)
+  on conflict (user_id) do nothing;
 
   is_self_engagement := (p_actor_id = content_owner_id);
 
@@ -110,7 +122,7 @@ begin
       content_owner_id,
       direct_owner_share::integer,
       (select coalesce(engagement_points, 0) from public.wallets where user_id = content_owner_id),
-      'earn',
+      'bonus_grant',
       'Creator share - ' || p_engagement_type,
       jsonb_build_object(
         'engagement_type', p_engagement_type,

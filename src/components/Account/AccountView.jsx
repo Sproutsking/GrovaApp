@@ -364,25 +364,6 @@ const AccountView = ({
         )}
       </div>
 
-      {/* ── Desktop trending sidebar (1024px+) ── */}
-      {isDesktopWide && (
-        <div style={{
-          width: 280,
-          flexShrink: 0,
-          borderLeft: `1px solid ${themeMode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(132,204,22,0.15)"}`,
-          background: themeMode === "dark" ? "rgba(0,0,0,0.2)" : "rgba(249,250,251,0.5)",
-          overflowY: "auto",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-          minHeight: "100%",
-        }}>
-          <div style={{ textAlign: "center", color: themeMode === "dark" ? "rgba(255,255,255,0.4)" : "rgba(100,116,139,0.6)", fontSize: 13, fontWeight: 600 }}>
-            Trending in Your Network
-          </div>
-        </div>
-      )}
     </div>
   );
 };

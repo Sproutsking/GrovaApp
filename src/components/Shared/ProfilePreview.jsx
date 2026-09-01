@@ -96,11 +96,14 @@ const ProfilePreview = ({
       (author || "user").toLowerCase().replace(/\s+/g, "_");
 
     let avatar = null;
-    if (profileData.avatar_id) {
-      avatar = mediaUrlService.getAvatarUrl(profileData.avatar_id, 200);
-    } else if (profile.avatar) {
-      avatar = profile.avatar;
-    } else {
+    const avatarSource = profileData.avatar_id || profileData.avatar_id || profileData.avatar_url || profileData.avatarUrl || profileData.avatar_metadata || profile.avatar_metadata || profile.avatar;
+    if (avatarSource) {
+      avatar = mediaUrlService.resolveAvatarUrl(avatarSource, 200);
+    }
+    if (!avatar && profile.avatar) {
+      avatar = mediaUrlService.resolveAvatarUrl(profile.avatar, 200);
+    }
+    if (!avatar) {
       avatar = author.charAt(0).toUpperCase();
     }
 
@@ -265,17 +268,22 @@ const ProfilePreview = ({
                   borderRadius:   "50%",
                   background:     hasBoostedTier
                     ? `linear-gradient(135deg,${displayNameColor},${displayNameColor}bb)`
-                    : "linear-gradient(135deg,#84cc16,#a3e635)",
+                    : "linear-gradient(135deg,#22c55e,#4ade80)",
                   display:        "flex",
                   alignItems:     "center",
                   justifyContent: "center",
-                  color:          "#000",
+                  color:          "#041108",
                   flexShrink:     0,
-                  boxShadow:      `0 2px 8px ${displayNameColor}55`,
+                  boxShadow:      `0 2px 8px ${displayNameColor || '#22c55e'}55`,
                   transition:     "background 0.4s ease",
+                  fontWeight:     900,
+                  fontSize:      12,
+                  lineHeight:    1,
                 }}
+                aria-label="Verified account"
+                title="Verified account"
               >
-                <Sparkles size={sz.name - 2} />
+                ✓
               </div>
             )}
 
