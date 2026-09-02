@@ -381,7 +381,7 @@ const BoostAvatarRing = ({
   const visual = getVisual(tier, themeId);
   const normalizedRadius = typeof borderRadius === "string" ? borderRadius.toLowerCase() : "";
   const br = normalizedRadius === "circle" || normalizedRadius === "rounded" || normalizedRadius === "round" ? "50%" : "28%";
-  const ringBleed = visual ? 2 : 1;
+  const ringBleed = 2;
   const showBadgeBg = showBadge && visual;
 
   const badgeW  = badgeSize === "md" ? 22 : 16;

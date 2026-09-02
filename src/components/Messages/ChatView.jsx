@@ -269,8 +269,8 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={28} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ width: 28, height: 28, marginRight: 0, border: boostTier ? undefined : "1.5px solid rgba(132,204,22,.18)", boxShadow: boostTier ? undefined : "0 0 0 1px rgba(132,204,22,.08)" }} />):<div className="cv-avatar-sp"/>)}
-      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
+      {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={28} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} />):<div className="cv-avatar-sp"/>)}
+      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{marginLeft:!isMe?"2px":"0",marginRight:isMe?"2px":"0",transform:swiping?`translateX(${swipeX*.5}px)`:"",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
@@ -524,7 +524,10 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   };
 
   const fmtTime=d=>{if(!d)return"";const dt=new Date(d);const h=dt.getHours()%12||12;const m=dt.getMinutes().toString().padStart(2,"0");return`${h}:${m} ${dt.getHours()>=12?"PM":"AM"}`;};
-  const avatarUrl=otherUser?.avatar_id?mediaUrlService.getAvatarUrl(otherUser.avatar_id,200):null;
+  const avatarSource = otherUser?.avatar_url || otherUser?.avatarUrl || otherUser?.avatar || otherUser?.avatar_id;
+  const avatarUrl = avatarSource
+    ? mediaUrlService.resolveAvatarUrl(avatarSource, 200)
+    : null;
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
   },[avatarUrl]);
@@ -666,9 +669,9 @@ export const CV_CSS = `
 .cv-msg{display:flex;align-items:flex-end;gap:0;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:2px;}
 .cv-me{flex-direction:row-reverse;}.cv-opt{opacity:.65;}.cv-fail{opacity:.45;}
 @keyframes cvMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.cv-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:1.5px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
+.cv-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:1.5px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
-.cv-avatar-sp{width:28px;flex-shrink:0;}
+.cv-avatar-sp{width:32px;flex-shrink:0;}
 .cv-bubble{max-width:72%;padding:6px 10px 5px;border-radius:12px;word-break:break-word;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);margin-left:0;margin-right:0;}
 .cv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
 .cv-bme{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border:1px solid rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
