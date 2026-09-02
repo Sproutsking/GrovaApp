@@ -269,7 +269,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {!isMe&&(showAv?(<div style={{ transform: `translateX(${boostTier ? -6 : -2}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
+      {!isMe&&(showAv?(<div style={{ transform: `translate(${boostTier ? -6 : -2}px, ${boostTier ? -3 : 0}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
@@ -524,7 +524,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   };
 
   const fmtTime=d=>{if(!d)return"";const dt=new Date(d);const h=dt.getHours()%12||12;const m=dt.getMinutes().toString().padStart(2,"0");return`${h}:${m} ${dt.getHours()>=12?"PM":"AM"}`;};
-  const avatarUrl=otherUser?.avatar_id?mediaUrlService.getAvatarUrl(otherUser.avatar_id,200):null;
+  const avatarSource = otherUser?.avatar_url || otherUser?.avatarUrl || otherUser?.avatar || otherUser?.avatar_id;
+  const avatarUrl = avatarSource ? mediaUrlService.resolveAvatarUrl(avatarSource, 200) : null;
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
   },[avatarUrl]);

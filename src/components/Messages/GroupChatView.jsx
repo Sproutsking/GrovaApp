@@ -390,7 +390,7 @@ const MsgBubble = memo(({ msg, isMe, prevSame, nextSame, members, onReply, onRea
 
       {/* Avatar col */}
       <div className="gcv-avcol">
-        {!isMe&&!nextSame&&user&&<div style={{ transform: `translateX(${["silver", "gold", "diamond"].includes(user.subscription_tier) ? -6 : -2}px)` }}><Av user={user} size={30}/></div>}
+        {!isMe&&!nextSame&&user&&<div style={{ transform: `translate(${["silver", "gold", "diamond"].includes(user.subscription_tier) ? -6 : -2}px, ${["silver", "gold", "diamond"].includes(user.subscription_tier) ? -3 : 0}px)` }}><Av user={user} size={30}/></div>}
       </div>
 
       <div className={`gcv-bwrap${isMe?" gcv-bwrap-me":" gcv-bwrap-them"}`}>

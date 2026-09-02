@@ -416,7 +416,7 @@ const SportsView = ({ currentUser, userId }) => {
         }
         .sports-controls {
           display: flex;
-          flex-wrap: wrap;
+          align-items: center;
           gap: 8px;
           padding: 0 8px 16px;
         }
@@ -434,11 +434,7 @@ const SportsView = ({ currentUser, userId }) => {
           font-weight: 700;
           cursor: pointer;
         }
-        .sports-control.active {
-          border-color: #84cc16;
-          background: rgba(132, 204, 22, 0.14);
-          color: #bef264;
-        }
+        .sports-control.active { border-color: #84cc16; background: rgba(132, 204, 22, 0.14); color: #bef264; }
         .sports-control select {
           border: 0;
           outline: 0;
@@ -448,6 +444,10 @@ const SportsView = ({ currentUser, userId }) => {
           cursor: pointer;
         }
         .sports-control option { background: #111827; color: #f8fafc; }
+        .sports-filter-select {
+          min-width: 150px;
+          justify-content: space-between;
+        }
         .sports-watch {
           margin: 0 8px 16px;
           overflow: hidden;
@@ -464,6 +464,8 @@ const SportsView = ({ currentUser, userId }) => {
         @media (max-width: 600px) {
           .sports-section-cards { flex-direction: column; }
           .sports-section-card { width: 100%; min-width: 0; }
+          .sports-controls { flex-direction: column; align-items: stretch; }
+          .sports-filter-select { width: 100%; }
         }
       `}</style>
 
@@ -519,15 +521,18 @@ const SportsView = ({ currentUser, userId }) => {
           <>
             <div className="sports-detail-copy">Upcoming matches from the selected time window.</div>
             <div className="sports-controls">
-              <CalendarDays size={16} color="#94a3b8" />
-              {[['7d', 'Next 7 days'], ['month', 'Next month'], ['season', 'Next year'], ['all', 'All upcoming']].map(([value, label]) => (
-                <button key={value} type="button" className={`sports-control ${fixtureWindow === value ? "active" : ""}`} onClick={() => setFixtureWindow(value)}>
-                  {label}
-                </button>
-              ))}
-              <label className="sports-control">
+              <label className="sports-control sports-filter-select">
+                <CalendarDays size={15} />
+                <select value={fixtureWindow} onChange={(event) => setFixtureWindow(event.target.value)} aria-label="Fixture time range">
+                  <option value="7d">Next 7 days</option>
+                  <option value="month">Next month</option>
+                  <option value="season">Next year</option>
+                  <option value="all">All upcoming</option>
+                </select>
+              </label>
+              <label className="sports-control sports-filter-select">
                 League
-                <select value={selectedLeague?.id || "all"} onChange={(event) => handleLeagueSelect(event.target.value === "all" ? null : Object.values(majorLeagues).flatMap((category) => category.leagues).find((league) => league.id === event.target.value))}>
+                <select value={selectedLeague?.id || "all"} onChange={(event) => handleLeagueSelect(event.target.value === "all" ? null : Object.values(majorLeagues).flatMap((category) => category.leagues).find((league) => league.id === event.target.value))} aria-label="Fixture league">
                   <option value="all">All leagues</option>
                   {Object.values(majorLeagues).flatMap((category) => category.leagues).map((league) => <option key={league.id} value={league.id}>{league.name}</option>)}
                 </select>
