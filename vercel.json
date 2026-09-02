@@ -1,6 +1,9 @@
 {
-  "buildCommand": "NODE_OPTIONS='--max-old-space-size=4096' npm run build",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "build",
+  "env": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
   "rewrites": [
     {
       "source": "/share/:path*",
