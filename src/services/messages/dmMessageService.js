@@ -197,11 +197,29 @@ class DMMessageService {
       throw new Error("You can only delete your own direct messages.");
     }
 
-    const { data, error } = await supabase.rpc("delete_direct_message", {
-      p_message_id: messageId,
-    });
-    if (error) throw error;
-    if (!data) throw new Error("Message could not be deleted. It may already be removed or you may not own it.");
+    try {
+      const { data, error } = await supabase.rpc("delete_direct_message", {
+        p_message_id: messageId,
+      });
+      if (error) throw error;
+      if (data === true) return true;
+    } catch (rpcError) {
+      console.warn("DM delete RPC failed, trying direct fallback.", rpcError);
+    }
+
+    const { error: reactionError } = await supabase
+      .from("message_reactions")
+      .delete()
+      .eq("message_id", messageId);
+    if (reactionError) throw reactionError;
+
+    const { error: deleteError } = await supabase
+      .from("messages")
+      .delete()
+      .eq("id", messageId)
+      .eq("sender_id", userId);
+    if (deleteError) throw deleteError;
+
     return true;
   }
 

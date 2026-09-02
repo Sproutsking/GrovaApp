@@ -142,11 +142,6 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
   const handleDeleteMessage = async () => {
     if (!contextMenu?.message) return;
 
-    if (!window.confirm("Are you sure you want to delete this message?")) {
-      setContextMenu(null);
-      return;
-    }
-
     try {
       await channelService.deleteMessage(contextMenu.message.id);
       setMessages((prev) =>

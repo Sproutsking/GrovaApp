@@ -12,320 +12,114 @@ import { Search, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
 
 const FAQ_DATA = [
   {
-    category: "Getting Started",
-    icon: "🚀",
+    category: "What Xeevia is",
+    icon: "🌱",
     questions: [
       {
-        q: "How do I create a Xeevia account?",
-        a: "Sign up using Google, X (Twitter), Facebook, or Discord. Click \"Sign In\" and choose your provider. After connecting, you'll choose a username and complete your profile. A one-time $1 activation fee (= 100 EP) unlocks full platform access.",
+        q: "What is Xeevia?",
+        a: "Xeevia is a creator-first social and financial platform where people post, earn, trade attention, and build communities inside a single app. It combines social feeds, creator monetization, wallet activity, direct messages, and community spaces into one ecosystem.",
       },
       {
-        q: "What is the $1 activation fee?",
-        a: "The $1 activation fee converts to 100 EP and activates your account. It prevents spam and ensures every user has a stake in the platform. It's a one-time payment — you never pay it again.",
+        q: "What makes Xeevia different from a normal social app?",
+        a: "Xeevia is built around real value exchange. Engagement has weight, creators earn from participation, the wallet is native, and trust signals are recorded so actions and reputation carry meaning beyond a simple feed.",
       },
       {
-        q: "What do I get with a free Xeevia account?",
-        a: "A free account lets you publish posts, reels, and stories at no cost, follow creators, earn EP from engagement, and access your full wallet. Your creator revenue share starts at 80%. You can upgrade to Silver, Gold, or Diamond for higher creator shares, EP bonuses, increased withdrawal limits, and exclusive profile themes.",
-      },
-      {
-        q: "Is Xeevia available in my country?",
-        a: "Xeevia is globally accessible. Nigerian users have full Paystack support (NGN deposits and withdrawals). International users can use cards and crypto. We're continuously expanding local payment options.",
-      },
-      {
-        q: "How do I choose my username?",
-        a: "Choose a username between 3–30 characters using letters, numbers, and underscores. Username changes are limited to once every 60 days.",
+        q: "Is Xeevia still growing, or is it fully launched?",
+        a: "We are building toward a full social-finance ecosystem. The app is live and evolving, with the core experience already in place: feed, stories, communities, direct messaging, wallet, and creator tools. We continue to expand features as the platform matures.",
       },
     ],
   },
   {
-    category: "Tokens & Earning",
-    icon: "💰",
+    category: "How it works",
+    icon: "⚙️",
     questions: [
       {
-        q: "How do I earn EP?",
-        a: "You earn EP when others engage with your content. Every like costs the liker 2 EP — you receive your creator share. Every comment costs 4 EP. Story unlocks are priced by you. The more quality content you create, the more EP flows to you.",
+        q: "How do I get started on Xeevia?",
+        a: "Create your account, complete your profile, and start using the app. You can post updates, join communities, message people, and explore creator content immediately. Your wallet is there to help you manage EP, earnings, and deposits.",
       },
       {
-        q: "Does publishing content cost EP?",
-        a: "No. Publishing posts, reels, and stories is completely free. EP is only spent on interactions — when someone likes or comments on content. The person engaging pays, not the creator.",
+        q: "What is EP and why does it matter?",
+        a: "EP is the platform’s engagement currency. It powers interaction, creator earnings, and wallet activity. You spend EP to engage; you earn EP when others engage with your content.",
       },
       {
-        q: "What is the difference between EP and XEV?",
-        a: "EP (Engagement Points) is your day-to-day currency — earn it, spend it on interactions, withdraw it. XEV is your ownership stake in the network with a fixed supply of 1 trillion. It appreciates with platform growth and gives governance rights. 40% of your monthly earned EP automatically converts to XEV.",
+        q: "What is XEV?",
+        a: "XEV is the ecosystem ownership token. It is tied to the platform’s value and long-term growth. It complements EP by giving users a shared stake in the network while still keeping everyday activity fluid through EP.",
       },
       {
-        q: "When does the EP to XEV conversion happen?",
-        a: "At the end of every calendar month, 40% of your earned EP converts to XEV at the current exchange rate. This is automatic — you don't need to do anything.",
-      },
-      {
-        q: "Can I convert XEV back to EP?",
-        a: "Yes, you can convert XEV back to EP at the current exchange rate through your wallet. Converting makes it available for immediate use or withdrawal.",
-      },
-      {
-        q: "Do my EP earnings expire?",
-        a: "Purchased EP expires after 12 months of account inactivity. Earned EP (from content engagement) never expires as long as your account remains active.",
+        q: "Do I need to pay to publish?",
+        a: "No. Publishing posts, stories, reels, and community content is generally free. The app is designed to make expression accessible without forcing users to pay just to participate.",
       },
     ],
   },
   {
-    category: "Subscription Tiers",
-    icon: "🏆",
+    category: "Creator economy",
+    icon: "💸",
     questions: [
       {
-        q: "What subscription tiers does Xeevia have?",
-        a: "Xeevia has four subscription tiers: Free, Silver, Gold, and Diamond. Each higher tier increases your creator revenue share, unlocks EP earning bonuses, gives you exclusive profile themes and animated avatar rings, and raises your withdrawal limits.",
+        q: "How do creators make money on Xeevia?",
+        a: "Creators earn from engagement, story unlocks, community value, and ecosystem participation. The app is designed so that attention and contribution translate into tangible rewards rather than vanity metrics alone.",
       },
       {
-        q: "What is my 'reward level' and how is it different from my subscription tier?",
-        a: "These are two separate things. Your subscription tier (Free, Silver, Gold, Diamond) is what you purchase — it determines your creator share and perks. Your reward level (also None, Silver, Gold, Diamond) is earned through activity score and platform engagement — it determines your share of the weekly revenue pool. You can have a Free subscription but earn a Gold reward level through consistent activity.",
+        q: "What is the creator share?",
+        a: "Creator earnings are distributed based on engagement and the app’s revenue structure. Tiered access and subscriptions can increase creator benefits as the platform grows, but the core idea remains straightforward: quality attention earns real value.",
       },
       {
-        q: "What does the Silver tier unlock?",
-        a: "Silver gives you an animated silver ring on your avatar, a silver name color across the platform, access to the Moonlit Chrome profile card theme, priority in follower suggestions, and an EP bonus on your earnings.",
-      },
-      {
-        q: "What does the Gold tier unlock?",
-        a: "Gold gives you an animated gold shimmer ring, gold name color, 2 exclusive profile card designs, a +10% EP bonus on all earnings, and priority content ranking in feeds.",
-      },
-      {
-        q: "What does the Diamond tier unlock?",
-        a: "Diamond is the top tier — 5 spectacular animated ring themes (Cosmos, Glacier, Emerald, Rose, Void), theme-colored name across the platform, +25% EP on all earnings, top priority in all platform rankings, and an exclusive diamond badge.",
-      },
-      {
-        q: "How does the weekly reward pool work?",
-        a: "Every week, a portion of platform revenue is split into three pools — Silver, Gold, and Diamond. Users who have reached those reward levels through activity score share proportionally from their respective pool. Your reward level is separate from your subscription tier and is earned through consistent engagement.",
+        q: "Can I build a following and grow inside Xeevia?",
+        a: "Yes. The app supports creator discovery, communities, direct relationships, and content ecosystems. The experience is built to help people grow audiences and build durable communities rather than chase temporary engagement spikes.",
       },
     ],
   },
   {
-    category: "Content Creation",
-    icon: "✏️",
-    questions: [
-      {
-        q: "What types of content can I create?",
-        a: "You can create Posts (text + images + video), Reels (short-form video), and Stories (long-form text with a paywall). Communities allow group channels. All content types are free to publish.",
-      },
-      {
-        q: "How do I set the price for my story?",
-        a: "When publishing a story, choose an unlock price between 10 and 500 EP. New creators often start at 20–50 EP and increase as they build reputation.",
-      },
-      {
-        q: "Can I edit content after publishing?",
-        a: "Posts can be edited after publishing. Stories can be edited for minor corrections. Reels cannot be edited — delete and re-upload.",
-      },
-      {
-        q: "How does the story access limit work?",
-        a: "When publishing a story, you can set a maximum number of people who can unlock it (default 1,000). Once the limit is reached, the story shows as sold out. You can increase the limit at any time from your content management screen.",
-      },
-      {
-        q: "What file types are supported?",
-        a: "Images: JPG, PNG, WebP, GIF (static), up to 20MB each, max 10 per post. Post video: MP4 (H.264). Reels: MP4, MOV, up to 500MB.",
-      },
-    ],
-  },
-  {
-    category: "Payments & Finance",
-    icon: "💳",
-    questions: [
-      {
-        q: "When can I withdraw my earnings?",
-        a: "You can withdraw when you have a minimum of 1,000 EP in earned (not purchased) EP. Withdrawals process within 1–3 business days for bank transfers, same day for Paystack (NGN), and within 30–60 minutes for crypto.",
-      },
-      {
-        q: "Is there a fee to withdraw?",
-        a: "Xeevia charges no withdrawal fees. Your bank may charge standard incoming transfer fees, and crypto transactions incur network gas fees — these are not controlled by Xeevia.",
-      },
-      {
-        q: "How do withdrawal limits work?",
-        a: "Your daily withdrawal limit is tied to your security level (1–5). Level 1: $100/day. Level 2: $250/day. Level 3: $500/day. Level 4: $2,000/day. Level 5: $10,000/day. Raise your level by verifying your phone, enabling 2FA, and setting a withdrawal PIN.",
-      },
-      {
-        q: "What currency do I receive?",
-        a: "EP is priced in USD (100 EP = $1). When withdrawing to NGN bank accounts, Xeevia converts at the current official exchange rate via Paystack. Crypto withdrawals are in USDC or USDT.",
-      },
-      {
-        q: "My payment was successful but I didn't receive EP. What do I do?",
-        a: "Wait 15 minutes for processing. For crypto deposits, wait for blockchain confirmations (usually 15–30 minutes). If EP doesn't appear after 1 hour, submit a support ticket with your transaction reference. We resolve these within 2–4 hours.",
-      },
-      {
-        q: "Can I get a refund on EP I purchased?",
-        a: "Purchased EP that has not been used can be refunded within 24 hours of purchase. Contact support with your transaction ID. Spent EP and story unlocks are non-refundable.",
-      },
-      {
-        q: "What are gift cards?",
-        a: "Xeevia gift cards let you send EP value to others for any occasion. They come in several denominations (Starter, Plus, Premium, Ultra, Max, Elite) representing different EP values. Gift cards can have a custom message and occasion set by the sender, and are redeemed directly into the recipient's wallet.",
-      },
-    ],
-  },
-  {
-    category: "Account & Security",
-    icon: "🔒",
-    questions: [
-      {
-        q: "What account statuses exist and what do they mean?",
-        a: "Active (normal access), Deactivated (you temporarily disabled it — reactivate any time), or Suspended (restricted by platform due to a policy violation). Suspended accounts can appeal through the support ticket system.",
-      },
-      {
-        q: "How do I change my username?",
-        a: "Go to Account → Edit Profile → Username. You can change your username once every 60 days. Your old username becomes available to others immediately.",
-      },
-      {
-        q: "How do I increase my security level?",
-        a: "Your security level (1–5) determines withdrawal limits. Increase it by: verifying your phone number (+1), enabling 2FA (+2), and setting a transaction PIN (+1). Level 5 unlocks a $10,000/day withdrawal limit.",
-      },
-      {
-        q: "What happens to my content and earnings if I delete my account?",
-        a: "Before deleting, withdraw all your earnings. Content is removed within 30 days of deletion. Financial records are retained for 7 years per legal requirements. Unspent EP and XEV not withdrawn before deletion are forfeited.",
-      },
-      {
-        q: "Is my private messaging encrypted?",
-        a: "Direct messages are stored encrypted in transit and at rest. They are not end-to-end encrypted in the same way as Signal — Xeevia staff can access messages if required by a valid legal order.",
-      },
-    ],
-  },
-  {
-    category: "Communities",
+    category: "Communities & DMs",
     icon: "🏘️",
     questions: [
       {
-        q: "How do I create a community?",
-        a: "Go to the Community tab → Create Community. Set your community name (3–100 characters), description, icon, and privacy settings. You'll be the owner and can assign roles to other users.",
+        q: "How do communities work?",
+        a: "Communities give people a space for focused discussion, role-based member management, and shared channels. They can be used for groups, niche interest spaces, creator hubs, and support conversations.",
       },
       {
-        q: "What is the difference between public and private communities?",
-        a: "Public communities are discoverable and anyone can join. Private communities require an invitation or approval from the owner or admin. Premium communities can require an EP payment to join.",
+        q: "Can I delete my own message in a community?",
+        a: "Yes. If you are the owner of the message, you can delete it from the app’s own delete tray. It works inside the in-app experience without triggering browser popups or external dialogs.",
       },
       {
-        q: "How do community roles work?",
-        a: "As community owner you can create custom roles. Default roles: Owner (all permissions), Admin (manage members and content), Moderator (moderate content), Member (post and interact).",
-      },
-      {
-        q: "Can I monetize my community?",
-        a: "Yes. Premium communities charge an EP fee for joining. All community monetization revenue goes to the community owner at the standard creator revenue share.",
+        q: "What about direct messages and group chats?",
+        a: "Direct messages and group DM conversations support the same internal delete experience. Users can remove their own messages cleanly and keep the flow consistent across the app.",
       },
     ],
   },
   {
-    category: "Live Streaming",
-    icon: "📡",
+    category: "App experience",
+    icon: "📱",
     questions: [
       {
-        q: "How does live streaming work on Xeevia?",
-        a: "You can go live in video or audio mode. Your stream can be public or private. Viewers can interact in real time, and you earn EP from their engagement. Your stream tier (based on subscription) determines monthly broadcast minutes, recording capability, and maximum stream quality.",
+        q: "How do I install the app without opening a browser tab?",
+        a: "Use the Install App section in Support. It triggers the in-app install flow so the experience stays inside the Xeevia UI and feels native instead of browser-based.",
       },
       {
-        q: "Can I record my live streams?",
-        a: "Recording depends on your subscription tier. When a stream is recorded, viewers can replay it from your profile. Sessions without recording show a summary card with your peak viewers, likes, duration, and stream category.",
+        q: "Why do I see a different experience on mobile and desktop?",
+        a: "The app supports both mobile and desktop layouts. The experiences are designed to feel native on each device while sharing the same core ecosystem, wallet, and social features.",
+      },
+      {
+        q: "What are we building toward?",
+        a: "We are building a complete social-finance platform: stronger creator monetization, richer communities, better trust signals, and deeper wallet-to-content integration as the ecosystem expands.",
       },
     ],
   },
   {
-    category: "XRC Protocol",
-    icon: "⛓️",
+    category: "Safety & support",
+    icon: "🛡️",
     questions: [
       {
-        q: "What is the XRC Protocol?",
-        a: "XRC (Xeevia Record Chain) is our proprietary off-chain verification system. It creates an immutable, cryptographically-linked record of every transaction, engagement, account event, and content action — providing blockchain-grade transparency without blockchain costs or delays.",
+        q: "How do I get help?",
+        a: "Use the Help center for product guidance, the FAQ for common questions, or the Contact page to create a support ticket with our team.",
       },
       {
-        q: "Is XRC the same as a blockchain?",
-        a: "XRC uses hash-chaining (linking records cryptographically) but operates off-chain without distributed consensus or mining. This makes it 100–1000x faster and cheaper while maintaining verifiability.",
+        q: "What happens if I see something abusive or unsafe?",
+        a: "Use the reporting tools in the app and contact support if the issue needs moderation review. We review reports to keep the platform safe while keeping the experience approachable for everyone.",
       },
       {
-        q: "Can third parties audit XRC records?",
-        a: "Yes. XRC provides exportable, read-only proofs and audit bundles for authorized partners. Exports contain cryptographic hashes and proof paths so auditors can verify integrity without needing full platform access.",
-      },
-      {
-        q: "How can I request a record export for my account?",
-        a: "Open a support ticket and request an XRC export. For verification or legal purposes, provide the date range and the specific events you need. Exports are delivered as signed bundles within 48 hours for valid requests.",
-      },
-    ],
-  },
-  {
-    category: "Oracle & Verification",
-    icon: "🔎",
-    questions: [
-      {
-        q: "What does the XRC Oracle do?",
-        a: "The Oracle answers deterministic, cryptographic questions about the XRC record chains so external systems (banks, governments, AI) can verify truth without redoing the work. It surfaces Trust, Identity, Business, Reputation, Knowledge, Community, and final Verification oracles.",
-      },
-      {
-        q: "Who can query the Oracle?",
-        a: "Any authorized system or partner can query the Oracle via the public API surface. Query access is governed by policy and API keys; answers are deterministic and cryptographically provable.",
-      },
-      {
-        q: "Can I get a signed proof to present to a third party?",
-        a: "Yes. Oracle responses include a signed proof payload and a signature from Xeevia's oracle key so recipients can verify the answer independently. Use the `/oracle/proof` endpoint and supply your verifier's public key if needed.",
-      },
-      {
-        q: "What data is included in an Oracle proof?",
-        a: "A proof includes the queried event(s), a compact hash path, a canonical timestamp, and a signature. It does not reveal unrelated private data — proofs are scoped to only the requested evidence.",
-      },
-    ],
-  },
-  {
-    category: "Participation Economy",
-    icon: "⚖️",
-    questions: [
-      {
-        q: "Why does participation cost EP?",
-        a: "Priced participation prevents noise and spam while creating verifiable economic commitment. EP costs ensure actions carry intent and leave evidence, turning participation into investible economic activity.",
-      },
-      {
-        q: "How do conversations create value?",
-        a: "An entire conversation (post + replies + reactions) is treated as the economic unit; contribution evidence decides payout splits based on quality, reputation, and contribution weight — not raw volume.",
-      },
-      {
-        q: "Can I gift EP to another user?",
-        a: "Yes. Use the Wallet → Send EP flow to transfer EP to other users. Gifted EP is treated like purchased EP for some reward calculations, so check eligibility before gifting in large amounts.",
-      },
-      {
-        q: "What happens if there's a dispute about content value?",
-        a: "Open a support ticket with the thread link and evidence. Disputes are resolved by reviewing XRC records and contribution weights; where appropriate, payouts can be adjusted and recorded on XRC for transparency.",
-      },
-    ],
-  },
-  {
-    category: "Portable Trust",
-    icon: "🧭",
-    questions: [
-      {
-        q: "What travels with my identity?",
-        a: "Verified evidence — claims, credentials, contributions, reputation signals — all live in your XRC record. Platforms consume that evidence rather than owning it, so your trust and reputation travel with you.",
-      },
-      {
-        q: "How does this help AI systems?",
-        a: "Evidence is structured and machine-readable so AI systems can reliably verify claims and make better decisions without guessing — solving the AI Trust Problem at scale.",
-      },
-      {
-        q: "Can I export my verification proofs to use elsewhere?",
-        a: "Yes. You can request signed proof bundles for specific claims via the support or the developer API. These bundles are portable and can be presented to third-party services.",
-      },
-      {
-        q: "How long is my reputation stored?",
-        a: "Reputation and evidence remain in XRC while your account exists. For legal and audit purposes, certain financial records are retained for up to 7 years. Reputation itself persists as evidence of past contributions.",
-      },
-    ],
-  },
-  {
-    category: "Communities & Governance",
-    icon: "🏛️",
-    questions: [
-      {
-        q: "What makes Xeevia communities different?",
-        a: "Communities on Xeevia are self-governing economies with treasuries, marketplaces, and provable governance. Reputation and treasury flows are transparent and portable across platforms.",
-      },
-      {
-        q: "Can communities monetize and govern themselves?",
-        a: "Yes. Communities can charge EP for membership, run governance proposals, allocate treasury funds, and reward contributors with verifiable evidence recorded on XRC.",
-      },
-      {
-        q: "How do I create and vote on proposals?",
-        a: "Community owners and eligible members can create proposals from the community admin panel. Voting uses either XEV stake or delegated reputation depending on community settings. Proposal outcomes are executed automatically when quorum and thresholds are met.",
-      },
-      {
-        q: "How are treasury withdrawals handled?",
-        a: "Treasury withdrawals require governance approval as configured by the community (single owner approval, multisig, or proposal vote). All treasury movements are recorded on XRC for transparency.",
+        q: "Can I contact support directly?",
+        a: "Yes. You can open a support ticket from the app and track updates through the support center without leaving the app shell.",
       },
     ],
   },

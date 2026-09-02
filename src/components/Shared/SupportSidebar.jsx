@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, HelpCircle, Sparkles } from "lucide-react";
+import { X, HelpCircle, Sparkles, Download, Smartphone } from "lucide-react";
 import HelpTab    from "./Support-tabs/HelpTab";
 import FAQTab     from "./Support-tabs/FAQTab";
 import ContactTab from "./Support-tabs/ContactTab";
@@ -7,8 +7,65 @@ import ContactTab from "./Support-tabs/ContactTab";
 const NAV_TABS = [
   { key: "help",    emoji: "🏠", label: "Help"    },
   { key: "faq",     emoji: "❓", label: "FAQ"     },
+  { key: "download", emoji: "📲", label: "Install App" },
   { key: "contact", emoji: "🎫", label: "Contact" },
 ];
+
+function DownloadTab() {
+  const installApp = () => {
+    if (typeof window !== "undefined" && typeof window.__xvRequestInstall === "function") {
+      window.__xvRequestInstall();
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("xv:show_install_prompt"));
+  };
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div style={{
+        background: "linear-gradient(135deg, rgba(132,204,22,0.08), rgba(96,165,250,0.06))",
+        border: "1px solid rgba(132,204,22,0.18)", borderRadius: 18, padding: 18,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 12, background: "rgba(132,204,22,0.12)", border: "1px solid rgba(132,204,22,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Smartphone size={20} color="#a3e635" />
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Stay inside the app</div>
+            <div style={{ fontSize: 11, color: "#6b7280" }}>Smooth, native-feeling access to Xeevia</div>
+          </div>
+        </div>
+
+        <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, marginBottom: 18 }}>
+          Use the install flow from inside the app to add Xeevia to your home screen. It feels like a native app, keeps your sessions fast, and avoids the browser chrome that breaks immersion.
+        </div>
+
+        <button onClick={installApp} style={{
+          width: "100%", border: "none", borderRadius: 12, background: "linear-gradient(135deg, #84cc16, #65a30d)",
+          color: "#061400", fontSize: 14, fontWeight: 800, padding: "12px 14px", cursor: "pointer",
+          boxShadow: "0 10px 28px rgba(132, 204, 22, 0.28)",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <Download size={15} /> Install Xeevia
+          </span>
+        </button>
+
+        <div style={{ marginTop: 18, display: "grid", gap: 8 }}>
+          {[
+            "Fast launch without browser tabs",
+            "Keeps your messages, feeds, and wallet inside the app shell",
+            "Works cleanly on desktop and mobile with the same Xeevia interface",
+          ].map((point) => (
+            <div key={point} style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "#b7c1b2", fontSize: 12.5, lineHeight: 1.5 }}>
+              <span style={{ color: "#a3e635", marginTop: 2 }}>✓</span>
+              <span>{point}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
   const [activeTab, setActiveTab] = useState("help");
@@ -28,6 +85,7 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
         : helpView === "topic" ? "Topic"
         : "Help & Support"
       : activeTab === "faq" ? "FAQ"
+      : activeTab === "download" ? "Install App"
       : "Contact Support";
 
   return (
@@ -154,9 +212,10 @@ const SupportSidebar = ({ isOpen, onClose, isMobile, userId, adminData }) => {
         </div>
 
         <div className="ss-content">
-          {activeTab === "help"    && <HelpTab    onNavigateToContact={handleNavigateToContact} onViewChange={setHelpView} />}
-          {activeTab === "faq"     && <FAQTab     onNavigateToContact={handleNavigateToContact} />}
-          {activeTab === "contact" && <ContactTab userId={userId} />}
+          {activeTab === "help"     && <HelpTab    onNavigateToContact={handleNavigateToContact} onViewChange={setHelpView} />}
+          {activeTab === "faq"      && <FAQTab     onNavigateToContact={handleNavigateToContact} />}
+          {activeTab === "download" && <DownloadTab />}
+          {activeTab === "contact"  && <ContactTab userId={userId} />}
         </div>
       </div>
     </>

@@ -13,6 +13,7 @@ import ChatTab from "./tabs/ChatTab";
 import CreateCommunityModal from "./modals/CreateCommunityModal";
 import InviteModal from "./modals/InviteModal";
 import InviteHandler from "./components/InviteHandler";
+import ConfirmModal from "../Modals/ConfirmModal";
 import communityService from "../../services/community/communityService";
 import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
@@ -35,6 +36,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const currentCommunityRef = useRef(null);
   const switchTimeoutRef    = useRef(null);
@@ -210,7 +212,6 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   const handleLeaveCommunity = async (communityId) => {
-    if (!window.confirm("Are you sure you want to leave this community?")) return;
     try {
       await communityService.leaveCommunity(communityId, userId);
       communityCache.clearCommunity(communityId);
@@ -225,7 +226,6 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   const handleDeleteCommunity = async (communityId) => {
-    if (!window.confirm("Delete this community? This cannot be undone.")) return;
     const removedCommunity = selectedCommunity?.id === communityId;
     setMyCommunities((current) => current.filter((item) => item.id !== communityId));
     setAllCommunities((current) => current.filter((item) => item.id !== communityId));
@@ -241,6 +241,10 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       await loadCommunities();
       alert(error.message || "Failed to delete community");
     }
+  };
+
+  const openConfirm = (title, message, action, dangerous = false) => {
+    setConfirmAction({ title, message, action, dangerous });
   };
 
   const handleCommunityUpdate = async (payload) => {
@@ -349,10 +353,10 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
               currentUser={fullUserProfile || currentUser || { id: userId }}
               selectedChannel={selectedChannel}
               setSelectedChannel={setSelectedChannel}
-              onLeaveCommunity={() => handleLeaveCommunity(selectedCommunity.id)}
+              onLeaveCommunity={() => openConfirm("Leave community?", "You can always rejoin later.", () => handleLeaveCommunity(selectedCommunity.id))}
               onCommunityUpdate={handleCommunityUpdate}
               onOpenInvite={handleOpenInvite}
-              onDeleteCommunity={() => handleDeleteCommunity(selectedCommunity.id)}
+              onDeleteCommunity={() => openConfirm("Delete this community?", "This permanently deletes the community and all of its data. This cannot be undone.", () => handleDeleteCommunity(selectedCommunity.id), true)}
               onBack={isMobile ? () => {
                 setSelectedChannel(null);
                 setView("channels");
@@ -388,6 +392,20 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
           onClose={() => setPendingInvite(null)}
         />
       )}
+
+      <ConfirmModal
+        show={!!confirmAction}
+        title={confirmAction?.title || ""}
+        message={confirmAction?.message || ""}
+        dangerous={confirmAction?.dangerous}
+        confirmText={confirmAction?.dangerous ? "Delete" : "Continue"}
+        onConfirm={async () => {
+          const action = confirmAction?.action;
+          setConfirmAction(null);
+          if (action) await action();
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 };

@@ -341,12 +341,24 @@ class CommunityMessageService {
         if (!member) throw new Error("You do not have access to delete this message.");
       }
 
-      const { data, error } = await supabase.rpc("delete_community_message", {
-        p_message_id: messageId,
-      });
+      try {
+        const { data, error } = await supabase.rpc("delete_community_message", {
+          p_message_id: messageId,
+        });
 
-      if (error) throw error;
-      if (!data) throw new Error("Message could not be deleted. It may already be removed or you may not own it.");
+        if (error) throw error;
+        if (data === true) return true;
+      } catch (rpcError) {
+        console.warn("Community delete RPC failed, falling back to soft delete.", rpcError);
+      }
+
+      const { error: fallbackError } = await supabase
+        .from("community_messages")
+        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", messageId)
+        .eq("user_id", userId);
+
+      if (fallbackError) throw fallbackError;
       return true;
     } catch (error) {
       console.error("Error deleting message:", error);

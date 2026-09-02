@@ -106,9 +106,7 @@ const ChannelContextMenu = ({
           <button
             className="ccm-item danger"
             onClick={() => {
-              if (window.confirm(`Delete #${channel?.name}? This cannot be undone.`)) {
-                onDelete?.();
-              }
+              onDelete?.();
               onClose();
             }}
           >

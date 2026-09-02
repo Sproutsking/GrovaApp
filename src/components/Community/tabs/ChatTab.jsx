@@ -85,6 +85,7 @@ const ChatTab = ({
   const [forwardMessage, setForwardMessage] = useState(null);
   const [mentionedRole, setMentionedRole] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
+  const [channelDeleteConfirm, setChannelDeleteConfirm] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
   const messagesEndRef = useRef(null);
@@ -739,20 +740,8 @@ const ChatTab = ({
             setChannelContextMenu(null);
           }}
           onDelete={async () => {
-            if (!window.confirm(`Delete #${channelContextMenu.channel.name}? Cannot be undone.`)) return;
-            try {
-              await channelService.deleteChannel(channelContextMenu.channel.id);
-              communityCache.clearCommunity(community.id);
-              await loadChannels();
-              setChannelContextMenu(null);
-              if (selectedChannel?.id === channelContextMenu.channel.id) {
-                const remaining = channels.filter((ch) => ch.id !== channelContextMenu.channel.id);
-                if (remaining.length > 0) setSelectedChannel(remaining[0]);
-              }
-            } catch (error) {
-              console.error("Error deleting channel:", error);
-              alert("Failed to delete channel");
-            }
+            setChannelDeleteConfirm(channelContextMenu.channel);
+            setChannelContextMenu(null);
           }}
           onTogglePrivacy={async () => {
             try {
@@ -783,6 +772,34 @@ const ChatTab = ({
       )}
 
       {/* ── Modals ── */}
+      {channelDeleteConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 100000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setChannelDeleteConfirm(null)}>
+          <div style={{ width: "min(380px, calc(100vw - 32px))", background: "#111", border: "1px solid rgba(239,68,68,0.24)", borderRadius: 18, padding: 20, boxShadow: "0 18px 50px rgba(0,0,0,0.7)" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 22, marginBottom: 10, textAlign: "center" }}>🗑️</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", textAlign: "center", marginBottom: 8 }}>Delete #{channelDeleteConfirm.name}?</div>
+            <div style={{ color: "#9ca3af", fontSize: 13, lineHeight: 1.65, textAlign: "center", marginBottom: 18 }}>This channel and its posts will be removed for the community. This action cannot be undone.</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setChannelDeleteConfirm(null)} style={{ flex: 1, borderRadius: 10, padding: "11px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#e5e7eb", fontWeight: 700, cursor: "pointer" }}>Keep</button>
+              <button onClick={async () => {
+                try {
+                  await channelService.deleteChannel(channelDeleteConfirm.id);
+                  communityCache.clearCommunity(community.id);
+                  await loadChannels();
+                  if (selectedChannel?.id === channelDeleteConfirm.id) {
+                    const remaining = channels.filter((ch) => ch.id !== channelDeleteConfirm.id);
+                    if (remaining.length > 0) setSelectedChannel(remaining[0]);
+                  }
+                } catch (error) {
+                  console.error("Error deleting channel:", error);
+                } finally {
+                  setChannelDeleteConfirm(null);
+                }
+              }} style={{ flex: 1, borderRadius: 10, padding: "11px 12px", background: "linear-gradient(135deg, #ef4444, #dc2626)", border: "1px solid rgba(239,68,68,0.3)", color: "#fff", fontWeight: 800, cursor: "pointer" }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCreateChannel && (
         <CreateChannelModal
           onClose={() => setShowCreateChannel(false)}
