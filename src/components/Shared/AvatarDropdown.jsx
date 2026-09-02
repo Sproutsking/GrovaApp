@@ -18,7 +18,7 @@ import ReactDOM from "react-dom";
 import {
   User, LogOut, ChevronDown, Crown, Shield,
   Plus, Check, RefreshCw, Trash2, Sun,
-  Gamepad2, Zap, Coins,
+  Gamepad2, Zap, Coins, X,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import AddAccountOverlay, {

@@ -12,6 +12,7 @@ import onlineStatusService from "../../services/messages/onlineStatusService";
 import DMMessagesView from "../Messages/DMMessagesView";
 import AvatarDropdown from "../Shared/AvatarDropdown";
 import { supabase } from "../../services/config/supabase";
+import mediaUrlService from "../../services/shared/mediaUrlService";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import useTrinitylens from "../../hooks/useTrinitylens";
 

@@ -34,6 +34,7 @@ const OptimizedImage = ({
   const [idx, setIdx] = useState(0);
   const [failed, setFailed] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const imgRef = useRef(null);
   const [candidates, setCandidates] = useState([]);
 
@@ -74,6 +75,7 @@ const OptimizedImage = ({
     setIdx(0);
     setFailed(false);
     setRevealed(false);
+    setIsLoading(true);
   }, [src, normalizedWidth, height, quality, enableOptimization, fallbackSrc]);
 
   // CACHE HIT — detect synchronously after mount
@@ -97,6 +99,7 @@ const OptimizedImage = ({
 
   const handleLoad = () => {
     setRevealed(true);
+    setIsLoading(false);
     onLoad?.();
   };
 

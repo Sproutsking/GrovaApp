@@ -86,22 +86,6 @@ function Stake2EarnView({ pwBalance, onBack, onSuccess }) {
         });
         onSuccess(`₦${fmtNGN(pendingAction.amount)} staked for ${selDur.label}!\nTier: ${selDur.tier}`);
         fetchStake();
-      } else if (pendingAction.type === "createSavings" && pendingAction.plan) {
-        const maturesAt = pendingAction.plan.id === "lock"
-          ? new Date(Date.now() + pendingAction.lockDays * 86400000).toISOString() : null;
-        await supabase.from("savings_plans").insert({
-          user_id:profile.id, plan_type:pendingAction.plan.id, plan_name:pendingAction.plan.name,
-          goal_name:pendingAction.goalName || pendingAction.plan.name, amount:pendingAction.amount,
-          rate_pct:0, lock_days:pendingAction.plan.id === "lock" ? pendingAction.lockDays : 0,
-          matures_at:maturesAt, is_active:true,
-        });
-        await supabase.rpc("paywave_transfer",{
-          p_from_user_id:profile.id, p_to_user_id:profile.id,
-          p_amount:pendingAction.amount, p_note:pendingAction.description,
-        });
-        onSuccess(`Savings plan created!\n${pendingAction.goalName || pendingAction.plan.name} — ₦${fmtNGN(pendingAction.amount)}`);
-        fetchPlans();
-        setView("list"); setAmount(""); setGoalName("");
       }
     } catch (err) {
       console.error("Finance action failed", err);

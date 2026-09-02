@@ -92,6 +92,23 @@ const AccessBadge = ({ accessStatus }) => {
   );
 };
 
+const ConfirmLogout = ({ onConfirm, onCancel }) => (
+  <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.72)" }}>
+    <div style={{ width: "min(360px, calc(100vw - 32px))", background: "rgba(15,15,15,0.96)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18, padding: "22px 18px", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Sign out?</div>
+      <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 18, lineHeight: 1.5 }}>You can sign back in anytime and keep your content safely saved.</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button type="button" onClick={onCancel} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", padding: "12px 12px", cursor: "pointer", fontWeight: 700 }}>
+          Stay
+        </button>
+        <button type="button" onClick={onConfirm} style={{ flex: 1, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.42)", borderRadius: 10, color: "#ef4444", padding: "12px 12px", cursor: "pointer", fontWeight: 800 }}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const LiveDot = ({ color = "#84cc16", size = 5 }) => (
   <span
     aria-hidden="true"
