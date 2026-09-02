@@ -91,7 +91,7 @@ const MessageList = ({
           const showTail = !prev || prev.user_id !== msg.user_id;
           const showAvatar = !isMe && showTail;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
-          const avatarFootprint = 56;
+          const avatarFootprint = 38;
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
@@ -124,7 +124,7 @@ const MessageList = ({
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
-              <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}`}>
+              <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}`} style={{ margin: 0 }}>
                 {msg.reply_to_id && (() => {
                   const original = allMessages.find((item) => item.id === msg.reply_to_id);
                   return original ? <div className="msg-reply-quote"><span>Replying to {original.user?.full_name || "member"}</span><strong>{original.content}</strong></div> : null;
@@ -195,11 +195,16 @@ const MessageList = ({
         .msg-item {
           display: flex;
           align-items: flex-end;
-          gap: 8px;
+          gap: 2px;
           margin-bottom: 4px;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
+        }
+
+        .msg-item.me .msg-bubble,
+        .msg-item.them .msg-bubble {
+          margin: 0;
         }
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
@@ -231,8 +236,8 @@ const MessageList = ({
         }
 
         .msg-avatar {
-          width: 56px;
-          height: 56px;
+          width: 38px;
+          height: 38px;
           border-radius: 50%;
           border: 2px solid var(--accent-border);
           overflow: visible;
@@ -291,6 +296,7 @@ const MessageList = ({
           backdrop-filter: blur(10px);
           position: relative;
           box-shadow: 0 4px 16px rgba(0,0,0,.12);
+          margin: 0;
         }
         .msg-item.announcement .msg-bubble {
           max-width: min(92%, 760px);

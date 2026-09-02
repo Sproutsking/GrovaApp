@@ -379,9 +379,11 @@ const BoostAvatarRing = ({
   }, [src]);
 
   const visual = getVisual(tier, themeId);
+  const isBoostedProfile = !!visual;
   const normalizedRadius = typeof borderRadius === "string" ? borderRadius.toLowerCase() : "";
   const br = normalizedRadius === "circle" || normalizedRadius === "rounded" || normalizedRadius === "round" ? "50%" : "28%";
-  const ringBleed = 2;
+  const ringBleed = isBoostedProfile ? 3 : 2;
+  const avatarShellSize = isBoostedProfile ? size + 6 : size + 4;
   const showBadgeBg = showBadge && visual;
 
   const badgeW  = badgeSize === "md" ? 22 : 16;
@@ -406,8 +408,8 @@ const BoostAvatarRing = ({
       style={{
         position:   "relative",
         flexShrink: 0,
-        width:      size + ringBleed * 2,
-        height:     size + ringBleed * 2,
+        width:      avatarShellSize,
+        height:     avatarShellSize,
         borderRadius: br,
         cursor:     onClick ? "pointer" : "default",
         margin:     0,

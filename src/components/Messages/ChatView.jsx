@@ -270,7 +270,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
       {!isMe&&(showAv?(<BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={28} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} />):<div className="cv-avatar-sp"/>)}
-      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{marginLeft:!isMe?"2px":"0",marginRight:isMe?"2px":"0",transform:swiping?`translateX(${swipeX*.5}px)`:"",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
+      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{margin:0,transform:swiping?`translateX(${swipeX*.5}px)`:"",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
@@ -666,7 +666,7 @@ export const CV_CSS = `
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}
 @keyframes cvSpin{to{transform:rotate(360deg)}}
 .cv-jump-btn{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);}
-.cv-msg{display:flex;align-items:flex-end;gap:0;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:2px;}
+.cv-msg{display:flex;align-items:flex-end;gap:2px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:2px;}
 .cv-me{flex-direction:row-reverse;}.cv-opt{opacity:.65;}.cv-fail{opacity:.45;}
 @keyframes cvMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .cv-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:1.5px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
