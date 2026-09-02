@@ -49,6 +49,14 @@ const FAQ_DATA = [
         q: "Do I need to pay to publish?",
         a: "No. Publishing posts, stories, reels, and community content is generally free. The app is designed to make expression accessible without forcing users to pay just to participate.",
       },
+      {
+        q: "Is there a $1 entry or activation fee?",
+        a: "No. Xeevia no longer charges a paywall or $1 entry fee for account access. You can join and use the platform without an entry charge. A $1 minimum applies only when you choose to fund your wallet and receive EP.",
+      },
+      {
+        q: "Does following someone cost EP?",
+        a: "Yes. Following a user costs 2 EP. The cost applies when you follow someone; unfollowing does not create a new follow charge. This keeps following an intentional form of participation while supporting the platform economy.",
+      },
     ],
   },
   {

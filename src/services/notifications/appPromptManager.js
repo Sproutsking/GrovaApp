@@ -28,8 +28,19 @@ export function writePromptState(state, storage = window.localStorage) {
 
 export function isPromptDue(type, storage = window.localStorage) {
   const state = readPromptState(storage);
+  if (state?.never?.[type]) return false;
   const nextAt = Number(state?.[type] || 0);
   return !nextAt || Date.now() >= nextAt;
+}
+
+export function setPromptNever(type, storage = window.localStorage) {
+  const state = readPromptState(storage);
+  state.never = { ...(state.never || {}), [type]: true };
+  writePromptState(state, storage);
+}
+
+export function isPromptNever(type, storage = window.localStorage) {
+  return !!readPromptState(storage)?.never?.[type];
 }
 
 export function schedulePrompt(type, hours, storage = window.localStorage) {

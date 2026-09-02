@@ -12,6 +12,9 @@ const NAV_TABS = [
 ];
 
 function DownloadTab() {
+  const installed = typeof window !== "undefined" && typeof window.__xvIsAppInstalled === "function"
+    ? window.__xvIsAppInstalled()
+    : false;
   const installApp = () => {
     if (typeof window !== "undefined" && typeof window.__xvRequestInstall === "function") {
       window.__xvRequestInstall();
@@ -31,13 +34,13 @@ function DownloadTab() {
             <Smartphone size={20} color="#a3e635" />
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>Stay inside the app</div>
-            <div style={{ fontSize: 11, color: "#6b7280" }}>Smooth, native-feeling access to Xeevia</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{installed ? "Xeevia is installed" : "Stay inside the app"}</div>
+            <div style={{ fontSize: 11, color: "#6b7280" }}>{installed ? "Your app is ready for the latest updates" : "Smooth, native-feeling access to Xeevia"}</div>
           </div>
         </div>
 
         <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, marginBottom: 18 }}>
-          Use the install flow from inside the app to add Xeevia to your home screen. It feels like a native app, keeps your sessions fast, and avoids the browser chrome that breaks immersion.
+          {installed ? "This device already has Xeevia installed. Use the button to check the app upgrade path when a new release is available." : "Use the install flow from inside the app to add Xeevia to your home screen. It feels like a native app, keeps your sessions fast, and avoids browser chrome."}
         </div>
 
         <button onClick={installApp} style={{
@@ -46,7 +49,7 @@ function DownloadTab() {
           boxShadow: "0 10px 28px rgba(132, 204, 22, 0.28)",
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <Download size={15} /> Install Xeevia
+            <Download size={15} /> {installed ? "Check for upgrade" : "Install Xeevia"}
           </span>
         </button>
 

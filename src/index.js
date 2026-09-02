@@ -29,7 +29,7 @@ import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
-import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt } from "./services/notifications/appPromptManager";
+import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt, setPromptNever } from "./services/notifications/appPromptManager";
 
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
@@ -364,9 +364,13 @@ function ensurePromptStyles() {
 
 function isPwaInstalled() {
   return window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.matchMedia('(display-mode: minimal-ui)').matches
     || window.navigator.standalone
     || localStorage.getItem("xv_pwa_installed") === "1";
 }
+
+window.__xvIsAppInstalled = isPwaInstalled;
 
 function canShowPrompt(type) {
   if (type === "install" && isPwaInstalled()) return false;
@@ -423,8 +427,9 @@ function showAppPrompt({ type, message, detail }) {
       <div style="font-size:13px;font-weight:800;color:#f7f7f7;margin-bottom:2px">${title}</div>
       <div style="font-size:11px;color:#95a38d;line-height:1.45">${subtitle}</div>
     </div>
-    <div style="display:flex;gap:8px;flex-shrink:0" id="xv-prompt-buttons">
+    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center" id="xv-prompt-buttons">
       <button id="xv-prompt-later" style="border:none;background:rgba(255,255,255,0.08);color:#d7e4cf;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, background .18s ease;">Ignore</button>
+      ${type === "install" || type === "push" ? '<button id="xv-prompt-never" style="border:none;background:transparent;color:#84917d;padding:8px 4px;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;">Never</button>' : ""}
       <button id="xv-prompt-action" style="border:none;background:linear-gradient(135deg,#a8e63d,#60a513);color:#051100;padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, filter .18s ease; box-shadow:0 8px 18px rgba(132,204,22,0.26);">${type === "install" ? "Install" : type === "update" ? "Refresh" : "Enable"}</button>
     </div>
   `;
@@ -447,6 +452,16 @@ function showAppPrompt({ type, message, detail }) {
 
   const actionButton = document.getElementById("xv-prompt-action");
   const laterButton = document.getElementById("xv-prompt-later");
+  const neverButton = document.getElementById("xv-prompt-never");
+
+  neverButton?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setPromptNever(type);
+    closeBanner(() => {
+      if (type === "install") installPromptShown = true;
+      if (type === "push") pushPromptShown = true;
+    });
+  });
 
   actionButton.addEventListener("pointerdown", () => {
     actionButton.style.transform = "scale(0.97)";
@@ -532,7 +547,6 @@ function showAppPrompt({ type, message, detail }) {
         const { outcome } = await deferredInstallEvent.userChoice;
         if (outcome === "accepted") {
           installPromptShown = true;
-          localStorage.setItem("xv_pwa_installed", "1");
           clearPromptSchedule("install");
         }
       });
@@ -589,6 +603,24 @@ window.addEventListener("appinstalled", () => {
   deferredInstallEvent = null;
   localStorage.setItem("xv_pwa_installed", "1");
   clearPromptSchedule("install");
+});
+
+window.__xvRequestInstall = () => {
+  if (isPwaInstalled()) {
+    showAppPrompt({
+      type: "update",
+      message: "Xeevia is already installed on this device.",
+      detail: "You are using the app version. Updates will be applied when a new release is ready.",
+    });
+    return false;
+  }
+  if (!deferredInstallEvent) return false;
+  showAppPrompt({ type: "install", message: "Install Xeevia to keep it fast and always available." });
+  return true;
+};
+
+window.addEventListener("xv:show_install_prompt", () => {
+  window.__xvRequestInstall?.();
 });
 
 window.addEventListener("sw:registered", (event) => {

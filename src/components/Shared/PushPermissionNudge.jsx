@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect, useCallback, memo } from "react";
 import { pushService } from "../../services/notifications/pushService";
+import { isPromptDue, setPromptNever } from "../../services/notifications/appPromptManager";
 
 const PushPermissionNudge = memo(({ userId }) => {
   const [visible, setVisible] = useState(false);
@@ -24,6 +25,7 @@ const PushPermissionNudge = memo(({ userId }) => {
   useEffect(() => {
     if (!pushService.isSupported()) return;
     if (Notification.permission !== "default") return;
+    if (!isPromptDue("push")) return;
 
     const showNudge = () => {
       setVisible(true);
@@ -72,6 +74,11 @@ const PushPermissionNudge = memo(({ userId }) => {
     setVisible(false);
     setDismissed(true);
   }, []);
+
+  const handleNever = useCallback(() => {
+    setPromptNever("push");
+    handleDismiss();
+  }, [handleDismiss]);
 
   if (!visible || dismissed) return null;
 
@@ -174,6 +181,12 @@ const PushPermissionNudge = memo(({ userId }) => {
           aria-label="Dismiss"
         >
           ×
+        </button>
+        <button
+          onClick={handleNever}
+          style={{ background: "transparent", border: "none", color: "#687564", fontSize: "10px", fontWeight: "700", cursor: "pointer", padding: "4px 0", flexShrink: 0, fontFamily: "inherit" }}
+        >
+          Never
         </button>
       </div>
 

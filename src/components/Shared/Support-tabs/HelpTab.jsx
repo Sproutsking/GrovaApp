@@ -34,6 +34,7 @@ EP is your **social fuel**. It is spent when you interact with content, and it f
 |--------|---------|
 | Like a post or reel | 2 EP (you pay) |
 | Comment on content | 4 EP (you pay) |
+| Follow a user | 2 EP (you pay) |
 | Unlock a story | Story price (you pay) |
 | Publish a post/reel/story | **Free** |
 
@@ -79,14 +80,17 @@ Xeevia accepts:
 - **Paystack** (for Nigerian users — supports local bank transfer, USSD, and cards)
 - **Cryptocurrency** (ETH, USDC, USDT via Web3 wallet)
 
-### Minimum Deposit
-The minimum deposit is **$1.00**, which gives you **100 EP**.
+### No Entry Fee
+Xeevia no longer charges a paywall or $1 entry fee to create an account or access the platform. You can join, explore, publish, and participate without paying an entry charge.
+
+### Optional Wallet Funding
+When you choose to add funds, the minimum deposit is **$1.00**, which gives you **100 EP**. This is an optional wallet top-up, not an account activation fee.
 
 ### How to Deposit
 1. Open the **Wallet** tab
 2. Tap **Add Funds** or **Deposit**
 3. Choose your payment method
-4. Enter the amount (minimum $1)
+4. Enter the amount (minimum $1 for a wallet deposit)
 5. Complete the payment
 6. EP appears in your wallet instantly (crypto: after blockchain confirmations)
 
