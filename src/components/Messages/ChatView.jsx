@@ -663,7 +663,7 @@ export const CV_CSS = `
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}
 @keyframes cvSpin{to{transform:rotate(360deg)}}
 .cv-jump-btn{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);}
-.cv-msg{display:flex;align-items:flex-end;gap:8px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:1px;}
+.cv-msg{display:flex;align-items:flex-end;gap:8px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:5px;}
 .cv-me{flex-direction:row-reverse;}.cv-opt{opacity:.65;}.cv-fail{opacity:.45;}
 @keyframes cvMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .cv-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;}
