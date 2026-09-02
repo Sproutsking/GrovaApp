@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+  <defs>
+    <radialGradient id="v" cx="50%" cy="46%" r="74%">
+      <stop offset="0" stop-color="#101808"/>
+      <stop offset="0.62" stop-color="#050805"/>
+      <stop offset="1" stop-color="#000000"/>
+    </radialGradient>
+    <pattern id="threads" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M0 0H64M0 32H64M0 0V64M32 0V64" fill="none" stroke="#9cff00" stroke-opacity=".045" stroke-width="1"/>
+      <circle cx="0" cy="0" r="1.5" fill="#9cff00" fill-opacity=".16"/>
+    </pattern>
+    <g id="mark" fill="none" stroke="#9cff00" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-37-13L-14-36L37-7L25 7L-7-11L-25 7L-37-13Z" stroke-width="9"/>
+      <path d="M37 13L14 36L-37 7L-25-7L7 11L25-7L37 13Z" stroke-width="9"/>
+      <path d="M-16-16L16 16M16-16L-16 16" stroke-width="7"/>
+    </g>
+    <pattern id="marks" width="320" height="320" patternUnits="userSpaceOnUse">
+      <g opacity=".12" transform="translate(160 160) scale(1.8)"><use href="#mark"/></g>
+      <g opacity=".055" transform="translate(0 0) scale(.8)"><use href="#mark"/></g>
+    </pattern>
+  </defs>
+  <rect width="640" height="640" fill="url(#v)"/>
+  <rect width="640" height="640" fill="url(#threads)"/>
+  <rect width="640" height="640" fill="url(#marks)"/>
+  <path d="M0 480C150 410 250 570 390 500S550 430 640 470" fill="none" stroke="#9cff00" stroke-opacity=".07" stroke-width="2"/>
+  <path d="M0 505C150 435 250 595 390 525S550 455 640 495" fill="none" stroke="#9cff00" stroke-opacity=".035" stroke-width="1"/>
+</svg>

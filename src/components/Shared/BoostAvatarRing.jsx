@@ -131,6 +131,9 @@ function SilverRing({ size, bleed = 0 }) {
       style={{ position:"absolute", left: bleed - (r - size/2), top: bleed - (r - size/2), pointerEvents:"none", overflow:"visible" }}
     >
       <defs>
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
         <linearGradient id="sg0" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%"   stopColor="#e2e8f0" />
           <stop offset="100%" stopColor="#64748b" />
@@ -284,8 +287,7 @@ function DiamondRing({ size, visual, bleed = 0 }) {
     >
       <defs>
         {/* Primary spectrum gradient */}
-        <linearGradient id="dg0" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse"
-          x1="0" y1="0" x2={total} y2={total}>
+        <linearGradient id="dg0" x1="0" y1="0" x2={total} y2={total} gradientUnits="userSpaceOnUse">
           <stop offset="0%"    stopColor="#ff6b6b" />
           <stop offset="16.6%" stopColor="#ffd93d" />
           <stop offset="33.3%" stopColor="#6bcb77" />
@@ -295,8 +297,7 @@ function DiamondRing({ size, visual, bleed = 0 }) {
           <stop offset="100%"  stopColor="#ff6b6b" />
         </linearGradient>
         {/* Secondary — theme-tinted arc */}
-        <linearGradient id="dg1" x1="100%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse"
-          x1="0" y1="0" x2={total} y2={total}>
+        <linearGradient id="dg1" x1={total} y1="0" x2="0" y2={total} gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stopColor={c2}   stopOpacity="0.9" />
           <stop offset="50%"  stopColor={c1}   stopOpacity="0.5" />
           <stop offset="100%" stopColor="#fff" stopOpacity="0.8" />
@@ -452,6 +453,9 @@ const BoostAvatarRing = ({
               src={src}
               alt=""
               crossOrigin="anonymous"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               onError={() => setImgError(true)}
               style={{
                 position:       "absolute",

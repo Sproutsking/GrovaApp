@@ -35,6 +35,7 @@ import bg_wallpaper_glow   from "../../components/Messages/Assets/wallpaper_glow
 import bg_geg              from "../../components/Messages/Assets/geg_wallpaper.jpeg";
 import bg_heart_love       from "../../components/Messages/Assets/heart_love_wallpaper.jpeg";
 import bg_please_follow    from "../../components/Messages/Assets/please_follow_wallpaper.jpg";
+import bg_xeevia_weave     from "../../components/Messages/Assets/xeevia/xeevia-weave.svg";
 
 // ── Default "Grid" background ─────────────────────────────────────────────
 // Pure CSS using multiple layered backgrounds — no image file needed.
@@ -101,6 +102,9 @@ export const DOT_OVERLAY_CSS = `
 class BackgroundService {
   constructor() {
     this.backgrounds = [
+      // ── Xeevia brand backgrounds ──────────────────────────────────────
+      { name: "Xeevia Weave", value: null, image: bg_xeevia_weave, isDefault: true },
+
       // ── Default — the stunning grid ───────────────────────────────────
       {
         name:      "Grid",

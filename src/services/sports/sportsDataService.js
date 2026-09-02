@@ -52,7 +52,7 @@ const SCOREBOARD_LEAGUES = [
 ];
 
 const getScoreboardUrl = ({ sport, league }, days = 7) => {
-  const start = new Date();
+  const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
   const format = (date) => date.toISOString().slice(0, 10).replaceAll("-", "");
   return `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard?dates=${format(start)}-${format(end)}&limit=100`;
@@ -94,7 +94,7 @@ const getProviderFixtures = async (days = 7) => {
       return [];
     }
   }));
-  return responses.flat().filter((fixture) => fixture.status !== "COMPLETED");
+  return responses.flat();
 };
 
 // Service methods

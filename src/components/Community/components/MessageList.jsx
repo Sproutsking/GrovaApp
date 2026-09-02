@@ -118,7 +118,7 @@ const MessageList = ({
                     src={avatarUrl}
                     letter={initial}
                     showBadge={false}
-                    style={{ cursor: "pointer", transform: `translate(${hasBoostedProfile ? -6 : -2}px, ${hasBoostedProfile ? -3 : 0}px)` }}
+                    style={{ cursor: "pointer", transform: `translate(${hasBoostedProfile ? -6 : -2}px, ${hasBoostedProfile ? -6 : 0}px)` }}
                   />
                 </div>
               )}
@@ -291,7 +291,7 @@ const MessageList = ({
 
         .msg-bubble {
           max-width: 70%;
-          padding: 7px 11px 6px;
+          padding: 3px 7px 2px;
           border-radius: 14px;
           backdrop-filter: blur(10px);
           position: relative;
@@ -332,7 +332,7 @@ const MessageList = ({
         .msg-bubble.them.has-tail::before {
           content: '';
           position: absolute;
-          bottom: -1px;
+          bottom: 0;
           left: -7px;
           width: 0;
           height: 0;
@@ -344,7 +344,7 @@ const MessageList = ({
         .msg-bubble.them.has-tail::after {
           content: '';
           position: absolute;
-          bottom: -1px;
+          bottom: 0;
           left: -8px;
           width: 0;
           height: 0;
@@ -361,7 +361,7 @@ const MessageList = ({
         .msg-bubble.me.has-tail::before {
           content: '';
           position: absolute;
-          bottom: -1px;
+          bottom: 1px;
           right: -7px;
           width: 0;
           height: 0;
@@ -374,7 +374,7 @@ const MessageList = ({
         .msg-bubble.me.has-tail::after {
           content: '';
           position: absolute;
-          bottom: -1px;
+          bottom: 1px;
           right: -8px;
           width: 0;
           height: 0;
@@ -408,9 +408,11 @@ const MessageList = ({
         .msg-meta {
           display: flex;
           align-items: center;
+          justify-content: flex-end;
           gap: 4px;
           margin-top: 3px;
         }
+        .msg-item.me .msg-meta { justify-content: flex-start; }
 
         .msg-time {
           font-size: 10px;
@@ -469,7 +471,7 @@ const MessageList = ({
 
           .msg-bubble {
             max-width: 80%;
-            padding: 7px 11px;
+            padding: 5px 9px;
             border-radius: 14px;
           }
 

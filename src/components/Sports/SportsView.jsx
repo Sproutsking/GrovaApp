@@ -50,6 +50,10 @@ const SportsView = ({ currentUser, userId }) => {
     () => visibleFixtures.filter((fixture) => fixture.status === "LIVE"),
     [visibleFixtures],
   );
+  const scoreFixtures = useMemo(
+    () => visibleFixtures.filter((fixture) => ["LIVE", "COMPLETED"].includes(fixture.status)),
+    [visibleFixtures],
+  );
   const scheduledFixtures = useMemo(
     () => visibleFixtures.filter((fixture) => fixture.status === "SCHEDULED"),
     [visibleFixtures],
@@ -70,9 +74,9 @@ const SportsView = ({ currentUser, userId }) => {
       id: "score",
       icon: Target,
       label: "Live Score",
-      detail: liveMatches.length ? `${liveMatches.length} live match${liveMatches.length === 1 ? "" : "es"}` : "No live scores yet",
+      detail: scoreFixtures.length ? `${scoreFixtures.length} current score${scoreFixtures.length === 1 ? "" : "s"}` : "No scores available yet",
       accent: "#34d399",
-      value: liveMatches.length,
+      value: scoreFixtures.length,
     },
     {
       id: "live",
@@ -541,15 +545,15 @@ const SportsView = ({ currentUser, userId }) => {
           </>
         )}
 
-        {activeSection === "score" && <div className="sports-detail-copy">Live scores update automatically as match events arrive.</div>}
+        {activeSection === "score" && <div className="sports-detail-copy">Live and recent scores update automatically from the scoreboard.</div>}
 
         {/* Live Fixtures Tab */}
         {activeSection && (
           <div className="content-grid">
             {loading ? (
               <div className="loading">Loading sports data...</div>
-            ) : (activeSection === "score" || activeSection === "live" ? liveMatches : filteredScheduledFixtures).length > 0 ? (
-              (activeSection === "score" || activeSection === "live" ? liveMatches : filteredScheduledFixtures).map(fixture => (
+            ) : (activeSection === "score" ? scoreFixtures : activeSection === "live" ? liveMatches : filteredScheduledFixtures).length > 0 ? (
+              (activeSection === "score" ? scoreFixtures : activeSection === "live" ? liveMatches : filteredScheduledFixtures).map(fixture => (
                 <div
                   key={fixture.id}
                   className={`fixture-card ${fixture.status === "LIVE" ? "live" : ""}`}
@@ -561,13 +565,13 @@ const SportsView = ({ currentUser, userId }) => {
                         fixture.status === "LIVE" ? "status-live" : "status-scheduled"
                       }`}
                     >
-                      {fixture.status === "LIVE" ? "● LIVE" : "Scheduled"}
+                      {fixture.status === "LIVE" ? "● LIVE" : fixture.status === "COMPLETED" ? "Final" : "Scheduled"}
                     </span>
                   </div>
                   <div className="fixture-body">
                     <div className="team">
                       <div className="team-name">{fixture.home}</div>
-                      <div className="team-score">{fixture.homeScore}</div>
+                      <div className="team-score">{fixture.homeScore ?? "-"}</div>
                     </div>
                     <div className="vs-minute">
                       {fixture.status === "LIVE" ? (
@@ -588,7 +592,7 @@ const SportsView = ({ currentUser, userId }) => {
                     </div>
                     <div className="team">
                       <div className="team-name">{fixture.away}</div>
-                      <div className="team-score">{fixture.awayScore}</div>
+                      <div className="team-score">{fixture.awayScore ?? "-"}</div>
                     </div>
                   </div>
                 </div>
@@ -598,7 +602,7 @@ const SportsView = ({ currentUser, userId }) => {
                 {activeSection === "fixtures"
                   ? "No fixtures in this time window."
                   : activeSection === "score"
-                    ? "No live scores are available right now."
+                      ? "No current scores are available right now."
                     : activeSection === "live"
                       ? "No live matches are available right now."
                       : "No sports data is available right now."}

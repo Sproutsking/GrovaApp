@@ -269,8 +269,8 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {!isMe&&(showAv?(<div style={{ transform: `translate(${boostTier ? -6 : -2}px, ${boostTier ? -3 : 0}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
-      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(${swipeX*.5}px)`:"translateX(0)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
+      {!isMe&&(showAv?(<div style={{ transform: `translate(${boostTier ? 0 : 0}px, ${boostTier ? 3 : 0}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
+      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(calc(4px + ${swipeX*.5}px))`:"translateX(4px)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
@@ -670,15 +670,15 @@ export const CV_CSS = `
 .cv-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
 .cv-avatar-sp{width:34px;flex-shrink:0;}
-.cv-bubble{max-width:72%;padding:6px 10px 5px;border-radius:12px;word-break:break-word;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);}
+.cv-bubble{max-width:72%;padding:2px 6px 1px;border-radius:12px;word-break:break-word;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);}
 .cv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
 .cv-bme{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border:1px solid rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
 .cv-tail-l.cv-bthem{border-bottom-left-radius:4px;}
 .cv-tail-r.cv-bme{border-bottom-right-radius:4px;}
 .cv-tail-l.cv-bthem::before{content:"";position:absolute;bottom:-1px;left:-6px;width:0;height:0;border-style:solid;border-width:0 0 8px 7px;border-color:transparent transparent rgba(19,21,20,.97) transparent;}
 .cv-tail-l.cv-bthem::after{content:"";position:absolute;bottom:-1px;left:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(255,255,255,.08) transparent;z-index:-1;}
-.cv-tail-r.cv-bme::before{content:"";position:absolute;bottom:-1px;right:-6px;width:0;height:0;border-style:solid;border-width:0 0 8px 7px;border-color:transparent transparent rgba(31,84,34,.98) transparent;transform:scaleX(-1);}
-.cv-tail-r.cv-bme::after{content:"";position:absolute;bottom:-1px;right:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(156,255,0,.26) transparent;z-index:-1;transform:scaleX(-1);}
+.cv-tail-r.cv-bme::before{content:"";position:absolute;bottom:0;right:-6px;width:0;height:0;border-style:solid;border-width:0 0 8px 7px;border-color:transparent transparent rgba(31,84,34,.98) transparent;transform:scaleX(-1);}
+.cv-tail-r.cv-bme::after{content:"";position:absolute;bottom:0;right:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(156,255,0,.26) transparent;z-index:-1;transform:scaleX(-1);}
 .cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 4px;line-height:1.1;}
 .cv-content{font-size:14px;color:#f1f5ef;line-height:1.5;}
 .cv-bme .cv-content{color:#f1f9e8;}
@@ -691,7 +691,7 @@ export const CV_CSS = `
 .cv-forwarded-label{font-size:10px;font-weight:800;color:#9cff00;letter-spacing:.2px;}
 .cv-forwarded-body{font-size:13px;color:inherit;}
 .cv-bad{font-size:12px;color:#444;font-style:italic;}
-.cv-meta{display:flex;align-items:center;gap:4px;margin-top:3px;}
+.cv-meta{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;}
 .cv-meta-me{justify-content:flex-end;}
 .cv-time{font-size:10px;color:#555;}
 .cv-st{line-height:1;}
