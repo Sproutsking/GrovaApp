@@ -1,6 +1,8 @@
 // src/services/sports/sportsDataService.js
 // Live sports data service — fixtures, scores, videos for major leagues
 
+import { supabase } from "../config/supabase";
+
 const MAJOR_LEAGUES = {
   football: {
     name: "Football",
@@ -39,218 +41,68 @@ const MAJOR_LEAGUES = {
   },
 };
 
-// Mock live fixtures data
-const generateMockFixtures = () => {
-  const now = new Date();
-  const fixtures = [];
-  
-  // Simulated live matches from major leagues
-  const mockGames = [
-    {
-      league: "Premier League",
-      home: "Manchester United",
-      away: "Liverpool",
-      homeScore: 2,
-      awayScore: 1,
-      status: "LIVE",
-      minute: 68,
-      homeForm: [1, 1, 1, 0, 1],
-      awayForm: [1, 1, 0, 1, 1],
-    },
-    {
-      league: "La Liga",
-      home: "Real Madrid",
-      away: "Barcelona",
-      homeScore: 1,
-      awayScore: 2,
-      status: "LIVE",
-      minute: 45,
-      homeForm: [1, 1, 1, 0, 1],
-      awayForm: [1, 1, 1, 1, 0],
-    },
-    {
-      league: "Serie A",
-      home: "Juventus",
-      away: "AC Milan",
-      homeScore: 0,
-      awayScore: 0,
-      status: "LIVE",
-      minute: 15,
-      homeForm: [1, 0, 1, 1, 1],
-      awayForm: [0, 1, 1, 1, 1],
-    },
-    {
-      league: "Bundesliga",
-      home: "Bayern Munich",
-      away: "Borussia Dortmund",
-      homeScore: 3,
-      awayScore: 2,
-      status: "LIVE",
-      minute: 72,
-      homeForm: [1, 1, 1, 1, 1],
-      awayForm: [1, 0, 1, 0, 1],
-    },
-    {
-      league: "Ligue 1",
-      home: "PSG",
-      away: "AS Monaco",
-      homeScore: 2,
-      awayScore: 0,
-      status: "LIVE",
-      minute: 38,
-      homeForm: [1, 1, 1, 1, 0],
-      awayForm: [0, 0, 1, 1, 1],
-    },
-    {
-      league: "NBA",
-      home: "Los Angeles Lakers",
-      away: "Boston Celtics",
-      homeScore: 105,
-      awayScore: 98,
-      status: "LIVE",
-      quarter: 3,
-      timeLeft: "5:30",
-    },
-    {
-      league: "IPL",
-      home: "Mumbai Indians",
-      away: "Chennai Super Kings",
-      homeScore: 156,
-      awayScore: 142,
-      status: "LIVE",
-      ballsLeft: "3.2 overs",
-    },
-    {
-      league: "Champions League",
-      home: "Manchester City",
-      away: "Inter Milan",
-      homeScore: 1,
-      awayScore: 1,
-      status: "SCHEDULED",
-      kickoffTime: new Date(now.getTime() + 2 * 60 * 60 * 1000), // In 2 hours
-    },
-  ];
-
-  return mockGames.map((game, idx) => ({
-    id: `fixture-${idx}`,
-    ...game,
-    updated: new Date(),
-  }));
-};
-
-// Mock video data
-const generateMockVideos = () => {
-  return [
-    {
-      id: "video-1",
-      title: "Manchester United vs Liverpool - Extended Highlights",
-      league: "Premier League",
-      duration: "12:45",
-      views: "2.3M",
-      thumbnail: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=300&h=200",
-      uploadedAt: "2 hours ago",
-    },
-    {
-      id: "video-2",
-      title: "Cristiano Ronaldo - Latest Goals & Skills",
-      league: "Premier League",
-      duration: "8:20",
-      views: "1.8M",
-      thumbnail: "https://images.unsplash.com/photo-1489944908129-dfd3e0d1b6fe?w=300&h=200",
-      uploadedAt: "4 hours ago",
-    },
-    {
-      id: "video-3",
-      title: "Real Madrid vs Barcelona - Full Match Replay",
-      league: "La Liga",
-      duration: "95:00",
-      views: "3.2M",
-      thumbnail: "https://images.unsplash.com/photo-1577280643335-a0e5b2976b2a?w=300&h=200",
-      uploadedAt: "6 hours ago",
-    },
-    {
-      id: "video-4",
-      title: "NBA Top 10 Plays This Week",
-      league: "NBA",
-      duration: "10:15",
-      views: "5.1M",
-      thumbnail: "https://images.unsplash.com/photo-1546519638-68711109bb84?w=300&h=200",
-      uploadedAt: "1 day ago",
-    },
-    {
-      id: "video-5",
-      title: "IPL 2024 - Biggest Sixes Compilation",
-      league: "IPL",
-      duration: "14:30",
-      views: "4.7M",
-      thumbnail: "https://images.unsplash.com/photo-1540747913ee1afdd01c20b4f49d65431cf06de6?w=300&h=200",
-      uploadedAt: "1 day ago",
-    },
-  ];
-};
-
-// Standings data by league
-const generateStandings = (league) => {
-  const standings = {
-    pl: [
-      { rank: 1, team: "Manchester City", played: 15, wins: 13, draws: 1, losses: 1, points: 40 },
-      { rank: 2, team: "Liverpool", played: 15, wins: 11, draws: 2, losses: 2, points: 35 },
-      { rank: 3, team: "Arsenal", played: 15, wins: 10, draws: 3, losses: 2, points: 33 },
-      { rank: 4, team: "Manchester United", played: 15, wins: 10, draws: 1, losses: 4, points: 31 },
-      { rank: 5, team: "Aston Villa", played: 15, wins: 9, draws: 2, losses: 4, points: 29 },
-    ],
-    laliga: [
-      { rank: 1, team: "Real Madrid", played: 16, wins: 13, draws: 1, losses: 2, points: 40 },
-      { rank: 2, team: "Barcelona", played: 16, wins: 12, draws: 2, losses: 2, points: 38 },
-      { rank: 3, team: "Atletico Madrid", played: 16, wins: 10, draws: 2, losses: 4, points: 32 },
-      { rank: 4, team: "Sevilla", played: 16, wins: 9, draws: 2, losses: 5, points: 29 },
-      { rank: 5, team: "Villarreal", played: 16, wins: 8, draws: 3, losses: 5, points: 27 },
-    ],
-  };
-  return standings[league] || standings.pl;
-};
-
 // Service methods
 const sportsDataService = {
-  // Get live fixtures
+  // Live sessions are the app's current source of truth for live sports.
   getLiveFixtures: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(generateMockFixtures());
-      }, 300);
-    });
+    const { data, error } = await supabase
+      .from("live_sessions")
+      .select("*")
+      .in("status", ["live", "scheduled"])
+      .order("started_at", { ascending: false, nullsFirst: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    return (data || [])
+      .filter((session) => isSportsSession(session))
+      .map(normalizeSession);
   },
 
-  // Get videos
+  // Completed sessions with a replay or YouTube URL become the highlights feed.
   getVideos: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(generateMockVideos());
-      }, 300);
-    });
+    const { data, error } = await supabase
+      .from("live_sessions")
+      .select("*")
+      .in("status", ["ended", "completed"])
+      .order("ended_at", { ascending: false, nullsFirst: false })
+      .limit(30);
+
+    if (error) throw error;
+
+    return (data || [])
+      .filter((session) => isSportsSession(session) && getVideoUrl(session))
+      .map((session) => ({
+        ...normalizeSession(session),
+        title: session.title || "Sports replay",
+        url: getVideoUrl(session),
+        thumbnail: session.thumbnail_url || session.thumbnail || "",
+        uploadedAt: session.ended_at || session.updated_at || session.created_at,
+      }));
   },
 
   // Get standings by league
   getStandings: async (league) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(generateStandings(league));
-      }, 300);
-    });
+    return [];
   },
 
   // Get fixture details
   getFixtureDetails: async (fixtureId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const fixtures = generateMockFixtures();
-        resolve(fixtures.find(f => f.id === fixtureId) || fixtures[0]);
-      }, 300);
-    });
+    const fixtures = await sportsDataService.getLiveFixtures();
+    return fixtures.find((fixture) => fixture.id === fixtureId) || null;
   },
 
   // Get major leagues
   getMajorLeagues: () => MAJOR_LEAGUES,
+
+  subscribeToLiveFixtures: (onChange) => {
+    const channel = supabase
+      .channel("sports_live_fixtures")
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_sessions" }, onChange)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  },
 
   // Filter fixtures by league
   filterByLeague: async (leagueName) => {
@@ -260,21 +112,37 @@ const sportsDataService = {
 
   // Get trending sports content
   getTrendingContent: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          fixtures: generateMockFixtures().slice(0, 5),
-          videos: generateMockVideos().slice(0, 5),
-          trending: [
-            { tag: "#ManUtd", trend: 1, mentions: "2.3M" },
-            { tag: "#RealMadrid", trend: 2, mentions: "1.8M" },
-            { tag: "#NBA", trend: 3, mentions: "1.5M" },
-            { tag: "#IPL2024", trend: 4, mentions: "2.1M" },
-          ]
-        });
-      }, 400);
-    });
+    const [fixtures, videos] = await Promise.all([
+      sportsDataService.getLiveFixtures(),
+      sportsDataService.getVideos(),
+    ]);
+    return { fixtures: fixtures.slice(0, 5), videos: videos.slice(0, 5), trending: [] };
   },
 };
+
+const SPORTS_TERMS = ["sport", "football", "soccer", "basketball", "cricket", "tennis", "match", "league", "cup"];
+
+const isSportsSession = (session) => {
+  const searchable = `${session?.title || ""} ${session?.category || ""}`.toLowerCase();
+  return SPORTS_TERMS.some((term) => searchable.includes(term));
+};
+
+const getVideoUrl = (session) => session?.replay_url || session?.recording_url || session?.youtube_url || session?.stream_url || "";
+
+const normalizeSession = (session) => ({
+  id: session.id,
+  title: session.title || "Live sports session",
+  league: session.category || "Sports",
+  home: session.home_team || session.home || session.title || "Home team",
+  away: session.away_team || session.away || "Away team",
+  homeScore: Number.isFinite(Number(session.home_score)) ? Number(session.home_score) : null,
+  awayScore: Number.isFinite(Number(session.away_score)) ? Number(session.away_score) : null,
+  status: String(session.status || "").toUpperCase(),
+  startedAt: session.started_at || session.created_at || null,
+  kickoffTime: session.kickoff_time || session.scheduled_at || session.start_time || session.started_at || null,
+  updated: session.updated_at || session.started_at || session.created_at || null,
+  streamUrl: session.stream_url || session.youtube_url || null,
+  raw: session,
+});
 
 export default sportsDataService;

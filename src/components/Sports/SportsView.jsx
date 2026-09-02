@@ -1,33 +1,35 @@
 // src/components/Sports/SportsView.jsx
 // Live sports fixtures, scores, and videos
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  Play, TrendingUp, Clock, Users, Target,
+  Play, Clock, Target, CalendarDays,
 } from "lucide-react";
 import sportsDataService from "../../services/sports/sportsDataService";
+import sportsYoutubeService from "../../services/sports/sportsYoutubeService";
 
 const SportsView = ({ currentUser, userId }) => {
   const [liveFixtures, setLiveFixtures] = useState([]);
-  const [videos, setVideos] = useState([]);
   const [selectedLeague, setSelectedLeague] = useState(null);
-  const [standings, setStandings] = useState([]);
-  const [activeTab, setActiveTab] = useState("live"); // live, videos, standings
+  const [activeSection, setActiveSection] = useState(null);
+  const [fixtureWindow, setFixtureWindow] = useState("7d");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadLiveData();
+
+    const unsubscribe = sportsDataService.subscribeToLiveFixtures(() => {
+      loadLiveData();
+    });
+
+    return unsubscribe;
   }, []);
 
   const loadLiveData = async () => {
     setLoading(true);
     try {
-      const [fixtures, vids] = await Promise.all([
-        sportsDataService.getLiveFixtures(),
-        sportsDataService.getVideos(),
-      ]);
+      const fixtures = await sportsDataService.getLiveFixtures();
       setLiveFixtures(fixtures);
-      setVideos(vids);
     } catch (err) {
       console.error("Failed to load sports data:", err);
     } finally {
@@ -35,89 +37,66 @@ const SportsView = ({ currentUser, userId }) => {
     }
   };
 
-  const loadStandings = async (league) => {
-    try {
-      const data = await sportsDataService.getStandings(league);
-      setStandings(data);
-    } catch (err) {
-      console.error("Failed to load standings:", err);
-    }
-  };
-
   const handleLeagueSelect = (league) => {
     setSelectedLeague(league);
-    if (activeTab === "standings") {
-      loadStandings(league);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    if (status === "LIVE") return "#ef4444";
-    if (status === "SCHEDULED") return "#f59e0b";
-    return "#6b7280";
   };
 
   const majorLeagues = sportsDataService.getMajorLeagues();
+  const visibleFixtures = useMemo(() => {
+    if (!selectedLeague) return liveFixtures;
+    return liveFixtures.filter((fixture) => fixture.league === selectedLeague.name);
+  }, [liveFixtures, selectedLeague]);
+  const liveMatches = useMemo(
+    () => visibleFixtures.filter((fixture) => fixture.status === "LIVE"),
+    [visibleFixtures],
+  );
+  const scheduledFixtures = useMemo(
+    () => visibleFixtures.filter((fixture) => fixture.status === "SCHEDULED"),
+    [visibleFixtures],
+  );
+  const filteredScheduledFixtures = useMemo(() => {
+    if (fixtureWindow === "all") return scheduledFixtures;
+    const days = fixtureWindow === "month" ? 30 : fixtureWindow === "season" ? 365 : 7;
+    const now = Date.now();
+    return scheduledFixtures.filter((fixture) => {
+      const timestamp = new Date(fixture.kickoffTime || fixture.startedAt || 0).getTime();
+      return timestamp >= now && timestamp <= now + days * 24 * 60 * 60 * 1000;
+    });
+  }, [fixtureWindow, scheduledFixtures]);
+  const activeMatch = liveMatches[0];
+
+  const sectionCards = [
+    {
+      id: "score",
+      icon: Target,
+      label: "Live Score",
+      detail: liveMatches.length ? `${liveMatches.length} live match${liveMatches.length === 1 ? "" : "es"}` : "No live scores yet",
+      accent: "#34d399",
+      value: liveMatches.length,
+    },
+    {
+      id: "live",
+      icon: Play,
+      label: "Live Match",
+      detail: activeMatch?.title || "Watch an active match",
+      accent: "#f87171",
+      value: activeMatch ? "ON" : "--",
+    },
+    {
+      id: "fixtures",
+      icon: Clock,
+      label: "Fixtures",
+      detail: scheduledFixtures.length ? `${scheduledFixtures.length} scheduled` : "No fixtures yet",
+      accent: "#60a5fa",
+      value: scheduledFixtures.length,
+    },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: 80 }}>
       <style>{`
         .sports-view {
           padding: 12px;
-        }
-        .sports-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 20px;
-          padding: 0 8px;
-        }
-        .sports-header h1 {
-          margin: 0;
-          font-size: 24px;
-          font-weight: 800;
-          color: var(--ink);
-        }
-        .sports-header .badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          background: #ef4444;
-          color: white;
-          padding: 4px 8px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          animation: pulse-badge 2s infinite;
-        }
-        @keyframes pulse-badge {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
-        }
-        .tabs-container {
-          display: flex;
-          gap: 2px;
-          padding: 0 8px;
-          margin-bottom: 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .tab-btn {
-          padding: 10px 16px;
-          border: none;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          border-bottom: 3px solid transparent;
-          transition: all 0.2s;
-        }
-        .tab-btn.active {
-          color: #84cc16;
-          border-bottom-color: #84cc16;
-        }
-        .tab-btn:hover {
-          color: rgba(255, 255, 255, 0.9);
         }
         .league-filter {
           display: flex;
@@ -352,76 +331,220 @@ const SportsView = ({ currentUser, userId }) => {
           padding: 40px 20px;
           color: #9ca3af;
         }
+        .sports-section-cards {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          padding: 0 8px 18px;
+        }
+        .sports-section-card {
+          flex: 1 1 210px;
+          min-width: 180px;
+          min-height: 126px;
+          padding: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 14px;
+          color: #f8fafc;
+          text-align: left;
+          cursor: pointer;
+          transition: transform 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .sports-section-card:hover {
+          transform: translateY(-2px);
+          border-color: var(--card-accent);
+          background: rgba(255, 255, 255, 0.07);
+        }
+        .sports-section-card-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 18px;
+        }
+        .sports-section-card-icon {
+          display: grid;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 9px;
+          color: var(--card-accent);
+          background: color-mix(in srgb, var(--card-accent) 16%, transparent);
+        }
+        .sports-section-card-value {
+          color: var(--card-accent);
+          font-size: 20px;
+          font-weight: 900;
+        }
+        .sports-section-card-label {
+          font-size: 14px;
+          font-weight: 800;
+        }
+        .sports-section-card-detail {
+          margin-top: 4px;
+          overflow: hidden;
+          color: #94a3b8;
+          font-size: 11px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sports-detail-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 0 8px 16px;
+        }
+        .sports-back-button {
+          display: inline-grid;
+          place-items: center;
+          width: 36px;
+          height: 36px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 9px;
+          background: rgba(255, 255, 255, 0.04);
+          color: #f8fafc;
+          cursor: pointer;
+        }
+        .sports-detail-title {
+          margin: 0;
+          color: #f8fafc;
+          font-size: 16px;
+          font-weight: 800;
+        }
+        .sports-detail-copy {
+          margin: -4px 8px 16px;
+          color: #94a3b8;
+          font-size: 12px;
+        }
+        .sports-controls {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          padding: 0 8px 16px;
+        }
+        .sports-control {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 34px;
+          padding: 7px 11px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.035);
+          color: #cbd5e1;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .sports-control.active {
+          border-color: #84cc16;
+          background: rgba(132, 204, 22, 0.14);
+          color: #bef264;
+        }
+        .sports-control select {
+          border: 0;
+          outline: 0;
+          background: transparent;
+          color: inherit;
+          font: inherit;
+          cursor: pointer;
+        }
+        .sports-control option { background: #111827; color: #f8fafc; }
+        .sports-watch {
+          margin: 0 8px 16px;
+          overflow: hidden;
+          border: 1px solid rgba(248, 113, 113, 0.28);
+          border-radius: 14px;
+          background: #050505;
+        }
+        .sports-watch iframe {
+          display: block;
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          border: 0;
+        }
+        @media (max-width: 600px) {
+          .sports-section-cards { flex-direction: column; }
+          .sports-section-card { width: 100%; min-width: 0; }
+        }
       `}</style>
 
       <div className="sports-view">
-        {/* Header */}
-        <div className="sports-header">
-          <TrendingUp size={24} color="#84cc16" />
-          <h1>Live Sports</h1>
-          <div className="badge">
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "white" }} />
-            LIVE
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="tabs-container">
-          <button
-            className={`tab-btn ${activeTab === "live" ? "active" : ""}`}
-            onClick={() => setActiveTab("live")}
-          >
-            <Clock size={14} style={{ display: "inline", marginRight: 4 }} />
-            Live Matches
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "videos" ? "active" : ""}`}
-            onClick={() => setActiveTab("videos")}
-          >
-            <Play size={14} style={{ display: "inline", marginRight: 4 }} />
-            Highlights
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "standings" ? "active" : ""}`}
-            onClick={() => setActiveTab("standings")}
-          >
-            <Target size={14} style={{ display: "inline", marginRight: 4 }} />
-            Standings
-          </button>
-        </div>
-
-        {/* League Filter */}
-        {(activeTab === "live" || activeTab === "standings") && (
-          <div className="league-filter">
-            <button
-              className={`league-btn ${selectedLeague === null ? "active" : ""}`}
-              onClick={() => handleLeagueSelect(null)}
-            >
-              All Leagues
-            </button>
-            {Object.entries(majorLeagues).map(([key, category]) =>
-              category.leagues
-                .filter(l => l.priority === 1)
-                .map(league => (
-                  <button
-                    key={league.id}
-                    className={`league-btn ${selectedLeague?.id === league.id ? "active" : ""}`}
-                    onClick={() => handleLeagueSelect(league)}
-                  >
-                    {league.name}
-                  </button>
-                ))
-            )}
+        {!activeSection && (
+          <div className="sports-section-cards" aria-label="Sports sections">
+            {sectionCards.map(({ id, icon: Icon, label, detail, accent, value }) => (
+              <button
+                key={id}
+                type="button"
+                className="sports-section-card"
+                style={{ "--card-accent": accent, background: `${accent}0d` }}
+                onClick={() => setActiveSection(id)}
+              >
+                <div className="sports-section-card-top">
+                  <span className="sports-section-card-icon"><Icon size={18} /></span>
+                  <span className="sports-section-card-value">{value}</span>
+                </div>
+                <div className="sports-section-card-label">{label}</div>
+                <div className="sports-section-card-detail">{detail}</div>
+              </button>
+            ))}
           </div>
         )}
 
+        {activeSection && (
+          <div className="sports-detail-header">
+            <button type="button" className="sports-back-button" onClick={() => setActiveSection(null)} aria-label="Back to sports sections">
+              <span aria-hidden="true">&#8592;</span>
+            </button>
+            <h2 className="sports-detail-title">
+              {sectionCards.find((card) => card.id === activeSection)?.label || "Sports"}
+            </h2>
+          </div>
+        )}
+
+        {activeSection === "live" && activeMatch?.streamUrl && (
+          <div className="sports-watch">
+            <iframe
+              src={sportsYoutubeService.getEmbedUrl(activeMatch.streamUrl)}
+              title={`${activeMatch.title} live stream`}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+
+        {activeSection === "live" && !activeMatch?.streamUrl && liveMatches.length > 0 && (
+          <div className="loading">Live matches are available, but no broadcast has been attached yet.</div>
+        )}
+
+        {activeSection === "fixtures" && (
+          <>
+            <div className="sports-detail-copy">Upcoming matches from the selected time window.</div>
+            <div className="sports-controls">
+              <CalendarDays size={16} color="#94a3b8" />
+              {[['7d', 'Next 7 days'], ['month', 'Next month'], ['season', 'Next year'], ['all', 'All upcoming']].map(([value, label]) => (
+                <button key={value} type="button" className={`sports-control ${fixtureWindow === value ? "active" : ""}`} onClick={() => setFixtureWindow(value)}>
+                  {label}
+                </button>
+              ))}
+              <label className="sports-control">
+                League
+                <select value={selectedLeague?.id || "all"} onChange={(event) => handleLeagueSelect(event.target.value === "all" ? null : Object.values(majorLeagues).flatMap((category) => category.leagues).find((league) => league.id === event.target.value))}>
+                  <option value="all">All leagues</option>
+                  {Object.values(majorLeagues).flatMap((category) => category.leagues).map((league) => <option key={league.id} value={league.id}>{league.name}</option>)}
+                </select>
+              </label>
+            </div>
+          </>
+        )}
+
+        {activeSection === "score" && <div className="sports-detail-copy">Live scores update automatically as match events arrive.</div>}
+
         {/* Live Fixtures Tab */}
-        {activeTab === "live" && (
+        {activeSection && (
           <div className="content-grid">
             {loading ? (
-              <div className="loading">Loading live matches...</div>
-            ) : liveFixtures.length > 0 ? (
-              liveFixtures.map(fixture => (
+              <div className="loading">Loading sports data...</div>
+            ) : (activeSection === "score" || activeSection === "live" ? liveMatches : filteredScheduledFixtures).length > 0 ? (
+              (activeSection === "score" || activeSection === "live" ? liveMatches : filteredScheduledFixtures).map(fixture => (
                 <div
                   key={fixture.id}
                   className={`fixture-card ${fixture.status === "LIVE" ? "live" : ""}`}
@@ -466,67 +589,19 @@ const SportsView = ({ currentUser, userId }) => {
                 </div>
               ))
             ) : (
-              <div className="loading">No live matches at the moment</div>
+              <div className="loading">
+                {activeSection === "fixtures"
+                  ? "No fixtures in this time window."
+                  : activeSection === "score"
+                    ? "No live scores are available right now."
+                    : activeSection === "live"
+                      ? "No live matches are available right now."
+                      : "No sports data is available right now."}
+              </div>
             )}
           </div>
         )}
 
-        {/* Videos Tab */}
-        {activeTab === "videos" && (
-          <div className="video-grid">
-            {videos.map(video => (
-              <div key={video.id} className="video-card">
-                <div className="video-thumbnail">
-                  <img src={video.thumbnail} alt={video.title} />
-                  <div className="video-play-btn">
-                    <div className="play-icon">
-                      <Play size={24} />
-                    </div>
-                  </div>
-                </div>
-                <div className="video-info">
-                  <div className="video-title">{video.title}</div>
-                  <div className="video-meta">
-                    <span>{video.views} views</span>
-                    <span>{video.uploadedAt}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Standings Tab */}
-        {activeTab === "standings" && standings.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <table className="standings-table">
-              <thead>
-                <tr>
-                  <th className="rank-cell">Rank</th>
-                  <th className="team-cell">Team</th>
-                  <th className="stat-cell">P</th>
-                  <th className="stat-cell">W</th>
-                  <th className="stat-cell">D</th>
-                  <th className="stat-cell">L</th>
-                  <th className="points-cell">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {standings.map(row => (
-                  <tr key={row.rank}>
-                    <td className="rank-cell">{row.rank}</td>
-                    <td className="team-cell">{row.team}</td>
-                    <td className="stat-cell">{row.played}</td>
-                    <td className="stat-cell">{row.wins}</td>
-                    <td className="stat-cell">{row.draws}</td>
-                    <td className="stat-cell">{row.losses}</td>
-                    <td className="points-cell">{row.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

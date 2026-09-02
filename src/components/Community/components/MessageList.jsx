@@ -118,7 +118,7 @@ const MessageList = ({
                     src={avatarUrl}
                     letter={initial}
                     showBadge={false}
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", transform: `translateX(${hasBoostedProfile ? -6 : -2}px)` }}
                   />
                 </div>
               )}
