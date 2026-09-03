@@ -212,7 +212,7 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted, onOpenMenu }) => {
+const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, otherVerified, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted, onOpenMenu }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
   const [rAnim,setRAnim]=useState(false);
   const touchX=useRef(null); const touchY=useRef(null); const suppressPointerMenu=useRef(false); const rowRef=useRef(null);
@@ -269,10 +269,10 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, bo
       onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {!isMe&&(showAv?(<div style={{ transform: `translate(${boostTier ? 0 : 0}px, ${boostTier ? 3 : 0}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={34} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
+      {!isMe&&(showAv?(<div style={{ transform: `translate(${boostTier ? 0 : 0}px, ${boostTier ? 3 : 0}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={38} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
       <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(calc(4px + ${swipeX*.5}px))`:"translateX(4px)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
-        {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}</div>}
+        {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}{(otherVerified||boostTier)&&<span className="cv-msg-verified" aria-label="Verified account">✓</span>}</div>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
@@ -582,7 +582,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} boostFontId={otherBoost.fontId} boostColorId={otherBoost.colorId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))} onOpenMenu={(message, position) => setMessageMenu({ message, position })}/>;
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name||otherUser?.username} otherVerified={otherUser?.verified} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} boostFontId={otherBoost.fontId} boostColorId={otherBoost.colorId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))} onOpenMenu={(message, position) => setMessageMenu({ message, position })}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">
@@ -664,13 +664,13 @@ export const CV_CSS = `
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}
 @keyframes cvSpin{to{transform:rotate(360deg)}}
 .cv-jump-btn{position:absolute;bottom:16px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;background:rgba(10,10,10,.96);border:1px solid rgba(132,204,22,.4);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);}
-.cv-msg{display:flex;align-items:flex-end;gap:1px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:2px;}
+.cv-msg{display:flex;align-items:flex-end;gap:2px;animation:cvMsgIn .18s ease-out both;position:relative;user-select:none;margin-bottom:2px;}
 .cv-me{flex-direction:row-reverse;}.cv-opt{opacity:.65;}.cv-fail{opacity:.45;}
 @keyframes cvMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .cv-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
 .cv-avatar-sp{width:34px;flex-shrink:0;}
-.cv-bubble{max-width:72%;padding:2px 6px 1px;border-radius:12px;word-break:break-word;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);}
+.cv-bubble{max-width:70%;min-width:0;padding:8px 10px 7px;border-radius:14px;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box;backdrop-filter:blur(10px);position:relative;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);}
 .cv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
 .cv-bme{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border:1px solid rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
 .cv-tail-l.cv-bthem{border-bottom-left-radius:4px;}
@@ -679,8 +679,9 @@ export const CV_CSS = `
 .cv-tail-l.cv-bthem::after{content:"";position:absolute;bottom:-1px;left:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(255,255,255,.08) transparent;z-index:-1;}
 .cv-tail-r.cv-bme::before{content:"";position:absolute;bottom:0;right:-6px;width:0;height:0;border-style:solid;border-width:0 0 8px 7px;border-color:transparent transparent rgba(31,84,34,.98) transparent;transform:scaleX(-1);}
 .cv-tail-r.cv-bme::after{content:"";position:absolute;bottom:0;right:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(156,255,0,.26) transparent;z-index:-1;transform:scaleX(-1);}
-.cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 4px;line-height:1.1;}
-.cv-content{font-size:14px;color:#f1f5ef;line-height:1.5;}
+.cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 5px;line-height:1.1;}
+.cv-content{max-width:100%;min-width:0;font-size:14px;color:#f1f5ef;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;}
+.cv-msg-verified{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:5px;border-radius:50%;background:#84cc16;color:#071007;font-size:10px;font-weight:900;line-height:1;vertical-align:middle;}
 .cv-bme .cv-content{color:#f1f9e8;}
 
 .cv-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}

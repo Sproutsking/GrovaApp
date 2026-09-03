@@ -20,10 +20,10 @@ const HomeViewRouter = (props) => {
   const { activeTrinityLens } = useTrinitylens();
   const safeLens = normalizeTrinityLens(activeTrinityLens);
   const validTabs = {
-    everyday: ["feed", "stories", "news", "sports", "culture"],
-    gaming: ["feed", "clips", "news", "sports", "live"],
-    web3: ["feed", "news", "sports", "alpha", "tokens", "signals"],
-  }[safeLens] || ["feed", "stories", "news", "sports", "culture"];
+    everyday: ["feed", "stories", "news", "culture"],
+    gaming: ["feed", "clips", "news", "live"],
+    web3: ["feed", "news", "alpha", "tokens", "signals"],
+  }[safeLens] || ["feed", "stories", "news", "culture"];
   const activeHomeTab = validTabs.includes(props.activeHomeTab)
     ? props.activeHomeTab
     : validTabs[0];

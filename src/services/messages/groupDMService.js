@@ -302,10 +302,12 @@ class GroupDMService {
   async updateGroup(groupId, updates) {
     // Update DB
     try {
-      const { error } = await supabase
-        .from("group_chats")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("id", groupId);
+      const { error } = await supabase.rpc("update_group_details", {
+        p_group_id: groupId,
+        p_name: updates.name,
+        p_icon: updates.icon ?? null,
+        p_icon_url: updates.icon_url ?? null,
+      });
       if (error) throw error;
     } catch (e) {
       console.warn("[GroupDM] updateGroup DB:", e.message);
@@ -391,6 +393,28 @@ class GroupDMService {
     this.unsubscribeMessages(groupId);
     this._emit("group_list", Array.from(this._groups.values()));
     this._emit(`group_left:${groupId}`, { groupId, userId: uid });
+  }
+
+  async removeMember(groupId, memberId, { deleteMessages = false } = {}) {
+    if (!groupId || !memberId) throw new Error("No groupId/memberId");
+    const group = await this.getGroup(groupId);
+    if (!group) throw new Error("Group not found");
+    const newMembers = (group.members || []).filter((member) => String(member?.id) !== String(memberId));
+    const newMemberIds = (group.member_ids || []).filter((id) => String(id) !== String(memberId));
+
+    const { error } = await supabase.rpc("remove_group_member", {
+      p_group_id: groupId,
+      p_member_id: memberId,
+      p_delete_messages: deleteMessages,
+    });
+    if (error) throw error;
+
+    const updated = { ...group, members: newMembers, member_ids: newMemberIds };
+    this._groups.set(groupId, updated);
+    try { localStorage.setItem(`gc_meta_${groupId}`, JSON.stringify(updated)); } catch {}
+    this._emit(`group_updated:${groupId}`, updated);
+    this._emit("group_list", Array.from(this._groups.values()));
+    return updated;
   }
 
   // ==========================================================================
@@ -534,6 +558,19 @@ class GroupDMService {
       // Return broadcast-only message
       return { ...optimistic, id: tempId, _optimistic: false };
     }
+  }
+
+  async deleteMessage(groupId, messageId) {
+    if (!groupId || !messageId) throw new Error("No groupId/messageId");
+    const table = await this._detectMsgTable();
+    if (table !== "group_messages") throw new Error("Group message storage is unavailable");
+    const { data, error } = await supabase.rpc("delete_group_message", {
+      p_group_id: groupId,
+      p_message_id: messageId,
+    });
+    if (error) throw error;
+    if (data !== true) throw new Error("You can only delete your own messages");
+    this._emit(`message_deleted:${groupId}`, { messageId });
   }
 
   sendTyping(groupId, isTyping, userName) {

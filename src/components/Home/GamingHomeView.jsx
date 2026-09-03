@@ -9,10 +9,6 @@ const GamingHomeView = (props) => {
     return <div style={{ padding: "16px" }}><LiveStreamersRow currentUser={currentUser} /></div>;
   }
 
-  if (activeHomeTab === "sports") {
-    return <HomeView {...props} trinityLens="gaming" activeHomeTab="sports" />;
-  }
-
   if (activeHomeTab === "feed" || activeHomeTab === "news" || activeHomeTab === "clips") {
     return <HomeView {...props} trinityLens="gaming" activeHomeTab={activeHomeTab === "clips" ? "reels" : activeHomeTab} />;
   }

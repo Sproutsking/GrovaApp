@@ -65,7 +65,7 @@ const LENS_SERVICES = {
 function resolveTab(id) {
   const map = {
     home:"home", search:"search", community:"community", wallet:"wallet",
-    news:"home", sports:"home", trending:"trending", tags:"search",
+    news:"home", sports:"sports", trending:"trending", tags:"search",
     stream:"stream", analytics:"analytics", profile:"account",
     rewards:"rewards", upgrade:"upgrade", giftcards:"giftcards",
     support:"support", settings:"account",
@@ -180,12 +180,18 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
       return;
     }
 
-    if (id === "news" || id === "sports") {
+    if (id === "news") {
       setActiveTab("home");
       if (typeof setActiveHomeTab === "function") setActiveHomeTab(id);
       setClosing(true);
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       closeTimerRef.current = setTimeout(onClose, 120);
+      return;
+    }
+
+    if (id === "sports") {
+      setActiveTab("sports");
+      close();
       return;
     }
 

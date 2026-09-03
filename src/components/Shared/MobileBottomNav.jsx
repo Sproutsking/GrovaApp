@@ -4,7 +4,7 @@
 // FAB: hidden by default, slides in on any scroll/touch, auto-hides 6s
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Home, Search, LayoutGrid, Users, Wallet, Flame } from "lucide-react";
+import { Home, Search, LayoutGrid, Users, Wallet } from "lucide-react";
 import ServicesModalRouter from "./ServicesModalRouter";
 
 const NAV_ITEMS = [
@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { id: "search", Icon: Search, label: "Explore" },
   { id: "menu", Icon: LayoutGrid, label: "Menu", isMenu: true },
   { id: "community", Icon: Users, label: "Community" },
-  { id: "sports", Icon: Flame, label: "Sports" },
   { id: "wallet", Icon: Wallet, label: "Wallet" },
 ];
 

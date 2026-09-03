@@ -57,11 +57,12 @@ function getVisual(tier, themeId) {
   return base;
 }
 
-function StaticTierRing({ size, visual, bleed = 0 }) {
-  const radius = size / 2 + 1.5;
+function StaticTierRing({ shellSize, visual }) {
+  // The ring's inner edge meets the photo edge; the stroke expands outward.
+  const radius = shellSize / 2 + 1;
   return (
-    <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", left: bleed - (radius - size / 2), top: bleed - (radius - size / 2), pointerEvents: "none", overflow: "visible" }}>
-      <circle cx={radius} cy={radius} r={radius - 1} fill="none" stroke={visual.grad[0]} strokeWidth="2" />
+    <svg width={radius * 2} height={radius * 2} style={{ position: "absolute", left: shellSize / 2 - radius, top: shellSize / 2 - radius, pointerEvents: "none", overflow: "visible" }}>
+      <circle cx={radius} cy={radius} r={radius} fill="none" stroke={visual.grad[0]} strokeWidth="2" />
       <circle cx={radius} cy={radius} r={radius + 2.5} fill="none" stroke={visual.grad[1]} strokeWidth="0.75" strokeOpacity=".72" />
     </svg>
   );
@@ -366,6 +367,7 @@ const BoostAvatarRing = ({
   letter      = "U",
   showBadge   = true,
   badgeSize   = "sm",
+  imageBleed  = 0,
   onClick,
   style,
   borderRadius = "circle",
@@ -383,7 +385,6 @@ const BoostAvatarRing = ({
   const isBoostedProfile = !!visual;
   const normalizedRadius = typeof borderRadius === "string" ? borderRadius.toLowerCase() : "";
   const br = normalizedRadius === "circle" || normalizedRadius === "rounded" || normalizedRadius === "round" ? "50%" : "28%";
-  const ringBleed = isBoostedProfile ? 3 : 2;
   const avatarShellSize = isBoostedProfile ? size + 6 : size + 4;
   const showBadgeBg = showBadge && visual;
 
@@ -398,6 +399,7 @@ const BoostAvatarRing = ({
     (src.startsWith("http") || src.startsWith("blob:"));
 
   const shouldRenderImage = isValidImg && !imgError;
+  const effectiveImageBleed = Math.max(1, imageBleed);
 
   const fallbackGrad = visual
     ? `linear-gradient(135deg,${visual.grad[0]},${visual.grad[1]})`
@@ -423,15 +425,14 @@ const BoostAvatarRing = ({
       <div
         style={{
           position:     "absolute",
-          inset:        ringBleed,
+          inset:        0,
           borderRadius: br,
           overflow:     "hidden",
           display:      "flex",
           alignItems:   "center",
           justifyContent: "center",
           background:   fallbackGrad,
-          border:       accentColor ? `1.5px solid ${accentColor}` : undefined,
-          boxShadow:    accentColor ? `0 0 0 1px ${accentColor}55` : undefined,
+          zIndex:        1,
         }}
       >
         <div
@@ -459,9 +460,9 @@ const BoostAvatarRing = ({
               onError={() => setImgError(true)}
               style={{
                 position:       "absolute",
-                inset:          0,
-                width:          "100%",
-                height:         "100%",
+                inset:          -effectiveImageBleed,
+                width:          `calc(100% + ${effectiveImageBleed * 2}px)`,
+                height:         `calc(100% + ${effectiveImageBleed * 2}px)`,
                 objectFit:      "cover",
                 objectPosition: "center",
                 opacity:        1,
@@ -495,7 +496,7 @@ const BoostAvatarRing = ({
       </div>
 
       {/* SVG ring overlay — rendered outside the clipping div */}
-      {visual && <StaticTierRing size={size} visual={visual} bleed={ringBleed} />}
+      {visual && <div style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", overflow: "visible" }}><StaticTierRing shellSize={avatarShellSize} visual={visual} /></div>}
 
       {/* Tier badge pip — only for boost status, never used as the verification badge */}
       {showTierBadge && (

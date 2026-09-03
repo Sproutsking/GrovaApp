@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, HeadsetIcon, Clock, TrendingUp, Gamepad2, Coins, Radio, BarChart2, Trophy } from "lucide-react";
+import { Bell, HeadsetIcon, Clock, TrendingUp, Gamepad2, Coins, Radio, BarChart2 } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
@@ -99,7 +99,6 @@ const HOME_TABS = [
   { id: "feed",      Icon: PostsTabIcon,     label: "Feed"      },
   { id: "stories",   Icon: StoriesTabIcon,   label: "Stories"   },
   { id: "news",      Icon: NewsTabIcon,      label: "News"      },
-  { id: "sports",    Icon: Trophy,           label: "Sports"    },
   { id: "culture",   Icon: CultureTabIcon,   label: "Culture"   },
 
 ];
@@ -109,7 +108,6 @@ const TRINITY_TABS = {
     { id: "feed", Icon: PostsTabIcon, label: "Feed" },
     { id: "clips", Icon: Gamepad2, label: "Clips" },
     { id: "news", Icon: NewsTabIcon, label: "News" },
-    { id: "sports", Icon: Trophy, label: "Sports" },
     { id: "live", Icon: Radio, label: "Live" },
   ],
   web3: [

@@ -37,8 +37,6 @@ import React, {
 import {
   Image, Film, BookOpen, RefreshCw, X, Hash, FileText, Newspaper,
 } from "lucide-react";
-import SportsView from "../Sports/SportsView";
-
 import FeedTab          from "./FeedTab";
 import NewsTab          from "./NewsTab";
 import ReelsTab         from "./ReelsTab";
@@ -360,6 +358,7 @@ const HomeView = ({
   trinityLens   = "everyday",
   activeHomeTab,
   setActiveHomeTab,
+  onNavigate,
 }) => {
   // [ULTRA-5] Pre-seed from SWR synchronously — frame 0 shows stale content
   const [posts,     setPosts]     = useState(() => swrVal("posts")   || readHomeCache("posts")   || []);
@@ -872,13 +871,13 @@ const HomeView = ({
       return;
     }
     if (dest === "sports") {
-      setActiveHomeTab?.("sports");
+      onNavigate?.("sports");
       return;
     }
     if (typeof setActiveHomeTab === "function" && dest) {
       setActiveHomeTab(dest);
     }
-  }, [setActiveHomeTab]);
+  }, [onNavigate, setActiveHomeTab]);
 
   if (error && !hasLoaded.current && !posts.length) {
     return <UnifiedLoader type="page" error={error} onRetry={() => { setError(null); initializeHome(); }} />;
@@ -979,13 +978,6 @@ const HomeView = ({
                   text="Follow creators to see their reels here!" />
               ) : (
                 currentTab==="reels" ? <GridSkeletons /> : null
-              )}
-            </div>
-
-            {/* ── SPORTS TAB ── */}
-            <div style={{ display: currentTab==="sports" ? "block" : "none" }}>
-              {currentTab === "sports" && (
-                <SportsView currentUser={resolvedUser} userId={userId} />
               )}
             </div>
 

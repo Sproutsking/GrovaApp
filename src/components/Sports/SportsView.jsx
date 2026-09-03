@@ -8,7 +8,7 @@ import {
 import sportsDataService from "../../services/sports/sportsDataService";
 import sportsYoutubeService from "../../services/sports/sportsYoutubeService";
 
-const SportsView = ({ currentUser, userId }) => {
+const SportsView = ({ currentUser, userId, onClose }) => {
   const [liveFixtures, setLiveFixtures] = useState([]);
   const [selectedLeague, setSelectedLeague] = useState(null);
   const [activeSection, setActiveSection] = useState(null);
@@ -50,20 +50,30 @@ const SportsView = ({ currentUser, userId }) => {
     () => visibleFixtures.filter((fixture) => fixture.status === "LIVE"),
     [visibleFixtures],
   );
-  const scoreFixtures = useMemo(
-    () => visibleFixtures.filter((fixture) => ["LIVE", "COMPLETED"].includes(fixture.status)),
-    [visibleFixtures],
-  );
+  const scoreFixtures = useMemo(() => {
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+    return visibleFixtures.filter((fixture) => {
+      if (fixture.status === "LIVE") return true;
+      if (fixture.status !== "COMPLETED") return false;
+      return new Date(fixture.startedAt || fixture.kickoffTime || 0).getTime() >= cutoff;
+    });
+  }, [visibleFixtures]);
   const scheduledFixtures = useMemo(
     () => visibleFixtures.filter((fixture) => fixture.status === "SCHEDULED"),
     [visibleFixtures],
   );
   const filteredScheduledFixtures = useMemo(() => {
     if (fixtureWindow === "all") return scheduledFixtures;
-    const days = fixtureWindow === "month" ? 30 : fixtureWindow === "season" ? 365 : 7;
+    const days = fixtureWindow === "today" || fixtureWindow === "tomorrow" ? 1 : fixtureWindow === "month" ? 30 : fixtureWindow === "season" ? 365 : 7;
     const now = Date.now();
     return scheduledFixtures.filter((fixture) => {
       const timestamp = new Date(fixture.kickoffTime || fixture.startedAt || 0).getTime();
+      if (fixtureWindow === "today") {
+        return new Date(timestamp).toDateString() === new Date(now).toDateString();
+      }
+      if (fixtureWindow === "tomorrow") {
+        return new Date(timestamp).toDateString() === new Date(now + 24 * 60 * 60 * 1000).toDateString();
+      }
       return timestamp >= now && timestamp <= now + days * 24 * 60 * 60 * 1000;
     });
   }, [fixtureWindow, scheduledFixtures]);
@@ -100,7 +110,9 @@ const SportsView = ({ currentUser, userId }) => {
     <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: 80 }}>
       <style>{`
         .sports-view {
-          padding: 12px;
+          width: min(100% - 32px, 1280px);
+          margin: 0 auto;
+          padding: 20px 0 80px;
         }
         .league-filter {
           display: flex;
@@ -133,8 +145,9 @@ const SportsView = ({ currentUser, userId }) => {
         }
         .content-grid {
           display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
           gap: 12px;
-          padding: 0 8px;
+          width: 100%;
         }
         .fixture-card {
           background: rgba(255, 255, 255, 0.03);
@@ -339,11 +352,11 @@ const SportsView = ({ currentUser, userId }) => {
           display: flex;
           flex-wrap: wrap;
           gap: 12px;
-          padding: 0 8px 18px;
+          padding: 0 0 18px;
         }
         .sports-section-card {
-          flex: 1 1 210px;
-          min-width: 180px;
+          flex: 1 1 240px;
+          min-width: 0;
           min-height: 126px;
           padding: 16px;
           border: 1px solid rgba(148, 163, 184, 0.2);
@@ -394,7 +407,7 @@ const SportsView = ({ currentUser, userId }) => {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 0 8px 16px;
+          padding: 0 0 16px;
         }
         .sports-back-button {
           display: inline-grid;
@@ -414,15 +427,15 @@ const SportsView = ({ currentUser, userId }) => {
           font-weight: 800;
         }
         .sports-detail-copy {
-          margin: -4px 8px 16px;
-          color: #94a3b8;
-          font-size: 12px;
+          display: none;
         }
         .sports-controls {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 0 8px 16px;
+          padding: 0 0 16px;
+          overflow-x: auto;
+          scrollbar-width: none;
         }
         .sports-control {
           display: inline-flex;
@@ -449,7 +462,7 @@ const SportsView = ({ currentUser, userId }) => {
         }
         .sports-control option { background: #111827; color: #f8fafc; }
         .sports-filter-select {
-          min-width: 150px;
+          min-width: 0;
           justify-content: space-between;
         }
         .sports-watch {
@@ -466,14 +479,24 @@ const SportsView = ({ currentUser, userId }) => {
           border: 0;
         }
         @media (max-width: 600px) {
+          .sports-view { width: min(100% - 24px, 1280px); padding-top: 14px; }
           .sports-section-cards { flex-direction: column; }
-          .sports-section-card { width: 100%; min-width: 0; }
-          .sports-controls { flex-direction: column; align-items: stretch; }
-          .sports-filter-select { width: 100%; }
+          .sports-section-card { width: 100%; }
+          .sports-controls { flex-direction: row; align-items: center; }
+          .sports-control { flex: 0 0 auto; }
+          .sports-filter-select { width: auto; }
         }
       `}</style>
 
       <div className="sports-view">
+        <div className="sports-detail-header">
+          <button type="button" className="sports-back-button" onClick={() => activeSection ? setActiveSection(null) : onClose?.()} aria-label={activeSection ? "Back to sports sections" : "Back"}>
+            <span aria-hidden="true">&#8592;</span>
+          </button>
+          <h1 className="sports-detail-title">
+            {activeSection ? sectionCards.find((card) => card.id === activeSection)?.label || "Sports" : "Sports"}
+          </h1>
+        </div>
         {!activeSection && (
           <div className="sports-section-cards" aria-label="Sports sections">
             {sectionCards.map(({ id, icon: Icon, label, detail, accent, value }) => (
@@ -495,17 +518,6 @@ const SportsView = ({ currentUser, userId }) => {
           </div>
         )}
 
-        {activeSection && (
-          <div className="sports-detail-header">
-            <button type="button" className="sports-back-button" onClick={() => setActiveSection(null)} aria-label="Back to sports sections">
-              <span aria-hidden="true">&#8592;</span>
-            </button>
-            <h2 className="sports-detail-title">
-              {sectionCards.find((card) => card.id === activeSection)?.label || "Sports"}
-            </h2>
-          </div>
-        )}
-
         {activeSection === "live" && activeMatch?.streamUrl && (
           <div className="sports-watch">
             <iframe
@@ -523,11 +535,12 @@ const SportsView = ({ currentUser, userId }) => {
 
         {activeSection === "fixtures" && (
           <>
-            <div className="sports-detail-copy">Upcoming matches from the selected time window.</div>
             <div className="sports-controls">
               <label className="sports-control sports-filter-select">
                 <CalendarDays size={15} />
                 <select value={fixtureWindow} onChange={(event) => setFixtureWindow(event.target.value)} aria-label="Fixture time range">
+                  <option value="today">Today</option>
+                  <option value="tomorrow">Tomorrow</option>
                   <option value="7d">Next 7 days</option>
                   <option value="month">Next month</option>
                   <option value="season">Next year</option>
@@ -544,8 +557,6 @@ const SportsView = ({ currentUser, userId }) => {
             </div>
           </>
         )}
-
-        {activeSection === "score" && <div className="sports-detail-copy">Live and recent scores update automatically from the scoreboard.</div>}
 
         {/* Live Fixtures Tab */}
         {activeSection && (

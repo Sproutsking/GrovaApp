@@ -20,6 +20,10 @@ const MessageList = ({
   onRoleMention,
   onNavigate,
   channelType,
+  avatarImageBleed = 0,
+  avatarSize = 36,
+  onMessageClick,
+  onMessageLongPress,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -46,6 +50,7 @@ const MessageList = ({
   const allMessages = [...messages, ...pendingMessages];
   const [swipe, setSwipe] = React.useState(null);
   const touchStart = React.useRef(null);
+  const longPressTimer = React.useRef(null);
 
   const beginSwipe = (event, message) => {
     touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, message };
@@ -60,9 +65,19 @@ const MessageList = ({
     if (distance > 4) setSwipe({ id: message.id, distance });
   };
   const endSwipe = () => {
+    clearTimeout(longPressTimer.current);
     if (swipe?.distance >= 52) onReply?.(allMessages.find((message) => message.id === swipe.id));
     touchStart.current = null;
     setSwipe(null);
+  };
+
+  const startLongPress = (event, message) => {
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      onMessageLongPress?.(event, message);
+      touchStart.current = null;
+      setSwipe(null);
+    }, 500);
   };
 
   const renderContent = (content) => {
@@ -91,7 +106,7 @@ const MessageList = ({
           const showTail = !prev || prev.user_id !== msg.user_id;
           const showAvatar = !isMe && showTail;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
-          const avatarFootprint = 38;
+          const avatarFootprint = avatarSize + 2;
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
@@ -101,10 +116,12 @@ const MessageList = ({
             <div
               key={msg.id || msg.tempId || msg._tempId}
               className={`msg-item ${isMe ? "me" : "them"} ${channelType === "announcement" ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
+              onClick={(event) => onMessageClick?.(event, msg)}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
-              onTouchStart={(e) => beginSwipe(e, msg)}
-              onTouchMove={(e) => moveSwipe(e, msg)}
+              onTouchStart={(e) => { beginSwipe(e, msg); startLongPress(e, msg); }}
+              onTouchMove={(e) => { clearTimeout(longPressTimer.current); moveSwipe(e, msg); }}
               onTouchEnd={endSwipe}
+              onTouchCancel={endSwipe}
               style={{ transform: swipe?.id === msg.id ? `translateX(${(msg.user_id === userId ? -1 : 1) * swipe.distance}px)` : undefined }}
             >
               {swipe?.id === msg.id && <div className={`msg-swipe-reply ${msg.user_id === userId ? "outgoing" : "incoming"}`}><span>↩</span></div>}
@@ -114,10 +131,11 @@ const MessageList = ({
                     tier={msg.user?.subscription_tier}
                     themeId={msg.user?.boost_selections?.themeId}
                     accentColor={nameDesign.color?.color}
-                    size={36}
+                    size={avatarSize}
                     src={avatarUrl}
                     letter={initial}
                     showBadge={false}
+                    imageBleed={avatarImageBleed}
                     style={{ cursor: "pointer", transform: `translate(${hasBoostedProfile ? -6 : -2}px, ${hasBoostedProfile ? -6 : 0}px)` }}
                   />
                 </div>

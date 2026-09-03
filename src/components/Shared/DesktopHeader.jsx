@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Clock, Bell, HelpCircle, Gamepad2, Coins, Radio, BarChart2, TrendingUp, Trophy } from "lucide-react";
+import { Clock, Bell, HelpCircle, Gamepad2, Coins, Radio, BarChart2, TrendingUp } from "lucide-react";
 import notificationService from "../../services/notifications/notificationService";
 import conversationState from "../../services/messages/ConversationStateManager";
 import onlineStatusService from "../../services/messages/onlineStatusService";
@@ -110,7 +110,6 @@ const NAV_TABS = [
   { id: "feed",    Icon: PostsIcon,   label: "Feed"    },
   { id: "stories", Icon: StoriesIcon, label: "Stories" },
   { id: "news",    Icon: NewsIcon,    label: "News"    },
-  { id: "sports",  Icon: Trophy,      label: "Sports"  },
   { id: "culture", Icon: CultureIcon, label: "Culture" },
 ];
 
@@ -119,7 +118,6 @@ const TRINITY_TABS = {
     { id: "feed",   Icon: PostsIcon, label: "Feed" },
     { id: "clips",  Icon: Gamepad2, label: "Clips" },
     { id: "news",   Icon: NewsIcon,  label: "News" },
-    { id: "sports", Icon: Trophy,    label: "Sports" },
     { id: "live",   Icon: Radio,     label: "Live" },
   ],
   web3: [

@@ -16,6 +16,10 @@ import groupDMService from "../../services/messages/groupDMService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import backgroundService from "../../services/messages/BackgroundService";
 import LinkifiedText from "../Shared/LinkifiedText";
+import MessageList from "../Community/components/MessageList";
+import CommunityMessageInput from "../Community/components/CommunityMessageInput";
+import ContextMenu from "../Community/components/ContextMenu";
+import { supabase } from "../../services/config/supabase";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -166,8 +170,9 @@ GifPicker.displayName="GifPicker";
 // ─── Settings Modal (replaces old GroupEditModal) ─────────────────────────────
 // Admin sees: rename, icon picker, change background, DELETE group
 // Member sees: group info, members list, LEAVE group
-const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, onSave, onDelete, onLeave, onClose }) => {
-  const [page, setPage]   = useState("main"); // "main" | "bg" | "icon" | "confirm_delete" | "confirm_leave"
+const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, onSave, onDelete, onLeave, onRemoveMember, onClose }) => {
+  const [page, setPage]   = useState("main"); // "main" | "bg" | "icon" | "members" | "remove_member" | "confirm_delete" | "confirm_leave"
+  const [memberToRemove, setMemberToRemove] = useState(null);
   const [name, setName]   = useState(group?.name||"");
   const [icon, setIcon]   = useState(group?.icon||"👥");
   const [imgSrc, setImg]  = useState(group?.icon_url||null);
@@ -321,8 +326,22 @@ const SettingsModal = ({ group, currentUser, isAdmin, selectedBg, onBgChange, on
                   {m.is_admin&&<div className="gcv-mrf-admin">ADMIN</div>}
                 </div>
                 {String(m.id)===String(currentUser?.id||"")&&<span className="gcv-mrf-you">You</span>}
+                {isAdmin && String(m.id)!==String(currentUser?.id||"") && (
+                  <button className="gcv-member-remove" onClick={()=>{setMemberToRemove(m);setPage("remove_member");}}>Remove</button>
+                )}
               </div>
             ))}
+          </div>
+        </>}
+
+        {page==="remove_member"&&memberToRemove&&<>
+          <div className="gcv-modal-hd"><button className="gcv-modal-cancel" onClick={()=>setPage("members")}>Back</button><span className="gcv-modal-title">Remove User</span><div style={{width:52}}/></div>
+          <div className="gcv-modal-body" style={{textAlign:"center"}}>
+            <Av user={memberToRemove} size={58}/>
+            <div style={{fontSize:16,fontWeight:800,color:"#fff",margin:"14px 0 6px"}}>{memberToRemove.full_name||memberToRemove.username||"User"}</div>
+            <div style={{fontSize:12,color:"#777",marginBottom:20}}>Choose what should happen to this user&apos;s messages.</div>
+            <button className="gcv-confirm-leave-btn" onClick={async()=>{try{await onRemoveMember(memberToRemove.id,false);setPage("members");}catch(e){console.warn("[GroupChat] remove member:",e);}}}>Remove user only</button>
+            <button className="gcv-confirm-delete-btn" style={{marginTop:10}} onClick={async()=>{try{await onRemoveMember(memberToRemove.id,true);setPage("members");}catch(e){console.warn("[GroupChat] remove member messages:",e);}}}>Remove user and all messages</button>
           </div>
         </>}
 
@@ -487,6 +506,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const [typing,       setTyping]       = useState([]);
   const [sending,      setSending]      = useState(false);
   const [showJump,     setShowJump]     = useState(false);
+  const [messageContextMenu, setMessageContextMenu] = useState(null);
   const [selectedBg,   setSelectedBg]   = useState(() =>
     backgroundService.getConversationBackground ? backgroundService.getConversationBackground(`gc_${groupProp?.id}`) : 0
   );
@@ -501,6 +521,34 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const uid     = String(currentUser?.id||currentUser?.uid||currentUser?.userId||"");
   const isAdmin = group?.members?.some(m=>m?.id&&String(m.id)===uid&&m?.is_admin)||group?.created_by===uid;
   const members = Array.isArray(group?.members)?group.members:[];
+
+  useEffect(() => {
+    const ids = members.map((member) => member?.id).filter(Boolean);
+    if (!ids.length) return;
+    supabase.from("profiles").select("id,full_name,username,avatar_id,avatar_metadata,verified,subscription_tier,boost_selections").in("id", ids).then(({ data }) => {
+      if (!data?.length) return;
+      const profiles = new Map(data.map((profile) => [String(profile.id), profile]));
+      setGroup((previous) => ({ ...previous, members: (previous.members || []).map((member) => ({ ...member, ...(profiles.get(String(member.id)) || {}) })) }));
+      setMessages((previous) => previous.map((message) => ({ ...message, user: { ...(message.user || {}), ...(profiles.get(String(message.user_id)) || {}) } })));
+    }).catch(() => {});
+  }, [group?.id, members.length]);
+
+  const communityMessages = messages.map((msg) => ({
+    ...msg,
+    user: (() => {
+      const senderId = msg.user_id || msg.sender_id || msg.user?.id;
+      const member = members.find((candidate) => String(candidate?.id) === String(senderId));
+      return { ...(member || {}), ...(msg.user || {}) };
+    })(),
+    reactions: msg.reactions && typeof msg.reactions === "object"
+      ? Object.entries(msg.reactions).reduce((result, [emoji, value]) => {
+          if (emoji === "_users") return result;
+          const count = typeof value === "number" ? value : value?.count;
+          if (count > 0) result[emoji] = { count, users: [] };
+          return result;
+        }, {})
+      : {},
+  }));
 
   const bgStyle     = backgroundService.getBgStyle?.(selectedBg) ?? {};
   const bgs         = backgroundService.getBackgrounds?.() ?? [];
@@ -679,27 +727,31 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
                 <div className="gcv-empty-sub">Say hi to the group!</div>
               </div>
             )}
-            {msgWithDates.map((item,i)=>{
-              if(item._type==="date") return <DateDiv key={item._key} date={item.label}/>;
-              const msg=item;
-              const idx=messages.indexOf(msg);
-              const prev=messages[idx-1];const next=messages[idx+1];
-              const isMe=isSentByMe(msg,currentUser);
-              const prevSame=prev&&isSentByMe(prev,currentUser)===isMe&&(prev.user_id===msg.user_id||prev.sender_id===msg.sender_id);
-              const nextSame=next&&isSentByMe(next,currentUser)===isMe&&(next.user_id===msg.user_id||next.sender_id===msg.sender_id);
-              let m2=msg;
-              if(msg.reply_to_id&&!msg._replyMsg){const found=messages.find(x=>x.id===msg.reply_to_id);if(found)m2={...msg,_replyMsg:found};}
-              return <MsgBubble key={msg._tempId||msg.id||i} msg={m2} isMe={isMe} prevSame={prevSame} nextSame={nextSame} members={members} onReply={setReplyTo} onReact={handleReact} onNavigate={onNavigate}/>;
-            })}
-            {typing.length>0&&(
-              <div className="gcv-row gcv-them">
-                <div className="gcv-avcol"><div className="gcv-typing-av">{(typing[0]||"?").charAt(0).toUpperCase()}</div></div>
-                <div className="gcv-bwrap gcv-bwrap-them">
-                  <span className="gcv-sname">{typing[0]}</span>
-                  <div className="gcv-bubble gcv-bthem gcv-tailthem gcv-typing-bubble"><div className="gcv-dots"><span/><span/><span/></div></div>
-                </div>
-              </div>
-            )}
+            <MessageList
+              messages={communityMessages}
+              pendingMessages={[]}
+              loading={loading}
+              userId={uid}
+              currentUser={currentUser}
+              messagesEndRef={endRef}
+              onContextMenu={(event, message) => { event.preventDefault(); setMessageContextMenu({ x: event.clientX, y: event.clientY, message }); }}
+              onMessageClick={(event, message) => {
+                if (event.target.closest("button, a")) return;
+                setMessageContextMenu({ x: event.clientX, y: event.clientY, message });
+              }}
+              onMessageLongPress={(event, message) => {
+                event.preventDefault();
+                const touch = event.touches?.[0];
+                setMessageContextMenu({ x: touch?.clientX || 24, y: touch?.clientY || 120, message });
+              }}
+              onProfileClick={() => {}}
+              onReply={setReplyTo}
+              onNavigate={onNavigate}
+              onReactionClick={handleReact}
+              avatarImageBleed={1}
+              avatarSize={38}
+            />
+            {typing.length>0&&<div className="gcv-community-typing">{typing[0]} is typing…</div>}
             <div ref={endRef}/>
           </div>
           {showJump&&<button className="gcv-jump" onClick={()=>scrollToBottom()}><Ic.Down/></button>}
@@ -736,21 +788,16 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
       )}
 
       {/* ── INPUT ── */}
-      <div className="gcv-input-root">
-        {showEmoji&&<EmojiPicker onSelect={e=>{setInput(v=>v+e);setShowEmoji(false);inputRef.current?.focus();}} onClose={()=>setShowEmoji(false)}/>}
-        {showGif&&<GifPicker onSelect={url=>{send(`__GIF__:${url}`);setShowGif(false);}} onClose={()=>setShowGif(false)}/>}
-        <div className="gcv-ibar">
-          <div className="gcv-iacts">
-            <button className={`gcv-ibtn${showEmoji?" gcv-ibtn-on":""}`} onClick={()=>{setShowEmoji(s=>!s);setShowGif(false);}}><Ic.Smile/></button>
-            <button className={`gcv-ibtn gcv-ibtn-gif${showGif?" gcv-ibtn-gif-on":""}`} onClick={()=>{setShowGif(s=>!s);setShowEmoji(false);}}><Ic.Gif/></button>
-          </div>
-          <textarea ref={inputRef} value={input} rows={1} placeholder="Message the group…" className="gcv-ta"
-            onChange={e=>{setInput(e.target.value);handleTyping();const ta=inputRef.current;if(ta){ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,120)+"px";}}}
-            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
-          />
-          <button className={`gcv-send${input.trim()?" gcv-send-on":""}`} onClick={()=>send()} disabled={!input.trim()||sending}><Ic.Send/></button>
-        </div>
-      </div>
+      <CommunityMessageInput
+        value={input}
+        onChange={(value) => { setInput(value); handleTyping(); }}
+        onSend={() => send()}
+        disabled={sending}
+        placeholder="Message the group…"
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        members={members}
+      />
 
       {/* ── SETTINGS MODAL ── */}
       {showSettings&&(
@@ -761,15 +808,35 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
           onSave={updated=>{setGroup(updated);setShowSettings(false);}}
           onDelete={handleDelete}
           onLeave={handleLeave}
+          onRemoveMember={async (memberId, deleteMessages) => {
+            const updated = await groupDMService.removeMember(group.id, memberId, { deleteMessages });
+            setGroup(updated);
+            if (deleteMessages) setMessages((previous) => previous.filter((message) => String(message.user_id) !== String(memberId)));
+          }}
           onClose={()=>setShowSettings(false)}
         />
       )}
+      {messageContextMenu && <ContextMenu
+        position={messageContextMenu}
+        message={messageContextMenu.message}
+        userId={uid}
+        permissions={{}}
+        isOwner={false}
+        onClose={()=>setMessageContextMenu(null)}
+        onCopy={()=>navigator.clipboard?.writeText(messageContextMenu.message.content)}
+        onReply={()=>setReplyTo(messageContextMenu.message)}
+        onReaction={(emoji)=>handleReact(messageContextMenu.message.id, emoji)}
+        onDelete={async()=>{await groupDMService.deleteMessage(group.id, messageContextMenu.message.id);setMessages((previous)=>previous.filter((message)=>message.id!==messageContextMenu.message.id));}}
+        onReport={()=>setMessageContextMenu(null)}
+      />}
     </div>
   );
 };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
+.gcv-member-remove{margin-left:auto;padding:6px 9px;border:1px solid rgba(239,68,68,.32);border-radius:7px;background:rgba(239,68,68,.08);color:#f87171;font-size:10px;font-weight:700;cursor:pointer;}
+.gcv-member-remove:hover{background:rgba(239,68,68,.16);}
 @keyframes geUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes gcvSpin{to{transform:rotate(360deg)}}
 @keyframes gcvMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}

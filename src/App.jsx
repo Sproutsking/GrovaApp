@@ -108,7 +108,7 @@ const XRCOracleExplorer = lazy(() => import("./components/Oracle/XRCOracleExplor
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set([
-  "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador", "oracle",
+  "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador", "oracle", "sports",
 ]);
 const PSEUDO_TABS = new Set(["support", "notifications", "trending"]); // eslint-disable-line
 
@@ -244,7 +244,7 @@ const MainApp = memo(() => {
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
   const [mountedTabs,        setMountedTabs]        = useState(new Set([
     "home", "search", "create", "community", "account", "wallet",
-    "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador", "sports"
+    "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador"
   ]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
   const [themeMode,         setThemeMode]         = useState(() => {
@@ -747,7 +747,7 @@ const MainApp = memo(() => {
     setMountedTabs((p) => new Set([...p, "home"]));
   }, []);
 
-  const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode };
+  const viewProps    = { currentUser, userId: user.id, refreshTrigger, deepLinkTarget, themeMode, setThemeMode, onNavigate: handleTabChange };
   const showTrending = ["home", "search", "create", "account", "sports"].includes(activeTab);
 
   // ── Tab content ──────────────────────────────────────────────────────────
@@ -828,17 +828,6 @@ const MainApp = memo(() => {
           </Suspense>
         ),
       },
-      {
-        id: "sports",
-        el: (
-          <Suspense fallback={<TabSkeleton />}>
-            <SportsView
-              currentUser={currentUser}
-              userId={user.id}
-            />
-          </Suspense>
-        ),
-      },
     ];
 
     return (
@@ -871,6 +860,13 @@ const MainApp = memo(() => {
       upgrade: (
         <Suspense fallback={null}>
           <UpgradeView currentUser={currentUser} onClose={closeOverlayToAccount} />
+        </Suspense>
+      ),
+      sports: (
+        <Suspense fallback={<TabSkeleton />}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 9500, overflowY: "auto", background: "var(--bg-strong, #050505)" }}>
+            <SportsView currentUser={currentUser} userId={user.id} onClose={closeOverlayToHome} />
+          </div>
         </Suspense>
       ),
       rewards: (

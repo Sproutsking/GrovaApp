@@ -10,7 +10,7 @@ const TOKENS = [
 
 const Web3HomeView = (props) => {
   const { activeHomeTab } = props;
-  if (activeHomeTab === "feed" || activeHomeTab === "news" || activeHomeTab === "sports") {
+  if (activeHomeTab === "feed" || activeHomeTab === "news") {
     return <HomeView {...props} trinityLens="web3" activeHomeTab={activeHomeTab} />;
   }
 
