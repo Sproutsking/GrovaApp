@@ -223,6 +223,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [activeThemeId, setActiveThemeId] = useState(null);
   const [activeFontId, setActiveFontId] = useState(null);
   const [activeColorId, setActiveColorId] = useState(null);
+  const [activeBackgroundColorId, setActiveBackgroundColorId] = useState(null);
   // [AMB-4] Ambassador profile data for badge + action button label
   const [ambassadorData, setAmbassadorData] = useState(null);
 
@@ -309,6 +310,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         setActiveThemeId(profileData.boost_selections?.themeId ?? null);
         setActiveFontId(profileData.boost_selections?.fontId ?? null);
         setActiveColorId(profileData.boost_selections?.colorId ?? null);
+        setActiveBackgroundColorId(profileData.boost_selections?.backgroundColorId ?? null);
       }
 
       // Build avatar URL — enhanced with multiple fallback strategies
@@ -668,6 +670,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         <BoostProfileCard
           tier={hasBoostedTier ? profile.subscriptionTier : null}
           themeId={activeThemeId}
+          backgroundColorId={activeBackgroundColorId}
           style={{ borderRadius:24, marginBottom:16, animation:"profileFadeIn 0.4s ease" }}
         >
           <div className="profile-header-content">
@@ -750,12 +753,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                   activeId={activeThemeId}
                   activeFontId={activeFontId}
                   activeColorId={activeColorId}
+                  activeBackgroundColorId={activeBackgroundColorId}
                   userId={userId}
                   onPicked={(selection) => {
                     if (typeof selection === "string") setActiveThemeId(selection);
                     else {
-                      setActiveFontId(selection.fontId);
-                      setActiveColorId(selection.colorId);
+                      if (selection.fontId) setActiveFontId(selection.fontId);
+                      if (selection.colorId) setActiveColorId(selection.colorId);
+                      if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
                     }
                   }}
                 />

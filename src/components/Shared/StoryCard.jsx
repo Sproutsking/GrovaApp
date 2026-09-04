@@ -150,78 +150,77 @@ const StoryCard = ({
 
       <style>{`
         .story-card {
-          border-radius: 14px;
+          border-radius: 16px;
           overflow: hidden;
-          background: radial-gradient(circle at top left, rgba(132,204,22,0.18), transparent 25%),
-                      linear-gradient(180deg, rgba(10,10,10,0.96), rgba(15,15,15,0.95));
-          border: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-          margin-bottom: 10px;
-          transition: border-color 0.24s ease;
+          background: linear-gradient(145deg, rgba(25,31,21,0.98), rgba(14,18,14,0.98));
+          border: 1px solid rgba(132,204,22,0.16);
+          box-shadow: 0 8px 26px rgba(0,0,0,0.2);
+          margin-bottom: 14px;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        /* Neutralize hover interaction to keep feed stable */
         .story-card:hover {
-          transform: none;
-          border-color: rgba(255,255,255,0.08);
+          border-color: rgba(132,204,22,0.34);
+          box-shadow: 0 14px 34px rgba(0,0,0,0.28);
         }
         .story-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 20px 0;
+          padding: 18px 22px 12px;
           gap: 12px;
         }
         .story-cover {
           position: relative;
           cursor: pointer;
-          height: 250px;
+          height: 272px;
           overflow: hidden;
           display: grid;
           place-items: center;
-          background: linear-gradient(180deg, rgba(18,18,18,0.88), rgba(8,8,8,0.95));
+          background: linear-gradient(135deg, rgba(79,174,124,0.12), rgba(8,12,8,0.96));
         }
         .story-cover:hover .cover-img {
-          transform: none;
+          transform: scale(1.04);
         }
         .cover-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          transition: transform 0.4s ease;
+          transition: transform 0.6s ease;
         }
         .cover-gradient {
           position: absolute;
           inset: 0;
-          background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.9));
+          background: linear-gradient(180deg, rgba(5,8,5,0.08), rgba(5,8,5,0.18) 42%, rgba(5,8,5,0.92));
         }
         .lock-badge {
           position: absolute;
-          left: 18px;
-          top: 18px;
+          left: 20px;
+          top: 20px;
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          padding: 10px 14px;
+          padding: 8px 13px;
           border-radius: 999px;
-          background: rgba(15,23,42,0.86);
-          border: 1px solid rgba(255,255,255,0.08);
-          color: #f8fafc;
-          font-size: 13px;
+          background: rgba(201,162,39,0.16);
+          border: 1px solid rgba(201,162,39,0.42);
+          color: #e9c95c;
+          font-size: 12px;
           font-weight: 700;
-          backdrop-filter: blur(8px);
+          backdrop-filter: blur(12px);
         }
         .story-body {
-          padding: 18px 20px 14px;
+          padding: 20px 22px 16px;
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
         .story-title {
-          font-size: 1.65rem;
-          line-height: 1.08;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.55rem;
+          line-height: 1.18;
           margin: 0;
           color: #f8fafc;
-          letter-spacing: -0.03em;
+          letter-spacing: 0;
           cursor: pointer;
           max-width: 100%;
         }
@@ -231,10 +230,10 @@ const StoryCard = ({
         }
         .story-preview {
           margin: 0;
-          color: rgba(255,255,255,0.78);
-          font-size: 0.98rem;
-          line-height: 1.75;
-          max-height: 5.25rem;
+          color: rgba(226,232,220,0.72);
+          font-size: 0.93rem;
+          line-height: 1.65;
+          max-height: 3.1rem;
           overflow: hidden;
           position: relative;
           z-index: 1;
@@ -245,8 +244,8 @@ const StoryCard = ({
           left: 0;
           right: 0;
           bottom: 0;
-          height: 48px;
-          background: linear-gradient(180deg, rgba(15,23,42,0), rgba(15,23,42,0.92));
+          height: 34px;
+          background: linear-gradient(180deg, rgba(14,18,14,0), rgba(14,18,14,0.98));
           pointer-events: none;
         }
         .inline-action-btn {
@@ -266,9 +265,10 @@ const StoryCard = ({
           transform: translateY(-1px);
         }
         .inline-action-btn.locked {
-          color: #fef9c3;
-          background: linear-gradient(135deg, rgba(219,39,119,0.1), rgba(132,204,22,0.18));
-          box-shadow: 0 18px 40px rgba(132,204,22,0.12);
+          color: #e9c95c;
+          background: rgba(201,162,39,0.12);
+          border: 1px solid rgba(201,162,39,0.3);
+          box-shadow: none;
         }
         .inline-action-btn.unlocked {
           color: #d4d4d8;
@@ -276,7 +276,8 @@ const StoryCard = ({
           border: 1px solid rgba(255,255,255,0.08);
         }
         .story-footer {
-          padding: 0 20px 12px;
+          padding: 0 22px 14px;
+          border-top: 1px solid rgba(132,204,22,0.1);
         }
         .story-footer .rp-panel {
           margin-top: 0;
@@ -323,24 +324,27 @@ const StoryCard = ({
         @media (max-width: 640px) {
           .story-card {
             border-radius: 0;
-            margin-bottom: 0;
+            margin-bottom: 1px;
             border-left: none;
             border-right: none;
           }
+          .story-header {
+            padding: 16px 16px 10px;
+          }
           .story-cover {
-            height: 240px;
+            height: 228px;
           }
           .story-body {
             padding: 18px 16px 18px;
           }
           .story-title {
-            font-size: 1.35rem;
+            font-size: 1.3rem;
           }
           .story-preview-wrapper {
             min-height: 0;
           }
           .story-footer {
-            padding: 0 14px 8px;
+            padding: 10px 14px 8px;
           }
           .story-footer .rp-btn,
           .story-footer .rp-stat {

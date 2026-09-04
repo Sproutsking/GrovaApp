@@ -96,6 +96,16 @@ export async function updateBoostNameDesign(userId, fontId, colorId) {
   return data ?? { success: false, error: "No response from server" };
 }
 
+export async function updateBoostBackgroundColor(userId, backgroundColorId) {
+  const { data, error } = await supabase.rpc("update_boost_background_color", {
+    p_user_id: userId,
+    p_background_color_id: backgroundColorId,
+  });
+  if (error) return { success: false, error: error.message };
+  _del(userId);
+  return data ?? { success: false, error: "No response from server" };
+}
+
 // ── Real-time subscription ────────────────────────────────────────────────
 export function subscribeToBoostChanges(userId, onChange) {
   const channel = supabase.channel(`boost_${userId}`)
@@ -138,7 +148,7 @@ export async function batchGetBoostTiers(userIds) {
 
 export default {
   getEPBalance, getActiveBoost, activateBoost, cancelBoost,
-  toggleAutoRenew, updateBoostTheme, subscribeToBoostChanges,
+  toggleAutoRenew, updateBoostTheme, updateBoostBackgroundColor, subscribeToBoostChanges,
     updateBoostNameDesign,
   getUserBoostTier, batchGetBoostTiers,
 };

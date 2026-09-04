@@ -15,12 +15,13 @@
 import React, { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
-import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS } from "../../services/boost/boostThemes";
+import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS, BOOST_BACKGROUND_COLORS } from "../../services/boost/boostThemes";
 import boostService from "../../services/boost/boostService";
 
-const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, userId, onPicked }) => {
+const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeBackgroundColorId, userId, onPicked }) => {
   const [fontId, setFontId] = useState(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
   const [colorId, setColorId] = useState(activeColorId ?? BOOST_NAME_COLORS[tier]?.[0]?.id);
+  const [backgroundColorId, setBackgroundColorId] = useState(activeBackgroundColorId ?? BOOST_BACKGROUND_COLORS[tier]?.[0]?.id);
   const [selected, setSelected] = useState(activeId ?? null);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
@@ -28,6 +29,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, userId,
   const themes = THEMES_BY_TIER[tier] ?? [];
   const fonts = BOOST_NAME_FONTS[tier] ?? [];
   const colors = BOOST_NAME_COLORS[tier] ?? [];
+  const backgroundColors = BOOST_BACKGROUND_COLORS[tier] ?? [];
 
   const saveNameDesign = async (nextFontId = fontId, nextColorId = colorId) => {
     setFontId(nextFontId); setColorId(nextColorId); setSaving(true);
@@ -42,6 +44,19 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, userId,
       setFontId(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
       setColorId(activeColorId ?? BOOST_NAME_COLORS[tier]?.[0]?.id);
       console.warn("[BoostThemePicker] name design save failed:", error?.message);
+    } finally { setSaving(false); }
+  };
+
+  const saveBackgroundColor = async (nextId) => {
+    setBackgroundColorId(nextId); setSaving(true); setSaved(false);
+    try {
+      const result = await boostService.updateBoostBackgroundColor(userId, nextId);
+      if (!result?.success) throw new Error(result?.error || "Background color could not be saved");
+      setSaved(true); onPicked?.({ backgroundColorId: nextId });
+      setTimeout(() => setSaved(false), 1800);
+    } catch (error) {
+      setBackgroundColorId(activeBackgroundColorId ?? BOOST_BACKGROUND_COLORS[tier]?.[0]?.id);
+      console.warn("[BoostThemePicker] background color save failed:", error?.message);
     } finally { setSaving(false); }
   };
 
@@ -160,6 +175,10 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, userId,
           <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Name color · {colors.length} unlocked</div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
             {colors.map((color) => <button key={color.id} aria-label={color.label} title={color.label} disabled={saving} onClick={() => saveNameDesign(fontId, color.id)} style={{ width:28, height:28, borderRadius:"50%", border:colorId===color.id ? "2px solid #fff" : "1px solid rgba(255,255,255,.25)", background:color.color, boxShadow:`0 0 12px ${color.shadow}`, cursor:"pointer" }} />)}
+          </div>
+          <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Background color · {backgroundColors.length} unlocked</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+            {backgroundColors.map((backgroundColor) => <button key={backgroundColor.id} aria-label={backgroundColor.label} title={backgroundColor.label} disabled={saving} onClick={() => saveBackgroundColor(backgroundColor.id)} style={{ width:30, height:30, borderRadius:8, border:backgroundColorId===backgroundColor.id ? "2px solid #fff" : "1px solid rgba(255,255,255,.25)", background:backgroundColor.color, cursor:"pointer", boxShadow:backgroundColorId===backgroundColor.id ? `0 0 12px ${tierMeta.color}` : "none" }} />)}
           </div>
         </div>
       </div>

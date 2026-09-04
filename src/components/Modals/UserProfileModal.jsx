@@ -302,7 +302,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const showFollowBtn = !!myId && !isOwn;
 
   // ── Live boost tier ───────────────────────────────────────────────────────
-  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, loading: boostLoading } =
+  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, backgroundColorId: liveBackgroundColorId, loading: boostLoading } =
     useUserBoostTier(targetId);
 
   // Prop values (already resolved by ProfilePreview) serve as instant hints
@@ -310,11 +310,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const propThemeId = user?.boost_selections?.themeId ?? null;
   const propFontId  = user?.boost_selections?.fontId ?? null;
   const propColorId = user?.boost_selections?.colorId ?? null;
+  const propBackgroundColorId = user?.boost_selections?.backgroundColorId ?? null;
 
   const tier    = boostLoading ? propTier    : (liveTier    ?? null);
   const themeId = boostLoading ? propThemeId : (liveThemeId ?? null);
   const fontId  = boostLoading ? propFontId  : (liveFontId  ?? null);
   const colorId = boostLoading ? propColorId : (liveColorId ?? null);
+  const backgroundColorId = boostLoading ? propBackgroundColorId : (liveBackgroundColorId ?? null);
 
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
   const nameDesign = getBoostNameDesign(tier, fontId, colorId);
@@ -576,6 +578,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             <BoostProfileCard
               tier={hasBoosted ? tier : null}
               themeId={themeId}
+              backgroundColorId={backgroundColorId}
               style={{ borderRadius: "20px 20px 0 0", position: "relative" }}
             >
               <button className="upm-close" onClick={onClose}>

@@ -3,8 +3,9 @@
 // THE SPECTACULAR EDITION
 // ============================================================================
 
-import React, { useMemo } from "react";
-import { getTheme } from "../../services/boost/boostThemes";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getTheme, getBoostBackgroundColor } from "../../services/boost/boostThemes";
+import { buildAmbient as buildShowcaseAmbient, buildAvatarBorder as buildShowcaseAvatarBorder, buildFx as buildShowcaseFx } from "./XeeviaBoostCard";
 
 const THEMES = {
 
@@ -480,56 +481,249 @@ const Vignette = () => (
   }}/>
 );
 
+const ShowcaseOverlay = ({ theme }) => {
+  if (!theme?.texture) return null;
+  const texture = {
+    rays: "repeating-conic-gradient(from 0deg at 50% 34%, rgba(255,255,255,.16) 0deg 1deg, transparent 1deg 7deg)",
+    metal: "repeating-linear-gradient(112deg, rgba(255,255,255,.14) 0 2px, transparent 2px 38px)",
+    crest: "repeating-linear-gradient(96deg, rgba(255,255,255,.1) 0 1px, transparent 1px 4px), repeating-radial-gradient(circle at 78% 14%, rgba(255,255,255,.07) 0 1px, transparent 1px 7px)",
+    hex: "linear-gradient(30deg, transparent 45%, rgba(251,191,36,.12) 46% 47%, transparent 48%), linear-gradient(150deg, transparent 45%, rgba(251,191,36,.12) 46% 47%, transparent 48%)",
+    heat: "repeating-linear-gradient(0deg, rgba(255,180,80,.11) 0 1px, transparent 1px 3px)",
+    laurel: "repeating-linear-gradient(90deg, transparent 0 18px, rgba(253,230,138,.12) 19px 20px, transparent 21px 36px)",
+    cracks: "linear-gradient(135deg, transparent 46%, rgba(255,160,60,.42) 47% 48%, transparent 49%), linear-gradient(35deg, transparent 54%, rgba(255,190,90,.24) 55% 56%, transparent 57%)",
+    facet: "linear-gradient(35deg, transparent 48%, rgba(255,255,255,.28) 49% 50%, transparent 51%), linear-gradient(145deg, transparent 48%, rgba(255,255,255,.2) 49% 50%, transparent 51%)",
+    stars: "radial-gradient(circle, rgba(255,255,255,.9) 1.2px, transparent 1.6px)",
+    ice: "repeating-linear-gradient(58deg, rgba(191,228,255,.16) 0 2px, transparent 2px 26px), repeating-linear-gradient(122deg, rgba(191,228,255,.1) 0 1px, transparent 1px 38px)",
+    triangles: "linear-gradient(60deg, transparent 49%, rgba(255,255,255,.2) 50%, transparent 51%), linear-gradient(120deg, transparent 49%, rgba(255,255,255,.18) 50%, transparent 51%)",
+    lattice: "linear-gradient(30deg, transparent 49%, rgba(255,255,255,.16) 50%, transparent 51%), linear-gradient(150deg, transparent 49%, rgba(255,255,255,.16) 50%, transparent 51%)",
+    circuit: "linear-gradient(90deg, rgba(125,211,252,.14) 1px, transparent 1px), linear-gradient(rgba(125,211,252,.14) 1px, transparent 1px)",
+    mandala: "repeating-conic-gradient(from 0deg at 50% 42%, rgba(244,171,252,.16) 0deg 3deg, transparent 3deg 30deg)",
+  }[theme.texture];
+  const sceneColor = theme.accent;
+  const sceneClass = `boost-scene boost-scene-${theme.id}`;
+  return (
+    <div aria-hidden="true" className={sceneClass} style={{ position:"absolute", inset:0, zIndex:0, pointerEvents:"none", overflow:"hidden" }}>
+      <div style={{ position:"absolute", inset:0, backgroundImage:texture, backgroundSize:theme.texture === "stars" ? "46px 46px" : "auto", opacity:.7, mixBlendMode:"screen" }} />
+      <div className="boost-scene-glow" style={{ background:sceneColor }} />
+      {Array.from({ length: theme.scene === "mercury" ? 8 : theme.scene === "nebula" ? 12 : 6 }, (_, i) => (
+        <i key={i} style={{ left:`${8 + ((i * 17) % 84)}%`, top:`${12 + ((i * 23) % 76)}%`, background:sceneColor, animationDelay:`-${i * .55}s` }} />
+      ))}
+    </div>
+  );
+};
+
+const randomBetween = (min, max) => min + Math.random() * (max - min);
+
+function addParticles(container, themeId) {
+  if (!container) return;
+  container.replaceChildren();
+  const add = (className, count, setup) => {
+    for (let index = 0; index < count; index += 1) {
+      const particle = document.createElement("i");
+      particle.className = className;
+      setup(particle, index);
+      container.appendChild(particle);
+    }
+  };
+
+  if (themeId === "silver-eclipse") {
+    add("boost-ambient-star", 12, (particle) => {
+      particle.style.left = `${randomBetween(8, 92)}%`;
+      particle.style.top = `${randomBetween(8, 92)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 4)}s`;
+    });
+  } else if (themeId === "silver-mercury") {
+    add("boost-ambient-droplet", 9, (particle) => {
+      particle.style.left = `${randomBetween(5, 92)}%`;
+      particle.style.animationDuration = `${randomBetween(2.4, 4.2)}s`;
+      particle.style.animationDelay = `-${randomBetween(0, 5)}s`;
+    });
+  } else if (themeId === "silver-chrome") {
+    const moon = document.createElement("i");
+    moon.className = "boost-ambient-moon";
+    container.appendChild(moon);
+    const sheen = document.createElement("i");
+    sheen.className = "boost-ambient-sheen";
+    container.appendChild(sheen);
+  } else if (themeId === "gold-dynasty" || themeId === "gold-laurel") {
+    add("boost-ambient-mote", 12, (particle) => {
+      particle.style.left = `${randomBetween(5, 92)}%`;
+      particle.style.top = `${randomBetween(70, 98)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 7)}s`;
+    });
+  } else if (["gold-solar", "gold-corona"].includes(themeId)) {
+    add("boost-ambient-spark", 16, (particle) => {
+      particle.style.left = `${randomBetween(8, 92)}%`;
+      particle.style.setProperty("--dx", `${randomBetween(-70, 70)}px`);
+      particle.style.setProperty("--dy", `${-randomBetween(90, 190)}px`);
+      particle.style.animationDelay = `-${randomBetween(0, 3)}s`;
+    });
+  } else if (themeId === "gold-molten" || themeId === "diamond-rift") {
+    add("boost-ambient-ember", 12, (particle) => {
+      particle.style.left = `${randomBetween(8, 92)}%`;
+      particle.style.bottom = `${randomBetween(0, 12)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 4)}s`;
+    });
+  } else if (themeId === "diamond-nebula") {
+    add("boost-ambient-meteor", 5, (particle) => {
+      particle.style.left = `${randomBetween(0, 88)}%`;
+      particle.style.top = `${randomBetween(0, 45)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 6)}s`;
+    });
+  } else if (themeId === "diamond-shard") {
+    add("boost-ambient-shard", 12, (particle) => {
+      particle.style.left = `${randomBetween(5, 92)}%`;
+      particle.style.animationDuration = `${randomBetween(3, 7)}s`;
+      particle.style.animationDelay = `-${randomBetween(0, 6)}s`;
+    });
+  } else if (themeId === "diamond-prism") {
+    add("boost-ambient-prism", 3, (particle, index) => {
+      particle.style.animationDelay = `${-index * 1.7}s`;
+    });
+  } else if (themeId === "diamond-quantum") {
+    add("boost-ambient-pulse", 8, (particle) => {
+      particle.style.left = `${randomBetween(0, 90)}%`;
+      particle.style.top = `${randomBetween(0, 90)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 4)}s`;
+    });
+  } else if (themeId === "diamond-bloom") {
+    add("boost-ambient-petal", 10, (particle) => {
+      particle.style.left = `${randomBetween(8, 92)}%`;
+      particle.style.top = `${randomBetween(-10, 20)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 6)}s`;
+    });
+  } else if (themeId === "diamond-void") {
+    add("boost-ambient-void-dot", 8, (particle) => {
+      particle.style.left = `${randomBetween(8, 92)}%`;
+      particle.style.top = `${randomBetween(10, 90)}%`;
+      particle.style.animationDelay = `-${randomBetween(0, 8)}s`;
+    });
+  } else if (themeId === "diamond-brilliant") {
+    add("boost-ambient-star", 8, (particle, index) => {
+      particle.style.left = `${18 + (index * 29) % 70}%`;
+      particle.style.top = `${12 + (index * 31) % 76}%`;
+      particle.style.animationDelay = `-${index * 0.35}s`;
+    });
+  }
+}
+
+function startSignatureScene(container, tier, reduceMotion) {
+  if (!container) return () => {};
+  container.replaceChildren();
+  if (reduceMotion) return () => {};
+
+  if (tier === "gold") {
+    const blade = document.createElement("i");
+    blade.className = "boost-signature-blade";
+    container.appendChild(blade);
+    for (let index = 0; index < 7; index += 1) {
+      const ember = document.createElement("i");
+      ember.className = "boost-signature-ember";
+      ember.style.left = `${10 + index * 13}%`;
+      ember.style.animationDelay = `-${index * 0.4}s`;
+      container.appendChild(ember);
+    }
+    return () => container.replaceChildren();
+  }
+
+  if (tier === "silver") {
+    const comet = document.createElement("i");
+    comet.className = "boost-signature-comet";
+    container.appendChild(comet);
+    return () => container.replaceChildren();
+  }
+
+  const gems = Array.from({ length: 12 }, (_, index) => {
+    const gem = document.createElement("i");
+    gem.className = `boost-signature-gem${index === 0 ? " head" : ""}`;
+    gem.style.setProperty("--index", index);
+    container.appendChild(gem);
+    return gem;
+  });
+  let frameId;
+  const startedAt = performance.now();
+  const render = (now) => {
+    const rect = container.getBoundingClientRect();
+    const time = (now - startedAt) / 1000;
+    const headX = rect.width / 2 + rect.width * 0.32 * Math.sin(time * 1.05);
+    const headY = rect.height / 2 + rect.height * 0.26 * Math.sin(time * 0.6) * Math.cos(time * 0.19);
+    gems.forEach((gem, index) => {
+      const delay = index * 8;
+      const x = headX - delay * 2.1;
+      const y = headY - delay * 1.2;
+      gem.style.transform = `translate(${x}px, ${y}px) rotate(${time * 45 - index * 15}deg)`;
+    });
+    frameId = requestAnimationFrame(render);
+  };
+  frameId = requestAnimationFrame(render);
+  return () => {
+    cancelAnimationFrame(frameId);
+    container.replaceChildren();
+  };
+}
+
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────
-const BoostProfileCard = ({ tier, themeId, style = {}, className = "", children }) => {
+const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, className = "", children }) => {
+  const ambientRef = useRef(null);
+  const cardFxRef = useRef(null);
+  const avatarFxRef = useRef(null);
+  const signatureRef = useRef(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const theme = useMemo(() => {
     if (!tier || !["silver","gold","diamond"].includes(tier)) return null;
     const key = themeId ?? { silver:"silver-chrome", gold:"gold-dynasty", diamond:"diamond-cosmos" }[tier];
-    const localTheme = THEMES[key];
-    if (localTheme) return localTheme;
-
-    // Keep newly added picker themes visible everywhere without maintaining a
-    // second full visual catalog in this display component.
     const sharedTheme = getTheme(tier, key);
-    if (!sharedTheme) return null;
-    return {
-      tier,
-      bg: sharedTheme.card?.background ?? "#080b11",
-      radials: [],
-      gemColor: sharedTheme.gemColor,
-      frame: sharedTheme.frame ?? {},
-      overlays: [],
-    };
+    if (sharedTheme) return sharedTheme;
+    return THEMES[key] ?? null;
   }, [tier, themeId]);
+
+  useEffect(() => {
+    if (!theme) return undefined;
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updateMotion = (event) => setReduceMotion(event.matches);
+    setReduceMotion(mediaQuery.matches);
+    mediaQuery.addEventListener?.("change", updateMotion);
+    return () => mediaQuery.removeEventListener?.("change", updateMotion);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!theme) return undefined;
+    const designId = theme.id.replace(`${tier}-`, "");
+    buildShowcaseAmbient(ambientRef.current, tier, designId, reduceMotion);
+    buildShowcaseAvatarBorder(avatarFxRef.current, tier, designId, reduceMotion);
+    return buildShowcaseFx(cardFxRef.current, tier, reduceMotion);
+  }, [theme, tier, reduceMotion]);
 
   if (!theme) return <div className={className} style={style}>{children}</div>;
 
-  const bgLayers = [...theme.radials, theme.bg].join(", ");
+  const legacyLayers = Array.isArray(theme.radials) ? theme.radials : [];
+  const bgLayers = theme.card?.background
+    ?? [...legacyLayers, theme.bg ?? "#080b11"].join(", ");
+  const backgroundColor = getBoostBackgroundColor(tier, backgroundColorId)?.color;
+  const themedBackground = backgroundColor
+    ? `linear-gradient(${backgroundColor}aa, ${backgroundColor}aa), ${bgLayers}`
+    : bgLayers;
 
   return (
-    <div
-      className={`boost-card boost-tier-${tier} boost-theme-${themeId ?? "default"} ${className}`}
-      style={{ position:"relative", overflow:"hidden", isolation:"isolate", background:bgLayers, ...theme.frame, ...style }}
-    >
-      {theme.overlays?.includes("silverGrid")     && <SilverGridOverlay />}
-      {theme.overlays?.includes("silverSheen")    && <SilverSheenOverlay />}
-      {theme.overlays?.includes("silverStars")    && <SilverStarsOverlay />}
-      {theme.overlays?.includes("goldHexGrid")    && <GoldHexGrid />}
-      {theme.overlays?.includes("goldBeam")       && <GoldBeamOverlay color={tier==="gold"&&themeId==="gold-solar"?"rgba(249,115,22,":"rgba(251,191,36,"} />}
-      {theme.overlays?.includes("goldParticles")  && <GoldParticles />}
-      {theme.overlays?.includes("solarDiagonals") && <SolarDiagonals />}
-      {theme.overlays?.includes("cosmosOrbit")    && <CosmosOrbit color={theme.gemColor} />}
-      {theme.overlays?.includes("cosmosNebula")   && <CosmosNebula />}
-      {theme.overlays?.includes("glacierShafts")  && <GlacierShafts />}
-      {theme.overlays?.includes("iceGrid")        && <IceGrid />}
-      {theme.overlays?.includes("emeraldRays")    && <EmeraldRays />}
-      {theme.overlays?.includes("emeraldGrid")    && <EmeraldGrid />}
-      {theme.overlays?.includes("rosePetals")     && <RosePetals />}
-      {theme.overlays?.includes("roseGrid")       && <RoseGrid />}
-      {theme.overlays?.includes("voidGeometry")   && <VoidGeometry />}
-      {theme.overlays?.includes("diamondFloats")  && <DiamondFloats shapes={theme.floatShapes} gemColor={theme.gemColor} />}
-      <Vignette />
-      <div style={{ position:"relative", zIndex:1 }}>{children}</div>
+    <div className="xvb-root">
+      <div
+        className={`boost-card card boost-tier-${tier} boost-theme-${themeId ?? "default"} ${className}`}
+        data-tier={tier}
+        data-design={theme.id.replace(`${tier}-`, "")}
+        style={{ position:"relative", overflow:"hidden", isolation:"isolate", background:"transparent", ...theme.frame, ...style }}
+      >
+      <div className="card-material" aria-hidden="true">
+        <div className="card-base" style={{ background: themedBackground }} />
+        <div className="card-texture" />
+        <div className="card-ambient" ref={ambientRef} />
+        <div className="card-light" />
+      </div>
+      <div ref={cardFxRef} className="card-fx" aria-hidden="true" />
+      <div className="card-scrim" aria-hidden="true" />
+      <div className="card-frame" aria-hidden="true" />
+      <div ref={avatarFxRef} className="avatar-fx" aria-hidden="true" />
+      <div className="card-content" style={{ position:"relative", zIndex:1 }}>{children}</div>
+      </div>
     </div>
   );
 };

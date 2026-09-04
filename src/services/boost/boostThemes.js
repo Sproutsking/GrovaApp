@@ -463,6 +463,49 @@ export const DIAMOND_THEMES = [
   },
 ];
 
+// ── Showcase design catalog ──────────────────────────────────────────────
+// This is the complete 16-design lineup. The renderer consumes material,
+// texture, scene, and accent separately so each selection has a distinct look.
+const showcaseTheme = (config) => ({
+  ...config,
+  preview: config.card.background,
+  gemColor: config.accent,
+  avatar: {
+    border: `2.5px solid ${config.accent}`,
+    boxShadow: `0 0 0 3px ${config.accent}33, 0 0 30px ${config.accent}aa, 0 0 64px ${config.accent}44`,
+    animation: config.tier === "silver" ? "silverPulse 3s ease-in-out infinite" : config.tier === "gold" ? "goldFire 3s ease-in-out infinite" : "diamondViolet 3s ease-in-out infinite",
+  },
+  frame: {
+    border: `1.5px solid ${config.accent}88`,
+    boxShadow: `0 0 0 1px ${config.accent}22, inset 0 0 52px ${config.accent}1f, 0 12px 72px rgba(0,0,0,.85), 0 0 84px ${config.accent}33`,
+  },
+});
+
+const SHOWCASE_THEMES = [
+  showcaseTheme({ id:"silver-eclipse", tier:"silver", name:"Sterling Eclipse", emoji:"☾", tagline:"Corona ring, radiating rays, star dust", accent:"#eef1f4", scene:"eclipse", card:{ background:"radial-gradient(circle at 50% 34%, #030405 0 22%, #eef1f4 23% 26%, transparent 34%), radial-gradient(ellipse 100% 70% at 50% 34%, rgba(210,216,222,.22), transparent 65%), linear-gradient(180deg,#0b0d11,#15181f 55%,#08090c)" }, texture:"rays" }),
+  showcaseTheme({ id:"silver-mercury", tier:"silver", name:"Liquid Mercury", emoji:"◈", tagline:"Fluid metal, falling mercury droplets", accent:"#c7ced4", scene:"mercury", card:{ background:"radial-gradient(ellipse 55% 42% at 18% 14%,rgba(232,236,240,.52),transparent 60%), radial-gradient(ellipse 48% 38% at 86% 28%,rgba(180,190,200,.42),transparent 55%), linear-gradient(135deg,#0d0f12,#1b2024 55%,#0d0f12)" }, texture:"metal" }),
+  showcaseTheme({ id:"silver-chrome", tier:"silver", name:"Moonlit Chrome", emoji:"🌙", tagline:"Engraved crest, brushed steel, chrome sheen", accent:"#dfe6ee", scene:"chrome", card:{ background:"radial-gradient(circle at 78% 14%,#4a525c, #1c2027 38%, transparent 62%), linear-gradient(165deg,#0a0c10,#191d24 45%,#050608)" }, texture:"crest" }),
+  showcaseTheme({ id:"gold-dynasty", tier:"gold", name:"Royal Dynasty", emoji:"♛", tagline:"Engraved hex, drifting gold dust", accent:"#f4dfa8", scene:"dynasty", card:{ background:"radial-gradient(ellipse 90% 50% at 50% -10%,rgba(251,191,36,.3),transparent 60%), radial-gradient(ellipse 60% 40% at 0% 90%,rgba(146,64,14,.26),transparent 55%), #060400" }, texture:"hex" }),
+  showcaseTheme({ id:"gold-solar", tier:"gold", name:"Solar Flare", emoji:"☀", tagline:"Warm haze, erupting flare sparks", accent:"#fbbf24", scene:"solar", card:{ background:"radial-gradient(ellipse 80% 55% at 50% 108%,rgba(251,191,36,.32),transparent 55%), radial-gradient(ellipse 50% 45% at 22% 35%,rgba(249,115,22,.22),transparent 50%), #050200" }, texture:"heat" }),
+  showcaseTheme({ id:"gold-corona", tier:"gold", name:"Solar Corona", emoji:"☼", tagline:"Sunburst rays, erupting flare sparks", accent:"#f97316", scene:"corona", card:{ background:"repeating-conic-gradient(from 0deg at 50% 118%,rgba(255,180,60,.16) 0deg 5deg,transparent 5deg 11deg), radial-gradient(ellipse 80% 55% at 50% -5%,rgba(251,191,36,.28),transparent 55%), #050200" }, texture:"rays" }),
+  showcaseTheme({ id:"gold-laurel", tier:"gold", name:"Imperial Laurel", emoji:"❖", tagline:"Engraved laurel vine, golden mist, leaf glints", accent:"#fde68a", scene:"laurel", card:{ background:"radial-gradient(ellipse 85% 55% at 50% -8%,rgba(253,230,138,.3),transparent 58%), linear-gradient(175deg,#0c0700,#1a1002 55%,#060300)" }, texture:"laurel" }),
+  showcaseTheme({ id:"gold-molten", tier:"gold", name:"Molten Core", emoji:"◉", tagline:"Cracked gold ore, glowing fissures, rising embers", accent:"#ff9a44", scene:"molten", card:{ background:"radial-gradient(ellipse 90% 60% at 50% 115%,rgba(255,140,20,.4),transparent 55%), radial-gradient(ellipse 50% 35% at 20% 80%,rgba(255,80,20,.26),transparent 50%), linear-gradient(180deg,#0a0603,#150c04 55%,#050200)" }, texture:"cracks" }),
+  showcaseTheme({ id:"diamond-brilliant", tier:"diamond", name:"Brilliant Cut", emoji:"✦", tagline:"Faceted kite, sparkle flares", accent:"#b8d2e6", scene:"brilliant", card:{ background:"radial-gradient(ellipse 70% 50% at 50% 0%,rgba(180,210,230,.2),transparent 55%), radial-gradient(ellipse 90% 70% at 50% 0%,#10202e,#020305 65%)" }, texture:"facet" }),
+  showcaseTheme({ id:"diamond-nebula", tier:"diamond", name:"Nebula Drift", emoji:"✧", tagline:"Cosmic clouds, shooting stars", accent:"#c7b6fa", scene:"nebula", card:{ background:"radial-gradient(ellipse 55% 40% at 22% 18%,rgba(167,139,250,.36),transparent 60%), radial-gradient(ellipse 50% 35% at 82% 14%,rgba(96,165,250,.28),transparent 55%), radial-gradient(ellipse 60% 45% at 55% 88%,rgba(244,114,182,.22),transparent 60%), #030308" }, texture:"stars" }),
+  showcaseTheme({ id:"diamond-shard", tier:"diamond", name:"Glacial Aurora", emoji:"◇", tagline:"Layered aurora, frost glints, shard fall", accent:"#78dcff", scene:"shard", card:{ background:"radial-gradient(ellipse 55% 38% at 18% 12%,rgba(120,220,255,.24),transparent 58%), radial-gradient(ellipse 48% 36% at 82% 18%,rgba(150,255,220,.16),transparent 55%), radial-gradient(ellipse 80% 60% at 50% 0%,#0e2a40,#01060c 72%)" }, texture:"ice" }),
+  showcaseTheme({ id:"diamond-prism", tier:"diamond", name:"Prism Array", emoji:"◇", tagline:"Triangle dispersion, a swimming light-ray sweep", accent:"#d8d8f5", scene:"prism", card:{ background:"radial-gradient(ellipse 40% 30% at 15% 10%,rgba(255,120,120,.13),transparent 60%), radial-gradient(ellipse 40% 30% at 85% 85%,rgba(120,180,255,.14),transparent 60%), radial-gradient(ellipse 70% 55% at 50% 0%,#10121c,#020204 70%)" }, texture:"triangles" }),
+  showcaseTheme({ id:"diamond-void", tier:"diamond", name:"Void Lattice", emoji:"◆", tagline:"Sparse wireframe, drifting motes", accent:"#f8fafc", scene:"void", card:{ background:"radial-gradient(ellipse 50% 35% at 50% -5%,rgba(150,150,180,.15),transparent 60%), #000" }, texture:"lattice" }),
+  showcaseTheme({ id:"diamond-quantum", tier:"diamond", name:"Quantum Lattice", emoji:"⌁", tagline:"Glowing circuit grid, traveling data pulses", accent:"#7dd3fc", scene:"quantum", card:{ background:"radial-gradient(ellipse 70% 50% at 50% -5%,rgba(56,189,248,.26),transparent 55%), linear-gradient(180deg,#050a12,#030608 60%,#010203)" }, texture:"circuit" }),
+  showcaseTheme({ id:"diamond-bloom", tier:"diamond", name:"Celestial Bloom", emoji:"✿", tagline:"Rotating mandala, petals of light", accent:"#f0abfc", scene:"bloom", card:{ background:"radial-gradient(ellipse 65% 50% at 50% 42%,rgba(244,171,252,.28),transparent 55%), radial-gradient(ellipse 90% 70% at 50% 10%,#180b24,transparent 60%), linear-gradient(180deg,#0a0610,#050308 65%,#020103)" }, texture:"mandala" }),
+  showcaseTheme({ id:"diamond-rift", tier:"diamond", name:"Obsidian Rift", emoji:"◇", tagline:"Cracked volcanic glass, pulsing energy fissures", accent:"#818cf8", scene:"rift", card:{ background:"radial-gradient(ellipse 70% 50% at 50% 105%,rgba(129,140,248,.26),transparent 55%), radial-gradient(ellipse 45% 35% at 15% 20%,rgba(56,189,248,.18),transparent 50%), linear-gradient(180deg,#030308,#06060c 55%,#000)" }, texture:"cracks" }),
+];
+
+const SHOWCASE_THEMES_BY_TIER = {
+  silver: SHOWCASE_THEMES.filter((theme) => theme.tier === "silver"),
+  gold: SHOWCASE_THEMES.filter((theme) => theme.tier === "gold"),
+  diamond: SHOWCASE_THEMES.filter((theme) => theme.tier === "diamond"),
+};
+
 // ── Boost name design catalog ─────────────────────────────────────────────
 // Options are additive: existing theme IDs and profile data remain valid.
 export const BOOST_NAME_FONTS = {
@@ -519,6 +562,30 @@ export const BOOST_NAME_COLORS = {
   ],
 };
 
+export const BOOST_BACKGROUND_COLORS = {
+  silver: [
+    { id: "silver-pearl", label: "Pearl", color: "#17202a" },
+    { id: "silver-steel", label: "Steel", color: "#263342" },
+    { id: "silver-ice", label: "Ice", color: "#123044" },
+  ],
+  gold: [
+    { id: "gold-sun", label: "Sun", color: "#3a2506" },
+    { id: "gold-amber", label: "Amber", color: "#492208" },
+    { id: "gold-flame", label: "Flame", color: "#48150b" },
+    { id: "gold-rose", label: "Rose", color: "#3b1020" },
+    { id: "gold-mint", label: "Mint", color: "#0d3226" },
+    { id: "gold-sky", label: "Sky", color: "#102b3a" },
+  ],
+  diamond: [
+    { id: "diamond-prism", label: "Prism", color: "#25143d" },
+    { id: "diamond-cosmos", label: "Cosmos", color: "#17103e" },
+    { id: "diamond-glacier", label: "Glacier", color: "#08233c" },
+    { id: "diamond-emerald", label: "Emerald", color: "#062b20" },
+    { id: "diamond-rose", label: "Rose", color: "#3b1029" },
+    { id: "diamond-void", label: "Void", color: "#07090d" },
+  ],
+};
+
 export function getBoostNameFont(tier, fontId) {
   const fonts = BOOST_NAME_FONTS[tier] ?? [];
   return fonts.find((font) => font.id === fontId) ?? fonts[0] ?? null;
@@ -529,6 +596,11 @@ export function getBoostNameDesign(tier, fontId, colorId) {
   const colors = BOOST_NAME_COLORS[tier] ?? [];
   const color = colors.find((item) => item.id === colorId) ?? colors[0] ?? null;
   return { font, color };
+}
+
+export function getBoostBackgroundColor(tier, backgroundColorId) {
+  const colors = BOOST_BACKGROUND_COLORS[tier] ?? [];
+  return colors.find((item) => item.id === backgroundColorId) ?? colors[0] ?? null;
 }
 
 // ── Shared drift keyframes (injected once globally) ───────────────────────
@@ -565,12 +637,17 @@ export const SHARED_KEYFRAMES = `
 `;
 
 // ── Lookups ───────────────────────────────────────────────────────────────
-export const ALL_THEMES = [...SILVER_THEMES, ...GOLD_THEMES, ...DIAMOND_THEMES];
+export const ALL_THEMES = [
+  ...SILVER_THEMES,
+  ...GOLD_THEMES,
+  ...DIAMOND_THEMES,
+  ...SHOWCASE_THEMES,
+];
 
 export const THEMES_BY_TIER = {
-  silver:  SILVER_THEMES,
-  gold:    GOLD_THEMES,
-  diamond: DIAMOND_THEMES,
+  silver:  SHOWCASE_THEMES_BY_TIER.silver,
+  gold:    SHOWCASE_THEMES_BY_TIER.gold,
+  diamond: SHOWCASE_THEMES_BY_TIER.diamond,
 };
 
 export function getTheme(tierId, themeId) {
@@ -582,4 +659,4 @@ export function getDefaultTheme(tierId) {
   return THEMES_BY_TIER[tierId]?.[0] ?? null;
 }
 
-export default { SILVER_THEMES, GOLD_THEMES, DIAMOND_THEMES, ALL_THEMES, THEMES_BY_TIER, BOOST_NAME_FONTS, BOOST_NAME_COLORS, getTheme, getDefaultTheme, getBoostNameFont, getBoostNameDesign, SHARED_KEYFRAMES };
+export default { SILVER_THEMES, GOLD_THEMES, DIAMOND_THEMES, ALL_THEMES, THEMES_BY_TIER, BOOST_NAME_FONTS, BOOST_NAME_COLORS, BOOST_BACKGROUND_COLORS, getTheme, getDefaultTheme, getBoostNameFont, getBoostNameDesign, getBoostBackgroundColor, SHARED_KEYFRAMES };

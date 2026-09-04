@@ -54,7 +54,7 @@ const _fetching = new Map();
 function _notify(userId) {
   const fns = _listeners.get(userId);
   if (!fns?.size) return;
-  const data = _cache.get(userId) ?? { tier: null, themeId: null, fontId: null, colorId: null };
+  const data = _cache.get(userId) ?? { tier: null, themeId: null, fontId: null, colorId: null, backgroundColorId: null };
   fns.forEach((fn) => fn({ ...data, loading: false }));
 }
 
@@ -78,10 +78,11 @@ async function _fetchBoost(userId) {
       themeId: data?.active_theme_id ?? null,
       fontId: data?.theme_selections?.fontId ?? null,
       colorId: data?.theme_selections?.colorId ?? null,
+      backgroundColorId: data?.theme_selections?.backgroundColorId ?? null,
     });
   } catch {
     // On error keep whatever was cached, or set null so loading clears
-    if (!_cache.has(userId)) _cache.set(userId, { tier: null, themeId: null, fontId: null, colorId: null });
+    if (!_cache.has(userId)) _cache.set(userId, { tier: null, themeId: null, fontId: null, colorId: null, backgroundColorId: null });
   } finally {
     _fetching.set(userId, false);
     _notify(userId);

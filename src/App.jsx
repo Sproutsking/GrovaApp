@@ -44,6 +44,7 @@ import "./styles/StoryCard.css";
 import "./styles/ProfileModal.css";
 import "./styles/Draft.css";
 import "./styles/lightTheme.css";
+import BoostStyles from "./components/Boost/BoostStyles";
 
 import { supabase }               from "./services/config/supabase";
 import mediaUrlService             from "./services/shared/mediaUrlService";
@@ -1302,6 +1303,7 @@ function AppRouter() {
 // ── Root ──────────────────────────────────────────────────────────────────────
 const App = () => (
   <AuthProvider>
+    <BoostStyles />
     <AppRouter />
   </AuthProvider>
 );

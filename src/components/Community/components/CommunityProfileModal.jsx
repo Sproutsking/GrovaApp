@@ -58,11 +58,12 @@ const CommunityProfileModal = ({
       : null);
   const displayName = user?.full_name || user?.username || "Unknown user";
   const isOwnProfile = Boolean(currentUserId && user?.id && currentUserId === user.id);
-  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId } = useUserBoostTier(user?.id);
+  const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, backgroundColorId: liveBackgroundColorId } = useUserBoostTier(user?.id);
   const tier = liveTier || user?.subscription_tier || null;
   const themeId = liveThemeId || user?.boost_selections?.themeId || null;
   const fontId = liveFontId || user?.boost_selections?.fontId || null;
   const colorId = liveColorId || user?.boost_selections?.colorId || null;
+  const backgroundColorId = liveBackgroundColorId || user?.boost_selections?.backgroundColorId || null;
   const nameDesign = getBoostNameDesign(tier, fontId, colorId);
   const hasBoosted = ["silver", "gold", "diamond"].includes(tier);
   const boostVisual = hasBoosted ? BOOST_VISUAL?.[tier] : null;
@@ -186,6 +187,7 @@ const CommunityProfileModal = ({
         <BoostProfileCard
           tier={hasBoosted ? tier : null}
           themeId={hasBoosted ? themeId : null}
+          backgroundColorId={backgroundColorId}
           style={{ borderRadius: "17px", minHeight: "100%" }}
         >
         <div className={`community-profile-cover pixel-tier-${pixelTier}`}>

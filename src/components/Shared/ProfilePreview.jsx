@@ -94,6 +94,7 @@ const ProfilePreview = ({
           null,
         propFontId: profile.boost_selections?.fontId ?? profile.boostSelections?.fontId ?? null,
         propColorId: profile.boost_selections?.colorId ?? profile.boostSelections?.colorId ?? null,
+        propBackgroundColorId: profile.boost_selections?.backgroundColorId ?? profile.boostSelections?.backgroundColorId ?? null,
       };
     }
 
@@ -143,6 +144,7 @@ const ProfilePreview = ({
         null,
       propFontId: profileData.boost_selections?.fontId ?? profile.boost_selections?.fontId ?? null,
       propColorId: profileData.boost_selections?.colorId ?? profile.boost_selections?.colorId ?? null,
+      propBackgroundColorId: profileData.boost_selections?.backgroundColorId ?? profile.boost_selections?.backgroundColorId ?? profile.boostSelections?.backgroundColorId ?? null,
     };
   };
 
@@ -157,6 +159,7 @@ const ProfilePreview = ({
     propThemeId,
     propFontId,
     propColorId,
+    propBackgroundColorId,
   } = resolveUserData();
 
   // ── Live boost tier — the authoritative source ────────────────────────────
@@ -165,6 +168,7 @@ const ProfilePreview = ({
     themeId: liveThemeId,
     fontId: liveFontId,
     colorId: liveColorId,
+    backgroundColorId: liveBackgroundColorId,
     loading: boostLoading,
   } = useUserBoostTier(userId);
 
@@ -174,6 +178,7 @@ const ProfilePreview = ({
   const fontId        = boostLoading ? propFontId : (liveFontId ?? null);
   const colorId        = boostLoading ? propColorId : (liveColorId ?? null);
   const paymentStatus = propPaymentStatus;
+  const backgroundColorId = boostLoading ? propBackgroundColorId : (liveBackgroundColorId ?? null);
 
   const hasBoostedTier   = ["silver", "gold", "diamond"].includes(tier);
   const nameColor        = getBoostNameColor(tier, themeId);
@@ -232,7 +237,7 @@ const ProfilePreview = ({
     verified,
     subscription_tier: tier,
     payment_status:    paymentStatus,
-    boost_selections:  { themeId, fontId, colorId },
+    boost_selections:  { themeId, fontId, colorId, backgroundColorId },
   };
 
   return (

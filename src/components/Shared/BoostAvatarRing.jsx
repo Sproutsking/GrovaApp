@@ -46,6 +46,13 @@ const DIAMOND_THEME = {
   "diamond-void":    { grad: ["#f1f5f9","#94a3b8"], glow: "rgba(148,163,184,0.70)", color: "#e5e5e5" },
   "diamond-inferno": { grad: ["#fed7aa","#f97316"], glow: "rgba(249,115,22,0.70)",  color: "#ff6b35" },
   "diamond-aurora":  { grad: ["#a5f3fc","#06b6d4"], glow: "rgba(6,182,212,0.70)",   color: "#22d3ee" },
+  "diamond-brilliant": { grad: ["#eaf6ff","#7dd3fc"], glow: "rgba(125,211,252,0.70)", color: "#b8d2e6" },
+  "diamond-nebula":   { grad: ["#ddd6fe","#8b5cf6"], glow: "rgba(139,92,246,0.70)",  color: "#c7b6fa" },
+  "diamond-shard":   { grad: ["#bfe4ff","#38bdf8"], glow: "rgba(56,189,248,0.70)",  color: "#78dcff" },
+  "diamond-prism":   { grad: ["#f0abfc","#60a5fa"], glow: "rgba(192,132,252,0.70)", color: "#d8d8f5" },
+  "diamond-quantum": { grad: ["#bae6fd","#06b6d4"], glow: "rgba(34,211,238,0.70)",  color: "#7dd3fc" },
+  "diamond-bloom":   { grad: ["#f0abfc","#c084fc"], glow: "rgba(240,171,252,0.70)", color: "#f0abfc" },
+  "diamond-rift":    { grad: ["#c4b5fd","#6366f1"], glow: "rgba(129,140,248,0.70)", color: "#818cf8" },
 };
 
 function getVisual(tier, themeId) {

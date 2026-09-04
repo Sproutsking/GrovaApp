@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useBoost } from "../../hooks/useBoost";
 import { BOOST_TIERS, BOOST_VISUAL } from "../../services/account/profileTierService";
-import { THEMES_BY_TIER, getDefaultTheme } from "../../services/boost/boostThemes";
+import { THEMES_BY_TIER, getDefaultTheme, getBoostNameDesign } from "../../services/boost/boostThemes";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import BoostThemePicker from "../Boost/BoostThemePicker";
 import BoostProfileCard from "../Boost/BoostProfileCard";
@@ -52,12 +52,13 @@ const useIsWide = () => {
 };
 
 // ── Live avatar preview inside a themed card ──────────────────────────────
-const LivePreview = ({ tierId, themeId, currentUser }) => {
+const LivePreview = ({ tierId, themeId, fontId, colorId, backgroundColorId, currentUser }) => {
   const v      = BOOST_VISUAL[tierId];
   const themes = THEMES_BY_TIER[tierId] ?? [];
   const theme  = themes.find(t => t.id === themeId) ?? themes[0];
   const letter = (currentUser?.fullName || currentUser?.full_name || currentUser?.username || "U").charAt(0).toUpperCase();
   const avatarAnim = theme?.avatar.animation ?? (v?.animStyle ?? "none");
+  const nameDesign = getBoostNameDesign(tierId, fontId, colorId);
 
   const avatarUrl =
     currentUser?.avatarUrl ||
@@ -67,9 +68,10 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
     (currentUser?.profile?.avatarUrl || currentUser?.profile?.avatar || null);
 
   return (
-    <BoostProfileCard tier={tierId} themeId={theme?.id} style={{
+    <BoostProfileCard tier={tierId} themeId={theme?.id} backgroundColorId={backgroundColorId} style={{
       borderRadius:20, padding:"24px 20px 20px",
-      minHeight:250, display:"flex", flexDirection:"column", alignItems:"center", gap:16,
+      width:"100%", maxWidth:380, aspectRatio:"3 / 4", minHeight:0,
+      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16,
     }}>
       <div style={{ position:"absolute", top:12, left:14, fontSize:9, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:v?.color ?? "#fff" }}>
         {v?.badgeLabel ?? tierId} boost
@@ -112,12 +114,12 @@ const LivePreview = ({ tierId, themeId, currentUser }) => {
         )}
       </div>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:15, fontWeight:900, color:"#fff", marginBottom:2, display:"flex", alignItems:"center", justifyContent:"center", gap:6, flexWrap:"wrap" }}>
+        <div style={{ fontSize:15, fontWeight:nameDesign.font?.weight || 900, fontFamily:nameDesign.font?.family, letterSpacing:nameDesign.font?.spacing, color:nameDesign.color?.color || "#fff", textShadow:nameDesign.color?.shadow ? `0 0 16px ${nameDesign.color.shadow}` : "none", marginBottom:2, display:"flex", alignItems:"center", justifyContent:"center", gap:6, flexWrap:"wrap" }}>
           <span>{currentUser?.fullName || currentUser?.full_name || "Your Name"}</span>
           <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:"#22c55e", color:"#ffffff", fontSize:12, fontWeight:900, lineHeight:1, boxShadow:"0 0 12px rgba(34,197,94,0.5)" }} title="Verified paid member" aria-label="Verified paid member">✓</span>
           <span style={{ fontSize:13 }}>{v?.badge}</span>
         </div>
-        <div style={{ fontSize:12, color: v?.color ?? "#737373" }}>
+        <div style={{ fontSize:12, color: nameDesign.color?.color ? `${nameDesign.color.color}b3` : (v?.color ?? "#737373"), fontFamily:nameDesign.font?.family }}>
           @{currentUser?.username ?? "username"}
         </div>
         {theme && (
