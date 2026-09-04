@@ -11,13 +11,18 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
   const [showReactionPanel, setShowReactionPanel] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const panelRef = useRef(null);
+  const deleteDialogRef = useRef(null);
   const reactionPanelRef = useRef(null);
   const [reactionPanelStyle, setReactionPanelStyle] = useState({ position: "fixed", left: position?.x || 12, top: position?.y || 12, zIndex: 10000 });
   const getHeaderOffset = () => window.innerWidth <= 768 ? 47 : 58;
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      const activePanel = showReactionPanel ? reactionPanelRef.current : panelRef.current;
+      const activePanel = showDeleteConfirm
+        ? deleteDialogRef.current
+        : showReactionPanel
+          ? reactionPanelRef.current
+          : panelRef.current;
       if (activePanel && !activePanel.contains(event.target)) {
         onClose?.();
       }
@@ -104,7 +109,7 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
       </div>}
       {showDeleteConfirm && (
         <div className="message-delete-dialog-backdrop" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="message-delete-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-message-title">
+          <div ref={deleteDialogRef} className="message-delete-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-message-title">
             <div className="message-delete-icon"><Trash2 size={18} /></div>
             <div>
               <h3 id="delete-message-title">Delete message?</h3>
