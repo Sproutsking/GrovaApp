@@ -900,7 +900,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin { width:36px; height:36px; border:3px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
-        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; }
+        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; width: 100%; display: flex; flex-direction: column; }
         .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; }
         .upm-name-verified { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#84cc16; color:#071007; font-size:12px; font-weight:900; line-height:1; }
         .upm-badges { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }

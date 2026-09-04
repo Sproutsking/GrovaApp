@@ -618,7 +618,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
         .profile-section { padding: 20px; }
-        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; }
+        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; width: 100%; display: flex; flex-direction: column; }
         .profile-name { font-size:26px;font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap; }
         .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:12px;font-weight:900;line-height:1; }
         .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }

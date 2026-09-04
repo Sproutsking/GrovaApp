@@ -114,8 +114,9 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .boost-scene .boost-scene-glow, .boost-scene > i { animation:none !important; opacity:.35; } }
 
 /* ─── Ensure boost card children sit above overlays ─────────────────── */
+.xvb-root { width: 100%; height: 100%; }
 .boost-card > * { position: relative; z-index: 1; }
-.boost-card { isolation: isolate; }
+.boost-card { isolation: isolate; width: 100%; height: 100%; }
 
 /* ─── Source showcase motion primitives ───────────────────────────────── */
 .boost-ambient-motion, .boost-signature-motion { position:absolute; inset:0; z-index:2; overflow:hidden; pointer-events:none; }
@@ -157,17 +158,17 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .boost-ambient-motion > i, .boost-signature-motion > i { animation:none !important; opacity:.45; } }
 
 /* ─── Profile card material stack ─────────────────────────────────────── */
-.boost-card.card { position:relative; overflow:hidden; isolation:isolate; }
+.boost-card.card { position:relative; overflow:hidden; isolation:isolate; width: 100%; height: 100%; }
 .boost-card.card .card-material,
 .boost-card.card .card-scrim,
 .boost-card.card .card-frame { position:absolute; inset:0; pointer-events:none; }
-.boost-card.card .card-material { z-index:0; overflow:hidden; }
+.boost-card.card .card-material { z-index:0; overflow:hidden; width: 100%; height: 100%; }
 .boost-card.card .card-base { position:absolute; inset:0; background:var(--boost-card-base, transparent); }
 .boost-card.card .card-texture { position:absolute; inset:0; opacity:.9; mix-blend-mode:screen; background-repeat:repeat; background-size:auto; }
 .boost-card.card .card-light { position:absolute; inset:0; background:radial-gradient(circle 220px at 30% 20%, rgba(255,255,255,.32), transparent 62%); mix-blend-mode:overlay; animation:profileLightDrift 11s ease-in-out infinite; }
 .boost-card.card .card-scrim { z-index:2; background:linear-gradient(180deg, rgba(0,0,0,.14), transparent 25%, transparent 58%, rgba(0,0,0,.5)); }
 .boost-card.card .card-frame { z-index:3; border:1px solid var(--boost-frame, rgba(255,255,255,.2)); box-shadow:inset 0 0 52px var(--boost-frame-glow, rgba(255,255,255,.08)), 0 18px 64px rgba(0,0,0,.7); border-radius:inherit; }
-.boost-card.card .card-content { z-index:4; min-height:100%; }
+.boost-card.card .card-content { z-index:4; width: 100%; height: 100%; min-height: 100%; display: flex; flex-direction: column; }
 
 .boost-card.card[data-tier="silver"][data-design="silver-eclipse"] .card-base { background:radial-gradient(circle at 50% 34%, #030405 0 21%, transparent 22%), radial-gradient(circle at 50% 34%, transparent 21%, #f4f6f7 22%, #c7ced4 25%, rgba(199,206,212,.35) 29%, transparent 34%), radial-gradient(ellipse 100% 70% at 50% 34%, rgba(210,216,222,.22), transparent 65%), linear-gradient(180deg,#0b0d11,#15181f 55%,#08090c); }
 .boost-card.card[data-tier="silver"][data-design="silver-eclipse"] .card-texture { background-image:repeating-conic-gradient(from 0deg at 50% 34%, rgba(238,241,244,.16) 0deg 1deg, transparent 1deg 7deg), radial-gradient(circle, rgba(255,255,255,.9) 1.2px, transparent 1.6px); background-size:auto,52px 52px; animation:profileTexturePulse 4s ease-in-out infinite; }
