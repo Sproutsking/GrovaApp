@@ -307,38 +307,16 @@ class CommunityService {
         iconValue = await this._uploadCommunityIcon(communityData.iconFile, userId);
       }
 
-      const { data: community, error } = await supabase
-        .from("communities")
-        .insert({
-          name: communityData.name,
-          description: communityData.description || "",
-          icon: iconValue,
-          banner_gradient:
-            communityData.bannerGradient ||
-            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          is_private: communityData.isPrivate || false,
-          owner_id: userId,
-          member_count: 1,
-          online_count: 1,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const ownerRole = await this.createDefaultRole(community.id, "Owner", 0, "owner");
-      await this.createDefaultRole(community.id, "Novis", 2, "novis");
-      await this.createDefaultRole(community.id, "Member", 1, "member");
-
-      await supabase.from("community_members").insert({
-        community_id: community.id,
-        user_id: userId,
-        role_id: ownerRole.id,
-        is_online: true,
-        last_seen: new Date().toISOString(),
+      const { data: community, error } = await supabase.rpc("create_community_with_defaults", {
+        p_name: communityData.name,
+        p_description: communityData.description || "",
+        p_icon: iconValue,
+        p_banner_gradient: communityData.bannerGradient || null,
+        p_is_private: communityData.isPrivate || false,
+        p_owner_id: userId,
       });
 
-      await this.createDefaultChannels(community.id);
+      if (error) throw error;
 
       this.cache.set(`community:${community.id}`, { ...community, online_count: 1 });
       this.invalidateUserCache(userId);
@@ -620,28 +598,16 @@ class CommunityService {
 
   async deleteCommunity(communityId, userId) {
     try {
-      if (!communityId || !userId) {
+      if (!communityId || !userId || typeof communityId !== "string") {
         throw new Error("Community and user are required to delete a community.");
       }
 
-      const { data: community, error: fetchError } = await supabase
-        .from("communities")
-        .select("id, owner_id, deleted_at")
-        .eq("id", communityId)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-      if (!community) throw new Error("Community not found.");
-      if (community.deleted_at) throw new Error("This community has already been deleted.");
-      if (community.owner_id !== userId) throw new Error("Only the owner can delete this community");
-
-      const { error: deleteError } = await supabase
-        .from("communities")
-        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("id", communityId)
-        .eq("owner_id", userId);
+      const { data: deleted, error: deleteError } = await supabase.rpc("delete_community", {
+        p_community_id: communityId,
+      });
 
       if (deleteError) throw deleteError;
+      if (!deleted) throw new Error("Community not found or already deleted.");
 
       await this.markOffline(communityId, userId);
       this.invalidateUserCache(userId);

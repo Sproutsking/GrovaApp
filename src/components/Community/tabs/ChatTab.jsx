@@ -632,8 +632,10 @@ const ChatTab = ({
               await communityMessageService.deleteMessage(contextMenu.message.id, userId, community.id);
               communityState.removeMessage(selectedChannel?.id, contextMenu.message.id);
               setMessages((items) => items.filter((item) => item.id !== contextMenu.message.id));
+              await loadMessages();
             } catch (error) {
               console.error("Error deleting message:", error);
+              alert(error.message || "Failed to delete message");
             }
             setContextMenu(null);
           }}
@@ -791,6 +793,7 @@ const ChatTab = ({
                   }
                 } catch (error) {
                   console.error("Error deleting channel:", error);
+                  alert(error.message || "Failed to delete channel");
                 } finally {
                   setChannelDeleteConfirm(null);
                 }

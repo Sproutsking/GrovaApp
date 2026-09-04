@@ -231,7 +231,7 @@ const CommunityMenu = ({
                     </div>
                   )}
 
-                  {isOwner && (
+                  {(isOwner || canManageCommunity) && (
                     <div className="cm-item danger" onClick={() => showConfirm("Delete Community", "⚠️ This permanently deletes the community and all its data. Cannot be undone.", () => { onDeleteCommunity(); onClose(); }, true)}>
                       <div className="cm-item-icon" style={{ background: "#ff6b6b" }}><Trash2 size={16} /></div>
                       <div className="cm-item-content">

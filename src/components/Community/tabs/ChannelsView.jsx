@@ -64,7 +64,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
     }
   };
 
-  const canManageChannels = userPermissions.manage_channels || community?.owner_id === userId;
+  const canManageChannels = userPermissions.manageChannels || userPermissions.administrator || community?.owner_id === userId;
 
   const renderChannelIcon = (channel) => {
     const icon = channel.icon;

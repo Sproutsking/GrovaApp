@@ -15,6 +15,7 @@ import {
   Pin,
 } from "lucide-react";
 import channelService from "../../../services/community/channelService";
+import communityMessageService from "../../../services/community/communityMessageService";
 
 const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
   const [messages, setMessages] = useState([]);
@@ -143,13 +144,17 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
     if (!contextMenu?.message) return;
 
     try {
-      await channelService.deleteMessage(contextMenu.message.id);
+      await communityMessageService.deleteMessage(
+        contextMenu.message.id,
+        userId,
+        community?.id,
+      );
       setMessages((prev) =>
         prev.filter((m) => m.id !== contextMenu.message.id),
       );
     } catch (error) {
       console.error("Error deleting message:", error);
-      alert("Failed to delete message");
+      alert(error.message || "Failed to delete message");
     }
     setContextMenu(null);
   };

@@ -127,28 +127,12 @@ class CommunityMessageService {
 
   async saveToDatabase(channelId, userId, content, tempId, userObject, replyToId = null) {
     try {
-      const { data, error } = await supabase
-        .from("community_messages")
-        .insert({
-          channel_id: channelId,
-          user_id: userId,
-          content: content.trim(),
-          reply_to_id: replyToId || null,
-        })
-        .select(`
-          *,
-          user:user_id(
-            id,
-            username,
-            full_name,
-            avatar_id,
-            avatar_metadata,
-            verified,
-            subscription_tier,
-            boost_selections
-          )
-        `)
-        .single();
+      const { data, error } = await supabase.rpc("send_community_message", {
+        p_channel_id: channelId,
+        p_user_id: userId,
+        p_content: content,
+        p_reply_to_id: replyToId || null,
+      });
 
       if (error) {
         console.error("❌ [DB] Insert failed:", error);
@@ -253,6 +237,17 @@ class CommunityMessageService {
           callback(data);
         }
       })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "community_messages",
+        filter: `channel_id=eq.${channelId}`
+      }, (payload) => {
+        if (payload.new?.deleted_at) {
+          communityState.removeMessage(channelId, payload.new.id);
+          callback({ ...payload.new, _deleted: true });
+        }
+      })
       .subscribe((status) => {
         console.log(`🔌 Channel ${channelKey} status:`, status);
       });
@@ -319,46 +314,12 @@ class CommunityMessageService {
       if (!messageId || !userId) {
         throw new Error("Message and user are required to delete a message.");
       }
+      const { data, error } = await supabase.rpc("delete_community_message", {
+        p_message_id: messageId,
+      });
 
-      const { data: message, error: fetchError } = await supabase
-        .from("community_messages")
-        .select("id, user_id, community_id, deleted_at")
-        .eq("id", messageId)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-      if (!message) throw new Error("Message not found.");
-      if (message.deleted_at) throw new Error("This message is already deleted.");
-      if (message.user_id !== userId && communityId) {
-        const { data: member, error: memberError } = await supabase
-          .from("community_members")
-          .select("role_id")
-          .eq("community_id", communityId)
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (memberError) throw memberError;
-        if (!member) throw new Error("You do not have access to delete this message.");
-      }
-
-      try {
-        const { data, error } = await supabase.rpc("delete_community_message", {
-          p_message_id: messageId,
-        });
-
-        if (error) throw error;
-        if (data === true) return true;
-      } catch (rpcError) {
-        console.warn("Community delete RPC failed, falling back to soft delete.", rpcError);
-      }
-
-      const { error: fallbackError } = await supabase
-        .from("community_messages")
-        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("id", messageId)
-        .eq("user_id", userId);
-
-      if (fallbackError) throw fallbackError;
+      if (error) throw error;
+      if (!data) throw new Error("Message not found or already deleted.");
       return true;
     } catch (error) {
       console.error("Error deleting message:", error);

@@ -226,16 +226,18 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   };
 
   const handleDeleteCommunity = async (communityId) => {
-    const removedCommunity = selectedCommunity?.id === communityId;
-    setMyCommunities((current) => current.filter((item) => item.id !== communityId));
-    setAllCommunities((current) => current.filter((item) => item.id !== communityId));
-    communityCache.clearCommunity(communityId);
-    if (removedCommunity) {
-      setSelectedCommunity(null); setSelectedChannel(null);
-      setView("discover"); currentCommunityRef.current = null;
+    if (!communityId || selectedCommunity?.id !== communityId) {
+      alert("The selected community is no longer available. Please reopen it and try again.");
+      return;
     }
+
     try {
       await communityService.deleteCommunity(communityId, userId);
+      setMyCommunities((current) => current.filter((item) => item.id !== communityId));
+      setAllCommunities((current) => current.filter((item) => item.id !== communityId));
+      communityCache.clearCommunity(communityId);
+      setSelectedCommunity(null); setSelectedChannel(null);
+      setView("discover"); currentCommunityRef.current = null;
       await loadCommunities();
     } catch (error) {
       await loadCommunities();

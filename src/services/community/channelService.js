@@ -166,25 +166,24 @@ class ChannelService {
 
   async deleteChannel(channelId) {
     try {
+      const { data: deleted, error } = await supabase.rpc("delete_community_channel", {
+        p_channel_id: channelId,
+      });
+
+      if (error) throw error;
+
       const { data: channel } = await supabase
         .from("community_channels")
         .select("community_id")
         .eq("id", channelId)
-        .single();
-
-      const { error } = await supabase
-        .from("community_channels")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", channelId);
-
-      if (error) throw error;
+        .maybeSingle();
 
       if (channel?.community_id) {
         this.cache.delete(`channels:${channel.community_id}`);
         this.lastFetch.delete(`channels:${channel.community_id}`);
       }
 
-      return true;
+      return Boolean(deleted);
     } catch (error) {
       console.error("Error deleting channel:", error);
       throw error;
