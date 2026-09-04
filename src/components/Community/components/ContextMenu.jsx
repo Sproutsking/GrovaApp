@@ -74,7 +74,8 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
   }, [position, showReactionPanel]);
 
   if (!position || !message) return null;
-  const canEdit = message.user_id === userId;
+  const messageOwnerId = message.user_id || message.sender_id;
+  const canEdit = String(messageOwnerId) === String(userId);
   const canDelete = canEdit || permissions.manageMessages || isOwner;
   const handle = (action) => { action?.(); onClose?.(); };
   const confirmDelete = async () => {

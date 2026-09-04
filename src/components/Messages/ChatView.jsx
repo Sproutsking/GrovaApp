@@ -603,9 +603,14 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           onReply={() => setReplyTo(messageMenu.message)}
           onCopy={() => navigator.clipboard?.writeText(messageMenu.message.content || "")}
           onDelete={async () => {
-            if (messageMenu.message.sender_id !== currentUser.id) return;
-            await dmMessageService.deleteMessage(messageMenu.message.id, currentUser.id);
-            setMessages((items) => items.filter((item) => item.id !== messageMenu.message.id));
+            try {
+              if (String(messageMenu.message.sender_id) !== String(currentUser.id)) return;
+              await dmMessageService.deleteMessage(messageMenu.message.id, currentUser.id);
+              setMessages((items) => items.filter((item) => item.id !== messageMenu.message.id));
+            } catch (error) {
+              console.error("Error deleting direct message:", error);
+              alert(error.message || "Failed to delete direct message");
+            }
           }}
           onReaction={(emoji) => toggleReaction(messageMenu.message.id, emoji)}
           onForward={() => dmMessageService.sendMessage(convId, `↗ Forwarded message\n${messageMenu.message.content}`, currentUser.id)}

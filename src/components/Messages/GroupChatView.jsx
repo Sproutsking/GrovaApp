@@ -826,7 +826,15 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
         onCopy={()=>navigator.clipboard?.writeText(messageContextMenu.message.content)}
         onReply={()=>setReplyTo(messageContextMenu.message)}
         onReaction={(emoji)=>handleReact(messageContextMenu.message.id, emoji)}
-        onDelete={async()=>{await groupDMService.deleteMessage(group.id, messageContextMenu.message.id);setMessages((previous)=>previous.filter((message)=>message.id!==messageContextMenu.message.id));}}
+        onDelete={async()=>{
+          try {
+            await groupDMService.deleteMessage(group.id, messageContextMenu.message.id);
+            setMessages((previous)=>previous.filter((message)=>message.id!==messageContextMenu.message.id));
+          } catch (error) {
+            console.error("Error deleting group message:", error);
+            alert(error.message || "Failed to delete group message");
+          }
+        }}
         onReport={()=>setMessageContextMenu(null)}
       />}
     </div>
