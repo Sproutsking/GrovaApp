@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 import EmojiPanel from "../EmojiPanel";
+import { CHANNEL_BUTTON_STYLES, CHANNEL_DIVIDER_STYLES } from "../../utils/channelStyles";
+import { CATEGORY_FOLDER_STYLES } from "../../utils/CategoryGroup";
 
 const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, onClose }) => {
   const [settings, setSettings] = useState({
@@ -28,6 +30,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
     backgroundTheme: "security",
     bannerGradient: "",
     iconBorder: "default",
+    channelAppearance: { buttonStyle: "fill-rounded", dividerStyle: "none", folderStyle: "simple" },
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -127,6 +130,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
 
   useEffect(() => {
     if (community) {
+      const welcomeCard = community.settings?.welcome_card || {};
       setSettings({
         name: community.name || "",
         description: community.description || "",
@@ -137,8 +141,13 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           community.banner_gradient ||
           "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         iconBorder: community.icon_border || "default",
-        welcomeTitle: community.settings?.welcome_title || "Find your people. Make something memorable.",
-        welcomeDescription: community.settings?.welcome_description || "Introduce yourself, explore the channels, and join the conversation.",
+        welcomeTitle: welcomeCard.title || community.settings?.welcome_title || "Find your people. Make something memorable.",
+        welcomeDescription: welcomeCard.description || community.settings?.welcome_description || "Introduce yourself, explore the channels, and join the conversation.",
+        channelAppearance: {
+          buttonStyle: community.settings?.channel_appearance?.buttonStyle || "fill-rounded",
+          dividerStyle: community.settings?.channel_appearance?.dividerStyle || "none",
+          folderStyle: community.settings?.channel_appearance?.folderStyle || "simple",
+        },
       });
       setIconPreview(community.icon?.startsWith("http") ? community.icon : null);
       setIconFile(null);
@@ -178,6 +187,11 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           description: settings.welcomeDescription,
         };
       }
+      payload.settings = {
+        ...(community.settings || {}),
+        welcome_card: payload.welcomeCard,
+        channel_appearance: settings.channelAppearance,
+      };
       await onUpdate(payload);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -397,6 +411,19 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
               rows={3} 
               maxLength={500} 
             />
+          </div>
+
+          <div className="setting-group">
+            <label className="setting-label"><Palette size={16} /> Channel appearance</label>
+            <p className="setting-hint">Choose the visual language for channel buttons, icon dividers, and category folders.</p>
+            <div className="appearance-setting-block">
+              <strong>Channel button</strong>
+              <div className="border-options">{CHANNEL_BUTTON_STYLES.map((style) => <button type="button" key={style.id} className={`border-option ${settings.channelAppearance.buttonStyle === style.id ? "selected" : ""}`} onClick={() => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, buttonStyle: style.id } }))}>{style.label}</button>)}</div>
+              <strong>Icon / text divider</strong>
+              <div className="border-options">{CHANNEL_DIVIDER_STYLES.map((style) => <button type="button" key={style.id} className={`border-option ${settings.channelAppearance.dividerStyle === style.id ? "selected" : ""}`} onClick={() => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, dividerStyle: style.id } }))}>{style.label}</button>)}</div>
+              <strong>Category folder</strong>
+              <div className="border-options">{CATEGORY_FOLDER_STYLES.map((style) => <button type="button" key={style.id} className={`border-option ${settings.channelAppearance.folderStyle === style.id ? "selected" : ""}`} onClick={() => setSettings((current) => ({ ...current, channelAppearance: { ...current.channelAppearance, folderStyle: style.id } }))}>{style.label}</button>)}</div>
+            </div>
           </div>
 
           {/* Basic Info */}

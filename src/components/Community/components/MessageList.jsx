@@ -99,14 +99,14 @@ const MessageList = ({
 
       {!loading &&
         allMessages.map((msg, idx) => {
-          const isMe = msg.user_id === userId;
+          const isMe = String(msg.user_id) === String(userId);
           const prev = allMessages[idx - 1];
           
           // Show tail on first message in a cluster (for both "me" and "them")
           const showTail = !prev || prev.user_id !== msg.user_id;
           const showAvatar = !isMe && showTail;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
-          const avatarFootprint = avatarSize + 2;
+          const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
           
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
@@ -136,7 +136,7 @@ const MessageList = ({
                     letter={initial}
                     showBadge={false}
                     imageBleed={avatarImageBleed}
-                    style={{ cursor: "pointer", transform: `translate(${hasBoostedProfile ? -6 : -2}px, ${hasBoostedProfile ? -6 : 0}px)` }}
+                    style={{ cursor: "pointer" }}
                   />
                 </div>
               )}

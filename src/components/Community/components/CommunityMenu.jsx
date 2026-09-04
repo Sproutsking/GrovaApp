@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import {
   X, Users, Link2, Settings, LogOut, Crown, ChevronRight,
-  ChevronLeft, Bell, Trash2, Plus, Star, TrendingUp, Activity, AlertTriangle, Palette,
+  ChevronLeft, Bell, Trash2, Plus, Star, TrendingUp, Activity, AlertTriangle, Palette, Wrench,
 } from "lucide-react";
 import permissionService from "../../../services/community/permissionService";
 import RolesPermissionsSection from "./sections/RolesPermissionsSection";
@@ -12,6 +12,7 @@ import NotificationsSection from "./sections/NotificationsSection";
 import MembersSection from "./sections/MembersSection";
 import CommunitySettingsSection from "./sections/CommunitySettingsSection";
 import AnalyticsSection from "./sections/AnalyticsSection";
+import ToolsSection from "./sections/ToolsSection";
 
 const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) => {
   if (!show) return null;
@@ -169,6 +170,7 @@ const CommunityMenu = ({
                   {menuView==="roles"&&"Roles & Permissions"}
                   {menuView==="analytics"&&"Analytics"}
                   {menuView==="notifications"&&"Notifications"}
+                  {menuView==="tools"&&"Tools"}
                 </span>
               </div>
             )}
@@ -210,6 +212,7 @@ const CommunityMenu = ({
                       { label:"Analytics", desc:"View community insights", icon:<TrendingUp size={16}/>, gradient:"linear-gradient(135deg,#a8edea,#fed6e3)", onClick:()=>setMenuView("analytics"), arrow:true },
                     ] : []),
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
+                    { label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true },
                   ].map((item, i) => (
                     <div key={i} className="cm-item" onClick={item.onClick}>
                       <div className="cm-item-icon" style={{ background: item.gradient }}>{item.icon}</div>
@@ -256,6 +259,14 @@ const CommunityMenu = ({
             )}
             {menuView === "settings"  && <CommunitySettingsSection community={community} userId={userId} channels={channels} onUpdate={async(s)=>onUpdate(s.type === "tool" ? s : {type:"community",settings:s})} onClose={()=>setMenuView("main")} />}
             {menuView === "analytics" && <AnalyticsSection community={community} />}
+            {menuView === "tools" && <ToolsSection
+              communityId={community.id}
+              channels={channels}
+              canManage={canManageCommunity}
+              onOpenInvite={() => { onClose(); onOpenInvite?.(); }}
+              onOpenUpgrade={() => setMenuView("settings")}
+              onOpenModeration={() => setMenuView("roles")}
+            />}
           </div>
         </div>
       </div>

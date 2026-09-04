@@ -1,4 +1,4 @@
-// services/community/communityMessageService.js - FIXED AVATAR ISSUE
+// services/community/communityMessageService.js - FIXED AVATAR ISSUE + DELETE
 import { supabase } from "../config/supabase";
 import communityState from "./CommunityStateManager";
 
@@ -70,7 +70,6 @@ class CommunityMessageService {
     }
 
     try {
-      // Build complete user object with avatar
       const userObject = {
         id: userId,
         username: currentUser.username || "Unknown",
@@ -82,9 +81,6 @@ class CommunityMessageService {
         boost_selections: currentUser.boost_selections || currentUser.boostSelections || {}
       };
 
-      console.log(`🚀 [SEND] Complete user object:`, userObject);
-
-      // Create optimistic message with full user data
       const optimisticMessage = {
         id: tempId,
         tempId,
@@ -94,28 +90,22 @@ class CommunityMessageService {
         content,
         reply_to_id: options.reply_to_id || null,
         created_at: new Date().toISOString(),
-        user: userObject,  // Full user object included
+        user: userObject,
         reactions: {},
         edited: false,
         _optimistic: true
       };
 
-      // Add to state immediately
       communityState.addMessage(channelId, optimisticMessage);
       this.pendingMessages.set(tempId, optimisticMessage);
 
-      console.log(`✅ [SEND] Optimistic message added with avatar:`, userObject.avatar_id);
-
-      // Broadcast to other users with full user data
       const channel = supabase.channel(`channel:${channelId}`);
       await channel.send({
         type: "broadcast",
         event: "new_message",
-        payload: optimisticMessage  // Send complete message with user object
+        payload: optimisticMessage
       });
-      console.log(`📡 [SEND] Broadcast sent with user data`);
 
-      // Save to database (async) - pass userObject for fallback
       return await this.saveToDatabase(channelId, userId, content, tempId, userObject, options.reply_to_id);
     } catch (error) {
       console.error("❌ Error sending message:", error);
@@ -141,15 +131,10 @@ class CommunityMessageService {
         throw error;
       }
 
-      console.log(`✅ [DB] Saved, replacing temp ${tempId} with ${data.id}`);
-      
-      // Use DB user data if available, otherwise fallback to userObject
       const realMessage = {
         ...data,
         user: data.user || userObject
       };
-
-      console.log(`✅ [DB] Real message user data:`, realMessage.user);
 
       communityState.replaceMessage(channelId, tempId, realMessage);
       this.pendingMessages.delete(tempId);
@@ -163,43 +148,30 @@ class CommunityMessageService {
   }
 
   subscribeToChannel(channelId, callbackOrOptions) {
-    const callback = typeof callbackOrOptions === 'function' 
-      ? callbackOrOptions 
+    const callback = typeof callbackOrOptions === 'function'
+      ? callbackOrOptions
       : callbackOrOptions?.onMessage || (() => {});
-
     return this.subscribeToMessages(channelId, callback);
   }
 
   subscribeToMessages(channelId, callback) {
     const channelKey = `channel:${channelId}`;
-    
+
     if (this.channelSubscriptions.has(channelKey)) {
-      console.log(`⚠️ Already subscribed to ${channelKey}`);
       return this.channelSubscriptions.get(channelKey).unsubscribe;
     }
-
-    console.log(`🔌 [SUBSCRIBE] Joining channel: ${channelKey}`);
 
     const channel = supabase
       .channel(channelKey)
       .on("broadcast", { event: "new_message" }, (payload) => {
-        console.log("📨 [BROADCAST] Received:", payload.payload);
-        
-        // Skip own optimistic messages
-        if (this.pendingMessages.has(payload.payload.tempId) || 
+        if (this.pendingMessages.has(payload.payload.tempId) ||
             this.pendingMessages.has(payload.payload._tempId)) {
-          console.log("⏭️ Skipping own optimistic message");
           return;
         }
-
-        // Ensure user data is present in broadcast
         if (payload.payload.user) {
-          console.log("✅ [BROADCAST] User data present:", payload.payload.user.avatar_id);
           communityState.addMessage(channelId, payload.payload);
           callback(payload.payload);
         } else {
-          console.warn("⚠️ [BROADCAST] Missing user data, fetching...");
-          // Fetch user data if missing
           this.fetchUserForMessage(payload.payload).then(enrichedMsg => {
             communityState.addMessage(channelId, enrichedMsg);
             callback(enrichedMsg);
@@ -212,27 +184,18 @@ class CommunityMessageService {
         table: "community_messages",
         filter: `channel_id=eq.${channelId}`
       }, async (payload) => {
-        console.log("📨 [DB INSERT] Received:", payload.new.id);
-        
-        // Fetch full message with user data
         const { data } = await supabase
           .from("community_messages")
           .select(`
             *,
             user:user_id(
-              id,
-              username,
-              full_name,
-              avatar_id,
-              avatar_metadata,
-              verified
+              id, username, full_name, avatar_id, avatar_metadata, verified
             )
           `)
           .eq("id", payload.new.id)
           .single();
 
         if (data) {
-          console.log("✅ [DB INSERT] User data loaded:", data.user?.avatar_id);
           communityState.addMessage(channelId, data);
           callback(data);
         }
@@ -248,12 +211,9 @@ class CommunityMessageService {
           callback({ ...payload.new, _deleted: true });
         }
       })
-      .subscribe((status) => {
-        console.log(`🔌 Channel ${channelKey} status:`, status);
-      });
+      .subscribe();
 
     const unsubscribe = () => {
-      console.log(`🔌 [UNSUBSCRIBE] Leaving ${channelKey}`);
       channel.unsubscribe();
       this.channelSubscriptions.delete(channelKey);
     };
@@ -309,26 +269,26 @@ class CommunityMessageService {
     }
   }
 
+  // ── FIXED: only an actual RPC error means failure. The old code treated
+  // a falsy `data` return (void RPC, or a RETURNING clause the client
+  // never sees) as failure and threw even when the delete succeeded
+  // server-side — that was the entire "can't delete my own messages" bug.
   async deleteMessage(messageId, userId, communityId) {
-    try {
-      if (!messageId || !userId) {
-        throw new Error("Message and user are required to delete a message.");
-      }
-      const { data, error } = await supabase.rpc("delete_community_message", {
-        p_message_id: messageId,
-      });
-
-      if (error) throw error;
-      if (!data) throw new Error("Message not found or already deleted.");
-      return true;
-    } catch (error) {
-      console.error("Error deleting message:", error);
-      throw error;
+    if (!messageId || !userId) {
+      throw new Error("Message and user are required to delete a message.");
     }
+    const { data, error } = await supabase.rpc("delete_community_message", {
+      p_message_id: messageId,
+    });
+    if (error) throw error;
+    if (data === false) {
+      throw new Error("This message was already deleted or you do not have permission to delete it.");
+    }
+    return true;
   }
+
   async wipeChannel(channelId) {
     if (!channelId) throw new Error("Channel is required");
-
     const { error } = await supabase
       .from("community_messages")
       .update({ deleted_at: new Date().toISOString() })
@@ -349,11 +309,7 @@ class CommunityMessageService {
         .single();
 
       const reactions = msg?.reactions || {};
-      
-      if (!reactions[emoji]) {
-        reactions[emoji] = { count: 0, users: [] };
-      }
-
+      if (!reactions[emoji]) reactions[emoji] = { count: 0, users: [] };
       if (!reactions[emoji].users.includes(userId)) {
         reactions[emoji].count++;
         reactions[emoji].users.push(userId);
@@ -381,14 +337,10 @@ class CommunityMessageService {
         .single();
 
       const reactions = msg?.reactions || {};
-
       if (reactions[emoji] && reactions[emoji].users.includes(userId)) {
         reactions[emoji].count--;
         reactions[emoji].users = reactions[emoji].users.filter(id => id !== userId);
-
-        if (reactions[emoji].count === 0) {
-          delete reactions[emoji];
-        }
+        if (reactions[emoji].count === 0) delete reactions[emoji];
       }
 
       const { error } = await supabase
@@ -406,7 +358,6 @@ class CommunityMessageService {
 
   subscribeToTyping(channelId, callback) {
     const typingKey = `typing:${channelId}`;
-    
     if (this.typingSubscriptions.has(typingKey)) {
       return this.typingSubscriptions.get(typingKey).unsubscribe;
     }
@@ -418,23 +369,17 @@ class CommunityMessageService {
       .channel(typingKey)
       .on("broadcast", { event: "typing" }, (payload) => {
         const { userId, userName, typing } = payload.payload;
-
         if (userId === this.userId) return;
 
         if (typing) {
           typingUsers.set(userId, { userId, userName });
-
-          if (typingTimeouts.has(userId)) {
-            clearTimeout(typingTimeouts.get(userId));
-          }
-
+          if (typingTimeouts.has(userId)) clearTimeout(typingTimeouts.get(userId));
           const timeout = setTimeout(() => {
             typingUsers.delete(userId);
             const current = Array.from(typingUsers.values());
             communityState.setTyping(channelId, current);
             callback(current);
           }, 3000);
-
           typingTimeouts.set(userId, timeout);
         } else {
           typingUsers.delete(userId);
@@ -468,10 +413,10 @@ class CommunityMessageService {
       await channel.send({
         type: "broadcast",
         event: "typing",
-        payload: { 
-          userId: this.userId, 
+        payload: {
+          userId: this.userId,
           userName: userName || "Unknown",
-          typing: isTyping 
+          typing: isTyping
         }
       });
     } catch (error) {
