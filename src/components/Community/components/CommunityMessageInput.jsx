@@ -17,6 +17,7 @@ const CommunityMessageInput = ({
   roles = [],
   channels = [],
   onMentionSelect = null,
+  channelType = "text",
 }) => {
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
@@ -24,6 +25,7 @@ const CommunityMessageInput = ({
   const [selectedGif, setSelectedGif] = useState(null);
   const [selectedMeme, setSelectedMeme] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [announcementTitle, setAnnouncementTitle] = useState("");
   
   const inputRef = useRef(null);
   const plusBtnRef = useRef(null);
@@ -40,13 +42,14 @@ const CommunityMessageInput = ({
     if (!hasContent || disabled) return;
     
     // TODO: Build final message with all media
-    onSend();
+    onSend(channelType === "announcement" ? { title: announcementTitle.trim() } : undefined);
     
     // Clear all media
     setSelectedEmojis([]);
     setSelectedGif(null);
     setSelectedMeme(null);
     setSelectedFiles([]);
+    if (channelType === "announcement") setAnnouncementTitle("");
     
     if (inputRef.current) inputRef.current.focus();
   }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, disabled, onSend]);
@@ -244,7 +247,8 @@ const CommunityMessageInput = ({
         </div>
       )}
 
-      <div className="comm-msg-input-bar">
+      <div className={`comm-msg-input-bar${channelType === "announcement" ? " announcement-input" : ""}`}>
+        {channelType === "announcement" && <input className="comm-announcement-title" value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="Announcement title (optional)" maxLength={150} />}
         <button
           ref={plusBtnRef}
           className={`comm-plus-btn ${showMediaPopup ? "active" : ""}`}
@@ -453,6 +457,9 @@ const CommunityMessageInput = ({
           gap: 8px;
           padding: 10px 12px;
         }
+        .comm-msg-input-bar.announcement-input{align-items:flex-end;flex-wrap:wrap;border-top:1px solid rgba(156,255,0,.2);background:linear-gradient(180deg,rgba(156,255,0,.06),transparent)}
+        .comm-announcement-title{order:-1;flex:1 0 calc(100% - 48px);min-width:0;padding:9px 12px;border:1px solid rgba(156,255,0,.24);border-radius:10px;background:rgba(0,0,0,.2);color:var(--text);font:700 13px inherit;outline:none}
+        .comm-announcement-title:focus{border-color:var(--accent-border-strong);box-shadow:0 0 0 3px var(--accent-glow)}
         .comm-mention-menu{position:absolute;bottom:calc(100% + 8px);left:48px;width:min(280px,calc(100vw - 70px));max-height:240px;overflow-y:auto;padding:6px;background:rgba(9,15,11,.98);border:1px solid rgba(156,255,0,.3);border-radius:11px;box-shadow:0 16px 36px rgba(0,0,0,.65);z-index:20}.comm-mention-menu button{width:100%;display:flex;align-items:center;gap:8px;padding:7px;border:0;border-radius:7px;background:transparent;color:#d9eadb;text-align:left;cursor:pointer}.comm-mention-menu button:hover{background:rgba(156,255,0,.1)}.comm-mention-icon{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:rgba(156,255,0,.12);color:#9cff00;font-weight:800}.comm-mention-menu button span:nth-child(2){display:flex;flex-direction:column;gap:2px}.comm-mention-menu strong{font-size:11px}.comm-mention-menu small{font-size:9px;color:#6d876f}
 
         .comm-plus-btn {

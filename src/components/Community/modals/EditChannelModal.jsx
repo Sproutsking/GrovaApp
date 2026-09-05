@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile, Lock } from "lucide-react";
 import EmojiPanel from "../components/EmojiPanel";
 
-const EditChannelModal = ({ channel, onClose, onUpdate }) => {
+const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) => {
   const [formData, setFormData] = useState({
     name: channel.name,
     icon: channel.icon,
@@ -53,6 +53,24 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
     } catch (err) {
       setError(err.message || "Failed to update channel");
       setSaving(false);
+    }
+  };
+
+  const togglePrivate = async () => {
+    const nextPrivate = !formData.is_private;
+    const nextData = { ...formData, is_private: nextPrivate };
+    setFormData(nextData);
+    if (nextPrivate && onRequestPermissions) {
+      try {
+        setSaving(true);
+        await onRequestPermissions({
+          name: nextData.name.trim(), icon: nextData.icon || "💬", description: nextData.description.trim() || null,
+          type: nextData.type, is_private: true, is_locked: nextData.is_locked, category: nextData.category.trim() || "Channels",
+        });
+      } catch (err) {
+        setError(err.message || "Failed to enable private access");
+        setSaving(false);
+      }
     }
   };
 
@@ -141,12 +159,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
               <div className="checkbox-item">
                 <div
                   className={`checkbox ${formData.is_private ? "checked" : ""}`}
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      is_private: !formData.is_private,
-                    })
-                  }
+                  onClick={togglePrivate}
                 >
                   {formData.is_private && <span>✓</span>}
                 </div>
@@ -390,16 +403,14 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
           75% { transform: translateX(8px); }
         }
 
-        .form-group {
-          margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; display:flex; flex-direction:column; gap:8px; }
 
         .form-label {
           display: block;
           font-size: 13px;
           font-weight: 700;
           color: #9cff00;
-          margin-bottom: 8px;
+          margin-bottom: 0;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
@@ -477,7 +488,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
         .help-text {
           font-size: 11px;
           color: #666;
-          margin-top: 6px;
+          margin: 0;
         }
 
         .checkbox-item {
@@ -485,6 +496,10 @@ const EditChannelModal = ({ channel, onClose, onUpdate }) => {
           align-items: center;
           gap: 12px;
           cursor: pointer;
+          padding: 11px 12px;
+          border: 1px solid rgba(255,255,255,.08);
+          border-radius: 10px;
+          background: rgba(255,255,255,.025);
         }
 
         .checkbox {

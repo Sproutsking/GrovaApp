@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Check, ChevronRight, Crown, Link2, ShieldCheck, Ticket, UserPlus, Users2, Radio } from "lucide-react";
+import { Check, ChevronRight, Crown, Link2, ShieldCheck, Ticket, UserPlus, Users2, Radio, Sparkles } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 
 const TOOL_CATALOG = [
   { type: "verification", label: "Verification", description: "Confirm rules before members enter.", icon: ShieldCheck },
   { type: "social_updates", label: "Social updates", description: "Deliver connected updates to selected channels.", icon: Radio },
   { type: "tickets", label: "Tickets", description: "Give members a private support entry point.", icon: Ticket },
+  { type: "welcome", label: "Welcome", description: "Show a polished introduction in a selected channel.", icon: Sparkles },
 ];
 
 export default function ToolsSection({ communityId, channels = [], canManage = false, onOpenInvite, onOpenUpgrade, onOpenModeration }) {
@@ -74,6 +75,15 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
     }
   };
 
+  const updateWelcomeConfig = async (field, value) => {
+    if (!canManage) return;
+    const row = getRow("welcome");
+    const nextRow = { ...row, community_id: communityId, tool_type: "welcome", enabled: true, channel_id: row.channel_id || null, config: { ...(row.config || {}), [field]: value }, updated_at: new Date().toISOString() };
+    setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), nextRow]);
+    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
+    if (saveError) setError(saveError.message);
+  };
+
   const navigation = [
     { label: "Invite people", description: "Create or manage invite links.", icon: UserPlus, onClick: onOpenInvite },
     { label: "Upgrade community", description: "Boost visibility and unlock premium controls.", icon: Crown, onClick: onOpenUpgrade },
@@ -96,7 +106,7 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
             <button type="button" className="community-tool-card" onClick={() => setOpenTool(open ? null : tool.type)}>
               <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span><em>{selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
             </button>
-            {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div>}
+            {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}{tool.type === "welcome" && <div className="community-tool-config"><input disabled={!canManage} value={getRow("welcome").config?.title || "Welcome to our community"} onChange={(event) => updateWelcomeConfig("title", event.target.value)} placeholder="Welcome title" maxLength={150} /><textarea disabled={!canManage} value={getRow("welcome").config?.description || "Introduce yourself and join the conversation."} onChange={(event) => updateWelcomeConfig("description", event.target.value)} placeholder="Welcome description" rows={3} maxLength={500} /></div>}</div>}
             {open && tool.type === "social_updates" && canManage && <button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button>}
           </div>
         );

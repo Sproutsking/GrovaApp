@@ -104,7 +104,11 @@ const MessageList = ({
           const prev = allMessages[idx - 1];
           
           // Show tail on first message in a cluster (for both "me" and "them")
-          const showTail = !prev || prev.user_id !== msg.user_id;
+          const isAnnouncement = channelType === "announcement";
+          const showTail = !isAnnouncement && (!prev || prev.user_id !== msg.user_id);
+          const announcementMatch = isAnnouncement ? String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
+          const messageTitle = announcementMatch?.[1] || "";
+          const messageBody = announcementMatch?.[2] || msg.content;
           const showAvatar = !isMe && showTail;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
           const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
@@ -154,7 +158,8 @@ const MessageList = ({
                     {(msg.user?.verified || hasBoostedProfile) && <span className="msg-verified" aria-label="Verified account">✓</span>}
                   </button>
                 )}
-                <div className="msg-content">{parseSharedContent(msg.content) ? <SharedContentMessage onNavigate={onNavigate}>{msg.content}</SharedContentMessage> : renderContent(msg.content)}</div>
+                {messageTitle && <div className="announcement-title">{messageTitle}</div>}
+                <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
                 <div className="msg-meta">
                   <span className="msg-time">{formatTime(msg.created_at)}</span>
                   {msg.edited && <span className="msg-edited">(edited)</span>}
@@ -334,6 +339,8 @@ const MessageList = ({
         }
         .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; }
         .msg-item.announcement .msg-meta { margin-top: 10px; }
+        .msg-item.announcement .msg-bubble{border-top:3px solid rgba(156,255,0,.72);border-bottom-left-radius:18px;border-bottom-right-radius:18px}
+        .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid rgba(156,255,0,.18)}
 
         /* Base bubble styles */
         .msg-bubble.them {

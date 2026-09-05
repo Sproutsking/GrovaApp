@@ -130,7 +130,6 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
 
   useEffect(() => {
     if (community) {
-      const welcomeCard = community.settings?.welcome_card || {};
       setSettings({
         name: community.name || "",
         description: community.description || "",
@@ -141,8 +140,6 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
           community.banner_gradient ||
           "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         iconBorder: community.icon_border || "default",
-        welcomeTitle: welcomeCard.title || community.settings?.welcome_title || "Find your people. Make something memorable.",
-        welcomeDescription: welcomeCard.description || community.settings?.welcome_description || "Introduce yourself, explore the channels, and join the conversation.",
         channelAppearance: {
           buttonStyle: community.settings?.channel_appearance?.buttonStyle || "fill-rounded",
           dividerStyle: community.settings?.channel_appearance?.dividerStyle || "none",
@@ -181,15 +178,8 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
       setLoading(true);
       setError("");
       const payload = { ...settings, iconFile };
-      if (settings.welcomeTitle || settings.welcomeDescription) {
-        payload.welcomeCard = {
-          title: settings.welcomeTitle,
-          description: settings.welcomeDescription,
-        };
-      }
       payload.settings = {
         ...(community.settings || {}),
-        welcome_card: payload.welcomeCard,
         channel_appearance: settings.channelAppearance,
       };
       await onUpdate(payload);
@@ -250,30 +240,6 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
         </div>
 
         <div className="settings-form">
-          {/* Welcome Card Editor */}
-          <div className="setting-group">
-            <label className="setting-label">
-              <Sparkles size={16} /> Welcome Card
-            </label>
-            <p className="setting-hint">Customize the welcome message shown in the welcome channel.</p>
-            <input 
-              type="text" 
-              className="setting-input" 
-              value={settings.welcomeTitle || "Find your people. Make something memorable."} 
-              onChange={(e) => setSettings({ ...settings, welcomeTitle: e.target.value })} 
-              placeholder="Welcome title..." 
-              maxLength={150} 
-            />
-            <textarea 
-              className="setting-textarea" 
-              value={settings.welcomeDescription || "Introduce yourself, explore the channels, and join the conversation."} 
-              onChange={(e) => setSettings({ ...settings, welcomeDescription: e.target.value })} 
-              placeholder="Welcome description..." 
-              rows={3} 
-              maxLength={500} 
-            />
-          </div>
-
           <div className="setting-group">
             <label className="setting-label"><Palette size={16} /> Channel appearance</label>
             <p className="setting-hint">Choose the visual language for channel buttons, icon dividers, and category folders.</p>

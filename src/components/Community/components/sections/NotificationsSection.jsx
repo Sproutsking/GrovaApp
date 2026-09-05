@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ChevronLeft, Bell, BellOff, Volume2, VolumeX, Smartphone,
+  Bell, BellOff, Volume2, VolumeX, Smartphone,
   Mail, MessageSquare, Users, Crown, Pin, Zap, Check, X,
   Settings, Moon, Sun, Clock, Filter
 } from 'lucide-react';
@@ -67,11 +67,6 @@ const NotificationsSection = ({
 
   return (
     <>
-      <div className="back-button" onClick={onBack}>
-        <ChevronLeft size={16} />
-        Back to Menu
-      </div>
-
       <div className="notifications-header">
         <div className="notifications-title">
           <Bell size={20} />

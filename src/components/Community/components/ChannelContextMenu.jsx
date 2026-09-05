@@ -1,7 +1,7 @@
 // components/Community/components/ChannelContextMenu.jsx
 // Updated: adds "Channel Permissions" option for admins/owners
 import React, { useState, useRef, useEffect } from "react";
-import { Edit3, Trash2, Lock, Unlock, Archive, Shield, Settings2 } from "lucide-react";
+import { Edit3, Trash2, Lock, Unlock, Archive, Shield, Settings2, Bell, BellOff } from "lucide-react";
 
 const ChannelContextMenu = ({
   position,
@@ -13,6 +13,7 @@ const ChannelContextMenu = ({
   onEdit,
   onDelete,
   onTogglePrivacy,
+  onToggleMute,
   onWipeChannel,
   onPermissions,  // NEW
 }) => {
@@ -83,6 +84,9 @@ const ChannelContextMenu = ({
                     ? <><Unlock size={15} /><span>Make Public</span></>
                     : <><Lock size={15} /><span>Make Private</span></>
                   }
+                </button>
+                <button className="ctx-item" onClick={() => handleAction(() => onToggleMute?.())}>
+                  {channel.notifications_muted ? <><Bell size={15} /><span>Unmute notifications</span></> : <><BellOff size={15} /><span>Mute notifications</span></>}
                 </button>
               </div>
             )}

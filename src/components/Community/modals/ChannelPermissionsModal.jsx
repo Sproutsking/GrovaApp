@@ -39,7 +39,9 @@ const StateToggle = ({ value, onChange }) => {
   );
 };
 
-const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave }) => {
+const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClose, onSave }) => {
+  const target = category || channel;
+  const isCategory = Boolean(category);
   // Map: { [roleId]: { [permKey]: "inherit"|"allow"|"deny" } }
   const [overrides, setOverrides] = useState({});
   const [selectedRole, setSelectedRole] = useState(null);
@@ -57,15 +59,15 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
   useEffect(() => {
     loadOverrides();
     if (roleGroups.length > 0) setSelectedRole(roleGroups[0].role);
-  }, [channel.id]);
+  }, [target.id, isCategory]);
 
   const loadOverrides = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from("channel_permission_overrides")
+        .from(isCategory ? "category_permission_overrides" : "channel_permission_overrides")
         .select("*")
-        .eq("channel_id", channel.id);
+        .eq(isCategory ? "category_id" : "channel_id", target.id);
 
       if (error && error.code !== "42P01") throw error; // 42P01 = table not exists
 
@@ -105,22 +107,28 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
     try {
       // Delete existing overrides for this channel
       await supabase
-        .from("channel_permission_overrides")
+        .from(isCategory ? "category_permission_overrides" : "channel_permission_overrides")
         .delete()
-        .eq("channel_id", channel.id);
+        .eq(isCategory ? "category_id" : "channel_id", target.id);
 
       // Build rows for non-inherit states
       const rows = [];
       Object.entries(overrides).forEach(([roleId, perms]) => {
         Object.entries(perms).forEach(([permKey, state]) => {
           if (state !== "inherit") {
-            rows.push({ channel_id: channel.id, role_id: roleId, permission: permKey, state });
+            rows.push({
+              community_id: communityId,
+              ...(isCategory ? { category_id: category.id, apply_to_channels: true } : { channel_id: channel.id }),
+              role_id: roleId,
+              permission: permKey,
+              state,
+            });
           }
         });
       });
 
       if (rows.length > 0) {
-        await supabase.from("channel_permission_overrides").insert(rows);
+        await supabase.from(isCategory ? "category_permission_overrides" : "channel_permission_overrides").insert(rows);
       }
 
       if (onSave) onSave();
@@ -148,7 +156,7 @@ const ChannelPermissionsModal = ({ channel, communityId, roles, onClose, onSave 
         <div className="cp-head">
           <div className="cp-title">
             <Lock size={16} color="#9cff00" />
-            <span>#{channel.name}</span>
+            <span>{isCategory ? target.name : `#${target.name}`}</span>
             <span className="cp-sub">Permissions</span>
           </div>
           <button className="cp-close" onClick={onClose}><X size={17} /></button>

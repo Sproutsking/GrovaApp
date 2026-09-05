@@ -159,8 +159,13 @@ const ChatTab = ({
       setEditingChannel(event.detail);
       setShowEditChannel(true);
     };
+    const handleChannelsChanged = () => loadChannels();
     window.addEventListener("community:edit-channel", handleEditChannel);
-    return () => window.removeEventListener("community:edit-channel", handleEditChannel);
+    window.addEventListener("community:channels-changed", handleChannelsChanged);
+    return () => {
+      window.removeEventListener("community:edit-channel", handleEditChannel);
+      window.removeEventListener("community:channels-changed", handleChannelsChanged);
+    };
   }, []);
 
   const loadChannels = async () => {
@@ -334,7 +339,7 @@ const ChatTab = ({
     clearTimeout(typingTimeout.current);
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (announcement = undefined) => {
     const content = messageInput.trim();
     if (!content || sending || !selectedChannel?.id) return;
     if (selectedChannel?.is_locked) {
@@ -365,8 +370,11 @@ const ChatTab = ({
         const parts = currentUser.avatar.split("/");
         avatarId = parts[parts.length - 1].split("?")[0];
       }
+      const messageContent = selectedChannel?.type === "announcement" && announcement?.title
+        ? `[[announcement:${announcement.title.replace(/\]/g, "") }]]\n${content}`
+        : content;
       await communityMessageService.sendMessage(
-        selectedChannel.id, userId, content,
+        selectedChannel.id, userId, messageContent,
         {
           user: {
             id: userId,
@@ -514,6 +522,21 @@ const ChatTab = ({
     communityCache.setChannels(community.id, next);
     await persistChannelOrder(next);
     setDraggedChannel(null);
+  };
+
+  const applyChannelUpdate = async (channelId, channelData, openPermissions = false) => {
+    const updated = await channelService.updateChannel(channelId, channelData);
+    const nextChannels = channels.map((channel) => channel.id === channelId ? { ...channel, ...updated, ...channelData } : channel);
+    setChannels(nextChannels);
+    communityCache.setChannels(community.id, nextChannels);
+    if (selectedChannel?.id === channelId) setSelectedChannel((current) => ({ ...current, ...updated, ...channelData }));
+    setShowEditChannel(false);
+    setEditingChannel(null);
+    if (openPermissions) {
+      setPermsChannel({ ...editingChannel, ...updated, ...channelData });
+      setShowChannelPerms(true);
+    }
+    return updated;
   };
 
   useEffect(() => {
@@ -705,6 +728,7 @@ const ChatTab = ({
             members={members}
             roles={roles}
             channels={channels}
+            channelType={selectedChannel?.type}
           />
         </div>
       </div>
@@ -871,6 +895,17 @@ const ChatTab = ({
               console.error("Error updating channel:", error);
             }
           }}
+          onToggleMute={async () => {
+            try {
+              const updated = await channelService.updateChannel(channelContextMenu.channel.id, { notifications_muted: !channelContextMenu.channel.notifications_muted });
+              const nextChannels = channels.map((channel) => channel.id === updated.id ? { ...channel, ...updated } : channel);
+              setChannels(nextChannels);
+              communityCache.setChannels(community.id, nextChannels);
+              setChannelContextMenu(null);
+            } catch (error) {
+              console.error("Error updating channel notifications:", error);
+            }
+          }}
           onWipeChannel={async (channel) => {
             try {
               await communityMessageService.wipeChannel(channel.id);
@@ -921,10 +956,14 @@ const ChatTab = ({
           onClose={() => setShowCreateChannel(false)}
           onCreate={async (channelData) => {
             try {
-              await channelService.createChannel(channelData, community.id);
+              const created = await channelService.createChannel(channelData, community.id);
               communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowCreateChannel(false);
+              if (channelData.is_private && created) {
+                setPermsChannel(created);
+                setShowChannelPerms(true);
+              }
             } catch (error) {
               throw error;
             }
@@ -937,9 +976,10 @@ const ChatTab = ({
         <EditChannelModal
           channel={editingChannel}
           onClose={() => { setShowEditChannel(false); setEditingChannel(null); }}
+          onRequestPermissions={(nextData) => applyChannelUpdate(editingChannel.id, nextData, true)}
           onUpdate={async (channelData) => {
             try {
-              await channelService.updateChannel(editingChannel.id, channelData);
+              await applyChannelUpdate(editingChannel.id, channelData, false);
               communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowEditChannel(false);

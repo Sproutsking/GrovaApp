@@ -199,7 +199,27 @@ class RoleService {
         .eq("role_id", membership.role_id)
         .eq("permission", "viewChannel");
       const overrideMap = new Map((overrides || []).map((item) => [item.channel_id, item.state]));
-      return allChannels.filter((channel) => overrideMap.get(channel.id) !== "deny");
+      const categoryNames = [...new Set((allChannels || []).map((channel) => channel.category).filter(Boolean))];
+      const { data: categories } = await supabase
+        .from("community_channel_categories")
+        .select("id,name")
+        .eq("community_id", communityId)
+        .in("name", categoryNames);
+      const categoryIds = new Map((categories || []).map((category) => [category.name, category.id]));
+      const { data: categoryOverrides } = await supabase
+        .from("category_permission_overrides")
+        .select("category_id,state,apply_to_channels")
+        .eq("community_id", communityId)
+        .eq("role_id", membership.role_id)
+        .eq("permission", "viewChannel");
+      const categoryOverrideMap = new Map((categoryOverrides || []).filter((item) => item.apply_to_channels).map((item) => [item.category_id, item.state]));
+      return allChannels.filter((channel) => {
+        const explicit = overrideMap.get(channel.id);
+        if (explicit) return explicit === "allow";
+        const inherited = categoryOverrideMap.get(categoryIds.get(channel.category));
+        if (inherited) return inherited === "allow";
+        return !channel.is_private;
+      });
     } catch (error) {
       console.error("Error getting visible channels:", error);
       return (allChannels || []).filter((channel) => !channel.is_private);

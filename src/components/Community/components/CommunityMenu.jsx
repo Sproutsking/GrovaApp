@@ -14,6 +14,7 @@ import CommunitySettingsSection from "./sections/CommunitySettingsSection";
 import AnalyticsSection from "./sections/AnalyticsSection";
 import ToolsSection from "./sections/ToolsSection";
 import ChannelManagementSection from "./sections/ChannelManagementSection";
+import CategoryManagementSection from "./sections/CategoryManagementSection";
 
 const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) => {
   if (!show) return null;
@@ -173,6 +174,7 @@ const CommunityMenu = ({
                   {menuView==="notifications"&&"Notifications"}
                   {menuView==="tools"&&"Tools"}
                   {menuView==="channels"&&"Channels"}
+                  {menuView==="categories"&&"Categories"}
                 </span>
               </div>
             )}
@@ -216,6 +218,7 @@ const CommunityMenu = ({
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
                     { label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true },
                     ...(canCreateChannels ? [{ label:"Manage Channels", desc:"Edit channels and organize categories", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#60a5fa,#22d3ee)", onClick:()=>setMenuView("channels"), arrow:true }] : []),
+                    ...(canManageCommunity ? [{ label:"Manage Categories", desc:"Create and arrange channel groups", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#fbbf24,#f97316)", onClick:()=>setMenuView("categories"), arrow:true }] : []),
                   ].map((item, i) => (
                     <div key={i} className="cm-item" onClick={item.onClick}>
                       <div className="cm-item-icon" style={{ background: item.gradient }}>{item.icon}</div>
@@ -275,6 +278,7 @@ const CommunityMenu = ({
               onCreate={() => { onClose(); onCreateChannel?.(); }}
               onEdit={(channel) => { onClose(); window.dispatchEvent(new CustomEvent("community:edit-channel", { detail: channel })); }}
             />}
+            {menuView === "categories" && <CategoryManagementSection communityId={community?.id} onChanged={() => window.dispatchEvent(new CustomEvent("community:channels-changed"))} />}
           </div>
         </div>
       </div>
