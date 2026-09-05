@@ -57,6 +57,8 @@ export default function ChannelButton({
   onContextMenu,
   draggable = false,
   onDragStart,
+  onDragOver,
+  onDrop,
   onDragEnd,
 }) {
   injectChannelButtonStyles();
@@ -68,6 +70,8 @@ export default function ChannelButton({
       onContextMenu={onContextMenu}
       draggable={draggable}
       onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       onDragEnd={onDragEnd}
       title={channel.name}
     >

@@ -420,6 +420,68 @@ const ChatTab = ({
     setCategoryOrder(next); setDraggedCategory(null);
     await Promise.all(next.map((name, position) => supabase.from("community_channel_categories").update({ position, updated_at: new Date().toISOString() }).eq("community_id", community.id).eq("name", name)));
   };
+
+  const persistChannelOrder = async (nextChannels) => {
+    if (!community?.id || !Array.isArray(nextChannels)) return;
+    const grouped = nextChannels.reduce((acc, channel) => {
+      const category = channel.category || "Channels";
+      acc[category] = [...(acc[category] || []), channel];
+      return acc;
+    }, {});
+
+    await Promise.all(
+      Object.entries(grouped).flatMap(([category, list]) =>
+        list.map((channel, index) =>
+          supabase.from("community_channels")
+            .update({ category, position: index, updated_at: new Date().toISOString() })
+            .eq("id", channel.id)
+        )
+      )
+    );
+  };
+
+  const reorderChannelsForDrop = (sourceId, targetCategory, targetChannelId = null) => {
+    if (!sourceId || !Array.isArray(channels) || channels.length === 0) return null;
+
+    const copies = channels.map((channel) => ({ ...channel }));
+    const sourceChannel = copies.find((channel) => channel.id === sourceId);
+    if (!sourceChannel) return null;
+
+    const sourceCategory = sourceChannel.category || "Channels";
+    const groups = copies.reduce((acc, channel) => {
+      const category = channel.category || "Channels";
+      acc[category] = [...(acc[category] || []), channel];
+      return acc;
+    }, {});
+
+    const sourceList = (groups[sourceCategory] || []).filter((channel) => channel.id !== sourceId);
+    const targetList = (groups[targetCategory] || []).filter((channel) => channel.id !== sourceId);
+    const movedChannel = { ...sourceChannel, category: targetCategory };
+
+    if (sourceCategory === targetCategory) {
+      const insertIndex = targetChannelId
+        ? sourceList.findIndex((channel) => channel.id === targetChannelId)
+        : sourceList.length;
+      sourceList.splice(insertIndex < 0 ? sourceList.length : insertIndex, 0, movedChannel);
+      groups[sourceCategory] = sourceList;
+    } else {
+      const insertIndex = targetChannelId
+        ? targetList.findIndex((channel) => channel.id === targetChannelId)
+        : targetList.length;
+      targetList.splice(insertIndex < 0 ? targetList.length : insertIndex, 0, movedChannel);
+      groups[targetCategory] = targetList;
+      groups[sourceCategory] = sourceList;
+    }
+
+    const next = [];
+    Object.entries(groups).forEach(([category, list]) => {
+      list.forEach((channel, index) => {
+        next.push({ ...channel, category, position: index });
+      });
+    });
+
+    return next;
+  };
   const renameCategory = async () => {
     if (!categoryMenu || !isOwner) return;
     const nextName = window.prompt("Category name", categoryMenu.name)?.trim();
@@ -439,16 +501,34 @@ const ChatTab = ({
     setCategoryMenu(null);
     await loadChannels();
   };
-  const moveChannelToCategory = async (category) => {
-    if (!draggedChannel || !isOwner || draggedChannel.category === category) return;
-    const { error } = await supabase.from("community_channels").update({ category, updated_at: new Date().toISOString() }).eq("id", draggedChannel.id);
-    if (!error) {
-      const next = channels.map((channel) => channel.id === draggedChannel.id ? { ...channel, category } : channel);
-      setChannels(next);
-      communityCache.setChannels(community.id, next);
-    }
+  const moveChannelToCategory = async (category, targetChannelId = null) => {
+    if (!draggedChannel || !isOwner) return;
+    const next = reorderChannelsForDrop(draggedChannel.id, category, targetChannelId);
+    if (!next) return;
+
+    const sourceCategory = draggedChannel.category || "Channels";
+    const sameCategory = sourceCategory === category && (!targetChannelId || draggedChannel.id !== targetChannelId);
+    if (sameCategory && (!targetChannelId || draggedChannel.id === targetChannelId)) return;
+
+    setChannels(next);
+    communityCache.setChannels(community.id, next);
+    await persistChannelOrder(next);
     setDraggedChannel(null);
   };
+
+  useEffect(() => {
+    if (!categoryMenu) return;
+
+    const handlePointerDown = (event) => {
+      const menu = document.querySelector(".category-context-menu");
+      if (menu && !menu.contains(event.target)) {
+        setCategoryMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [categoryMenu]);
 
   return (
     <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
@@ -481,7 +561,7 @@ const ChatTab = ({
             </div>
           ) : (
             orderedGroups.map(([category, categoryChannels]) => (
-              <CategoryGroup key={category} name={category} folderStyle={folderStyle} draggable={isOwner} onDragStart={() => setDraggedCategory(category)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedChannel) moveChannelToCategory(category); else reorderCategory(category); }} onContextMenu={(event) => { if (!isOwner) return; event.preventDefault(); setCategoryMenu({ name: category, x: event.clientX, y: event.clientY }); }}>
+              <CategoryGroup key={category} name={category} folderStyle={folderStyle} draggable={isOwner} onDragStart={() => setDraggedCategory(category)} onDragOver={(event) => { event.preventDefault(); if (draggedChannel) event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); if (draggedChannel) { moveChannelToCategory(category); } else { reorderCategory(category); } }} onContextMenu={(event) => { if (!isOwner) return; event.preventDefault(); setCategoryMenu({ name: category, x: event.clientX, y: event.clientY }); }}>
                 {categoryChannels.map((channel) => (
                   <ChannelButton
                     key={channel.id}
@@ -498,6 +578,13 @@ const ChatTab = ({
                     }}
                     draggable={isOwner}
                     onDragStart={(event) => { event.stopPropagation(); setDraggedChannel(channel); }}
+                    onDragOver={(event) => { event.preventDefault(); if (draggedChannel) event.dataTransfer.dropEffect = "move"; }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (!draggedChannel || draggedChannel.id === channel.id) return;
+                      moveChannelToCategory(channel.category || "Channels", channel.id);
+                    }}
                     onDragEnd={() => setDraggedChannel(null)}
                   />
                 ))}
