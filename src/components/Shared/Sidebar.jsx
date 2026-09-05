@@ -358,7 +358,7 @@ const Sidebar = ({
           background:
             linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
-            radial-gradient(ellipse 80% 120% at 0% 0%, var(--accent-bg-soft), transparent 70%),
+            radial-gradient(ellipse 80% 120% at 0% 0%, color-mix(in srgb, var(--accent-bg-soft) 58%, transparent), transparent 70%),
             linear-gradient(180deg, var(--surface-strong), var(--surface));
           background-size: 24px 24px, 24px 24px, auto, auto;
           box-shadow: inset 0 -1px rgba(255,255,255,0.04), 0 12px 28px rgba(0,0,0,0.14);
@@ -366,8 +366,8 @@ const Sidebar = ({
         .logo-backdrop {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, var(--surface-overlay), var(--accent-bg-soft));
-          border-bottom: 1px solid var(--surface-border);
+          background: linear-gradient(135deg, color-mix(in srgb, var(--surface-overlay) 72%, transparent), color-mix(in srgb, var(--accent-bg-soft) 42%, transparent));
+          border-bottom: 1px solid rgba(192,192,192,0.12);
           pointer-events: none;
         }
         .logo-ring-wrap {
@@ -381,7 +381,7 @@ const Sidebar = ({
           width: calc(100% + 10px);
           height: calc(100% + 10px);
           animation: ringSpin 6s linear infinite;
-          filter: drop-shadow(0 0 3px var(--accent-shadow));
+          filter: drop-shadow(0 0 2px var(--accent-shadow));
         }
         @keyframes ringSpin { to { transform: rotate(360deg); } }
         .logo-wrapper {
@@ -398,8 +398,8 @@ const Sidebar = ({
           pointer-events: none;
         }
         @keyframes logoPulse {
-          0%, 100% { transform: scale(0.8); opacity: 0.5; }
-          50%       { transform: scale(1.2); opacity: 1; }
+          0%, 100% { transform: scale(0.8); opacity: 0.3; }
+          50%       { transform: scale(1.15); opacity: 0.68; }
         }
         .logo-icon {
           position: relative;
@@ -411,8 +411,8 @@ const Sidebar = ({
           justify-content: center;
           color: var(--accent-contrast);
           overflow: hidden;
-          box-shadow: 0 0 0 1px var(--accent-border), 0 4px 18px var(--accent-shadow);
-          border: 1px solid var(--accent-border-strong);
+          box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-border) 62%, transparent), 0 4px 14px color-mix(in srgb, var(--accent-shadow) 65%, transparent);
+          border: 1px solid color-mix(in srgb, var(--accent-border-strong) 62%, transparent);
         }
         .logo-image {
           width: 100%; height: 100%;

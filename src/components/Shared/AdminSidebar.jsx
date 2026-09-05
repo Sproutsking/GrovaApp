@@ -35,7 +35,7 @@ const STYLES = `
 
   .xv-logo {
     padding: 14px 20px;
-    border-bottom: 1px solid rgba(156,255,0,0.2);
+    border-bottom: 1px solid rgba(192,192,192,0.12);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -43,7 +43,7 @@ const STYLES = `
     background:
       linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
-      radial-gradient(ellipse 90% 130% at 0% 0%, rgba(156,255,0,0.14), transparent 70%),
+      radial-gradient(ellipse 90% 130% at 0% 0%, rgba(156,255,0,0.07), transparent 70%),
       linear-gradient(135deg, var(--surface-strong), var(--surface));
     background-size: 24px 24px, 24px 24px, auto, auto;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,.18);
@@ -531,9 +531,9 @@ export default function AdminSidebar({
             className="xv-logo-icon"
             style={{
               background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`,
-              boxShadow: `0 4px 16px ${role.glow}`,
-              border: `1px solid ${role.color}`,
-              outline: `1px solid ${role.color}55`,
+              boxShadow: `0 4px 12px color-mix(in srgb, ${role.glow} 62%, transparent)`,
+              border: `1px solid color-mix(in srgb, ${role.color} 62%, transparent)`,
+              outline: `1px solid color-mix(in srgb, ${role.color} 28%, transparent)`,
               outlineOffset: 3,
               overflow: "hidden",
               padding: 0,
@@ -565,8 +565,8 @@ export default function AdminSidebar({
                 style={{
                   "--item-border": isActive ? role.color : item.iconColor,
                   borderColor: isActive
-                    ? `color-mix(in srgb, ${role.color} 62%, white 38%)`
-                    : `color-mix(in srgb, ${item.iconColor} 22%, transparent)`,
+                    ? "rgba(205,205,205,0.42)"
+                    : "rgba(192,192,192,0.18)",
                   color: isActive ? role.color : undefined,
                 }}
                 onClick={() => setActiveTab(item.id)}
