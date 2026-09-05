@@ -1,7 +1,6 @@
 // src/components/Shared/AdminSidebar.jsx
 import React, { useState, useEffect } from "react";
 import ServicesModalRouter from "./ServicesModalRouter";
-import SectionHeader from "./SectionHeader";
 
 // ─────────────────────────────────────────────
 // STYLES
@@ -35,13 +34,18 @@ const STYLES = `
   }
 
   .xv-logo {
-    padding: 18px 20px;
+    padding: 14px 20px;
     border-bottom: 1px solid rgba(156,255,0,0.2);
     display: flex;
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
-    background: linear-gradient(135deg, var(--surface-strong), var(--surface));
+    background:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+      radial-gradient(ellipse 90% 130% at 0% 0%, rgba(156,255,0,0.14), transparent 70%),
+      linear-gradient(135deg, var(--surface-strong), var(--surface));
+    background-size: 24px 24px, 24px 24px, auto, auto;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,.18);
   }
 
@@ -77,10 +81,10 @@ const STYLES = `
 
   .xv-nav {
     flex: 1;
-    padding: 22px 10px 14px;
+    padding: 8px 10px 14px;
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 5px;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -103,10 +107,10 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 11px 13px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.052), rgba(255,255,255,0.014));
-    border: 1px solid color-mix(in srgb, var(--surface-border) 72%, white 28%);
+      padding: 11px 13px;
+      border-radius: 12px;
+      background: #050706;
+      border: 1px solid var(--item-border, var(--surface-border));
     color: var(--text-secondary);
     font-size: 13.5px;
     font-weight: 500;
@@ -119,11 +123,11 @@ const STYLES = `
     box-shadow: inset 0 1px rgba(255,255,255,0.035), 0 5px 14px rgba(0,0,0,0.08);
   }
   .xv-nav-btn:hover {
-    background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025));
+      background: #090d0a;
     color: var(--text);
-    border-color: var(--accent-border);
+    border-color: var(--item-border, var(--accent-border));
     transform: translateX(2px);
-    box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 8px 22px rgba(0,0,0,0.16);
+    box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 0 0 1px color-mix(in srgb, var(--item-border, var(--accent)) 38%, transparent), 0 8px 22px rgba(0,0,0,0.16);
   }
   .xv-nav-btn--active { font-weight: 700; }
 
@@ -155,10 +159,10 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
+      padding: 11px 13px;
+      border-radius: 12px;
+      background: #050706;
+      border: 1px solid color-mix(in srgb, var(--text-secondary) 42%, transparent);
     color: var(--text-secondary);
     font-size: 14px;
     font-weight: 500;
@@ -170,14 +174,14 @@ const STYLES = `
   }
   .xv-nav-divider {
     height: 1px;
-    margin: 14px 0;
+      margin: 5px 0;
     background: rgba(255,255,255,0.08);
     border-radius: 999px;
   }
   .xv-menu-btn:hover {
     background: var(--surface-strong);
     color: var(--text);
-    border-color: var(--surface-border);
+    border-color: var(--text-secondary);
   }
 
   .xv-admin-btn {
@@ -185,8 +189,8 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 13px 14px;
-    border-radius: 15px;
+    padding: 11px 13px;
+    border-radius: 12px;
     font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
@@ -195,8 +199,8 @@ const STYLES = `
     transition: background 0.2s, box-shadow 0.2s, border-color 0.2s, transform 0.2s;
     text-align: left;
     font-family: 'Syne', sans-serif;
-    background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025) 46%, rgba(0,0,0,0.12));
-    border: 1px solid rgba(255,255,255,0.12);
+    background: #050706;
+    border: 1px solid var(--role-color, var(--surface-border));
     color: var(--text);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
   }
@@ -204,7 +208,7 @@ const STYLES = `
     content: "";
     position: absolute;
     inset: 1px;
-    border-radius: 14px;
+    border-radius: 11px;
     border: 1px solid currentColor;
     opacity: 0.22;
     pointer-events: none;
@@ -288,10 +292,10 @@ const STYLES = `
     justify-content: center;
     gap: 8px;
     padding: 10px;
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
+    background: #080403;
+    border: 1px solid rgba(239,68,68,0.5);
     border-radius: 10px;
-    color: var(--text-secondary);
+    color: #f87171;
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
@@ -299,9 +303,10 @@ const STYLES = `
     font-family: 'Syne', sans-serif;
   }
   .xv-signout-btn:hover {
-    background: var(--danger-bg);
-    color: var(--danger);
-    border-color: var(--danger-border);
+    background: #120606;
+    color: #fca5a5;
+    border-color: #ef4444;
+    box-shadow: 0 0 16px rgba(239,68,68,0.2);
   }
 
   .xv-credits {
@@ -527,6 +532,9 @@ export default function AdminSidebar({
             style={{
               background: `linear-gradient(135deg, ${role.color}, ${role.color}88)`,
               boxShadow: `0 4px 16px ${role.glow}`,
+              border: `1px solid ${role.color}`,
+              outline: `1px solid ${role.color}55`,
+              outlineOffset: 3,
               overflow: "hidden",
               padding: 0,
             }}
@@ -554,11 +562,11 @@ export default function AdminSidebar({
               <button
                 key={item.id}
                 className={`xv-nav-btn${isActive ? " xv-nav-btn--active" : ""}`}
-                style={isActive ? {
-                  background:  role.bg,
-                  border:      `1px solid ${role.border}`,
-                  color:       role.color,
-                } : {}}
+                style={{
+                  "--item-border": isActive ? role.color : item.iconColor,
+                  borderColor: isActive ? role.color : item.iconColor,
+                  color: isActive ? role.color : undefined,
+                }}
                 onClick={() => setActiveTab(item.id)}
                 onMouseEnter={() => setHovered(item.id)}
                 onMouseLeave={() => setHovered(null)}
@@ -603,10 +611,11 @@ export default function AdminSidebar({
           <button
             className="xv-admin-btn"
             style={{
-              background: hovered === "dashboard" ? `${role.color}20` : `${role.color}12`,
-              border:     `1px solid ${role.color}38`,
+              background: hovered === "dashboard" ? "#090d0a" : "#050706",
+              border:     `1px solid ${role.color}`,
+              "--role-color": role.color,
               color:      role.color,
-              boxShadow:  hovered === "dashboard" ? `0 4px 20px ${role.glow}` : "none",
+              boxShadow:  hovered === "dashboard" ? `0 0 0 1px ${role.color}55, 0 8px 22px ${role.glow}` : `0 5px 14px rgba(0,0,0,0.18)`,
             }}
             onClick={onOpenDashboard}
             onMouseEnter={() => setHovered("dashboard")}

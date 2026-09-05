@@ -143,7 +143,11 @@ const Sidebar = ({
                     onMouseEnter={() => setHoveredItem(item.id)}
                     onMouseLeave={() => setHoveredItem(null)}
                     className="nav-item"
-                    style={{ animationDelay: `${idx * 0.05}s` }}
+                      style={{
+                        animationDelay: `${idx * 0.05}s`,
+                      "--item-color": item.color,
+                        borderColor: `color-mix(in srgb, ${item.color} 34%, transparent)`,
+                      }}
                     aria-label="Open menu"
                   >
                     <div className={`item-glass${isHovered ? " item-glass-active" : ""}`}
@@ -171,9 +175,13 @@ const Sidebar = ({
                   className={`nav-item${isActive ? " nav-item-active" : ""}`}
                   style={{
                     animationDelay: `${idx * 0.05}s`,
+                    "--item-color": item.color,
+                    borderColor: isActive
+                      ? `color-mix(in srgb, ${item.color} 78%, white 22%)`
+                      : `color-mix(in srgb, ${item.color} 34%, transparent)`,
                     ...(isActive ? {
-                      background: `${item.bg}`,
-                      borderColor: `${item.color}35`,
+                      background: "linear-gradient(135deg, #0b100d, #040705 72%)",
+                      borderColor: `color-mix(in srgb, ${item.color} 88%, white 12%)`,
                       color: item.color,
                     } : {}),
                   }}
@@ -348,8 +356,11 @@ const Sidebar = ({
           flex-shrink: 0;
           overflow: hidden;
           background:
-            linear-gradient(120deg, rgba(255,255,255,0.06), transparent 48%),
+            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+            radial-gradient(ellipse 80% 120% at 0% 0%, var(--accent-bg-soft), transparent 70%),
             linear-gradient(180deg, var(--surface-strong), var(--surface));
+          background-size: 24px 24px, 24px 24px, auto, auto;
           box-shadow: inset 0 -1px rgba(255,255,255,0.04), 0 12px 28px rgba(0,0,0,0.14);
         }
         .logo-backdrop {
@@ -454,7 +465,7 @@ const Sidebar = ({
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 9px;
+          gap: 5px;
           padding: 22px 10px 14px;
           overflow-y: auto;
         }
@@ -466,8 +477,8 @@ const Sidebar = ({
           align-items: center;
           gap: 11px;
           padding: 12px 13px;
-          background: linear-gradient(135deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018) 48%, rgba(0,0,0,0.08));
-          border: 1px solid color-mix(in srgb, var(--surface-border) 72%, white 28%);
+          background: linear-gradient(135deg, #080b09, #030504 72%);
+          border: 1px solid color-mix(in srgb, var(--item-color) 34%, transparent);
           border-radius: 12px;
           color: var(--text-secondary);
           font-size: 14px;
@@ -487,12 +498,17 @@ const Sidebar = ({
           from { opacity: 0; transform: translateX(-20px); }
         }
         .nav-item:hover:not(.nav-item-active) {
-          border-color: color-mix(in srgb, var(--accent-border) 68%, white 32%);
-          background: linear-gradient(135deg, rgba(255,255,255,0.09), var(--accent-bg-soft));
+          border-color: color-mix(in srgb, var(--item-color) 88%, white 12%);
+          background: linear-gradient(135deg, #0b100d, #040705 72%);
           transform: translateX(2px);
-          box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 8px 22px rgba(0,0,0,0.16);
+          box-shadow: inset 0 1px rgba(255,255,255,0.1), 0 0 0 1px color-mix(in srgb, var(--item-color) 38%, transparent), 0 8px 22px rgba(0,0,0,0.16);
         }
         .nav-item-active { box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 8px 24px var(--accent-shadow); }
+        .nav-item:focus-visible {
+          border-color: var(--item-color);
+          box-shadow: 0 0 0 2px color-mix(in srgb, var(--item-color) 22%, transparent), 0 0 18px color-mix(in srgb, var(--item-color) 48%, transparent);
+          outline: none;
+        }
 
         .item-glass {
           position: absolute;
