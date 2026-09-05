@@ -5,7 +5,72 @@ import socialUpdatesService from "../../../services/community/socialUpdatesServi
 export default function UpdatesChannelPanel({ channelId }) {
   const [posts, setPosts] = useState([]);
   const [error, setError] = useState("");
-  const load = async () => { try { setError(""); setPosts(await socialUpdatesService.listPosts(channelId)); } catch (err) { setError(err.message || "Could not load updates"); } };
-  useEffect(() => { if (channelId) load(); }, [channelId]);
-  return <section className="updates-panel"><div className="updates-head"><div className="updates-icon"><Radio size={21} /></div><div><span>Community updates</span><h1>Latest from connected sources</h1><p>Official updates arrive here automatically.</p></div><button className="updates-refresh" onClick={load} title="Refresh"><RefreshCw size={15} /></button></div><div className="updates-feed">{posts.length === 0 ? <div className="updates-empty">No updates have been published yet.</div> : posts.map((post) => <article className="updates-post" key={post.id}><div className="updates-post-source">{post.provider || "Community source"}</div><h2>{post.content || "New update"}</h2><div className="updates-post-meta">{post.author_name || "Official source"}{post.published_at ? ` · ${new Date(post.published_at).toLocaleString()}` : ""}{post.permalink && <a href={post.permalink} target="_blank" rel="noreferrer">Open source</a>}</div></article>)}</div>{error && <div className="updates-error">{error}</div>}<style>{`.updates-panel{max-width:760px;margin:26px auto;padding:24px;border:1px solid rgba(96,165,250,.2);border-radius:20px;background:linear-gradient(145deg,rgba(17,28,40,.97),rgba(8,13,18,.99));color:#eef8ff}.updates-head{display:flex;align-items:flex-start;gap:14px}.updates-icon{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:#67e8f9;background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);flex-shrink:0}.updates-head span{font-size:10px;color:#67e8f9;text-transform:uppercase;letter-spacing:.12em;font-weight:800}.updates-panel h1{margin:4px 0;font-size:22px}.updates-panel p{margin:0;color:#8fa3b5;font-size:12px}.updates-refresh{margin-left:auto;border:0;background:transparent;color:#7890a4;cursor:pointer}.updates-feed{margin-top:20px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px}.updates-empty{padding:20px 0;color:#718493;font-size:12px}.updates-post{margin-top:8px;padding:13px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}.updates-post-source{color:#67e8f9;font-size:9px;text-transform:uppercase;font-weight:800}.updates-post h2{margin:5px 0;font-size:14px}.updates-post-meta{display:flex;gap:8px;color:#7990a1;font-size:10px}.updates-post-meta a{color:#a5f3fc;margin-left:auto}.updates-error{margin-top:12px;color:#ffaaa3;font-size:11px}</style></section>;
-+}
+
+  const load = async () => {
+    try {
+      setError("");
+      setPosts(await socialUpdatesService.listPosts(channelId));
+    } catch (err) {
+      setError(err.message || "Could not load updates");
+    }
+  };
+
+  useEffect(() => {
+    if (channelId) load();
+  }, [channelId]);
+
+  return (
+    <section className="updates-panel">
+      <div className="updates-head">
+        <div className="updates-icon"><Radio size={21} /></div>
+        <div>
+          <span>Community updates</span>
+          <h1>Latest from connected sources</h1>
+          <p>Official updates arrive here automatically.</p>
+        </div>
+        <button className="updates-refresh" onClick={load} title="Refresh" aria-label="Refresh updates">
+          <RefreshCw size={15} />
+        </button>
+      </div>
+
+      <div className="updates-feed">
+        {posts.length === 0 ? (
+          <div className="updates-empty">No updates have been published yet.</div>
+        ) : (
+          posts.map((post) => (
+            <article className="updates-post" key={post.id}>
+              <div className="updates-post-source">{post.provider || "Community source"}</div>
+              <h2>{post.content || "New update"}</h2>
+              <div className="updates-post-meta">
+                <span>{post.author_name || "Official source"}</span>
+                {post.published_at && <span>{` · ${new Date(post.published_at).toLocaleString()}`}</span>}
+                {post.permalink && <a href={post.permalink} target="_blank" rel="noreferrer">Open source</a>}
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
+      {error && <div className="updates-error">{error}</div>}
+
+      <style>{`
+        .updates-panel { max-width: 760px; margin: 26px auto; padding: 24px; border: 1px solid rgba(96,165,250,.2); border-radius: 20px; background: linear-gradient(145deg, rgba(17,28,40,.97), rgba(8,13,18,.99)); color: #eef8ff; }
+        .updates-head { display: flex; align-items: flex-start; gap: 14px; }
+        .updates-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #67e8f9; background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.3); flex-shrink: 0; }
+        .updates-head span { font-size: 10px; color: #67e8f9; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+        .updates-panel h1 { margin: 4px 0; font-size: 22px; }
+        .updates-panel p { margin: 0; color: #8fa3b5; font-size: 12px; }
+        .updates-refresh { margin-left: auto; border: 0; background: transparent; color: #7890a4; cursor: pointer; }
+        .updates-feed { margin-top: 20px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 14px; }
+        .updates-empty { padding: 20px 0; color: #718493; font-size: 12px; }
+        .updates-post { margin-top: 8px; padding: 13px; border-radius: 11px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+        .updates-post-source { color: #67e8f9; font-size: 9px; text-transform: uppercase; font-weight: 800; }
+        .updates-post h2 { margin: 5px 0; font-size: 14px; }
+        .updates-post-meta { display: flex; gap: 8px; color: #7990a1; font-size: 10px; }
+        .updates-post-meta a { color: #a5f3fc; margin-left: auto; }
+        .updates-error { margin-top: 12px; color: #ffaaa3; font-size: 11px; }
+        @media (max-width: 600px) { .updates-panel { margin: 14px; padding: 16px; } }
+      `}</style>
+    </section>
+  );
+}
