@@ -241,13 +241,13 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
 
       <style>{`
         .cp-overlay {
-          position:fixed; top:56px; right:0; bottom:0; left:0;
+          position:fixed; inset:0;
           background:rgba(5,7,10,.48); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
-          z-index:99999; display:flex; align-items:stretch; justify-content:center;
-          padding:20px;
+          z-index:99999; display:flex; align-items:center; justify-content:center;
+          padding:56px 20px 12px; box-sizing:border-box;
         }
         .cp-modal {
-          width:min(100%, 540px); max-height:88vh;
+          width:min(100%, 540px); height:min(760px, calc(100dvh - 68px)); max-height:100%; min-height:0;
           background:rgba(12,14,18,.98); border:1.5px solid rgba(156,255,0,.18);
           border-radius:18px; display:flex; flex-direction:column;
           animation:modalIn .3s cubic-bezier(.4,0,.2,1);
@@ -262,13 +262,14 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         @media (min-width: 768px) {
           .cp-overlay {
             justify-content: flex-end;
-            padding: 0;
+            align-items:stretch;
+            padding:56px 0 0;
           }
           .cp-modal {
             width:min(50vw, 600px);
             max-width:600px;
-            height:calc(100vh - 56px);
-            max-height:calc(100vh - 56px);
+            height:calc(100dvh - 56px);
+            max-height:none;
             border-radius:24px 0 0 24px;
             box-shadow:-18px 0 60px rgba(0,0,0,.48), 0 0 60px rgba(156,255,0,.08);
           }
@@ -276,15 +277,13 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
 
         @media (max-width: 767px) {
           .cp-overlay {
-            padding: 20px;
-            top:47px;
-            bottom:56px;
+            padding: 47px 12px 56px;
             align-items: center;
           }
           .cp-modal {
             width: min(100%, 540px);
-            height: auto;
-            max-height: calc(100vh - 47px - 56px);
+            height: min(760px, calc(100dvh - 103px));
+            max-height:100%;
             border-radius: 18px;
           }
         }
@@ -308,7 +307,7 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         .cp-close:hover { background:rgba(255,100,100,.15); color:#ff6b6b; }
 
         .cp-body {
-          display:flex; gap:0; flex:1; overflow:hidden; min-height:0;
+          display:flex; gap:0; flex:1; overflow:hidden; min-height:0; height:0;
         }
 
         /* Role list sidebar */
@@ -410,7 +409,8 @@ const ChannelPermissionsModal = ({ channel, category, communityId, roles, onClos
         /* Footer */
         .cp-footer {
           display:flex; gap:8px; padding:14px 18px;
-          border-top:1px solid rgba(255,255,255,.05); flex-shrink:0;
+          border-top:1px solid rgba(255,255,255,.05); flex:0 0 auto; position:relative; z-index:2;
+          background:rgba(12,14,18,.99);
         }
         .cancel-btn {
           flex:1; padding:11px; border-radius:10px;
