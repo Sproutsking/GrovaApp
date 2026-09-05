@@ -430,7 +430,7 @@ const BoostAvatarRing = ({
   const isValidImg =
     src &&
     typeof src === "string" &&
-    (src.startsWith("http") || src.startsWith("blob:"));
+    (src.startsWith("http") || src.startsWith("blob:") || src.startsWith("data:image/"));
 
   const shouldRenderImage = isValidImg && !imgError;
   const effectiveImageBleed = Math.max(1, imageBleed);

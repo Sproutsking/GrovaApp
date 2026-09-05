@@ -36,8 +36,9 @@ const MessageList = ({
   const getAvatar = (user) => {
     if (!user) return null;
 
+    const metadata = user.avatar_metadata || user.avatarMetadata || {};
     return mediaUrlService.resolveAvatarUrl(
-      user.avatar_url || user.avatarUrl || user.avatar_id || user.avatar,
+      user.avatar_url || user.avatarUrl || user.avatar || user.avatar_id || metadata.url || metadata.publicUrl || metadata.avatar_url,
       200,
     );
   };

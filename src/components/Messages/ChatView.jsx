@@ -524,7 +524,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   };
 
   const fmtTime=d=>{if(!d)return"";const dt=new Date(d);const h=dt.getHours()%12||12;const m=dt.getMinutes().toString().padStart(2,"0");return`${h}:${m} ${dt.getHours()>=12?"PM":"AM"}`;};
-  const avatarSource = otherUser?.avatar_url || otherUser?.avatarUrl || otherUser?.avatar || otherUser?.avatar_id;
+  const avatarMetadata = otherUser?.avatar_metadata || otherUser?.avatarMetadata || {};
+  const avatarSource = otherUser?.avatar_url || otherUser?.avatarUrl || otherUser?.avatar || otherUser?.avatar_id || avatarMetadata.url || avatarMetadata.publicUrl || avatarMetadata.avatar_url;
   const avatarUrl = avatarSource ? mediaUrlService.resolveAvatarUrl(avatarSource, 200) : null;
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });

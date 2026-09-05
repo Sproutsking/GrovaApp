@@ -81,6 +81,7 @@ const ChatTab = ({
   const [channelDeleteConfirm, setChannelDeleteConfirm] = useState(null);
   const [categoryOrder, setCategoryOrder] = useState([]);
   const [draggedCategory, setDraggedCategory] = useState(null);
+  const [draggedChannel, setDraggedChannel] = useState(null);
   const [categoryMenu, setCategoryMenu] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
@@ -438,6 +439,16 @@ const ChatTab = ({
     setCategoryMenu(null);
     await loadChannels();
   };
+  const moveChannelToCategory = async (category) => {
+    if (!draggedChannel || !isOwner || draggedChannel.category === category) return;
+    const { error } = await supabase.from("community_channels").update({ category, updated_at: new Date().toISOString() }).eq("id", draggedChannel.id);
+    if (!error) {
+      const next = channels.map((channel) => channel.id === draggedChannel.id ? { ...channel, category } : channel);
+      setChannels(next);
+      communityCache.setChannels(community.id, next);
+    }
+    setDraggedChannel(null);
+  };
 
   return (
     <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
@@ -470,7 +481,7 @@ const ChatTab = ({
             </div>
           ) : (
             orderedGroups.map(([category, categoryChannels]) => (
-              <CategoryGroup key={category} name={category} folderStyle={folderStyle} draggable={isOwner} onDragStart={() => setDraggedCategory(category)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderCategory(category)} onContextMenu={(event) => { if (!isOwner) return; event.preventDefault(); setCategoryMenu({ name: category, x: event.clientX, y: event.clientY }); }}>
+              <CategoryGroup key={category} name={category} folderStyle={folderStyle} draggable={isOwner} onDragStart={() => setDraggedCategory(category)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedChannel) moveChannelToCategory(category); else reorderCategory(category); }} onContextMenu={(event) => { if (!isOwner) return; event.preventDefault(); setCategoryMenu({ name: category, x: event.clientX, y: event.clientY }); }}>
                 {categoryChannels.map((channel) => (
                   <ChannelButton
                     key={channel.id}
@@ -485,6 +496,9 @@ const ChatTab = ({
                         setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
                       }
                     }}
+                    draggable={isOwner}
+                    onDragStart={(event) => { event.stopPropagation(); setDraggedChannel(channel); }}
+                    onDragEnd={() => setDraggedChannel(null)}
                   />
                 ))}
               </CategoryGroup>
@@ -916,13 +930,13 @@ const ChatTab = ({
           .mobile-back-btn, .mobile-menu-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(156,255,0,0.14); background: rgba(156,255,0,0.06); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
           .mobile-back-btn:hover, .mobile-menu-btn:hover { background: rgba(156,255,0,0.12); border-color: rgba(156,255,0,0.2); transform: translateY(-1px); }
           .mobile-chat-title { flex: 1; text-align: center; font-size: 13px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.3px; }
-          .category-context-menu { position: fixed; z-index: 10001; width: 180px; padding: 6px; border: 1px solid rgba(156,255,0,.22); border-radius: 10px; background: rgba(10,12,16,.98); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
-          .category-context-menu button { display:block; width:100%; padding:9px; border:0; border-radius:7px; background:transparent; color:#cbd5cb; text-align:left; font:600 11px inherit; cursor:pointer; }
-          .category-context-menu button:hover { background:rgba(156,255,0,.1); color:#9cff00; }
-          .category-context-menu button:disabled { opacity:.4; cursor:not-allowed; }
           .channels-container { display: none; }
           .jump-btn { bottom: 72px; right: 12px; width: 36px; height: 36px; }
         }
+        .category-context-menu { position: fixed; z-index: 10001; width: 210px; padding: 6px; border: 1px solid rgba(156,255,0,.22); border-radius: 10px; background: rgba(10,12,16,.98); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+        .category-context-menu button { display:block; width:100%; padding:9px; border:0; border-radius:7px; background:transparent; color:#cbd5cb; text-align:left; font:600 11px inherit; cursor:pointer; }
+        .category-context-menu button:hover { background:rgba(156,255,0,.1); color:#9cff00; }
+        .category-context-menu button:disabled { opacity:.4; cursor:not-allowed; }
       `}</style>
     </div>
   );

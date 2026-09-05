@@ -398,6 +398,10 @@ class MediaUrlService {
       return null;
     }
 
+    if (typeof avatarSource === 'string' && (avatarSource.startsWith('data:image/') || avatarSource.startsWith('blob:'))) {
+      return avatarSource;
+    }
+
     // Use stable cache key for avatar URLs (based on source + size)
     const cacheKey = `${avatarSource}:${size}`;
     if (this._avatarUrlCache.has(cacheKey)) {

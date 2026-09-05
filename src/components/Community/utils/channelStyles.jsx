@@ -55,6 +55,9 @@ export default function ChannelButton({
   dividerStyle = "none",
   onClick,
   onContextMenu,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
 }) {
   injectChannelButtonStyles();
   return (
@@ -63,6 +66,9 @@ export default function ChannelButton({
       className={`chb chb--${buttonStyle}${active ? " active" : ""}`}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       title={channel.name}
     >
       <span className="chb-icon">{renderChannelIcon(channel)}</span>
