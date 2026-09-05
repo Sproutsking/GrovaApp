@@ -14,10 +14,8 @@
 
 import React, { useEffect, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { supabase } from "../../services/config/supabase";
 import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS, BOOST_BACKGROUND_COLORS } from "../../services/boost/boostThemes";
 import boostService from "../../services/boost/boostService";
-import { refreshBoostTier } from "../../hooks/useUserBoostTier";
 
 const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeBackgroundColorId, userId, onPicked, showToggle = true }) => {
   const [fontId, setFontId] = useState(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
@@ -26,6 +24,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
   const [selected, setSelected] = useState(activeId ?? null);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -41,33 +40,28 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
   const backgroundColors = BOOST_BACKGROUND_COLORS[tier] ?? [];
 
   const saveNameDesign = async (nextFontId = fontId, nextColorId = colorId) => {
-    setFontId(nextFontId); setColorId(nextColorId); setSaving(true);
+    setFontId(nextFontId); setColorId(nextColorId); setSaving(true); setSaveError("");
     try {
       const result = await boostService.updateBoostNameDesign(userId, nextFontId, nextColorId);
       if (!result?.success) throw new Error(result?.error || "Design could not be saved");
-      refreshBoostTier(userId);
       setSaved(true);
       onPicked?.({ fontId: nextFontId, colorId: nextColorId });
       setTimeout(() => setSaved(false), 1800);
     } catch (error) {
       setSaved(false);
-      setFontId(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
-      setColorId(activeColorId ?? BOOST_NAME_COLORS[tier]?.[0]?.id);
-      console.warn("[BoostThemePicker] name design save failed:", error?.message);
+      setSaveError(error?.message || "Design could not be saved");
     } finally { setSaving(false); }
   };
 
   const saveBackgroundColor = async (nextId) => {
-    setBackgroundColorId(nextId); setSaving(true); setSaved(false);
+    setBackgroundColorId(nextId); setSaving(true); setSaved(false); setSaveError("");
     try {
       const result = await boostService.updateBoostBackgroundColor(userId, nextId);
       if (!result?.success) throw new Error(result?.error || "Background color could not be saved");
-      refreshBoostTier(userId);
       setSaved(true); onPicked?.({ backgroundColorId: nextId });
       setTimeout(() => setSaved(false), 1800);
     } catch (error) {
-      setBackgroundColorId(activeBackgroundColorId ?? BOOST_BACKGROUND_COLORS[tier]?.[0]?.id);
-      console.warn("[BoostThemePicker] background color save failed:", error?.message);
+      setSaveError(error?.message || "Background color could not be saved");
     } finally { setSaving(false); }
   };
 
@@ -77,20 +71,19 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
     if (themeId === selected) return;
     setSelected(themeId);
     setSaved(false);
+    setSaveError("");
 
     if (!userId) return;
     setSaving(true);
     try {
-      const result = await supabase.rpc("update_boost_theme", {
-        p_user_id: userId,
-        p_theme_id: themeId,
-      });
-      if (result?.data?.success === false) throw new Error(result?.data?.error || "Theme save failed");
-      refreshBoostTier(userId);
+      const result = await boostService.updateBoostTheme(userId, themeId);
+      if (!result?.success) throw new Error(result?.error || "Theme save failed");
       setSaved(true);
       onPicked?.(themeId);
       setTimeout(() => setSaved(false), 2000);
-    } catch {}
+    } catch (error) {
+      setSaveError(error?.message || "Theme save failed");
+    }
     finally { setSaving(false); }
   };
 
@@ -113,6 +106,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
             {tierMeta.label}
             {saving && <span style={{ color:tierMeta.color, fontSize:10 }}>Saving…</span>}
             {saved  && <span style={{ color:"#22c55e",     fontSize:10 }}>✓ Saved</span>}
+            {saveError && <span style={{ color:"#f87171", fontSize:10 }} title={saveError}>Save failed</span>}
           </div>
 
           {showToggle && (
@@ -207,12 +201,12 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
               {fonts.map((font) => <button key={font.id} disabled={saving} onClick={() => saveNameDesign(font.id, colorId)} style={{ padding:"10px 8px", borderRadius:10, border:fontId===font.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.08)", background:fontId===font.id ? `${tierMeta.color}18` : "rgba(255,255,255,.03)", color:"#fff", fontFamily:font.family, fontSize:14, cursor:"pointer" }}>{font.label}</button>)}
             </div>
             <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Name color · {colors.length} unlocked</div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
-              {colors.map((color) => <button key={color.id} aria-label={color.label} title={color.label} disabled={saving} onClick={() => saveNameDesign(fontId, color.id)} style={{ width:28, height:28, borderRadius:"50%", border:colorId===color.id ? "2px solid #fff" : "1px solid rgba(255,255,255,.25)", background:color.color, boxShadow:`0 0 12px ${color.shadow}`, cursor:"pointer" }} />)}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(92px,1fr))", gap:6 }}>
+              {colors.map((color) => <button key={color.id} aria-label={color.label} title={color.label} disabled={saving} onClick={() => saveNameDesign(fontId, color.id)} style={{ minWidth:0, padding:"7px 8px", borderRadius:9, border:colorId===color.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.14)", background:color.gradient || color.color, color:"#fff", fontSize:10, fontWeight:800, textAlign:"left", cursor:"pointer", boxShadow:colorId===color.id ? `0 0 10px ${color.shadow}` : "none" }}>{color.label}</button>)}
             </div>
             <div style={{ fontSize:10, color:tierMeta.color, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", margin:"14px 0 8px" }}>Background color · {backgroundColors.length} unlocked</div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
-              {backgroundColors.map((backgroundColor) => <button key={backgroundColor.id} aria-label={backgroundColor.label} title={backgroundColor.label} disabled={saving} onClick={() => saveBackgroundColor(backgroundColor.id)} style={{ width:30, height:30, borderRadius:8, border:backgroundColorId===backgroundColor.id ? "2px solid #fff" : "1px solid rgba(255,255,255,.25)", background:backgroundColor.color, cursor:"pointer", boxShadow:backgroundColorId===backgroundColor.id ? `0 0 12px ${tierMeta.color}` : "none" }} />)}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(82px,1fr))", gap:6 }}>
+              {backgroundColors.map((backgroundColor) => <button key={backgroundColor.id} aria-label={backgroundColor.label} title={backgroundColor.label} disabled={saving} onClick={() => saveBackgroundColor(backgroundColor.id)} style={{ minWidth:0, padding:"7px 8px", borderRadius:9, border:backgroundColorId===backgroundColor.id ? `1px solid ${tierMeta.color}` : "1px solid rgba(255,255,255,.14)", background:backgroundColor.color, color:"#d1d5db", fontSize:10, fontWeight:800, textAlign:"left", cursor:"pointer", boxShadow:backgroundColorId===backgroundColor.id ? `0 0 10px ${tierMeta.color}` : "none" }}>{backgroundColor.label}</button>)}
             </div>
           </div>
         </div>

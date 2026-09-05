@@ -321,21 +321,42 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       let avatarUrl = null;
       if (profileData?.avatar_id) {
         try {
-          const baseUrl = mediaUrlService.getImageUrl(profileData.avatar_id);
-          if (baseUrl && typeof baseUrl === "string") {
-            const cleanUrl = baseUrl.split("?")[0];
-            // Enhance Supabase URLs with quality params; use other URLs as-is
-            if (cleanUrl.includes("supabase")) {
-              avatarUrl = `${cleanUrl}?quality=100&width=600&height=600&resize=cover&format=webp`;
-            } else if (cleanUrl.includes("cloudinary") || cleanUrl.startsWith("http")) {
-              avatarUrl = cleanUrl; // Trust mediaUrlService for non-Supabase URLs
-            } else {
-              avatarUrl = baseUrl; // Fallback to raw mediaUrlService result
-            }
-          }
+          avatarUrl = mediaUrlService.getOptimizedImageUrl(profileData.avatar_id, {
+            width: 600,
+            height: 600,
+            quality: "100",
+            format: "webp",
+            crop: "fill",
+            gravity: "face",
+          });
         } catch (err) {
           console.warn("Avatar URL generation failed:", err?.message);
         }
+      }
+
+      if (profileData) {
+        setProfile({
+          id: profileData.id,
+          fullName: profileData.full_name || "User",
+          username: profileData.username || "user",
+          avatar: avatarUrl,
+          avatarId: profileData.avatar_id,
+          bio: profileData.bio,
+          verified: profileData.verified || false,
+          isPro: profileData.is_pro || false,
+          joinDate: new Date(profileData.created_at ?? Date.now()).toLocaleDateString("en-US", { month:"short", year:"numeric" }),
+          email: profileData.email,
+          phone: profileData.phone,
+          phoneVerified: profileData.phone_verified || false,
+          showEmail: profileData.show_email || false,
+          showPhone: profileData.show_phone || false,
+          subscriptionTier: profileData.subscription_tier ?? "standard",
+          paymentStatus: profileData.payment_status ?? "pending",
+          accountActivated: profileData.account_activated ?? false,
+          engagementPoints: Number(profileData.engagement_points ?? 0),
+          boostSelections: profileData.boost_selections ?? null,
+        });
+        setLoading(false);
       }
 
       const getContentIds = async (table) => {
@@ -619,6 +640,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes livePulse     { 0%{box-shadow:0 0 0 0 rgba(132,204,22,0.7)} 70%{box-shadow:0 0 0 5px rgba(132,204,22,0)} 100%{box-shadow:0 0 0 0 rgba(132,204,22,0)} }
         @keyframes shimmerIn     { from{opacity:0;transform:scale(0.92) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes liveBarScroll { from{background-position:0% 0%} to{background-position:200% 0%} }
+        @keyframes nameGradientShift { from{background-position:0% 50%} to{background-position:220% 50%} }
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
         .profile-section { padding: 20px; }
@@ -719,6 +741,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
                 const design = getBoostNameDesign(profile.subscriptionTier, activeFontId, activeColorId);
                 return {
                   color: hasBoostedTier ? (design.color?.color || "#fff") : "#fff",
+                  ...(design.color?.gradient ? {
+                    backgroundImage: design.color.gradient,
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    backgroundSize: "220% 100%",
+                    animation: "nameGradientShift 6s linear infinite",
+                  } : {}),
                   fontFamily: design.font?.family,
                   fontWeight: design.font?.weight || 900,
                   letterSpacing: design.font?.spacing,

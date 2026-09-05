@@ -539,6 +539,7 @@ export const BOOST_NAME_COLORS = {
     { id: "silver-pearl", label: "Pearl", color: "#f1f5f9", shadow: "rgba(226,232,240,.55)" },
     { id: "silver-steel", label: "Steel", color: "#94a3b8", shadow: "rgba(148,163,184,.55)" },
     { id: "silver-ice", label: "Ice", color: "#bae6fd", shadow: "rgba(125,211,252,.55)" },
+    { id: "silver-mercury-gradient", label: "Mercury", color: "#dbeafe", gradient: "linear-gradient(100deg,#f8fafc,#94a3b8,#e2e8f0,#64748b,#f8fafc)", shadow: "rgba(203,213,225,.65)" },
   ],
   gold: [
     { id: "gold-sun", label: "Sun", color: "#fde68a", shadow: "rgba(251,191,36,.65)" },
@@ -547,6 +548,8 @@ export const BOOST_NAME_COLORS = {
     { id: "gold-rose", label: "Rose", color: "#fda4af", shadow: "rgba(244,63,94,.55)" },
     { id: "gold-mint", label: "Mint", color: "#86efac", shadow: "rgba(34,197,94,.55)" },
     { id: "gold-sky", label: "Sky", color: "#7dd3fc", shadow: "rgba(14,165,233,.55)" },
+    { id: "gold-solar-gradient", label: "Solar", color: "#fbbf24", gradient: "linear-gradient(100deg,#fde68a,#f59e0b,#ef4444,#fbbf24,#fff7c2)", shadow: "rgba(245,158,11,.7)" },
+    { id: "gold-royal-gradient", label: "Royal", color: "#fcd34d", gradient: "linear-gradient(100deg,#fff7c2,#d4af37,#92400e,#f59e0b,#fff7c2)", shadow: "rgba(217,119,6,.7)" },
   ],
   diamond: [
     { id: "diamond-prism", label: "Prism", color: "#f0abfc", shadow: "rgba(217,70,239,.7)" },
@@ -559,6 +562,11 @@ export const BOOST_NAME_COLORS = {
     { id: "diamond-lime", label: "Lumen", color: "#bef264", shadow: "rgba(132,204,22,.75)" },
     { id: "diamond-void", label: "Void", color: "#f8fafc", shadow: "rgba(148,163,184,.7)" },
     { id: "diamond-royal", label: "Royal", color: "#a5b4fc", shadow: "rgba(99,102,241,.75)" },
+    { id: "diamond-aurora-gradient", label: "Aurora", color: "#67e8f9", gradient: "linear-gradient(100deg,#67e8f9,#a78bfa,#f0abfc,#86efac,#67e8f9)", shadow: "rgba(103,232,249,.8)" },
+    { id: "diamond-prism-gradient", label: "Prismatic", color: "#f0abfc", gradient: "linear-gradient(100deg,#f0abfc,#60a5fa,#34d399,#fbbf24,#f0abfc)", shadow: "rgba(192,132,252,.8)" },
+    { id: "diamond-nebula-gradient", label: "Nebula", color: "#c4b5fd", gradient: "linear-gradient(100deg,#312e81,#c4b5fd,#ec4899,#60a5fa,#312e81)", shadow: "rgba(167,139,250,.8)" },
+    { id: "diamond-glacier-gradient", label: "Glacial", color: "#bae6fd", gradient: "linear-gradient(100deg,#e0f2fe,#38bdf8,#0e7490,#bae6fd,#e0f2fe)", shadow: "rgba(56,189,248,.8)" },
+    { id: "diamond-void-gradient", label: "Voidlight", color: "#e2e8f0", gradient: "linear-gradient(100deg,#020617,#e2e8f0,#64748b,#a78bfa,#020617)", shadow: "rgba(148,163,184,.8)" },
   ],
 };
 

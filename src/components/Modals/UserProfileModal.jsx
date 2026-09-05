@@ -448,6 +448,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           paymentStatus: raw.payment_status ?? user?.payment_status ?? "pending",
         });
 
+      // The profile shell should not wait for counts, evidence, or the first
+      // content grid request before becoming interactive.
+      if (mounted.current) {
+        setLoading(false);
+        loadContent("posts");
+      }
+
       // Parallel counts + follow status
       const [postsR, reelsR, storiesR, followersR, followingR, evidenceR] =
         await Promise.allSettled([
@@ -498,7 +505,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           .catch(() => {});
       }
 
-      loadContent("posts");
     } catch (e) {
       console.warn("[UserProfileModal]", e?.message);
     } finally {
@@ -566,6 +572,15 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     }
   }, [myId, targetId, isOwn, isFollowing, followLoading]);
 
+  const handleMessage = useCallback((e) => {
+    e.stopPropagation();
+    if (!myId || isOwn || !targetId) return;
+    window.dispatchEvent(new CustomEvent("community:open-dm", {
+      detail: { userId: targetId },
+    }));
+    onClose?.();
+  }, [myId, isOwn, targetId, onClose]);
+
   const currentContent =
     activeTab === "posts" ? posts : activeTab === "reels" ? reels : stories;
 
@@ -621,6 +636,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   className="upm-name"
                   style={{
                     color:      nameColor,
+                    ...(nameDesign.color?.gradient ? {
+                      backgroundImage: nameDesign.color.gradient,
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                      backgroundSize: "220% 100%",
+                      animation: "upmNameGradient 6s linear infinite",
+                    } : {}),
                     fontFamily: nameDesign.font?.family,
                     fontWeight: nameDesign.font?.weight || 900,
                     letterSpacing: nameDesign.font?.spacing,
@@ -692,6 +715,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   ) : (
                     <><UserPlus size={16} /><span>Follow</span></>
                   )}
+                </button>
+                <button
+                  className="upm-fbtn upm-message-btn"
+                  onClick={handleMessage}
+                  type="button"
+                >
+                  <MessageSquare size={16} />
+                  <span>Message</span>
                 </button>
               </div>
             )}
@@ -922,12 +953,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; color:#e5e5e5; text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .upm-bio { font-size:13px; color:#d1d1d1; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; text-shadow:0 1px 6px rgba(0,0,0,0.5); }
         .upm-join { font-size:11px; color:#b3b3b3; font-weight:500; margin:0; text-shadow:0 1px 4px rgba(0,0,0,0.4); }
-        .upm-stats { display:flex; align-items:stretch; background:rgba(255,255,255,.03); border-top:1px solid rgba(255,255,255,.06); border-bottom:1px solid rgba(255,255,255,.06); }
-        .upm-stat { flex:1; padding:14px 8px; text-align:center; display:flex; flex-direction:column; gap:3; }
+        .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:4px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
+        .upm-stat { flex:1; padding:12px 8px; text-align:center; display:flex; flex-direction:column; gap:3px; border-radius:13px; }
+        .upm-stat:hover { background:rgba(255,255,255,.035); }
         .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
         .upm-sl { font-size:10px; color:#737373; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
         .upm-sdiv { width:1px; margin:10px 0; background:rgba(255,255,255,.07); }
-        .upm-follow-wrap { padding:16px 20px 4px; }
+        .upm-follow-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px 20px 4px; }
         .upm-fbtn {
           width:100%; padding:13px 20px; border-radius:14px;
           font-size:14px; font-weight:800; letter-spacing:0.02em;
@@ -941,6 +973,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           box-shadow:none !important;
         }
         .upm-fbtn:disabled { opacity:.55; cursor:not-allowed; }
+        .upm-message-btn { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.16); color:#e5e7eb; box-shadow:inset 0 1px rgba(255,255,255,.06); }
+        .upm-message-btn:hover { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.5); color:#93c5fd; box-shadow:0 0 18px rgba(96,165,250,.16); }
         .upm-tabs { display:flex; padding:14px 16px 0; gap:6px; }
         .upm-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:8px 6px; border-radius:10px 10px 0 0; font-size:12px; font-weight:700; font-family:inherit; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all .18s; background:rgba(255,255,255,.03); color:#525252; }
         .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }
@@ -949,10 +983,16 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
         .upm-empty { display:flex; flex-direction:column; align-items:center; gap:10px; padding:30px; color:#525252; font-size:13px; }
 
+        @media (max-width: 480px) {
+          .upm-stats { margin:0 12px; }
+          .upm-follow-wrap { padding-left:16px; padding-right:16px; }
+        }
+
         @keyframes upmFI       { from{opacity:0} to{opacity:1} }
         @keyframes upmSU       { from{opacity:0;transform:translateY(24px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
         @keyframes upmSUMobile { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
         @keyframes upmSpin     { to{transform:rotate(360deg)} }
+        @keyframes upmNameGradient { from{background-position:0% 50%} to{background-position:220% 50%} }
       `}</style>
     </div>,
     document.body
