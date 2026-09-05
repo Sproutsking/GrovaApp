@@ -19,10 +19,13 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../../services/config/supabase";
 
+const analyticsCache = new Map();
+const ANALYTICS_TTL = 60 * 1000;
+
 const AnalyticsSection = ({ community }) => {
   const [timeRange, setTimeRange] = useState("7d");
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(() => analyticsCache.get(`${community?.id}:7d`)?.data || null);
+  const [loading, setLoading] = useState(() => !analyticsCache.has(`${community?.id}:7d`));
 
   useEffect(() => {
     loadAnalytics();
@@ -31,7 +34,15 @@ const AnalyticsSection = ({ community }) => {
   const loadAnalytics = async () => {
     if (!community?.id) return;
 
-    setLoading(true);
+    const cacheKey = `${community.id}:${timeRange}`;
+    const cached = analyticsCache.get(cacheKey);
+    if (cached) {
+      setAnalytics(cached.data);
+      setLoading(false);
+      if (Date.now() - cached.timestamp < ANALYTICS_TTL) return;
+    }
+
+    if (!cached) setLoading(true);
     try {
       const now = new Date();
       const rangeHours = {
@@ -48,65 +59,29 @@ const AnalyticsSection = ({ community }) => {
         startDate.getTime() - rangeHours * 60 * 60 * 1000,
       );
 
-      // Fetch current period members
-      const { data: currentMembers } = await supabase
-        .from("community_members")
-        .select("id, joined_at")
-        .eq("community_id", community.id)
-        .gte("joined_at", startDate.toISOString());
+      const [
+        { data: currentMembers },
+        { data: prevMembers },
+        { data: channelRows },
+        { count: totalMembers },
+        { count: onlineMembers },
+      ] = await Promise.all([
+        supabase.from("community_members").select("id, joined_at").eq("community_id", community.id).gte("joined_at", startDate.toISOString()),
+        supabase.from("community_members").select("id").eq("community_id", community.id).gte("joined_at", prevStart.toISOString()).lt("joined_at", startDate.toISOString()),
+        supabase.from("community_channels").select("id").eq("community_id", community.id).is("deleted_at", null),
+        supabase.from("community_members").select("id", { count: "exact", head: true }).eq("community_id", community.id),
+        supabase.from("community_members").select("id", { count: "exact", head: true }).eq("community_id", community.id).eq("is_online", true),
+      ]);
 
-      // Fetch previous period members for comparison
-      const { data: prevMembers } = await supabase
-        .from("community_members")
-        .select("id")
-        .eq("community_id", community.id)
-        .gte("joined_at", prevStart.toISOString())
-        .lt("joined_at", startDate.toISOString());
-
-      // Fetch current period messages
-      const { data: currentMessages } = await supabase
-        .from("community_messages")
-        .select("id, channel_id, user_id, created_at, reactions")
-        .in(
-          "channel_id",
-          (
-            await supabase
-              .from("community_channels")
-              .select("id")
-              .eq("community_id", community.id)
-          ).data?.map((c) => c.id) || [],
-        )
-        .gte("created_at", startDate.toISOString())
-        .is("deleted_at", null);
-
-      // Fetch previous period messages
-      const { data: prevMessages } = await supabase
-        .from("community_messages")
-        .select("id, channel_id, user_id, created_at")
-        .in(
-          "channel_id",
-          (
-            await supabase
-              .from("community_channels")
-              .select("id")
-              .eq("community_id", community.id)
-          ).data?.map((c) => c.id) || [],
-        )
-        .gte("created_at", prevStart.toISOString())
-        .lt("created_at", startDate.toISOString())
-        .is("deleted_at", null);
-
-      // Get total members and online count
-      const { count: totalMembers } = await supabase
-        .from("community_members")
-        .select("id", { count: "exact", head: true })
-        .eq("community_id", community.id);
-
-      const { count: onlineMembers } = await supabase
-        .from("community_members")
-        .select("id", { count: "exact", head: true })
-        .eq("community_id", community.id)
-        .eq("is_online", true);
+      const channelIds = (channelRows || []).map((channel) => channel.id);
+      const [{ data: currentMessages }, { data: prevMessages }] = await Promise.all([
+        channelIds.length
+          ? supabase.from("community_messages").select("id, channel_id, user_id, created_at, reactions").in("channel_id", channelIds).gte("created_at", startDate.toISOString()).is("deleted_at", null)
+          : Promise.resolve({ data: [] }),
+        channelIds.length
+          ? supabase.from("community_messages").select("id, channel_id, user_id, created_at").in("channel_id", channelIds).gte("created_at", prevStart.toISOString()).lt("created_at", startDate.toISOString()).is("deleted_at", null)
+          : Promise.resolve({ data: [] }),
+      ]);
 
       // Calculate engagement rate
       const activeUsers = new Set(currentMessages?.map((m) => m.user_id) || [])
@@ -215,7 +190,7 @@ const AnalyticsSection = ({ community }) => {
       const engagementTrend = getTrend(engagementRate, prevEngagementRate);
       const activeUsersTrend = getTrend(activeUsers, prevActiveUsers);
 
-      setAnalytics({
+      const result = {
         growth: {
           members: {
             value: currentMembers?.length || 0,
@@ -246,7 +221,9 @@ const AnalyticsSection = ({ community }) => {
         },
         topMembers: topMembers,
         topChannels: topChannels,
-      });
+      };
+      analyticsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      setAnalytics(result);
     } catch (error) {
       console.error("Error loading analytics:", error);
       setAnalytics(null);

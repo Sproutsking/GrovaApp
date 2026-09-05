@@ -13,6 +13,7 @@ import MembersSection from "./sections/MembersSection";
 import CommunitySettingsSection from "./sections/CommunitySettingsSection";
 import AnalyticsSection from "./sections/AnalyticsSection";
 import ToolsSection from "./sections/ToolsSection";
+import ChannelManagementSection from "./sections/ChannelManagementSection";
 
 const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) => {
   if (!show) return null;
@@ -171,6 +172,7 @@ const CommunityMenu = ({
                   {menuView==="analytics"&&"Analytics"}
                   {menuView==="notifications"&&"Notifications"}
                   {menuView==="tools"&&"Tools"}
+                  {menuView==="channels"&&"Channels"}
                 </span>
               </div>
             )}
@@ -213,6 +215,7 @@ const CommunityMenu = ({
                     ] : []),
                     { label:"Notifications", desc:"Customize your alerts", icon:<Bell size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>setMenuView("notifications"), arrow:true },
                     { label:"Tools", desc:"Configure member-facing community tools", icon:<Wrench size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#43e97b)", onClick:()=>setMenuView("tools"), arrow:true },
+                    ...(canCreateChannels ? [{ label:"Manage Channels", desc:"Edit channels and organize categories", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#60a5fa,#22d3ee)", onClick:()=>setMenuView("channels"), arrow:true }] : []),
                   ].map((item, i) => (
                     <div key={i} className="cm-item" onClick={item.onClick}>
                       <div className="cm-item-icon" style={{ background: item.gradient }}>{item.icon}</div>
@@ -266,6 +269,11 @@ const CommunityMenu = ({
               onOpenInvite={() => { onClose(); onOpenInvite?.(); }}
               onOpenUpgrade={() => setMenuView("settings")}
               onOpenModeration={() => setMenuView("roles")}
+            />}
+            {menuView === "channels" && <ChannelManagementSection
+              channels={channels}
+              onCreate={() => { onClose(); onCreateChannel?.(); }}
+              onEdit={(channel) => { onClose(); window.dispatchEvent(new CustomEvent("community:edit-channel", { detail: channel })); }}
             />}
           </div>
         </div>

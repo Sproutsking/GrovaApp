@@ -8,10 +8,10 @@ export const CATEGORY_FOLDER_STYLES = [
   { id: "divider-line", label: "Divider line" },
 ];
 
-export default function CategoryGroup({ name, folderStyle = "simple", collapsible = true, draggable = false, onDragStart, onDragOver, onDrop, children }) {
+export default function CategoryGroup({ name, folderStyle = "simple", collapsible = true, draggable = false, onDragStart, onDragOver, onDrop, onContextMenu, children }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className={`cfg cfg--${folderStyle}`} draggable={draggable} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop}>
+    <div className={`cfg cfg--${folderStyle}`} draggable={draggable} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} onContextMenu={onContextMenu}>
       <button type="button" className="cfg-head" onClick={() => collapsible && setOpen((o) => !o)}>
         {folderStyle === "boxed" && <Folder size={11} />}
         <span>{name}</span>
