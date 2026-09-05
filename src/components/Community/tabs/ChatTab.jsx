@@ -173,6 +173,11 @@ const ChatTab = ({
     const communityId = community?.id;
     if (!communityId) return;
     if (!isOwner) setSelectedChannel(null);
+    const categoriesPromise = supabase
+      .from("community_channel_categories")
+      .select("name,position")
+      .eq("community_id", communityId)
+      .order("position", { ascending: true });
     const cachedChannels = communityCache.getChannels(communityId) || community?.channels || [];
     const hasCachedChannels = Boolean(communityCache.getChannels(communityId) || community?.channels?.length);
     if (hasCachedChannels) {
@@ -187,11 +192,16 @@ const ChatTab = ({
           setSelectedChannel(visibleChannels[0] || null);
         }
       }).catch(() => {});
+      categoriesPromise.then(({ data: categories }) => {
+        if (requestId === channelsRequestRef.current && community?.id === communityId) {
+          setCategoryOrder((categories || []).map((category) => category.name));
+        }
+      }).catch(() => {});
     }
     setChannelsRefreshing(hasCachedChannels);
     try {
       const data = await channelService.fetchChannels(communityId);
-      const { data: categories } = await supabase.from("community_channel_categories").select("name,position").eq("community_id", communityId).order("position", { ascending: true });
+      const { data: categories } = await categoriesPromise;
       if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       communityCache.setChannels(communityId, data);
       const visibleChannels = isOwner
@@ -417,11 +427,14 @@ const ChatTab = ({
     groups[category] = [...(groups[category] || []), channel];
     return groups;
   }, {});
-  const orderedGroups = Object.entries(groupedChannels).sort(([a], [b]) => {
-    const ai = categoryOrder.indexOf(a);
-    const bi = categoryOrder.indexOf(b);
-    return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b);
-  });
+  const visibleCategoryNames = [...new Set([...categoryOrder, ...Object.keys(groupedChannels)])];
+  const orderedGroups = visibleCategoryNames
+    .map((category) => [category, groupedChannels[category] || []])
+    .sort(([a], [b]) => {
+      const ai = categoryOrder.indexOf(a);
+      const bi = categoryOrder.indexOf(b);
+      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b);
+    });
   const reorderCategory = async (target) => {
     if (!draggedCategory || draggedCategory === target || !isOwner) return;
     const next = [...(categoryOrder.length ? categoryOrder : Object.keys(groupedChannels))];
