@@ -125,9 +125,9 @@ const STYLES = `
   .xv-nav-btn:hover {
       background: #090d0a;
     color: var(--text);
-    border-color: var(--item-border, var(--accent-border));
+    border-color: color-mix(in srgb, var(--item-border, var(--accent-border)) 68%, white 32%);
     transform: translateX(2px);
-    box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 0 0 1px color-mix(in srgb, var(--item-border, var(--accent)) 38%, transparent), 0 8px 22px rgba(0,0,0,0.16);
+    box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px color-mix(in srgb, var(--item-border, var(--accent)) 24%, transparent), 0 8px 22px rgba(0,0,0,0.16);
   }
   .xv-nav-btn--active { font-weight: 700; }
 
@@ -200,7 +200,7 @@ const STYLES = `
     text-align: left;
     font-family: 'Syne', sans-serif;
     background: #050706;
-    border: 1px solid var(--role-color, var(--surface-border));
+    border: 1px solid color-mix(in srgb, var(--role-color, var(--surface-border)) 22%, transparent);
     color: var(--text);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
   }
@@ -210,7 +210,7 @@ const STYLES = `
     inset: 1px;
     border-radius: 11px;
     border: 1px solid currentColor;
-    opacity: 0.22;
+    opacity: 0.14;
     pointer-events: none;
   }
   .xv-admin-btn::after {
@@ -564,7 +564,9 @@ export default function AdminSidebar({
                 className={`xv-nav-btn${isActive ? " xv-nav-btn--active" : ""}`}
                 style={{
                   "--item-border": isActive ? role.color : item.iconColor,
-                  borderColor: isActive ? role.color : item.iconColor,
+                  borderColor: isActive
+                    ? `color-mix(in srgb, ${role.color} 62%, white 38%)`
+                    : `color-mix(in srgb, ${item.iconColor} 22%, transparent)`,
                   color: isActive ? role.color : undefined,
                 }}
                 onClick={() => setActiveTab(item.id)}
@@ -612,7 +614,7 @@ export default function AdminSidebar({
             className="xv-admin-btn"
             style={{
               background: hovered === "dashboard" ? "#090d0a" : "#050706",
-              border:     `1px solid ${role.color}`,
+              border:     `1px solid color-mix(in srgb, ${role.color} 22%, transparent)`,
               "--role-color": role.color,
               color:      role.color,
               boxShadow:  hovered === "dashboard" ? `0 0 0 1px ${role.color}55, 0 8px 22px ${role.glow}` : `0 5px 14px rgba(0,0,0,0.18)`,

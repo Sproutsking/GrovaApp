@@ -146,7 +146,7 @@ const Sidebar = ({
                       style={{
                         animationDelay: `${idx * 0.05}s`,
                       "--item-color": item.color,
-                        borderColor: `color-mix(in srgb, ${item.color} 34%, transparent)`,
+                        borderColor: `color-mix(in srgb, ${item.color} 22%, transparent)`,
                       }}
                     aria-label="Open menu"
                   >
@@ -177,11 +177,11 @@ const Sidebar = ({
                     animationDelay: `${idx * 0.05}s`,
                     "--item-color": item.color,
                     borderColor: isActive
-                      ? `color-mix(in srgb, ${item.color} 78%, white 22%)`
-                      : `color-mix(in srgb, ${item.color} 34%, transparent)`,
+                      ? `color-mix(in srgb, ${item.color} 58%, white 42%)`
+                      : `color-mix(in srgb, ${item.color} 22%, transparent)`,
                     ...(isActive ? {
                       background: "linear-gradient(135deg, #0b100d, #040705 72%)",
-                      borderColor: `color-mix(in srgb, ${item.color} 88%, white 12%)`,
+                      borderColor: `color-mix(in srgb, ${item.color} 62%, white 38%)`,
                       color: item.color,
                     } : {}),
                   }}
@@ -478,7 +478,7 @@ const Sidebar = ({
           gap: 11px;
           padding: 12px 13px;
           background: linear-gradient(135deg, #080b09, #030504 72%);
-          border: 1px solid color-mix(in srgb, var(--item-color) 34%, transparent);
+          border: 1px solid color-mix(in srgb, var(--item-color) 22%, transparent);
           border-radius: 12px;
           color: var(--text-secondary);
           font-size: 14px;
@@ -498,15 +498,15 @@ const Sidebar = ({
           from { opacity: 0; transform: translateX(-20px); }
         }
         .nav-item:hover:not(.nav-item-active) {
-          border-color: color-mix(in srgb, var(--item-color) 88%, white 12%);
+          border-color: color-mix(in srgb, var(--item-color) 68%, white 32%);
           background: linear-gradient(135deg, #0b100d, #040705 72%);
           transform: translateX(2px);
-          box-shadow: inset 0 1px rgba(255,255,255,0.1), 0 0 0 1px color-mix(in srgb, var(--item-color) 38%, transparent), 0 8px 22px rgba(0,0,0,0.16);
+          box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px color-mix(in srgb, var(--item-color) 24%, transparent), 0 8px 22px rgba(0,0,0,0.16);
         }
         .nav-item-active { box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 8px 24px var(--accent-shadow); }
         .nav-item:focus-visible {
-          border-color: var(--item-color);
-          box-shadow: 0 0 0 2px color-mix(in srgb, var(--item-color) 22%, transparent), 0 0 18px color-mix(in srgb, var(--item-color) 48%, transparent);
+          border-color: color-mix(in srgb, var(--item-color) 68%, white 32%);
+          box-shadow: 0 0 0 2px color-mix(in srgb, var(--item-color) 16%, transparent), 0 0 18px color-mix(in srgb, var(--item-color) 30%, transparent);
           outline: none;
         }
 
