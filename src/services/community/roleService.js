@@ -183,8 +183,6 @@ class RoleService {
         });
       }
 
-      if (!roleModel.hasPermission("viewChannels")) return [];
-
       const { data: membership } = await supabase
         .from("community_members")
         .select("role_id")
@@ -192,6 +190,14 @@ class RoleService {
         .eq("user_id", userId)
         .single();
       if (!membership?.role_id) return allChannels.filter((channel) => !channel.is_private);
+
+      const { data: accessRows } = await supabase
+        .from("community_member_channel_access")
+        .select("channel_id,can_view")
+        .eq("community_id", communityId)
+        .eq("user_id", userId);
+      const accessMap = new Map((accessRows || []).map((item) => [item.channel_id, item.can_view]));
+      if (!roleModel.hasPermission("viewChannels")) return allChannels.filter((channel) => accessMap.get(channel.id) === true);
 
       const { data: overrides } = await supabase
         .from("channel_permission_overrides")
@@ -214,6 +220,7 @@ class RoleService {
         .eq("permission", "viewChannel");
       const categoryOverrideMap = new Map((categoryOverrides || []).filter((item) => item.apply_to_channels).map((item) => [item.category_id, item.state]));
       return allChannels.filter((channel) => {
+        if (accessMap.has(channel.id)) return accessMap.get(channel.id) === true;
         const explicit = overrideMap.get(channel.id);
         if (explicit) return explicit === "allow";
         const inherited = categoryOverrideMap.get(categoryIds.get(channel.category));

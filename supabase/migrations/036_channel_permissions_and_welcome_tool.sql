@@ -65,3 +65,48 @@ create index if not exists channel_permission_overrides_lookup_idx
   on public.channel_permission_overrides(community_id, channel_id, role_id);
 create index if not exists category_permission_overrides_lookup_idx
   on public.category_permission_overrides(community_id, category_id, role_id);
+
+-- Ticket staff visibility follows the community's manage-channels benchmark.
+create or replace function public.create_community_ticket(
+  p_community_id uuid,
+  p_user_id uuid
+)
+returns public.community_channels
+language plpgsql security definer set search_path = public
+as $$
+declare
+  target public.communities;
+  ticket public.community_channels;
+  open_count integer;
+begin
+  if auth.uid() is null or auth.uid() <> p_user_id then raise exception 'Unauthorized'; end if;
+  select * into target from public.communities where id = p_community_id and deleted_at is null;
+  if not found then raise exception 'Community not found'; end if;
+  if not exists (select 1 from public.community_members where community_id = p_community_id and user_id = p_user_id) then raise exception 'You are not a member'; end if;
+  select count(*) into open_count from public.community_ticket_channels where community_id = p_community_id and status = 'open';
+  if open_count >= 25 then raise exception 'This community has reached its 25 open ticket limit'; end if;
+
+  insert into public.community_channels (community_id, name, icon, description, type, is_private, category, tool_type, is_default, integrations, style)
+  values (p_community_id, 'ticket-' || lpad((open_count + 1)::text, 4, '0'), '🎫', 'Private support ticket', 'text', true, 'Support', null, false, jsonb_build_object('ticket', true), '{}'::jsonb)
+  returning * into ticket;
+  insert into public.community_ticket_channels (community_id, channel_id, requester_id) values (p_community_id, ticket.id, p_user_id);
+  insert into public.community_member_channel_access (community_id, channel_id, user_id, can_view, can_send, updated_by)
+  values (p_community_id, ticket.id, p_user_id, true, true, p_user_id)
+  on conflict (channel_id, user_id) do update set can_view = true, can_send = true;
+  insert into public.community_member_channel_access (community_id, channel_id, user_id, can_view, can_send, updated_by)
+  select p_community_id, ticket.id, m.user_id, true, true, p_user_id
+  from public.community_members m
+  join public.community_roles r on r.id = m.role_id
+  where m.community_id = p_community_id
+    and (r.permissions @> '{"administrator": true}'::jsonb
+      or r.permissions @> '{"manageCommunity": true}'::jsonb
+      or r.permissions @> '{"manageChannels": true}'::jsonb
+      or r.permissions @> '{"manageMessages": true}'::jsonb)
+  on conflict (channel_id, user_id) do update set can_view = true, can_send = true;
+  return ticket;
+end;
+$$;
+
+alter function public.create_community_ticket(uuid, uuid) owner to postgres;
+revoke all on function public.create_community_ticket(uuid, uuid) from public;
+grant execute on function public.create_community_ticket(uuid, uuid) to authenticated;
