@@ -224,6 +224,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [activeFontId, setActiveFontId] = useState(null);
   const [activeColorId, setActiveColorId] = useState(null);
   const [activeBackgroundColorId, setActiveBackgroundColorId] = useState(null);
+  const [boostManagerOpen, setBoostManagerOpen] = useState(false);
   // [AMB-4] Ambassador profile data for badge + action button label
   const [ambassadorData, setAmbassadorData] = useState(null);
 
@@ -672,7 +673,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           themeId={activeThemeId}
           backgroundColorId={activeBackgroundColorId}
           embedded
-          style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, maxHeight:"340px", animation:"profileFadeIn 0.4s ease" }}
+          style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, maxHeight: boostManagerOpen ? "1200px" : "340px", overflow: "hidden", animation:"profileFadeIn 0.4s ease" }}
         >
           <div className="profile-header-content" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.32) 100%)", backdropFilter: "blur(8px)" }}>
 
@@ -749,22 +750,45 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             {/* [B3] Theme picker — only for boosted profiles, only on own page */}
             {hasBoostedTier && (
               <div style={{ marginTop:16 }}>
-                <BoostThemePicker
-                  tier={profile.subscriptionTier}
-                  activeId={activeThemeId}
-                  activeFontId={activeFontId}
-                  activeColorId={activeColorId}
-                  activeBackgroundColorId={activeBackgroundColorId}
-                  userId={userId}
-                  onPicked={(selection) => {
-                    if (typeof selection === "string") setActiveThemeId(selection);
-                    else {
-                      if (selection.fontId) setActiveFontId(selection.fontId);
-                      if (selection.colorId) setActiveColorId(selection.colorId);
-                      if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
-                    }
+                <button
+                  type="button"
+                  onClick={() => setBoostManagerOpen((v) => !v)}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "#fff",
+                    borderRadius: 14,
+                    padding: "12px 16px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    letterSpacing: ".08em",
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    marginBottom: 12,
                   }}
-                />
+                >
+                  {boostManagerOpen ? "Close boost manager" : "Manage profile boost"}
+                </button>
+
+                <div style={{ maxHeight: boostManagerOpen ? 980 : 0, overflow: "hidden", opacity: boostManagerOpen ? 1 : 0, transition: "max-height 0.3s ease, opacity 0.25s ease" }}>
+                  <BoostThemePicker
+                    tier={profile.subscriptionTier}
+                    activeId={activeThemeId}
+                    activeFontId={activeFontId}
+                    activeColorId={activeColorId}
+                    activeBackgroundColorId={activeBackgroundColorId}
+                    userId={userId}
+                    onPicked={(selection) => {
+                      if (typeof selection === "string") setActiveThemeId(selection);
+                      else {
+                        if (selection.fontId) setActiveFontId(selection.fontId);
+                        if (selection.colorId) setActiveColorId(selection.colorId);
+                        if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
+                      }
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
