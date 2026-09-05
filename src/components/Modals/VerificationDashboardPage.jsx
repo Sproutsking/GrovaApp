@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 import { ArrowLeft, ShieldCheck, X } from "lucide-react";
 
@@ -11,6 +11,25 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
     return item?.verified && (level === "high" || level === "critical");
   }).length;
   const sourceCount = new Set(verificationItems.map(item => item?.provider).filter(Boolean)).size;
+  const platformProfiles = useMemo(() => {
+    const seen = new Set();
+    return verificationItems
+      .filter((item) => item?.provider && !seen.has(item.provider) && seen.add(item.provider))
+      .slice(0, 8)
+      .map((item) => ({
+        provider: item.provider,
+        title: item.title || item.provider,
+        avatarUrl: item.metadata?.avatarUrl || item.metadata?.avatar_url || item.raw?.avatar_url || item.raw?.profile_image_url || null,
+      }));
+  }, [verificationItems]);
+
+  const mainAvatar = profile?.avatarUrl || profile?.avatar_url || null;
+  const profileName = dashboard?.profileSummary?.displayName || profile?.fullName || "This profile";
+  const initials = profileName.charAt(0).toUpperCase();
+
+  const renderAvatar = (avatar, label, className = "") => avatar
+    ? <img className={className} src={avatar} alt={`${label} profile`} />
+    : <span className={`${className} vdp-platform-fallback`}>{label.charAt(0).toUpperCase()}</span>;
 
   const renderSectionPage = () => (
     <div className="vdp-section-page">
@@ -18,7 +37,7 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
         <button type="button" onClick={() => setSelectedSection(null)}><ArrowLeft size={15}/> Back to evidence map</button>
         <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
       </div>
-      <div className="vdp-section-hero">
+      <div className="vdp-section-hero" style={{ "--section-accent": selected.accent || "#84cc16" }}>
         <div className="vdp-kicker">Evidence module</div>
         <h1 className="vdp-title">{selected.title}</h1>
         <p className="vdp-sub">{selected.subtitle}</p>
@@ -55,32 +74,49 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
         .vdp-detail{margin-top:16px;padding:20px;border:1px solid rgba(132,204,22,.25);border-radius:18px;background:rgba(0,0,0,.24)}.vdp-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.vdp-detail h3{margin:0 0 5px;font-size:18px}.vdp-detail-head p{margin:0;color:#9ca8b8;font-size:12px}.vdp-detail-close{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:9px;padding:8px;cursor:pointer}.vdp-evidence{display:grid;gap:10px;margin-top:18px}.vdp-evidence-item{padding:14px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}.vdp-evidence-title{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:800}.vdp-evidence-meta{color:#8f9aaa;font-size:11px;margin-top:5px}.vdp-evidence-summary{color:#cbd5e1;font-size:12px;line-height:1.5;margin-top:9px}
         @media(max-width:700px){.vdp-shell{padding:16px 14px 44px}.vdp-hero{grid-template-columns:1fr;padding:20px}.vdp-section-hero{padding:22px 18px}.vdp-avatar-frame{width:102px;height:102px}.vdp-avatar,.vdp-avatar-fallback{width:84px;height:84px}.vdp-avatar-fallback{font-size:32px}.vdp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.vdp-card{padding:14px;min-height:118px}.vdp-stats{gap:6px}.vdp-stat{padding:12px 8px}.vdp-stat strong{font-size:20px}}
       `}</style>
+      <style>{`
+        .vdp-bg{background:radial-gradient(circle at 12% 8%,rgba(132,204,22,.18),transparent 30%),radial-gradient(circle at 88% 14%,rgba(96,165,250,.14),transparent 30%),radial-gradient(circle at 54% 92%,rgba(167,139,250,.1),transparent 34%),linear-gradient(135deg,#070a0b,#111722 52%,#08090d);background-size:140% 140%;animation:vdpBgDrift 18s ease-in-out infinite alternate}
+        .vdp-hero{grid-template-columns:minmax(260px,.9fr) minmax(0,1.65fr);gap:0;padding:0;overflow:hidden}
+        .vdp-visual-column{position:relative;min-height:292px;display:flex;align-items:center;justify-content:center;padding:24px;border-right:1px solid rgba(255,255,255,.16);background:radial-gradient(circle at 30% 50%,rgba(132,204,22,.14),transparent 58%),linear-gradient(145deg,rgba(0,0,0,.18),rgba(96,165,250,.06))}
+        .vdp-platform-orbit{position:relative;width:100%;height:230px;display:flex;align-items:center}.vdp-main-avatar{position:relative;z-index:3;width:132px;height:132px;border-radius:50%;display:grid;place-items:center;padding:6px;border:1px solid rgba(132,204,22,.55);background:rgba(8,14,10,.9);box-shadow:0 0 0 9px rgba(132,204,22,.08),0 0 34px rgba(132,204,22,.25)}
+        .vdp-avatar{width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid rgba(132,204,22,.65);display:block}.vdp-platform-fallback{display:grid;place-items:center;background:linear-gradient(145deg,#203b16,#111b24);color:#b8f276;font-size:42px;font-weight:950}
+        .vdp-platform-pyramid{position:absolute;left:104px;right:-4px;top:18px;height:194px}.vdp-platform-chip{position:absolute;display:flex;align-items:center;gap:5px;padding:4px 7px 4px 4px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(10,15,18,.9);box-shadow:0 8px 20px rgba(0,0,0,.3);font-size:8px;color:#b7c4d0;text-transform:capitalize}.vdp-platform-avatar{width:27px;height:27px;border-radius:50%;object-fit:cover;border:1px solid rgba(132,204,22,.45);font-size:11px}.vdp-platform-chip-0{left:0;top:80px}.vdp-platform-chip-1{left:42px;top:40px}.vdp-platform-chip-2{left:42px;top:120px}.vdp-platform-chip-3{left:84px;top:0}.vdp-platform-chip-4{left:84px;top:80px}.vdp-platform-chip-5{left:84px;top:160px}.vdp-platform-chip-6{left:126px;top:40px}.vdp-platform-chip-7{left:126px;top:120px}
+        .vdp-hero-data{display:flex;flex-direction:column;justify-content:center;padding:34px 36px}.vdp-card{--card-accent:#84cc16;background:linear-gradient(145deg,color-mix(in srgb,var(--card-accent) 10%,rgba(255,255,255,.045)),rgba(255,255,255,.025))}.vdp-card::after{background:radial-gradient(circle,color-mix(in srgb,var(--card-accent) 35%,transparent),transparent 68%)}.vdp-card:hover{border-color:var(--card-accent);background:linear-gradient(145deg,color-mix(in srgb,var(--card-accent) 18%,rgba(255,255,255,.05)),rgba(255,255,255,.04));box-shadow:0 14px 40px rgba(0,0,0,.3),0 0 0 1px color-mix(in srgb,var(--card-accent) 25%,transparent)}
+        .vdp-section-page{min-height:calc(100dvh - 44px);padding-bottom:40px}.vdp-section-hero{--section-accent:#84cc16;border-color:color-mix(in srgb,var(--section-accent) 45%,transparent);background:radial-gradient(circle at 86% 18%,color-mix(in srgb,var(--section-accent) 22%,transparent),transparent 36%),linear-gradient(135deg,color-mix(in srgb,var(--section-accent) 16%,rgba(255,255,255,.035)),rgba(96,165,250,.07) 55%,rgba(255,255,255,.035));box-shadow:0 24px 80px rgba(0,0,0,.32),inset 0 0 60px color-mix(in srgb,var(--section-accent) 8%,transparent)}
+        @keyframes vdpBgDrift{from{background-position:0% 0%}to{background-position:100% 100%}}
+        @media(max-width:700px){.vdp-hero{grid-template-columns:1fr}.vdp-visual-column{min-height:250px;border-right:0;border-bottom:1px solid rgba(255,255,255,.16);padding:18px}.vdp-platform-orbit{height:210px;justify-content:center;align-items:flex-start}.vdp-main-avatar{width:112px;height:112px}.vdp-platform-pyramid{left:50%;right:auto;top:102px;transform:translateX(-50%);width:210px;height:100px}.vdp-platform-chip{transform:scale(.9);transform-origin:top left}.vdp-platform-chip-0{left:0;top:38px}.vdp-platform-chip-1{left:42px;top:0}.vdp-platform-chip-2{left:42px;top:76px}.vdp-platform-chip-3{left:84px;top:-38px}.vdp-platform-chip-4{left:84px;top:38px}.vdp-platform-chip-5{left:84px;top:114px}.vdp-platform-chip-6{left:126px;top:0}.vdp-platform-chip-7{left:126px;top:76px}.vdp-hero-data{padding:24px 20px}}
+      `}</style>
       <div className="vdp-bg" />
       <main className="vdp-shell">
-        <div className="vdp-nav">
+        {!selected && <div className="vdp-nav">
           <button type="button" onClick={onBack}><ArrowLeft size={15}/> Back to profile</button>
           <button type="button" onClick={onClose} aria-label="Close dashboard"><X size={15}/> Close</button>
-        </div>
+        </div>}
         {selected ? renderSectionPage() : <>
         <section className="vdp-hero">
-          <div>
+          <div className="vdp-visual-column">
+            <div className="vdp-platform-orbit" aria-label="Connected platform profiles">
+              <div className="vdp-main-avatar">{renderAvatar(mainAvatar, profileName, "vdp-avatar")}</div>
+              <div className="vdp-platform-pyramid">
+                {platformProfiles.map((platform, index) => <div className={`vdp-platform-chip vdp-platform-chip-${index}`} key={platform.provider} title={platform.title}>{renderAvatar(platform.avatarUrl, platform.title, "vdp-platform-avatar")}<span>{platform.provider}</span></div>)}
+              </div>
+            </div>
+          </div>
+          <div className="vdp-hero-data">
             <div className="vdp-kicker">Xeevia proof layer</div>
             <h1 className="vdp-title">Verification Dashboard</h1>
-            <p className="vdp-sub">A structured view of {dashboard?.profileSummary?.displayName || profile?.fullName || "this profile"}'s identity, connected signals, and verified evidence.</p>
+            <p className="vdp-sub">A structured view of {profileName}'s identity, connected signals, and verified evidence.</p>
             <div className="vdp-stats">
               <div className="vdp-stat"><strong>{verifiedCount}</strong><span>Verified signals</span></div>
               <div className="vdp-stat"><strong>{highTrustCount}</strong><span>High trust</span></div>
               <div className="vdp-stat"><strong>{sourceCount}</strong><span>Sources</span></div>
             </div>
           </div>
-          <div className="vdp-avatar-frame">
-            {profile?.avatarUrl ? <img className="vdp-avatar" src={profile.avatarUrl} alt={profile.fullName || "Profile"} /> : <div className="vdp-avatar-fallback">{(profile?.fullName || "U").charAt(0).toUpperCase()}</div>}
-          </div>
         </section>
         <div className="vdp-heading"><div><h2>Evidence map</h2><p>{loading ? "Loading verified evidence..." : "Select a section to inspect its proof records."}</p></div><ShieldCheck size={20} color="#84cc16" /></div>
         <section className="vdp-grid">
           {(dashboard?.sections || []).map(section => (
-            <button className="vdp-card" type="button" key={section.id} onClick={() => setSelectedSection(section.id)}>
+            <button className="vdp-card" style={{ "--card-accent": section.accent || "#84cc16" }} type="button" key={section.id} onClick={() => setSelectedSection(section.id)}>
               <div className="vdp-card-top"><h3>{section.title}</h3><span className="vdp-count">{section.items.length}</span></div>
               <p>{section.subtitle}</p>
             </button>
