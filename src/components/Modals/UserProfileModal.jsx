@@ -34,6 +34,7 @@ import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import VerificationDashboardPage from "./VerificationDashboardPage";
 import TierBadgePill from "../Shared/TierBadgePill";
 import {
@@ -478,7 +479,15 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           url: null,
           created_at: verificationRecord.created_at || null,
         }] : [];
-        setVerificationItems([...oracleEvidence, ...storedEvidence]);
+        const firstParty = createFirstPartyXeeviaEvidence({
+          id: targetId,
+          fullName: raw.full_name || user?.full_name || user?.name || user?.author,
+          username: raw.username || user?.username,
+          avatarUrl,
+          bio: raw.bio,
+        });
+        const externalEvidence = storedEvidence.filter((item) => String(item?.provider || "").toLowerCase() !== "xeevia");
+        setVerificationItems([...(firstParty ? [firstParty] : []), ...oracleEvidence, ...externalEvidence]);
       }
 
       // Follow status — only when viewing another user

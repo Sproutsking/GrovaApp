@@ -29,6 +29,7 @@ import VerificationLedgerCard from "../Shared/VerificationLedgerCard";
 import { buildVerificationDashboardSections } from "../../services/evidence/verificationDashboardModel";
 import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
+import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import TierBadgePill from "../Shared/TierBadgePill";
 
 // [B1–B3] Boost imports
@@ -235,10 +236,10 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   }, [userId]);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && profile?.id) {
       loadVerificationItems();
     }
-  }, [userId]);
+  }, [userId, profile?.id, profile?.avatar]);
 
   // [AMB-4] Fetch ambassador profile separately so it doesn't block main load
   useEffect(() => {
@@ -286,7 +287,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .limit(50);
 
       if (error) throw error;
-      setVerificationItems(Array.isArray(data) ? data : []);
+      const firstParty = createFirstPartyXeeviaEvidence(profile);
+      const external = Array.isArray(data) ? data.filter((item) => String(item?.provider || "").toLowerCase() !== "xeevia") : [];
+      setVerificationItems(firstParty ? [firstParty, ...external] : external);
     } catch (err) {
       console.warn("Verification items load failed:", err?.message || err);
       setVerificationItems([]);

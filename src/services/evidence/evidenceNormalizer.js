@@ -23,6 +23,32 @@ export function createEvidenceItem(payload = {}) {
   };
 }
 
+export function createFirstPartyXeeviaEvidence(profile = {}) {
+  if (!profile?.id && !profile?.username) return null;
+  return createEvidenceItem({
+    id: `xeevia:profile:${profile.id || profile.username}`,
+    provider: "Xeevia",
+    type: "profile",
+    source: "first_party",
+    entityType: "person",
+    externalId: profile.id || profile.username,
+    title: profile.fullName || profile.full_name || profile.username || "Xeevia profile",
+    summary: profile.bio || "Xeevia first-party identity and profile signal.",
+    description: profile.bio || "Connected Xeevia profile",
+    verified: true,
+    confidence: "high",
+    metadata: {
+      proofType: "platform",
+      verificationLevel: "high",
+      username: profile.username || null,
+      avatarUrl: profile.avatarUrl || profile.avatar_url || profile.avatar || null,
+      platform: "xeevia",
+      firstParty: true,
+    },
+    raw: profile,
+  });
+}
+
 export function normalizeProfileEvidence({ provider, profile, metadata = {} }) {
   if (!profile) return null;
 
