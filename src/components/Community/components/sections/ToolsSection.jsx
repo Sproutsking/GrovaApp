@@ -13,6 +13,7 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
   const [openTool, setOpenTool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sourceConnected, setSourceConnected] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -25,6 +26,8 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
         setRows(data || []);
         setLoading(false);
       });
+    supabase.from("community_social_connections").select("id").eq("community_id", communityId).eq("provider", "xeevia").eq("status", "active").maybeSingle()
+      .then(({ data }) => { if (active) setSourceConnected(Boolean(data)); });
     return () => { active = false; };
   }, [communityId]);
 
@@ -34,6 +37,15 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
     const configured = row.config?.channel_ids;
     if (Array.isArray(configured)) return new Set(configured);
     return row.channel_id ? new Set([row.channel_id]) : new Set();
+  };
+
+  const connectXeevia = async () => {
+    if (!canManage) return;
+    const { data: user } = await supabase.auth.getUser();
+    const userId = user?.user?.id;
+    if (!userId) return;
+    const { error: connectionError } = await supabase.from("community_social_connections").upsert({ community_id: communityId, connected_by: userId, provider: "xeevia", provider_account_id: userId, display_name: "Xeevia account", status: "active", scopes: ["internal:posts"], updated_at: new Date().toISOString() }, { onConflict: "community_id,provider,provider_account_id" });
+    if (connectionError) setError(connectionError.message); else setSourceConnected(true);
   };
 
   const toggleChannel = async (type, channelId) => {
@@ -85,6 +97,7 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
               <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span><em>{selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
             </button>
             {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div>}
+            {open && tool.type === "social_updates" && canManage && <button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button>}
           </div>
         );
       })}

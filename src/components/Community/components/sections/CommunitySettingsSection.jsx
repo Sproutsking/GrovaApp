@@ -309,6 +309,17 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
                                 rows={3}
                                 maxLength={1000}
                               />
+                              <div className="verification-button-editor">
+                                {(Array.isArray(config.buttons) && config.buttons.length ? config.buttons : [{ id: "agree", label: "I agree and verify", color: "lime" }]).slice(0, 5).map((button, index) => (
+                                  <div className="verification-button-row" key={button.id || index}>
+                                    <input className="tool-config-input" value={button.label || ""} onChange={(event) => { const buttons = [...(config.buttons || [{ id: "agree", label: "I agree and verify", color: "lime" }])]; buttons[index] = { ...buttons[index], label: event.target.value }; updateTool(tool, { config: { ...config, buttons } }); }} placeholder={`Button ${index + 1} label`} maxLength={60} />
+                                    <select value={button.color || "lime"} onChange={(event) => { const buttons = [...(config.buttons || [{ id: "agree", label: "I agree and verify", color: "lime" }])]; buttons[index] = { ...buttons[index], color: event.target.value }; updateTool(tool, { config: { ...config, buttons } }); }}>
+                                      {['lime', 'blue', 'gold', 'red', 'purple'].map((color) => <option key={color} value={color}>{color}</option>)}
+                                    </select>
+                                  </div>
+                                ))}
+                                {(config.buttons || []).length < 5 && <button type="button" className="tool-finish-btn" onClick={() => updateTool(tool, { config: { ...config, buttons: [...(config.buttons || [{ id: "agree", label: "I agree and verify", color: "lime" }]), { id: `button-${Date.now()}`, label: "Verify", color: "lime" }] } })}>Add verification button</button>}
+                              </div>
                             </>
                           )}
 
@@ -353,6 +364,8 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
                                 rows={2}
                                 maxLength={500}
                               />
+                              <input type="text" className="tool-config-input" value={config.closeTitle || "Close ticket"} onChange={(event) => updateTool(tool, { config: { ...config, closeTitle: event.target.value, mode: activeMode } })} placeholder="Close button title..." maxLength={100} />
+                              <textarea className="tool-config-input" value={config.closeDescription || "Close this ticket when your request is resolved."} onChange={(event) => updateTool(tool, { config: { ...config, closeDescription: event.target.value, mode: activeMode } })} placeholder="Close ticket instructions..." rows={2} maxLength={300} />
                             </>
                           )}
 

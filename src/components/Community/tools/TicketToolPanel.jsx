@@ -1,47 +1,30 @@
-import React, { useState } from "react";
-import { Mail, Send, CheckCircle2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { CheckCircle2, Mail, Send, XCircle } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 
-export default function TicketToolPanel({ communityId, userId, userEmail }) {
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
+export default function TicketToolPanel({ communityId, userId, channelId, isPrivateTicket = false, onTicketCreated }) {
+  const [config, setConfig] = useState({ title: "Open a private ticket", description: "Tell the community team what you need help with.", closeTitle: "Close ticket", closeDescription: "Close this ticket when your request is resolved." });
   const [state, setState] = useState("idle");
+  const [ticket, setTicket] = useState(null);
   const [error, setError] = useState("");
 
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!subject.trim() || !description.trim() || state === "sending") return;
-    setState("sending");
-    setError("");
-    const { error: insertError } = await supabase.from("support_cases").insert({
-      title: subject.trim(),
-      description: description.trim(),
-      user_id: userId,
-      user_email: userEmail || null,
-      category: "technical",
-      priority: "medium",
-      status: "open",
-    });
-    if (insertError) {
-      setError(insertError.message || "Ticket could not be created.");
-      setState("idle");
-      return;
-    }
-    setSubject("");
-    setDescription("");
-    setState("sent");
+  useEffect(() => { let active = true; supabase.from("community_tool_settings").select("config").eq("community_id", communityId).eq("tool_type", "tickets").maybeSingle().then(({ data }) => { if (active && data?.config) setConfig((current) => ({ ...current, ...data.config })); }); return () => { active = false; }; }, [communityId]);
+
+  const createTicket = async () => {
+    if (state === "sending") return;
+    setState("sending"); setError("");
+    const { data, error: rpcError } = await supabase.rpc("create_community_ticket", { p_community_id: communityId, p_user_id: userId });
+    if (rpcError) { setError(rpcError.message || "Ticket could not be created."); setState("idle"); return; }
+    setTicket(data); setState("created"); onTicketCreated?.(data);
   };
 
-  return (
-    <section className="community-ticket-tool">
-      <div className="ticket-tool-head"><div className="ticket-tool-icon"><Mail size={20} /></div><div><span>Private support</span><h2>Open a ticket</h2><p>Only the community team can see your request.</p></div></div>
-      {state === "sent" ? <div className="ticket-sent"><CheckCircle2 size={20} /> Ticket sent to the community team.</div> : <form onSubmit={submit}>
-        <input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="What do you need help with?" maxLength={120} />
-        <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe the issue..." rows={4} maxLength={2000} />
-        {error && <div className="ticket-error">{error}</div>}
-        <button type="submit" disabled={!subject.trim() || !description.trim() || state === "sending"}><Send size={15} /> {state === "sending" ? "Sending..." : "Send private ticket"}</button>
-      </form>}
-      <style>{`.community-ticket-tool{max-width:560px;margin:18px auto;padding:18px;border:1px solid rgba(156,255,0,.18);border-radius:14px;background:linear-gradient(145deg,rgba(24,33,25,.96),rgba(9,13,10,.98));color:#eef8ed}.ticket-tool-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}.ticket-tool-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:11px;color:#9cff00;background:rgba(156,255,0,.1);border:1px solid rgba(156,255,0,.28)}.ticket-tool-head span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#9cff00;font-weight:800}.ticket-tool-head h2{margin:3px 0;font-size:20px}.ticket-tool-head p{margin:0;color:#89a08b;font-size:12px}.community-ticket-tool input,.community-ticket-tool textarea{width:100%;box-sizing:border-box;margin-bottom:9px;padding:11px 12px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.04);color:#fff;font:inherit;font-size:13px;resize:vertical}.community-ticket-tool button{display:flex;align-items:center;gap:7px;padding:10px 13px;border:0;border-radius:9px;background:#9cff00;color:#071000;font-weight:800;cursor:pointer}.community-ticket-tool button:disabled{opacity:.45;cursor:not-allowed}.ticket-error{margin-bottom:9px;color:#ffaaa3;font-size:11px}.ticket-sent{display:flex;gap:8px;align-items:center;padding:12px;border-radius:9px;background:rgba(156,255,0,.1);color:#caff9a;font-size:12px}`}</style>
-    </section>
-  );
-}
+  const closeTicket = async () => {
+    setState("sending"); setError("");
+    const { error: rpcError } = await supabase.rpc("close_community_ticket", { p_channel_id: channelId, p_user_id: userId });
+    if (rpcError) { setError(rpcError.message || "Ticket could not be closed."); setState("created"); return; }
+    setState("closed");
+  };
+
+  if (isPrivateTicket) return <section className="community-ticket-tool"><div className="ticket-tool-head"><div className="ticket-tool-icon"><Mail size={20} /></div><div><span>Private support</span><h2>{config.closeTitle}</h2><p>{config.closeDescription}</p></div></div>{state === "closed" ? <div className="ticket-sent"><CheckCircle2 size={20} /> Ticket closed.</div> : <button type="button" onClick={closeTicket} disabled={state === "sending"}><XCircle size={15} /> Close ticket</button>}{error && <div className="ticket-error">{error}</div>}<style>{`.community-ticket-tool{max-width:560px;margin:18px auto;padding:18px;border:1px solid rgba(156,255,0,.18);border-radius:14px;background:linear-gradient(145deg,rgba(24,33,25,.96),rgba(9,13,10,.98));color:#eef8ed}.ticket-tool-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}.ticket-tool-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:11px;color:#9cff00;background:rgba(156,255,0,.1);border:1px solid rgba(156,255,0,.28)}.ticket-tool-head span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#9cff00;font-weight:800}.ticket-tool-head h2{margin:3px 0;font-size:20px}.ticket-tool-head p{margin:0;color:#89a08b;font-size:12px}.community-ticket-tool>button{display:flex;align-items:center;gap:7px;padding:10px 13px;border:0;border-radius:9px;background:#ef6262;color:#fff;font-weight:800;cursor:pointer}.ticket-sent{display:flex;gap:8px;align-items:center;padding:12px;border-radius:9px;background:rgba(156,255,0,.1);color:#caff9a;font-size:12px}.ticket-error{margin-top:9px;color:#ffaaa3;font-size:11px}`}</style></section>;
+  return <section className="community-ticket-tool"><div className="ticket-tool-head"><div className="ticket-tool-icon"><Mail size={20} /></div><div><span>Private support</span><h2>{config.title}</h2><p>{config.description}</p></div></div>{state === "closed" ? <div className="ticket-sent"><CheckCircle2 size={20} /> Ticket closed.</div> : state === "created" ? <><div className="ticket-sent"><CheckCircle2 size={20} /> Your private ticket channel is ready.</div><div className="ticket-close-card"><strong>{config.closeTitle}</strong><span>{config.closeDescription}</span><button type="button" onClick={closeTicket} disabled={state === "sending"}><XCircle size={15} /> Close ticket</button></div></> : <button type="button" onClick={createTicket} disabled={state === "sending"}><Send size={15} /> {state === "sending" ? "Creating..." : "Create private ticket"}</button>}{error && <div className="ticket-error">{error}</div>}<style>{`.community-ticket-tool{max-width:560px;margin:18px auto;padding:18px;border:1px solid rgba(156,255,0,.18);border-radius:14px;background:linear-gradient(145deg,rgba(24,33,25,.96),rgba(9,13,10,.98));color:#eef8ed}.ticket-tool-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}.ticket-tool-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:11px;color:#9cff00;background:rgba(156,255,0,.1);border:1px solid rgba(156,255,0,.28)}.ticket-tool-head span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#9cff00;font-weight:800}.ticket-tool-head h2{margin:3px 0;font-size:20px}.ticket-tool-head p{margin:0;color:#89a08b;font-size:12px}.community-ticket-tool>button,.ticket-close-card button{display:flex;align-items:center;gap:7px;padding:10px 13px;border:0;border-radius:9px;background:#9cff00;color:#071000;font-weight:800;cursor:pointer}.ticket-close-card{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px}.ticket-close-card span{color:#89a08b;font-size:12px}.ticket-close-card button{margin-top:5px;background:#ef6262;color:#fff}.ticket-sent{display:flex;gap:8px;align-items:center;padding:12px;border-radius:9px;background:rgba(156,255,0,.1);color:#caff9a;font-size:12px}.ticket-error{margin-top:9px;color:#ffaaa3;font-size:11px}`}</style></section>;
++}

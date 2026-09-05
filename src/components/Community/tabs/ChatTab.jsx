@@ -31,6 +31,7 @@ import ForwardMessageModal from "../components/ForwardMessageModal";
 import TicketToolPanel from "../tools/TicketToolPanel";
 import VerificationPanel from "../verification/VerificationPanel";
 import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
+import { supabase } from "../../../services/config/supabase";
 
 const ChatTab = ({
   community,
@@ -78,6 +79,8 @@ const ChatTab = ({
   const [mentionedRole, setMentionedRole] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [channelDeleteConfirm, setChannelDeleteConfirm] = useState(null);
+  const [categoryOrder, setCategoryOrder] = useState([]);
+  const [draggedCategory, setDraggedCategory] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
   const messagesEndRef = useRef(null);
@@ -167,6 +170,7 @@ const ChatTab = ({
     setChannelsRefreshing(hasCachedChannels);
     try {
       const data = await channelService.fetchChannels(communityId);
+      const { data: categories } = await supabase.from("community_channel_categories").select("name,position").eq("community_id", communityId).order("position", { ascending: true });
       if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       communityCache.setChannels(communityId, data);
       const visibleChannels = isOwner
@@ -174,6 +178,7 @@ const ChatTab = ({
         : await roleService.getVisibleChannels(communityId, userId, data);
       if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
       setChannels(visibleChannels);
+      setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
       if (visibleChannels.length > 0 && !selectedChannel) {
         setSelectedChannel(visibleChannels[0]);
@@ -388,6 +393,21 @@ const ChatTab = ({
     groups[category] = [...(groups[category] || []), channel];
     return groups;
   }, {});
+  const orderedGroups = Object.entries(groupedChannels).sort(([a], [b]) => {
+    const ai = categoryOrder.indexOf(a);
+    const bi = categoryOrder.indexOf(b);
+    return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b);
+  });
+  const reorderCategory = async (target) => {
+    if (!draggedCategory || draggedCategory === target || !isOwner) return;
+    const next = [...(categoryOrder.length ? categoryOrder : Object.keys(groupedChannels))];
+    const from = next.indexOf(draggedCategory);
+    const to = next.indexOf(target);
+    if (from < 0 || to < 0) return;
+    next.splice(from, 1); next.splice(to, 0, draggedCategory);
+    setCategoryOrder(next); setDraggedCategory(null);
+    await Promise.all(next.map((name, position) => supabase.from("community_channel_categories").update({ position, updated_at: new Date().toISOString() }).eq("community_id", community.id).eq("name", name)));
+  };
 
   return (
     <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
@@ -419,8 +439,8 @@ const ChatTab = ({
               ))}
             </div>
           ) : (
-            Object.entries(groupedChannels).map(([category, categoryChannels]) => (
-              <CategoryGroup key={category} name={category} folderStyle={folderStyle}>
+            orderedGroups.map(([category, categoryChannels]) => (
+              <CategoryGroup key={category} name={category} folderStyle={folderStyle} draggable={isOwner} onDragStart={() => setDraggedCategory(category)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderCategory(category)}>
                 {categoryChannels.map((channel) => (
                   <ChannelButton
                     key={channel.id}
@@ -457,7 +477,7 @@ const ChatTab = ({
         )}
 
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} userEmail={currentUser?.email} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel communityId={community.id} channelId={selectedChannel.id} userId={userId} isOwner={isOwner} /> : <MessageList
+          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}
