@@ -51,7 +51,7 @@ export default function CategoryManagementSection({ communityId, onChanged }) {
     const nextName = window.prompt("Category name", category.name)?.trim();
     if (!nextName || nextName === category.name) return;
     const { error: renameError } = await supabase.from("community_channel_categories").update({ name: nextName, updated_at: new Date().toISOString() }).eq("id", category.id);
-    if (!renameError) await supabase.from("community_channels").update({ category: nextName, updated_at: new Date().toISOString() }).eq("community_id", communityId).eq("category", category.name);
+    if (!renameError) await supabase.from("community_channels").update({ category: nextName, category_id: category.id, updated_at: new Date().toISOString() }).eq("community_id", communityId).eq("category_id", category.id);
     if (renameError) setError(renameError.message); else { await load(); onChanged?.(); }
   };
 
@@ -59,7 +59,8 @@ export default function CategoryManagementSection({ communityId, onChanged }) {
     if (category.name === "Welcome") return;
     if (!window.confirm(`Move channels to Welcome and remove ${category.name}?`)) return;
     setSaving(true);
-    const { error: channelError } = await supabase.from("community_channels").update({ category: "Welcome", updated_at: new Date().toISOString() }).eq("community_id", communityId).eq("category", category.name);
+    const welcome = categories.find((item) => item.name === "Welcome");
+    const { error: channelError } = await supabase.from("community_channels").update({ category: welcome?.name || "Welcome", category_id: welcome?.id || null, updated_at: new Date().toISOString() }).eq("community_id", communityId).eq("category_id", category.id);
     const { error: deleteError } = await supabase.from("community_channel_categories").delete().eq("id", category.id);
     if (channelError || deleteError) setError((channelError || deleteError).message); else { await load(); onChanged?.(); }
     setSaving(false);

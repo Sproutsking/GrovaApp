@@ -100,6 +100,7 @@ class ChannelService {
         type: channelData.type || "text",
         is_private: channelData.isPrivate || false,
         category: channelData.category || "Channels",
+        category_id: channelData.category_id || null,
         tool_type: channelData.toolType || null,
         integrations: channelData.integrations || {},
         style: channelData.style || {},
@@ -111,7 +112,7 @@ class ChannelService {
         .single();
 
       if (result.error?.code === "42703") {
-        const { category, tool_type, ...legacyPayload } = payload;
+        const { category, category_id, tool_type, ...legacyPayload } = payload;
         result = await supabase.from("community_channels").insert(legacyPayload).select().single();
       }
       if (result.error) throw result.error;

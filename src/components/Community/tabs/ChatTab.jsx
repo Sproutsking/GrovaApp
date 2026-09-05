@@ -272,6 +272,15 @@ const ChatTab = ({
     }
   };
 
+  const ensureChannelCategory = async (channelData) => {
+    if (!channelData?.create_category || !channelData.category?.trim()) return channelData;
+    const name = channelData.category.trim();
+    const { data: category, error } = await supabase.from("community_channel_categories").insert({ community_id: community.id, name, position: categoryOrder.length }).select("id,name").single();
+    if (error) throw error;
+    setCategoryOrder((current) => [...current, category.name]);
+    return { ...channelData, category: category.name, category_id: category.id };
+  };
+
   useEffect(() => {
     if (selectedChannel) {
       channelNotificationService.markRead(selectedChannel.id).catch(() => {});
@@ -973,7 +982,8 @@ const ChatTab = ({
           onClose={() => setShowCreateChannel(false)}
           onCreate={async (channelData) => {
             try {
-              const created = await channelService.createChannel(channelData, community.id);
+              const preparedChannel = await ensureChannelCategory(channelData);
+              const created = await channelService.createChannel(preparedChannel, community.id);
               communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowCreateChannel(false);

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile } from "lucide-react";
 import EmojiPanel from "../components/EmojiPanel";
+import { supabase } from "../../../services/config/supabase";
 
 const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
   const [formData, setFormData] = useState({
@@ -10,12 +11,32 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
     description: "",
     type: "text",
     isPrivate: false,
-    category: "Channels",
+    category: "",
+    categoryId: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [iconFile, setIconFile] = useState(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [categoryMode, setCategoryMode] = useState("existing");
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    supabase.from("community_channel_categories").select("id,name,position").eq("community_id", communityId).order("position", { ascending: true }).then(({ data }) => {
+      if (!active) return;
+      const next = data || [];
+      setCategories(next);
+      if (next.length && !formData.categoryId) {
+        setFormData((current) => ({ ...current, category: next[0].name, categoryId: next[0].id }));
+      } else if (!next.length) {
+        setCategoryMode("new");
+      }
+      setCategoriesLoading(false);
+    });
+    return () => { active = false; };
+  }, [communityId]);
 
   const channelTypes = [
     {
@@ -62,6 +83,8 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
         type: formData.type || "text",
         is_private: formData.isPrivate,
         category: formData.category.trim() || "Channels",
+        category_id: formData.categoryId || null,
+        create_category: categoryMode === "new",
       });
       onClose();
     } catch (err) {
@@ -134,7 +157,23 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
 
             <div className="form-group">
               <label className="form-label">Category</label>
-              <input type="text" className="form-input" placeholder="e.g., Community, Support" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} maxLength={50} />
+              <div className="category-choice-row">
+                <select className="form-input" value={categoryMode === "new" ? "__new__" : formData.categoryId} disabled={categoriesLoading} onChange={(event) => {
+                  if (event.target.value === "__new__") {
+                    setCategoryMode("new");
+                    setFormData((current) => ({ ...current, categoryId: "", category: "" }));
+                    return;
+                  }
+                  const selected = categories.find((category) => category.id === event.target.value);
+                  setCategoryMode("existing");
+                  setFormData((current) => ({ ...current, categoryId: selected?.id || "", category: selected?.name || "" }));
+                }}>
+                  {categoriesLoading && <option value="">Loading categories...</option>}
+                  {!categoriesLoading && categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  {!categoriesLoading && <option value="__new__">+ Create new category</option>}
+                </select>
+              </div>
+              {categoryMode === "new" && <input type="text" className="form-input category-new-input" placeholder="New category name" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} maxLength={50} autoFocus />}
             </div>
 
             <div className="form-group">

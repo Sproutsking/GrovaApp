@@ -10,6 +10,7 @@ import permissionService from "../../../services/community/permissionService";
 import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
 import CreateChannelModal from "../modals/CreateChannelModal";
+import { supabase } from "../../../services/config/supabase";
 
 const CHANNEL_TYPE_ICON = {
   text: Hash,
@@ -129,7 +130,13 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           onClose={() => setShowCreateChannel(false)}
           onCreate={async (channelData) => {
             try {
-              await channelService.createChannel(channelData, community.id);
+              let preparedChannel = channelData;
+              if (channelData.create_category && channelData.category?.trim()) {
+                const { data: category, error: categoryError } = await supabase.from("community_channel_categories").insert({ community_id: community.id, name: channelData.category.trim(), position: 9999 }).select("id,name").single();
+                if (categoryError) throw categoryError;
+                preparedChannel = { ...channelData, category: category.name, category_id: category.id };
+              }
+              await channelService.createChannel(preparedChannel, community.id);
               communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowCreateChannel(false);
