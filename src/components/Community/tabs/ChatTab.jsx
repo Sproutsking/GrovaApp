@@ -47,8 +47,8 @@ const ChatTab = ({
   onToggleSidebar,
   onNavigate,
 }) => {
-  const [channels, setChannels] = useState(() => communityCache.getChannels(community?.id) || community?.channels || []);
-  const [channelsReady, setChannelsReady] = useState(() => !!(communityCache.getChannels(community?.id) || community?.channels?.length));
+  const [channels, setChannels] = useState([]);
+  const [channelsReady, setChannelsReady] = useState(false);
   const [channelsRefreshing, setChannelsRefreshing] = useState(false);
   const [messages, setMessages] = useState(() =>
     selectedChannel ? [...(communityState.getMessages(selectedChannel.id) || [])] : []
@@ -172,16 +172,20 @@ const ChatTab = ({
     const requestId = ++channelsRequestRef.current;
     const communityId = community?.id;
     if (!communityId) return;
+    if (!isOwner) setSelectedChannel(null);
     const cachedChannels = communityCache.getChannels(communityId) || community?.channels || [];
     const hasCachedChannels = Boolean(communityCache.getChannels(communityId) || community?.channels?.length);
     if (hasCachedChannels) {
-      setChannels(cachedChannels);
-      setChannelsReady(true);
-      if (cachedChannels.length > 0 && !selectedChannel) setSelectedChannel(cachedChannels[0]);
-      roleService.getVisibleChannels(communityId, userId, cachedChannels).then((visibleChannels) => {
+      const cachedVisiblePromise = isOwner
+        ? Promise.resolve(cachedChannels)
+        : roleService.getVisibleChannels(communityId, userId, cachedChannels);
+      cachedVisiblePromise.then((visibleChannels) => {
         if (requestId !== channelsRequestRef.current || community?.id !== communityId) return;
         setChannels(visibleChannels);
-        if (visibleChannels.length > 0 && !selectedChannel) setSelectedChannel(visibleChannels[0]);
+        setChannelsReady(true);
+        if (!visibleChannels.some((channel) => channel.id === selectedChannel?.id)) {
+          setSelectedChannel(visibleChannels[0] || null);
+        }
       }).catch(() => {});
     }
     setChannelsRefreshing(hasCachedChannels);
@@ -197,8 +201,8 @@ const ChatTab = ({
       setChannels(visibleChannels);
       setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
-      if (visibleChannels.length > 0 && !selectedChannel) {
-        setSelectedChannel(visibleChannels[0]);
+      if (!visibleChannels.some((channel) => channel.id === selectedChannel?.id)) {
+        setSelectedChannel(visibleChannels[0] || null);
       }
     } catch (error) {
       console.error("Error loading channels:", error);

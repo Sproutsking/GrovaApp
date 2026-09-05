@@ -8,6 +8,7 @@ import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, Volume2, X } from "lucide
 import channelService from "../../../services/community/channelService";
 import permissionService from "../../../services/community/permissionService";
 import communityCache from "../../../services/community/communityCache";
+import roleService from "../../../services/community/roleService";
 import CreateChannelModal from "../modals/CreateChannelModal";
 
 const CHANNEL_TYPE_ICON = {
@@ -17,37 +18,26 @@ const CHANNEL_TYPE_ICON = {
 };
 
 const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack }) => {
-  const [channels, setChannels] = useState(() => (
-    communityCache.getChannels(community?.id) || community?.channels || []
-  ));
-  const [channelsReady, setChannelsReady] = useState(() => (
-    !!(communityCache.getChannels(community?.id) || community?.channels?.length)
-  ));
+  const [channels, setChannels] = useState([]);
+  const [channelsReady, setChannelsReady] = useState(false);
   const [userPermissions, setUserPermissions] = useState({});
   const [showMenu, setShowMenu] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
 
   useEffect(() => {
     if (community) {
-      const immediate = communityCache.getChannels(community.id) || community.channels;
-      if (Array.isArray(immediate) && immediate.length) {
-        setChannels(immediate);
-        setChannelsReady(true);
-      }
       loadChannels();
       loadPermissions();
     }
-  }, [community?.id]);
+  }, [community?.id, userId]);
 
   const loadChannels = async () => {
-    const cached = communityCache.getChannels(community.id);
-    if (cached) {
-      setChannels(cached);
-      setChannelsReady(true);
-    }
     try {
       const data = await communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id));
-      setChannels(data);
+      const visible = community.owner_id === userId
+        ? data
+        : await roleService.getVisibleChannels(community.id, userId, data);
+      setChannels(visible);
       setChannelsReady(true);
     } catch (error) {
       console.error("Error loading channels:", error);
