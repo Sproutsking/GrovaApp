@@ -19,7 +19,7 @@ import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS, 
 import boostService from "../../services/boost/boostService";
 import { refreshBoostTier } from "../../hooks/useUserBoostTier";
 
-const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeBackgroundColorId, userId, onPicked }) => {
+const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeBackgroundColorId, userId, onPicked, showToggle = true }) => {
   const [fontId, setFontId] = useState(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
   const [colorId, setColorId] = useState(activeColorId ?? BOOST_NAME_COLORS[tier]?.[0]?.id);
   const [backgroundColorId, setBackgroundColorId] = useState(activeBackgroundColorId ?? BOOST_BACKGROUND_COLORS[tier]?.[0]?.id);
@@ -115,27 +115,29 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
             {saved  && <span style={{ color:"#22c55e",     fontSize:10 }}>✓ Saved</span>}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            style={{
-              border: `1px solid ${tierMeta.color}40`,
-              background: `${tierMeta.color}12`,
-              color: tierMeta.color,
-              borderRadius: 999,
-              padding: "7px 12px",
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: ".08em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
-            {expanded ? "Close" : "Manage profile boost"}
-          </button>
+          {showToggle && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              style={{
+                border: `1px solid ${tierMeta.color}40`,
+                background: `${tierMeta.color}12`,
+                color: tierMeta.color,
+                borderRadius: 999,
+                padding: "7px 12px",
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: ".08em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              {expanded ? "Close" : "Manage profile boost"}
+            </button>
+          )}
         </div>
 
-        <div style={{ maxHeight: expanded ? 980 : 0, overflow: "hidden", opacity: expanded ? 1 : 0, transition: "max-height 0.28s ease, opacity 0.24s ease" }}>
+        <div style={{ maxHeight: showToggle ? (expanded ? 980 : 0) : "none", overflow: showToggle ? "hidden" : "visible", opacity: showToggle ? (expanded ? 1 : 0) : 1, transition: "max-height 0.28s ease, opacity 0.24s ease" }}>
           <div style={{ display:"flex", flexDirection:"column", gap:8, paddingTop: expanded ? 4 : 0 }}>
             {themes.map(theme => {
               const isActive = selected === theme.id || (!selected && themes[0]?.id === theme.id);
