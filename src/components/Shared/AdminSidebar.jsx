@@ -10,7 +10,12 @@ const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
 
   .xv-sidebar {
-    background: var(--bg);
+    background:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px),
+      radial-gradient(ellipse 100% 34% at 50% 0%, rgba(156,255,0,0.12), transparent 72%),
+      var(--bg);
+    background-size: 30px 30px, 30px 30px, auto, auto;
     border-left: 1px solid var(--surface-border);
     border-right: 1px solid var(--surface-border);
     display: flex;
@@ -21,6 +26,7 @@ const STYLES = `
     left: 4%;
     bottom: 0;
     width: 300px;
+    box-shadow: 14px 0 44px rgba(0,0,0,0.2), inset -1px 0 rgba(255,255,255,0.035);
   }
 
   .xv-accent-bar {
@@ -71,10 +77,10 @@ const STYLES = `
 
   .xv-nav {
     flex: 1;
-    padding: 22px 12px 14px;
+    padding: 22px 10px 14px;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 9px;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -97,10 +103,10 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.052), rgba(255,255,255,0.014));
+    border: 1px solid color-mix(in srgb, var(--surface-border) 72%, white 28%);
     color: var(--text-secondary);
     font-size: 13.5px;
     font-weight: 500;
@@ -110,11 +116,14 @@ const STYLES = `
     position: relative;
     font-family: 'Syne', sans-serif;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
+    box-shadow: inset 0 1px rgba(255,255,255,0.035), 0 5px 14px rgba(0,0,0,0.08);
   }
   .xv-nav-btn:hover {
-    background: var(--surface-strong);
+    background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025));
     color: var(--text);
-    border-color: var(--surface-border);
+    border-color: var(--accent-border);
+    transform: translateX(2px);
+    box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 8px 22px rgba(0,0,0,0.16);
   }
   .xv-nav-btn--active { font-weight: 700; }
 
@@ -130,8 +139,8 @@ const STYLES = `
 
   /* ── Per-item colored icon wrapper ── */
   .xv-icon-wrap {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -176,20 +185,51 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 12px 14px;
-    border-radius: 14px;
+    padding: 13px 14px;
+    border-radius: 15px;
     font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.2s, box-shadow 0.2s, border-color 0.2s, transform 0.2s;
     text-align: left;
     font-family: 'Syne', sans-serif;
-    background: var(--surface);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025) 46%, rgba(0,0,0,0.12));
+    border: 1px solid rgba(255,255,255,0.12);
     color: var(--text);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
   }
-  .xv-admin-btn:hover { filter: brightness(1.1); }
+  .xv-admin-btn::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: 14px;
+    border: 1px solid currentColor;
+    opacity: 0.22;
+    pointer-events: none;
+  }
+  .xv-admin-btn::after {
+    content: "";
+    position: absolute;
+    top: -80%;
+    left: -32%;
+    width: 34%;
+    height: 260%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent);
+    transform: rotate(18deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .xv-admin-btn:hover {
+    filter: brightness(1.12);
+    transform: translateY(-2px);
+  }
+  .xv-admin-btn:hover::after {
+    opacity: 1;
+    animation: xv-admin-sweep 0.9s ease-out;
+  }
+  @keyframes xv-admin-sweep { to { left: 122%; } }
   .xv-admin-btn-label { flex: 1; }
   .xv-chevron { width: 14px; height: 14px; opacity: 0.7; }
 

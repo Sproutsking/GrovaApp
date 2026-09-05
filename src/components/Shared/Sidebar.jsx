@@ -259,20 +259,29 @@ const Sidebar = ({
           bottom: 0;
           width: 300px;
           overflow: hidden;
-          background: var(--bg);
+          background:
+            linear-gradient(155deg, rgba(255,255,255,0.035), transparent 24%),
+            radial-gradient(ellipse 90% 36% at 48% 0%, var(--accent-bg-soft), transparent 72%),
+            var(--bg);
           border-left: 1px solid var(--surface-border);
           border-right: 1px solid var(--surface-border);
           font-family: "Manrope", sans-serif;
           z-index: 50;
+          box-shadow: 14px 0 44px rgba(0,0,0,0.18), inset -1px 0 rgba(255,255,255,0.035);
         }
 
         .ambient-bg {
           position: absolute;
           inset: 0;
-          background: radial-gradient(circle, var(--accent) 0%, transparent 62%);
+          background:
+            linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px),
+            radial-gradient(ellipse 72% 34% at 50% 0%, var(--accent) 0%, transparent 72%);
+          background-size: 28px 28px, 28px 28px, auto;
           overflow: hidden;
           pointer-events: none;
-          opacity: 0.3;
+          opacity: 0.42;
+          mask-image: linear-gradient(to bottom, black, rgba(0,0,0,0.82) 52%, transparent 100%);
         }
         .ambient-orb {
           position: absolute;
@@ -311,7 +320,7 @@ const Sidebar = ({
           height: 100%;
           display: flex;
           flex-direction: column;
-          background: var(--surface-strong);
+          background: linear-gradient(180deg, rgba(14,18,14,0.74), rgba(8,10,9,0.92));
           backdrop-filter: blur(24px) saturate(180%);
           border-right: 1px solid var(--surface-border);
           z-index: 1;
@@ -338,7 +347,10 @@ const Sidebar = ({
           border-bottom: 1px solid var(--surface-border);
           flex-shrink: 0;
           overflow: hidden;
-          background: var(--surface);
+          background:
+            linear-gradient(120deg, rgba(255,255,255,0.06), transparent 48%),
+            linear-gradient(180deg, var(--surface-strong), var(--surface));
+          box-shadow: inset 0 -1px rgba(255,255,255,0.04), 0 12px 28px rgba(0,0,0,0.14);
         }
         .logo-backdrop {
           position: absolute;
@@ -442,8 +454,8 @@ const Sidebar = ({
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 7px;
-          padding: 20px 8px 12px;
+          gap: 9px;
+          padding: 22px 10px 14px;
           overflow-y: auto;
         }
         .nav-container::-webkit-scrollbar { display: none; }
@@ -453,16 +465,17 @@ const Sidebar = ({
           display: flex;
           align-items: center;
           gap: 11px;
-          padding: 11px 12px;
-          background: linear-gradient(135deg, var(--surface-strong), var(--surface));
-          border: 1px solid color-mix(in srgb, var(--surface-border) 85%, white 15%);
-          border-radius: 8px;
+          padding: 12px 13px;
+          background: linear-gradient(135deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018) 48%, rgba(0,0,0,0.08));
+          border: 1px solid color-mix(in srgb, var(--surface-border) 72%, white 28%);
+          border-radius: 12px;
           color: var(--text-secondary);
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           overflow: hidden;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: inset 0 1px rgba(255,255,255,0.035), 0 5px 14px rgba(0,0,0,0.08);
+          transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
           animation: itemSlide 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
           outline: none;
           text-align: left;
@@ -474,15 +487,17 @@ const Sidebar = ({
           from { opacity: 0; transform: translateX(-20px); }
         }
         .nav-item:hover:not(.nav-item-active) {
-          border-color: var(--surface-border);
-          background: var(--surface-strong);
+          border-color: color-mix(in srgb, var(--accent-border) 68%, white 32%);
+          background: linear-gradient(135deg, rgba(255,255,255,0.09), var(--accent-bg-soft));
           transform: translateX(2px);
+          box-shadow: inset 0 1px rgba(255,255,255,0.08), 0 8px 22px rgba(0,0,0,0.16);
         }
+        .nav-item-active { box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 8px 24px var(--accent-shadow); }
 
         .item-glass {
           position: absolute;
           inset: 0;
-          border-radius: 8px;
+          border-radius: 12px;
           opacity: 0;
           transition: opacity 0.3s;
           pointer-events: none;
@@ -532,7 +547,8 @@ const Sidebar = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 32px; height: 32px;
+          width: 34px; height: 34px;
+          border: 1px solid rgba(255,255,255,0.06);
           z-index: 2;
           flex-shrink: 0;
         }
@@ -569,7 +585,8 @@ const Sidebar = ({
           position: relative;
           padding: 10px 8px 12px;
           border-top: 1px solid var(--surface-border);
-          background: var(--surface);
+          background: linear-gradient(180deg, rgba(255,255,255,0.035), var(--surface));
+          box-shadow: 0 -12px 28px rgba(0,0,0,0.16);
           flex-shrink: 0;
           overflow: hidden;
         }
