@@ -280,7 +280,24 @@ class CommunityMessageService {
     const { data, error } = await supabase.rpc("delete_community_message", {
       p_message_id: messageId,
     });
-    if (error) throw error;
+    if (error) {
+      const rpcMissing = error.code === "PGRST202" || error.code === "42883" || /delete_community_message|function.*does not exist/i.test(error.message || "");
+      if (!rpcMissing) throw error;
+
+      // Older deployments may not have migration 032 yet. Keep the UI usable
+      // while the soft-delete RPC is being deployed, scoped to the author.
+      const { data: fallback, error: fallbackError } = await supabase
+        .from("community_messages")
+        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", messageId)
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .select("id")
+        .maybeSingle();
+      if (fallbackError) throw fallbackError;
+      if (!fallback) throw new Error("This message was already deleted or you do not have permission to delete it.");
+      return true;
+    }
     if (data === false) {
       throw new Error("This message was already deleted or you do not have permission to delete it.");
     }

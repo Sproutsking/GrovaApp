@@ -183,6 +183,9 @@ const MessageList = ({
         .msg-list-wrapper {
           position: relative;
           z-index: 1;
+          width: 100%;
+          box-sizing: border-box;
+          align-items: stretch;
           padding: 8px 12px;
           display: flex;
           flex-direction: column;
@@ -212,6 +215,8 @@ const MessageList = ({
 
         .msg-item {
           display: flex;
+          width: 100%;
+          box-sizing: border-box;
           align-items: flex-end;
           gap: 2px;
           margin-bottom: 4px;
@@ -316,6 +321,8 @@ const MessageList = ({
           box-shadow: 0 4px 16px rgba(0,0,0,.12);
           margin: 0;
         }
+        .msg-item.them .msg-bubble { margin-right: auto; }
+        .msg-item.me .msg-bubble { margin-left: auto; }
         .msg-item.announcement .msg-bubble {
           max-width: min(92%, 760px);
           padding: 18px 22px 16px;

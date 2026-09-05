@@ -523,6 +523,14 @@ const ChatTab = ({
               e.preventDefault();
               setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
             }}
+            onMessageLongPress={(event, msg) => {
+              const touch = event.changedTouches?.[0] || event.touches?.[0];
+              setContextMenu({
+                x: touch?.clientX || 24,
+                y: touch?.clientY || window.innerHeight * 0.5,
+                message: msg,
+              });
+            }}
             onProfileClick={(user) => user?.id && setCommunityProfileTarget(user)}
             onChannelMention={(name) => {
               const channel = channels.find((item) => item.name.toLowerCase() === name.toLowerCase());
