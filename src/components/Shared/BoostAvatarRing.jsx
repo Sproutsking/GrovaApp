@@ -55,6 +55,32 @@ const DIAMOND_THEME = {
   "diamond-rift":    { grad: ["#c4b5fd","#6366f1"], glow: "rgba(129,140,248,0.70)", color: "#818cf8" },
 };
 
+const SHOWCASE_RING = {
+  "silver-chrome": { background: "conic-gradient(from 0deg,#3a4048,#eef1f4 22%,#7a828c 45%,#f7f9fa 68%,#4a5058 88%,#3a4048)", animation: "_bar-spin 9s linear infinite" },
+  "silver-mercury": { background: "conic-gradient(from 90deg,#c7ced4,#f7f9fa 18%,#8a95a0 40%,#eef1f4 58%,#5b636b 78%,#c7ced4)", animation: "_bar-spin 5.5s ease-in-out infinite alternate, _pulse-glow 3s ease-in-out infinite" },
+  "silver-eclipse": { background: "conic-gradient(from 0deg,#eef1f4,#c7ced4 8%,#3a4048 14%,#14171a 50%,#3a4048 86%,#c7ced4 92%,#eef1f4 100%)", animation: "_bar-spin 10s linear infinite" },
+  "gold-dynasty": { background: "repeating-conic-gradient(from 0deg,#f4dfa8 0deg 7deg,#c9932f 7deg 14deg,#8a5f16 14deg 17deg,#c9932f 17deg 20deg)", animation: "_bar-spin 15s linear infinite" },
+  "gold-solar": { background: "conic-gradient(from 180deg,#fbbf24,#dc2626 30%,#f97316 55%,#fde68a 80%,#dc2626 100%)", animation: "_bar-spin-rev 7s linear infinite, _pulse-glow 2.6s ease-in-out infinite" },
+  "gold-corona": { background: "repeating-conic-gradient(from 0deg,rgba(251,191,36,.95) 0deg 2deg,transparent 2deg 14deg)", mask: "radial-gradient(circle, transparent 58%, #000 63%, #000 100%)", animation: "_bar-spin 10s linear infinite" },
+  "gold-laurel": { background: "repeating-conic-gradient(from 0deg,#fde68a 0deg 5deg,#c9932f 5deg 9deg,#7a4e12 9deg 10deg,#c9932f 10deg 12deg)", animation: "_bar-spin 18s linear infinite" },
+  "gold-molten": { background: "conic-gradient(from 20deg,#ffcf70,#7a2e04 18%,#ff9a44 37%,#321004 55%,#ffb84d 76%,#7a2e04 100%)", animation: "_bar-spin 6s linear infinite, _pulse-glow 2.2s ease-in-out infinite" },
+  "diamond-brilliant": { background: "conic-gradient(from 0deg,#ffffff,#b8d2e6 18%,#4f7894 36%,#ffffff 50%,#78dcff 68%,#dff6ff 84%,#ffffff)", animation: "_prism 7s linear infinite" },
+  "diamond-nebula": { background: "conic-gradient(from 40deg,#f0abfc,#7c3aed 22%,#312e81 43%,#60a5fa 64%,#f0abfc 82%,#7c3aed)", animation: "_prism2 8s linear infinite" },
+  "diamond-shard": { background: "conic-gradient(from 20deg,#e0f2fe,#38bdf8 20%,#0e7490 42%,#a7f3d0 62%,#78dcff 82%,#e0f2fe)", animation: "_prism 9s linear infinite" },
+  "diamond-prism": { background: "conic-gradient(from 0deg,#f0abfc,#60a5fa 20%,#86efac 40%,#fde68a 60%,#fda4af 80%,#f0abfc)", animation: "_prism 6s linear infinite" },
+  "diamond-void": { background: "conic-gradient(from 0deg,#ffffff,#1e293b 18%,#94a3b8 34%,#020617 52%,#a78bfa 72%,#ffffff)", animation: "_prism2 11s linear infinite" },
+  "diamond-quantum": { background: "repeating-conic-gradient(from 0deg,#7dd3fc 0deg 8deg,#0e7490 8deg 14deg,#c4b5fd 14deg 18deg,#7dd3fc 18deg 24deg)", animation: "_prism 8s linear infinite" },
+  "diamond-bloom": { background: "conic-gradient(from 0deg,#f0abfc,#c084fc 22%,#f9a8d4 42%,#ffffff 52%,#c4b5fd 75%,#f0abfc)", animation: "_prism2 10s linear infinite" },
+  "diamond-rift": { background: "conic-gradient(from 15deg,#c4b5fd,#6366f1 24%,#172554 46%,#38bdf8 68%,#818cf8 86%,#c4b5fd)", animation: "_prism 8.5s linear infinite" },
+};
+
+function getShowcaseRing(tier, themeId) {
+  const key = themeId || { silver: "silver-chrome", gold: "gold-dynasty", diamond: "diamond-brilliant" }[tier];
+  return SHOWCASE_RING[key] || (tier === "diamond"
+    ? { background: `conic-gradient(from 0deg,${getVisual(tier, themeId)?.grad?.[0] || "#c4b5fd"},#fff,${getVisual(tier, themeId)?.grad?.[1] || "#818cf8"},${getVisual(tier, themeId)?.grad?.[0] || "#c4b5fd"})`, animation: "_prism 8s linear infinite" }
+    : null);
+}
+
 function getVisual(tier, themeId) {
   if (!tier || !TIER_RING[tier]) return null;
   const base = TIER_RING[tier];
@@ -389,6 +415,7 @@ const BoostAvatarRing = ({
   }, [src]);
 
   const visual = getVisual(tier, themeId);
+  const showcaseRing = getShowcaseRing(tier, themeId);
   const isBoostedProfile = !!visual;
   const normalizedRadius = typeof borderRadius === "string" ? borderRadius.toLowerCase() : "";
   const br = normalizedRadius === "circle" || normalizedRadius === "rounded" || normalizedRadius === "round" ? "50%" : "28%";
@@ -502,8 +529,24 @@ const BoostAvatarRing = ({
         </div>
       </div>
 
-      {/* SVG ring overlay — rendered outside the clipping div */}
-      {visual && <div style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", overflow: "visible" }}><StaticTierRing shellSize={avatarShellSize} visual={visual} /></div>}
+      {/* The ring uses the original showcase design selected by tier + theme. */}
+      {visual && showcaseRing && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: -2,
+            zIndex: 2,
+            pointerEvents: "none",
+            borderRadius: "50%",
+            background: showcaseRing.background,
+            WebkitMask: showcaseRing.mask || "radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px))",
+            mask: showcaseRing.mask || "radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px))",
+            animation: showcaseRing.animation,
+            boxShadow: `0 0 10px ${visual.glow}`,
+          }}
+        />
+      )}
 
       {/* Tier badge pip — only for boost status, never used as the verification badge */}
       {showTierBadge && (

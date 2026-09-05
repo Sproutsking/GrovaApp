@@ -579,13 +579,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               tier={hasBoosted ? tier : null}
               themeId={themeId}
               backgroundColorId={backgroundColorId}
-              style={{ borderRadius: "20px 20px 0 0", position: "relative" }}
+              embedded
+              style={{ borderRadius: "20px 20px 0 0", position: "relative", width: "100%", minHeight: 0, maxHeight: "calc(100vh - 240px)" }}
             >
-              <button className="upm-close" onClick={onClose}>
+              <button className="upm-close" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
                 <X size={16} />
               </button>
 
-              <div className="upm-hdr">
+              <div className="upm-hdr" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 100%)", backdropFilter: "blur(8px)" }}>
                 {/* Avatar */}
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
                   <BoostAvatarRing
@@ -888,27 +889,30 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         }
 
         .upm-close {
-          position:absolute; top:14px; right:14px; z-index:20;
-          width:30px; height:30px; border-radius:50%;
-          background:rgba(0,0,0,.45); backdrop-filter:blur(12px);
-          border:1px solid rgba(255,255,255,.18); color:#fff;
+          position:fixed; top:34px; right:26px; z-index:10001;
+          width:32px; height:32px; border-radius:50%;
+          background:rgba(0,0,0,.65); backdrop-filter:blur(12px);
+          border:1.5px solid rgba(255,255,255,.28); color:#fff;
           display:flex; align-items:center; justify-content:center;
-          cursor:pointer; transition:all .15s;
+          cursor:pointer; transition:all .15s; pointer-events:auto; padding:0;
         }
-        .upm-close:hover { background:rgba(239,68,68,.25); border-color:rgba(239,68,68,.45); color:#ef4444; }
+        .upm-close:hover { background:rgba(239,68,68,.35); border-color:rgba(239,68,68,.55); color:#ef4444; }
+        @media (max-width: 480px) {
+          .upm-close { top:16px; right:16px; }
+        }
         .upm-load { padding:60px 24px; display:flex; flex-direction:column; align-items:center; gap:16px; color:#525252; font-size:13px; }
         .upm-spin { width:36px; height:36px; border:3px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
-        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; width: 100%; display: flex; flex-direction: column; }
-        .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; }
+        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:20px 20px 0 0; overflow:hidden; }
+        .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .upm-name-verified { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#84cc16; color:#071007; font-size:12px; font-weight:900; line-height:1; }
         .upm-badges { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
-        .upm-b-pro { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#fbbf24; background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.35); }
-        .upm-b-ver { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#84cc16; background:rgba(132,204,22,.1); border:1px solid rgba(132,204,22,.3); }
-        .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; }
-        .upm-bio { font-size:13px; color:#a3a3a3; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; }
-        .upm-join { font-size:11px; color:#525252; font-weight:500; margin:0; }
+        .upm-b-pro { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#fbbf24; background:rgba(251,191,36,.2); border:1px solid rgba(251,191,36,.45); }
+        .upm-b-ver { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:800; color:#84cc16; background:rgba(132,204,22,.15); border:1px solid rgba(132,204,22,.4); }
+        .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; color:#e5e5e5; text-shadow:0 1px 8px rgba(0,0,0,0.5); }
+        .upm-bio { font-size:13px; color:#d1d1d1; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; text-shadow:0 1px 6px rgba(0,0,0,0.5); }
+        .upm-join { font-size:11px; color:#b3b3b3; font-weight:500; margin:0; text-shadow:0 1px 4px rgba(0,0,0,0.4); }
         .upm-stats { display:flex; align-items:stretch; background:rgba(255,255,255,.03); border-top:1px solid rgba(255,255,255,.06); border-bottom:1px solid rgba(255,255,255,.06); }
         .upm-stat { flex:1; padding:14px 8px; text-align:center; display:flex; flex-direction:column; gap:3; }
         .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }

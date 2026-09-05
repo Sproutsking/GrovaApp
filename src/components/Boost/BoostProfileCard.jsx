@@ -663,7 +663,7 @@ function startSignatureScene(container, tier, reduceMotion) {
 }
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────
-const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, className = "", children }) => {
+const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, className = "", children, embedded = false }) => {
   const ambientRef = useRef(null);
   const cardFxRef = useRef(null);
   const avatarFxRef = useRef(null);
@@ -704,25 +704,54 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
     ? `linear-gradient(${backgroundColor}aa, ${backgroundColor}aa), ${bgLayers}`
     : bgLayers;
 
+  const cardRadius = style.borderRadius ?? 24;
+  const cardStyle = {
+    position: "relative",
+    overflow: "hidden",
+    isolation: "isolate",
+    background: "transparent",
+    width: "100%",
+    height: embedded ? "100%" : "auto",
+    minHeight: embedded ? 0 : undefined,
+    maxWidth: embedded ? "100%" : undefined,
+    aspectRatio: embedded ? undefined : "auto",
+    borderRadius: cardRadius,
+    ...theme.frame,
+    ...style,
+  };
+
   return (
-    <div className="xvb-root">
+    <div
+      className={`xvb-root ${embedded ? "xvb-embed" : ""} ${className}`.trim()}
+      data-tier={tier}
+      data-design={theme.id.replace(`${tier}-`, "")}
+      style={{
+        width: "100%",
+        height: embedded ? "100%" : undefined,
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: cardRadius,
+        background: "transparent",
+        isolation: "isolate",
+      }}
+    >
       <div
-        className={`boost-card card boost-tier-${tier} boost-theme-${themeId ?? "default"} ${className}`}
+        className={`boost-card card boost-tier-${tier} boost-theme-${themeId ?? "default"}`}
         data-tier={tier}
         data-design={theme.id.replace(`${tier}-`, "")}
-        style={{ position:"relative", overflow:"hidden", isolation:"isolate", background:"transparent", ...theme.frame, ...style }}
+        style={cardStyle}
       >
-      <div className="card-material" aria-hidden="true">
-        <div className="card-base" style={{ background: themedBackground }} />
-        <div className="card-texture" />
-        <div className="card-ambient" ref={ambientRef} />
-        <div className="card-light" />
-      </div>
-      <div ref={cardFxRef} className="card-fx" aria-hidden="true" />
-      <div className="card-scrim" aria-hidden="true" />
-      <div className="card-frame" aria-hidden="true" />
-      <div ref={avatarFxRef} className="avatar-fx" aria-hidden="true" />
-      <div className="card-content" style={{ position:"relative", zIndex:1 }}>{children}</div>
+        <div className="card-material" aria-hidden="true">
+          <div className="card-base" style={{ background: themedBackground }} />
+          <div className="card-texture" />
+          <div className="card-ambient" ref={ambientRef} />
+          <div className="card-light" />
+        </div>
+        <div ref={cardFxRef} className="card-fx" aria-hidden="true" />
+        <div className="card-scrim" aria-hidden="true" />
+        <div className="card-frame" aria-hidden="true" />
+        <div ref={avatarFxRef} className="avatar-fx" aria-hidden="true" />
+        <div className="card-content" style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>{children}</div>
       </div>
     </div>
   );

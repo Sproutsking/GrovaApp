@@ -618,14 +618,14 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
         .profile-section { padding: 20px; }
-        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; width: 100%; display: flex; flex-direction: column; }
-        .profile-name { font-size:26px;font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap; }
+        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
+        .profile-name { font-size:26px;font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:12px;font-weight:900;line-height:1; }
         .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }
         .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:11px;font-weight:800;color:#fbbf24; }
         .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:11px;font-weight:800;color:#84cc16; }
-        .profile-username { font-size:15px;color:#84cc16;margin:0 0 8px 0;font-weight:600; }
-        .profile-bio { color:#a3a3a3;font-size:13px;margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto; }
+        .profile-username { font-size:15px;color:#84cc16;margin:0 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
+        .profile-bio { color:#d1d1d1;font-size:13px;margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
 
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
         .tristat-live-bar { position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16);background-size:200% 100%;animation:liveBarScroll 3s linear infinite;border-radius:2px 2px 0 0; }
@@ -671,9 +671,10 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           tier={hasBoostedTier ? profile.subscriptionTier : null}
           themeId={activeThemeId}
           backgroundColorId={activeBackgroundColorId}
-          style={{ borderRadius:24, marginBottom:16, animation:"profileFadeIn 0.4s ease" }}
+          embedded
+          style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, maxHeight:"340px", animation:"profileFadeIn 0.4s ease" }}
         >
-          <div className="profile-header-content">
+          <div className="profile-header-content" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.32) 100%)", backdropFilter: "blur(8px)" }}>
 
             {/* [B2] Avatar — BoostAvatarRing with tier-animated ring */}
             <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
