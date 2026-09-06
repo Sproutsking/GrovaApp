@@ -11,6 +11,26 @@ class CommunityService {
   getCachedCommunities(userId) { return this.cache.get(`communities:${userId}`) || []; }
   getCachedUserCommunities(userId) { return this.cache.get(`user-communities:${userId}`) || []; }
 
+  async hydrateCommunityCounts(communities) {
+    const list = Array.isArray(communities) ? communities : [];
+    const ids = list.map((community) => community.id).filter(Boolean);
+    if (!ids.length) return list;
+    const { data: members, error } = await supabase.from("community_members").select("community_id,is_online").in("community_id", ids);
+    if (error) throw error;
+    const counts = new Map();
+    (members || []).forEach((member) => {
+      const current = counts.get(member.community_id) || { total: 0, online: 0 };
+      current.total += 1;
+      if (member.is_online) current.online += 1;
+      counts.set(member.community_id, current);
+    });
+    return list.map((community) => ({
+      ...community,
+      member_count: counts.get(community.id)?.total || 0,
+      online_count: counts.get(community.id)?.online || 0,
+    }));
+  }
+
   async fetchCommunities(userId) {
     const key = `communities:${userId}`;
     const cached = this.cache.get(key);
@@ -22,7 +42,7 @@ class CommunityService {
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    const communities = (data || []).map((item) => ({ ...item, member_count: item.member_count || item.community_members?.[0]?.count || 0 }));
+    const communities = await this.hydrateCommunityCounts(data || []);
     this.cache.set(key, communities);
     this.lastFetch.set(key, Date.now());
     return communities;
@@ -38,7 +58,7 @@ class CommunityService {
       .eq("user_id", userId)
       .is("community.deleted_at", null);
     if (error) throw error;
-    const communities = (data || []).map((row) => row.community).filter(Boolean);
+    const communities = await this.hydrateCommunityCounts((data || []).map((row) => row.community).filter(Boolean));
     this.cache.set(key, communities);
     this.lastFetch.set(key, Date.now());
     return communities;
@@ -64,7 +84,7 @@ class CommunityService {
   }
 
   async createCommunity(data, userId) {
-    const icon = data.iconFile ? await this._uploadCommunityIcon(data.iconFile, userId) : (data.icon || "🌟");
+    const icon = data.iconFile ? await this._uploadCommunityIcon(data.iconFile, userId) : (data.icon || null);
     const { data: community, error } = await supabase.rpc("create_community_with_defaults", {
       p_name: data.name, p_description: data.description || "", p_icon: icon,
       p_banner_gradient: data.bannerGradient || null, p_is_private: Boolean(data.isPrivate), p_owner_id: userId,

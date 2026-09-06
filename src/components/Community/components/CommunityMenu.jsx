@@ -57,6 +57,7 @@ const ConfirmDialog = ({ show, onClose, onConfirm, title, message, isDanger }) =
 // Community icon: handles URL images and emoji
 const CommunityIcon = ({ community, size = 52 }) => {
   const icon = community?.icon;
+  const initials = String(community?.name || "Community").trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
   const style = {
     width: size, height: size, borderRadius: 14, flexShrink: 0,
     display: "flex", alignItems: "center", justifyContent: "center",
@@ -80,7 +81,7 @@ const CommunityIcon = ({ community, size = 52 }) => {
   }
   return (
     <div style={{ ...style, border, background: community?.banner_gradient || "linear-gradient(135deg,#667eea,#764ba2)" }}>
-      {icon || "🌟"}
+      {icon || <span style={{ fontSize: size * 0.34, fontWeight: 900, letterSpacing: ".04em", color: "#fff" }}>{initials}</span>}
     </div>
   );
 };
@@ -135,8 +136,8 @@ const CommunityMenu = ({
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
   };
-  const memberCount = countValue(community?.member_count) || members.length;
-  const onlineCount = countValue(community?.online_count) || members.filter((m) => m.is_online).length;
+  const memberCount = community?.member_count == null ? members.length : countValue(community.member_count);
+  const onlineCount = community?.online_count == null ? members.filter((m) => m.is_online).length : countValue(community.online_count);
 
   return (
     <>

@@ -4,14 +4,14 @@ import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile, Lock } from "lucide-r
 import EmojiPanel from "../components/EmojiPanel";
 import { supabase } from "../../../services/config/supabase";
 
-const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
+const CreateChannelModal = ({ onClose, onCreate, communityId, initialCategory = "" }) => {
   const [formData, setFormData] = useState({
     name: "",
     icon: "💬",
     description: "",
     type: "text",
     isPrivate: false,
-    category: "",
+    category: initialCategory,
     categoryId: "",
   });
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,8 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
       const next = data || [];
       setCategories(next);
       if (next.length && !formData.categoryId) {
-        setFormData((current) => ({ ...current, category: next[0].name, categoryId: next[0].id }));
+        const initial = next.find((category) => category.name === initialCategory) || next[0];
+        setFormData((current) => ({ ...current, category: initial.name, categoryId: initial.id }));
       } else if (!next.length) {
         setCategoryMode("new");
       }

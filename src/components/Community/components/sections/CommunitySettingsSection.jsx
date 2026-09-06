@@ -133,7 +133,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
       setSettings({
         name: community.name || "",
         description: community.description || "",
-        icon: community.icon || "🌟",
+        icon: community.icon || "",
         isPrivate: community.is_private || false,
         backgroundTheme: community.background_theme || "security",
         bannerGradient:
@@ -301,7 +301,7 @@ const CommunitySettingsSection = ({ community, userId, channels = [], onUpdate, 
             </label>
             <div className="icon-editor">
               <div className="icon-preview" style={{ background: settings.bannerGradient }}>
-                {iconPreview ? <img src={iconPreview} alt="Community preview" /> : <span>{settings.icon || "🌟"}</span>}
+                {iconPreview ? <img src={iconPreview} alt="Community preview" /> : <span>{settings.icon || settings.name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("") || "C"}</span>}
               </div>
               <div className="icon-editor-actions">
                 <button type="button" className="upload-image-btn" onClick={() => fileInputRef.current?.click()}>

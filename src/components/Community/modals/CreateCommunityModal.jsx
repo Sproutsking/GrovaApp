@@ -17,7 +17,7 @@ const QUICK_EMOJIS = [
 
 const CreateCommunityModal = ({ onClose, onCreate }) => {
   const [iconMode, setIconMode] = useState("emoji"); // "emoji" | "image"
-  const [selectedEmoji, setSelectedEmoji] = useState("🌟");
+  const [selectedEmoji, setSelectedEmoji] = useState("");
   const [iconFile, setIconFile] = useState(null);
   const [iconPreview, setIconPreview] = useState(null);
 
@@ -34,6 +34,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
 
   const fileInputRef = useRef(null);
   const activePreset = getGradientById(bannerGradientId);
+  const nameInitials = name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("") || "C";
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -112,7 +113,7 @@ const CreateCommunityModal = ({ onClose, onCreate }) => {
               <div className="banner-icon">
                 {iconMode === "image" && iconPreview
                   ? <img src={iconPreview} alt="icon" className="icon-img" />
-                  : <span className="icon-emoji">{selectedEmoji}</span>
+                  : <span className="icon-emoji">{selectedEmoji || nameInitials}</span>
                 }
               </div>
               <button className="shuffle-btn" onClick={randomGradient} title="Surprise me">

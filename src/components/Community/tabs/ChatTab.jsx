@@ -59,6 +59,7 @@ const ChatTab = ({
   const [contextMenu, setContextMenu] = useState(null);
   const [channelContextMenu, setChannelContextMenu] = useState(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [createChannelCategory, setCreateChannelCategory] = useState("");
   const [showEditChannel, setShowEditChannel] = useState(false);
   const [showChannelPerms, setShowChannelPerms] = useState(false);
   const [permsChannel, setPermsChannel] = useState(null);
@@ -660,9 +661,10 @@ const ChatTab = ({
         </div>
       </div>
 
-      {categoryMenu && <div className="category-context-menu" style={{ left: Math.min(categoryMenu.x, window.innerWidth - 190), top: Math.min(categoryMenu.y, window.innerHeight - 110) }} onClick={(event) => event.stopPropagation()}>
+      {categoryMenu && <div className="category-context-menu" style={{ left: Math.min(categoryMenu.x, window.innerWidth - 220), top: Math.min(categoryMenu.y, window.innerHeight - 130) }} onClick={(event) => event.stopPropagation()}>
+        <div className="category-menu-title">{categoryMenu.name}</div>
+        <button type="button" className="category-menu-create" onClick={() => { setCreateChannelCategory(categoryMenu.name); setShowCreateChannel(true); setCategoryMenu(null); }}>+ Create channel</button>
         <button type="button" onClick={renameCategory}>Rename category</button>
-        <button type="button" disabled={categoryMenu.name === "Welcome"} onClick={removeCategory}>Move channels to Welcome and remove</button>
       </div>}
 
       <div className="chat-main">
@@ -997,6 +999,7 @@ const ChatTab = ({
 
       {showCreateChannel && (
         <CreateChannelModal
+          initialCategory={createChannelCategory}
           onClose={() => setShowCreateChannel(false)}
           onCreate={async (channelData) => {
             try {
@@ -1106,9 +1109,11 @@ const ChatTab = ({
           .channels-container { display: none; }
           .jump-btn { bottom: 72px; right: 12px; width: 36px; height: 36px; }
         }
-        .category-context-menu { position: fixed; z-index: 10001; width: 210px; padding: 6px; border: 1px solid rgba(156,255,0,.22); border-radius: 10px; background: rgba(10,12,16,.98); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
-        .category-context-menu button { display:block; width:100%; padding:9px; border:0; border-radius:7px; background:transparent; color:#cbd5cb; text-align:left; font:600 11px inherit; cursor:pointer; }
-        .category-context-menu button:hover { background:rgba(156,255,0,.1); color:#9cff00; }
+        .category-context-menu { position: fixed; z-index: 10001; width: 220px; padding: 7px; border: 1px solid rgba(156,255,0,.3); border-radius: 13px; background: linear-gradient(145deg,rgba(17,27,19,.99),rgba(8,13,11,.99)); box-shadow: 0 18px 50px rgba(0,0,0,.68),0 0 20px rgba(156,255,0,.08); }
+        .category-menu-title{padding:7px 9px 8px;color:#789879;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
+        .category-context-menu button { display:block; width:100%; margin-top:4px; padding:10px 9px; border:1px solid transparent; border-radius:8px; background:rgba(255,255,255,.035); color:#d8e7d8; text-align:left; font:700 11px inherit; cursor:pointer; }
+        .category-context-menu button:hover { background:rgba(156,255,0,.12); border-color:rgba(156,255,0,.22); color:#cfff80; transform:translateX(2px) }
+        .category-context-menu .category-menu-create{background:rgba(156,255,0,.1);color:#cfff80;border-color:rgba(156,255,0,.24)}
         .category-context-menu button:disabled { opacity:.4; cursor:not-allowed; }
       `}</style>
     </div>
