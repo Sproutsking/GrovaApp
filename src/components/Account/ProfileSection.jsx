@@ -644,17 +644,17 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         @keyframes ambPulse      { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 6px rgba(245,158,11,0)} }
 
         .profile-section { padding: 20px; }
-        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 32px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
+        .profile-header-content { position:relative; z-index:1; text-align:center; padding:40px 24px 12px; width:100%; display:flex; flex-direction:column; border-radius:24px; overflow:hidden; }
         .profile-name { font-size:26px;font-weight:900;color:#fff;margin:0 0 4px 0;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .profile-name-verified { display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#84cc16;color:#071007;font-size:12px;font-weight:900;line-height:1; }
         .profile-badges-row { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;flex-wrap:wrap; }
         .profile-badge-pro { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1));border:1px solid rgba(251,191,36,0.4);border-radius:20px;font-size:11px;font-weight:800;color:#fbbf24; }
         .profile-badge-verified { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);border-radius:20px;font-size:11px;font-weight:800;color:#84cc16; }
-        .profile-username { font-size:15px;color:#84cc16;margin:0 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
+        .profile-username { font-size:15px;color:#84cc16;margin:2px 0 8px 0;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .profile-bio { color:#d1d1d1;font-size:13px;margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
 
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
-        .profile-boost-tristat { margin-bottom:10px; }
+        .profile-boost-tristat { margin-bottom:12px; }
         .tristat-live-bar { position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16);background-size:200% 100%;animation:liveBarScroll 3s linear infinite;border-radius:2px 2px 0 0; }
         .tristat-row { display:flex;flex-direction:row;align-items:stretch;gap:0;min-width:0; }
         .tri-stat-pill { flex:1 1 0;min-width:0;position:relative;cursor:default;border-radius:14px;transition:background 0.2s,transform 0.2s; }
@@ -678,9 +678,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .contact-row { display:flex;flex-direction:column;gap:8px;margin-bottom:18px;padding:0 2px; }
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
 
-        .boost-manager-extension { position:relative;z-index:4;margin:0;border:0;border-top:1px solid rgba(192,192,192,0.18);border-radius:0 0 24px 24px;background:transparent;overflow:hidden;box-shadow:none; }
-        .boost-manager-trigger { width:100%;display:flex;align-items:center;gap:10px;padding:11px 14px;border:0;background:transparent;color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s; }
-        .boost-manager-trigger:hover { background:rgba(255,255,255,.025);border-top-color:rgba(192,192,192,0.34); }
+        .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:hidden;box-shadow:none; }
+        .boost-manager-trigger { width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(192,192,192,0.24);border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 55%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.16);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
+        .boost-manager-trigger:hover { background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 55%,rgba(0,0,0,.2));border-color:rgba(220,220,220,.42);box-shadow:inset 0 1px rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.2); }
         .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#c0c0c0;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.24);flex-shrink:0; }
         .boost-manager-trigger-copy { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1; }
         .boost-manager-trigger-copy strong { font-size:12px;letter-spacing:.04em; }
@@ -695,7 +695,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         /* Mobile adjustments */
         @media (max-width: 480px) {
           .profile-section { padding: 12px; }
-          .profile-header-content { padding: 18px 12px 16px; }
+          .profile-header-content { padding: 18px 12px 12px; }
           .profile-name { font-size:20px; }
           .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
           .tri-stat-inner { padding:10px 8px; }
@@ -763,6 +763,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               {(profile.verified || hasBoostedTier) && <span className="profile-name-verified" aria-label="Verified account">✓</span>}
             </h2>
 
+            <p className="profile-username">@{profile.username}</p>
+
             <div className="profile-badges-row">
               {profile.isPro    && <span className="profile-badge-pro"><Crown size={10}/> PRO</span>}
               <TierBadgePill tier={profile.subscriptionTier} paymentStatus={profile.paymentStatus} />
@@ -776,7 +778,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               )}
             </div>
 
-            <p className="profile-username">@{profile.username}</p>
             {profile.bio && <p className="profile-bio">{profile.bio}</p>}
 
             {(profile.showEmail || profile.showPhone) && (
