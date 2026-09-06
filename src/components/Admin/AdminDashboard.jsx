@@ -41,6 +41,7 @@ import { FreezeSection, SystemSection } from "./sections/SystemSection.jsx";
 import TeamSection, { CEOPanel } from "./sections/TeamSection.jsx";
 import AmbassadorSection from "./sections/AmbassadorSection.jsx";
 import LiquiditySection  from "./sections/LiquiditySection.jsx";
+import ComingSoonModal from "../Shared/ComingSoonModal";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -505,6 +506,7 @@ export default function AdminDashboard({ adminData, onClose }) {
   const [activeSection,    setActiveSection]    = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileAdmin,    setIsMobileAdmin]    = useState(false);
+  const [showAmbassadorComingSoon, setShowAmbassadorComingSoon] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobileAdmin(window.innerWidth <= 900);
@@ -525,6 +527,10 @@ export default function AdminDashboard({ adminData, onClose }) {
   const casesHook         = useSupportCases();
 
   const navigate = useCallback((section) => {
+    if (section === "ambassador" && !["ceo_owner", "super_admin"].includes(adminData?.role)) {
+      setShowAmbassadorComingSoon(true);
+      return;
+    }
     setActiveSection(section);
     window.scrollTo(0, 0);
   }, []);
@@ -646,6 +652,7 @@ export default function AdminDashboard({ adminData, onClose }) {
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: C.bg, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif", color: C.text, overflow: "hidden", position: "fixed", top: 0, left: 0, zIndex: 10000 }}>
+      {showAmbassadorComingSoon && <ComingSoonModal title="Ambassador Management" onClose={() => setShowAmbassadorComingSoon(false)} />}
       <AdminSidebarNav adminData={adminData} activeSection={activeSection} onNavigate={navigate} stats={stats} collapsed={sidebarCollapsed || isMobileAdmin} onToggle={() => setSidebarCollapsed((c) => !c)} />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>

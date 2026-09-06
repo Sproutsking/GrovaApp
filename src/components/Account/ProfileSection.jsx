@@ -17,6 +17,7 @@ import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
+import ComingSoonModal from "../Shared/ComingSoonModal";
 import { supabase } from "../../services/config/supabase";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import { buildTierInfo, getTierBadge } from "../../services/account/profileTierService";
@@ -228,6 +229,8 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const [boostManagerOpen, setBoostManagerOpen] = useState(false);
   // [AMB-4] Ambassador profile data for badge + action button label
   const [ambassadorData, setAmbassadorData] = useState(null);
+  const [adminRole, setAdminRole] = useState(null);
+  const [showAmbassadorComingSoon, setShowAmbassadorComingSoon] = useState(false);
 
   const isMobile = window.innerWidth <= 768;
 
@@ -254,6 +257,12 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         if (data) setAmbassadorData(data);
       })
       .catch(() => {}); // non-fatal
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("admin_team").select("role").eq("user_id", userId).maybeSingle()
+      .then(({ data }) => setAdminRole(data?.role || null)).catch(() => setAdminRole(null));
   }, [userId]);
 
   const { isAdmin } = useAuth() || {};
@@ -601,8 +610,12 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
       border:"rgba(245,158,11,0.4)",
       // [AMB-2] Calls onNavigate("ambassador") — wire this in App.jsx / AccountView
       onClick:() => {
-        if (typeof onNavigate === "function") {
-          onNavigate("ambassador");
+        if (["ceo_owner", "super_admin"].includes(adminRole)) {
+          onNavigate?.("ambassador");
+        } else if (typeof onNavigate === "function") {
+          setShowAmbassadorComingSoon(true);
+        } else {
+          setShowAmbassadorComingSoon(true);
         }
       },
     },
@@ -634,6 +647,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
   return (
     <>
+      {showAmbassadorComingSoon && <ComingSoonModal title="Ambassador Program" onClose={() => setShowAmbassadorComingSoon(false)} />}
       <style>{`
         @keyframes spin          { to{transform:rotate(360deg)} }
         @keyframes profileFadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
