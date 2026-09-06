@@ -14,7 +14,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
   Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard,
-  Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
+  Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft, X,
 } from "lucide-react";
 import { useAuth } from "../Auth/AuthContext";
 import ComingSoonModal from "../Shared/ComingSoonModal";
@@ -108,6 +108,68 @@ const ConfirmLogout = ({ onConfirm, onCancel }) => (
         </button>
       </div>
     </div>
+  </div>
+);
+
+const BoostManagerModal = ({
+  tier,
+  activeThemeId,
+  activeFontId,
+  activeColorId,
+  activeBackgroundColorId,
+  userId,
+  onPicked,
+  onClose,
+}) => (
+  <div className="boost-manager-modal" role="dialog" aria-modal="true" aria-label="Manage profile boost">
+    <button type="button" className="boost-manager-modal-backdrop" onClick={onClose} aria-label="Close boost manager" />
+    <section className="boost-manager-modal-card">
+      <header className="boost-manager-modal-header">
+        <button type="button" className="boost-manager-modal-back" onClick={onClose} aria-label="Back">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="boost-manager-modal-heading">
+          <strong>Manage profile boost</strong>
+          <span>Shape your profile identity</span>
+        </div>
+        <button type="button" className="boost-manager-modal-close" onClick={onClose} aria-label="Close">
+          <X size={17} />
+        </button>
+      </header>
+      <div className="boost-manager-modal-body">
+        <BoostThemePicker
+          tier={tier}
+          activeId={activeThemeId}
+          activeFontId={activeFontId}
+          activeColorId={activeColorId}
+          activeBackgroundColorId={activeBackgroundColorId}
+          userId={userId}
+          showToggle={false}
+          onPicked={onPicked}
+        />
+      </div>
+    </section>
+    <style>{`
+      .boost-manager-modal{position:fixed;inset:0;z-index:110000;display:flex;align-items:center;justify-content:center;padding:24px;isolation:isolate}
+      .boost-manager-modal-backdrop{position:absolute;inset:0;border:0;background:rgba(0,0,0,.74);backdrop-filter:blur(12px);cursor:default}
+      .boost-manager-modal-card{position:relative;z-index:1;width:min(560px,100%);max-height:min(760px,calc(100dvh - 48px));display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(156,255,0,.24);border-radius:22px;background:linear-gradient(150deg,rgba(19,28,20,.98),rgba(6,10,8,.98));box-shadow:0 30px 100px rgba(0,0,0,.8),0 0 42px rgba(156,255,0,.1);animation:boostManagerModalIn .2s ease-out}
+      .boost-manager-modal-header{display:flex;align-items:center;gap:11px;padding:15px 17px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(255,255,255,.06),transparent);flex-shrink:0}
+      .boost-manager-modal-back,.boost-manager-modal-close{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#d9e7d5;cursor:pointer}
+      .boost-manager-modal-back:hover,.boost-manager-modal-close:hover{border-color:rgba(156,255,0,.45);color:#9cff00;background:rgba(156,255,0,.1)}
+      .boost-manager-modal-heading{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+      .boost-manager-modal-heading strong{color:#f4fff0;font-size:14px;letter-spacing:.01em}
+      .boost-manager-modal-heading span{color:#7f9180;font-size:11px}
+      .boost-manager-modal-body{overflow:auto;padding:17px 18px 22px;scrollbar-width:thin;scrollbar-color:rgba(156,255,0,.35) transparent}
+      @keyframes boostManagerModalIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+      @media(max-width:480px){
+        .boost-manager-modal{padding:0;align-items:stretch}
+        .boost-manager-modal-backdrop{background:#050706;backdrop-filter:none}
+        .boost-manager-modal-card{width:100%;height:100dvh;max-height:none;border:0;border-radius:0;background:linear-gradient(155deg,#101b12,#050706 48%,#071008);box-shadow:none;animation:none}
+        .boost-manager-modal-header{padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px}
+        .boost-manager-modal-close{display:none}
+        .boost-manager-modal-body{padding:12px 12px calc(env(safe-area-inset-bottom,0px) + 22px)}
+      }
+    `}</style>
   </div>
 );
 
@@ -692,7 +754,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .contact-row { display:flex;flex-direction:column;gap:8px;margin-bottom:18px;padding:0 2px; }
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
 
-        .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:hidden;box-shadow:none; }
+        .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:visible;box-shadow:none; }
         .boost-manager-trigger { width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(192,192,192,0.24);border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 55%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.16);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
         .boost-manager-trigger:hover { background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 55%,rgba(0,0,0,.2));border-color:rgba(220,220,220,.42);box-shadow:inset 0 1px rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.2); }
         .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#c0c0c0;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.24);flex-shrink:0; }
@@ -715,11 +777,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           .tri-stat-inner { padding:10px 8px; }
           .actions-grid { grid-template-columns: 1fr; gap:10px; }
           .action-btn { padding:12px; }
-          .boost-manager-extension { position:fixed;inset:0;z-index:10000;margin:0;border:0;border-radius:0;overflow-y:auto;background:#050706;box-shadow:none; }
-          .boost-manager-trigger { position:sticky;top:0;z-index:2;padding:16px 14px;border-top:0;border-bottom:1px solid rgba(192,192,192,0.2); }
-          .boost-manager-panel { grid-template-rows:1fr;opacity:1; }
-          .boost-manager-panel-inner { padding:16px 14px 28px;overflow:visible; }
-          .boost-manager-extension:not(.is-open) { display:none; }
+          .boost-manager-trigger { padding:10px 10px; }
         }
       `}</style>
 
@@ -832,25 +890,35 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           </div>
 
           {hasBoostedTier && (
-            <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
-              <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen((value) => !value)}>
+            <section className="boost-manager-extension">
+              <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen(true)}>
                 <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
-                <span className="boost-manager-trigger-copy"><strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong><small>Theme, name style, font color and background</small></span>
-                <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
+                <span className="boost-manager-trigger-copy"><strong>Manage profile boost</strong><small>Theme, name style, font color and background</small></span>
+                <span className="boost-manager-trigger-chevron">+</span>
               </button>
-              <div className="boost-manager-panel"><div className="boost-manager-panel-inner">
-                <BoostThemePicker tier={profile.subscriptionTier} activeId={activeThemeId} activeFontId={activeFontId} activeColorId={activeColorId} activeBackgroundColorId={activeBackgroundColorId} userId={userId} showToggle={false} onPicked={(selection) => {
-                  if (typeof selection === "string") setActiveThemeId(selection);
-                  else {
-                    if (selection.fontId) setActiveFontId(selection.fontId);
-                    if (selection.colorId) setActiveColorId(selection.colorId);
-                    if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
-                  }
-                }} />
-              </div></div>
             </section>
           )}
         </BoostProfileCard>
+
+        {boostManagerOpen && (
+          <BoostManagerModal
+            tier={profile.subscriptionTier}
+            activeThemeId={activeThemeId}
+            activeFontId={activeFontId}
+            activeColorId={activeColorId}
+            activeBackgroundColorId={activeBackgroundColorId}
+            userId={userId}
+            onClose={() => setBoostManagerOpen(false)}
+            onPicked={(selection) => {
+              if (typeof selection === "string") setActiveThemeId(selection);
+              else {
+                if (selection.fontId) setActiveFontId(selection.fontId);
+                if (selection.colorId) setActiveColorId(selection.colorId);
+                if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
+              }
+            }}
+          />
+        )}
 
         <VerificationLedgerCard
           userId={userId}
