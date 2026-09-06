@@ -394,7 +394,7 @@ const ChatTab = ({
         avatarId = parts[parts.length - 1].split("?")[0];
       }
       const messageContent = selectedChannel?.type === "announcement" && announcement?.title
-        ? `[[announcement:${announcement.title.replace(/\]/g, "") }]]\n${content}`
+        ? `[[announcement:${encodeURIComponent(JSON.stringify({ title: announcement.title.replace(/\]/g, ""), borderStyle: announcement.borderStyle || "solid", borderColor: announcement.borderColor || "#9cff00" }))}]]\n${content}`
         : content;
       await communityMessageService.sendMessage(
         selectedChannel.id, userId, messageContent,

@@ -5,6 +5,23 @@ import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../S
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 
+const ANNOUNCEMENT_BORDER_STYLES = new Set(["solid", "double", "dashed", "glow"]);
+const ANNOUNCEMENT_COLORS = new Set(["#9cff00", "#38bdf8", "#f59e0b", "#f472b6", "#a78bfa"]);
+
+const parseAnnouncementMetadata = (token) => {
+  const fallback = { title: token || "", borderStyle: "solid", borderColor: "#9cff00" };
+  try {
+    const parsed = JSON.parse(decodeURIComponent(token));
+    return {
+      title: String(parsed.title || ""),
+      borderStyle: ANNOUNCEMENT_BORDER_STYLES.has(parsed.borderStyle) ? parsed.borderStyle : fallback.borderStyle,
+      borderColor: ANNOUNCEMENT_COLORS.has(parsed.borderColor) ? parsed.borderColor : fallback.borderColor,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
 const MessageList = ({
   messages,
   pendingMessages,
@@ -107,7 +124,8 @@ const MessageList = ({
           const isAnnouncement = channelType === "announcement";
           const showTail = !isAnnouncement && (!prev || prev.user_id !== msg.user_id);
           const announcementMatch = isAnnouncement ? String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
-          const messageTitle = announcementMatch?.[1] || "";
+          const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
+          const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || msg.content;
           const showAvatar = !isMe && showTail;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
@@ -147,7 +165,7 @@ const MessageList = ({
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
-              <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}`} style={{ margin: 0 }}>
+              <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                 {msg.reply_to_id && (() => {
                   const original = allMessages.find((item) => item.id === msg.reply_to_id);
                   return original ? <div className="msg-reply-quote"><span>Replying to {original.user?.full_name || "member"}</span><strong>{original.content}</strong></div> : null;
@@ -339,8 +357,8 @@ const MessageList = ({
         }
         .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; }
         .msg-item.announcement .msg-meta { margin-top: 10px; }
-        .msg-item.announcement .msg-bubble{border-top:3px solid rgba(156,255,0,.72);border-bottom-left-radius:18px;border-bottom-right-radius:18px}
-        .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid rgba(156,255,0,.18)}
+        .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:18px;border-bottom-right-radius:18px}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
+        .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
 
         /* Base bubble styles */
         .msg-bubble.them {
