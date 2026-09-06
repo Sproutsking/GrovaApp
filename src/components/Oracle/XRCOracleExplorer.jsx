@@ -77,6 +77,8 @@ export const resolveProfileTargetFromRecord = (record) => {
 
   const profile = record._profile || {};
   const payload = record.payload || {};
+  const isProfileResult = record._matchType === "profile" || payload.event === "profile_lookup";
+  if (!isProfileResult) return null;
   const directId =
     profile.id ||
     profile.user_id ||
@@ -92,8 +94,6 @@ export const resolveProfileTargetFromRecord = (record) => {
     record.profile_id ||
     record.userId ||
     record.profileId ||
-    record.actor_id ||
-    record.actorId ||
     null;
 
   if (!directId) return null;
@@ -1402,7 +1402,12 @@ const OracleResultCards = ({ records, onSelect }) => {
           <button
             key={`${record.record_id || index}`}
             type="button"
-            onClick={() => onSelect(record)}
+            aria-label={`Open verification result ${label}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onSelect(record);
+            }}
             style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: 14, textAlign: "left", color: "#e8edf5", background: "rgba(255,255,255,.035)", border: `1px solid ${style.color}45`, borderRadius: 12, cursor: "pointer" }}
           >
             <span style={{ width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center", flexShrink: 0, color: style.color, background: style.dim, fontSize: 18, overflow: "hidden", border: `1px solid ${style.color}35` }}>

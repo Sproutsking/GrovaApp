@@ -2,11 +2,33 @@ const PROMPT_STORAGE_KEY = "xv_prompt_state_v1";
 const REMIND_OPTIONS_HOURS = [12, 24, 48];
 
 export function getPromptPriority({ installReady, updateReady, pushReady, isInstalled = false }) {
+  // An update is more important than an install invitation once the app is
+  // already running as an installed experience.
+  if (updateReady) return "update";
   if (isInstalled) return null;
   if (installReady) return "install";
-  if (updateReady) return "update";
   if (pushReady) return "push";
   return null;
+}
+
+export function shouldSuppressInstallPrompt(storage = window.localStorage, installedOverride = null) {
+  if (installedOverride !== null) return !!installedOverride;
+
+  try {
+    if (typeof window !== "undefined") {
+      const displayMode = window.matchMedia && window.matchMedia("(display-mode: standalone)");
+      if (displayMode?.matches) return true;
+      if (window.navigator?.standalone === true) return true;
+    }
+  } catch {}
+
+  if (!storage) return false;
+  try {
+    if (storage.getItem("xv_pwa_installed") === "1") return true;
+  } catch {}
+
+  const state = readPromptState(storage);
+  return !!state?.never?.install;
 }
 
 export function readPromptState(storage = window.localStorage) {

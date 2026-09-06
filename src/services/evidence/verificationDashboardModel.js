@@ -73,8 +73,8 @@ export function buildVerificationDashboardSections(items = [], context = {}) {
       title: "Socials",
       subtitle: "Connected platforms and verified identities",
       accent: "#60a5fa",
-      items: normalizeSectionItems(safeItems.filter((item) => item?.provider && item?.evidence_type !== "report" && item?.evidence_type !== "comment" && item?.evidence_type !== "reply" && item?.evidence_type !== "like"), "socials"),
-      summary: `${safeItems.filter((item) => item?.verified).length} verified signals across connected platforms`,
+      items: normalizeSectionItems(safeItems.filter((item) => item?.provider && item.provider !== "XRC Oracle" && !item?.metadata?.firstParty && item?.evidence_type !== "report" && item?.evidence_type !== "comment" && item?.evidence_type !== "reply" && item?.evidence_type !== "like"), "socials"),
+      summary: `${safeItems.filter((item) => item?.provider && item.provider !== "XRC Oracle" && !item?.metadata?.firstParty && item?.verified).length} verified signals across connected platforms`,
     },
     {
       id: "portfolio",

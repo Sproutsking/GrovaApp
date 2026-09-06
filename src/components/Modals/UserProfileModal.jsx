@@ -477,8 +477,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         const storedEvidence = Array.isArray(evidenceR?.value?.data) ? evidenceR.value.data : [];
         const oracleEvidence = verificationRecord ? [{
           id: `xrc-${verificationRecord.record_id}`,
-          title: verificationRecord.payload?.event || "XRC verification record",
-          summary: `Verified ${verificationRecord.stream_type || "XRC"} record ${verificationRecord.record_id || ""}`,
+          title: verificationRecord.payload?.event === "profile_lookup" ? "Profile identity lookup" : (verificationRecord.payload?.event || "XRC verification record"),
+          summary: verificationRecord.payload?.event === "profile_lookup"
+            ? "XRC Oracle resolved this profile identity from a verified profile search."
+            : `Verified ${verificationRecord.stream_type || "XRC"} record ${verificationRecord.record_id || ""}`,
           provider: "XRC Oracle",
           evidence_type: "verification",
           verified: true,

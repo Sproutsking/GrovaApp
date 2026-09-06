@@ -29,7 +29,7 @@ import "./styles/global.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { pushService } from "./services/notifications/pushService";
-import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt, setPromptNever } from "./services/notifications/appPromptManager";
+import { getPromptPriority, isPromptDue, readPromptState, writePromptState, clearPromptSchedule, schedulePrompt, setPromptNever, shouldSuppressInstallPrompt } from "./services/notifications/appPromptManager";
 
 // Quick shim: allow calling Image() without `new` by delegating to
 // the original constructor. This mitigates runtime errors from
@@ -363,17 +363,42 @@ function ensurePromptStyles() {
 }
 
 function isPwaInstalled() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || window.matchMedia('(display-mode: fullscreen)').matches
-    || window.matchMedia('(display-mode: minimal-ui)').matches
-    || window.navigator.standalone
-    || localStorage.getItem("xv_pwa_installed") === "1";
+  const displayMode = (mode) => window.matchMedia(`(display-mode: ${mode})`).matches;
+  let storedInstall = false;
+  try { storedInstall = localStorage.getItem("xv_pwa_installed") === "1"; } catch (e) {}
+  return displayMode("standalone")
+    || displayMode("fullscreen")
+    || displayMode("minimal-ui")
+    || window.navigator.standalone === true
+    || storedInstall;
+}
+
+function rememberPwaInstalled() {
+  try { localStorage.setItem("xv_pwa_installed", "1"); } catch (e) {}
+}
+
+// Chromium can expose installed related applications, while Safari and
+// Firefox rely on display-mode/appinstalled. This is intentionally additive:
+// no browser-specific check should make an installed app prompt again.
+async function detectInstalledApp() {
+  if (isPwaInstalled()) return true;
+  if (typeof navigator.getInstalledRelatedApps !== "function") return false;
+  try {
+    const relatedApps = await navigator.getInstalledRelatedApps();
+    const installed = Array.isArray(relatedApps) && relatedApps.length > 0;
+    if (installed) rememberPwaInstalled();
+    return installed;
+  } catch (e) {
+    return false;
+  }
 }
 
 window.__xvIsAppInstalled = isPwaInstalled;
 
 function canShowPrompt(type) {
-  if (type === "install" && isPwaInstalled()) return false;
+  if (type === "install") {
+    if (isPwaInstalled() || shouldSuppressInstallPrompt()) return false;
+  }
   const now = Date.now();
   if (now < promptCooldownUntil) return false;
   if (!isPromptDue(type)) return false;
@@ -555,7 +580,13 @@ function showAppPrompt({ type, message, detail }) {
         updatePromptShown = true;
         clearPromptSchedule("update");
         localStorage.setItem("xv_update_timestamp", String(Date.now()));
-        window.location.reload();
+        navigator.serviceWorker?.getRegistration?.().then((registration) => {
+          if (registration?.waiting) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            return;
+          }
+          window.location.reload();
+        }).catch(() => window.location.reload());
       });
     } else if (type === "push") {
       closeBanner(async () => {
@@ -592,21 +623,22 @@ function queuePrompt(type, detail) {
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallEvent = event;
-  if (isPwaInstalled() || installPromptShown || !isPromptDue("install")) {
-    return;
-  }
-  queuePrompt("install", "Install Xeevia to keep it fast and always available.");
+  detectInstalledApp().then((installed) => {
+    if (installed || shouldSuppressInstallPrompt() || installPromptShown || !isPromptDue("install")) return;
+    queuePrompt("install", "Install Xeevia to keep it fast and always available.");
+  });
 });
 
 window.addEventListener("appinstalled", () => {
   installPromptShown = true;
   deferredInstallEvent = null;
-  localStorage.setItem("xv_pwa_installed", "1");
+  rememberPwaInstalled();
+  setPromptNever("install");
   clearPromptSchedule("install");
 });
 
-window.__xvRequestInstall = () => {
-  if (isPwaInstalled()) {
+window.__xvRequestInstall = async () => {
+  if (isPwaInstalled() || shouldSuppressInstallPrompt() || (await detectInstalledApp())) {
     showAppPrompt({
       type: "update",
       message: "Xeevia is already installed on this device.",
