@@ -4,7 +4,7 @@
 // desktop/mobile already visited this community, it's instant here too) +
 // a premium visual pass matching the rest of the community rewrite.
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, Volume2, X } from "lucide-react";
+import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, Volume2, X, ChevronDown, Folder } from "lucide-react";
 import channelService from "../../../services/community/channelService";
 import permissionService from "../../../services/community/permissionService";
 import communityCache from "../../../services/community/communityCache";
@@ -24,6 +24,8 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
   const [userPermissions, setUserPermissions] = useState({});
   const [showMenu, setShowMenu] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [categoryOrder, setCategoryOrder] = useState([]);
+  const [collapsedCategories, setCollapsedCategories] = useState({});
 
   useEffect(() => {
     if (community) {
@@ -34,11 +36,15 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
 
   const loadChannels = async () => {
     try {
-      const data = await communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id));
+      const [{ data: categories }, data] = await Promise.all([
+        supabase.from("community_channel_categories").select("name,position").eq("community_id", community.id).order("position", { ascending: true }),
+        communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id)),
+      ]);
       const visible = community.owner_id === userId
         ? data
         : await roleService.getVisibleChannels(community.id, userId, data);
       setChannels(visible);
+      setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
     } catch (error) {
       console.error("Error loading channels:", error);
@@ -66,6 +72,13 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
   };
 
   const showSkeleton = !channelsReady && channels.length === 0;
+  const groupedChannels = channels.reduce((groups, channel) => {
+    const category = channel.category || "Channels";
+    groups[category] = [...(groups[category] || []), channel];
+    return groups;
+  }, {});
+  const orderedGroups = [...new Set([...categoryOrder, ...Object.keys(groupedChannels)])]
+    .map((category) => [category, groupedChannels[category] || []]);
 
   return (
     <div className="channels-view">
@@ -93,20 +106,22 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           </div>
         ) : (
           <>
-            {channels.map((channel) => (
-              <button
-                key={channel.id}
-                className="cv-channel-item"
-                onClick={() => onSelectChannel(channel)}
-              >
-                <span className="cv-channel-icon">{renderChannelIcon(channel)}</span>
-                <div className="cv-channel-info">
-                  <span className="cv-channel-name">#{channel.name}</span>
-                  {channel.description && <p className="cv-channel-desc">{channel.description}</p>}
-                </div>
-                {channel.is_private && <Lock size={14} className="cv-channel-lock" />}
+            {orderedGroups.map(([category, categoryChannels]) => <section className="cv-category" key={category}>
+              <button type="button" className="cv-category-head" onClick={() => setCollapsedCategories((current) => ({ ...current, [category]: !current[category] }))}>
+                <span className="cv-category-label"><Folder size={13} /> {category}</span>
+                <span className="cv-category-meta">{categoryChannels.length}<ChevronDown size={14} className={collapsedCategories[category] ? "collapsed" : ""} /></span>
               </button>
-            ))}
+              {!collapsedCategories[category] && categoryChannels.map((channel) => (
+                <button key={channel.id} className="cv-channel-item" onClick={() => onSelectChannel(channel)}>
+                  <span className="cv-channel-icon">{renderChannelIcon(channel)}</span>
+                  <div className="cv-channel-info">
+                    <span className="cv-channel-name">#{channel.name}</span>
+                    {channel.description && <p className="cv-channel-desc">{channel.description}</p>}
+                  </div>
+                  {channel.is_private && <Lock size={14} className="cv-channel-lock" />}
+                </button>
+              ))}
+            </section>)}
 
             {canManageChannels && (
               <button className="cv-channel-item create" onClick={() => setShowCreateChannel(true)}>
@@ -132,9 +147,10 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
             try {
               let preparedChannel = channelData;
               if (channelData.create_category && channelData.category?.trim()) {
-                const { data: category, error: categoryError } = await supabase.from("community_channel_categories").insert({ community_id: community.id, name: channelData.category.trim(), position: 9999 }).select("id,name").single();
+                const { data: category, error: categoryError } = await supabase.from("community_channel_categories").insert({ community_id: community.id, name: channelData.category.trim(), position: categoryOrder.length }).select("id,name").single();
                 if (categoryError) throw categoryError;
                 preparedChannel = { ...channelData, category: category.name, category_id: category.id };
+                setCategoryOrder((current) => [...current, category.name]);
               }
               await channelService.createChannel(preparedChannel, community.id);
               communityCache.clearCommunity(community.id);
@@ -259,6 +275,13 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
         }
 
         .cv-skeleton { display: flex; flex-direction: column; gap: 8px; }
+        .cv-category { display: flex; flex-direction: column; gap: 6px; padding: 3px 0 6px; }
+        .cv-category-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 8px 5px; border: 0; background: transparent; color: rgba(190, 239, 174, .82); cursor: pointer; font: 800 10px inherit; letter-spacing: .12em; text-transform: uppercase; }
+        .cv-category-label, .cv-category-meta { display: flex; align-items: center; gap: 6px; }
+        .cv-category-label svg { color: rgba(156, 255, 0, .78); }
+        .cv-category-meta { color: rgba(255, 255, 255, .38); font-size: 10px; letter-spacing: 0; }
+        .cv-category-meta svg { transition: transform .2s ease; }
+        .cv-category-meta svg.collapsed { transform: rotate(-90deg); }
         .cv-skel-item {
           height: 52px;
           border-radius: 12px;
