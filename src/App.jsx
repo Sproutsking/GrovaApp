@@ -1014,11 +1014,13 @@ const MainApp = memo(() => {
       <OfflineBanner visible={showOfflineBanner} />
 
       {showAdminDashboard && isAdmin && (
-        <AdminDashboard
-          adminData={adminData}
-          onClose={() => setShowAdminDashboard(false)}
-          xrcService={xrcService}
-        />
+        <Suspense fallback={<div className="admin-dashboard-loading" role="status">Loading admin dashboard...</div>}>
+          <AdminDashboard
+            adminData={adminData}
+            onClose={() => setShowAdminDashboard(false)}
+            xrcService={xrcService}
+          />
+        </Suspense>
       )}
 
       {renderOverlay()}
