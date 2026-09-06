@@ -200,14 +200,14 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, on
       <style>{`
         .channel-modal-overlay{position:fixed;top:57px;right:0;bottom:0;left:0;background:rgba(5,7,10,.72);backdrop-filter:blur(12px);z-index:100000;display:flex;align-items:center;justify-content:center;padding:14px;}
         .channel-modal{width:min(620px,100%);max-height:calc(100vh - 85px);background:linear-gradient(180deg,#171d18,#0b0f0c);border:1px solid rgba(156,255,0,.28);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(156,255,0,.08);overflow:auto;position:relative;}
-        .channel-modal-header{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(15,20,16,.96);border-bottom:1px solid rgba(156,255,0,.18);}
+        .channel-modal-header{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:#101711;backdrop-filter:none;border-bottom:1px solid rgba(156,255,0,.18);}
         .channel-modal-body{padding:20px;}
         .channel-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
         .channel-icon-row{display:flex;align-items:center;gap:8px;position:relative;}
         .channel-icon-preview{width:44px;height:44px;border-radius:12px;border:1px solid rgba(156,255,0,.35);background:rgba(156,255,0,.1);font-size:24px;cursor:pointer;flex-shrink:0;}
         .channel-icon-picker-btn{height:40px;border:1px solid rgba(156,255,0,.25);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;display:flex;align-items:center;gap:5px;padding:0 10px;cursor:pointer;white-space:nowrap;}
         .channel-icon-picker{position:absolute;left:0;top:100%;z-index:20;}
-        @media(max-width:768px){.channel-modal-overlay{top:47px;bottom:56px;padding:8px;align-items:flex-end}.channel-modal{max-height:calc(100vh - 63px);border-radius:14px 14px 8px 8px}.channel-modal-body{padding:14px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
+        @media(max-width:768px){.channel-modal-overlay{inset:0;padding:0;align-items:stretch}.channel-modal{width:100%;height:100dvh;max-height:none;border-radius:0}.channel-modal-body{padding:14px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
         .modal-overlay {
           position: fixed;
           top: 57px;

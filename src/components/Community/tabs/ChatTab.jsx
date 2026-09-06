@@ -185,8 +185,9 @@ const ChatTab = ({
     const requestId = ++channelsRequestRef.current;
     const communityId = community?.id;
     if (!communityId) return;
-    const savedLocation = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "null");
-    const savedChannelId = savedLocation?.communityId === communityId ? savedLocation.channelId : null;
+    const storedLocations = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
+    const savedLocation = storedLocations.locations?.[communityId] || (storedLocations.communityId === communityId ? storedLocations : null);
+    const savedChannelId = savedLocation?.channelId || null;
     if (!isOwner) setSelectedChannel(null);
     const categoriesPromise = supabase
       .from("community_channel_categories")
@@ -634,7 +635,7 @@ const ChatTab = ({
                     active={selectedChannel?.id === channel.id}
                     buttonStyle={buttonStyle}
                     dividerStyle={dividerStyle}
-                    onClick={() => { setSelectedChannel(channel); localStorage.setItem(`xeevia:last-community-location:${userId}`, JSON.stringify({ communityId: community.id, channelId: channel.id, view: "chat" })); }}
+                    onClick={() => { setSelectedChannel(channel); const key = `xeevia:last-community-location:${userId}`; const stored = JSON.parse(localStorage.getItem(key) || "{}"); const locations = stored.locations || (stored.communityId ? { [stored.communityId]: stored } : {}); locations[community.id] = { communityId: community.id, ...locations[community.id], channelId: channel.id, view: "chat", lastVisited: Date.now() }; localStorage.setItem(key, JSON.stringify({ locations })); }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (canManageChannels || canManageRoles) {

@@ -48,9 +48,10 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
         ? data
         : await roleService.getVisibleChannels(community.id, userId, data);
       setChannels(visible);
-      const saved = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "null");
+      const stored = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
+      const saved = stored.locations?.[community.id] || (stored.communityId === community.id ? stored : null);
       const savedChannel = visible.find((channel) => channel.id === saved?.channelId);
-      if (saved?.communityId === community.id && savedChannel) onSelectChannel(savedChannel);
+      if (savedChannel) onSelectChannel(savedChannel);
       setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
     } catch (error) {

@@ -38,6 +38,19 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [isSwiping, setIsSwiping] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const lastLocationKey = `xeevia:last-community-location:${userId}`;
+  const readLocations = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(lastLocationKey) || "{}");
+      return stored.locations || (stored.communityId ? { [stored.communityId]: stored } : {});
+    } catch {
+      return {};
+    }
+  };
+  const saveLocation = (communityId, location) => {
+    const locations = readLocations();
+    locations[communityId] = { communityId, ...locations[communityId], ...location };
+    localStorage.setItem(lastLocationKey, JSON.stringify({ locations }));
+  };
 
   const currentCommunityRef = useRef(null);
   const switchTimeoutRef    = useRef(null);
@@ -108,8 +121,9 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       ]);
       setMyCommunities(userComms);
       setAllCommunities(allComms);
-      const savedLocation = JSON.parse(localStorage.getItem(lastLocationKey) || "null");
-      const restoredCommunity = userComms.find((item) => item.id === savedLocation?.communityId);
+      const locations = readLocations();
+      const savedCommunityId = Object.values(locations).sort((a, b) => (b?.lastVisited || 0) - (a?.lastVisited || 0))[0]?.communityId;
+      const restoredCommunity = userComms.find((item) => item.id === savedCommunityId);
       if (restoredCommunity && !new URLSearchParams(window.location.search).get("invite")) {
         const restored = await communityService.fetchCommunityDetails(restoredCommunity.id);
         if (restored) handleSelectCommunity(restored);
@@ -145,7 +159,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     // that land without a preceding hover.
     handlePrefetchCommunity(community.id);
     setSelectedCommunity(community);
-    localStorage.setItem(lastLocationKey, JSON.stringify({ communityId: community.id, channelId: null, view: isMobile ? "channels" : "chat" }));
+    saveLocation(community.id, { view: isMobile ? "channels" : "chat", lastVisited: Date.now() });
     // On mobile, show channels view; on desktop, go straight to chat
     setView(isMobile ? "channels" : "chat");
     if (isMobile) setSidebarOpen(false);
@@ -161,7 +175,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const handleSelectChannel = async (channel) => {
     setSelectedChannel(channel);
     setView("chat"); // Move to chat when a channel is selected
-    if (selectedCommunity?.id && channel?.id) localStorage.setItem(lastLocationKey, JSON.stringify({ communityId: selectedCommunity.id, channelId: channel.id, view: "chat" }));
+    if (selectedCommunity?.id && channel?.id) saveLocation(selectedCommunity.id, { channelId: channel.id, view: "chat", lastVisited: Date.now() });
   };
 
   const handleCreateCommunity = async (communityData) => {
@@ -225,7 +239,9 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       await communityService.leaveCommunity(communityId, userId);
       communityCache.clearCommunity(communityId);
       if (selectedCommunity?.id === communityId) {
-        localStorage.removeItem(lastLocationKey);
+        const locations = readLocations();
+        delete locations[communityId];
+        localStorage.setItem(lastLocationKey, JSON.stringify({ locations }));
         setSelectedCommunity(null); setSelectedChannel(null);
         setView("discover"); currentCommunityRef.current = null;
       }
