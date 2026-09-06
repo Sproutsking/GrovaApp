@@ -403,14 +403,15 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) 
           75% { transform: translateX(8px); }
         }
 
-        .form-group { margin-bottom: 20px; display:flex; flex-direction:column; gap:8px; }
+        .channel-modal .form-group { margin-bottom: 20px; display:flex; flex-direction:column; align-items:stretch; gap:8px; }
 
-        .form-label {
+        .channel-modal .form-label {
           display: block;
+          width: 100%;
           font-size: 13px;
           font-weight: 700;
           color: #9cff00;
-          margin-bottom: 0;
+          margin: 0;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
@@ -485,7 +486,8 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) 
           min-height: 80px;
         }
 
-        .help-text {
+        .channel-modal .help-text {
+          width: 100%;
           font-size: 11px;
           color: #666;
           margin: 0;

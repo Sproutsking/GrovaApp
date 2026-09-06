@@ -442,16 +442,21 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
           }
         }
 
-        .form-group {
+        .channel-modal .form-group {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
           margin-bottom: 20px;
         }
 
-        .form-label {
+        .channel-modal .form-label {
           display: block;
+          width: 100%;
           font-size: 13px;
           font-weight: 700;
           color: #9cff00;
-          margin-bottom: 8px;
+          margin: 0;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
@@ -537,10 +542,11 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
           min-height: 80px;
         }
 
-        .help-text {
+        .channel-modal .help-text {
+          width: 100%;
           font-size: 11px;
           color: #666;
-          margin-top: 6px;
+          margin: 0;
           display: block;
         }
 
