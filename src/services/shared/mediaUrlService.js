@@ -149,7 +149,7 @@ class MediaUrlService {
     };
 
     if (typeof source === 'object') {
-      const direct = source.url || source.avatar_url || source.avatarUrl || source.image_url || source.publicUrl;
+      const direct = source.url || source.avatar_url || source.avatarUrl || source.image_url || source.imageUrl || source.profile_image_url || source.profileImageUrl || source.public_url || source.publicUrl;
       if (direct) return this.getOptimizedImageUrl(direct, normalizedOptions);
       const id = source.avatar_id || source.id || source.public_id;
       return id ? this.getOptimizedImageUrl(id, normalizedOptions) : null;
@@ -391,7 +391,7 @@ class MediaUrlService {
     if (!avatarSource) return null;
 
     if (typeof avatarSource === 'object') {
-      const direct = avatarSource.url || avatarSource.avatar_url || avatarSource.avatarUrl || avatarSource.image_url || avatarSource.publicUrl;
+      const direct = avatarSource.url || avatarSource.avatar_url || avatarSource.avatarUrl || avatarSource.image_url || avatarSource.imageUrl || avatarSource.profile_image_url || avatarSource.profileImageUrl || avatarSource.public_url || avatarSource.publicUrl;
       if (direct) return this.resolveAvatarUrl(direct, size);
       const id = avatarSource.avatar_id || avatarSource.id || avatarSource.public_id;
       if (id) return this.resolveAvatarUrl(id, size);

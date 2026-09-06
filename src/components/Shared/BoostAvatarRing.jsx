@@ -397,6 +397,7 @@ const BoostAvatarRing = ({
   themeId,
   size        = 42,
   src,
+  fallbackSrc = null,
   letter      = "U",
   showBadge   = true,
   badgeSize   = "sm",
@@ -408,11 +409,13 @@ const BoostAvatarRing = ({
 }) => {
   injectKeyframes();
 
+  const [imageSrc, setImageSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
+    setImageSrc(src);
     setImgError(false);
-  }, [src]);
+  }, [src, fallbackSrc]);
 
   const visual = getVisual(tier, themeId);
   const showcaseRing = getShowcaseRing(tier, themeId);
@@ -428,9 +431,9 @@ const BoostAvatarRing = ({
   const showTierBadge = false;
 
   const isValidImg =
-    src &&
-    typeof src === "string" &&
-    (src.startsWith("http") || src.startsWith("blob:") || src.startsWith("data:image/"));
+    imageSrc &&
+    typeof imageSrc === "string" &&
+    (imageSrc.startsWith("http") || imageSrc.startsWith("blob:") || imageSrc.startsWith("data:image/"));
 
   const shouldRenderImage = isValidImg && !imgError;
   const effectiveImageBleed = Math.max(1, imageBleed);
@@ -484,14 +487,16 @@ const BoostAvatarRing = ({
         >
           {shouldRenderImage && (
             <img
-              key={src || `${size}-${letter}`}
-              src={src}
+              key={imageSrc || `${size}-${letter}`}
+              src={imageSrc}
               alt=""
-              crossOrigin="anonymous"
               loading="eager"
               fetchPriority="high"
               decoding="async"
-              onError={() => setImgError(true)}
+              onError={() => {
+                if (fallbackSrc && imageSrc !== fallbackSrc) setImageSrc(fallbackSrc);
+                else setImgError(true);
+              }}
               style={{
                 position:       "absolute",
                 inset:          -effectiveImageBleed,

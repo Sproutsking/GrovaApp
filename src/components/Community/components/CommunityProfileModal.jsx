@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Crown, MessageCircle, Plus, Shield, UserCheck, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Crown, MessageCircle, Plus, Shield, UserCheck, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "../../../services/config/supabase";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import followService from "../../../services/social/followService";
@@ -50,11 +50,12 @@ const CommunityProfileModal = ({
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const avatarUrl = user?.avatar_id
-    ? mediaUrlService.getOptimizedImageUrl(user.avatar_id, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" })
-    : (user?.avatar_url || user?.avatarUrl || user?.avatar
-      ? mediaUrlService.getOptimizedImageUrl(user.avatar_url || user.avatarUrl || user.avatar, { width: 240, height: 240, quality: "100", format: "webp", crop: "fill", gravity: "face" })
-      : null);
+  const [relationshipPopup, setRelationshipPopup] = useState(null);
+  const [mutualFollow, setMutualFollow] = useState(false);
+  const [mutualCommunities, setMutualCommunities] = useState([]);
+  const avatarSource = user?.avatar_url || user?.avatarUrl || user?.avatar || user?.avatar_id || user?.profile_image_url || user?.profileImageUrl || user?.image_url || user?.imageUrl || user?.public_url || user?.avatar_metadata?.url || user?.avatar_metadata?.publicUrl || user?.avatar_metadata?.public_url || user?.avatar_metadata?.avatar_url || user?.avatar_metadata?.profile_image_url;
+  const avatarUrl = mediaUrlService.resolveAvatarUrl(avatarSource, 240);
+  const directAvatarUrl = typeof avatarSource === "string" && /^(https?:\/\/|blob:|data:image\/)/i.test(avatarSource) ? avatarSource : null;
   const displayName = user?.full_name || user?.username || "Unknown user";
   const isOwnProfile = Boolean(currentUserId && user?.id && currentUserId === user.id);
   const { tier: liveTier, themeId: liveThemeId, fontId: liveFontId, colorId: liveColorId, backgroundColorId: liveBackgroundColorId } = useUserBoostTier(user?.id);
@@ -68,6 +69,11 @@ const CommunityProfileModal = ({
   const boostVisual = hasBoosted ? BOOST_VISUAL?.[tier] : null;
   const pixelTier = hasBoosted ? tier : "standard";
   const pixels = createPixelPattern(user?.id, pixelTier);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+    setRelationshipPopup(null);
+  }, [user?.id, avatarSource]);
 
   useEffect(() => {
     let active = true;
@@ -119,6 +125,29 @@ const CommunityProfileModal = ({
     return () => { active = false; };
   }, [currentUserId, user?.id, isOwnProfile]);
 
+  useEffect(() => {
+    let active = true;
+    const loadRelationships = async () => {
+      if (!currentUserId || !user?.id || isOwnProfile) {
+        setMutualFollow(false);
+        setMutualCommunities([]);
+        return;
+      }
+      const [{ data: outgoing }, { data: incoming }, { data: mine }, { data: theirs }] = await Promise.all([
+        supabase.from("follows").select("id").eq("follower_id", currentUserId).eq("following_id", user.id).maybeSingle(),
+        supabase.from("follows").select("id").eq("follower_id", user.id).eq("following_id", currentUserId).maybeSingle(),
+        supabase.from("community_members").select("community_id, community:communities(id,name,icon)").eq("user_id", currentUserId),
+        supabase.from("community_members").select("community_id, community:communities(id,name,icon)").eq("user_id", user.id),
+      ]);
+      if (!active) return;
+      setMutualFollow(Boolean(outgoing && incoming));
+      const mineIds = new Set((mine || []).map((item) => item.community_id));
+      setMutualCommunities((theirs || []).filter((item) => mineIds.has(item.community_id) && item.community_id !== community?.id));
+    };
+    loadRelationships().catch(() => { if (active) { setMutualFollow(false); setMutualCommunities([]); } });
+    return () => { active = false; };
+  }, [currentUserId, user?.id, isOwnProfile, community?.id]);
+
   const handleFollow = async () => {
     if (!currentUserId || !user?.id || isOwnProfile || followLoading) return;
     const next = !isFollowing;
@@ -146,12 +175,7 @@ const CommunityProfileModal = ({
     if (!uniqueRoleMap.has(normalized)) uniqueRoleMap.set(normalized, role);
   };
 
-  const roleBadges = memberships
-    .filter((item) => item.role?.name)
-    .map((item) => ({
-      ...item.role,
-      communityName: item.community?.name,
-    }));
+  const roleBadges = currentRole?.name ? [{ ...currentRole, communityName: community?.name || "This community" }] : [];
   roleBadges.forEach((role) => addUniqueRole(role, role.name));
   if (currentRole) addUniqueRole(currentRole, currentRole.name);
   const dedupedRoleBadges = Array.from(uniqueRoleMap.values());
@@ -196,6 +220,7 @@ const CommunityProfileModal = ({
               themeId={hasBoosted ? themeId : null}
               size={58}
               src={avatarUrl && !avatarFailed ? avatarUrl : null}
+              fallbackSrc={directAvatarUrl}
               letter={displayName.charAt(0).toUpperCase()}
               showBadge={false}
               badgeSize="sm"
@@ -223,7 +248,7 @@ const CommunityProfileModal = ({
             </button>
             <button className="primary" onClick={() => onOpenDm?.(user)}><MessageCircle size={14} /> DM</button>
           </div>
-          <div className="community-profile-role-head"><span>Roles</span>{canManageRoles && <button onClick={() => setShowRolePicker((value) => !value)} aria-label="Assign role"><Plus size={15} /></button>}</div>
+          <div className="community-profile-role-head"><span>Roles in {community?.name || "this community"}</span>{canManageRoles && <button onClick={() => setShowRolePicker((value) => !value)} aria-label="Assign role"><Plus size={15} /></button>}</div>
           <div className="community-profile-roles">
             {dedupedRoleBadges.length ? dedupedRoleBadges.map((role, index) => (
               <span className="community-profile-role" key={`${role.id}-${index}`} style={{ "--role-color": role.color || "#9cff00" }}>
@@ -231,6 +256,10 @@ const CommunityProfileModal = ({
                 {role.communityName && <small>{role.communityName}</small>}
               </span>
             )) : <span className="community-profile-empty"><Shield size={13} /> No roles assigned</span>}
+          </div>
+          <div className="community-profile-connections">
+            <button type="button" onClick={() => setRelationshipPopup("follows")}><UserCheck size={13} /><span>Mutual follow</span><b>{mutualFollow ? 1 : 0}</b></button>
+            <button type="button" onClick={() => setRelationshipPopup("communities")}><Users size={13} /><span>Mutual communities</span><b>{mutualCommunities.length}</b></button>
           </div>
           {showRolePicker && canManageRoles && member && (
             <div className="community-profile-assign">
@@ -254,6 +283,7 @@ const CommunityProfileModal = ({
           )}
         </div>
         </BoostProfileCard>
+        {relationshipPopup && <div className="community-profile-relationship-overlay" onClick={() => setRelationshipPopup(null)}><section className="community-profile-relationship-modal" onClick={(event) => event.stopPropagation()}><header><button type="button" onClick={() => setRelationshipPopup(null)} aria-label="Back"><ArrowLeft size={17} /></button><div><span>Connection details</span><strong>{relationshipPopup === "follows" ? "Mutual follow" : "Mutual communities"}</strong></div><button type="button" onClick={() => setRelationshipPopup(null)} aria-label="Close"><X size={17} /></button></header><div className="community-profile-relationship-body">{relationshipPopup === "follows" ? (mutualFollow ? <div className="community-profile-relationship-item"><UserCheck size={16} /><span>You both follow each other</span></div> : <div className="community-profile-relationship-empty">No mutual follow connection yet.</div>) : mutualCommunities.length ? mutualCommunities.map((item) => <div className="community-profile-relationship-item" key={item.community_id}><span className="relationship-community-icon">{item.community?.icon || "◈"}</span><span>{item.community?.name || "Community"}</span></div>) : <div className="community-profile-relationship-empty">No mutual communities yet.</div>}</div></section></div>}
         <style>{`
           .community-profile-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,5,3,.48);backdrop-filter:blur(3px);animation:communityProfileIn .18s ease}
           .community-profile-card{position:relative;width:min(100%,320px);overflow:hidden;border:1px solid rgba(156,255,0,.22);border-radius:18px;background:#09130b;box-shadow:0 24px 70px rgba(0,0,0,.7),0 0 30px rgba(156,255,0,.08)}
@@ -261,12 +291,14 @@ const CommunityProfileModal = ({
           .community-profile-cover{position:relative;overflow:hidden}.community-profile-pixel-layer{position:absolute;inset:0;image-rendering:pixelated;background-image:linear-gradient(135deg,rgba(255,255,255,.06) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.04) 50%,rgba(255,255,255,.04) 75%,transparent 75%);background-size:12px 12px}.community-profile-pixel-layer i{position:absolute;display:block;border-radius:1px;box-shadow:0 0 8px currentColor}.pixel-tier-silver .community-profile-pixel-layer i{box-shadow:0 0 9px rgba(226,232,240,.45)}.pixel-tier-gold .community-profile-pixel-layer i{box-shadow:0 0 10px rgba(251,191,36,.5)}.pixel-tier-diamond .community-profile-pixel-layer i{box-shadow:0 0 12px rgba(167,139,250,.6)}
           .community-profile-body{padding:0 16px 16px}.community-profile-close{position:absolute;right:10px;top:10px;width:28px;height:28px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(0,0,0,.35);color:#b5c5b5;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2}
           .community-profile-avatar{width:58px;height:58px;margin-top:-29px;border:3px solid #09130b;border-radius:50%;overflow:visible;background:#1b4320;color:#baff82;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900}.community-profile-avatar img{width:100%;height:100%;object-fit:cover;display:block}
-          .community-profile-heading{margin-top:8px}.community-profile-heading h2{margin:0;color:#f1fff1;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap}.community-profile-heading span{display:block;margin-top:2px;color:#6d9670;font-size:11px}.community-profile-boost-label{display:inline-block;margin-top:4px;color:#9cff00;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}.community-profile-verified{display:inline-flex!important;align-items:center;justify-content:center;width:15px;height:15px;margin:0;border-radius:50%;background:#84cc16;color:#071007!important;font-size:10px!important;font-weight:900;line-height:1}
+          .community-profile-heading{margin:8px -4px 0;padding:10px 12px 11px;border:1px solid rgba(156,255,0,.14);border-radius:11px;background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(156,255,0,.05) 52%,rgba(0,0,0,.18));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 8px 20px rgba(0,0,0,.16)}.community-profile-heading h2{margin:0;color:#f1fff1;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap}.community-profile-heading span{display:block;margin-top:3px;color:#9ab69c;font-size:11px}.community-profile-boost-label{display:inline-block;margin-top:5px;color:#c8ff80;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.community-profile-verified{display:inline-flex!important;align-items:center;justify-content:center;width:15px;height:15px;margin:0;border-radius:50%;background:#84cc16;color:#071007!important;font-size:10px!important;font-weight:900;line-height:1}
           .community-profile-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:13px 0;padding:8px 0;border:1px solid rgba(156,255,0,.12);border-radius:9px;background:rgba(0,0,0,.14);color:#719273;font-size:9px;text-align:center}.community-profile-stats span{padding:0 7px;text-transform:uppercase;letter-spacing:.04em}.community-profile-stats span+span{border-left:1px solid rgba(156,255,0,.2)}.community-profile-stats strong{display:block;color:#eaffea;font-size:13px;margin-bottom:2px}
           .community-profile-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.community-profile-actions button{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;padding:10px 7px;border:1px solid rgba(156,255,0,.22);border-radius:9px;background:rgba(156,255,0,.06);color:#c9e8c5;font:700 10px inherit;cursor:pointer}.community-profile-actions button.primary{background:#2e9f38;border-color:#45bc50;color:#fff}.community-profile-actions button.following{background:rgba(156,255,0,.14);border-color:rgba(156,255,0,.5);color:#baff82}.community-profile-actions button:disabled{opacity:.6;cursor:not-allowed}.community-profile-actions button:hover:not(:disabled){filter:brightness(1.12)}
+          .community-profile-connections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}.community-profile-connections button{display:flex;align-items:center;gap:5px;min-width:0;padding:8px;border:1px solid rgba(96,165,250,.2);border-radius:8px;background:rgba(96,165,250,.06);color:#b7cce0;font:700 9px inherit;cursor:pointer;text-align:left}.community-profile-connections button:hover{border-color:rgba(96,165,250,.55);background:rgba(96,165,250,.12)}.community-profile-connections span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.community-profile-connections b{margin-left:auto;color:#e4f1ff}.community-profile-relationship-overlay{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(2,5,3,.68);backdrop-filter:blur(10px)}.community-profile-relationship-modal{width:min(420px,100%);max-height:min(620px,calc(100vh - 36px));overflow:auto;border:1px solid rgba(96,165,250,.32);border-radius:16px;background:#0c1610;box-shadow:0 24px 70px rgba(0,0,0,.7)}.community-profile-relationship-modal header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.1)}.community-profile-relationship-modal header div{display:flex;flex-direction:column;gap:2px;flex:1}.community-profile-relationship-modal header span{color:#7fa4c3;font-size:9px;text-transform:uppercase;letter-spacing:.1em}.community-profile-relationship-modal header strong{color:#eef7ff;font-size:15px}.community-profile-relationship-modal header button{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.05);color:#b8cde0;cursor:pointer}.community-profile-relationship-body{display:grid;gap:7px;padding:16px}.community-profile-relationship-item{display:flex;align-items:center;gap:9px;padding:11px;border:1px solid rgba(96,165,250,.18);border-radius:10px;background:rgba(96,165,250,.06);color:#e4f1ff;font-size:12px}.relationship-community-icon{font-size:19px}.community-profile-relationship-empty{padding:25px 12px;color:#78917e;text-align:center;font-size:12px}
           .community-profile-role-head{display:flex;align-items:center;justify-content:space-between;margin-top:18px;color:#769578;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.community-profile-role-head button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(156,255,0,.45);border-radius:7px;background:rgba(156,255,0,.08);color:#9cff00;cursor:pointer}.community-profile-roles{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.community-profile-role{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;border:1px solid color-mix(in srgb,var(--role-color) 35%,transparent);border-radius:7px;background:color-mix(in srgb,var(--role-color) 10%,transparent);color:var(--role-color);font-size:10px;font-weight:800}.community-profile-role small{color:#79947b;font-size:8px;font-weight:600}.community-profile-empty{display:flex;align-items:center;gap:5px;color:#668168;font-size:10px}.community-profile-assign{display:flex;flex-direction:column;gap:6px;margin-top:10px;color:#759176;font-size:10px;font-weight:700}.community-profile-assign select{padding:8px;border:1px solid rgba(156,255,0,.22);border-radius:8px;background:#0d1c10;color:#d9f4d5;font-size:11px;outline:0}
           .community-profile-assign{display:flex;flex-direction:column;gap:8px;margin-top:12px;color:#78967d;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.community-role-picker{display:flex;flex-direction:column;gap:4px;max-height:170px;overflow-y:auto;padding:6px;border:1px solid rgba(156,255,0,.25);border-radius:10px;background:rgba(7,16,9,.96);box-shadow:0 18px 30px rgba(0,0,0,.45),0 0 0 1px rgba(156,255,0,.05)}.community-role-option{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:#ecf8eb;font:700 11px inherit;text-align:left;cursor:pointer;transition:all .15s ease}.community-role-option:hover{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.18);color:#cfff80}.community-role-option-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.08),0 0 12px rgba(156,255,0,.5)}.community-role-picker-empty{padding:8px;color:#6d896f;font-size:11px;font-weight:600}
           @keyframes communityProfileIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+          @media(max-width:700px){.community-profile-overlay{align-items:stretch;padding:0}.community-profile-card{width:100%;max-width:none;height:100%;border:0;border-radius:0;overflow-y:auto}.community-profile-relationship-overlay{align-items:stretch;padding:0}.community-profile-relationship-modal{width:100%;max-height:none;height:100%;border:0;border-radius:0}}
         `}</style>
       </section>
     </div>
