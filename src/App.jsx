@@ -155,6 +155,59 @@ const TabSkeleton = memo(() => (
 ));
 TabSkeleton.displayName = "TabSkeleton";
 
+const AdminDashboardLoader = memo(() => (
+  <div className="admin-dashboard-loader" role="status" aria-live="polite" aria-label="Opening admin dashboard">
+    <div className="admin-loader-grid" />
+    <div className="admin-loader-vignette" />
+    <div className="admin-loader-core">
+      <div className="admin-loader-orbit admin-loader-orbit-a" />
+      <div className="admin-loader-orbit admin-loader-orbit-b" />
+      <div className="admin-loader-orbit admin-loader-orbit-c" />
+      <div className="admin-loader-globe">
+        <div className="admin-loader-globe-latitude admin-loader-globe-latitude-a" />
+        <div className="admin-loader-globe-latitude admin-loader-globe-latitude-b" />
+        <div className="admin-loader-globe-longitude admin-loader-globe-longitude-a" />
+        <div className="admin-loader-globe-longitude admin-loader-globe-longitude-b" />
+        <span className="admin-loader-node admin-loader-node-a" />
+        <span className="admin-loader-node admin-loader-node-b" />
+        <span className="admin-loader-node admin-loader-node-c" />
+        <span className="admin-loader-node admin-loader-node-d" />
+        <span className="admin-loader-node admin-loader-node-e" />
+      </div>
+      <div className="admin-loader-scan" />
+    </div>
+    <div className="admin-loader-copy">
+      <div className="admin-loader-kicker"><span /> SECURE CONTROL PLANE <span /></div>
+      <strong>Opening Admin Dashboard</strong>
+      <small>Synchronizing live network systems</small>
+      <div className="admin-loader-progress"><i /></div>
+    </div>
+    <style>{`
+      .admin-dashboard-loader{position:fixed;inset:0;z-index:120000;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#020403;color:#eaffd8;font-family:inherit}
+      .admin-loader-grid{position:absolute;inset:-30%;opacity:.34;background-image:linear-gradient(rgba(132,204,22,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(132,204,22,.09) 1px,transparent 1px);background-size:46px 46px;transform:perspective(420px) rotateX(58deg) translateY(22%);transform-origin:center bottom;animation:adminGridDrift 8s linear infinite}
+      .admin-loader-vignette{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 0%,rgba(1,3,2,.18) 42%,rgba(0,0,0,.9) 100%)}
+      .admin-loader-core{position:relative;width:min(360px,72vw);aspect-ratio:1;display:grid;place-items:center}
+      .admin-loader-globe{position:relative;width:34%;aspect-ratio:1;border:1px solid rgba(156,255,0,.68);border-radius:50%;background:radial-gradient(circle at 35% 28%,rgba(156,255,0,.2),rgba(4,20,7,.92) 63%,#020503 100%);box-shadow:0 0 0 8px rgba(156,255,0,.035),0 0 28px rgba(156,255,0,.42),inset 0 0 24px rgba(156,255,0,.18);overflow:hidden;animation:adminGlobePulse 2.8s ease-in-out infinite}
+      .admin-loader-globe:before,.admin-loader-globe:after{content:"";position:absolute;inset:14% -10%;border:1px solid rgba(156,255,0,.3);border-radius:50%;transform:rotate(25deg)}
+      .admin-loader-globe:after{inset:-10% 20%;transform:rotate(-25deg)}
+      .admin-loader-globe-latitude,.admin-loader-globe-longitude{position:absolute;border:1px solid rgba(156,255,0,.26);border-radius:50%;pointer-events:none}
+      .admin-loader-globe-latitude{left:-12%;right:-12%;height:34%;top:33%}.admin-loader-globe-latitude-b{top:47%;height:15%;opacity:.7}
+      .admin-loader-globe-longitude{top:-10%;bottom:-10%;width:38%;left:31%}.admin-loader-globe-longitude-b{left:16%;width:68%;opacity:.65}
+      .admin-loader-node{position:absolute;width:5px;height:5px;border-radius:50%;background:#c8ff78;box-shadow:0 0 9px #9cff00;animation:adminNodeBlink 1.8s ease-in-out infinite}
+      .admin-loader-node-a{top:21%;left:27%}.admin-loader-node-b{top:38%;right:18%;animation-delay:.3s}.admin-loader-node-c{bottom:25%;left:22%;animation-delay:.6s}.admin-loader-node-d{bottom:18%;right:31%;animation-delay:.9s}.admin-loader-node-e{top:58%;left:48%;animation-delay:1.2s}
+      .admin-loader-orbit{position:absolute;inset:13%;border:1px solid rgba(156,255,0,.28);border-radius:50%;transform:rotate(62deg);animation:adminOrbit 4.8s linear infinite}
+      .admin-loader-orbit:after{content:"";position:absolute;top:-4px;left:50%;width:7px;height:7px;border-radius:50%;background:#b8ff61;box-shadow:0 0 14px #9cff00}
+      .admin-loader-orbit-b{inset:4%;transform:rotate(-34deg) scaleY(.55);border-color:rgba(56,189,248,.25);animation-duration:7s;animation-direction:reverse}.admin-loader-orbit-b:after{background:#67e8f9;box-shadow:0 0 14px #38bdf8}
+      .admin-loader-orbit-c{inset:23%;transform:rotate(8deg) scaleY(.42);border-color:rgba(251,191,36,.3);animation-duration:3.4s}.admin-loader-orbit-c:after{background:#fde68a;box-shadow:0 0 14px #fbbf24}
+      .admin-loader-scan{position:absolute;width:70%;height:2px;background:linear-gradient(90deg,transparent,#b7ff65,transparent);box-shadow:0 0 16px rgba(156,255,0,.8);animation:adminScan 2.6s ease-in-out infinite}
+      .admin-loader-copy{position:absolute;bottom:10%;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}.admin-loader-kicker{display:flex;align-items:center;gap:9px;color:#84cc16;font-size:9px;font-weight:800;letter-spacing:.24em}.admin-loader-kicker span{width:28px;height:1px;background:linear-gradient(90deg,transparent,#84cc16)}.admin-loader-kicker span:last-child{background:linear-gradient(90deg,#84cc16,transparent)}.admin-loader-copy strong{font-size:clamp(16px,2.5vw,23px);letter-spacing:.02em}.admin-loader-copy small{color:#6e826d;font-size:11px;letter-spacing:.08em}.admin-loader-progress{width:170px;height:2px;margin-top:4px;border-radius:2px;background:rgba(156,255,0,.12);overflow:hidden}.admin-loader-progress i{display:block;width:42%;height:100%;background:#9cff00;box-shadow:0 0 10px #9cff00;animation:adminProgress 1.6s ease-in-out infinite}
+      @keyframes adminOrbit{to{transform:rotate(422deg)}}@keyframes adminGridDrift{to{background-position:0 46px,46px 0}}@keyframes adminGlobePulse{0%,100%{transform:scale(.98)}50%{transform:scale(1.04)}}@keyframes adminNodeBlink{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1.35)}}@keyframes adminScan{0%{transform:translateY(-110px);opacity:0}25%,75%{opacity:1}100%{transform:translateY(110px);opacity:0}}@keyframes adminProgress{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
+      @media(prefers-reduced-motion:reduce){.admin-loader-grid,.admin-loader-orbit,.admin-loader-globe,.admin-loader-node,.admin-loader-scan,.admin-loader-progress i{animation:none}.admin-loader-progress i{width:70%}}
+    `}</style>
+  </div>
+));
+AdminDashboardLoader.displayName = "AdminDashboardLoader";
+
 // ── Offline banner ────────────────────────────────────────────────────────────
 const OfflineBanner = memo(({ visible }) => {
   if (!visible) return null;
@@ -1014,7 +1067,7 @@ const MainApp = memo(() => {
       <OfflineBanner visible={showOfflineBanner} />
 
       {showAdminDashboard && isAdmin && (
-        <Suspense fallback={<div className="admin-dashboard-loading" role="status">Loading admin dashboard...</div>}>
+        <Suspense fallback={<AdminDashboardLoader />}>
           <AdminDashboard
             adminData={adminData}
             onClose={() => setShowAdminDashboard(false)}
