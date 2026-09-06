@@ -70,9 +70,10 @@ class CommunityService {
     if (cached && Date.now() - (this.lastFetch.get(key) || 0) < this.CACHE_TTL) return cached;
     const { data, error } = await supabase.from("communities").select("*").eq("id", communityId).is("deleted_at", null).single();
     if (error) throw error;
-    this.cache.set(key, data);
+    const [hydrated] = await this.hydrateCommunityCounts([data]);
+    this.cache.set(key, hydrated);
     this.lastFetch.set(key, Date.now());
-    return data;
+    return hydrated;
   }
 
   async _uploadCommunityIcon(file, userId) {

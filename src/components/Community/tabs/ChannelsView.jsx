@@ -40,18 +40,22 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
 
   const loadChannels = async () => {
     try {
-      const [{ data: categories }, data] = await Promise.all([
+      const [{ data: categories }, cachedData] = await Promise.all([
         supabase.from("community_channel_categories").select("name,position").eq("community_id", community.id).order("position", { ascending: true }),
         communityCache.prefetchChannels(community.id, (id) => channelService.fetchChannels(id)),
       ]);
+      const data = Array.isArray(cachedData) ? cachedData : await channelService.fetchChannels(community.id);
       const visible = community.owner_id === userId
         ? data
         : await roleService.getVisibleChannels(community.id, userId, data);
-      setChannels(visible);
+      const normalizedVisible = Array.isArray(visible) ? visible : [];
+      setChannels(normalizedVisible);
       const stored = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
       const saved = stored.locations?.[community.id] || (stored.communityId === community.id ? stored : null);
-      const savedChannel = visible.find((channel) => channel.id === saved?.channelId);
-      if (savedChannel) onSelectChannel(savedChannel);
+      const savedChannel = normalizedVisible.find((channel) => channel.id === saved?.channelId);
+      if (savedChannel) {
+        requestAnimationFrame(() => onSelectChannel(savedChannel));
+      }
       setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
     } catch (error) {
@@ -374,6 +378,8 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           opacity: 0.6;
           flex-shrink: 0;
         }
+
+        @media(max-width:768px){.channels-view-list{padding-left:6px;padding-right:6px}.cv-category{gap:5px}.cv-category-head{padding-left:6px;padding-right:6px}.cv-channel-item{padding-left:9px;padding-right:9px}}
 
         .cv-empty {
           display: flex;
