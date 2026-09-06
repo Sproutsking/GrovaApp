@@ -1004,6 +1004,7 @@ const ChatTab = ({
           channel={editingChannel}
           onClose={() => { setShowEditChannel(false); setEditingChannel(null); }}
           onRequestPermissions={(nextData) => applyChannelUpdate(editingChannel.id, nextData, true)}
+          onManageAccess={() => { setShowEditChannel(false); setEditingChannel(null); setPermsChannel(editingChannel); setShowChannelPerms(true); }}
           onUpdate={async (channelData) => {
             try {
               await applyChannelUpdate(editingChannel.id, channelData, false);

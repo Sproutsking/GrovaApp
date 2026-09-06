@@ -10,6 +10,7 @@ import permissionService from "../../../services/community/permissionService";
 import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
 import CreateChannelModal from "../modals/CreateChannelModal";
+import ChannelPermissionsModal from "../modals/ChannelPermissionsModal";
 import { supabase } from "../../../services/config/supabase";
 
 const CHANNEL_TYPE_ICON = {
@@ -26,11 +27,14 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState([]);
   const [collapsedCategories, setCollapsedCategories] = useState({});
+  const [roles, setRoles] = useState([]);
+  const [permissionsChannel, setPermissionsChannel] = useState(null);
 
   useEffect(() => {
     if (community) {
       loadChannels();
       loadPermissions();
+      roleService.fetchRoles(community.id).then(setRoles).catch(() => setRoles([]));
     }
   }, [community?.id, userId]);
 
@@ -116,7 +120,6 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
                   <span className="cv-channel-icon">{renderChannelIcon(channel)}</span>
                   <div className="cv-channel-info">
                     <span className="cv-channel-name">#{channel.name}</span>
-                    {channel.description && <p className="cv-channel-desc">{channel.description}</p>}
                   </div>
                   {channel.is_private && <Lock size={14} className="cv-channel-lock" />}
                 </button>
@@ -152,10 +155,11 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
                 preparedChannel = { ...channelData, category: category.name, category_id: category.id };
                 setCategoryOrder((current) => [...current, category.name]);
               }
-              await channelService.createChannel(preparedChannel, community.id);
+              const created = await channelService.createChannel(preparedChannel, community.id);
               communityCache.clearCommunity(community.id);
               await loadChannels();
               setShowCreateChannel(false);
+              if (channelData.openPermissions && created) setPermissionsChannel(created);
             } catch (error) {
               throw error;
             }
@@ -163,6 +167,8 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           communityId={community.id}
         />
       )}
+
+      {permissionsChannel && <ChannelPermissionsModal channel={permissionsChannel} communityId={community.id} roles={roles} onClose={() => setPermissionsChannel(null)} onSave={loadChannels} />}
 
       {showMenu && (
         <div className="cv-menu-overlay" onClick={() => setShowMenu(false)}>
@@ -296,7 +302,8 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           align-items: center;
           gap: 10px;
           width: 100%;
-          min-height: 52px;
+          height: 42px;
+          min-height: 42px;
           padding: 0 12px;
           border-radius: 12px;
           border: 1px solid rgba(156, 255, 0, 0.14);
@@ -357,15 +364,6 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
           text-overflow: ellipsis;
           white-space: nowrap;
           letter-spacing: 0.2px;
-        }
-
-        .cv-channel-desc {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.5);
-          margin: 3px 0 0 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
         }
 
         .cv-channel-lock {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
-import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile } from "lucide-react";
+import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile, Lock } from "lucide-react";
 import EmojiPanel from "../components/EmojiPanel";
 import { supabase } from "../../../services/config/supabase";
 
@@ -59,7 +59,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
     },
   ];
 
-  const handleSubmit = async () => {
+  const handleSubmit = async ({ openPermissions = false } = {}) => {
     if (!formData.name.trim()) {
       setError("Channel name is required");
       return;
@@ -85,6 +85,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
         category: formData.category.trim() || "Channels",
         category_id: formData.categoryId || null,
         create_category: categoryMode === "new",
+        openPermissions,
       });
       onClose();
     } catch (err) {
@@ -214,6 +215,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
                   Make this channel private
                 </span>
               </div>
+              {formData.isPrivate && <button type="button" className="manage-access-btn" onClick={() => handleSubmit({ openPermissions: true })} disabled={loading || !formData.name.trim()}><Lock size={14} /> Manage access</button>}
             </div>
 
             <div className="modal-actions channel-modal-actions">
@@ -586,6 +588,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId }) => {
           color: #fff;
           font-weight: 500;
         }
+        .manage-access-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:10px 12px;border:1px solid rgba(156,255,0,.28);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;font-size:11px;font-weight:800;cursor:pointer}.manage-access-btn:hover:not(:disabled){background:rgba(156,255,0,.15);border-color:rgba(156,255,0,.5)}.manage-access-btn:disabled{opacity:.5;cursor:not-allowed}
 
         .modal-actions {
           display: flex;

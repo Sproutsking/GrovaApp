@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { X, Hash, Volume2, Bell, ArrowLeft, Upload, Smile, Lock } from "lucide-react";
 import EmojiPanel from "../components/EmojiPanel";
 
-const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) => {
+const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions, onManageAccess }) => {
   const [formData, setFormData] = useState({
     name: channel.name,
     icon: channel.icon,
@@ -56,22 +56,9 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) 
     }
   };
 
-  const togglePrivate = async () => {
+  const togglePrivate = () => {
     const nextPrivate = !formData.is_private;
-    const nextData = { ...formData, is_private: nextPrivate };
-    setFormData(nextData);
-    if (nextPrivate && onRequestPermissions) {
-      try {
-        setSaving(true);
-        await onRequestPermissions({
-          name: nextData.name.trim(), icon: nextData.icon || "💬", description: nextData.description.trim() || null,
-          type: nextData.type, is_private: true, is_locked: nextData.is_locked, category: nextData.category.trim() || "Channels",
-        });
-      } catch (err) {
-        setError(err.message || "Failed to enable private access");
-        setSaving(false);
-      }
-    }
+    setFormData((current) => ({ ...current, is_private: nextPrivate }));
   };
 
   return ReactDOM.createPortal(
@@ -185,6 +172,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) 
                   Lock channel (read-only, members cannot type)
                 </span>
               </div>
+              {formData.is_private && <button type="button" className="manage-access-btn" onClick={onManageAccess} disabled={saving}><Lock size={14} /> Manage access</button>}
             </div>
 
             <div className="modal-actions channel-modal-actions">
@@ -533,6 +521,7 @@ const EditChannelModal = ({ channel, onClose, onUpdate, onRequestPermissions }) 
           color: #fff;
           font-weight: 500;
         }
+        .manage-access-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:10px 12px;border:1px solid rgba(156,255,0,.28);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;font-size:11px;font-weight:800;cursor:pointer}.manage-access-btn:hover:not(:disabled){background:rgba(156,255,0,.15);border-color:rgba(156,255,0,.5)}.manage-access-btn:disabled{opacity:.5;cursor:not-allowed}
 
         .modal-actions {
           display: flex;
