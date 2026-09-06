@@ -712,7 +712,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 <button
                   type="button"
                   className="upm-verification-entry"
-                  onClick={() => { setShowDashboard(true); setSelectedSection(null); }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSelectedSection(null);
+                    setShowDashboard(true);
+                  }}
+                  aria-label="Open Verification Dashboard"
                 >
                   <span className="upm-verification-icon"><ShieldCheck size={18} /></span>
                   <span className="upm-verification-copy">

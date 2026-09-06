@@ -100,10 +100,10 @@ const getProviderFixtures = async (days = 7) => {
 // Service methods
 const sportsDataService = {
   // Live sessions are the app's current source of truth for live sports.
-  getLiveFixtures: async () => {
+  getLiveFixtures: async (days = 30) => {
     const [providerFixtures, platformResult] = await Promise.all([
-      getProviderFixtures(365),
-      supabase.from("live_sessions").select("*").in("status", ["live", "scheduled"]).limit(50),
+      getProviderFixtures(days),
+      supabase.from("live_sessions").select("*").in("status", ["live", "LIVE", "scheduled", "SCHEDULED"]).limit(50),
     ]);
     const platformFixtures = platformResult.error ? [] : (platformResult.data || [])
       .filter((session) => isSportsSession(session)).map(normalizeSession);
@@ -127,6 +127,7 @@ const sportsDataService = {
         ...normalizeSession(session),
         title: session.title || "Sports replay",
         url: getVideoUrl(session),
+        sources: getVideoSources(session),
         thumbnail: session.thumbnail_url || session.thumbnail || "",
         uploadedAt: session.ended_at || session.updated_at || session.created_at,
       }));
@@ -180,6 +181,13 @@ const isSportsSession = (session) => {
 
 const getVideoUrl = (session) => session?.replay_url || session?.recording_url || session?.youtube_url || session?.stream_url || "";
 
+const getVideoSources = (session) => [
+  ["Live broadcast", session?.stream_url],
+  ["YouTube", session?.youtube_url],
+  ["Replay", session?.replay_url || session?.recording_url],
+].filter(([, url], index, sources) => url && sources.findIndex(([, candidate]) => candidate === url) === index)
+  .map(([label, url], index) => ({ id: `${session?.id || "match"}-source-${index}`, label, url }));
+
 const normalizeSession = (session) => ({
   id: session.id,
   title: session.title || "Live sports session",
@@ -192,7 +200,9 @@ const normalizeSession = (session) => ({
   startedAt: session.started_at || session.created_at || null,
   kickoffTime: session.kickoff_time || session.scheduled_at || session.start_time || session.started_at || null,
   updated: session.updated_at || session.started_at || session.created_at || null,
-  streamUrl: session.stream_url || session.youtube_url || null,
+  streamUrl: session.stream_url || session.youtube_url || session.replay_url || session.recording_url || null,
+  videoSources: getVideoSources(session),
+  thumbnail: session.thumbnail_url || session.thumbnail || "",
   raw: session,
 });
 

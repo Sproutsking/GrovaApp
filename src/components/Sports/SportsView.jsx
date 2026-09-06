@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Play, Clock, Target, CalendarDays,
+  Play, Clock, Target, CalendarDays, ChevronDown, ChevronUp, Video, RefreshCw, X, ArrowLeft, ExternalLink,
 } from "lucide-react";
 import sportsDataService from "../../services/sports/sportsDataService";
 import sportsYoutubeService from "../../services/sports/sportsYoutubeService";
@@ -14,26 +14,48 @@ const SportsView = ({ currentUser, userId, onClose }) => {
   const [activeSection, setActiveSection] = useState(null);
   const [fixtureWindow, setFixtureWindow] = useState("7d");
   const [loading, setLoading] = useState(false);
+  const [clips, setClips] = useState([]);
+  const [selectedStats, setSelectedStats] = useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedSource, setSelectedSource] = useState(null);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     loadLiveData();
+    loadClips();
+    const refreshTimer = window.setInterval(loadLiveData, 30000);
 
     const unsubscribe = sportsDataService.subscribeToLiveFixtures(() => {
       loadLiveData();
     });
 
-    return unsubscribe;
+    return () => {
+      window.clearInterval(refreshTimer);
+      unsubscribe?.();
+    };
   }, []);
 
   const loadLiveData = async () => {
     setLoading(true);
     try {
-      const fixtures = await sportsDataService.getLiveFixtures();
+      const fixtures = await sportsDataService.getLiveFixtures(30);
       setLiveFixtures(fixtures);
     } catch (err) {
       console.error("Failed to load sports data:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadClips = async () => {
+    try {
+      const videos = await sportsDataService.getVideos();
+      const today = new Date().toDateString();
+      const todayClips = videos.filter((video) => video.uploadedAt && new Date(video.uploadedAt).toDateString() === today);
+      setClips(todayClips.length ? todayClips : videos.slice(0, 12));
+    } catch (err) {
+      console.error("Failed to load sports clips:", err);
+      setClips([]);
     }
   };
 
@@ -104,7 +126,37 @@ const SportsView = ({ currentUser, userId, onClose }) => {
       accent: "#60a5fa",
       value: scheduledFixtures.length,
     },
+    {
+      id: "clips",
+      icon: Video,
+      label: "Match Clips",
+      detail: clips.length ? `${clips.length} highlights today` : "Fresh match moments",
+      accent: "#fbbf24",
+      value: clips.length,
+    },
   ];
+
+  const formatMatchDate = (value) => value
+    ? new Date(value).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })
+    : "Date to be confirmed";
+
+  const getMatchStats = (fixture) => {
+    const competitors = fixture.raw?.competitions?.[0]?.competitors || [];
+    return competitors.flatMap((competitor) => (competitor.statistics || []).slice(0, 4).map((stat) => ({
+      team: competitor.team?.shortDisplayName || competitor.team?.displayName || competitor.homeAway,
+      name: stat.name || stat.label,
+      value: stat.displayValue || stat.value,
+    })));
+  };
+
+  const openMatchViewer = (match, source = null) => {
+    const sources = match?.videoSources || match?.sources || (match?.streamUrl ? [{ id: `${match.id}-source`, label: "Broadcast", url: match.streamUrl }] : []);
+    setSelectedMatch({ ...match, videoSources: sources });
+    setSelectedSource(source || sources[0] || null);
+    setVideoError(false);
+  };
+
+  const sourceIsVideoFile = (url) => /\.(mp4|webm|mov|m3u8)(?:[?#]|$)/i.test(url || "");
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: 80 }}>
@@ -195,12 +247,44 @@ const SportsView = ({ currentUser, userId, onClose }) => {
         .status-scheduled {
           background: #f59e0b;
         }
+        .status-final {
+          background: #334155;
+        }
+        .status-date {
+          background: #050505;
+          border: 1px solid #fbbf24;
+          color: #fbbf24;
+        }
         .fixture-body {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
         }
+        .fixture-expand {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          width: 100%;
+          margin-top: 14px;
+          padding: 9px 10px;
+          border: 1px solid rgba(132, 204, 22, 0.32);
+          border-radius: 8px;
+          background: rgba(0, 0, 0, 0.32);
+          color: #bef264;
+          font-size: 11px;
+          font-weight: 800;
+          cursor: pointer;
+          justify-content: center;
+        }
+        .fixture-expand:hover { border-color: #84cc16; background: rgba(132, 204, 22, 0.1); }
+        .fixture-stats { margin-top: 10px; padding: 10px; border-top: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.18); border-radius: 8px; }
+        .fixture-stats-head, .fixture-stat-row { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; }
+        .fixture-stats-head { color: #84cc16; font-weight: 800; margin-bottom: 8px; }
+        .fixture-stats-head span:last-child { color: #64748b; font-weight: 600; }
+        .fixture-stat-row { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.06); color: #94a3b8; }
+        .fixture-stat-row strong { color: #f8fafc; }
+        .fixture-stat-empty { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 10px; line-height: 1.5; }
         .team {
           flex: 1;
           text-align: center;
@@ -478,6 +562,22 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           aspect-ratio: 16 / 9;
           border: 0;
         }
+        .live-video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+        .live-video-card { padding: 0; overflow: hidden; border: 1px solid rgba(248,113,113,.3); border-radius: 14px; background: #080808; color: #fff; text-align: left; cursor: pointer; }
+        .live-video-card:hover { border-color: #f87171; transform: translateY(-2px); }
+        .live-video-thumb { position: relative; aspect-ratio: 16 / 9; display: grid; place-items: center; background: linear-gradient(135deg,#1f2937,#080808); }
+        .live-video-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .live-video-placeholder { color: #f87171; }
+        .live-video-badge { position: absolute; top: 10px; left: 10px; padding: 5px 8px; border-radius: 5px; background: #dc2626; font-size: 10px; font-weight: 900; }
+        .live-video-play { position: absolute; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,.9); }
+        .live-video-copy { display: grid; gap: 5px; padding: 12px; }.live-video-copy strong { font-size: 13px; }.live-video-copy span,.live-video-unavailable span { color: #94a3b8; font-size: 10px; }
+        .live-video-unavailable { display: grid; gap: 6px; padding: 18px; border: 1px dashed rgba(248,113,113,.35); border-radius: 14px; background: rgba(248,113,113,.04); }
+        .video-card { text-align: left; }
+        .sports-modal-backdrop { position: fixed; inset: 0; z-index: 10050; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.76); backdrop-filter: blur(14px); }
+        .sports-stats-modal,.sports-viewer-modal { position: relative; width: min(720px,100%); max-height: min(850px,calc(100vh - 40px)); overflow: auto; padding: 24px; border: 1px solid rgba(132,204,22,.3); border-radius: 18px; background: #0b0f0d; color: #f8fafc; box-shadow: 0 25px 90px rgba(0,0,0,.55); }
+        .sports-viewer-modal { width: min(980px,100%); }.sports-modal-close { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; background: rgba(255,255,255,.06); color: #fff; cursor: pointer; }.sports-stats-modal > .sports-modal-close { position: absolute; top: 18px; right: 18px; }
+        .sports-modal-kicker { color: #84cc16; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }.sports-stats-modal h2,.sports-viewer-copy h2 { margin: 12px 48px 6px 0; font-size: clamp(20px,3vw,30px); }.sports-stats-modal h2 b { color: #bef264; }.sports-stats-modal h2 span { color: #64748b; font-size: 13px; }.sports-modal-muted { margin: 0; color: #94a3b8; font-size: 12px; }.fixture-stats-modal { margin-top: 22px; }
+        .sports-viewer-head { display: flex; justify-content: space-between; align-items: center; }.sports-viewer-back { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #bef264; font-size: 12px; font-weight: 800; cursor: pointer; }.sports-source-tabs { display: flex; gap: 8px; margin: 18px 0 12px; overflow-x: auto; }.sports-source-tabs button { flex: 0 0 auto; padding: 9px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: #050505; color: #cbd5e1; font-size: 11px; font-weight: 800; cursor: pointer; }.sports-source-tabs button.active { border-color: #84cc16; color: #bef264; background: rgba(132,204,22,.1); }.sports-player-shell { overflow: hidden; min-height: 260px; border-radius: 12px; background: #000; }.sports-player-shell iframe,.sports-player-shell video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }.sports-player-error { min-height: 260px; display: grid; place-content: center; justify-items: center; gap: 8px; color: #fbbf24; text-align: center; }.sports-player-error span { color: #94a3b8; font-size: 12px; }
         @media (max-width: 600px) {
           .sports-view { width: min(100% - 24px, 1280px); padding-top: 14px; }
           .sports-section-cards { flex-direction: column; }
@@ -485,6 +585,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           .sports-controls { flex-direction: row; align-items: center; }
           .sports-control { flex: 0 0 auto; }
           .sports-filter-select { width: auto; }
+          .sports-modal-backdrop { padding: 0; place-items: stretch; }.sports-stats-modal,.sports-viewer-modal { width: 100%; max-height: none; min-height: 100dvh; border: 0; border-radius: 0; padding: 18px 14px calc(18px + env(safe-area-inset-bottom, 0px)); }.sports-viewer-modal { display: flex; flex-direction: column; justify-content: flex-start; }.sports-player-shell { margin-top: auto; margin-bottom: auto; width: 100%; }.sports-viewer-copy h2 { font-size: 24px; }
         }
       `}</style>
 
@@ -518,19 +619,22 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           </div>
         )}
 
-        {activeSection === "live" && activeMatch?.streamUrl && (
-          <div className="sports-watch">
-            <iframe
-              src={sportsYoutubeService.getEmbedUrl(activeMatch.streamUrl)}
-              title={`${activeMatch.title} live stream`}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-            />
+        {activeSection === "live" && liveMatches.length > 0 && (
+          <div className="live-video-grid">
+            {liveMatches.map((match) => (match.videoSources?.length || match.streamUrl ? (
+              <button type="button" className="live-video-card" key={match.id} onClick={() => openMatchViewer(match)}>
+                <div className="live-video-thumb">
+                  {match.thumbnail ? <img src={match.thumbnail} alt="" loading="lazy" /> : <span className="live-video-placeholder"><Play size={30} fill="currentColor" /></span>}
+                  <span className="live-video-badge">● LIVE</span><span className="live-video-play"><Play size={20} fill="currentColor" /></span>
+                </div>
+                <div className="live-video-copy"><strong>{match.title}</strong><span>{match.league} · {match.videoSources?.length || 1} source{(match.videoSources?.length || 1) === 1 ? "" : "s"}</span></div>
+              </button>
+            ) : <div className="live-video-unavailable" key={match.id}><strong>{match.title}</strong><span>Live score is available, but no broadcast source is attached yet.</span></div>))}
           </div>
         )}
 
-        {activeSection === "live" && !activeMatch?.streamUrl && liveMatches.length > 0 && (
-          <div className="loading">Live matches are available, but no broadcast has been attached yet.</div>
+        {activeSection === "live" && liveMatches.length === 0 && (
+          <div className="loading">No live matches are available right now. Live broadcasts appear here as soon as a verified source is available.</div>
         )}
 
         {activeSection === "fixtures" && (
@@ -558,8 +662,22 @@ const SportsView = ({ currentUser, userId, onClose }) => {
           </>
         )}
 
+        {activeSection === "clips" && (
+          <div className="video-grid">
+            {clips.length ? clips.map((clip) => (
+              <button type="button" className="video-card" key={clip.id} onClick={() => openMatchViewer({ ...clip, title: clip.title, league: clip.league || "Sports", videoSources: clip.sources || [{ id: `${clip.id}-source`, label: "Video", url: clip.url }], thumbnail: clip.thumbnail })}>
+                <div className="video-thumbnail">
+                  {clip.thumbnail ? <img src={clip.thumbnail} alt="" loading="lazy" /> : <Video size={28} color="#fbbf24" />}
+                  <span className="play-icon"><Play size={18} fill="currentColor" /></span>
+                </div>
+                <div className="video-info"><div className="video-title">{clip.title}</div><div className="video-meta"><span>{clip.league || "Sports"}</span><span>{clip.uploadedAt ? new Date(clip.uploadedAt).toLocaleDateString() : "Recent"}</span></div></div>
+              </button>
+            )) : <div className="loading">No match clips are available today yet.</div>}
+          </div>
+        )}
+
         {/* Live Fixtures Tab */}
-        {activeSection && (
+        {activeSection && activeSection !== "clips" && activeSection !== "live" && (
           <div className="content-grid">
             {loading ? (
               <div className="loading">Loading sports data...</div>
@@ -571,13 +689,7 @@ const SportsView = ({ currentUser, userId, onClose }) => {
                 >
                   <div className="fixture-header">
                     <span className="league-name">{fixture.league}</span>
-                    <span
-                      className={`status-badge ${
-                        fixture.status === "LIVE" ? "status-live" : "status-scheduled"
-                      }`}
-                    >
-                      {fixture.status === "LIVE" ? "● LIVE" : fixture.status === "COMPLETED" ? "Final" : "Scheduled"}
-                    </span>
+                    {fixture.status === "LIVE" ? <span className="status-badge status-live">● LIVE</span> : fixture.status === "COMPLETED" ? <span className="status-badge status-final">Final</span> : <span className="status-badge status-date">{formatMatchDate(fixture.kickoffTime)}</span>}
                   </div>
                   <div className="fixture-body">
                     <div className="team">
@@ -606,6 +718,9 @@ const SportsView = ({ currentUser, userId, onClose }) => {
                       <div className="team-score">{fixture.awayScore ?? "-"}</div>
                     </div>
                   </div>
+                  <button type="button" className="fixture-expand" onClick={() => setSelectedStats(fixture)}>
+                    View full match stats <ExternalLink size={13} />
+                  </button>
                 </div>
               ))
             ) : (
@@ -623,6 +738,31 @@ const SportsView = ({ currentUser, userId, onClose }) => {
         )}
 
       </div>
+
+      {selectedStats && (
+        <div className="sports-modal-backdrop" role="dialog" aria-modal="true" aria-label="Full match statistics" onClick={(event) => event.target === event.currentTarget && setSelectedStats(null)}>
+          <section className="sports-stats-modal">
+            <button type="button" className="sports-modal-close" onClick={() => setSelectedStats(null)} aria-label="Close match statistics"><X size={18} /></button>
+            <span className="sports-modal-kicker">MATCH CENTRE · {selectedStats.league}</span>
+            <h2>{selectedStats.home} <b>{selectedStats.homeScore ?? "-"}</b> <span>vs</span> <b>{selectedStats.awayScore ?? "-"}</b> {selectedStats.away}</h2>
+            <p className="sports-modal-muted">{selectedStats.status === "LIVE" ? `Live now · ${selectedStats.minute || "Updating"}` : formatMatchDate(selectedStats.kickoffTime)}</p>
+            <div className="fixture-stats fixture-stats-modal">{getMatchStats(selectedStats).length ? getMatchStats(selectedStats).map((stat, index) => <div className="fixture-stat-row" key={`${stat.name}-${index}`}><span>{stat.team} · {stat.name}</span><strong>{stat.value}</strong></div>) : <div className="fixture-stat-empty"><RefreshCw size={14} /> Detailed stats will appear as the provider publishes them.</div>}</div>
+          </section>
+        </div>
+      )}
+
+      {selectedMatch && (
+        <div className="sports-modal-backdrop sports-viewer-backdrop" role="dialog" aria-modal="true" aria-label={`${selectedMatch.title} video viewer`} onClick={(event) => event.target === event.currentTarget && setSelectedMatch(null)}>
+          <section className="sports-viewer-modal">
+            <div className="sports-viewer-head"><button type="button" className="sports-viewer-back" onClick={() => setSelectedMatch(null)}><ArrowLeft size={17} /> <span>Back</span></button><button type="button" className="sports-modal-close" onClick={() => setSelectedMatch(null)} aria-label="Close video viewer"><X size={18} /></button></div>
+            <div className="sports-viewer-copy"><span className="sports-modal-kicker">{selectedMatch.league} · {selectedMatch.status === "LIVE" ? "LIVE BROADCAST" : "MATCH VIDEO"}</span><h2>{selectedMatch.title}</h2><p className="sports-modal-muted">Choose a working source below. Each source loads independently.</p></div>
+            {selectedMatch.videoSources?.length ? <div className="sports-source-tabs">{selectedMatch.videoSources.map((source) => <button type="button" key={source.id} className={selectedSource?.id === source.id ? "active" : ""} onClick={() => { setSelectedSource(source); setVideoError(false); }}>{source.label}</button>)}</div> : null}
+            <div className="sports-player-shell">
+              {selectedSource?.url && !videoError ? (sourceIsVideoFile(selectedSource.url) ? <video src={selectedSource.url} controls autoPlay playsInline poster={selectedMatch.thumbnail || undefined} onError={() => setVideoError(true)} /> : <iframe src={sportsYoutubeService.getEmbedUrl(selectedSource.url)} title={selectedMatch.title} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen onError={() => setVideoError(true)} />) : <div className="sports-player-error"><RefreshCw size={22} /><strong>Source unavailable</strong><span>That broadcast could not be loaded. Try another source above.</span></div>}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
