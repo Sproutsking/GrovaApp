@@ -11,6 +11,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
 import {
   Eye, MessageSquare, Edit, Mail, Phone, Shield, LogOut,
   Bookmark, Users, UserPlus, Hash, Crown, Heart, Star, LayoutDashboard,
@@ -120,7 +121,7 @@ const BoostManagerModal = ({
   userId,
   onPicked,
   onClose,
-}) => (
+}) => ReactDOM.createPortal(
   <div className="boost-manager-modal" role="dialog" aria-modal="true" aria-label="Manage profile boost">
     <button type="button" className="boost-manager-modal-backdrop" onClick={onClose} aria-label="Close boost manager" />
     <section className="boost-manager-modal-card">
@@ -170,7 +171,8 @@ const BoostManagerModal = ({
         .boost-manager-modal-body{padding:12px 12px calc(env(safe-area-inset-bottom,0px) + 22px)}
       }
     `}</style>
-  </div>
+  </div>,
+  document.body,
 );
 
 const LiveDot = ({ color = "#84cc16", size = 5 }) => (
@@ -755,7 +757,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
 
         .boost-manager-extension { position:relative;z-index:4;margin:0;padding:0 12px 12px;border:0;border-radius:0 0 24px 24px;background:transparent;overflow:visible;box-shadow:none; }
-        .boost-manager-trigger { width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(192,192,192,0.24);border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 55%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.16);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
+        .boost-manager-trigger { position:relative;z-index:8;pointer-events:auto;width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(192,192,192,0.24);border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.025) 55%,rgba(0,0,0,.18));box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.16);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,box-shadow .2s; }
         .boost-manager-trigger:hover { background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 55%,rgba(0,0,0,.2));border-color:rgba(220,220,220,.42);box-shadow:inset 0 1px rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.2); }
         .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#c0c0c0;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.24);flex-shrink:0; }
         .boost-manager-trigger-copy { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1; }
