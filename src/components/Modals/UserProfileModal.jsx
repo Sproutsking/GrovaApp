@@ -913,7 +913,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; color:#e5e5e5; text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .upm-bio { font-size:13px; color:#d1d1d1; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; text-shadow:0 1px 6px rgba(0,0,0,0.5); }
         .upm-join { font-size:11px; color:#b3b3b3; font-weight:500; margin:0; text-shadow:0 1px 4px rgba(0,0,0,0.4); }
-        .upm-card-lower { padding:0 0 16px; background:rgba(0,0,0,.18); }
+        .upm-card-lower { margin-top:16px; padding:0 0 16px; background:transparent; }
         .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:4px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
         .upm-stat { flex:1; padding:12px 8px; text-align:center; display:flex; flex-direction:column; gap:3px; border-radius:13px; }
         .upm-stat:hover { background:rgba(255,255,255,.035); }

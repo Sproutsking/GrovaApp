@@ -798,44 +798,43 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
             <FourStatRow stats={statItems} />
 
+            {hasBoostedTier && (
+              <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
+                <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen((value) => !value)}>
+                  <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
+                  <span className="boost-manager-trigger-copy"><strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong><small>Theme, name style, font color and background</small></span>
+                  <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
+                </button>
+                <div className="boost-manager-panel"><div className="boost-manager-panel-inner">
+                  <BoostThemePicker tier={profile.subscriptionTier} activeId={activeThemeId} activeFontId={activeFontId} activeColorId={activeColorId} activeBackgroundColorId={activeBackgroundColorId} userId={userId} showToggle={false} onPicked={(selection) => {
+                    if (typeof selection === "string") setActiveThemeId(selection);
+                    else {
+                      if (selection.fontId) setActiveFontId(selection.fontId);
+                      if (selection.colorId) setActiveColorId(selection.colorId);
+                      if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
+                    }
+                  }} />
+                </div></div>
+              </section>
+            )}
+
+            <div className="tristat-card profile-boost-tristat">
+              <div className="tristat-live-bar" />
+              <div className="tristat-row">
+                <TriStatPill icon={Eye} animTarget={liveStats.totalViews} value={liveStats.totalViews} label="Views" accent="#84cc16" glowColor="rgba(132,204,22,0.35)" />
+                <div className="tristat-divider" />
+                <TriStatPill icon={MessageSquare} animTarget={liveStats.totalComments} value={liveStats.totalComments} label="Comments" accent="#60a5fa" glowColor="rgba(96,165,250,0.35)" />
+                <div className="tristat-divider" />
+                <TriStatPill icon={Heart} animTarget={liveStats.totalLikes} value={liveStats.totalLikes} label="Likes" accent="#f87171" glowColor="rgba(248,113,113,0.35)" />
+              </div>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:5,paddingBottom:8 }}>
+                <LiveDot />
+                <span style={{ fontSize:9,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
+              </div>
+            </div>
+
           </div>
         </BoostProfileCard>
-
-        {/* TRISTAT ROW */}
-        <div className="tristat-card">
-          <div className="tristat-live-bar" />
-          <div className="tristat-row">
-            <TriStatPill icon={Eye}           animTarget={liveStats.totalViews}    value={liveStats.totalViews}    label="Views"    accent="#84cc16" glowColor="rgba(132,204,22,0.35)" />
-            <div className="tristat-divider" />
-            <TriStatPill icon={MessageSquare} animTarget={liveStats.totalComments} value={liveStats.totalComments} label="Comments" accent="#60a5fa" glowColor="rgba(96,165,250,0.35)" />
-            <div className="tristat-divider" />
-            <TriStatPill icon={Heart}         animTarget={liveStats.totalLikes}    value={liveStats.totalLikes}    label="Likes"    accent="#f87171" glowColor="rgba(248,113,113,0.35)" />
-          </div>
-          <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:5,paddingBottom:8 }}>
-            <LiveDot />
-            <span style={{ fontSize:9,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
-          </div>
-        </div>
-
-        {hasBoostedTier && (
-          <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
-            <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen((value) => !value)}>
-              <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
-              <span className="boost-manager-trigger-copy"><strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong><small>Theme, name style, font color and background</small></span>
-              <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
-            </button>
-            <div className="boost-manager-panel"><div className="boost-manager-panel-inner">
-              <BoostThemePicker tier={profile.subscriptionTier} activeId={activeThemeId} activeFontId={activeFontId} activeColorId={activeColorId} activeBackgroundColorId={activeBackgroundColorId} userId={userId} showToggle={false} onPicked={(selection) => {
-                if (typeof selection === "string") setActiveThemeId(selection);
-                else {
-                  if (selection.fontId) setActiveFontId(selection.fontId);
-                  if (selection.colorId) setActiveColorId(selection.colorId);
-                  if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
-                }
-              }} />
-            </div></div>
-          </section>
-        )}
 
         <VerificationLedgerCard
           userId={userId}
