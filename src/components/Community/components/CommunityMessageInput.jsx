@@ -28,6 +28,7 @@ const CommunityMessageInput = ({
   channels = [],
   onMentionSelect = null,
   channelType = "text",
+  canManageAnnouncement = true,
 }) => {
   const [showMediaPopup, setShowMediaPopup] = useState(false);
   const [triggerRect, setTriggerRect] = useState(null);
@@ -51,11 +52,11 @@ const CommunityMessageInput = ({
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
     const hasContent = trimmed || selectedEmojis.length > 0 || selectedGif || selectedMeme || selectedFiles.length > 0;
-    
-    if (!hasContent || disabled) return;
-    
-    // TODO: Build final message with all media
-    onSend(channelType === "announcement" ? {
+    const isAnnouncementLocked = channelType === "announcement" && !canManageAnnouncement && !replyTo;
+
+    if (!hasContent || disabled || isAnnouncementLocked) return;
+
+    onSend(channelType === "announcement" && canManageAnnouncement ? {
       title: announcementTitle.trim(),
       borderStyle: announcementBorderStyle,
       borderColor: announcementBorderColor,
@@ -69,7 +70,7 @@ const CommunityMessageInput = ({
     if (channelType === "announcement") setAnnouncementTitle("");
     
     if (inputRef.current) inputRef.current.focus();
-  }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, announcementTitle, announcementBorderStyle, announcementBorderColor, channelType, disabled, onSend]);
+  }, [value, selectedEmojis, selectedGif, selectedMeme, selectedFiles, announcementTitle, announcementBorderStyle, announcementBorderColor, channelType, disabled, canManageAnnouncement, replyTo, onSend]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -178,6 +179,7 @@ const CommunityMessageInput = ({
 
   const typingText = formatTypingText();
   const allMedia = [...selectedEmojis, selectedGif, selectedMeme, ...selectedFiles].filter(Boolean);
+  const isAnnouncementLocked = channelType === "announcement" && !canManageAnnouncement && !replyTo;
 
   return (
     <div className="comm-msg-input-wrapper">
@@ -212,7 +214,10 @@ const CommunityMessageInput = ({
 
       {replyTo && (
         <div className="comm-reply-banner">
-          <div><strong>Replying to {replyTo.user?.full_name || replyTo.user?.username || "member"}</strong><span>{replyTo.content}</span></div>
+          <div className="comm-reply-banner-copy">
+            <strong>Replying to {replyTo.user?.full_name || replyTo.user?.username || "member"}</strong>
+            <span>{replyTo.content}</span>
+          </div>
           <button onClick={onCancelReply} aria-label="Cancel reply"><X size={14} /></button>
         </div>
       )}
@@ -265,7 +270,7 @@ const CommunityMessageInput = ({
       )}
 
       <div className={`comm-msg-input-bar${channelType === "announcement" ? " announcement-input" : ""}`}>
-        {channelType === "announcement" && <>
+        {channelType === "announcement" && canManageAnnouncement && <>
           <div className="comm-announcement-tools">
             <div className="comm-announcement-tool-group">
               <span className="comm-announcement-tool-label"><Palette size={12} /> Border</span>
@@ -284,6 +289,7 @@ const CommunityMessageInput = ({
           ref={plusBtnRef}
           className={`comm-plus-btn ${showMediaPopup ? "active" : ""}`}
           onClick={handlePlusClick}
+          disabled={disabled || isAnnouncementLocked}
         >
           <Plus size={20} />
         </button>
@@ -294,9 +300,9 @@ const CommunityMessageInput = ({
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={isAnnouncementLocked ? "Locked for members — reply to continue" : placeholder}
           rows={1}
-          disabled={disabled}
+          disabled={disabled || isAnnouncementLocked}
         />
 
         {mentionQuery && mentionOptions.length > 0 && (
@@ -311,7 +317,7 @@ const CommunityMessageInput = ({
         <button
           className={`comm-send-btn ${value.trim() || allMedia.length > 0 ? "active" : ""}`}
           onClick={handleSend}
-          disabled={(!value.trim() && allMedia.length === 0) || disabled}
+          disabled={(!value.trim() && allMedia.length === 0) || disabled || isAnnouncementLocked}
         >
           <Send size={18} />
         </button>
@@ -349,9 +355,8 @@ const CommunityMessageInput = ({
           gap: 6px;
           padding: 4px 12px;
         }
-        .comm-reply-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;border-top:1px solid rgba(156,255,0,.16);background:rgba(156,255,0,.045);color:#9cff00}
-        .comm-reply-banner div{display:flex;flex-direction:column;gap:2px;min-width:0}.comm-reply-banner strong{font-size:10px}.comm-reply-banner span{font-size:11px;color:#8aa68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.comm-reply-banner button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:#8aa68a;cursor:pointer;flex-shrink:0}
-
+        .comm-reply-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 12px;border-top:1px solid rgba(156,255,0,.18);background:linear-gradient(180deg, rgba(156,255,0,.08), rgba(156,255,0,.02));color:#9cff00;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+        .comm-reply-banner-copy{display:flex;flex-direction:column;gap:3px;min-width:0}.comm-reply-banner strong{font-size:10px;letter-spacing:.08em;text-transform:uppercase}.comm-reply-banner span{font-size:11px;color:#c9d8c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:8px;border-left:2px solid rgba(156,255,0,.38);max-width:100%}.comm-reply-banner button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:#8aa68a;cursor:pointer;flex-shrink:0}
         .comm-typing-bubble {
           padding: 4px 8px;
           background: var(--surface);

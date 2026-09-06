@@ -405,16 +405,28 @@ const ChatTab = ({
     stopTyping();
 
     try {
+      const isCrossChannelPostReply = Boolean(replyTo?.externalPost || (selectedChannel?.type === "announcement" && replyTo && !canSendMessages));
+      const replyChannel = isCrossChannelPostReply
+        ? channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text")
+        : selectedChannel;
+      if (!replyChannel?.id) throw new Error("A general channel is required to reply to this post.");
       let avatarId = currentUser?.avatar_id;
       if (!avatarId && currentUser?.avatar?.includes("/")) {
         const parts = currentUser.avatar.split("/");
         avatarId = parts[parts.length - 1].split("?")[0];
       }
-      const messageContent = selectedChannel?.type === "announcement" && announcement?.title
+      const announcementContent = selectedChannel?.type === "announcement" && announcement?.title
         ? `[[announcement:${encodeURIComponent(JSON.stringify({ title: announcement.title.replace(/\]/g, ""), borderStyle: announcement.borderStyle || "solid", borderColor: announcement.borderColor || "#9cff00" }))}]]\n${content}`
         : content;
+      const messageContent = isCrossChannelPostReply
+        ? `[[post-reply:${encodeURIComponent(JSON.stringify({
+          title: String(replyTo.title || (replyTo.externalPost ? "Community update" : "Announcement")),
+          body: String(replyTo.content || "").replace(/^\[\[announcement:.*?\]\]\n?/, "").slice(0, 240),
+          channelName: replyTo.channelName || selectedChannel.name,
+        }))}]]\n${content}`
+        : announcementContent;
       await communityMessageService.sendMessage(
-        selectedChannel.id, userId, messageContent,
+        replyChannel.id, userId, messageContent,
         {
           user: {
             id: userId,
@@ -424,10 +436,11 @@ const ChatTab = ({
             avatar_metadata: currentUser?.avatar_metadata,
             verified: currentUser?.verified || false,
           },
-          reply_to_id: replyTo?.id || null,
+          reply_to_id: isCrossChannelPostReply ? null : (replyTo?.id || null),
         }
       );
       setReplyTo(null);
+      if (isCrossChannelPostReply) setSelectedChannel(replyChannel);
       setTimeout(scrollToBottom, 10);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -639,6 +652,8 @@ const ChatTab = ({
                     onClick={() => { setSelectedChannel(channel); const key = `xeevia:last-community-location:${userId}`; const stored = JSON.parse(localStorage.getItem(key) || "{}"); const locations = stored.locations || (stored.communityId ? { [stored.communityId]: stored } : {}); locations[community.id] = { communityId: community.id, ...locations[community.id], channelId: channel.id, view: "chat", lastVisited: Date.now() }; localStorage.setItem(key, JSON.stringify({ locations })); }}
                     onContextMenu={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
+                      setCategoryMenu(null);
                       if (canManageChannels || canManageRoles) {
                         setChannelContextMenu({ x: e.clientX, y: e.clientY, channel });
                       }
@@ -681,7 +696,7 @@ const ChatTab = ({
         )}
 
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} /> : <MessageList
+          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} onReply={(post) => { setReplyTo(post); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}
@@ -763,9 +778,9 @@ const ChatTab = ({
             value={messageInput}
             onChange={setMessageInput}
             onSend={handleSendMessage}
-            disabled={sending || !canSendMessages || selectedChannel?.is_locked}
+            disabled={sending || selectedChannel?.is_locked || (!canSendMessages && !replyTo)}
             placeholder={`Message #${selectedChannel?.name || "channel"}`}
-            title={selectedChannel?.is_locked ? "This channel is locked - read only" : !canSendMessages ? "Your role cannot send messages in this channel" : undefined}
+            title={selectedChannel?.is_locked ? "This channel is locked - read only" : !canSendMessages && !replyTo ? "Your role cannot send messages in this channel" : undefined}
             editingMessage={editingMessage}
             onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
             typingUsers={typingUsers}
@@ -775,6 +790,7 @@ const ChatTab = ({
             roles={roles}
             channels={channels}
             channelType={selectedChannel?.type}
+            canManageAnnouncement={canManageChannels}
           />
         </div>
       </div>
@@ -1075,7 +1091,7 @@ const ChatTab = ({
         .channels-menu-btn:hover { background: linear-gradient(180deg, rgba(156,255,0,0.18), rgba(156,255,0,0.1)); border-color: rgba(156,255,0,0.35); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(156,255,0,0.18); }
         .channels-menu-btn:active { transform: translateY(0) scale(0.97); }
 
-        .channels-list { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 8px 12px; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(180deg, rgba(17,20,24,0.2), rgba(17,20,24,0.02)); }
+        .channels-list { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 8px 12px; display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, rgba(17,20,24,0.2), rgba(17,20,24,0.02)); }
         .channels-list::-webkit-scrollbar { width: 4px; }
         .channels-list::-webkit-scrollbar-track { background: transparent; }
         .channels-list::-webkit-scrollbar-thumb { background: rgba(156,255,0,0.22); border-radius: 2px; }

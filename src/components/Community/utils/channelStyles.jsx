@@ -84,11 +84,11 @@ export default function ChannelButton({
 }
 
 const CHANNEL_BUTTON_CSS = `
-.chb{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 11px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.72);font-size:13px;font-weight:700;cursor:pointer;position:relative;transition:all .18s cubic-bezier(.34,1.56,.64,1);text-align:left;font-family:inherit;border-radius:12px}
-.chb:hover{color:rgba(255,255,255,.92)}
+.chb{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;min-width:0;height:40px;min-height:40px;padding:0 10px;border:1px solid rgba(156,255,0,.12);background:linear-gradient(180deg, rgba(20,27,23,.92), rgba(10,13,12,.96));color:rgba(255,255,255,.76);font-size:13px;font-weight:700;cursor:pointer;position:relative;transition:all .18s cubic-bezier(.34,1.56,.64,1);text-align:left;font-family:inherit;border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 8px 20px rgba(0,0,0,.08)}
+.chb:hover{color:rgba(255,255,255,.94);transform:translateY(-1px);border-color:rgba(156,255,0,.22)}
 .chb-icon{display:flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;opacity:.85}
 .chb-icon-img{width:16px;height:16px;border-radius:4px;object-fit:cover}
-.chb-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.chb-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .chb-lock{margin-left:auto;opacity:.5;flex-shrink:0}
 
 .chb-div--dot-solid{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0}
@@ -98,9 +98,9 @@ const CHANNEL_BUTTON_CSS = `
 .chb-div--bracket{font-size:10px;opacity:.4;flex-shrink:0}
 .chb-div--bracket::before{content:"›"}
 
-.chb--fill-rounded{border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.01));border-color:rgba(255,255,255,.05)}
-.chb--fill-rounded:hover{background:linear-gradient(180deg,rgba(156,255,0,.08),rgba(92,105,255,.04));border-color:rgba(156,255,0,.22)}
-.chb--fill-rounded.active{background:linear-gradient(135deg,rgba(156,255,0,.13),rgba(92,105,255,.07));border-color:rgba(156,255,0,.3);color:var(--accent)}
+.chb--fill-rounded{border-radius:12px;background:linear-gradient(180deg,rgba(156,255,0,.04),rgba(255,255,255,.015));border-color:rgba(156,255,0,.16)}
+.chb--fill-rounded:hover{background:linear-gradient(180deg,rgba(156,255,0,.08),rgba(92,105,255,.05));border-color:rgba(156,255,0,.28);box-shadow:0 12px 24px rgba(156,255,0,.08)}
+.chb--fill-rounded.active{background:linear-gradient(135deg,rgba(156,255,0,.15),rgba(92,105,255,.09));border-color:rgba(156,255,0,.42);color:var(--accent);box-shadow:0 0 0 1px rgba(156,255,0,.1),0 12px 22px rgba(156,255,0,.12)}
 
 .chb--pill{border-radius:999px;background:rgba(255,255,255,.02);padding:0 14px}
 .chb--pill:hover{background:rgba(156,255,0,.08)}

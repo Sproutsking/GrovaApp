@@ -1,9 +1,11 @@
 // components/Community/components/MessageList.jsx - 0.5PX SHIFT UP ⚡
 import React from "react";
+import { Reply } from "lucide-react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
+import { MessageReactionArea } from "./ReactionSystem";
 
 const ANNOUNCEMENT_BORDER_STYLES = new Set(["solid", "double", "dashed", "glow"]);
 const ANNOUNCEMENT_COLORS = new Set(["#9cff00", "#38bdf8", "#f59e0b", "#f472b6", "#a78bfa"]);
@@ -19,6 +21,19 @@ const parseAnnouncementMetadata = (token) => {
     };
   } catch {
     return fallback;
+  }
+};
+
+const parsePostReplyMetadata = (token) => {
+  try {
+    const parsed = JSON.parse(decodeURIComponent(token));
+    return {
+      title: String(parsed.title || "Announcement"),
+      body: String(parsed.body || ""),
+      channelName: String(parsed.channelName || "announcements"),
+    };
+  } catch {
+    return { title: "Announcement", body: "", channelName: "announcements" };
   }
 };
 
@@ -125,9 +140,14 @@ const MessageList = ({
           const showTail = !isAnnouncement && (!prev || prev.user_id !== msg.user_id);
           const announcementMatch = isAnnouncement ? String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
+          const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
+          const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const messageTitle = announcement?.title || "";
-          const messageBody = announcementMatch?.[2] || msg.content;
+          const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
           const showAvatar = !isMe && showTail;
+          const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
+          const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
+          const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
           const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
           
@@ -165,38 +185,46 @@ const MessageList = ({
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
-              <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
-                {msg.reply_to_id && (() => {
-                  const original = allMessages.find((item) => item.id === msg.reply_to_id);
-                  return original ? <div className="msg-reply-quote"><span>Replying to {original.user?.full_name || "member"}</span><strong>{original.content}</strong></div> : null;
-                })()}
-                {!isMe && showAvatar && (
-                  <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
-                    {msg.user?.full_name || msg.user?.username || "Unknown"}
-                    {(msg.user?.verified || hasBoostedProfile) && <span className="msg-verified" aria-label="Verified account">✓</span>}
-                  </button>
-                )}
-                {messageTitle && <div className="announcement-title">{messageTitle}</div>}
-                <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
-                <div className="msg-meta">
-                  <span className="msg-time">{formatTime(msg.created_at)}</span>
-                  {msg.edited && <span className="msg-edited">(edited)</span>}
-                </div>
-
-                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                  <div className="msg-reactions">
-                    {Object.entries(msg.reactions).map(([emoji, data]) => (
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncement}>
+                <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  {postReply && (
+                    <div className="msg-reply-quote announcement post-reply-quote" style={{ "--announcement-color": "#38bdf8" }}>
+                      <span>Reply to #{postReply.channelName}</span>
+                      <strong>{postReply.title}</strong>
+                      {postReply.body && <small>{postReply.body}</small>}
+                    </div>
+                  )}
+                  {msg.reply_to_id && originalReply && !postReply && (
+                    <div className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}}>
+                      <span>{originalReplyAnnouncementMeta ? "Announcement" : `Replying to ${originalReply.user?.full_name || "member"}`}</span>
+                      <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReply.content || "...")}</strong>
+                    </div>
+                  )}
+                  {!isMe && showAvatar && (
+                    <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
+                      {msg.user?.full_name || msg.user?.username || "Unknown"}
+                      {(msg.user?.verified || hasBoostedProfile) && <span className="msg-verified" aria-label="Verified account">✓</span>}
+                    </button>
+                  )}
+                  {messageTitle && <div className="announcement-title">{messageTitle}</div>}
+                  <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
+                  <div className="msg-meta">
+                    {isAnnouncement && (
                       <button
-                        key={emoji}
-                        className={`reaction-btn ${data.users?.includes(userId) ? "reacted" : ""}`}
-                        onClick={() => onReactionClick?.(msg.id, emoji)}
+                        type="button"
+                        className="announcement-reply-button"
+                        onClick={(event) => { event.stopPropagation(); onReply?.(msg); }}
+                        aria-label="Reply to announcement"
                       >
-                        {emoji} {data.count}
+                        <Reply size={12} />
+                        <span>Reply</span>
                       </button>
-                    ))}
+                    )}
+                    <span className="msg-time">{formatTime(msg.created_at)}</span>
+                    {msg.edited && <span className="msg-edited">(edited)</span>}
                   </div>
-                )}
-              </div>
+                </div>
+              </MessageReactionArea>
             </div>
           );
         })}
@@ -257,6 +285,7 @@ const MessageList = ({
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
         .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25}
+        .msg-reply-quote.announcement{border-left:none;border-top:2px solid var(--announcement-color, var(--accent));border-radius:8px 8px 6px 6px;padding-top:8px;background:rgba(255,255,255,.025);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
         .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
         .msg-item.me {
@@ -349,7 +378,7 @@ const MessageList = ({
         .msg-item.me .msg-bubble { margin-left: auto; }
         .msg-item.announcement .msg-bubble {
           max-width: min(92%, 760px);
-          padding: 18px 22px 16px;
+          padding: 18px 22px 8px;
           border-radius: 18px;
           background: linear-gradient(145deg, rgba(28,42,25,.98), rgba(10,20,13,.98));
           border: 1px solid rgba(156,255,0,.28);
@@ -359,6 +388,10 @@ const MessageList = ({
         .msg-item.announcement .msg-meta { margin-top: 10px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:18px;border-bottom-right-radius:18px}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
+        .mra-wrapper { position: relative; display: flex; flex-direction: column; align-items: flex-end; }
+        .mra-wrapper .msg-bubble { width: 100%; }
+        .mra-ann { align-items: flex-start; }
+        .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
         .msg-bubble.them {
@@ -459,11 +492,14 @@ const MessageList = ({
         .msg-meta {
           display: flex;
           align-items: center;
+          gap: 7px;
           justify-content: flex-end;
           gap: 4px;
           margin-top: 3px;
         }
         .msg-item.me .msg-meta { justify-content: flex-start; }
+        .announcement-reply-button{display:inline-flex;align-items:center;gap:4px;margin-right:auto;padding:3px 7px;border:1px solid rgba(156,255,0,.22);border-radius:6px;background:rgba(156,255,0,.07);color:#bfe7a8;font:700 10px/1 inherit;cursor:pointer;transition:all .15s ease}
+        .announcement-reply-button:hover{background:rgba(156,255,0,.14);border-color:rgba(156,255,0,.42);color:#9cff00}
 
         .msg-time {
           font-size: 10px;

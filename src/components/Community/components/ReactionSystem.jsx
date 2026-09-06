@@ -1,4 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
+import { Smile } from "lucide-react";
+import EmojiPanel from "./EmojiPanel";
 
 /**
  * ReactionSystem
@@ -117,8 +120,8 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
         }
 
         .rb-bar.announcement {
-          gap: 6px;
-          margin-top: 8px;
+          gap: 4px;
+          margin-top: 3px;
         }
 
         .rb-pill {
@@ -274,11 +277,13 @@ export const ReactionBurst = ({ emoji, x, y }) => {
  */
 export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const [pickerPos, setPickerPos] = useState({});
+  const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
   const areaRef = useRef(null);
+  const triggerRef = useRef(null);
   const hoverTimeout = useRef(null);
 
   const handleMouseEnter = () => {
+    if (isAnnouncement) return;
     hoverTimeout.current = setTimeout(() => setShowPicker(true), 400);
   };
   const handleMouseLeave = () => {
@@ -291,6 +296,21 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
     setShowPicker(false);
   };
 
+  const toggleAnnouncementPicker = () => {
+    if (showPicker) {
+      setShowPicker(false);
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const panelWidth = Math.min(360, window.innerWidth - 24);
+    const panelHeight = Math.min(520, window.innerHeight - 24);
+    const left = Math.max(12, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 12));
+    const top = rect.top - panelHeight - 8 >= 12 ? rect.top - panelHeight - 8 : Math.min(rect.bottom + 8, window.innerHeight - panelHeight - 12);
+    setPickerStyle({ position: "fixed", left, top, zIndex: 10000 });
+    setShowPicker(true);
+  };
+
   return (
     <div
       ref={areaRef}
@@ -300,35 +320,86 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
     >
       {children}
 
-      {/* Hover reaction trigger */}
-      {showPicker && (
+      {/* Hover reaction trigger for regular messages */}
+      {showPicker && !isAnnouncement && (
         <div className="mra-picker-wrap">
           <ReactionPicker onSelect={handleAddReaction} onClose={() => setShowPicker(false)} />
         </div>
       )}
 
-      {/* Reaction bar */}
-      <ReactionBar
-        reactions={message.reactions || {}}
-        userId={userId}
-        onToggle={(emoji) => onToggle?.(message.id, emoji)}
-        isAnnouncement={isAnnouncement}
-      />
+      {showPicker && isAnnouncement && ReactDOM.createPortal(
+        <EmojiPanel style={pickerStyle} managePosition={false} onSelect={handleAddReaction} onClose={() => setShowPicker(false)} />,
+        document.body,
+      )}
+
+      <div className={`mra-reaction-row${isAnnouncement ? " announcement" : ""}`}>
+        <ReactionBar
+          reactions={message.reactions || {}}
+          userId={userId}
+          onToggle={(emoji) => onToggle?.(message.id, emoji)}
+          isAnnouncement={isAnnouncement}
+        />
+        {isAnnouncement && (
+          <button
+            type="button"
+            ref={triggerRef}
+            className="mra-reaction-trigger"
+            onClick={toggleAnnouncementPicker}
+            aria-label="Add a reaction"
+            title="Add a reaction"
+          >
+            <Smile size={15} />
+          </button>
+        )}
+      </div>
 
       <style>{`
         .mra-wrapper {
           position: relative;
+          display: inline-block;
+          width: 100%;
+          min-width: 0;
         }
         .mra-picker-wrap {
           position: absolute;
-          top: -44px;
-          right: 0;
+          right: 10px;
+          bottom: 6px;
           z-index: 200;
         }
+        .mra-reaction-trigger {
+          position: relative;
+          flex: 0 0 auto;
+          z-index: 201;
+          width: 28px;
+          height: 28px;
+          display: grid;
+          place-items: center;
+          color: #cde6bd;
+          background: rgba(8, 14, 10, .86);
+          border: 1px solid rgba(156, 255, 0, .28);
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .mra-reaction-trigger:hover { color: #9cff00; border-color: rgba(156, 255, 0, .6); background: rgba(156, 255, 0, .12); }
         .mra-ann .mra-picker-wrap {
-          top: -48px;
-          right: auto;
-          left: 0;
+          right: 12px;
+          bottom: 42px;
+        }
+        .mra-reaction-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          min-width: 0;
+          margin-top: 3px;
+        }
+        .mra-reaction-row .rb-bar {
+          margin-top: 0;
+          justify-content: flex-start;
+        }
+        .mra-reaction-row.announcement .rb-bar {
+          flex: 0 1 auto;
+          min-width: 0;
+          flex-wrap: wrap;
         }
       `}</style>
     </div>

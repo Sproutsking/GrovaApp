@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Radio, RefreshCw } from "lucide-react";
+import { MessageCircle, Radio, RefreshCw, Smile } from "lucide-react";
 import socialUpdatesService from "../../../services/community/socialUpdatesService";
 
-export default function UpdatesChannelPanel({ channelId }) {
+const QUICK_REACTIONS = ["❤️", "🔥", "👏", "😂"];
+
+export default function UpdatesChannelPanel({ channelId, onReply, canAddReactions = true, userId }) {
   const [posts, setPosts] = useState([]);
   const [error, setError] = useState("");
+  const [reactionPost, setReactionPost] = useState(null);
+  const [reactions, setReactions] = useState({});
 
   const load = async () => {
     try {
@@ -46,6 +50,16 @@ export default function UpdatesChannelPanel({ channelId }) {
                 {post.published_at && <span>{` · ${new Date(post.published_at).toLocaleString()}`}</span>}
                 {post.permalink && <a href={post.permalink} target="_blank" rel="noreferrer">Open source</a>}
               </div>
+              <div className="updates-post-actions">
+                <button type="button" className="updates-action" onClick={() => onReply?.({ id: post.id, title: post.provider || "Community update", channelName: "updates", content: post.content || "New update", user: { full_name: post.author_name || "Official source" }, externalPost: true })}>
+                  <MessageCircle size={14} /> Reply in general
+                </button>
+                <div className="updates-reaction-wrap">
+                  {reactionPost === post.id && <div className="updates-reaction-picker">{QUICK_REACTIONS.map((emoji) => <button type="button" key={emoji} onClick={() => { setReactions((current) => { const postReactions = { ...(current[post.id] || {}) }; const entry = postReactions[emoji] || { count: 0, users: [] }; const reacted = entry.users.includes(userId); entry.users = reacted ? entry.users.filter((id) => id !== userId) : [...entry.users, userId]; entry.count = entry.users.length; if (!entry.count) delete postReactions[emoji]; return { ...current, [post.id]: postReactions }; }); setReactionPost(null); }}>{emoji}</button>)}</div>}
+                  <button type="button" className="updates-action reaction" onClick={() => canAddReactions && setReactionPost((current) => current === post.id ? null : post.id)} disabled={!canAddReactions} aria-label="React to update" title="React to update"><Smile size={14} /> React</button>
+                </div>
+              </div>
+              {Object.entries(reactions[post.id] || {}).length > 0 && <div className="updates-reaction-list">{Object.entries(reactions[post.id]).map(([emoji, entry]) => <span key={emoji}>{emoji} {entry.count}</span>)}</div>}
             </article>
           ))
         )}
@@ -68,6 +82,16 @@ export default function UpdatesChannelPanel({ channelId }) {
         .updates-post h2 { margin: 5px 0; font-size: 14px; }
         .updates-post-meta { display: flex; gap: 8px; color: #7990a1; font-size: 10px; }
         .updates-post-meta a { color: #a5f3fc; margin-left: auto; }
+        .updates-post-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 13px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); }
+        .updates-action { display: inline-flex; align-items: center; gap: 6px; color: #b7d4e1; background: transparent; border: 0; padding: 5px 7px; border-radius: 7px; font: 700 10px inherit; cursor: pointer; }
+        .updates-action:hover:not(:disabled) { color: #9cff00; background: rgba(156,255,0,.08); }
+        .updates-action:disabled { opacity: .45; cursor: not-allowed; }
+        .updates-reaction-wrap { position: relative; }
+        .updates-reaction-picker { position: absolute; right: 0; bottom: 34px; display: flex; gap: 3px; padding: 5px; background: #101b22; border: 1px solid rgba(103,232,249,.24); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+        .updates-reaction-picker button { width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; font-size: 16px; cursor: pointer; }
+        .updates-reaction-picker button:hover { background: rgba(103,232,249,.12); transform: translateY(-2px); }
+        .updates-reaction-list { display: flex; gap: 5px; margin-top: 8px; }
+        .updates-reaction-list span { padding: 3px 7px; color: #d8f6ff; background: rgba(103,232,249,.1); border: 1px solid rgba(103,232,249,.2); border-radius: 12px; font-size: 11px; }
         .updates-error { margin-top: 12px; color: #ffaaa3; font-size: 11px; }
         @media (max-width: 600px) { .updates-panel { margin: 14px; padding: 16px; } }
       `}</style>
