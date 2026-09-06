@@ -604,7 +604,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               themeId={themeId}
               backgroundColorId={backgroundColorId}
               embedded
-              style={{ borderRadius: "20px 20px 0 0", position: "relative", width: "100%", minHeight: 0, maxHeight: "calc(100vh - 240px)" }}
+              style={{ borderRadius: "20px 20px 0 0", position: "relative", width: "100%", minHeight: 0, maxHeight: "none" }}
             >
               <button className="upm-close" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
                 <X size={16} />
@@ -679,90 +679,50 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 {profile?.bio     && <p className="upm-bio">{profile.bio}</p>}
                 {profile?.joinDate && <p className="upm-join">Joined {profile.joinDate}</p>}
               </div>
-            </BoostProfileCard>
 
-            {/* ── Stats ── */}
-            <div className="upm-stats">
-              <div className="upm-stat">
-                <span className="upm-sv">{fmt(stats.posts + stats.reels + stats.stories)}</span>
-                <span className="upm-sl">Posts</span>
-              </div>
-              <div className="upm-sdiv" />
-              <div className="upm-stat">
-                <span className="upm-sv">{fmt(stats.followers)}</span>
-                <span className="upm-sl">Followers</span>
-              </div>
-              <div className="upm-sdiv" />
-              <div className="upm-stat">
-                <span className="upm-sv">{fmt(stats.following)}</span>
-                <span className="upm-sl">Following</span>
-              </div>
-            </div>
+              <div className="upm-card-lower">
+                <div className="upm-stats">
+                  <div className="upm-stat">
+                    <span className="upm-sv">{fmt(stats.posts + stats.reels + stats.stories)}</span>
+                    <span className="upm-sl">Posts</span>
+                  </div>
+                  <div className="upm-sdiv" />
+                  <div className="upm-stat">
+                    <span className="upm-sv">{fmt(stats.followers)}</span>
+                    <span className="upm-sl">Followers</span>
+                  </div>
+                  <div className="upm-sdiv" />
+                  <div className="upm-stat">
+                    <span className="upm-sv">{fmt(stats.following)}</span>
+                    <span className="upm-sl">Following</span>
+                  </div>
+                </div>
 
-            {/* ── Follow / Unfollow button ── */}
-            {showFollowBtn && (
-              <div className="upm-follow-wrap">
+                {showFollowBtn && (
+                  <div className="upm-follow-wrap">
+                    <button className={`upm-fbtn${isFollowing ? " upm-fbtn--following" : ""}`} onClick={handleFollow} disabled={followLoading} style={followBtnStyle}>
+                      {followLoading ? <Loader size={16} className="upm-spin-icon" /> : isFollowing ? <><UserCheck size={16} /><span>Following</span></> : <><UserPlus size={16} /><span>Follow</span></>}
+                    </button>
+                    <button className="upm-fbtn upm-message-btn" onClick={handleMessage} type="button">
+                      <MessageSquare size={16} /><span>Message</span>
+                    </button>
+                  </div>
+                )}
+
                 <button
-                  className={`upm-fbtn${isFollowing ? " upm-fbtn--following" : ""}`}
-                  onClick={handleFollow}
-                  disabled={followLoading}
-                  style={followBtnStyle}
-                >
-                  {followLoading ? (
-                    <Loader size={16} className="upm-spin-icon" />
-                  ) : isFollowing ? (
-                    <><UserCheck size={16} /><span>Following</span></>
-                  ) : (
-                    <><UserPlus size={16} /><span>Follow</span></>
-                  )}
-                </button>
-                <button
-                  className="upm-fbtn upm-message-btn"
-                  onClick={handleMessage}
                   type="button"
+                  className="upm-verification-entry"
+                  onClick={() => { setShowDashboard(true); setSelectedSection(null); }}
                 >
-                  <MessageSquare size={16} />
-                  <span>Message</span>
+                  <span className="upm-verification-icon"><ShieldCheck size={18} /></span>
+                  <span className="upm-verification-copy">
+                    <strong>Verification Dashboard</strong>
+                    <small>Open the full proof-driven dashboard from the profile.</small>
+                  </span>
+                  <span className="upm-verification-open">Open <ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} /></span>
                 </button>
               </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowDashboard(true);
-                setSelectedSection(null);
-              }}
-              style={{
-                margin: "16px 16px 0",
-                width: "calc(100% - 32px)",
-                borderRadius: 18,
-                border: "1px solid rgba(168,85,247,0.25)",
-                background: "radial-gradient(circle at top left, rgba(168,85,247,0.18), transparent 28%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.9))",
-                padding: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                cursor: "pointer",
-                color: "#fff",
-                borderColor: "rgba(168,85,247,0.35)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 14, background: "rgba(168,85,247,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <ShieldCheck size={18} color="#d8b4fe" />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Verification Dashboard</div>
-                  <div style={{ fontSize: 11, color: "#c4b5fd", marginTop: 2 }}>Open the full proof-driven dashboard from the profile.</div>
-                </div>
-              </div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 999, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 12, fontWeight: 700 }}>
-                Open
-                <ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} />
-              </div>
-            </button>
+            </BoostProfileCard>
 
             {showDashboard ? (
               <div style={{ margin: "16px 16px 0", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", padding: 14 }}>
@@ -953,6 +913,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-uname { font-size:13px; font-weight:600; margin:0 0 10px; color:#e5e5e5; text-shadow:0 1px 8px rgba(0,0,0,0.5); }
         .upm-bio { font-size:13px; color:#d1d1d1; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; text-shadow:0 1px 6px rgba(0,0,0,0.5); }
         .upm-join { font-size:11px; color:#b3b3b3; font-weight:500; margin:0; text-shadow:0 1px 4px rgba(0,0,0,0.4); }
+        .upm-card-lower { padding:0 0 16px; background:rgba(0,0,0,.18); }
         .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:4px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
         .upm-stat { flex:1; padding:12px 8px; text-align:center; display:flex; flex-direction:column; gap:3px; border-radius:13px; }
         .upm-stat:hover { background:rgba(255,255,255,.035); }
@@ -975,6 +936,13 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-fbtn:disabled { opacity:.55; cursor:not-allowed; }
         .upm-message-btn { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.16); color:#e5e7eb; box-shadow:inset 0 1px rgba(255,255,255,.06); }
         .upm-message-btn:hover { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.5); color:#93c5fd; box-shadow:0 0 18px rgba(96,165,250,.16); }
+        .upm-verification-entry { margin:10px 16px 0; width:calc(100% - 32px); border-radius:16px; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:11px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; color:#fff; text-align:left; }
+        .upm-verification-entry:hover { border-color:rgba(168,85,247,.58); background:radial-gradient(circle at top left,rgba(168,85,247,.24),transparent 34%),rgba(15,23,42,.9); }
+        .upm-verification-icon { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:rgba(168,85,247,.16); color:#d8b4fe; flex-shrink:0; }
+        .upm-verification-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
+        .upm-verification-copy strong { font-size:12px; }
+        .upm-verification-copy small { color:#c4b5fd; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .upm-verification-open { display:inline-flex; align-items:center; gap:4px; padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:11px; font-weight:700; flex-shrink:0; }
         .upm-tabs { display:flex; padding:14px 16px 0; gap:6px; }
         .upm-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:8px 6px; border-radius:10px 10px 0 0; font-size:12px; font-weight:700; font-family:inherit; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all .18s; background:rgba(255,255,255,.03); color:#525252; }
         .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }

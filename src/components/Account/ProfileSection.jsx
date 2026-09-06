@@ -801,45 +801,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           </div>
         </BoostProfileCard>
 
-        {hasBoostedTier && (
-          <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
-            <button
-              type="button"
-              className="boost-manager-trigger"
-              aria-expanded={boostManagerOpen}
-              onClick={() => setBoostManagerOpen((value) => !value)}
-            >
-              <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
-              <span className="boost-manager-trigger-copy">
-                <strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong>
-                <small>Theme, name style, font color and background</small>
-              </span>
-              <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
-            </button>
-            <div className="boost-manager-panel">
-              <div className="boost-manager-panel-inner">
-                <BoostThemePicker
-                  tier={profile.subscriptionTier}
-                  activeId={activeThemeId}
-                  activeFontId={activeFontId}
-                  activeColorId={activeColorId}
-                  activeBackgroundColorId={activeBackgroundColorId}
-                  userId={userId}
-                  showToggle={false}
-                  onPicked={(selection) => {
-                    if (typeof selection === "string") setActiveThemeId(selection);
-                    else {
-                      if (selection.fontId) setActiveFontId(selection.fontId);
-                      if (selection.colorId) setActiveColorId(selection.colorId);
-                      if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-        )}
-
         {/* TRISTAT ROW */}
         <div className="tristat-card">
           <div className="tristat-live-bar" />
@@ -855,6 +816,26 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             <span style={{ fontSize:9,color:"#525252",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px" }}>Live</span>
           </div>
         </div>
+
+        {hasBoostedTier && (
+          <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
+            <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen((value) => !value)}>
+              <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
+              <span className="boost-manager-trigger-copy"><strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong><small>Theme, name style, font color and background</small></span>
+              <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
+            </button>
+            <div className="boost-manager-panel"><div className="boost-manager-panel-inner">
+              <BoostThemePicker tier={profile.subscriptionTier} activeId={activeThemeId} activeFontId={activeFontId} activeColorId={activeColorId} activeBackgroundColorId={activeBackgroundColorId} userId={userId} showToggle={false} onPicked={(selection) => {
+                if (typeof selection === "string") setActiveThemeId(selection);
+                else {
+                  if (selection.fontId) setActiveFontId(selection.fontId);
+                  if (selection.colorId) setActiveColorId(selection.colorId);
+                  if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
+                }
+              }} />
+            </div></div>
+          </section>
+        )}
 
         <VerificationLedgerCard
           userId={userId}
