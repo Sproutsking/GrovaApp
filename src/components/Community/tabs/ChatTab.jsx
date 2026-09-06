@@ -65,6 +65,7 @@ const ChatTab = ({
   const [editingChannel, setEditingChannel] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
+  const [channelPermissions, setChannelPermissions] = useState({});
   const [roles, setRoles] = useState([]);
   const [members, setMembers] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -154,6 +155,18 @@ const ChatTab = ({
   }, [community?.id]);
 
   useEffect(() => {
+    let active = true;
+    if (!selectedChannel?.id || !community?.id || !userId) {
+      setChannelPermissions({});
+      return undefined;
+    }
+    Promise.all(["sendMessages", "addReactions", "attachFiles", "mentionEveryone", "manageMessages"].map(async (permission) => [permission, await roleService.getChannelPermission(community.id, userId, selectedChannel, permission)]))
+      .then((entries) => { if (active) setChannelPermissions(Object.fromEntries(entries)); })
+      .catch(() => { if (active) setChannelPermissions({}); });
+    return () => { active = false; };
+  }, [community?.id, selectedChannel?.id, userId]);
+
+  useEffect(() => {
     const handleEditChannel = (event) => {
       if (!event.detail) return;
       setEditingChannel(event.detail);
@@ -172,6 +185,8 @@ const ChatTab = ({
     const requestId = ++channelsRequestRef.current;
     const communityId = community?.id;
     if (!communityId) return;
+    const savedLocation = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "null");
+    const savedChannelId = savedLocation?.communityId === communityId ? savedLocation.channelId : null;
     if (!isOwner) setSelectedChannel(null);
     const categoriesPromise = supabase
       .from("community_channel_categories")
@@ -189,7 +204,7 @@ const ChatTab = ({
         setChannels(visibleChannels);
         setChannelsReady(true);
         if (!visibleChannels.some((channel) => channel.id === selectedChannel?.id)) {
-          setSelectedChannel(visibleChannels[0] || null);
+          setSelectedChannel(visibleChannels.find((channel) => channel.id === savedChannelId) || visibleChannels[0] || null);
         }
       }).catch(() => {});
       categoriesPromise.then(({ data: categories }) => {
@@ -212,7 +227,7 @@ const ChatTab = ({
       setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
       if (!visibleChannels.some((channel) => channel.id === selectedChannel?.id)) {
-        setSelectedChannel(visibleChannels[0] || null);
+        setSelectedChannel(visibleChannels.find((channel) => channel.id === savedChannelId) || visibleChannels[0] || null);
       }
     } catch (error) {
       console.error("Error loading channels:", error);
@@ -427,7 +442,8 @@ const ChatTab = ({
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
   const canManageRoles = userPermissions.manageRoles || isOwner;
-  const canSendMessages = userPermissions.sendMessages || isOwner;
+  const canSendMessages = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages") ? channelPermissions.sendMessages : userPermissions.sendMessages);
+  const canAddReactions = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions") ? channelPermissions.addReactions : userPermissions.addReactions);
 
   const showSkeleton = !channelsReady && channels.length === 0;
 
@@ -618,7 +634,7 @@ const ChatTab = ({
                     active={selectedChannel?.id === channel.id}
                     buttonStyle={buttonStyle}
                     dividerStyle={dividerStyle}
-                    onClick={() => setSelectedChannel(channel)}
+                    onClick={() => { setSelectedChannel(channel); localStorage.setItem(`xeevia:last-community-location:${userId}`, JSON.stringify({ communityId: community.id, channelId: channel.id, view: "chat" })); }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (canManageChannels || canManageRoles) {
@@ -697,6 +713,7 @@ const ChatTab = ({
             onNavigate={onNavigate}
             channelType={selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
+              if (!canAddReactions) return;
               const msg = messages.find((m) => m.id === msgId);
               const previousReactions = msg?.reactions || {};
               const hasReacted = previousReactions?.[emoji]?.users?.includes(userId);

@@ -37,6 +37,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const lastLocationKey = `xeevia:last-community-location:${userId}`;
 
   const currentCommunityRef = useRef(null);
   const switchTimeoutRef    = useRef(null);
@@ -107,6 +108,12 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       ]);
       setMyCommunities(userComms);
       setAllCommunities(allComms);
+      const savedLocation = JSON.parse(localStorage.getItem(lastLocationKey) || "null");
+      const restoredCommunity = userComms.find((item) => item.id === savedLocation?.communityId);
+      if (restoredCommunity && !new URLSearchParams(window.location.search).get("invite")) {
+        const restored = await communityService.fetchCommunityDetails(restoredCommunity.id);
+        if (restored) handleSelectCommunity(restored);
+      }
       // Warm every joined community's channel list before the user opens one.
       // The cache deduplicates these requests and lets ChannelsView paint from
       // memory on first navigation instead of waiting on its mount effect.
@@ -138,6 +145,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     // that land without a preceding hover.
     handlePrefetchCommunity(community.id);
     setSelectedCommunity(community);
+    localStorage.setItem(lastLocationKey, JSON.stringify({ communityId: community.id, channelId: null, view: isMobile ? "channels" : "chat" }));
     // On mobile, show channels view; on desktop, go straight to chat
     setView(isMobile ? "channels" : "chat");
     if (isMobile) setSidebarOpen(false);
@@ -153,6 +161,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const handleSelectChannel = async (channel) => {
     setSelectedChannel(channel);
     setView("chat"); // Move to chat when a channel is selected
+    if (selectedCommunity?.id && channel?.id) localStorage.setItem(lastLocationKey, JSON.stringify({ communityId: selectedCommunity.id, channelId: channel.id, view: "chat" }));
   };
 
   const handleCreateCommunity = async (communityData) => {
@@ -216,6 +225,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       await communityService.leaveCommunity(communityId, userId);
       communityCache.clearCommunity(communityId);
       if (selectedCommunity?.id === communityId) {
+        localStorage.removeItem(lastLocationKey);
         setSelectedCommunity(null); setSelectedChannel(null);
         setView("discover"); currentCommunityRef.current = null;
       }
