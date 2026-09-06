@@ -34,7 +34,7 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, showReactionPanel]);
+  }, [onClose, showDeleteConfirm, showReactionPanel]);
 
   useEffect(() => {
     if (!panelRef.current || !position) return;

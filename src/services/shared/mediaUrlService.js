@@ -293,8 +293,8 @@ class MediaUrlService {
     if (crop) transforms.push(`c_${crop}`);
     if (gravity) transforms.push(`g_${gravity}`);
     if (quality) transforms.push(`q_${quality}`);
-    if (format && format !== 'auto') transforms.push(`f_${format}`);
-    if (fetch_format) transforms.push(`f_${fetch_format}`);
+    const outputFormat = format && format !== 'auto' ? format : fetch_format;
+    if (outputFormat && outputFormat !== 'auto') transforms.push(`f_${outputFormat}`);
     
     // Add automatic optimizations
     transforms.push('dpr_auto');
