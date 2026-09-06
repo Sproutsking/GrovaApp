@@ -59,6 +59,9 @@ const CommunityProfileModal = ({
   const [relationshipPopup, setRelationshipPopup] = useState(null);
   const [mutualFollow, setMutualFollow] = useState(false);
   const [mutualCommunities, setMutualCommunities] = useState([]);
+  const [profileCreatedAt, setProfileCreatedAt] = useState(null);
+  const [communityJoinedAt, setCommunityJoinedAt] = useState(null);
+  const [communityIcon, setCommunityIcon] = useState(null);
   const avatarSource = user?.avatar_url || user?.avatarUrl || user?.avatar || user?.avatar_id || user?.profile_image_url || user?.profileImageUrl || user?.image_url || user?.imageUrl || user?.public_url || user?.avatar_metadata?.url || user?.avatar_metadata?.publicUrl || user?.avatar_metadata?.public_url || user?.avatar_metadata?.avatar_url || user?.avatar_metadata?.profile_image_url;
   const avatarUrl = mediaUrlService.resolveAvatarUrl(avatarSource, 240);
   const directAvatarUrl = typeof avatarSource === "string" && /^(https?:\/\/|blob:|data:image\/)/i.test(avatarSource) ? avatarSource : null;
@@ -87,12 +90,26 @@ const CommunityProfileModal = ({
       if (!user?.id) return;
       const { data } = await supabase
         .from("community_members")
-        .select("id, role_id, role:community_roles(id, name, color), community:communities(id, name, icon)")
+        .select("id, role_id, joined_at, role:community_roles(id, name, color), community:communities(id, name, icon)")
         .eq("user_id", user.id)
         .order("joined_at", { ascending: false });
-      if (active) setMemberships(data || []);
+      if (active) {
+        setMemberships(data || []);
+        const currentMembership = (data || []).find((item) => item.community?.id === community?.id);
+        setCommunityJoinedAt(currentMembership?.joined_at || member?.joined_at || null);
+        setCommunityIcon(currentMembership?.community?.icon || community?.icon || null);
+      }
     };
     loadMemberships();
+    return () => { active = false; };
+  }, [user?.id, community?.id, member?.joined_at]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) return undefined;
+    supabase.from("profiles").select("created_at").eq("id", user.id).maybeSingle().then(({ data }) => {
+      if (active) setProfileCreatedAt(data?.created_at || null);
+    }).catch(() => {});
     return () => { active = false; };
   }, [user?.id]);
 
@@ -255,8 +272,8 @@ const CommunityProfileModal = ({
             <button className="primary" onClick={() => onOpenDm?.(user)}><MessageCircle size={14} /> DM</button>
           </div>
           <div className="community-profile-membership">
-            <div><span className="membership-icon xeevia"><img src="/logo192.png" alt="Xeevia" /></span><span><small>Xeevia member since</small><strong>{formatMemberDate(user?.created_at || user?.createdAt)}</strong></span></div>
-            <div><span className="membership-icon community">{community?.icon || "◈"}</span><span><small>Community member since</small><strong>{formatMemberDate(member?.joined_at || member?.created_at || member?.joinedAt)}</strong></span></div>
+            <div><span className="membership-icon xeevia"><img src="/logo192.png" alt="Xeevia" /></span><span><small>Xeevia member since</small><strong>{formatMemberDate(profileCreatedAt || user?.created_at || user?.createdAt)}</strong></span></div>
+            <div><span className="membership-icon community">{communityIcon?.startsWith?.("http") ? <img src={communityIcon} alt="Community" /> : <strong>{String(community?.name || "Community").split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("")}</strong>}</span><span><small>Community member since</small><strong>{formatMemberDate(communityJoinedAt || member?.created_at || member?.joinedAt)}</strong></span></div>
           </div>
           <div className="community-profile-glow-divider" aria-hidden="true" />
           <div className="community-profile-role-head"><span>Roles in {community?.name || "this community"}</span>{canManageRoles && <button onClick={() => setShowRolePicker((value) => !value)} aria-label="Assign role"><Plus size={15} /></button>}</div>
@@ -268,11 +285,11 @@ const CommunityProfileModal = ({
               </span>
             )) : <span className="community-profile-empty"><Shield size={13} /> No roles assigned</span>}
           </div>
+          <div className="community-profile-glow-divider community-profile-connection-divider" aria-hidden="true" />
           <div className="community-profile-connections">
             <button type="button" onClick={() => setRelationshipPopup("follows")}><UserCheck size={13} /><span>Mutual follow</span><b>{mutualFollow ? 1 : 0}</b></button>
             <button type="button" onClick={() => setRelationshipPopup("communities")}><Users size={13} /><span>Mutual communities</span><b>{mutualCommunities.length}</b></button>
           </div>
-          <div className="community-profile-glow-divider" aria-hidden="true" />
           {showRolePicker && canManageRoles && member && (
             <div className="community-profile-assign">
               <span>Assign a community role</span>
@@ -310,6 +327,7 @@ const CommunityProfileModal = ({
           .community-profile-role-head{display:flex;align-items:center;justify-content:space-between;margin-top:18px;color:#769578;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.community-profile-role-head button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(156,255,0,.45);border-radius:7px;background:rgba(156,255,0,.08);color:#9cff00;cursor:pointer}.community-profile-roles{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.community-profile-role{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;border:1px solid color-mix(in srgb,var(--role-color) 35%,transparent);border-radius:7px;background:color-mix(in srgb,var(--role-color) 10%,transparent);color:var(--role-color);font-size:10px;font-weight:800}.community-profile-role small{color:#79947b;font-size:8px;font-weight:600}.community-profile-empty{display:flex;align-items:center;gap:5px;color:#668168;font-size:10px}.community-profile-assign{display:flex;flex-direction:column;gap:6px;margin-top:10px;color:#759176;font-size:10px;font-weight:700}.community-profile-assign select{padding:8px;border:1px solid rgba(156,255,0,.22);border-radius:8px;background:#0d1c10;color:#d9f4d5;font-size:11px;outline:0}
           .community-profile-assign{display:flex;flex-direction:column;gap:8px;margin-top:12px;color:#78967d;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.community-role-picker{display:flex;flex-direction:column;gap:4px;max-height:170px;overflow-y:auto;padding:6px;border:1px solid rgba(156,255,0,.25);border-radius:10px;background:rgba(7,16,9,.96);box-shadow:0 18px 30px rgba(0,0,0,.45),0 0 0 1px rgba(156,255,0,.05)}.community-role-option{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:#ecf8eb;font:700 11px inherit;text-align:left;cursor:pointer;transition:all .15s ease}.community-role-option:hover{background:rgba(156,255,0,.1);border-color:rgba(156,255,0,.18);color:#cfff80}.community-role-option-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.08),0 0 12px rgba(156,255,0,.5)}.community-role-picker-empty{padding:8px;color:#6d896f;font-size:11px;font-weight:600}
           .community-profile-connections button{gap:7px;padding:9px;font-size:10px}.community-profile-connections button svg{width:17px;height:17px;flex-shrink:0}.community-profile-connections b{font-size:11px}
+          .community-profile-membership>div{border:1px solid rgba(255,255,255,.1);background:rgba(5,9,7,.92);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 5px 12px rgba(0,0,0,.2)}.membership-icon{width:22px;height:22px}.membership-icon.community{overflow:hidden;background:#2563eb;color:#fff}.membership-icon.community img{width:100%;height:100%;object-fit:cover}.community-profile-membership small{color:#a5b9a5}.community-profile-membership strong{color:#f0fff0}.community-profile-connections button{gap:7px;padding:10px 9px;border:1px solid rgba(156,255,0,.24);background:linear-gradient(145deg,rgba(13,24,16,.98),rgba(5,10,8,.98));color:#d9ecd9;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 6px 14px rgba(0,0,0,.2)}.community-profile-connections button:hover{border-color:rgba(156,255,0,.65);background:linear-gradient(145deg,rgba(27,49,28,.98),rgba(7,15,10,.98))}.community-profile-connections b{color:#f0fff0}.community-profile-glow-divider{background:linear-gradient(90deg,transparent,#9cff00 25%,#38bdf8 72%,transparent);box-shadow:0 0 12px rgba(156,255,0,.55)}
           @keyframes communityProfileIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
           @media(max-width:700px){.community-profile-overlay{align-items:flex-end;padding:0}.community-profile-card{width:100%;max-width:none;height:min(88dvh,760px);border:0;border-radius:20px 20px 0 0;overflow-y:auto}.community-profile-card::before{content:"";display:block;position:absolute;top:8px;left:50%;width:42px;height:4px;border-radius:999px;transform:translateX(-50%);background:rgba(255,255,255,.58);box-shadow:0 0 10px rgba(156,255,0,.35);z-index:4}.community-profile-relationship-overlay{align-items:flex-end;padding:0}.community-profile-relationship-modal{width:100%;max-height:88dvh;height:auto;border:0;border-radius:20px 20px 0 0}.community-profile-relationship-modal::before{content:"";display:block;width:42px;height:4px;margin:8px auto 0;border-radius:999px;background:rgba(255,255,255,.58)}}
         `}</style>
