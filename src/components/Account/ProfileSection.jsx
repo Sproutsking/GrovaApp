@@ -654,6 +654,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .profile-bio { color:#d1d1d1;font-size:13px;margin:0 0 18px;line-height:1.5;max-width:320px;margin-left:auto;margin-right:auto;text-shadow:0 1px 6px rgba(0,0,0,0.5); }
 
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
+        .profile-boost-tristat { margin-bottom:10px; }
         .tristat-live-bar { position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16);background-size:200% 100%;animation:liveBarScroll 3s linear infinite;border-radius:2px 2px 0 0; }
         .tristat-row { display:flex;flex-direction:row;align-items:stretch;gap:0;min-width:0; }
         .tri-stat-pill { flex:1 1 0;min-width:0;position:relative;cursor:default;border-radius:14px;transition:background 0.2s,transform 0.2s; }
@@ -677,9 +678,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .contact-row { display:flex;flex-direction:column;gap:8px;margin-bottom:18px;padding:0 2px; }
         .contact-chip { display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:rgba(132,204,22,0.08);border:1px solid rgba(132,204,22,0.2);border-radius:10px;font-size:13px;color:#84cc16; }
 
-        .boost-manager-extension { position:relative;z-index:4;margin:0 0 16px;border:1px solid rgba(192,192,192,0.2);border-top:0;border-radius:0 0 20px 20px;background:#050706;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,0.22); }
-        .boost-manager-trigger { width:100%;display:flex;align-items:center;gap:10px;padding:11px 14px;border:0;border-top:1px solid rgba(192,192,192,0.18);background:linear-gradient(180deg,#090b09,#050706);color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s; }
-        .boost-manager-trigger:hover { background:linear-gradient(180deg,#0d110e,#070907);border-top-color:rgba(192,192,192,0.34); }
+        .boost-manager-extension { position:relative;z-index:4;margin:0;border:0;border-top:1px solid rgba(192,192,192,0.18);border-radius:0 0 24px 24px;background:transparent;overflow:hidden;box-shadow:none; }
+        .boost-manager-trigger { width:100%;display:flex;align-items:center;gap:10px;padding:11px 14px;border:0;background:transparent;color:#e5e7eb;text-align:left;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s; }
+        .boost-manager-trigger:hover { background:rgba(255,255,255,.025);border-top-color:rgba(192,192,192,0.34); }
         .boost-manager-trigger-mark { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;color:#c0c0c0;background:rgba(192,192,192,0.08);border:1px solid rgba(192,192,192,0.24);flex-shrink:0; }
         .boost-manager-trigger-copy { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1; }
         .boost-manager-trigger-copy strong { font-size:12px;letter-spacing:.04em; }
@@ -716,7 +717,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           themeId={activeThemeId}
           backgroundColorId={activeBackgroundColorId}
           embedded
-          style={{ borderRadius:"24px 24px 0 0", marginBottom:0, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
+          style={{ borderRadius:24, marginBottom:16, width:"100%", minHeight:0, animation:"profileFadeIn 0.4s ease" }}
         >
           <div className="profile-header-content" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.48) 0%, rgba(0,0,0,0.32) 100%)", backdropFilter: "blur(8px)" }}>
 
@@ -798,26 +799,6 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
 
             <FourStatRow stats={statItems} />
 
-            {hasBoostedTier && (
-              <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
-                <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen((value) => !value)}>
-                  <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
-                  <span className="boost-manager-trigger-copy"><strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong><small>Theme, name style, font color and background</small></span>
-                  <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
-                </button>
-                <div className="boost-manager-panel"><div className="boost-manager-panel-inner">
-                  <BoostThemePicker tier={profile.subscriptionTier} activeId={activeThemeId} activeFontId={activeFontId} activeColorId={activeColorId} activeBackgroundColorId={activeBackgroundColorId} userId={userId} showToggle={false} onPicked={(selection) => {
-                    if (typeof selection === "string") setActiveThemeId(selection);
-                    else {
-                      if (selection.fontId) setActiveFontId(selection.fontId);
-                      if (selection.colorId) setActiveColorId(selection.colorId);
-                      if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
-                    }
-                  }} />
-                </div></div>
-              </section>
-            )}
-
             <div className="tristat-card profile-boost-tristat">
               <div className="tristat-live-bar" />
               <div className="tristat-row">
@@ -834,6 +815,26 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
             </div>
 
           </div>
+
+          {hasBoostedTier && (
+            <section className={`boost-manager-extension${boostManagerOpen ? " is-open" : ""}`}>
+              <button type="button" className="boost-manager-trigger" aria-expanded={boostManagerOpen} onClick={() => setBoostManagerOpen((value) => !value)}>
+                <span className="boost-manager-trigger-mark"><Sparkles size={15} /></span>
+                <span className="boost-manager-trigger-copy"><strong>{boostManagerOpen ? "Close boost manager" : "Manage profile boost"}</strong><small>Theme, name style, font color and background</small></span>
+                <span className="boost-manager-trigger-chevron">{boostManagerOpen ? "−" : "+"}</span>
+              </button>
+              <div className="boost-manager-panel"><div className="boost-manager-panel-inner">
+                <BoostThemePicker tier={profile.subscriptionTier} activeId={activeThemeId} activeFontId={activeFontId} activeColorId={activeColorId} activeBackgroundColorId={activeBackgroundColorId} userId={userId} showToggle={false} onPicked={(selection) => {
+                  if (typeof selection === "string") setActiveThemeId(selection);
+                  else {
+                    if (selection.fontId) setActiveFontId(selection.fontId);
+                    if (selection.colorId) setActiveColorId(selection.colorId);
+                    if (selection.backgroundColorId) setActiveBackgroundColorId(selection.backgroundColorId);
+                  }
+                }} />
+              </div></div>
+            </section>
+          )}
         </BoostProfileCard>
 
         <VerificationLedgerCard
