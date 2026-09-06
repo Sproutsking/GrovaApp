@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { id: "wallet", Icon: Wallet, label: "Wallet" },
 ];
 
-const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService }) => {
+const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onOpenAdsCentre }) => {
   const [showServices, setShowServices] = useState(false);
   const [fabVisible, setFabVisible] = useState(false);
   const timerRef = useRef(null);
@@ -432,6 +432,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService }) =
           }}
           currentUser={currentUser}
           xrcService={xrcService}
+          onOpenAdsCentre={onOpenAdsCentre}
         />
       )}
     </>

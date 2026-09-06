@@ -106,6 +106,7 @@ const DMMessagesView = lazy(() => import("./components/Messages/DMMessagesView")
 const ActiveCall     = lazy(() => import("./components/Messages/ActiveCall"));
 const AmbassadorView = lazy(() => import("./components/Ambassador/AmbassadorView"));
 const XRCOracleExplorer = lazy(() => import("./components/Oracle/XRCOracleExplorer"));
+const AdsCentre = lazy(() => import("./components/Ads/AdsCentre"));
 
 // ── Overlay tab IDs ───────────────────────────────────────────────────────────
 const OVERLAY_TABS = new Set([
@@ -208,6 +209,15 @@ const AdminDashboardLoader = memo(() => (
 ));
 AdminDashboardLoader.displayName = "AdminDashboardLoader";
 
+const AdsCentreLoader = memo(() => (
+  <div className="ads-centre-loader" role="status" aria-live="polite" aria-label="Opening Ads Centre">
+    <div className="ads-centre-loader-grid" /><div className="ads-centre-loader-globe"><i /><i /><i /><i /></div>
+    <div className="ads-centre-loader-copy"><span>XEEVIA ADS CENTRE</span><strong>Opening trusted growth layer</strong><small>Preparing your campaign workspace</small><b><i /></b></div>
+    <style>{` .ads-centre-loader{position:fixed;inset:0;z-index:120000;display:grid;place-items:center;background:#020504;color:#eaffd8;overflow:hidden;font-family:Manrope,system-ui,sans-serif}.ads-centre-loader-grid{position:absolute;inset:-30%;opacity:.25;background-image:linear-gradient(rgba(156,255,0,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(156,255,0,.1) 1px,transparent 1px);background-size:48px 48px;transform:perspective(440px) rotateX(58deg) translateY(24%);animation:adsLoaderGrid 8s linear infinite}.ads-centre-loader-globe{position:relative;width:min(190px,45vw);aspect-ratio:1;border:1px solid rgba(156,255,0,.65);border-radius:50%;background:radial-gradient(circle at 35% 25%,rgba(156,255,0,.2),#041207 68%);box-shadow:0 0 0 10px rgba(156,255,0,.035),0 0 38px rgba(156,255,0,.35);animation:adsLoaderPulse 2.6s ease-in-out infinite}.ads-centre-loader-globe:before,.ads-centre-loader-globe:after{content:"";position:absolute;inset:15% -12%;border:1px solid rgba(156,255,0,.3);border-radius:50%;transform:rotate(25deg)}.ads-centre-loader-globe:after{inset:-10% 22%;transform:rotate(-25deg)}.ads-centre-loader-globe i{position:absolute;width:6px;height:6px;border-radius:50%;background:#c8ff78;box-shadow:0 0 10px #9cff00;animation:adsLoaderNode 1.8s infinite}.ads-centre-loader-globe i:nth-child(1){top:20%;left:25%}.ads-centre-loader-globe i:nth-child(2){top:40%;right:18%;animation-delay:.35s}.ads-centre-loader-globe i:nth-child(3){bottom:22%;left:22%;animation-delay:.7s}.ads-centre-loader-globe i:nth-child(4){bottom:18%;right:30%;animation-delay:1.05s}.ads-centre-loader-copy{position:absolute;bottom:13%;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}.ads-centre-loader-copy>span{color:#84cc16;font-size:9px;font-weight:800;letter-spacing:.25em}.ads-centre-loader-copy strong{font-size:clamp(17px,3vw,24px)}.ads-centre-loader-copy small{color:#718270;font-size:11px;letter-spacing:.06em}.ads-centre-loader-copy b{width:170px;height:2px;border-radius:2px;background:rgba(156,255,0,.14);overflow:hidden}.ads-centre-loader-copy b i{display:block;width:45%;height:100%;background:#9cff00;box-shadow:0 0 12px #9cff00;animation:adsLoaderBar 1.5s infinite}@keyframes adsLoaderGrid{to{background-position:0 48px,48px 0}}@keyframes adsLoaderPulse{50%{transform:scale(1.04)}}@keyframes adsLoaderNode{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1.3)}}@keyframes adsLoaderBar{from{transform:translateX(-120%)}to{transform:translateX(360%)}}@media(prefers-reduced-motion:reduce){.ads-centre-loader-grid,.ads-centre-loader-globe,.ads-centre-loader-globe i,.ads-centre-loader-copy b i{animation:none}.ads-centre-loader-copy b i{width:70%}} `}</style>
+  </div>
+));
+AdsCentreLoader.displayName = "AdsCentreLoader";
+
 // ── Offline banner ────────────────────────────────────────────────────────────
 const OfflineBanner = memo(({ visible }) => {
   if (!visible) return null;
@@ -294,6 +304,7 @@ const MainApp = memo(() => {
   const [refreshTrigger,     setRefreshTrigger]     = useState(0);
   const [lastRefreshTime,    setLastRefreshTime]    = useState(Date.now());
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [showAdsCentre, setShowAdsCentre] = useState(false);
   const [isOnline,           setIsOnline]           = useState(navigator.onLine);
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
   const [mountedTabs,        setMountedTabs]        = useState(new Set([
@@ -1030,6 +1041,7 @@ const MainApp = memo(() => {
             user={user}
             adminData={adminData}
             onOpenDashboard={() => setShowAdminDashboard(true)}
+            onOpenAdsCentre={() => setShowAdsCentre(true)}
             xrcService={xrcService}
           />
         </Suspense>
@@ -1046,6 +1058,7 @@ const MainApp = memo(() => {
           user={user}
           xrcService={xrcService}
           setActiveHomeTab={setActiveHomeTab}
+          onOpenAdsCentre={() => setShowAdsCentre(true)}
         />
       </Suspense>
     );
@@ -1073,6 +1086,12 @@ const MainApp = memo(() => {
             onClose={() => setShowAdminDashboard(false)}
             xrcService={xrcService}
           />
+        </Suspense>
+      )}
+
+      {showAdsCentre && (
+        <Suspense fallback={<AdsCentreLoader />}>
+          <AdsCentre userId={user.id} onClose={() => setShowAdsCentre(false)} />
         </Suspense>
       )}
 
@@ -1176,6 +1195,7 @@ const MainApp = memo(() => {
             setActiveTab={handleTabChange}
             currentUser={currentUser}
             xrcService={xrcService}
+            onOpenAdsCentre={() => setShowAdsCentre(true)}
           />
         </Suspense>
       )}

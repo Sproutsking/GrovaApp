@@ -17,7 +17,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   X, Zap, Home, Search, Users, Wallet, TrendingUp, Hash,
   Gift, BarChart2, BookMarked, UserCog, HelpCircle, Settings,
-  Radio, CreditCard, Sparkles, ChevronRight, Newspaper, Trophy,
+  Radio, CreditCard, Sparkles, ChevronRight, Newspaper, Trophy, Megaphone,
 } from "lucide-react";
 
 const OracleIcon = () => <span style={{ fontSize: 15, lineHeight: 1 }}>⛓</span>;
@@ -34,6 +34,7 @@ const ALL_SERVICES = [
   { id:"tags",      Icon:Hash,       label:"Tags",       color:"#34d399", bg:"rgba(52,211,153,0.12)",  section:"Discover", desc:"Browse by tag"     },
   { id:"stream",    Icon:Radio,      label:"Stream",     color:"#fb7185", bg:"rgba(251,113,133,0.12)", section:"Discover", desc:"Go live"           },
   { id:"analytics", Icon:BarChart2,  label:"Analytics",  color:"#818cf8", bg:"rgba(129,140,248,0.12)", section:"Discover", desc:"Your stats"        },
+  { id:"ads",       Icon:Megaphone,  label:"Ads Centre",  color:"#9cff00", bg:"rgba(156,255,0,0.12)", section:"Discover", desc:"Trust-weighted growth" },
   { id:"saved",     Icon:BookMarked, label:"Saved",      color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  section:"Account",  desc:"Bookmarked items"  },
   { id:"profile",   Icon:UserCog,    label:"Profile",    color:"#84cc16", bg:"rgba(132,204,22,0.12)",  section:"Account",  desc:"Edit your profile" },
   { id:"rewards",   Icon:Gift,       label:"Rewards",    color:"#f472b6", bg:"rgba(244,114,182,0.12)", section:"Account",  desc:"Earn & redeem"     },
@@ -73,7 +74,7 @@ function resolveTab(id) {
   return map[id] || id;
 }
 
-const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, xrcService, onOpenSaved, trinityLens = "everyday" }) => {
+const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, xrcService, onOpenSaved, onOpenAdsCentre, trinityLens = "everyday" }) => {
   const [closing,    setClosing]    = useState(false);
   const [query,      setQuery]      = useState("");
   const [hovered,    setHovered]    = useState(null);
@@ -162,6 +163,11 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
   };
 
   const navigate = (id) => {
+    if (id === "ads") {
+      close();
+      onOpenAdsCentre?.();
+      return;
+    }
     if (id === "saved") {
       setActiveTab("account");
       setClosing(true);

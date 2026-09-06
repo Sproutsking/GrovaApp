@@ -66,6 +66,7 @@ const Sidebar = ({
   currentUser,
   xrcService,
   setActiveHomeTab,
+  onOpenAdsCentre,
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [showServices, setShowServices] = useState(false);
@@ -254,6 +255,7 @@ const Sidebar = ({
           }}
           currentUser={currentUser || user}
           xrcService={xrcService}
+          onOpenAdsCentre={onOpenAdsCentre}
         />
       )}
 
