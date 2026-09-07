@@ -257,12 +257,16 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
                 </div>
                 <div className="message-text">{msg.content}</div>
                 {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                  <div className="message-reactions">
-                    {Object.entries(msg.reactions).map(([emoji, count]) => (
-                      <div
+                  <div className="message-reactions" onClick={(event) => event.stopPropagation()}>
+                    {Object.entries(msg.reactions).map(([emoji, value]) => {
+                      const count = typeof value === "object" ? value.count : value;
+                      const imageReaction = /^(https?:\/\/|data:image\/)/i.test(emoji);
+                      return <button
                         key={emoji}
+                        type="button"
                         className="reaction"
-                        onClick={async () => {
+                        onClick={async (event) => {
+                          event.stopPropagation();
                           try {
                             await channelService.addReaction(msg.id, emoji);
                             await loadMessages();
@@ -271,9 +275,9 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
                           }
                         }}
                       >
-                        {emoji} {count}
-                      </div>
-                    ))}
+                        <span className="reaction-glyph">{imageReaction ? <img src={emoji} alt="" loading="lazy" /> : emoji}</span><span>{count}</span>
+                      </button>;
+                    })}
                   </div>
                 )}
               </div>
@@ -520,6 +524,52 @@ const EnhancedChannel = ({ channel, userId, community, userPermissions }) => {
         .messages-container {
           position: relative;
           z-index: 1;
+        }
+
+        .message-reactions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          margin-top: 7px;
+        }
+
+        .message-reactions .reaction {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          min-width: 32px;
+          height: 26px;
+          padding: 3px 8px 3px 6px;
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 999px;
+          background: rgba(255,255,255,.045);
+          color: #aab4a7;
+          font: 700 11px/1 inherit;
+          cursor: pointer;
+        }
+
+        .message-reactions .reaction:hover {
+          border-color: rgba(132,204,22,.38);
+          background: rgba(132,204,22,.12);
+          transform: translateY(-1px);
+        }
+
+        .message-reactions .reaction-glyph {
+          display: inline-grid;
+          place-items: center;
+          width: 17px;
+          height: 17px;
+          overflow: hidden;
+          flex: 0 0 17px;
+          font-size: 15px;
+          line-height: 1;
+        }
+
+        .message-reactions .reaction-glyph img {
+          width: 17px;
+          height: 17px;
+          border-radius: 50%;
+          object-fit: cover;
         }
       `}</style>
     </div>
