@@ -14,8 +14,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS, BOOST_BACKGROUND_COLORS } from "../../services/boost/boostThemes";
+import { THEMES_BY_TIER, SHARED_KEYFRAMES, BOOST_NAME_FONTS, BOOST_NAME_COLORS, BOOST_BACKGROUND_COLORS, getBoostNameDesign } from "../../services/boost/boostThemes";
 import boostService from "../../services/boost/boostService";
+import BoostProfileCard from "./BoostProfileCard";
 
 const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeBackgroundColorId, userId, onPicked, showToggle = true }) => {
   const [fontId, setFontId] = useState(activeFontId ?? BOOST_NAME_FONTS[tier]?.[0]?.id);
@@ -38,6 +39,9 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
   const fonts = BOOST_NAME_FONTS[tier] ?? [];
   const colors = BOOST_NAME_COLORS[tier] ?? [];
   const backgroundColors = BOOST_BACKGROUND_COLORS[tier] ?? [];
+  const previewThemeId = selected ?? themes[0]?.id;
+  const previewNameDesign = getBoostNameDesign(tier, fontId, colorId);
+  const previewBackground = backgroundColors.find((item) => item.id === backgroundColorId)?.color;
 
   const saveNameDesign = async (nextFontId = fontId, nextColorId = colorId) => {
     setFontId(nextFontId); setColorId(nextColorId); setSaving(true); setSaveError("");
@@ -129,6 +133,17 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
               {expanded ? "Close" : "Manage profile boost"}
             </button>
           )}
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ color:tierMeta.color, fontSize:10, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", marginBottom:8 }}>Live preview</div>
+          <BoostProfileCard tier={tier} themeId={previewThemeId} backgroundColorId={backgroundColorId} style={{ borderRadius:16, minHeight:148 }}>
+            <div style={{ minHeight:148, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:7, padding:20, textAlign:"center", background:"rgba(0,0,0,.2)" }}>
+              <div style={{ color:previewNameDesign.color?.color || tierMeta.color, fontFamily:previewNameDesign.font?.family, fontWeight:previewNameDesign.font?.weight, letterSpacing:previewNameDesign.font?.spacing, fontSize:22, textShadow:`0 0 16px ${previewNameDesign.color?.shadow || tierMeta.color}` }}>Sprouts King</div>
+              <div style={{ color:"rgba(255,255,255,.62)", fontSize:11 }}>Your selected profile identity</div>
+              {previewBackground && <div style={{ color:"rgba(255,255,255,.48)", fontSize:9 }}>Background: {backgroundColors.find((item) => item.id === backgroundColorId)?.label}</div>}
+            </div>
+          </BoostProfileCard>
         </div>
 
         <div style={{ maxHeight: showToggle ? (expanded ? 980 : 0) : "none", overflow: showToggle ? "hidden" : "visible", opacity: showToggle ? (expanded ? 1 : 0) : 1, transition: "max-height 0.28s ease, opacity 0.24s ease" }}>
