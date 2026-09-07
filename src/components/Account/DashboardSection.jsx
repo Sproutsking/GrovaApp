@@ -22,7 +22,6 @@ import {
   Settings, Video,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
-import ComingSoonModal from "../Shared/ComingSoonModal";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 const fmt = (n) => {
@@ -301,7 +300,6 @@ const DashboardSection = ({
   const [loading,  setLoading]  = useState(true);
   const [greeting, setGreeting] = useState("");
   const [imgOk,    setImgOk]    = useState(true);
-  const [comingSoonFeature, setComingSoonFeature] = useState(null);
   const subsRef = useRef([]);
 
   useEffect(() => {
@@ -496,27 +494,6 @@ const DashboardSection = ({
 
   return (
     <div className="ds-root" style={{ paddingTop: topPad > 0 ? 0 : 0 }}>
-      {comingSoonFeature === "stream" && (
-        <ComingSoonModal
-          title="Live Streaming is almost here"
-          description="We are preparing a creator-first live room where you can broadcast, bring people on stage, and build real-time community energy around your work."
-          feature="Live rooms, co-hosts and real-time audience moments are coming soon."
-          accent="#fb7185"
-          Icon={Video}
-          onClose={() => setComingSoonFeature(null)}
-        />
-      )}
-      {comingSoonFeature === "rewards" && (
-        <ComingSoonModal
-          title="Rewards is being prepared"
-          description="Your activity, consistency, and contribution will soon connect to a richer rewards experience built around meaningful progress, not empty points."
-          feature="Reward levels, daily progress and EP opportunities are coming soon."
-          accent="#84cc16"
-          Icon={Award}
-          onClose={() => setComingSoonFeature(null)}
-        />
-      )}
-
       <style>{`
         @keyframes dsFadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes dsGlow    { 0%,100%{box-shadow:0 0 6px rgba(132,204,22,0.06)} 50%{box-shadow:0 0 16px rgba(132,204,22,0.2)} }
@@ -830,7 +807,7 @@ const DashboardSection = ({
           {/* [FIX-NAV] navigate("rewards") → App overlay */}
           <div className="ds-boost-card"
             style={{ border:`1px solid ${rcolor.fg}1a`, background:`${rcolor.fg}08` }}
-            onClick={() => setComingSoonFeature("rewards")}
+            onClick={() => navigate("rewards")}
           >
             <div className="ds-boost-icon"
               style={{ background:`${rcolor.fg}14`, border:`1px solid ${rcolor.fg}22`, fontSize:14 }}
@@ -919,9 +896,9 @@ const DashboardSection = ({
         <div className="ds-qa-grid">
           {/* Overlay tabs → App handleTabChange → setOverlayTab */}
           <QuickAction emoji="📊" label="Analytics"    sub="Full stats"        color="#a78bfa" onClick={() => navigate("analytics")}     idx={0} />
-          <QuickAction emoji="🎁" label="Rewards"      sub="Levels & revenue"  color="#84cc16" onClick={() => setComingSoonFeature("rewards")}       idx={1} />
+          <QuickAction emoji="🎁" label="Rewards"      sub="Levels & revenue"  color="#84cc16" onClick={() => navigate("rewards")}       idx={1} />
           <QuickAction emoji="💳" label="Gift Cards"   sub="Buy & send"        color="#34d399" onClick={() => navigate("giftcards")}     idx={2} />
-          <QuickAction emoji="🔴" label="Go Live"      sub="Start stream"      color="#fb7185" onClick={() => setComingSoonFeature("stream")}        idx={3} />
+          <QuickAction emoji="🔴" label="Go Live"      sub="Start stream"      color="#fb7185" onClick={() => navigate("stream")}        idx={3} />
           {/* Account-internal tabs → setActiveTab (stays in AccountView) */}
           <QuickAction emoji="⚙️" label="Settings"    sub="Profile & privacy" color="#737373" onClick={() => navigate("settings")}     idx={4} />
           {/* Saved — special handler */}

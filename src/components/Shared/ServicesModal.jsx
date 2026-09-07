@@ -19,6 +19,7 @@ import {
   Gift, BarChart2, BookMarked, UserCog, HelpCircle, Settings,
   Radio, CreditCard, Sparkles, ChevronRight, Newspaper, Trophy, Megaphone,
 } from "lucide-react";
+import ComingSoonModal from "./ComingSoonModal";
 
 const OracleIcon = () => <span style={{ fontSize: 15, lineHeight: 1 }}>⛓</span>;
 
@@ -78,6 +79,7 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
   const [closing,    setClosing]    = useState(false);
   const [query,      setQuery]      = useState("");
   const [hovered,    setHovered]    = useState(null);
+  const [comingSoonFeature, setComingSoonFeature] = useState(null);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
   const resizeTimerRef = useRef(null);
@@ -163,6 +165,10 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
   };
 
   const navigate = (id) => {
+    if (id === "stream" || id === "rewards") {
+      setComingSoonFeature(id);
+      return;
+    }
     if (id === "ads") {
       close();
       onOpenAdsCentre?.();
@@ -247,6 +253,26 @@ const ServicesModal = ({ onClose, setActiveTab, setActiveHomeTab, currentUser, x
 
   return (
     <>
+      {comingSoonFeature === "stream" && (
+        <ComingSoonModal
+          title="Live Streaming is almost here"
+          description="We are preparing a creator-first live room where you can broadcast, bring people on stage, and build real-time community energy around your work."
+          feature="Live rooms, co-hosts and real-time audience moments are coming soon."
+          accent="#fb7185"
+          Icon={Radio}
+          onClose={() => setComingSoonFeature(null)}
+        />
+      )}
+      {comingSoonFeature === "rewards" && (
+        <ComingSoonModal
+          title="Rewards is being prepared"
+          description="Your activity, consistency, and contribution will soon connect to a richer rewards experience built around meaningful progress, not empty points."
+          feature="Reward levels, daily progress and EP opportunities are coming soon."
+          accent="#84cc16"
+          Icon={Gift}
+          onClose={() => setComingSoonFeature(null)}
+        />
+      )}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@500;600;700&display=swap');
 
