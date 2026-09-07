@@ -186,7 +186,8 @@ const MessageList = ({
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncement}>
-                {({ reactionRow }) => <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                {({ reactionRow }) => <>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {postReply && (
                     <div className="msg-reply-quote announcement post-reply-quote" style={{ "--announcement-color": "#38bdf8" }}>
                       <span>Reply to #{postReply.channelName}</span>
@@ -209,23 +210,23 @@ const MessageList = ({
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
                   <div className="msg-meta">
-                    {isAnnouncement && (
-                      <button
-                        type="button"
-                        className="announcement-reply-button"
-                        onClick={(event) => { event.stopPropagation(); onReply?.(msg); }}
-                        aria-label="Reply to announcement"
-                      >
-                        <Reply size={12} />
-                        <span>Reply</span>
-                      </button>
-                    )}
                     <span className="msg-time">{formatTime(msg.created_at)}</span>
                     {msg.edited && <span className="msg-edited">(edited)</span>}
                   </div>
                   {reactionRow}
                 </div>
-                }
+                {isAnnouncement && (
+                  <button
+                    type="button"
+                    className="announcement-reply-button"
+                    onClick={(event) => { event.stopPropagation(); onReply?.({ ...msg, isAnnouncement: true }); }}
+                    aria-label="Reply to announcement"
+                  >
+                    <Reply size={12} />
+                    <span>Reply</span>
+                  </button>
+                )}
+                </>}
               </MessageReactionArea>
             </div>
           );
@@ -502,7 +503,7 @@ const MessageList = ({
           margin-top: 3px;
         }
         .msg-item.me .msg-meta { justify-content: flex-start; }
-        .announcement-reply-button{display:inline-flex;align-items:center;gap:4px;margin-right:auto;padding:3px 7px;border:1px solid rgba(156,255,0,.22);border-radius:6px;background:rgba(156,255,0,.07);color:#bfe7a8;font:700 10px/1 inherit;cursor:pointer;transition:all .15s ease}
+        .announcement-reply-button{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;margin:0;padding:3px 7px;border:1px solid rgba(156,255,0,.22);border-radius:6px;background:rgba(156,255,0,.07);color:#bfe7a8;font:700 10px/1 inherit;cursor:pointer;transition:all .15s ease}
         .announcement-reply-button:hover{background:rgba(156,255,0,.14);border-color:rgba(156,255,0,.42);color:#9cff00}
 
         .msg-time {

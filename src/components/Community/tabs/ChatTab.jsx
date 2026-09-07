@@ -407,6 +407,7 @@ const ChatTab = ({
     try {
       const isCrossChannelPostReply = Boolean(
         replyTo?.externalPost ||
+        replyTo?.isAnnouncement ||
         (selectedChannel?.type === "announcement" && replyTo)
       );
       const replyChannel = isCrossChannelPostReply
@@ -730,9 +731,12 @@ const ChatTab = ({
               const member = members.find((item) => item.user?.username?.toLowerCase() === name.toLowerCase());
               if (member?.user) setCommunityProfileTarget(member.user);
             }}
-            onReply={(message) => { setReplyTo(message); setContextMenu(null); }}
+            onReply={(message) => {
+              setReplyTo({ ...message, isAnnouncement: message.isAnnouncement || selectedChannel?.type === "announcement" });
+              setContextMenu(null);
+            }}
             onNavigate={onNavigate}
-            channelType={selectedChannel?.type}
+            channelType={replyTo ? "text" : selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
               if (!canAddReactions) return;
               const msg = messages.find((m) => m.id === msgId);
