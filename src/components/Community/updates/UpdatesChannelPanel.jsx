@@ -4,7 +4,7 @@ import socialUpdatesService from "../../../services/community/socialUpdatesServi
 
 const QUICK_REACTIONS = ["❤️", "🔥", "👏", "😂"];
 
-export default function UpdatesChannelPanel({ channelId, onReply, canAddReactions = true, userId }) {
+export default function UpdatesChannelPanel({ channelId, onReply, canAddReactions = true, userId, focusPostId = null }) {
   const [posts, setPosts] = useState([]);
   const [error, setError] = useState("");
   const [reactionPost, setReactionPost] = useState(null);
@@ -22,6 +22,18 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
   useEffect(() => {
     if (channelId) load();
   }, [channelId]);
+
+  useEffect(() => {
+    if (!focusPostId || !posts.length) return;
+    const frame = requestAnimationFrame(() => {
+      const element = document.querySelector(`[data-post-id="${focusPostId}"]`);
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("post-navigation-target");
+      setTimeout(() => element.classList.remove("post-navigation-target"), 1800);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusPostId, posts]);
 
   return (
     <section className="updates-panel">
@@ -42,7 +54,7 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
           <div className="updates-empty">No updates have been published yet.</div>
         ) : (
           posts.map((post) => (
-            <article className="updates-post" key={post.id}>
+            <article className="updates-post" key={post.id} data-post-id={post.id}>
               <div className="updates-post-source">{post.provider || "Community source"}</div>
               <h2>{post.content || "New update"}</h2>
               <div className="updates-post-meta">
@@ -78,6 +90,7 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
         .updates-feed { margin-top: 20px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 14px; }
         .updates-empty { padding: 20px 0; color: #718493; font-size: 12px; }
         .updates-post { margin-top: 8px; padding: 13px; border-radius: 11px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+        .updates-post.post-navigation-target { border-color: #9cff00; box-shadow: 0 0 0 3px rgba(156,255,0,.18), 0 0 24px rgba(156,255,0,.2); }
         .updates-post-source { color: #67e8f9; font-size: 9px; text-transform: uppercase; font-weight: 800; }
         .updates-post h2 { margin: 5px 0; font-size: 14px; }
         .updates-post-meta { display: flex; gap: 8px; color: #7990a1; font-size: 10px; }

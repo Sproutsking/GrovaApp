@@ -31,9 +31,13 @@ const parsePostReplyMetadata = (token) => {
       title: String(parsed.title || "Announcement"),
       body: String(parsed.body || ""),
       channelName: String(parsed.channelName || "announcements"),
+      channelId: parsed.channelId || null,
+      messageId: parsed.messageId || null,
+      postId: parsed.postId || null,
+      externalPost: Boolean(parsed.externalPost),
     };
   } catch {
-    return { title: "Announcement", body: "", channelName: "announcements" };
+    return { title: "Announcement", body: "", channelName: "announcements", channelId: null, messageId: null, postId: null, externalPost: false };
   }
 };
 
@@ -56,6 +60,7 @@ const MessageList = ({
   avatarSize = 36,
   onMessageClick,
   onMessageLongPress,
+  onPostNavigate,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -158,6 +163,7 @@ const MessageList = ({
           return (
             <div
               key={msg.id || msg.tempId || msg._tempId}
+              data-message-id={msg.id || msg.tempId || msg._tempId}
               className={`msg-item ${isMe ? "me" : "them"} ${channelType === "announcement" ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onClick={(event) => onMessageClick?.(event, msg)}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
@@ -189,11 +195,17 @@ const MessageList = ({
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {postReply && (
-                    <div className="msg-reply-quote announcement post-reply-quote" style={{ "--announcement-color": "#38bdf8" }}>
+                    <button
+                      type="button"
+                      className="msg-reply-quote announcement post-reply-quote"
+                      style={{ "--announcement-color": "#38bdf8" }}
+                      onClick={(event) => { event.stopPropagation(); onPostNavigate?.(postReply); }}
+                      disabled={!postReply.channelId && !postReply.postId}
+                    >
                       <span>Reply to #{postReply.channelName}</span>
                       <strong>{postReply.title}</strong>
                       {postReply.body && <small>{postReply.body}</small>}
-                    </div>
+                    </button>
                   )}
                   {msg.reply_to_id && originalReply && !postReply && (
                     <div className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}}>
@@ -290,6 +302,9 @@ const MessageList = ({
         .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25}
         .msg-reply-quote.announcement{border-left:none;border-top:2px solid var(--announcement-color, var(--accent));border-radius:8px 8px 6px 6px;padding-top:8px;background:rgba(255,255,255,.025);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
         .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
+        button.msg-reply-quote:disabled{cursor:default}
+        .msg-item.post-navigation-target .msg-bubble{box-shadow:0 0 0 3px rgba(156,255,0,.2),0 0 24px rgba(156,255,0,.28)}
 
         .msg-item.me {
           flex-direction: row-reverse;

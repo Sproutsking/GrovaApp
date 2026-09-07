@@ -85,6 +85,7 @@ const ChatTab = ({
   const [draggedCategory, setDraggedCategory] = useState(null);
   const [draggedChannel, setDraggedChannel] = useState(null);
   const [categoryMenu, setCategoryMenu] = useState(null);
+  const [postNavigationTarget, setPostNavigationTarget] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
   const messagesEndRef = useRef(null);
@@ -379,6 +380,30 @@ const ChatTab = ({
     clearTimeout(typingTimeout.current);
   };
 
+  const navigateToPost = useCallback((target) => {
+    if (!target) return;
+    const targetChannel = channels.find((channel) =>
+      (target.channelId && channel.id === target.channelId) ||
+      channel.name?.toLowerCase() === target.channelName?.toLowerCase()
+    );
+    if (!targetChannel) return;
+    setPostNavigationTarget({ ...target, channelId: targetChannel.id });
+    setSelectedChannel(targetChannel);
+  }, [channels, setSelectedChannel]);
+
+  useEffect(() => {
+    if (!postNavigationTarget?.messageId || selectedChannel?.id !== postNavigationTarget.channelId) return;
+    const frame = requestAnimationFrame(() => {
+      const element = document.querySelector(`[data-message-id="${postNavigationTarget.messageId}"]`);
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("post-navigation-target");
+      setTimeout(() => element.classList.remove("post-navigation-target"), 1800);
+      setPostNavigationTarget(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages, postNavigationTarget, selectedChannel?.id]);
+
   const handleSendMessage = async (announcement = undefined) => {
     const content = messageInput.trim();
     if (!content || sending || !selectedChannel?.id) return;
@@ -427,6 +452,10 @@ const ChatTab = ({
           title: String(replyTo.title || (replyTo.externalPost ? "Community update" : "Announcement")),
           body: String(replyTo.content || "").replace(/^\[\[announcement:.*?\]\]\n?/, "").slice(0, 240),
           channelName: replyTo.channelName || selectedChannel.name,
+          channelId: replyTo.channelId || null,
+          messageId: replyTo.externalPost ? null : (replyTo.id || null),
+          postId: replyTo.externalPost ? (replyTo.id || null) : null,
+          externalPost: Boolean(replyTo.externalPost),
         }))}]]\n${content}`
         : announcementContent;
       await communityMessageService.sendMessage(
@@ -700,7 +729,7 @@ const ChatTab = ({
         )}
 
         <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
-          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} onReply={(post) => { setReplyTo(post); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
+          {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
             loading={false}
@@ -732,10 +761,11 @@ const ChatTab = ({
               if (member?.user) setCommunityProfileTarget(member.user);
             }}
             onReply={(message) => {
-              setReplyTo({ ...message, isAnnouncement: message.isAnnouncement || selectedChannel?.type === "announcement" });
+              setReplyTo({ ...message, channelId: selectedChannel?.id, isAnnouncement: message.isAnnouncement || selectedChannel?.type === "announcement" });
               setContextMenu(null);
             }}
             onNavigate={onNavigate}
+            onPostNavigate={navigateToPost}
             channelType={replyTo ? "text" : selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
               if (!canAddReactions) return;
@@ -796,7 +826,7 @@ const ChatTab = ({
             members={members}
             roles={roles}
             channels={channels}
-            channelType={selectedChannel?.type}
+            channelType={replyTo ? "text" : selectedChannel?.type}
             canManageAnnouncement={canManageChannels}
           />
         </div>
