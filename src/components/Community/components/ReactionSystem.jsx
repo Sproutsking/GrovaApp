@@ -356,10 +356,18 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
       <style>{`
         .mra-wrapper {
           position: relative;
-          display: inline-block;
-          width: 100%;
+          display: flex;
+          flex: 0 1 auto;
+          width: fit-content;
+          max-width: 70%;
+          flex-direction: column;
+          align-items: flex-end;
           min-width: 0;
         }
+        .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
+        .msg-item.them .mra-wrapper { margin-right: auto; }
+        .msg-item.me .mra-wrapper { margin-left: auto; }
+        .mra-ann { align-items: flex-start; width: min(92%, 760px); max-width: 92%; }
         .mra-picker-wrap {
           position: absolute;
           right: 10px;
@@ -400,6 +408,9 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           flex: 0 1 auto;
           min-width: 0;
           flex-wrap: wrap;
+        }
+        @media (max-width: 768px) {
+          .mra-wrapper { max-width: 80%; }
         }
       `}</style>
     </div>
