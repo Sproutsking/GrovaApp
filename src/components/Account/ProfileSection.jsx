@@ -734,15 +734,15 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
         .tristat-card { position:relative;background:rgba(10,10,10,0.85);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:4px;margin-bottom:16px;overflow:hidden;animation:shimmerIn 0.45s cubic-bezier(0.16,1,0.3,1); }
         .profile-boost-tristat { margin-bottom:12px; }
         .tristat-live-bar { position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#84cc16,#fbbf24,#ef4444,#84cc16);background-size:200% 100%;animation:liveBarScroll 3s linear infinite;border-radius:2px 2px 0 0; }
-        .tristat-row { display:flex;flex-direction:row;align-items:stretch;gap:0;min-width:0; }
-        .tri-stat-pill { flex:1 1 0;min-width:0;position:relative;cursor:default;border-radius:14px;transition:background 0.2s,transform 0.2s; }
+        .tristat-row { display:flex;flex-direction:row;align-items:stretch;gap:0;min-width:0;width:100%; }
+        .tri-stat-pill { box-sizing:border-box;flex:1 1 0;width:0;min-width:0;position:relative;cursor:default;border-radius:14px;transition:background 0.2s,transform 0.2s;overflow:hidden; }
         .tri-stat-pill:hover { background:rgba(255,255,255,0.04);transform:translateY(-1px); }
-        .tri-stat-inner { display:flex;flex-direction:row;align-items:center;justify-content:center;gap:clamp(4px,1.2vw,10px);padding:clamp(10px,2vw,18px) clamp(6px,1.5vw,14px);min-width:0; }
-        .tri-stat-icon-wrap { display:flex;align-items:center;justify-content:center;width:clamp(26px,5vw,34px);height:clamp(26px,5vw,34px);border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);flex-shrink:0; }
-        .tri-stat-icon-wrap svg { width:clamp(11px,2.5vw,15px)!important;height:clamp(11px,2.5vw,15px)!important; }
+        .tri-stat-inner { display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:12px 8px;min-width:0; }
+        .tri-stat-icon-wrap { display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);flex:0 0 30px; }
+        .tri-stat-icon-wrap svg { width:14px!important;height:14px!important; }
         .tri-stat-text { display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1 1 auto; }
-        .tri-stat-value { font-size:clamp(14px,3.5vw,20px);font-weight:900;color:var(--accent);line-height:1.15;letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
-        .tri-stat-label { font-size:clamp(8px,1.8vw,11px);color:#525252;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+        .tri-stat-value { font-size:18px;font-weight:900;color:var(--accent);line-height:1.15;letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+        .tri-stat-label { font-size:10px;color:#525252;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
         .tristat-divider { width:1px;margin:10px 0;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,0.08) 50%,transparent 100%);flex-shrink:0;align-self:stretch; }
 
         .actions-card { background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:22px;padding:10px; }
@@ -776,7 +776,11 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
           .profile-header-content { padding: 18px 12px 12px; }
           .profile-name { font-size:20px; }
           .profile-bio { max-width:100%; padding:0 6px; margin:8px auto 12px; }
-          .tri-stat-inner { padding:10px 8px; }
+          .tri-stat-inner { gap:6px;padding:10px 6px; }
+          .tri-stat-icon-wrap { width:26px;height:26px;flex-basis:26px; }
+          .tri-stat-icon-wrap svg { width:12px!important;height:12px!important; }
+          .tri-stat-value { font-size:15px; }
+          .tri-stat-label { font-size:8px; }
           .actions-grid { grid-template-columns: 1fr; gap:10px; }
           .action-btn { padding:12px; }
           .boost-manager-trigger { padding:10px 10px; }

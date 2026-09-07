@@ -44,6 +44,8 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
   const previewBackground = backgroundColors.find((item) => item.id === backgroundColorId)?.color;
 
   const saveNameDesign = async (nextFontId = fontId, nextColorId = colorId) => {
+    const previousFontId = fontId;
+    const previousColorId = colorId;
     setFontId(nextFontId); setColorId(nextColorId); setSaving(true); setSaveError("");
     try {
       const result = await boostService.updateBoostNameDesign(userId, nextFontId, nextColorId);
@@ -52,12 +54,15 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
       onPicked?.({ fontId: nextFontId, colorId: nextColorId });
       setTimeout(() => setSaved(false), 1800);
     } catch (error) {
+      setFontId(previousFontId);
+      setColorId(previousColorId);
       setSaved(false);
       setSaveError(error?.message || "Design could not be saved");
     } finally { setSaving(false); }
   };
 
   const saveBackgroundColor = async (nextId) => {
+    const previousId = backgroundColorId;
     setBackgroundColorId(nextId); setSaving(true); setSaved(false); setSaveError("");
     try {
       const result = await boostService.updateBoostBackgroundColor(userId, nextId);
@@ -65,6 +70,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
       setSaved(true); onPicked?.({ backgroundColorId: nextId });
       setTimeout(() => setSaved(false), 1800);
     } catch (error) {
+      setBackgroundColorId(previousId);
       setSaveError(error?.message || "Background color could not be saved");
     } finally { setSaving(false); }
   };
@@ -73,6 +79,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
 
   const handlePick = async (themeId) => {
     if (themeId === selected) return;
+    const previousThemeId = selected;
     setSelected(themeId);
     setSaved(false);
     setSaveError("");
@@ -86,6 +93,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
       onPicked?.(themeId);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
+      setSelected(previousThemeId);
       setSaveError(error?.message || "Theme save failed");
     }
     finally { setSaving(false); }
@@ -110,7 +118,7 @@ const BoostThemePicker = ({ tier, activeId, activeFontId, activeColorId, activeB
             {tierMeta.label}
             {saving && <span style={{ color:tierMeta.color, fontSize:10 }}>Saving…</span>}
             {saved  && <span style={{ color:"#22c55e",     fontSize:10 }}>✓ Saved</span>}
-            {saveError && <span style={{ color:"#f87171", fontSize:10 }} title={saveError}>Save failed</span>}
+            {saveError && <span style={{ color:"#f87171", fontSize:10, maxWidth:220, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={saveError}>Save failed: {saveError}</span>}
           </div>
 
           {showToggle && (
