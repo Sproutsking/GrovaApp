@@ -186,7 +186,7 @@ const MessageList = ({
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncement}>
-                <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                {({ reactionRow }) => <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {postReply && (
                     <div className="msg-reply-quote announcement post-reply-quote" style={{ "--announcement-color": "#38bdf8" }}>
                       <span>Reply to #{postReply.channelName}</span>
@@ -223,7 +223,9 @@ const MessageList = ({
                     <span className="msg-time">{formatTime(msg.created_at)}</span>
                     {msg.edited && <span className="msg-edited">(edited)</span>}
                   </div>
+                  {reactionRow}
                 </div>
+                }
               </MessageReactionArea>
             </div>
           );

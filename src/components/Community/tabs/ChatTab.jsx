@@ -405,7 +405,10 @@ const ChatTab = ({
     stopTyping();
 
     try {
-      const isCrossChannelPostReply = Boolean(replyTo?.externalPost || (selectedChannel?.type === "announcement" && replyTo && !canSendMessages));
+      const isCrossChannelPostReply = Boolean(
+        replyTo?.externalPost ||
+        (selectedChannel?.type === "announcement" && replyTo)
+      );
       const replyChannel = isCrossChannelPostReply
         ? channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text")
         : selectedChannel;

@@ -311,6 +311,29 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
     setShowPicker(true);
   };
 
+  const reactionRow = (
+    <div className={`mra-reaction-row${isAnnouncement ? " announcement" : ""}`}>
+      <ReactionBar
+        reactions={message.reactions || {}}
+        userId={userId}
+        onToggle={(emoji) => onToggle?.(message.id, emoji)}
+        isAnnouncement={isAnnouncement}
+      />
+      {isAnnouncement && (
+        <button
+          type="button"
+          ref={triggerRef}
+          className="mra-reaction-trigger"
+          onClick={toggleAnnouncementPicker}
+          aria-label="Add a reaction"
+          title="Add a reaction"
+        >
+          <Smile size={15} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div
       ref={areaRef}
@@ -318,7 +341,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {children}
+      {typeof children === "function" ? children({ reactionRow }) : children}
 
       {/* Hover reaction trigger for regular messages */}
       {showPicker && !isAnnouncement && (
@@ -331,27 +354,6 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         <EmojiPanel style={pickerStyle} managePosition={false} onSelect={handleAddReaction} onClose={() => setShowPicker(false)} />,
         document.body,
       )}
-
-      <div className={`mra-reaction-row${isAnnouncement ? " announcement" : ""}`}>
-        <ReactionBar
-          reactions={message.reactions || {}}
-          userId={userId}
-          onToggle={(emoji) => onToggle?.(message.id, emoji)}
-          isAnnouncement={isAnnouncement}
-        />
-        {isAnnouncement && (
-          <button
-            type="button"
-            ref={triggerRef}
-            className="mra-reaction-trigger"
-            onClick={toggleAnnouncementPicker}
-            aria-label="Add a reaction"
-            title="Add a reaction"
-          >
-            <Smile size={15} />
-          </button>
-        )}
-      </div>
 
       <style>{`
         .mra-wrapper {
@@ -397,14 +399,14 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           display: flex;
           align-items: center;
           gap: 4px;
-          align-self: stretch;
-          width: auto;
+          width: 100%;
           max-width: 100%;
           min-width: 0;
           margin-top: 3px;
+          box-sizing: border-box;
         }
         .mra-reaction-row .rb-bar {
-          width: auto;
+          width: 100%;
           max-width: 100%;
           min-width: 0;
           margin-top: 0;
