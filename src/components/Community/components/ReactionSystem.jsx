@@ -397,12 +397,19 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           display: flex;
           align-items: center;
           gap: 4px;
+          align-self: stretch;
+          width: auto;
+          max-width: 100%;
           min-width: 0;
           margin-top: 3px;
         }
         .mra-reaction-row .rb-bar {
+          width: auto;
+          max-width: 100%;
+          min-width: 0;
           margin-top: 0;
           justify-content: flex-start;
+          flex-wrap: wrap;
         }
         .mra-reaction-row.announcement .rb-bar {
           flex: 0 1 auto;
