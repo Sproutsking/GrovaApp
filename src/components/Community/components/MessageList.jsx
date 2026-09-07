@@ -388,9 +388,11 @@ const MessageList = ({
         .msg-item.announcement .msg-meta { margin-top: 10px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:18px;border-bottom-right-radius:18px}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
-        .mra-wrapper { position: relative; display: flex; flex-direction: column; align-items: flex-end; }
-        .mra-wrapper .msg-bubble { width: 100%; }
-        .mra-ann { align-items: flex-start; }
+        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; }
+        .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
+        .msg-item.them .mra-wrapper { margin-right: auto; }
+        .msg-item.me .mra-wrapper { margin-left: auto; }
+        .mra-ann { align-items: flex-start; width: min(92%, 760px); max-width: 92%; }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
