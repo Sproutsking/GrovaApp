@@ -186,10 +186,13 @@ const UnifiedLoader = ({
           align-items: center;
           justify-content: center;
           gap: 20px;
-          animation: fadeIn 0.3s ease;
           padding: ${current.padding};
           background: var(--bg);
           color: var(--text);
+        }
+
+        .unified-loader:not(.app-init) {
+          animation: fadeIn 0.3s ease;
         }
 
         .unified-loader.fullscreen {
@@ -222,7 +225,7 @@ const UnifiedLoader = ({
         .app-init-node{position:absolute;width:5px;height:5px;border-radius:50%;background:#c8ff78;box-shadow:0 0 10px #9cff00;animation:appInitNode 1.8s ease-in-out infinite}.app-init-node-a{top:20%;left:25%}.app-init-node-b{top:38%;right:18%;animation-delay:.35s}.app-init-node-c{bottom:22%;left:21%;animation-delay:.7s}.app-init-node-d{bottom:18%;right:30%;animation-delay:1.05s}
         .app-init-orbit{position:absolute;inset:13%;border:1px solid rgba(156,255,0,.3);border-radius:50%;transform:rotate(62deg);animation:appInitOrbit 4.8s linear infinite}.app-init-orbit:after{content:"";position:absolute;top:-4px;left:50%;width:7px;height:7px;border-radius:50%;background:#b8ff61;box-shadow:0 0 14px #9cff00}.app-init-orbit-b{inset:4%;transform:rotate(-34deg) scaleY(.55);border-color:rgba(56,189,248,.26);animation-duration:7s;animation-direction:reverse}.app-init-orbit-b:after{background:#67e8f9;box-shadow:0 0 14px #38bdf8}.app-init-orbit-c{inset:23%;transform:rotate(8deg) scaleY(.42);border-color:rgba(251,191,36,.3);animation-duration:3.4s}.app-init-orbit-c:after{background:#fde68a;box-shadow:0 0 14px #fbbf24}
         .app-init-scan{position:absolute;width:70%;height:2px;background:linear-gradient(90deg,transparent,#b7ff65,transparent);box-shadow:0 0 16px rgba(156,255,0,.8);animation:appInitScan 2.6s ease-in-out infinite}.app-init-brand{position:relative;margin-top:-24px;color:#f3ffe9;font-size:clamp(25px,5vw,38px);font-weight:900;letter-spacing:.24em;text-indent:.24em;text-shadow:0 0 22px rgba(156,255,0,.32);animation:appInitBrand .9s .2s ease both}.app-init-rule{position:relative;display:flex;align-items:center;gap:9px;margin-top:12px;color:#84cc16;font-size:8px;font-weight:800;letter-spacing:.3em;animation:appInitBrand .8s .38s ease both}.app-init-rule span{width:24px;height:1px;background:linear-gradient(90deg,transparent,#84cc16)}.app-init-rule span:last-child{background:linear-gradient(90deg,#84cc16,transparent)}
-        @keyframes appInitOrbit{to{transform:rotate(422deg)}}@keyframes appInitGrid{to{background-position:0 48px,48px 0}}@keyframes appInitPulse{0%,100%{transform:scale(.98)}50%{transform:scale(1.04)}}@keyframes appInitNode{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1.35)}}@keyframes appInitScan{0%{transform:translateY(-105px);opacity:0}25%,75%{opacity:1}100%{transform:translateY(105px);opacity:0}}@keyframes appInitRise{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}@keyframes appInitBrand{from{opacity:0;transform:translateY(8px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+        @keyframes appInitOrbit{to{transform:rotate(422deg)}}@keyframes appInitGrid{to{background-position:0 48px,48px 0}}@keyframes appInitPulse{0%,100%{transform:scale(.98)}50%{transform:scale(1.04)}}@keyframes appInitNode{0%,100%{opacity:.35;transform:scale(.7)}50%{opacity:1;transform:scale(1.35)}}@keyframes appInitScan{0%{transform:translateY(-105px);opacity:0}25%,75%{opacity:1}100%{transform:translateY(105px);opacity:0}}@keyframes appInitRise{from{opacity:0}to{opacity:1}}@keyframes appInitBrand{from{opacity:0;filter:blur(6px)}to{opacity:1;filter:none}}
         @media(prefers-reduced-motion:reduce){.app-init-grid,.app-init-orbit,.app-init-globe,.app-init-node,.app-init-scan,.app-init-core,.app-init-brand,.app-init-rule{animation:none}}
 
         .loader-logo {
