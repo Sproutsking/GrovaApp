@@ -268,6 +268,7 @@ const CommunityMenu = ({
             {menuView === "analytics" && <AnalyticsSection community={community} />}
             {menuView === "tools" && <ToolsSection
               communityId={community.id}
+              userId={userId}
               channels={channels}
               canManage={canManageCommunity}
               onOpenInvite={() => { onClose(); onOpenInvite?.(); }}

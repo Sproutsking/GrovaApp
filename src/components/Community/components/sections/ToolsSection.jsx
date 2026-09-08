@@ -19,12 +19,13 @@ const TOOL_CATALOG = [
   { type: "moderation", label: "Moderation", description: "Automate safety, strikes, actions, and case history.", icon: ShieldCheck },
 ];
 
-export default function ToolsSection({ communityId, channels = [], canManage = false, onOpenInvite, onOpenUpgrade, onOpenModeration }) {
+export default function ToolsSection({ communityId, userId, channels = [], canManage = false, onOpenInvite, onOpenUpgrade, onOpenModeration }) {
   const [rows, setRows] = useState([]);
   const [openTool, setOpenTool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sourceConnected, setSourceConnected] = useState(false);
+  const [linkedSources, setLinkedSources] = useState([]);
   const [dashboardTool, setDashboardTool] = useState(null);
   const [draft, setDraft] = useState({});
 
@@ -41,6 +42,8 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
       });
     supabase.from("community_social_connections").select("id").eq("community_id", communityId).eq("provider", "xeevia").eq("status", "active").maybeSingle()
       .then(({ data }) => { if (active) setSourceConnected(Boolean(data)); });
+    if (userId) supabase.from("connections").select("provider, platform_user_id, auth_status").eq("user_id", userId).eq("auth_status", "active")
+      .then(({ data }) => { if (active) setLinkedSources(data || []); });
     return () => { active = false; };
   }, [communityId]);
 
@@ -59,6 +62,22 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
     if (!userId) return;
     const { error: connectionError } = await supabase.from("community_social_connections").upsert({ community_id: communityId, connected_by: userId, provider: "xeevia", provider_account_id: userId, display_name: "Xeevia account", status: "active", scopes: ["internal:posts"], updated_at: new Date().toISOString() }, { onConflict: "community_id,provider,provider_account_id" });
     if (connectionError) setError(connectionError.message); else setSourceConnected(true);
+  };
+
+  const connectLinkedSource = async (source) => {
+    if (!canManage || !userId) return;
+    const { error: connectionError } = await supabase.from("community_social_connections").upsert({
+      community_id: communityId,
+      connected_by: userId,
+      provider: source.provider,
+      provider_account_id: source.platform_user_id,
+      display_name: source.provider,
+      status: "active",
+      scopes: ["profile_link"],
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "community_id,provider,provider_account_id" });
+    if (connectionError) setError(connectionError.message);
+    else setError("");
   };
 
   const toggleChannel = async (type, channelId) => {
@@ -155,7 +174,7 @@ export default function ToolsSection({ communityId, channels = [], canManage = f
               <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span><em>{selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
             </button>
             {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}{tool.type === "welcome" && <div className="community-tool-config"><input disabled={!canManage} value={getRow("welcome").config?.title || "Welcome to our community"} onChange={(event) => updateWelcomeConfig("title", event.target.value)} placeholder="Welcome title" maxLength={150} /><textarea disabled={!canManage} value={getRow("welcome").config?.description || "Introduce yourself and join the conversation."} onChange={(event) => updateWelcomeConfig("description", event.target.value)} placeholder="Welcome description" rows={3} maxLength={500} /></div>}</div>}
-            {open && tool.type === "social_updates" && canManage && <button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button>}
+            {open && tool.type === "social_updates" && canManage && <div className="community-tool-sources"><button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button>{linkedSources.length ? <div className="community-tool-linked-sources">{linkedSources.map((source) => <button type="button" key={`${source.provider}-${source.platform_user_id}`} onClick={() => connectLinkedSource(source)}>{source.provider} <small>Use linked account</small></button>)}</div> : <span>Link an account in Account &gt; Identity to use it here.</span>}</div>}
           </div>
         );
       })}

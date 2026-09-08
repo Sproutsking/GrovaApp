@@ -7,6 +7,8 @@ import communityOnlineStatusService from "../../../../services/community/communi
 import roleService from "../../../../services/community/roleService";
 import CommunityProfileModal from "../CommunityProfileModal";
 import UserProfileModal from "../../../Modals/UserProfileModal";
+import BoostAvatarRing from "../../../Shared/BoostAvatarRing";
+import { getBoostNameDesign } from "../../../../services/boost/boostThemes";
 
 const MembersSection = ({ community, userId }) => {
   const [members, setMembers] = useState([]);
@@ -71,7 +73,9 @@ const MembersSection = ({ community, userId }) => {
             username,
             full_name,
             avatar_id,
-            verified
+            verified,
+            subscription_tier,
+            boost_selections
           ),
           role:community_roles!role_id(
             id,
@@ -273,25 +277,29 @@ const MembersSection = ({ community, userId }) => {
                     online: false,
                   };
                   const isOnline = memberStatus.online;
+                  const tier = member.user?.subscription_tier;
+                  const boostSelections = member.user?.boost_selections || {};
+                  const nameDesign = getBoostNameDesign(tier, boostSelections.fontId, boostSelections.colorId);
+                  const displayName = member.user?.full_name || member.user?.username || "Unknown User";
 
                   return (
                     <div key={member.id} className="member-card" onClick={() => setSelectedMember(member)}>
                       <div className="member-card-contents">
                         <div className="member-card-header">
                           <div className="member-avatar">
-                            {avatarUrl ? (
-                              <img
-                                src={avatarUrl}
-                                alt={member.user?.full_name}
-                              />
-                            ) : (
-                              <span className="avatar-fallback">
-                                {member.user?.full_name?.[0]?.toUpperCase() ||
-                                  "?"}
-                              </span>
-                            )}
+                            <BoostAvatarRing
+                              userId={member.user?.id}
+                              tier={tier}
+                              themeId={boostSelections.themeId}
+                              accentColor={nameDesign.color?.color}
+                              size={56}
+                              src={avatarUrl}
+                              letter={displayName.charAt(0).toUpperCase()}
+                              showBadge={false}
+                              borderRadius="circle"
+                            />
                             {isOnline && (
-                              <div className="online-status-ring">
+                              <div className="online-status-ring" aria-label="Online">
                                 <div className="online-dot" />
                               </div>
                             )}
@@ -309,8 +317,18 @@ const MembersSection = ({ community, userId }) => {
                         </div>
 
                         <div className="member-info">
-                          <div className="member-name">
-                            {member.user?.full_name || "Unknown User"}
+                          <div
+                            className="member-name"
+                            data-boosted={tier ? "true" : "false"}
+                            style={tier ? {
+                              "--member-name-color": nameDesign.color?.color || "#ffffffd3",
+                              "--member-name-font": nameDesign.font?.family || "inherit",
+                              "--member-name-weight": nameDesign.font?.weight || 600,
+                              "--member-name-spacing": nameDesign.font?.spacing || "normal",
+                              "--member-name-shadow": nameDesign.color?.shadow || "transparent",
+                            } : undefined}
+                          >
+                            {displayName}
                           </div>
                           <div className="member-username">
                             @{member.user?.username || "unknown"}
@@ -432,7 +450,7 @@ const MembersSection = ({ community, userId }) => {
           flex: 1;
           text-align: left;
           white-space: nowrap;
-          overflow: hidden;
+          overflow: visible;
           text-overflow: ellipsis;
         }
 
@@ -736,12 +754,13 @@ const MembersSection = ({ community, userId }) => {
 
         .online-status-ring {
           position: absolute;
-          top: -3px;
-          right: -3px;
-          width: 20px;
-          height: 20px;
+          right: -2px;
+          bottom: -2px;
+          width: 17px;
+          height: 17px;
           border-radius: 50%;
-          background: rgba(0, 0, 0, 0.9);
+          background: #0b120d;
+          border: 2px solid #0b120d;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -749,8 +768,8 @@ const MembersSection = ({ community, userId }) => {
         }
 
         .online-dot {
-          width: 12px;
-          height: 12px;
+          width: 11px;
+          height: 11px;
           border-radius: 50%;
           background: #10b981;
           box-shadow: 
@@ -790,6 +809,13 @@ const MembersSection = ({ community, userId }) => {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        .member-name[data-boosted="true"] {
+          color: var(--member-name-color, #ffffffd3);
+          font-family: var(--member-name-font, inherit);
+          font-weight: var(--member-name-weight, 600);
+          letter-spacing: var(--member-name-spacing, normal);
+          text-shadow: 0 0 12px var(--member-name-shadow, transparent);
         }
 
         .member-username {

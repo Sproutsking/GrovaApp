@@ -35,6 +35,7 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
   const [slots, setSlots] = useState(createSlots(initial.challenge.cards));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [selectedMode, setSelectedMode] = useState(null);
 
   const patch = (next) => setConfig((current) => ({ ...current, ...next }));
   const patchSection = (section, next) => setConfig((current) => ({ ...current, [section]: { ...current[section], ...next } }));
@@ -62,6 +63,18 @@ export default function VerificationToolDashboard({ value, onSave, disabled = fa
       setError(saveError.message || "Could not save verification setup.");
     } finally { setSaving(false); }
   };
+
+  if (!selectedMode) {
+    const modes = [
+      ["quick", "Quick verify", "One-tap verification with the live member access flow.", true],
+      ["picture", "Picture check", "Image challenge verification with configurable answers.", true],
+      ["rules_gate", "Rules gate", "Require members to accept your community rules.", false],
+      ["reaction_verification", "Reaction verification", "Verify members through a configured reaction role.", false],
+      ["wallet_verification", "Wallet verification", "Verify ownership of a supported wallet identity.", false],
+      ["email_verification", "Email verification", "Verify members through an approved email flow.", false],
+    ];
+    return <div className="verification-mode-picker"><div className="verification-picker-hero"><span>VERIFICATION METHODS</span><h3>Choose a verification experience</h3><p>Quick verify and Picture check are live now. More methods are prepared and will be activated as their secure integrations ship.</p></div><div className="verification-picker-grid">{modes.map(([id, label, description, live]) => <button type="button" key={id} className={`verification-mode-card${live ? " live" : " soon"}`} disabled={disabled || !live} onClick={() => { patch({ mode: id }); setSelectedMode(id); }}>{live ? <span className="verification-mode-state">Live</span> : <span className="verification-mode-state">Coming soon</span>}<strong>{label}</strong><small>{description}</small>{live && <em>Configure identity and settings</em>}</button>)}</div><style>{`.verification-mode-picker{display:flex;flex-direction:column;gap:14px}.verification-picker-hero{padding:16px;border:1px solid rgba(156,255,0,.25);border-radius:12px;background:linear-gradient(135deg,rgba(156,255,0,.09),rgba(0,0,0,.14))}.verification-picker-hero>span{font-size:9px;letter-spacing:.14em;font-weight:900;color:#9cff00}.verification-picker-hero h3{margin:5px 0;font-size:20px;color:var(--text)}.verification-picker-hero p{margin:0;color:var(--text-secondary);font-size:11px;line-height:1.5}.verification-picker-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.verification-mode-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-height:128px;padding:13px;border:1px solid var(--surface-border);border-radius:11px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer}.verification-mode-card.live:hover{border-color:rgba(156,255,0,.65);background:rgba(156,255,0,.08)}.verification-mode-card.soon{opacity:.62;cursor:not-allowed}.verification-mode-card strong{font-size:13px}.verification-mode-card small{color:var(--text-secondary);font-size:10px;line-height:1.45}.verification-mode-card em{margin-top:auto;color:#9cff00;font-size:9px;font-style:normal;font-weight:800}.verification-mode-state{font-size:8px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#9cff00}.soon .verification-mode-state{color:#9aa2ad}.verification-mode-card.soon:after{content:"";position:absolute;inset:0;border-radius:11px;background:linear-gradient(135deg,transparent,rgba(255,255,255,.025));pointer-events:none}@media(max-width:600px){.verification-picker-grid{grid-template-columns:1fr}}`}</style></div>;
+  }
 
   return (
     <div className="verification-dashboard">
