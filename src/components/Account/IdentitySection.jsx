@@ -459,7 +459,8 @@ const IdentitySection = ({ userId }) => {
         await load();
         return;
       }
-      await socialConnectService.linkPlatform(userId, platform);
+      const result = await socialConnectService.linkPlatform(userId, platform);
+      if (result?.redirecting) return;
       showToast("success", `${PLATFORMS[platform]?.name || platform} connected successfully!`);
       await load();
     } catch (err) {
@@ -468,6 +469,8 @@ const IdentitySection = ({ userId }) => {
         // Cancelled — no toast needed
       } else if (msg.includes("Popup was blocked")) {
         showToast("error", "Popup blocked — please allow popups and try again.", 6000);
+      } else if (msg.toLowerCase().includes("already linked") || msg.toLowerCase().includes("already exists")) {
+        showToast("error", "That provider account is already connected to another Xeevia account. Sign in to that account before managing it.", 7000);
       } else {
         showToast("error", msg, 6000);
       }

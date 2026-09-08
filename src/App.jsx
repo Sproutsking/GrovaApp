@@ -59,6 +59,7 @@ import { usePullToRefresh }        from "./hooks/usePullToRefresh";
 // Auth system
 import AuthProvider, { useAuth } from "./components/Auth/AuthContext";
 import AuthWall, { Splash }      from "./components/Auth/AuthWall";
+import LinkIdentityCallback      from "./components/Auth/LinkIdentityCallback";
 
 // Shared UI
 import DesktopHeader from "./components/Shared/DesktopHeader";
@@ -1369,6 +1370,8 @@ function AppRouter() {
       </Suspense>
     );
   }
+
+  if (pathname === "/auth/link-callback") return <LinkIdentityCallback />;
 
   if (!forceResolve && loading) return <Splash />;
   if (!user)                     return <AuthWall />;

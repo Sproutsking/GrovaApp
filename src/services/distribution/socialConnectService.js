@@ -185,7 +185,7 @@ class SocialConnectService {
     const { error: linkError } = await supabase.auth.linkIdentity({
       provider: config.provider,
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/auth/link-callback`,
         scopes: config.scopes,
         queryParams: { prompt: "select_account" },
       },
