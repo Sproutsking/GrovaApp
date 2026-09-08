@@ -306,7 +306,8 @@ const MessageList = ({
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.1);box-shadow:0 0 0 2px rgba(56,189,248,.12),inset 0 1px 0 rgba(255,255,255,.06)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-        .msg-item.post-navigation-target .msg-bubble{box-shadow:0 0 0 3px rgba(156,255,0,.2),0 0 24px rgba(156,255,0,.28)}
+        .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
+        @keyframes postTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.28),0 0 30px rgba(156,255,0,.34)}100%{box-shadow:0 0 0 2px rgba(156,255,0,.12),0 0 18px rgba(156,255,0,.18)}}
 
         .msg-item.me {
           flex-direction: row-reverse;

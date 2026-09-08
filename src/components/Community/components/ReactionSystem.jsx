@@ -16,7 +16,7 @@ import EmojiPanel from "./EmojiPanel";
  */
 
 // ─── Quick reaction emojis ────────────────────────────────────────────────────
-const QUICK_EMOJIS = ["❤️","😂","🔥","👏","😍","🤯","💯","👑","🚀","😭","🥳","💀"];
+const QUICK_EMOJIS = ["❤️","😂","🔥","🟢🔥","🔵🔥","🟣🔥","🟡🔥","👏","😍","🤯","💯","👑","🚀","😭","🥳","💀"];
 
 // ─── ReactionPicker ───────────────────────────────────────────────────────────
 export const ReactionPicker = ({ onSelect, onClose, style = {} }) => {

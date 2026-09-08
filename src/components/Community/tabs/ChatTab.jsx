@@ -393,17 +393,27 @@ const ChatTab = ({
 
   useEffect(() => {
     if (!postNavigationTarget || selectedChannel?.id !== postNavigationTarget.channelId) return;
+    let settleFrame;
+    let element = null;
+    let highlightTimeout;
     const frame = requestAnimationFrame(() => {
-      const element = postNavigationTarget.messageId
-        ? document.querySelector(`[data-message-id="${postNavigationTarget.messageId}"]`)
-        : null;
-      if (!element) return;
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("post-navigation-target");
-      setTimeout(() => element.classList.remove("post-navigation-target"), 1800);
-      setPostNavigationTarget(null);
+      settleFrame = requestAnimationFrame(() => {
+        element = postNavigationTarget.messageId
+          ? document.querySelector(`[data-message-id="${postNavigationTarget.messageId}"]`)
+          : null;
+        if (!element) return;
+        element.classList.add("post-navigation-target");
+        element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+        highlightTimeout = setTimeout(() => element?.classList.remove("post-navigation-target"), 2200);
+        setPostNavigationTarget(null);
+      });
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (settleFrame) cancelAnimationFrame(settleFrame);
+      clearTimeout(highlightTimeout);
+      element?.classList.remove("post-navigation-target");
+    };
   }, [messages, postNavigationTarget, selectedChannel?.id]);
 
   const handleSendMessage = async (announcement = undefined) => {

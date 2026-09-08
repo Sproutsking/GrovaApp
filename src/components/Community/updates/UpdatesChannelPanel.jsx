@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MessageCircle, Radio, RefreshCw, Smile } from "lucide-react";
 import socialUpdatesService from "../../../services/community/socialUpdatesService";
 
-const QUICK_REACTIONS = ["❤️", "🔥", "👏", "😂"];
+const QUICK_REACTIONS = ["❤️", "🔥", "🟢🔥", "🔵🔥", "🟣🔥", "🟡🔥", "👏", "😂"];
 
 export default function UpdatesChannelPanel({ channelId, onReply, canAddReactions = true, userId, focusPostId = null }) {
   const [posts, setPosts] = useState([]);
@@ -25,14 +25,23 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
 
   useEffect(() => {
     if (!focusPostId || !posts.length) return;
+    let element = null;
+    let settleFrame;
     const frame = requestAnimationFrame(() => {
-      const element = document.querySelector(`[data-post-id="${focusPostId}"]`);
-      if (!element) return;
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("post-navigation-target");
-      setTimeout(() => element.classList.remove("post-navigation-target"), 1800);
+      settleFrame = requestAnimationFrame(() => {
+        element = document.querySelector(`[data-post-id="${focusPostId}"]`);
+        if (!element) return;
+        element.classList.add("post-navigation-target");
+        element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      });
     });
-    return () => cancelAnimationFrame(frame);
+    const highlightTimeout = setTimeout(() => element?.classList.remove("post-navigation-target"), 2200);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (settleFrame) cancelAnimationFrame(settleFrame);
+      clearTimeout(highlightTimeout);
+      element?.classList.remove("post-navigation-target");
+    };
   }, [focusPostId, posts]);
 
   return (
@@ -90,7 +99,8 @@ export default function UpdatesChannelPanel({ channelId, onReply, canAddReaction
         .updates-feed { margin-top: 20px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 14px; }
         .updates-empty { padding: 20px 0; color: #718493; font-size: 12px; }
         .updates-post { margin-top: 8px; padding: 13px; border-radius: 11px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
-        .updates-post.post-navigation-target { border-color: #9cff00; box-shadow: 0 0 0 3px rgba(156,255,0,.18), 0 0 24px rgba(156,255,0,.2); }
+        .updates-post.post-navigation-target { border-color: #9cff00; animation: updatesTargetPulse 2.2s cubic-bezier(.22,.61,.36,1); }
+        @keyframes updatesTargetPulse { 0% { box-shadow: 0 0 0 0 rgba(156,255,0,0), 0 0 0 rgba(156,255,0,0); } 35% { box-shadow: 0 0 0 4px rgba(156,255,0,.24), 0 0 30px rgba(156,255,0,.3); } 100% { box-shadow: 0 0 0 2px rgba(156,255,0,.1), 0 0 18px rgba(156,255,0,.16); } }
         .updates-post-source { color: #67e8f9; font-size: 9px; text-transform: uppercase; font-weight: 800; }
         .updates-post h2 { margin: 5px 0; font-size: 14px; }
         .updates-post-meta { display: flex; gap: 8px; color: #7990a1; font-size: 10px; }
