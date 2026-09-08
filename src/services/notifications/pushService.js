@@ -30,7 +30,7 @@ function isFirebaseConfigured() {
 // ── Edge function invoker ───────────────────────────────────────────────────
 async function _invoke(body, functionName = "send-push-fcm") {
   try {
-    const { error } = await supabase.functions.invoke(functionName, { body });
+    const { data, error } = await supabase.functions.invoke(functionName, { body });
     if (error) {
       console.error(
         "[Push] Edge fn error:",
@@ -38,7 +38,11 @@ async function _invoke(body, functionName = "send-push-fcm") {
       );
       return false;
     }
-    return true;
+    if (data?.sent === 0) {
+      console.warn("[Push] Edge function delivered no notifications:", data);
+      return false;
+    }
+    return data?.sent > 0 || data?.ok === true;
   } catch (err) {
     console.error("[Push] _invoke threw:", err.message);
     return false;

@@ -115,6 +115,7 @@ async function signJwt(payload: string, privateKeyPem: string): Promise<string> 
       privateKeyPem
         .replace(/-----BEGIN PRIVATE KEY-----/g, "")
         .replace(/-----END PRIVATE KEY-----/g, "")
+        .replace(/\\n/g, "\n")
         .replace(/\n/g, ""),
     ),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
