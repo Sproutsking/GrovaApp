@@ -42,6 +42,7 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../../services/config/supabase";
+import { isAbortError } from "../../services/shared/abortHandler";
 import sessionRefreshManager from "../../services/auth/sessionRefresh";
 import { hasAdminProfileFlag } from "../../services/auth/adminAccess";
 import { grantSignupEP } from "../../services/economy/epEconomyService";
@@ -565,6 +566,8 @@ export default function AuthProvider({ children }) {
         clearTimeout(timer);
         fetchInFlight.current = false;
         if (!isMounted.current) return;
+
+        if (isAbortError(err)) return;
 
         console.warn(
           `[AuthContext] Profile fetch error (retry ${retryIndex}):`,

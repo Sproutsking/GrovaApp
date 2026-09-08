@@ -22,6 +22,7 @@
 
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./services/shared/abortHandler";
 import GrovaApp from "./App.jsx";
 import { BackNavigationProvider } from "./contexts/BackNavigationContext";
 import DomBackRegistry from "./contexts/DomBackRegistry";
