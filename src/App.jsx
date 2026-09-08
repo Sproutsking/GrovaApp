@@ -1323,6 +1323,8 @@ function AppRouter() {
   const {
     user, profile,
     loading, profileLoading,
+    refreshProfile,
+    signOut,
   } = useAuth();
 
   const [forceResolve,    setForceResolve]    = useState(false);
@@ -1371,7 +1373,24 @@ function AppRouter() {
   if (!forceResolve && loading) return <Splash />;
   if (!user)                     return <AuthWall />;
   if (!profileTimedOut && profileLoading && !profile) return <Splash />;
-  if (!profile) return <Splash />;
+  if (!profile) {
+    return (
+      <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24, background: "var(--bg, #000)", color: "var(--text, #fff)" }}>
+        <div style={{ width: "min(100%, 420px)", textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 10px" }}>We could not load your profile</h2>
+          <p style={{ margin: "0 0 20px", color: "var(--muted, #999)", lineHeight: 1.5 }}>
+            Your session is still active, but the profile request did not finish.
+          </p>
+          <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+            <button type="button" onClick={() => { setProfileTimedOut(false); refreshProfile(); }}>
+              Try again
+            </button>
+            <button type="button" onClick={() => signOut()}>Sign out</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return <MainApp />;
 }
 
