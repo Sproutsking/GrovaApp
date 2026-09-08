@@ -345,6 +345,20 @@ self.addEventListener("push", (event) => {
     };
   }
 
+  // FCM v1 sends notification and data under separate keys. Normalize that
+  // shape to the payload contract used by the rest of this worker.
+  if (payload?.notification || payload?.data) {
+    payload = {
+      ...payload,
+      title: payload.title || payload.notification?.title,
+      body: payload.body || payload.notification?.body,
+      data: {
+        ...(payload.notification || {}),
+        ...(payload.data || {}),
+      },
+    };
+  }
+
   const type = payload?.data?.type || "general";
   console.log("[SW v13] Push received — type:", type);
 
