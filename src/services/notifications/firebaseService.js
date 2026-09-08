@@ -28,6 +28,7 @@ let _messaging = null;
 let _initialized = false;
 let _initPromise = null;
 let _lastUserId = null;
+let _lastError = null;
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -95,6 +96,30 @@ function getMessaging() {
   return null;
 }
 
+function installFirebaseDebug(userId = null) {
+  if (!isBrowser()) return;
+  window.__firebaseDebug = async () => {
+    const messaging = getMessaging();
+    const state = {
+      initialized: _initialized,
+      permission: Notification.permission,
+      fcmToken: await getFcmToken(userId),
+      sdkReady: Boolean(window.firebase),
+      messagingReady: Boolean(messaging),
+      vapidKey: Boolean(VAPID_KEY),
+      config: {
+        projectId: Boolean(FIREBASE_CONFIG.projectId),
+        senderId: Boolean(FIREBASE_CONFIG.messagingSenderId),
+        appId: Boolean(FIREBASE_CONFIG.appId),
+      },
+      serviceWorker: "serviceWorker" in navigator,
+      lastError: _lastError,
+    };
+    console.table([state]);
+    return state;
+  };
+}
+
 async function _readFcmTokenFromSdk() {
   try {
     const messaging = getMessaging();
@@ -135,6 +160,7 @@ async function _waitForFcmToken(userId = null, timeoutMs = 20000) {
 }
 
 async function _ensureInitialized(userId = null) {
+  installFirebaseDebug(userId);
   if (!isSupported()) return false;
 
   if (!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.projectId) {
@@ -160,15 +186,12 @@ async function _ensureInitialized(userId = null) {
         return false;
       }
 
-      // Initialize Firebase app
-      try {
-        const app = firebase.app?.();
-        if (!app) {
-          console.warn("[Firebase] App not initialized");
-          return false;
-        }
-      } catch {
-        // App may already be initialized, continue
+      // Initialize Firebase app if the compat SDK has not initialized one yet.
+      const app = getFirebaseApp();
+      if (!app) {
+        _lastError = "Firebase app initialization returned no app";
+        console.warn("[Firebase] App initialization failed");
+        return false;
       }
 
       // Get messaging instance
@@ -191,8 +214,10 @@ async function _ensureInitialized(userId = null) {
       }
 
       _initialized = true;
+      _lastError = null;
       return true;
     } catch (err) {
+      _lastError = err?.message || String(err);
       console.error("[Firebase] Initialization failed:", err);
       return false;
     }
@@ -239,21 +264,7 @@ export async function enablePushNotifications(userId = null) {
     return false;
   }
 
-  if (typeof window !== "undefined") {
-    window.__firebaseDebug = async () => {
-      const messaging = getMessaging();
-      const state = {
-        initialized: _initialized,
-        permission: Notification.permission,
-        fcmToken: await getFcmToken(userId),
-        sdkReady: Boolean(messaging),
-        vapidKey: Boolean(VAPID_KEY),
-      };
-      console.table([state]);
-      return state;
-    };
-  }
-
+  installFirebaseDebug(userId);
   return true;
 }
 
