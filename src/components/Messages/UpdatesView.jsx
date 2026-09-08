@@ -88,7 +88,8 @@ const fmtCountdown = (exp) => {
 const isNearExp  = (exp) => { const ms = new Date(exp).getTime() - Date.now(); return ms > 0 && ms < 3_600_000; };
 const getSeenKey = (uid) => `uv_seen_${uid}`;
 const cleanSoundName = (n = "") => n.replace(/\.(mp3|wav|ogg|m4a|aac|flac)$/i, "").replace(/[-_]/g, " ").trim();
-const getStatusSoundUrl = (name) => {
+const getStatusSoundUrl = (name, url = null) => {
+  if (url && /^https?:\/\//i.test(url)) return url;
   if (!name) return null;
   if (/^https?:\/\//i.test(name)) return name;
   const base = (process.env.REACT_APP_R2_PUBLIC_URL || "").replace(/\/$/, "");
@@ -434,7 +435,7 @@ const StoryViewer = memo(({ allGroups, startGroupIdx, startStoryIdx, userId, onC
   }, [userId]);
 
   useEffect(() => {
-    const url = getStatusSoundUrl(story?.music);
+    const url = getStatusSoundUrl(story?.music, story?.music_url);
     if (!url) {
       soundRef.current?.pause();
       soundRef.current = null;
@@ -798,13 +799,15 @@ const AddStatusModalInner = memo(({ currentUser, onClose, onAdded, tierLimit, cu
         if (media?.id) row.image_id = media.id;
 
         // Probe first to know which columns to include
-        const [hasMusicCol, hasMediaTypeCol] = await Promise.all([
+        const [hasMusicCol, hasMusicUrlCol, hasMediaTypeCol] = await Promise.all([
           supabase.from("status_updates").select("music").limit(1).then(r => !r.error),
+          supabase.from("status_updates").select("music_url").limit(1).then(r => !r.error),
           supabase.from("status_updates").select("media_type").limit(1).then(r => !r.error),
         ]);
 
         if (hasMediaTypeCol) row.media_type = media ? (media.type||"image") : "text";
         if (hasMusicCol)     row.music      = sound?.name || null;
+        if (hasMusicUrlCol)  row.music_url  = sound?.url || null;
 
         const { error: insertErr } = await supabase.from("status_updates").insert(row);
         if (insertErr) throw insertErr;

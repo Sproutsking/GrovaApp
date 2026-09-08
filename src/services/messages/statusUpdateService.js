@@ -42,6 +42,7 @@ const CACHE_TTL = 60_000;
 // ── Module-level schema probe flag ────────────────────────────────────────────
 // null = not tested yet, true = exists, false = missing
 let _musicColExists   = null;
+let _musicUrlColExists = null;
 let _mediaTypeColExists = null;
 
 async function probeMusicCol() {
@@ -72,9 +73,19 @@ async function probeMediaTypeCol() {
   return _mediaTypeColExists;
 }
 
+async function probeMusicUrlCol() {
+  if (_musicUrlColExists !== null) return _musicUrlColExists;
+  try {
+    const { error } = await supabase.from("status_updates").select("music_url").limit(1);
+    _musicUrlColExists = !error;
+  } catch { _musicUrlColExists = false; }
+  return _musicUrlColExists;
+}
+
 // Reset probes (call after running migrations)
 export function resetSchemaProbes() {
   _musicColExists    = null;
+  _musicUrlColExists = null;
   _mediaTypeColExists = null;
 }
 
@@ -99,7 +110,7 @@ const SELECT_BASE = `
 `;
 
 const SELECT_FULL = `
-  id, text, bg, text_color, image_id, media_type, music,
+  id, text, bg, text_color, image_id, media_type, music, music_url,
   duration_h, views, likes, created_at, expires_at, user_id,
   profile:profiles!status_updates_user_id_fkey(
     id, full_name, username, avatar_id, verified
@@ -217,8 +228,9 @@ class StatusUpdateService {
     await requireAuth();
 
     // Probe schema once per session
-    const [hasMusicCol, hasMediaTypeCol] = await Promise.all([
+    const [hasMusicCol, hasMusicUrlCol, hasMediaTypeCol] = await Promise.all([
       probeMusicCol(),
+      probeMusicUrlCol(),
       probeMediaTypeCol(),
     ]);
 
@@ -240,6 +252,9 @@ class StatusUpdateService {
 
     if (hasMusicCol) {
       row.music = sound?.name || null;
+    }
+    if (hasMusicUrlCol) {
+      row.music_url = sound?.url || null;
     }
 
     if (media?.id) {
@@ -325,7 +340,7 @@ class StatusUpdateService {
             .order("created_at", { ascending: false })
             .range(offset, offset + limit - 1);
           if (e2) throw e2;
-          data = (d2 || []).map((s) => ({ ...s, media_type: s.image_id ? "image" : "text", music: null }));
+          data = (d2 || []).map((s) => ({ ...s, media_type: s.image_id ? "image" : "text", music: null, music_url: null }));
         } else {
           throw err;
         }
