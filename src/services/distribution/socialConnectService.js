@@ -71,6 +71,21 @@ const PLATFORM_CONFIGS = {
     scopes:   "openid profile email w_member_social",
     label:    "LinkedIn",
   },
+  github: {
+    provider: "github",
+    scopes: "read:user user:email",
+    label: "GitHub",
+  },
+  apple: {
+    provider: "apple",
+    scopes: "name email",
+    label: "Apple",
+  },
+  tiktok: {
+    provider: "tiktok",
+    scopes: "user.info.basic",
+    label: "TikTok",
+  },
 };
 
 class SocialConnectService {
@@ -245,6 +260,21 @@ class SocialConnectService {
     });
   }
 
+  async saveProfileLink(userId, platform, profileUrl) {
+    let parsed;
+    try { parsed = new URL(profileUrl); } catch { throw new Error("Enter a valid public profile URL."); }
+    if (!/^https?:$/.test(parsed.protocol)) throw new Error("Enter a valid public profile URL.");
+    const { error } = await supabase.from("connections").upsert({
+      user_id: userId,
+      provider: platform,
+      platform_user_id: parsed.toString(),
+      auth_status: "active",
+      connected_via: "profile_link",
+    }, { onConflict: "user_id,provider" });
+    if (error) throw new Error(`Failed to save profile link: ${error.message}`);
+    return { platform, profileUrl: parsed.toString() };
+  }
+
   // ── Store connection and token in database ────────────────────────────────
   async _storeConnection(userId, platform, platformUserId, accessToken, refreshToken) {
     // Upsert connection record
@@ -336,6 +366,9 @@ class SocialConnectService {
       google:        "google",
       discord:       "discord",
       linkedin_oidc: "linkedin",
+      github:        "github",
+      apple:         "apple",
+      tiktok:        "tiktok",
       // Instagram shares Facebook's OAuth
     };
     return map[provider] || null;

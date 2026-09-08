@@ -373,6 +373,8 @@ const CSS = `
     animation:idPulse 1.7s ease-in-out infinite;
   }
   .idSpin { animation:idSpin .8s linear infinite; }
+  .idProfileLink { color:#93c5fd; text-decoration:none; }
+  .idProfileLink:hover { text-decoration:underline; }
 
   @media(max-width:480px){
     .idRoot { padding:14px 14px 32px; gap:18px; }
@@ -448,6 +450,15 @@ const IdentitySection = ({ userId }) => {
   const handleConnect = async (platform) => {
     setConnecting(platform);
     try {
+      if (PLATFORMS[platform]?.connectionMode === "profile_link") {
+        const existing = connections[platform]?.platform_user_id || "";
+        const profileUrl = window.prompt(`Paste your public ${PLATFORMS[platform].name} profile URL`, existing);
+        if (!profileUrl) return;
+        await socialConnectService.saveProfileLink(userId, platform, profileUrl);
+        showToast("success", `${PLATFORMS[platform]?.name || platform} profile linked.`);
+        await load();
+        return;
+      }
       await socialConnectService.linkPlatform(userId, platform);
       showToast("success", `${PLATFORMS[platform]?.name || platform} connected successfully!`);
       await load();
@@ -635,7 +646,9 @@ const IdentitySection = ({ userId }) => {
                           : <Ic size={11} />
                         }
                         {cfg.label}
-                        {handle && <span className="idHandle">· @{handle}</span>}
+                        {handle && (conn?.connected_via === "profile_link"
+                          ? <a className="idHandle idProfileLink" href={handle} target="_blank" rel="noreferrer">· Open profile</a>
+                          : <span className="idHandle">· @{handle}</span>)}
                       </div>
                       {/* Connect note for unlinked live platforms */}
                       {status === "none" && meta.live && meta.connectNote && (
@@ -668,7 +681,7 @@ const IdentitySection = ({ userId }) => {
                         onClick={() => handleConnect(key)}
                         disabled={isBusy || isConnecting}
                       >
-                        {isConnecting ? "Connecting…" : "Link"}
+                        {isConnecting ? "Connecting…" : meta.connectionMode === "profile_link" ? "Add link" : "Link"}
                       </button>
                     )}
                   </div>
