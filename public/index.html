@@ -53,7 +53,13 @@
       })();
     </script>
 
+    <!-- Firebase FCM compat SDKs. Firebase is the only active web push provider. -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js" defer></script>
+
+    <!-- OneSignal is disabled while Firebase FCM is being finalized.
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    -->
 
     <!-- PWA standalone flags — these are what make it look like a native app -->
     <meta name="mobile-web-app-capable" content="yes" />

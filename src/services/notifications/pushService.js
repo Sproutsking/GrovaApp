@@ -10,6 +10,7 @@ import { supabase } from "../config/supabase";
 import {
   enablePushNotifications as enableFirebase,
   getFcmToken as getFirebaseFcmToken,
+  initializeFirebase,
   isFirebaseSupported,
   requestPermission as requestFirebasePermission,
   unsubscribe as unsubscribeFirebase,
@@ -18,8 +19,11 @@ import {
 // ── Firebase config check ───────────────────────────────────────────────────
 function isFirebaseConfigured() {
   return Boolean(
+    process.env.REACT_APP_FIREBASE_API_KEY &&
     process.env.REACT_APP_FIREBASE_PROJECT_ID &&
-    process.env.REACT_APP_FIREBASE_SENDER_ID
+    process.env.REACT_APP_FIREBASE_SENDER_ID &&
+    process.env.REACT_APP_FIREBASE_APP_ID &&
+    process.env.REACT_APP_FIREBASE_MESSAGING_VAPID_KEY
   );
 }
 
@@ -605,6 +609,10 @@ export const pushService = {
     }
     _userId = userId;
     _started = true;
+
+    if (isFirebaseConfigured()) {
+      await initializeFirebase(userId);
+    }
 
     _attachBridge();
     _attachVisibilityCheck();

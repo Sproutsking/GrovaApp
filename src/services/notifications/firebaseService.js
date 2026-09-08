@@ -18,7 +18,7 @@
 const FIREBASE_CONFIG = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "",
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "",
-  senderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "",
   appId: process.env.REACT_APP_FIREBASE_APP_ID || "",
 };
 
@@ -37,8 +37,7 @@ function isSupported() {
   return (
     isBrowser() &&
     "serviceWorker" in navigator &&
-    "Notification" in window &&
-    "firebase" in window
+    "Notification" in window
   );
 }
 
@@ -70,7 +69,14 @@ function getFirebaseApp() {
   try {
     return window?.firebase?.app?.();
   } catch {
-    return null;
+    try {
+      const firebase = window?.firebase;
+      if (!firebase?.initializeApp) return null;
+      return firebase.initializeApp(FIREBASE_CONFIG);
+    } catch (err) {
+      console.debug("[Firebase] initializeApp failed:", err);
+      return null;
+    }
   }
 }
 
@@ -97,7 +103,11 @@ async function _readFcmTokenFromSdk() {
     // For web: use getToken() with VAPID key
     if (typeof messaging.getToken === "function" && VAPID_KEY) {
       try {
-        const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+        const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+        const token = await messaging.getToken({
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration,
+        });
         if (token) return token;
       } catch (err) {
         console.debug("[Firebase] getToken failed:", err);
