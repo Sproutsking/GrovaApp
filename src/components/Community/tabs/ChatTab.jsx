@@ -392,9 +392,11 @@ const ChatTab = ({
   }, [channels, setSelectedChannel]);
 
   useEffect(() => {
-    if (!postNavigationTarget?.messageId || selectedChannel?.id !== postNavigationTarget.channelId) return;
+    if (!postNavigationTarget || selectedChannel?.id !== postNavigationTarget.channelId) return;
     const frame = requestAnimationFrame(() => {
-      const element = document.querySelector(`[data-message-id="${postNavigationTarget.messageId}"]`);
+      const element = postNavigationTarget.messageId
+        ? document.querySelector(`[data-message-id="${postNavigationTarget.messageId}"]`)
+        : null;
       if (!element) return;
       element.scrollIntoView({ behavior: "smooth", block: "center" });
       element.classList.add("post-navigation-target");

@@ -199,8 +199,9 @@ const MessageList = ({
                       type="button"
                       className="msg-reply-quote announcement post-reply-quote"
                       style={{ "--announcement-color": "#38bdf8" }}
-                      onClick={(event) => { event.stopPropagation(); onPostNavigate?.(postReply); }}
-                      disabled={!postReply.channelId && !postReply.postId}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClickCapture={(event) => { event.preventDefault(); event.stopPropagation(); onPostNavigate?.(postReply); }}
+                      aria-label={`Open original post in #${postReply.channelName}`}
                     >
                       <span>Reply to #{postReply.channelName}</span>
                       <strong>{postReply.title}</strong>
@@ -303,7 +304,8 @@ const MessageList = ({
         .msg-reply-quote.announcement{border-left:none;border-top:2px solid var(--announcement-color, var(--accent));border-radius:8px 8px 6px 6px;padding-top:8px;background:rgba(255,255,255,.025);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
         .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
-        button.msg-reply-quote:disabled{cursor:default}
+        button.msg-reply-quote:hover{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.1);box-shadow:0 0 0 2px rgba(56,189,248,.12),inset 0 1px 0 rgba(255,255,255,.06)}
+        button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
         .msg-item.post-navigation-target .msg-bubble{box-shadow:0 0 0 3px rgba(156,255,0,.2),0 0 24px rgba(156,255,0,.28)}
 
         .msg-item.me {
