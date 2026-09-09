@@ -129,7 +129,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           padding: 3px 9px 3px 7px;
           background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 20px;
+          border-radius: 8px;
           cursor: pointer;
           transition: all 0.18s;
           font-family: inherit;
@@ -158,7 +158,7 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
         /* Announcement pills — bigger & more vibrant */
         .rb-pill.ann-pill {
           padding: 5px 12px 5px 9px;
-          border-radius: 24px;
+          border-radius: 9px;
           background: rgba(255,255,255,0.06);
           border: 1.5px solid rgba(255,255,255,0.1);
         }
@@ -389,7 +389,9 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           width: 100%;
           max-width: 100%;
           min-width: 0;
+          min-height: 30px;
           margin-top: 3px;
+          padding: 0 34px;
           box-sizing: border-box;
         }
         .mra-reaction-row .rb-bar {
@@ -399,9 +401,12 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           margin-top: 0;
           justify-content: flex-start;
           flex-wrap: wrap;
-          padding-right: 32px;
+          min-height: 26px;
+          padding: 0;
         }
-        .mra-reaction-trigger { position: absolute; right: 0; bottom: 0; }
+        .mra-reaction-trigger { position: absolute; right: 0; bottom: 1px; }
+        .msg-item.them .mra-reaction-trigger { left: 0; right: auto; }
+        .msg-item.me .mra-reaction-trigger { left: auto; right: 0; }
         .mra-reaction-row.announcement .rb-bar {
           flex: 0 1 auto;
           min-width: 0;

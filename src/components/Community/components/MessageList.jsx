@@ -299,6 +299,8 @@ const MessageList = ({
         .msg-item.announcement .msg-bubble { width: fit-content; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
+        .msg-item .msg-bubble { min-width: 148px; padding-bottom: 6px; }
+        .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
 
         .msg-item.me .msg-bubble,
         .msg-item.them .msg-bubble {
@@ -426,16 +428,17 @@ const MessageList = ({
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
+        .msg-bubble.them,
+        .msg-bubble.me {
+          background: linear-gradient(145deg, rgba(23,29,26,.98), rgba(11,16,14,.99));
+          border: 1px solid rgba(196,214,202,.14);
+          box-shadow: 0 8px 24px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
+        }
         .msg-bubble.them {
-          background: rgba(18,20,19,.97);
-          border: 1px solid rgba(255,255,255,.08);
           border-bottom-left-radius: 4px;
         }
 
         .msg-bubble.me {
-          background: linear-gradient(135deg, rgba(31,84,34,.98), rgba(17,38,20,.99) 62%, rgba(9,21,13,1));
-          border: 1px solid rgba(156,255,0,.26);
-          box-shadow: 0 6px 18px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
           border-bottom-right-radius: 4px;
         }
 
@@ -483,7 +486,7 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 10px 8px;
-          border-color: transparent transparent rgba(31,84,34,.98) transparent;
+          border-color: transparent transparent rgba(23,29,26,.98) transparent;
           transform: scaleX(-1);
         }
 
@@ -496,7 +499,7 @@ const MessageList = ({
           height: 0;
           border-style: solid;
           border-width: 0 0 11px 9px;
-          border-color: transparent transparent rgba(156,255,0,.26) transparent;
+          border-color: transparent transparent rgba(196,214,202,.14) transparent;
           z-index: -1;
           transform: scaleX(-1);
         }
@@ -530,7 +533,7 @@ const MessageList = ({
           margin-top: 3px;
         }
         .msg-item.me .msg-meta { justify-content: flex-start; }
-        .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:-1px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
+        .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:-1px;padding:6px 11px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
         .announcement-reply-button:hover{background:rgba(156,255,0,.17);border-color:rgba(156,255,0,.55);color:#9cff00;transform:translateY(1px)}
 
         .msg-time {
@@ -555,7 +558,7 @@ const MessageList = ({
           padding: 2px 6px;
           background: var(--surface);
           border: 1px solid var(--surface-border);
-          border-radius: 12px;
+          border-radius: 8px;
           font-size: 11px;
           cursor: pointer;
           transition: all 0.2s;
