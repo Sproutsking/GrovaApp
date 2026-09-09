@@ -142,14 +142,15 @@ const MessageList = ({
           
           // Show tail on first message in a cluster (for both "me" and "them")
           const isAnnouncement = channelType === "announcement";
-          const showTail = !isAnnouncement && (!prev || prev.user_id !== msg.user_id);
-          const announcementMatch = isAnnouncement ? String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
+          const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
+          const isAnnouncementMessage = isAnnouncement || Boolean(announcement);
+          const showTail = !isAnnouncementMessage && (!prev || prev.user_id !== msg.user_id);
           const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
-          const showAvatar = !isMe && showTail;
+          const showAvatar = !isMe && (showTail || isAnnouncementMessage);
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
@@ -164,7 +165,7 @@ const MessageList = ({
             <div
               key={msg.id || msg.tempId || msg._tempId}
               data-message-id={msg.id || msg.tempId || msg._tempId}
-              className={`msg-item ${isMe ? "me" : "them"} ${channelType === "announcement" ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
+              className={`msg-item ${isMe ? "me" : "them"} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onClick={(event) => onMessageClick?.(event, msg)}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
               onTouchStart={(e) => { beginSwipe(e, msg); startLongPress(e, msg); }}
@@ -191,7 +192,7 @@ const MessageList = ({
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
-              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncement}>
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncementMessage}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   {postReply && (
@@ -228,7 +229,7 @@ const MessageList = ({
                   </div>
                   {reactionRow}
                 </div>
-                {isAnnouncement && (
+                {isAnnouncementMessage && (
                   <button
                     type="button"
                     className="announcement-reply-button"
@@ -301,10 +302,10 @@ const MessageList = ({
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
         .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25}
-        .msg-reply-quote.announcement{border-left:none;border-top:2px solid var(--announcement-color, var(--accent));border-radius:8px 8px 6px 6px;padding-top:8px;background:rgba(255,255,255,.025);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+        .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
-        button.msg-reply-quote:hover{border-color:rgba(56,189,248,.7);background:rgba(56,189,248,.1);box-shadow:0 0 0 2px rgba(56,189,248,.12),inset 0 1px 0 rgba(255,255,255,.06)}
+        button.msg-reply-quote:hover{border-color:rgba(56,189,248,.8);background:linear-gradient(135deg,rgba(56,189,248,.2),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(56,189,248,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
         @keyframes postTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.28),0 0 30px rgba(156,255,0,.34)}100%{box-shadow:0 0 0 2px rgba(156,255,0,.12),0 0 18px rgba(156,255,0,.18)}}
@@ -521,8 +522,8 @@ const MessageList = ({
           margin-top: 3px;
         }
         .msg-item.me .msg-meta { justify-content: flex-start; }
-        .announcement-reply-button{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;margin-top:-1px;padding:3px 7px;border:1px solid rgba(156,255,0,.22);border-top:0;border-radius:0 0 6px 6px;background:rgba(156,255,0,.07);color:#bfe7a8;font:700 10px/1 inherit;cursor:pointer;transition:all .15s ease}
-        .announcement-reply-button:hover{background:rgba(156,255,0,.14);border-color:rgba(156,255,0,.42);color:#9cff00}
+        .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:-1px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
+        .announcement-reply-button:hover{background:rgba(156,255,0,.17);border-color:rgba(156,255,0,.55);color:#9cff00;transform:translateY(1px)}
 
         .msg-time {
           font-size: 10px;

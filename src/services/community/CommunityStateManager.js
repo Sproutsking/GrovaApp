@@ -32,6 +32,16 @@ class CommunityStateManager {
     this.emit();
   }
 
+  updateMessage(channelId, messageId, updates) {
+    const messages = this.state.messagesByChannel.get(channelId) || [];
+    const index = messages.findIndex((message) => message.id === messageId);
+    if (index === -1) return;
+    const next = [...messages];
+    next[index] = { ...next[index], ...updates };
+    this.state.messagesByChannel.set(channelId, next);
+    this.emit();
+  }
+
   replaceMessage(channelId, tempId, realMessage) {
     let messages = this.state.messagesByChannel.get(channelId) || [];
     

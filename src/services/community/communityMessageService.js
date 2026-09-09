@@ -209,7 +209,15 @@ class CommunityMessageService {
         if (payload.new?.deleted_at) {
           communityState.removeMessage(channelId, payload.new.id);
           callback({ ...payload.new, _deleted: true });
+          return;
         }
+        communityState.updateMessage(channelId, payload.new.id, {
+          reactions: payload.new.reactions,
+          edited: payload.new.edited,
+          content: payload.new.content,
+          updated_at: payload.new.updated_at,
+        });
+        callback(payload.new);
       })
       .subscribe();
 
@@ -396,7 +404,7 @@ class CommunityMessageService {
             const current = Array.from(typingUsers.values());
             communityState.setTyping(channelId, current);
             callback(current);
-          }, 3000);
+          }, 5000);
           typingTimeouts.set(userId, timeout);
         } else {
           typingUsers.delete(userId);

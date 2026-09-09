@@ -91,8 +91,6 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
   }, [onToggle]);
 
   const entries = Object.entries(reactions).filter(([, v]) => v.count > 0);
-  if (!entries.length) return null;
-
   return (
     <div ref={barRef} className={`rb-bar ${isAnnouncement ? "announcement" : ""}`}>
       {entries.map(([emoji, data]) => {
@@ -278,25 +276,21 @@ export const ReactionBurst = ({ emoji, x, y }) => {
 export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
+  const [burst, setBurst] = useState(null);
   const areaRef = useRef(null);
   const triggerRef = useRef(null);
-  const hoverTimeout = useRef(null);
-
-  const handleMouseEnter = () => {
-    if (isAnnouncement) return;
-    hoverTimeout.current = setTimeout(() => setShowPicker(true), 400);
-  };
-  const handleMouseLeave = () => {
-    clearTimeout(hoverTimeout.current);
-    setShowPicker(false);
-  };
 
   const handleAddReaction = (emoji) => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: Date.now() });
+      window.setTimeout(() => setBurst(null), 800);
+    }
     onToggle?.(message.id, emoji);
     setShowPicker(false);
   };
 
-  const toggleAnnouncementPicker = () => {
+  const togglePicker = () => {
     if (showPicker) {
       setShowPicker(false);
       return;
@@ -319,12 +313,12 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         onToggle={(emoji) => onToggle?.(message.id, emoji)}
         isAnnouncement={isAnnouncement}
       />
-      {isAnnouncement && (
+      {(
         <button
           type="button"
           ref={triggerRef}
           className="mra-reaction-trigger"
-          onClick={toggleAnnouncementPicker}
+          onClick={togglePicker}
           aria-label="Add a reaction"
           title="Add a reaction"
         >
@@ -338,22 +332,14 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
     <div
       ref={areaRef}
       className={`mra-wrapper ${isAnnouncement ? "mra-ann" : ""}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       {typeof children === "function" ? children({ reactionRow }) : children}
 
-      {/* Hover reaction trigger for regular messages */}
-      {showPicker && !isAnnouncement && (
-        <div className="mra-picker-wrap">
-          <ReactionPicker onSelect={handleAddReaction} onClose={() => setShowPicker(false)} />
-        </div>
-      )}
-
-      {showPicker && isAnnouncement && ReactDOM.createPortal(
+      {showPicker && ReactDOM.createPortal(
         <EmojiPanel style={pickerStyle} managePosition={false} onSelect={handleAddReaction} onClose={() => setShowPicker(false)} />,
         document.body,
       )}
+      {burst && <ReactionBurst key={burst.id} emoji={burst.emoji} x={burst.x} y={burst.y} />}
 
       <style>{`
         .mra-wrapper {

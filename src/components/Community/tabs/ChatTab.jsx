@@ -93,6 +93,7 @@ const ChatTab = ({
   const unsubscribeChannel = useRef(null);
   const unsubscribeTyping = useRef(null);
   const typingTimeout = useRef(null);
+  const typingHeartbeat = useRef(null);
   const isAtBottom = useRef(true);
   const channelsRequestRef = useRef(0);
   const messagesRequestRef = useRef(0);
@@ -336,13 +337,18 @@ const ChatTab = ({
           currentUser?.username || currentUser?.full_name || ""
         );
       }
-      clearTimeout(typingTimeout.current);
-      typingTimeout.current = setTimeout(stopTyping, 3000);
+      clearInterval(typingHeartbeat.current);
+      typingHeartbeat.current = setInterval(() => {
+        communityMessageService.sendTyping(selectedChannel?.id, true, currentUser?.username || currentUser?.full_name || "");
+      }, 1500);
     } else {
       if (isTyping) stopTyping();
     }
-    return () => clearTimeout(typingTimeout.current);
-  }, [messageInput, selectedChannel?.id]);
+    return () => {
+      clearInterval(typingHeartbeat.current);
+      clearTimeout(typingTimeout.current);
+    };
+  }, [messageInput, selectedChannel?.id, currentUser?.username, currentUser?.full_name]);
 
   const loadMessages = async () => {
     if (!selectedChannel?.id) return;
@@ -377,6 +383,7 @@ const ChatTab = ({
       setIsTyping(false);
       communityMessageService.sendTyping(selectedChannel?.id, false);
     }
+    clearInterval(typingHeartbeat.current);
     clearTimeout(typingTimeout.current);
   };
 
@@ -778,7 +785,7 @@ const ChatTab = ({
             }}
             onNavigate={onNavigate}
             onPostNavigate={navigateToPost}
-            channelType={replyTo ? "text" : selectedChannel?.type}
+              channelType={selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
               if (!canAddReactions) return;
               const msg = messages.find((m) => m.id === msgId);
@@ -838,7 +845,7 @@ const ChatTab = ({
             members={members}
             roles={roles}
             channels={channels}
-            channelType={replyTo ? "text" : selectedChannel?.type}
+            channelType={selectedChannel?.type}
             canManageAnnouncement={canManageChannels}
           />
         </div>
