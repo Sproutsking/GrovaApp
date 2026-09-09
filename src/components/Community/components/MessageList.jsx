@@ -337,7 +337,7 @@ const MessageList = ({
         .msg-avatar {
           width: 38px;
           height: 38px;
-          clip-path: polygon(50% 0%, 88% 16%, 100% 50%, 88% 84%, 50% 100%, 12% 84%, 0% 50%, 12% 16%);
+          border-radius: 50%;
           border: 2px solid var(--accent-border);
           overflow: visible;
           flex-shrink: 0;
