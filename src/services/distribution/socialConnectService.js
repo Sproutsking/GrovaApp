@@ -35,6 +35,7 @@ import { supabase } from "../config/supabase";
 
 const POPUP_W = 520;
 const POPUP_H = 620;
+const PENDING_LINK_KEY = "xeevia_pending_identity_link";
 
 // ── Platform OAuth configs ───────────────────────────────────────────────────
 // These are standard OAuth scopes needed for posting
@@ -182,15 +183,20 @@ class SocialConnectService {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user || user.id !== userId) throw new Error("Your session expired. Sign in again before linking an account.");
     if (!supabase.auth.linkIdentity) throw new Error("Account linking is unavailable in this Supabase client.");
+    const nonce = crypto.randomUUID();
+    sessionStorage.setItem(PENDING_LINK_KEY, JSON.stringify({ userId, platform, nonce, startedAt: Date.now() }));
     const { error: linkError } = await supabase.auth.linkIdentity({
       provider: config.provider,
       options: {
         redirectTo: `${window.location.origin}/auth/link-callback`,
         scopes: config.scopes,
-        queryParams: { prompt: "select_account" },
+        queryParams: { prompt: "select_account", xeevia_link_nonce: nonce },
       },
     });
-    if (linkError) throw linkError;
+    if (linkError) {
+      sessionStorage.removeItem(PENDING_LINK_KEY);
+      throw linkError;
+    }
     return { redirecting: true, platform };
 
     /* Legacy popup flow retained below for reference during migration. */

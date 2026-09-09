@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../services/config/supabase";
 
+const PENDING_LINK_KEY = "xeevia_pending_identity_link";
+
 const STYLES = `
   @keyframes linkCbSpin { to { transform: rotate(360deg); } }
   @keyframes linkCbFade { from { opacity: 0; } to { opacity: 1; } }
@@ -37,16 +39,41 @@ export default function LinkIdentityCallback() {
 
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError) throw userError;
+        const pendingRaw = sessionStorage.getItem(PENDING_LINK_KEY);
+        const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
+        if (!pending || pending.userId !== userData?.user?.id || Date.now() - pending.startedAt > 10 * 60 * 1000) {
+          throw new Error("This identity link expired or belongs to a different Xeevia account. Start the connection again.");
+        }
         const latestIdentity = userData?.user?.identities?.at(-1);
         if (!latestIdentity) throw new Error("The provider identity could not be confirmed.");
 
+        const expectedProvider = pending.platform === "x" ? "twitter" : pending.platform;
+        if (latestIdentity.provider !== expectedProvider && !(pending.platform === "instagram" && latestIdentity.provider === "facebook")) {
+          throw new Error("The returned provider did not match the identity you selected.");
+        }
+
+        const platformUserId = latestIdentity.identity_data?.user_name
+          || latestIdentity.identity_data?.preferred_username
+          || latestIdentity.identity_data?.sub
+          || latestIdentity.id;
+        const { error: connectionError } = await supabase.from("connections").upsert({
+          user_id: userData.user.id,
+          provider: pending.platform,
+          platform_user_id: platformUserId,
+          auth_status: "active",
+          connected_via: "supabase_identity",
+        }, { onConflict: "user_id,provider" });
+        if (connectionError) throw new Error(`Identity verified, but connection tracking failed: ${connectionError.message}`);
+        sessionStorage.removeItem(PENDING_LINK_KEY);
+
         if (!mounted) return;
         setStatus("success");
-        setMessage(`${latestIdentity.provider} is now connected to this Xeevia account.`);
+        setMessage(`${pending.platform} is now connected to this Xeevia account.`);
         window.history.replaceState({}, "", "/");
         window.setTimeout(() => { window.location.href = "/"; }, 650);
       } catch (error) {
         if (!mounted) return;
+        sessionStorage.removeItem(PENDING_LINK_KEY);
         setStatus("error");
         setMessage(error?.message || "The identity could not be connected.");
         window.setTimeout(() => { window.location.href = "/"; }, 2600);
