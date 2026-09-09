@@ -67,9 +67,17 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Globe, CheckCircle, AlertCircle, Clock,
   RefreshCw, BarChart2, Shield, Zap, Layers, X,
-  Github, Linkedin, Facebook, Instagram, Youtube, Twitch,
+  Github,
 } from "lucide-react";
-import { SiGoogle, SiApple, SiDiscord, SiReddit, SiX, SiTiktok, SiTelegram } from "react-icons/si";
+import {
+  FaGoogle, FaApple, FaFacebookF, FaThreads, FaPinterestP, FaSpotify,
+  FaLinkedinIn, FaYoutube, FaTwitch, FaTelegramPlane, FaXTwitter,
+  FaInstagram, FaDiscord, FaRedditAlien, FaSteam, FaXbox,
+  FaKickstarter,
+} from "react-icons/fa6";
+import {
+  SiTiktok, SiSubstack, SiPlaystation, SiEpicgames, SiRoblox,
+} from "react-icons/si";
 import { supabase } from "../../services/config/supabase";
 import socialConnectService from "../../services/distribution/socialConnectService";
 import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegistry";
@@ -79,20 +87,30 @@ import { CONNECTOR_DEFINITIONS } from "../../services/connectors/connectorRegist
 // platforms are onboarded; anything missing quietly falls back to the
 // platform's letter monogram (meta.letter) so nothing renders blank.
 const PLATFORM_ICONS = {
-  google:    SiGoogle,
-  apple:     SiApple,
-  github:    Github,
-  linkedin:  Linkedin,
-  discord:   SiDiscord,
-  reddit:    SiReddit,
-  facebook:  Facebook,
-  instagram: Instagram,
-  youtube:   Youtube,
-  twitch:    Twitch,
-  twitter:   SiX,
-  x:         SiX,
-  tiktok:    SiTiktok,
-  telegram:  SiTelegram,
+  google:     FaGoogle,
+  apple:      FaApple,
+  github:     Github,
+  linkedin:   FaLinkedinIn,
+  discord:    FaDiscord,
+  reddit:     FaRedditAlien,
+  facebook:   FaFacebookF,
+  instagram:  FaInstagram,
+  youtube:    FaYoutube,
+  twitch:     FaTwitch,
+  twitter:    FaXTwitter,
+  x:          FaXTwitter,
+  tiktok:     SiTiktok,
+  telegram:   FaTelegramPlane,
+  threads:    FaThreads,
+  pinterest:  FaPinterestP,
+  spotify:    FaSpotify,
+  substack:   SiSubstack,
+  kick:       FaKickstarter,
+  steam:      FaSteam,
+  xbox:       FaXbox,
+  playstation: SiPlaystation,
+  epic:       SiEpicgames,
+  roblox:     SiRoblox,
 };
 
 // Safe import
@@ -461,7 +479,11 @@ const IdentitySection = ({ userId }) => {
       }
       const result = await socialConnectService.linkPlatform(userId, platform);
       if (result?.redirecting) return;
-      showToast("success", `${PLATFORMS[platform]?.name || platform} connected successfully!`);
+      if (result?.alreadyConnected) {
+        showToast("success", `${PLATFORMS[platform]?.name || platform} is already connected to this account.`);
+      } else {
+        showToast("success", `${PLATFORMS[platform]?.name || platform} connected successfully!`);
+      }
       await load();
     } catch (err) {
       const msg = err?.message || "Connection failed";
@@ -636,7 +658,11 @@ const IdentitySection = ({ userId }) => {
                       borderColor: meta.border,
                       color: meta.color,
                     }}>
-                      {meta.letter}
+                      {(() => {
+                        const Icon = PLATFORM_ICONS[key] || null;
+                        if (!Icon) return meta.letter;
+                        return <Icon size={16} />;
+                      })()}
                     </div>
 
                     {/* Body */}
