@@ -510,8 +510,6 @@ const MainApp = memo(() => {
     };
 
     loadWalletAndAvatar(user.id, profile).catch(() => {});
-    scheduleTabPrefetch();
-
     setTimeout(() => {
       try {
         supabase

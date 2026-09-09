@@ -202,10 +202,32 @@ class AppErrorBoundary extends React.Component {
     const stack = String(error?.stack ?? "");
     if (isExtensionError(msg) || isExtensionError(stack)) return;
     if (/AbortError/i.test(msg) || /signal is aborted/i.test(msg)) return;
+    if (/ChunkLoadError|Loading (CSS )?chunk|Failed to fetch dynamically imported module/i.test(`${msg} ${stack}`)) {
+      this.recoverFromStaleBuild();
+      return;
+    }
     if (process.env.NODE_ENV === "development") {
       console.error("[AppErrorBoundary] Caught:", error, info);
     }
   }
+
+  recoverFromStaleBuild = async () => {
+    const recoveryKey = "xv_chunk_recovery_once";
+    try {
+      if (sessionStorage.getItem(recoveryKey) === "1") return;
+      sessionStorage.setItem(recoveryKey, "1");
+      const registrations = await navigator.serviceWorker?.getRegistrations?.() || [];
+      await Promise.all(registrations.map((registration) => registration.unregister().catch(() => false)));
+      if (window.caches) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+    } catch {
+      // A hard reload is still useful when storage or service workers are unavailable.
+    } finally {
+      window.location.reload();
+    }
+  };
 
   handleRetry = () => {
     if (!this.state.retried) {

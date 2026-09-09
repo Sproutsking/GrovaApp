@@ -572,14 +572,15 @@ function setCooldown(url) {
 
 // ── [P1] Parallel proxy race — Promise.any picks first valid XML ───────────────
 async function fetchXml(url) {
+  const browserUrl = String(url).replace(/^http:/i, "https:");
   async function tryFetch(target) {
     try {
       const res = await fetch(target, {
         signal: AbortSignal.timeout(10_000),
         headers: {
           Accept: "application/json, application/xml, text/xml, */*",
-          "Cache-Control": "no-cache",
         },
+        cache: "no-store",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const ct = res.headers.get("content-type") || "";
@@ -595,24 +596,17 @@ async function fetchXml(url) {
   }
 
   // Try direct URL first, then public proxies, then server-side proxy as last resort.
-  const direct = await tryFetch(url);
+  const direct = await tryFetch(browserUrl);
   if (direct) return direct;
 
   const publicProxies = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
   ];
-  const controller = new AbortController();
-  const proxyPromises = publicProxies.map(async (target) => {
-    if (controller.signal.aborted) return null;
+  for (const target of publicProxies) {
     const result = await tryFetch(target);
-    if (result) controller.abort();
-    return result;
-  });
-
-  const settled = await Promise.all(proxyPromises);
-  const fallback = settled.find((result) => result);
-  if (fallback) return fallback;
+    if (result) return result;
+  }
 
   return tryFetch(
     `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/proxy-fetch?url=${encodeURIComponent(url)}`,

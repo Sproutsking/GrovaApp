@@ -532,20 +532,23 @@ class NewsRealtimeEngine {
   async _fetchAllSources() {
     if (!this._running) return;
     const all = [...this._prio, ...this._other];
-    const BATCH = 15;
+    const BATCH = 4;
     for (let i = 0; i < all.length; i += BATCH) {
       if (!this._running) break;
       const results = await Promise.allSettled(all.slice(i, i + BATCH).map((s) => this._fetchOne(s)));
       const fresh = [];
       for (const r of results) { if (r.status === "fulfilled") fresh.push(...r.value); }
       if (fresh.length) { this._emit("newArticles", fresh); upsertArticles(fresh).catch(() => {}); }
-      if (i + BATCH < all.length) await new Promise((r) => setTimeout(r, 500));
+      if (i + BATCH < all.length) await new Promise((r) => setTimeout(r, 1200));
     }
   }
 
   async _fetchBucket(sources) {
     if (!this._running) return;
-    const results = await Promise.allSettled(sources.map((s) => this._fetchOne(s)));
+    const results = [];
+    for (let i = 0; i < sources.length; i += 4) {
+      results.push(...await Promise.allSettled(sources.slice(i, i + 4).map((s) => this._fetchOne(s))));
+    }
     const fresh = [];
     for (const r of results) { if (r.status === "fulfilled") fresh.push(...r.value); }
     if (fresh.length) { this._emit("newArticles", fresh); upsertArticles(fresh).catch(() => {}); }
@@ -569,7 +572,10 @@ class NewsRealtimeEngine {
 
   async _fetchAllVideos() {
     if (!this._running) return;
-    const results = await Promise.allSettled(YT_CHANNELS.map(fetchYtChannel));
+    const results = [];
+    for (let i = 0; i < YT_CHANNELS.length; i += 3) {
+      results.push(...await Promise.allSettled(YT_CHANNELS.slice(i, i + 3).map(fetchYtChannel)));
+    }
     const fresh = [];
     for (const r of results) {
       if (r.status !== "fulfilled") continue;
