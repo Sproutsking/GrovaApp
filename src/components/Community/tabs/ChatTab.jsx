@@ -804,7 +804,6 @@ const ChatTab = ({
                 nextReactions[emoji] = entry;
               }
               setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: nextReactions } : item));
-              communityState.updateMessage(selectedChannel?.id, msgId, { reactions: nextReactions });
               try {
                 if (hasReacted) {
                   await communityMessageService.removeReaction(msgId, userId, emoji);
@@ -813,7 +812,6 @@ const ChatTab = ({
                 }
               } catch (error) {
                 setMessages((current) => current.map((item) => item.id === msgId ? { ...item, reactions: previousReactions } : item));
-                communityState.updateMessage(selectedChannel?.id, msgId, { reactions: previousReactions });
                 console.error("Error toggling reaction:", error);
               }
             }}

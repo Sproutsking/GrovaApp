@@ -150,7 +150,7 @@ const MessageList = ({
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
-          const showAvatar = isAnnouncementMessage || (!isMe && showTail);
+          const showAvatar = !isMe && (showTail || isAnnouncementMessage);
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
@@ -199,7 +199,7 @@ const MessageList = ({
                     <button
                       type="button"
                       className="msg-reply-quote announcement post-reply-quote"
-                      style={{ "--announcement-color": "#9cff00" }}
+                      style={{ "--announcement-color": "#38bdf8" }}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClickCapture={(event) => { event.preventDefault(); event.stopPropagation(); onPostNavigate?.(postReply); }}
                       aria-label={`Open original post in #${postReply.channelName}`}
@@ -218,7 +218,7 @@ const MessageList = ({
                   {!isMe && showAvatar && (
                     <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                       {msg.user?.full_name || msg.user?.username || "Unknown"}
-                      {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user.subscription_tier === "silver" ? "◇" : msg.user.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
+                      {(msg.user?.verified || hasBoostedProfile) && <span className="msg-verified" aria-label="Verified account">✓</span>}
                     </button>
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
@@ -302,17 +302,16 @@ const MessageList = ({
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
         .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25}
-        .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+        .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
-        button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
+        button.msg-reply-quote:hover{border-color:rgba(56,189,248,.8);background:linear-gradient(135deg,rgba(56,189,248,.2),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(56,189,248,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
         @keyframes postTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.28),0 0 30px rgba(156,255,0,.34)}100%{box-shadow:0 0 0 2px rgba(156,255,0,.12),0 0 18px rgba(156,255,0,.18)}}
 
         .msg-item.me {
           flex-direction: row-reverse;
-          justify-content: flex-start;
         }
 
         .msg-item.optimistic {
@@ -337,7 +336,7 @@ const MessageList = ({
         .msg-avatar {
           width: 38px;
           height: 38px;
-          clip-path: polygon(50% 0%, 88% 16%, 100% 50%, 88% 84%, 50% 100%, 12% 84%, 0% 50%, 12% 16%);
+          border-radius: 50%;
           border: 2px solid var(--accent-border);
           overflow: visible;
           flex-shrink: 0;
@@ -363,7 +362,6 @@ const MessageList = ({
           line-height: 1;
           vertical-align: middle;
         }
-        .msg-verified.tier-silver{background:linear-gradient(135deg,#f8fafc,#64748b);color:#17202a}.msg-verified.tier-gold{background:linear-gradient(135deg,#fff7ae,#d97706);color:#3f2500}.msg-verified.tier-diamond{background:linear-gradient(135deg,#e0f2fe,#22d3ee 52%,#a78bfa);color:#10243b}
 
         .msg-avatar img {
           width: 100%;
@@ -412,7 +410,7 @@ const MessageList = ({
         .msg-item.announcement .msg-meta { margin-top: 10px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
-        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: min(70%, max-content); max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
+        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; }
         .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
         .msg-item.them .mra-wrapper { margin-right: auto; }
         .msg-item.me .mra-wrapper { margin-left: auto; }
@@ -567,11 +565,6 @@ const MessageList = ({
           border-color: var(--accent-border-strong);
           color: var(--accent);
         }
-
-        .msg-item.them .rb-pill{background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.14);color:#c5ceca}
-        .msg-item.them .rb-pill:hover,.msg-item.them .rb-pill.reacted{background:rgba(255,255,255,.1);border-color:rgba(210,220,215,.35);color:#eef5ef}
-        .msg-item.me .rb-pill{background:rgba(156,255,0,.08);border-color:rgba(156,255,0,.24);color:#cfeabf}
-        .msg-item.me .rb-pill:hover,.msg-item.me .rb-pill.reacted{background:rgba(156,255,0,.15);border-color:rgba(156,255,0,.45);color:#eaffd8}
 
         @media (max-width: 768px) {
           .msg-avatar {
