@@ -37,6 +37,55 @@ const POPUP_W = 520;
 const POPUP_H = 620;
 const PENDING_LINK_KEY = "xeevia_pending_identity_link";
 
+export function resolveProviderLinkState({ platform, identities = [], connections = {} } = {}) {
+  const safeIdentities = Array.isArray(identities) ? identities : [];
+  const currentConn = connections?.[platform] || null;
+
+  const matchesProvider = (providerName) => {
+    if (!providerName) return false;
+    if (providerName === platform) return true;
+    if (platform === "x" && providerName === "twitter") return true;
+    if (platform === "instagram" && providerName === "facebook") return true;
+    return false;
+  };
+
+  const matchedIdentity = safeIdentities.find((identity) => matchesProvider(identity?.provider));
+  if (matchedIdentity) {
+    const platformUserId = matchedIdentity.identity_data?.user_name
+      || matchedIdentity.identity_data?.preferred_username
+      || matchedIdentity.identity_data?.email
+      || matchedIdentity.identity_data?.sub
+      || matchedIdentity.id
+      || null;
+
+    return {
+      alreadyConnected: true,
+      source: currentConn?.auth_status === "active" ? "connections_table" : "supabase_identity",
+      connection: currentConn || null,
+      platformUserId,
+      identity: matchedIdentity,
+    };
+  }
+
+  if (currentConn && currentConn.auth_status === "active") {
+    return {
+      alreadyConnected: true,
+      source: "connections_table",
+      connection: currentConn,
+      platformUserId: currentConn.platform_user_id || null,
+      identity: null,
+    };
+  }
+
+  return {
+    alreadyConnected: false,
+    source: null,
+    connection: currentConn || null,
+    platformUserId: currentConn?.platform_user_id || null,
+    identity: null,
+  };
+}
+
 // ── Platform OAuth configs ───────────────────────────────────────────────────
 // These are standard OAuth scopes needed for posting
 const PLATFORM_CONFIGS = {
@@ -177,11 +226,30 @@ class SocialConnectService {
     const config = PLATFORM_CONFIGS[platform];
     if (!config) throw new Error(`Unknown platform: ${platform}`);
 
-    // Link to the currently authenticated Supabase user. A separate popup
-    // sign-in creates or selects another auth session and cannot attach the
-    // provider identity to this account.
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user || user.id !== userId) throw new Error("Your session expired. Sign in again before linking an account.");
+
+    const connectionMap = await this.getConnections(userId);
+    const linkedState = resolveProviderLinkState({
+      platform,
+      identities: user.identities || [],
+      connections: connectionMap,
+    });
+
+    if (linkedState.alreadyConnected) {
+      const platformUserId = linkedState.platformUserId || connectionMap[platform]?.platform_user_id || user.email || user.id;
+      await supabase
+        .from("connections")
+        .upsert({
+          user_id: userId,
+          provider: platform,
+          platform_user_id: platformUserId,
+          auth_status: "active",
+          connected_via: linkedState.source || "supabase_identity",
+        }, { onConflict: "user_id,provider" });
+      return { redirecting: false, alreadyConnected: true, platform };
+    }
+
     if (!supabase.auth.linkIdentity) throw new Error("Account linking is unavailable in this Supabase client.");
     const nonce = crypto.randomUUID();
     sessionStorage.setItem(PENDING_LINK_KEY, JSON.stringify({ userId, platform, nonce, startedAt: Date.now() }));
@@ -195,6 +263,9 @@ class SocialConnectService {
     });
     if (linkError) {
       sessionStorage.removeItem(PENDING_LINK_KEY);
+      if (/manual linking is disabled|linking.*disabled|provider.*already.*connected/i.test(linkError.message || "")) {
+        throw new Error("This provider is already connected to this account or provider linking is disabled in the current project setup.");
+      }
       throw linkError;
     }
     return { redirecting: true, platform };
@@ -347,21 +418,47 @@ class SocialConnectService {
 
   // ── Get all connections for a user ────────────────────────────────────────
   async getConnections(userId) {
+    let map = {};
     try {
       const { data, error } = await supabase
         .from("connections")
         .select("provider, platform_user_id, auth_status, connected_via")
         .eq("user_id", userId);
 
-      if (error?.code === "42P01") return {};
-      if (error) return {};
-
-      const map = {};
-      (data || []).forEach(c => { map[c.provider] = c; });
-      return map;
+      if (!error) (data || []).forEach(c => { map[c.provider] = c; });
     } catch {
-      return {};
+      // Auth identities below remain a reliable fallback when the optional
+      // distribution table is unavailable or temporarily unreachable.
     }
+
+    // Supabase Auth is the authoritative source for sign-in identities. Merge
+    // it after the table read so Google/X sign-in never appears unlinked just
+    // because connection persistence lagged or a migration is missing.
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id === userId) {
+        for (const identity of user.identities || []) {
+          const platform = this._providerToPlatform(identity.provider);
+          if (!platform) continue;
+          const platformUserId = identity.identity_data?.user_name
+            || identity.identity_data?.preferred_username
+            || identity.identity_data?.email
+            || identity.identity_data?.sub
+            || identity.id;
+          map[platform] = {
+            ...map[platform],
+            provider: platform,
+            platform_user_id: map[platform]?.platform_user_id || platformUserId,
+            auth_status: map[platform]?.auth_status === "revoked" ? "revoked" : "active",
+            connected_via: map[platform]?.connected_via || "supabase_identity",
+          };
+        }
+      }
+    } catch {
+      // Keep any database-backed connections if auth metadata is unavailable.
+    }
+
+    return map;
   }
 
   // ── Map Supabase provider names to our platform keys ─────────────────────
