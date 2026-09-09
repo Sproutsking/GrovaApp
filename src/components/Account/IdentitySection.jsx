@@ -71,7 +71,7 @@ import {
 } from "lucide-react";
 import {
   FaGoogle, FaApple, FaFacebookF, FaThreads, FaPinterestP, FaSpotify,
-  FaLinkedinIn, FaYoutube, FaTwitch, FaTelegramPlane, FaXTwitter,
+  FaLinkedinIn, FaYoutube, FaTwitch, FaTelegram, FaXTwitter,
   FaInstagram, FaDiscord, FaRedditAlien, FaSteam, FaXbox,
   FaKickstarter,
 } from "react-icons/fa6";
@@ -100,7 +100,7 @@ const PLATFORM_ICONS = {
   twitter:    FaXTwitter,
   x:          FaXTwitter,
   tiktok:     SiTiktok,
-  telegram:   FaTelegramPlane,
+  telegram:   FaTelegram,
   threads:    FaThreads,
   pinterest:  FaPinterestP,
   spotify:    FaSpotify,
