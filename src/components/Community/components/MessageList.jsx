@@ -293,6 +293,12 @@ const MessageList = ({
           position: relative;
           transition: transform 0.18s ease-out;
         }
+        .msg-item.announcement { align-items: flex-start; gap: 8px; }
+        .msg-item.announcement .msg-avatar { margin-top: 2px; }
+        .msg-item.announcement .mra-wrapper { width: fit-content; max-width: calc(100% - 48px); }
+        .msg-item.announcement .msg-bubble { width: fit-content; max-width: 100%; }
+        .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
+        .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
 
         .msg-item.me .msg-bubble,
         .msg-item.them .msg-bubble {
@@ -416,7 +422,7 @@ const MessageList = ({
         .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
         .msg-item.them .mra-wrapper { margin-right: auto; }
         .msg-item.me .mra-wrapper { margin-left: auto; }
-        .mra-ann { align-items: flex-start; width: min(92%, 760px); max-width: 92%; }
+        .mra-ann { align-items: flex-start; width: fit-content; max-width: min(760px, calc(100vw - 92px)); }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
