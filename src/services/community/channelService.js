@@ -167,17 +167,30 @@ class ChannelService {
 
   async deleteChannel(channelId) {
     try {
-      const { data: deleted, error } = await supabase.rpc("delete_community_channel", {
-        p_channel_id: channelId,
-      });
-
-      if (error) throw error;
-
-      const { data: channel } = await supabase
+      const { data: channel, error: channelError } = await supabase
         .from("community_channels")
         .select("community_id")
         .eq("id", channelId)
         .maybeSingle();
+      if (channelError) throw channelError;
+      if (!channel) throw new Error("Channel was not found or is already deleted.");
+
+      const { data: deleted, error } = await supabase.rpc("delete_community_channel", {
+        p_channel_id: channelId,
+      });
+
+      if (error) {
+        const missingRpc = error.code === "PGRST202" || error.code === "42883" || /delete_community_channel|function.*does not exist/i.test(error.message || "");
+        if (!missingRpc) throw error;
+        const { error: fallbackError } = await supabase
+          .from("community_channels")
+          .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", channelId)
+          .is("deleted_at", null);
+        if (fallbackError) throw fallbackError;
+      } else if (deleted === false) {
+        throw new Error("You do not have permission to delete this channel.");
+      }
 
       if (channel?.community_id) {
         this.cache.delete(`channels:${channel.community_id}`);
