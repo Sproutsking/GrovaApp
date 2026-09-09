@@ -642,8 +642,9 @@ export default function AuthProvider({ children }) {
       }
     };
 
-    const hasPKCECode = new URLSearchParams(window.location.search).has("code");
-    const pkceCode = new URLSearchParams(window.location.search).get("code");
+    const isIdentityCallback = window.location.pathname === "/auth/link-callback";
+    const hasPKCECode = !isIdentityCallback && new URLSearchParams(window.location.search).has("code");
+    const pkceCode = hasPKCECode ? new URLSearchParams(window.location.search).get("code") : null;
 
     // ── PKCE retry logic: OAuth callback can take 600-1500ms ─────────────────
     const waitForPKCESession = async () => {

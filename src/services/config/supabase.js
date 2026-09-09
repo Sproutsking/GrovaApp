@@ -125,7 +125,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
     flowType: "pkce",
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    // AuthContext and the dedicated identity callback exchange PKCE codes
+    // exactly once. Letting Supabase auto-exchange as well races that call.
+    detectSessionInUrl: false,
   },
 });
 

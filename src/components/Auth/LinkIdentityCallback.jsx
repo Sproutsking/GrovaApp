@@ -25,6 +25,12 @@ export default function LinkIdentityCallback() {
           throw new Error(decodedError);
         }
 
+        const code = params.get("code");
+        if (!code) throw new Error("The provider callback did not include an authorization code.");
+        const { data: exchanged, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) throw exchangeError;
+        if (!exchanged?.session) throw new Error("The provider session could not be established.");
+
         const { data, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!data?.session) throw new Error("Your session expired. Sign in again before connecting an identity.");

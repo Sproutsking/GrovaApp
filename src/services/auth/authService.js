@@ -83,7 +83,8 @@ class AuthService {
       return await this._signInWithPopup(provider, options);
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
+    const supabaseProvider = provider === "x" ? "twitter" : provider;
+    const { error } = await supabase.auth.signInWithOAuth({ provider: supabaseProvider, options });
     if (error) throw error;
     return true;
   }
@@ -146,7 +147,7 @@ class AuthService {
             window.removeEventListener("message", onMessage);
             if (popup && !popup.closed) popup.close();
             console.warn('[AuthService] popup signin timed out — falling back to redirect');
-            const { error } = await supabase.auth.signInWithOAuth({ provider, options });
+            const { error } = await supabase.auth.signInWithOAuth({ provider: provider === "x" ? "twitter" : provider, options });
             if (error) return reject(error);
             resolve(true);
           } catch (e) {
