@@ -192,14 +192,20 @@ const NewsTab = React.forwardRef(function NewsTab(
   }));
 
   useEffect(()=>{
+    if (!isActive) return undefined;
     const engine=getNewsEngine(); engine.start();
-    if(prefetchedSync){engine.seedSeen(prefetchedSync,[]);engine.seedInFeed(prefetchedSync);setInitialDone(true);setFetching(false);return;}
-    setFetching(true);
-    const {promise}=getPrefetchedArticles(); let cancelled=false;
-    (promise||Promise.resolve([])).then(data=>{if(cancelled)return;setFetching(false);setInitialDone(true);if(data.length){engine.seedSeen(data,[]);engine.seedInFeed(data);setArticles(data);}});
-    const timer=setTimeout(()=>setInitialDone(true),5000);
-    return()=>{cancelled=true;clearTimeout(timer);};
-  },[]); // eslint-disable-line
+    let cancelled=false;
+    let timer=null;
+    if(prefetchedSync){
+      engine.seedSeen(prefetchedSync,[]);engine.seedInFeed(prefetchedSync);setInitialDone(true);setFetching(false);
+    } else {
+      setFetching(true);
+      const {promise}=getPrefetchedArticles();
+      (promise||Promise.resolve([])).then(data=>{if(cancelled)return;setFetching(false);setInitialDone(true);if(data.length){engine.seedSeen(data,[]);engine.seedInFeed(data);setArticles(data);}});
+      timer=setTimeout(()=>setInitialDone(true),5000);
+    }
+    return()=>{cancelled=true;clearTimeout(timer);engine.stop();};
+  },[isActive]);
   useEffect(() => {
     if (!articles?.length) return;
     articles.slice(0, 12).forEach((item) => {
