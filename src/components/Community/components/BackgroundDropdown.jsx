@@ -1,6 +1,11 @@
 // components/Community/components/BackgroundDropdown.jsx - FIXED PREVIEWS
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { Palette, Check } from "lucide-react";
+import communityBgClassicWeave from "../../Messages/Assets/backgrounds/classic-weave.svg";
+import communityBgNovaWeave from "../../Messages/Assets/backgrounds/nova-weave.svg";
+import communityBgHexaGlow from "../../Messages/Assets/backgrounds/download (49).jpg";
+import communityBgHexaWave from "../../Messages/Assets/backgrounds/download (48).jpg";
+import communityBgHexaNight from "../../Messages/Assets/backgrounds/download (47).jpg";
 
 const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
   const dropdownRef = useRef(null);
@@ -19,21 +24,51 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
   }, [show, onClose]);
 
   const themes = [
-    { 
-      id: "minimal", 
-      name: "Pure Dark", 
+    {
+      id: "classic_weave",
+      name: "Classic Weave",
+      icon: "🌀",
+      preview: `linear-gradient(180deg, rgba(18, 20, 26, 0.34), rgba(18, 20, 26, 0.18)), url(${communityBgClassicWeave})`
+    },
+    {
+      id: "nova_weave",
+      name: "Nova Weave",
+      icon: "✦",
+      preview: `linear-gradient(180deg, rgba(18, 20, 26, 0.34), rgba(18, 20, 26, 0.18)), url(${communityBgNovaWeave})`
+    },
+    {
+      id: "aurora",
+      name: "Hexa Glow",
+      icon: "🌈",
+      preview: `linear-gradient(180deg, rgba(18, 20, 26, 0.34), rgba(18, 20, 26, 0.18)), url(${communityBgHexaGlow})`
+    },
+    {
+      id: "xeevia_weave",
+      name: "Hexa Wave",
+      icon: "✦",
+      preview: `linear-gradient(180deg, rgba(18, 20, 26, 0.34), rgba(18, 20, 26, 0.18)), url(${communityBgHexaWave})`
+    },
+    {
+      id: "constellation",
+      name: "Hexa Night",
+      icon: "✨",
+      preview: `linear-gradient(180deg, rgba(18, 20, 26, 0.34), rgba(18, 20, 26, 0.18)), url(${communityBgHexaNight})`
+    },
+    {
+      id: "minimal",
+      name: "Pure Dark",
       icon: "⬛",
       preview: "linear-gradient(135deg, #000000 0%, #0a0a0a 100%)"
     },
-    { 
-      id: "matrix", 
-      name: "Matrix Rain", 
+    {
+      id: "matrix",
+      name: "Matrix Rain",
       icon: "⚡",
       preview: "repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0, 255, 0, 0.08) 40px, rgba(0, 255, 0, 0.08) 41px), #000000"
     },
-    { 
-      id: "lime", 
-      name: "Lime Glow", 
+    {
+      id: "lime",
+      name: "Lime Glow",
       icon: "💚",
       preview: "radial-gradient(circle at 30% 50%, rgba(156,255,0,0.2) 0%, transparent 60%), linear-gradient(135deg, #000000 0%, #0a0a0a 100%)"
     },
@@ -57,8 +92,8 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
               onClose();
             }}
           >
-            <div 
-              className="bg-preview" 
+            <div
+              className="bg-preview"
               style={{ background: theme.preview }}
             />
             <span className="bg-name">{theme.name}</span>

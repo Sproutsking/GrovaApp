@@ -410,8 +410,21 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
   const convId=conversation.id; const otherUser=conversation.otherUser;
   const otherBoost = useUserBoostTier(otherUser?.id);
-  const bgs=backgroundService.getBackgrounds(); const activeBg=bgs[selectedBg];
-  const bgStyle=backgroundService.getBgStyle(selectedBg); const isDefault=activeBg?.isDefault===true;
+  const bgs=backgroundService.getBackgrounds();
+  const activeBg = bgs.find((bg) => bg.id === selectedBg) || bgs[0];
+  const bgStyle=backgroundService.getBgStyle(selectedBg);
+  const isDefault=activeBg?.isDefault===true;
+  const logoMarks = [
+    { top: "8%", left: "8%", size: 32, opacity: 0.22 },
+    { top: "18%", left: "58%", size: 26, opacity: 0.18 },
+    { top: "30%", left: "20%", size: 20, opacity: 0.14 },
+    { top: "36%", left: "82%", size: 24, opacity: 0.16 },
+    { top: "52%", left: "12%", size: 28, opacity: 0.18 },
+    { top: "60%", left: "68%", size: 18, opacity: 0.12 },
+    { top: "72%", left: "38%", size: 30, opacity: 0.18 },
+    { top: "82%", left: "78%", size: 22, opacity: 0.14 },
+    { top: "88%", left: "18%", size: 16, opacity: 0.11 },
+  ];
 
   const scrollToBottom=(b="smooth")=>{endRef.current?.scrollIntoView({behavior:b});setShowJump(false);};
   const handleScroll=()=>{
@@ -574,8 +587,8 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           <div className="cv-overlay" onClick={()=>setShowBgPicker(false)}/>
           <div className="cv-bgpicker">
             {bgs.map((b,i)=>(
-              <button key={i} className={`cv-bgopt${selectedBg===i?" cv-bgopt-on":""}`}
-                onClick={()=>{backgroundService.setConversationBackground(convId,i);setSelectedBg(i);setShowBgPicker(false);}}>
+              <button key={b.id || i} className={`cv-bgopt${selectedBg===b.id?" cv-bgopt-on":""}`}
+                onClick={()=>{backgroundService.setConversationBackground(convId,b.id);setSelectedBg(b.id);setShowBgPicker(false);}}>
                 {b.isDefault?<div className="cv-bgprev cv-bgprev-grid"/>:b.image?<img src={b.image} alt={b.name}/>:<div className="cv-bgprev" style={{background:b.value}}/>}
                 <span>{b.name}</span>
               </button>
@@ -586,6 +599,21 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
       {/* Messages */}
       <div className={`cv-msgs${isDefault?" cv-msgs-default":""}`} style={bgStyle} ref={containerRef} onScroll={handleScroll}>
+        <div className="cv-logo-markers" aria-hidden="true">
+          {logoMarks.map((mark, index) => (
+            <div
+              key={index}
+              className="cv-logo-mark"
+              style={{
+                top: mark.top,
+                left: mark.left,
+                width: mark.size,
+                height: mark.size,
+                opacity: mark.opacity,
+              }}
+            />
+          ))}
+        </div>
         <div className="cv-msgs-overlay"/>
         <div className="cv-msgs-content">
           {loading&&<div className="cv-loading"><div className="cv-spinner"/></div>}
@@ -672,8 +700,10 @@ export const CV_CSS = `
 .cv-bgprev-grid{background:repeating-linear-gradient(90deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),repeating-linear-gradient(0deg,rgba(132,204,22,.25) 0px,rgba(132,204,22,.25) 1px,transparent 1px,transparent 8px),#000;border:1px solid rgba(132,204,22,.3);}
 .cv-msgs{flex:1;overflow-y:auto;position:relative;-webkit-overflow-scrolling:touch;}
 .cv-msgs::-webkit-scrollbar{width:3px;}.cv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
-.cv-msgs-overlay{position:absolute;inset:0;background:rgba(255,255,255,.08);pointer-events:none;z-index:0;}
-.cv-msgs-default .cv-msgs-overlay{background:rgba(255,255,255,.04);}
+.cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.28);pointer-events:none;z-index:0;}
+.cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.18);} 
+.cv-logo-markers{position:absolute;inset:0;pointer-events:none;z-index:0;}
+.cv-logo-mark{position:absolute;border-radius:16px;background-image:url('/logo192.png');background-size:cover;background-position:center;filter:brightness(1.05) saturate(1.15) contrast(1.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.18);}
 .cv-msgs-content{position:relative;z-index:1;padding:10px 14px 16px;display:flex;flex-direction:column;gap:1px;}
 .cv-loading{display:flex;justify-content:center;padding:40px;}
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}

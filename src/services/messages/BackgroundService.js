@@ -8,6 +8,10 @@ import bg_tech     from "../../components/Messages/Assets/tech-preview.jpg";
 import bg_security from "../../components/Messages/Assets/security-preview.jpg";
 import bg_minimal  from "../../components/Messages/Assets/minimal-preview.png";
 
+// ── Design reference backgrounds ────────────────────────────────────────
+import bg_classic_weave    from "../../components/Messages/Assets/backgrounds/classic-weave.svg";
+import bg_nova_weave       from "../../components/Messages/Assets/backgrounds/nova-weave.svg";
+
 // ── Newly added ───────────────────────────────────────────────────────────
 import bg_abstract         from "../../components/Messages/Assets/Abstract_Background.png";
 import bg_abstract_neon    from "../../components/Messages/Assets/Abstract_Background_neon.png";
@@ -35,7 +39,9 @@ import bg_wallpaper_glow   from "../../components/Messages/Assets/wallpaper_glow
 import bg_geg              from "../../components/Messages/Assets/geg_wallpaper.jpeg";
 import bg_heart_love       from "../../components/Messages/Assets/heart_love_wallpaper.jpeg";
 import bg_please_follow    from "../../components/Messages/Assets/please_follow_wallpaper.jpg";
-import bg_xeevia_weave     from "../../components/Messages/Assets/xeevia/xeevia-weave.svg";
+import bg_hexa_glow        from "../../components/Messages/Assets/backgrounds/download (49).jpg";
+import bg_hexa_wave        from "../../components/Messages/Assets/backgrounds/download (48).jpg";
+import bg_hexa_night       from "../../components/Messages/Assets/backgrounds/download (47).jpg";
 
 // ── Default "Grid" background ─────────────────────────────────────────────
 // Pure CSS using multiple layered backgrounds — no image file needed.
@@ -102,77 +108,118 @@ export const DOT_OVERLAY_CSS = `
 class BackgroundService {
   constructor() {
     this.backgrounds = [
-      // ── Xeevia brand backgrounds ──────────────────────────────────────
-      { name: "Xeevia Weave", value: null, image: bg_xeevia_weave, isDefault: true },
+      // ── Design reference backgrounds — keep the ref-based defaults first ──
+      {
+        id: "classic_weave",
+        name: "Classic Weave",
+        value: null,
+        image: bg_classic_weave,
+      },
+      {
+        id: "nova_weave",
+        name: "Nova Weave",
+        value: null,
+        image: bg_nova_weave,
+      },
 
       // ── Default — the stunning grid ───────────────────────────────────
       {
-        name:      "Grid",
-        value:     null,
-        image:     null,
-        isDefault: true,  // ← ChatView checks this flag to apply dot overlay
+        id: "grid",
+        name: "Grid",
+        value: null,
+        image: null,
+        isDefault: true,
       },
 
       // ── Solid / gradient ──────────────────────────────────────────────
       {
-        name:  "Midnight",
+        id: "midnight",
+        name: "Midnight",
         value: "linear-gradient(160deg, #000000 0%, #0d0d1f 60%, #050510 100%)",
         image: null,
       },
       {
-        name:  "Obsidian",
+        id: "obsidian",
+        name: "Obsidian",
         value: "linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a0a 100%)",
         image: null,
       },
 
       // ── Original preview images ───────────────────────────────────────
-      { name: "Matrix",    value: null, image: bg_matrix   },
-      { name: "Space",     value: null, image: bg_space     },
-      { name: "Neon",      value: null, image: bg_neon      },
-      { name: "Tech",      value: null, image: bg_tech      },
-      { name: "Security",  value: null, image: bg_security  },
-      { name: "Minimal",   value: null, image: bg_minimal   },
+      { id: "matrix",    name: "Matrix",    value: null, image: bg_matrix   },
+      { id: "space",     name: "Space",     value: null, image: bg_space     },
+      { id: "neon",      name: "Neon",      value: null, image: bg_neon      },
+      { id: "tech",      name: "Tech",      value: null, image: bg_tech      },
+      { id: "security",  name: "Security",  value: null, image: bg_security  },
+      { id: "minimal",   name: "Minimal",   value: null, image: bg_minimal   },
+
+      // ── Re-ordered shared artwork ───────────────────────────────────────
+      { id: "hexa_glow",     name: "Hexa Glow",     value: null, image: bg_hexa_glow  },
+      { id: "hexa_wave",     name: "Hexa Wave",     value: null, image: bg_hexa_wave  },
+      { id: "hexa_night",    name: "Hexa Night",    value: null, image: bg_hexa_night },
 
       // ── Abstract & patterns ───────────────────────────────────────────
-      { name: "Abstract",       value: null, image: bg_abstract      },
-      { name: "Abstract Neon",  value: null, image: bg_abstract_neon },
-      { name: "Abstract BRY",   value: null, image: bg_abstract_bry  },
-      { name: "Wallpaper",      value: null, image: bg_abstract_wall },
-      { name: "Black Beauty",   value: null, image: bg_black_beauty  },
-      { name: "BY Elegant",     value: null, image: bg_by_elegant    },
-      { name: "Write Up",       value: null, image: bg_write_up      },
-      { name: "Dice",           value: null, image: bg_dice          },
-      { name: "Time",           value: null, image: bg_time          },
+      { id: "abstract",       name: "Abstract",       value: null, image: bg_abstract      },
+      { id: "abstract_neon",  name: "Abstract Neon",  value: null, image: bg_abstract_neon },
+      { id: "abstract_bry",   name: "Abstract BRY",   value: null, image: bg_abstract_bry  },
+      { id: "wallpaper",      name: "Wallpaper",      value: null, image: bg_abstract_wall },
+      { id: "black_beauty",   name: "Black Beauty",   value: null, image: bg_black_beauty  },
+      { id: "by_elegant",     name: "BY Elegant",     value: null, image: bg_by_elegant    },
+      { id: "write_up",       name: "Write Up",       value: null, image: bg_write_up      },
+      { id: "dice",           name: "Dice",           value: null, image: bg_dice          },
+      { id: "time",           name: "Time",           value: null, image: bg_time          },
 
       // ── Characters & art ──────────────────────────────────────────────
-      { name: "Cartoon",        value: null, image: bg_cartoon       },
-      { name: "Mafian",         value: null, image: bg_mafian        },
-      { name: "Maxed Man",      value: null, image: bg_maxed_man     },
-      { name: "Bad Boy",        value: null, image: bg_bd_boy        },
-      { name: "Bunny",          value: null, image: bg_bunney        },
-      { name: "Sweet Girl",     value: null, image: bg_sweet_girl    },
-      { name: "Me",             value: null, image: bg_me            },
-      { name: "Niga",           value: null, image: bg_niga          },
-      { name: "Please Follow",  value: null, image: bg_please_follow },
-      { name: "Hi!",            value: null, image: bg_hi            },
-      { name: "Love It",        value: null, image: bg_love_it       },
-      { name: "Wallpaper Glow", value: null, image: bg_wallpaper_glow },
-      { name: "Geg",            value: null, image: bg_geg           },
-      { name: "Heart Love",    value: null, image: bg_heart_love    },
+      { id: "cartoon",        name: "Cartoon",        value: null, image: bg_cartoon       },
+      { id: "mafian",         name: "Mafian",         value: null, image: bg_mafian        },
+      { id: "maxed_man",      name: "Maxed Man",      value: null, image: bg_maxed_man     },
+      { id: "bd_boy",         name: "Bad Boy",        value: null, image: bg_bd_boy        },
+      { id: "bunny",          name: "Bunny",          value: null, image: bg_bunney        },
+      { id: "sweet_girl",     name: "Sweet Girl",     value: null, image: bg_sweet_girl    },
+      { id: "me",             name: "Me",             value: null, image: bg_me            },
+      { id: "niga",           name: "Niga",           value: null, image: bg_niga          },
+      { id: "please_follow",  name: "Please Follow",  value: null, image: bg_please_follow },
+      { id: "hi",             name: "Hi!",            value: null, image: bg_hi            },
+      { id: "love_it",        name: "Love It",        value: null, image: bg_love_it       },
+      { id: "wallpaper_glow", name: "Wallpaper Glow", value: null, image: bg_wallpaper_glow },
+      { id: "geg",            name: "Geg",            value: null, image: bg_geg           },
+      { id: "heart_love",     name: "Heart Love",     value: null, image: bg_heart_love    },
 
       // ── Emoji / fun ───────────────────────────────────────────────────
-      { name: "Emoji Faces",    value: null, image: bg_emoji_faced    },
-      { name: "Emoji B&O",      value: null, image: bg_emoji_faced_bo },
-      { name: "Pink Emoji",     value: null, image: bg_pink_faced     },
+      { id: "emoji_faces",    name: "Emoji Faces",    value: null, image: bg_emoji_faced    },
+      { id: "emoji_bo",       name: "Emoji B&O",      value: null, image: bg_emoji_faced_bo },
+      { id: "pink_emoji",     name: "Pink Emoji",     value: null, image: bg_pink_faced     },
     ];
 
     this.conversationBackgrounds = this.loadConversationBackgrounds();
   }
 
+  normalizeBackgroundSelection(selection) {
+    if (typeof selection === "string") {
+      const byId = this.backgrounds.find((bg) => bg.id === selection);
+      if (byId) return byId.id;
+    }
+
+    if (typeof selection === "number" && this.backgrounds[selection]) {
+      return this.backgrounds[selection].id;
+    }
+
+    return this.backgrounds[0]?.id || "classic_weave";
+  }
+
   loadConversationBackgrounds() {
     try {
       const stored = localStorage.getItem("chat_backgrounds");
-      return stored ? JSON.parse(stored) : {};
+      if (!stored) return {};
+
+      const parsed = JSON.parse(stored);
+      const normalized = {};
+
+      Object.entries(parsed).forEach(([conversationId, selection]) => {
+        normalized[conversationId] = this.normalizeBackgroundSelection(selection);
+      });
+
+      return normalized;
     } catch {
       return {};
     }
@@ -194,30 +241,31 @@ class BackgroundService {
   }
 
   getConversationBackground(conversationId) {
-    return this.conversationBackgrounds[conversationId] ?? 0;
+    return this.conversationBackgrounds[conversationId] || this.backgrounds[0]?.id || "classic_weave";
   }
 
-  setConversationBackground(conversationId, backgroundIndex) {
-    this.conversationBackgrounds[conversationId] = backgroundIndex;
+  setConversationBackground(conversationId, backgroundSelection) {
+    const normalizedSelection = this.normalizeBackgroundSelection(backgroundSelection);
+    this.conversationBackgrounds[conversationId] = normalizedSelection;
     this.saveConversationBackgrounds();
   }
 
-  // Returns the CSS style object for a given background index
-  // Use this in ChatView instead of computing bgStyle manually
-  getBgStyle(index) {
-    const bg = this.backgrounds[index];
+  // Returns the CSS style object for a given background index or ID.
+  getBgStyle(selection) {
+    const normalizedSelection = this.normalizeBackgroundSelection(selection);
+    const bg = this.backgrounds.find((item) => item.id === normalizedSelection) || this.backgrounds[0];
     if (!bg) return { background: "#000" };
     if (bg.isDefault) return getDefaultBgStyle();
     if (bg.image) {
       return {
-        backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)), url(${bg.image})`,
+        backgroundImage: `linear-gradient(180deg, rgba(2, 4, 8, 0.62) 0%, rgba(2, 4, 8, 0.52) 35%, rgba(2, 4, 8, 0.74) 100%), url(${bg.image})`,
         backgroundSize: "cover",
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
-        backgroundColor: "#f4f6f5",
+        backgroundColor: "#020202",
       };
     }
-    if (bg.value)  return { background: bg.value };
+    if (bg.value) return { background: bg.value };
     return { background: "#000" };
   }
 }

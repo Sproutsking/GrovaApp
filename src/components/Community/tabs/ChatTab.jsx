@@ -73,7 +73,7 @@ const ChatTab = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
-  const [backgroundId, setBackgroundId] = useState("minimal");
+  const [backgroundId, setBackgroundId] = useState("classic_weave");
   const [isMobile, setIsMobile] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
@@ -88,6 +88,7 @@ const ChatTab = ({
   const [postNavigationTarget, setPostNavigationTarget] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
+  const communityBackgroundStyle = backgroundTheme?.style || { background: "linear-gradient(135deg, #000000 0%, #0a0a0a 100%)" };
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const unsubscribeChannel = useRef(null);
@@ -747,7 +748,7 @@ const ChatTab = ({
           </div>
         )}
 
-        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll}>
+        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={communityBackgroundStyle}>
           {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
             messages={messages}
             pendingMessages={[]}

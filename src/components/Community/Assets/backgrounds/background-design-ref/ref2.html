@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Xeevia — BG Weave (Nova)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0; height:100%; background:#000;}
+  body{
+    display:flex; align-items:center; justify-content:center;
+    font-family:system-ui,sans-serif; min-height:100vh; padding:28px;
+  }
+  .frame{
+    --ink:   #EAEFDD;   /* base line — soft sage-white */
+    --gold:  #E7C57C;   /* coin / crown — creator economy warmth */
+    --teal:  #7FB6A6;   /* star / globe — reach & clarity */
+    --blue:  #8FAAD1;   /* share / lightning — motion & signal */
+    --coral: #E3A98C;   /* heart / play — energy, kept dusty (not clay/terracotta) */
+    --bg-top: #0C0F09;
+    --bg-bottom: #000000;
+    position:relative; width:412px; height:840px; border-radius:34px; overflow:hidden;
+    border:1px solid #141414; box-shadow:0 40px 100px rgba(0,0,0,.7);
+    background: radial-gradient(120% 90% at 22% 6%, var(--bg-top) 0%, var(--bg-bottom) 60%);
+  }
+  .weave-svg{
+    position:absolute; inset:0; width:100%; height:100%; display:block;
+    color: var(--ink);
+  }
+  .sweep{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    background: linear-gradient(122deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,0) 34%);
+    mix-blend-mode: soft-light;
+  }
+  .grain{
+    position:absolute; inset:0; z-index:4;
+    mix-blend-mode:overlay; opacity:.4; pointer-events:none;
+  }
+  .label{
+    position:absolute; left:20px; bottom:18px; z-index:5;
+    font-size:10.5px; letter-spacing:.14em; color:rgba(234,239,221,.42); text-transform:uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <svg class="weave-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 412 840" preserveAspectRatio="xMidYMid slice">
+    <defs>
+
+      <!-- Hand-drawn wobble for the crisp midground layer -->
+      <filter id="sketch" x="-30%" y="-30%" width="160%" height="160%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02 0.03" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+
+      <!-- Ambient blur for the large background icon layer and glow blobs -->
+      <filter id="ambientBlur" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="9"/>
+      </filter>
+      <filter id="blobBlur" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="34"/>
+      </filter>
+
+      <!-- Soft colored halo behind each jewel icon -->
+      <filter id="glowGold" x="-80%" y="-80%" width="260%" height="260%">
+        <feDropShadow dx="0" dy="0" stdDeviation="4.5" flood-color="#E7C57C" flood-opacity="0.55"/>
+      </filter>
+      <filter id="glowTeal" x="-80%" y="-80%" width="260%" height="260%">
+        <feDropShadow dx="0" dy="0" stdDeviation="4.5" flood-color="#7FB6A6" flood-opacity="0.55"/>
+      </filter>
+      <filter id="glowBlue" x="-80%" y="-80%" width="260%" height="260%">
+        <feDropShadow dx="0" dy="0" stdDeviation="4.5" flood-color="#8FAAD1" flood-opacity="0.55"/>
+      </filter>
+      <filter id="glowCoral" x="-80%" y="-80%" width="260%" height="260%">
+        <feDropShadow dx="0" dy="0" stdDeviation="4.5" flood-color="#E3A98C" flood-opacity="0.55"/>
+      </filter>
+
+      <!-- Paper grain -->
+      <filter id="grainFilter" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/>
+      </filter>
+
+      <!-- ============ ICON LIBRARY — 14 hand-drawn glyphs, 100x100 local units, currentColor so jewels can be recolored via <use> ============ -->
+      <g id="ic-camera" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20,38 Q19,34 23,33 L30,33 Q33,26 39,26 L61,26 Q67,26 70,33 L77,33 Q81,34 80,38 L81,68 Q81,73 76,73 L24,73 Q19,73 20,68 Z"/>
+        <circle cx="50" cy="52" r="14"/>
+        <circle cx="50" cy="52" r="5"/>
+        <path d="M64,40 L70,40"/>
+      </g>
+
+      <g id="ic-heart" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M50,78 C30,62 16,49 16,35 C16,24 25,17 34,20 C41,22 46,29 50,35 C54,29 59,22 66,20 C75,17 84,24 84,35 C84,49 70,62 50,78 Z"/>
+      </g>
+
+      <g id="ic-star" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M50,14 L59,38 L85,40 L64,56 L71,81 L50,67 L29,81 L36,56 L15,40 L41,38 Z"/>
+      </g>
+
+      <g id="ic-chat" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18,25 Q15,25 15,29 L15,58 Q15,62 19,62 L34,62 L34,76 L50,62 L79,62 Q83,62 83,58 L83,29 Q83,25 79,25 Z"/>
+        <circle cx="34" cy="43" r="3.6" fill="currentColor" stroke="none"/>
+        <circle cx="49" cy="43" r="3.6" fill="currentColor" stroke="none"/>
+        <circle cx="64" cy="43" r="3.6" fill="currentColor" stroke="none"/>
+      </g>
+
+      <g id="ic-play" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="50" cy="50" r="34"/>
+        <path d="M42,34 L68,50 L42,66 Z" fill="currentColor" stroke="none"/>
+      </g>
+
+      <g id="ic-coin" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="50" cy="50" r="30"/>
+        <circle cx="50" cy="50" r="21"/>
+        <path d="M43,58 Q40,58 40,53 Q40,48 46,47 Q52,46 52,42 Q52,38 47,38 Q43,38 42,41"/>
+        <path d="M50,34 L50,38 M50,62 L50,66"/>
+      </g>
+
+      <g id="ic-megaphone" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22,46 L46,36 L46,64 L22,54 Z"/>
+        <path d="M46,36 L74,26 L74,74 L46,64"/>
+        <path d="M28,54 L32,68 Q33,71 36,70 L40,68 Q42,67 41,64 L38,54"/>
+        <path d="M78,42 Q84,50 78,58"/>
+      </g>
+
+      <g id="ic-note" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M46,68 Q38,68 38,61 Q38,54 46,54 Q50,54 52,57 L52,26 L74,20 L74,49"/>
+        <ellipse cx="66" cy="52" rx="10" ry="7" transform="rotate(-8 66 52)"/>
+      </g>
+
+      <g id="ic-share" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="26" cy="50" r="10"/>
+        <circle cx="74" cy="26" r="10"/>
+        <circle cx="74" cy="74" r="10"/>
+        <path d="M35,45 L65,30"/>
+        <path d="M35,55 L65,70"/>
+      </g>
+
+      <g id="ic-bookmark" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M28,18 L72,18 Q76,18 76,22 L76,82 L50,64 L24,82 L24,22 Q24,18 28,18 Z"/>
+      </g>
+
+      <g id="ic-bolt" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M56,14 L28,54 L48,54 L42,86 L74,42 L52,42 Z"/>
+      </g>
+
+      <g id="ic-thumb" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22,46 L36,46 L36,80 L22,80 Z"/>
+        <path d="M36,48 L48,20 Q52,12 58,16 Q62,19 60,26 L54,44 L74,44 Q80,44 79,50 L73,74 Q71,80 64,80 L36,80"/>
+      </g>
+
+      <g id="ic-crown" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18,72 L24,36 L40,54 L50,28 L60,54 L76,36 L82,72 Z"/>
+        <path d="M20,72 L80,72"/>
+      </g>
+
+      <g id="ic-globe" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="50" cy="50" r="32"/>
+        <path d="M18,50 L82,50"/>
+        <path d="M50,18 Q66,50 50,82 Q34,50 50,18 Z"/>
+      </g>
+
+      <!-- ============ Layer 1 — large, soft, blurred icons (ambient depth) ============ -->
+      <pattern id="bgPattern" width="460" height="460" patternUnits="userSpaceOnUse" patternTransform="rotate(-5)">
+        <use href="#ic-crown" transform="translate(60,60) scale(1.3) rotate(-8)" opacity="0.07"/>
+        <use href="#ic-globe" transform="translate(300,90) scale(1.1) rotate(6)" opacity="0.06"/>
+        <use href="#ic-star"  transform="translate(140,280) scale(1.4) rotate(-12)" opacity="0.08"/>
+        <use href="#ic-coin"  transform="translate(380,320) scale(1.2) rotate(10)" opacity="0.06"/>
+        <use href="#ic-note"  transform="translate(40,360) scale(1.0) rotate(14)" opacity="0.07"/>
+      </pattern>
+
+      <!-- ============ Layer 2 — crisp hand-drawn weave, dense + varied (the main texture) ============ -->
+      <pattern id="midPattern" width="210" height="210" patternUnits="userSpaceOnUse" patternTransform="rotate(3)">
+        <use href="#ic-camera"    transform="translate(12,14)  scale(0.20) rotate(-10)" opacity="0.22" filter="url(#sketch)"/>
+        <use href="#ic-heart"     transform="translate(78,6)   scale(0.18) rotate(10)"  opacity="0.20" filter="url(#sketch)"/>
+        <use href="#ic-star"      transform="translate(148,16) scale(0.17) rotate(-8)"  opacity="0.19" filter="url(#sketch)"/>
+        <use href="#ic-bookmark"  transform="translate(196,58) scale(0.15) rotate(14)"  opacity="0.16" filter="url(#sketch)"/>
+        <use href="#ic-chat"      transform="translate(18,66)  scale(0.20) rotate(6)"   opacity="0.22" filter="url(#sketch)"/>
+        <use href="#ic-bolt"      transform="translate(84,60)  scale(0.17) rotate(-14)" opacity="0.18" filter="url(#sketch)"/>
+        <use href="#ic-coin"      transform="translate(150,72) scale(0.18) rotate(10)"  opacity="0.19" filter="url(#sketch)"/>
+        <use href="#ic-globe"     transform="translate(196,118) scale(0.16) rotate(-6)" opacity="0.16" filter="url(#sketch)"/>
+        <use href="#ic-megaphone" transform="translate(14,122) scale(0.19) rotate(-8)"  opacity="0.21" filter="url(#sketch)"/>
+        <use href="#ic-play"      transform="translate(78,128) scale(0.19) rotate(-16)" opacity="0.23" filter="url(#sketch)"/>
+        <use href="#ic-share"     transform="translate(140,132) scale(0.16) rotate(12)" opacity="0.16" filter="url(#sketch)"/>
+        <use href="#ic-crown"     transform="translate(190,178) scale(0.16) rotate(-10)" opacity="0.17" filter="url(#sketch)"/>
+        <use href="#ic-note"      transform="translate(24,178)  scale(0.19) rotate(14)" opacity="0.20" filter="url(#sketch)"/>
+        <use href="#ic-thumb"     transform="translate(90,182)  scale(0.17) rotate(8)"  opacity="0.18" filter="url(#sketch)"/>
+      </pattern>
+    </defs>
+
+    <!-- ambient color blobs — depth cues, not decoration for its own sake -->
+    <circle cx="310" cy="130" r="150" fill="var(--gold)" opacity="0.10" filter="url(#blobBlur)"/>
+    <circle cx="70"  cy="630" r="170" fill="var(--teal)" opacity="0.08" filter="url(#blobBlur)"/>
+
+    <!-- background soft layer -->
+    <rect width="412" height="840" fill="url(#bgPattern)" filter="url(#ambientBlur)"/>
+
+    <!-- midground crisp weave -->
+    <rect width="412" height="840" fill="url(#midPattern)"/>
+
+    <!-- foreground jewel accents — the deliberate, colored, hero moments -->
+    <use href="#ic-coin"      transform="translate(300,110) scale(0.55) rotate(-8)"  style="color:var(--gold)"  opacity="0.55" filter="url(#glowGold)"/>
+    <use href="#ic-star"      transform="translate(55,190)  scale(0.50) rotate(12)"  style="color:var(--teal)"  opacity="0.50" filter="url(#glowTeal)"/>
+    <use href="#ic-play"      transform="translate(190,80)  scale(0.40) rotate(6)"   style="color:var(--coral)" opacity="0.40" filter="url(#glowCoral)"/>
+    <use href="#ic-share"     transform="translate(330,330) scale(0.46) rotate(-14)" style="color:var(--blue)"  opacity="0.48" filter="url(#glowBlue)"/>
+    <use href="#ic-heart"     transform="translate(75,420)  scale(0.50) rotate(8)"   style="color:var(--coral)" opacity="0.50" filter="url(#glowCoral)"/>
+    <use href="#ic-crown"     transform="translate(260,540) scale(0.50) rotate(-6)"  style="color:var(--gold)"  opacity="0.50" filter="url(#glowGold)"/>
+    <use href="#ic-globe"     transform="translate(50,650)  scale(0.46) rotate(10)"  style="color:var(--teal)"  opacity="0.45" filter="url(#glowTeal)"/>
+    <use href="#ic-bolt"      transform="translate(340,700) scale(0.50) rotate(-10)" style="color:var(--blue)"  opacity="0.50" filter="url(#glowBlue)"/>
+
+    <!-- fine paper grain, screened on top -->
+    <rect width="412" height="840" filter="url(#grainFilter)" style="mix-blend-mode:overlay" opacity="0.4"/>
+  </svg>
+
+  <div class="sweep"></div>
+  <div class="label">Nova Weave — Hand Drawn</div>
+</div>
+</body>
+</html>

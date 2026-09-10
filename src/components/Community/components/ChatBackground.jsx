@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-const ChatBackground = ({ theme = "minimal" }) => {
+const ChatBackground = ({ theme = "xeevia_weave" }) => {
   const canvasRef = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const animationRef = useRef(null);
@@ -11,12 +11,10 @@ const ChatBackground = ({ theme = "minimal" }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // CRITICAL: Cancel previous animation immediately on theme change
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
     }
 
-    // Update current theme reference immediately
     currentThemeRef.current = theme;
 
     const ctx = canvas.getContext("2d");
@@ -41,16 +39,19 @@ const ChatBackground = ({ theme = "minimal" }) => {
 
     function initializeParticles() {
       particlesRef.current = [];
-      // Map themes properly
-      let activeTheme = theme;
-      const mapping = {
-        'matrix': 'minimal',
-        'minimal': 'minimal',
-        'lime': 'elegant',
+
+      const themeMapping = {
+        xeevia_weave: "brand",
+        aurora: "aurora",
+        constellation: "constellation",
+        matrix: "minimal",
+        minimal: "minimal",
+        lime: "elegant",
       };
-      if (mapping[theme]) activeTheme = mapping[theme];
-      
+
+      const activeTheme = themeMapping[theme] || "brand";
       const count = activeTheme === "minimal" ? 40 : 70;
+
       for (let i = 0; i < count; i++) {
         particlesRef.current.push({
           x: Math.random() * canvas.width,
@@ -67,22 +68,35 @@ const ChatBackground = ({ theme = "minimal" }) => {
 
     const drawFrame = () => {
       const { x: offsetX, y: offsetY } = mouseRef.current;
-      
-      // Get mapped theme
-      let mappedTheme = currentThemeRef.current;
-      const themeMapping = {
-        'matrix': 'minimal',
-        'minimal': 'minimal',
-        'lime': 'elegant',
-      };
-      
-      if (themeMapping[currentThemeRef.current]) {
-        mappedTheme = themeMapping[currentThemeRef.current];
-      }
 
+      const themeMapping = {
+        xeevia_weave: "brand",
+        aurora: "aurora",
+        constellation: "constellation",
+        matrix: "minimal",
+        minimal: "minimal",
+        lime: "elegant",
+      };
+
+      const mappedTheme = themeMapping[currentThemeRef.current] || "brand";
       const baseGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
 
       switch (mappedTheme) {
+        case "brand":
+          baseGradient.addColorStop(0, "#071b22");
+          baseGradient.addColorStop(0.45, "#0b1d31");
+          baseGradient.addColorStop(1, "#060d1b");
+          break;
+        case "aurora":
+          baseGradient.addColorStop(0, "#071722");
+          baseGradient.addColorStop(0.5, "#10233d");
+          baseGradient.addColorStop(1, "#080e18");
+          break;
+        case "constellation":
+          baseGradient.addColorStop(0, "#040814");
+          baseGradient.addColorStop(0.5, "#0b1530");
+          baseGradient.addColorStop(1, "#050910");
+          break;
         case "elegant":
           baseGradient.addColorStop(0, "#0a0a0f");
           baseGradient.addColorStop(0.5, "#0d0d14");
@@ -103,6 +117,15 @@ const ChatBackground = ({ theme = "minimal" }) => {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       switch (mappedTheme) {
+        case "brand":
+          drawBrandTheme(ctx, canvas, time, offsetX, offsetY);
+          break;
+        case "aurora":
+          drawAuroraTheme(ctx, canvas, time, offsetX, offsetY);
+          break;
+        case "constellation":
+          drawConstellationTheme(ctx, canvas, time, offsetX, offsetY);
+          break;
         case "elegant":
           drawElegantTheme(ctx, canvas, time, offsetX, offsetY);
           break;
@@ -116,6 +139,100 @@ const ChatBackground = ({ theme = "minimal" }) => {
       time += 0.002;
       animationRef.current = requestAnimationFrame(drawFrame);
     };
+
+    function drawBrandTheme(ctx, canvas, time, offsetX, offsetY) {
+      const glow = ctx.createRadialGradient(
+        canvas.width * 0.5 + offsetX * 1.2,
+        canvas.height * 0.45 + offsetY * 0.8,
+        0,
+        canvas.width * 0.5 + offsetX * 1.2,
+        canvas.height * 0.45 + offsetY * 0.8,
+        canvas.width * 0.48,
+      );
+      glow.addColorStop(0, "rgba(147, 255, 214, 0.34)");
+      glow.addColorStop(0.3, "rgba(93, 233, 196, 0.18)");
+      glow.addColorStop(1, "transparent");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(150, 255, 208, 0.14)";
+      ctx.lineWidth = 1;
+      const spacing = 56;
+      const offsetGridX = (time * 24) % spacing;
+      const offsetGridY = (time * 18) % spacing;
+
+      for (let x = offsetGridX; x < canvas.width; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      for (let y = offsetGridY; y < canvas.height; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      drawFloatingParticles(ctx, time, ["rgba(150, 255, 208, ", "rgba(96, 165, 250, "], 0.75);
+    }
+
+    function drawAuroraTheme(ctx, canvas, time, offsetX, offsetY) {
+      const glowLeft = ctx.createRadialGradient(
+        canvas.width * 0.32 + offsetX * 1.2,
+        canvas.height * 0.35 + offsetY * 1.1,
+        0,
+        canvas.width * 0.32 + offsetX * 1.2,
+        canvas.height * 0.35 + offsetY * 1.1,
+        canvas.width * 0.42,
+      );
+      glowLeft.addColorStop(0, "rgba(132, 255, 201, 0.35)");
+      glowLeft.addColorStop(1, "transparent");
+      ctx.fillStyle = glowLeft;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const glowRight = ctx.createRadialGradient(
+        canvas.width * 0.74 - offsetX * 1.4,
+        canvas.height * 0.72 - offsetY * 1.2,
+        0,
+        canvas.width * 0.74 - offsetX * 1.4,
+        canvas.height * 0.72 - offsetY * 1.2,
+        canvas.width * 0.38,
+      );
+      glowRight.addColorStop(0, "rgba(115, 170, 255, 0.28)");
+      glowRight.addColorStop(1, "transparent");
+      ctx.fillStyle = glowRight;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawFloatingParticles(ctx, time, ["rgba(132, 255, 201, ", "rgba(115, 170, 255, ", "rgba(255, 255, 255, "], 0.9);
+    }
+
+    function drawConstellationTheme(ctx, canvas, time, offsetX, offsetY) {
+      const glow = ctx.createRadialGradient(
+        canvas.width * 0.5 + offsetX * 1.2,
+        canvas.height * 0.4 + offsetY * 0.9,
+        0,
+        canvas.width * 0.5 + offsetX * 1.2,
+        canvas.height * 0.4 + offsetY * 0.9,
+        canvas.width * 0.52,
+      );
+      glow.addColorStop(0, "rgba(255,255,255,0.18)");
+      glow.addColorStop(0.4, "rgba(133,170,255,0.16)");
+      glow.addColorStop(1, "transparent");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const starChance = Math.sin(time * 10) * 0.5 + 0.5;
+      particlesRef.current.forEach((particle, i) => {
+        if (i % 3 === 0) {
+          ctx.fillStyle = `rgba(255,255,255,${(particle.alpha * (0.4 + starChance)).toFixed(2)})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, Math.max(0.7, particle.size * 0.75), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
 
     function drawElegantTheme(ctx, canvas, time, offsetX, offsetY) {
       const pulse1 = Math.sin(time * 25) * 0.06 + 0.10;
@@ -160,10 +277,10 @@ const ChatBackground = ({ theme = "minimal" }) => {
       ctx.strokeStyle = "rgba(156, 255, 0, 0.025)";
       ctx.lineWidth = 1;
       const spacing = 60;
-      
+
       const offsetX = (time * 30) % spacing;
       const offsetY = (time * 30) % spacing;
-      
+
       for (let x = offsetX; x < canvas.width; x += spacing) {
         ctx.globalAlpha = 0.6;
         ctx.beginPath();
@@ -172,7 +289,7 @@ const ChatBackground = ({ theme = "minimal" }) => {
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      
+
       for (let y = offsetY; y < canvas.height; y += spacing) {
         ctx.globalAlpha = 0.6;
         ctx.beginPath();
@@ -231,7 +348,7 @@ const ChatBackground = ({ theme = "minimal" }) => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [theme]); // Re-run entire effect when theme prop changes
+  }, [theme]);
 
   return (
     <canvas
