@@ -745,10 +745,14 @@ const EmojiPanel = ({ onSelect, onClose, style = {}, panelRef: externalPanelRef,
     },
   };
 
-  const filteredEmojis = searchTerm
-    ? Object.values(emojiCategories)
-        .flatMap((cat) => cat.emojis)
-        .filter((emoji) => emoji.includes(searchTerm))
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredEmojis = normalizedSearch
+    ? Object.values(emojiCategories).flatMap((cat) => {
+        const searchableText = `${cat.name} ${(cat.searchTerms || []).join(" ")}`.toLowerCase();
+        const categoryMatches = searchableText.includes(normalizedSearch);
+        if (categoryMatches) return cat.emojis;
+        return cat.emojis.filter((emoji) => emoji.toLowerCase().includes(normalizedSearch));
+      })
     : emojiCategories[activeCategory]?.emojis || [];
 
   return (

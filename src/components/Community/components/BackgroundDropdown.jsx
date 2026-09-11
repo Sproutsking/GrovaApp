@@ -7,7 +7,7 @@ import communityBgHexaGlow from "../../Messages/Assets/backgrounds/download (49)
 import communityBgHexaWave from "../../Messages/Assets/backgrounds/download (48).jpg";
 import communityBgHexaNight from "../../Messages/Assets/backgrounds/download (47).jpg";
 
-const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
+const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose, canManageBackground = false, onCustomUpload = null }) => {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -35,6 +35,12 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
       name: "Nova Weave",
       icon: "✦",
       preview: `linear-gradient(180deg, rgba(18, 20, 26, 0.34), rgba(18, 20, 26, 0.18)), url(${communityBgNovaWeave})`
+    },
+    {
+      id: "grid",
+      name: "Grid",
+      icon: "▦",
+      preview: "radial-gradient(ellipse 85% 85% at 50% 50%, transparent 32%, rgba(0,0,0,0.82) 72%, #000 100%), radial-gradient(ellipse 55% 55% at 50% 50%, rgba(132,204,22,0.04) 0%, transparent 100%), #000"
     },
     {
       id: "aurora",
@@ -82,6 +88,14 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
         <Palette size={16} />
         <span>Backgrounds</span>
       </div>
+      {canManageBackground && onCustomUpload && (
+        <div className="bg-dropdown-upload-wrap">
+          <label className="bg-dropdown-upload">
+            <input type="file" accept="image/*" onChange={onCustomUpload} />
+            <span>Upload custom image</span>
+          </label>
+        </div>
+      )}
       <div className="bg-dropdown-list">
         {themes.map((theme) => (
           <button
@@ -140,6 +154,29 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose }) => {
           font-size: 13px;
           font-weight: 700;
           color: #9cff00;
+        }
+
+        .bg-dropdown-upload-wrap {
+          padding: 8px 10px 0;
+        }
+
+        .bg-dropdown-upload {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px dashed rgba(156, 255, 0, 0.4);
+          background: rgba(156, 255, 0, 0.06);
+          color: #d5f7bd;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .bg-dropdown-upload input {
+          display: none;
         }
 
         .bg-dropdown-list {

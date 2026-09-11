@@ -476,6 +476,8 @@ const ChatTab = ({
           messageId: replyTo.externalPost ? null : (replyTo.id || null),
           postId: replyTo.externalPost ? (replyTo.id || null) : null,
           externalPost: Boolean(replyTo.externalPost),
+          borderColor: replyTo.borderColor || replyTo.announcement?.borderColor || "#9cff00",
+          borderStyle: replyTo.borderStyle || replyTo.announcement?.borderStyle || "solid",
         }))}]]\n${content}`
         : announcementContent;
       await communityMessageService.sendMessage(
@@ -506,10 +508,26 @@ const ChatTab = ({
     backgroundService.setBackground(userId, community.id, bgId);
   };
 
+  const handleCustomBackgroundUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !canManageBackground) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) return;
+      handleBackgroundChange(`custom:${result}`);
+      setShowBgDropdown(false);
+      event.target.value = "";
+    };
+    reader.readAsDataURL(file);
+  };
+
   const currentChannelIndex = channels.findIndex((ch) => ch.id === selectedChannel?.id);
   const isOwner = community?.owner_id === userId;
   const canManageChannels = userPermissions.manageChannels || isOwner;
   const canManageRoles = userPermissions.manageRoles || isOwner;
+  const canManageCommunity = userPermissions.manageCommunity || isOwner;
+  const canManageBackground = canManageCommunity || canManageChannels;
   const canSendMessages = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages") ? channelPermissions.sendMessages : userPermissions.sendMessages);
   const canAddReactions = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions") ? channelPermissions.addReactions : userPermissions.addReactions);
 
@@ -832,6 +850,8 @@ const ChatTab = ({
             onThemeChange={handleBackgroundChange}
             show={showBgDropdown}
             onClose={() => setShowBgDropdown(false)}
+            canManageBackground={canManageBackground}
+            onCustomUpload={handleCustomBackgroundUpload}
           />
           <CommunityMessageInput
             value={messageInput}

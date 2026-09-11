@@ -1,6 +1,6 @@
 // components/Community/components/MessageList.jsx - 0.5PX SHIFT UP ⚡
 import React from "react";
-import { Reply } from "lucide-react";
+import { MoreHorizontal, Reply } from "lucide-react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
@@ -35,9 +35,11 @@ const parsePostReplyMetadata = (token) => {
       messageId: parsed.messageId || null,
       postId: parsed.postId || null,
       externalPost: Boolean(parsed.externalPost),
+      borderColor: ANNOUNCEMENT_COLORS.has(parsed.borderColor) ? parsed.borderColor : "#9cff00",
+      borderStyle: ANNOUNCEMENT_BORDER_STYLES.has(parsed.borderStyle) ? parsed.borderStyle : "solid",
     };
   } catch {
-    return { title: "Announcement", body: "", channelName: "announcements", channelId: null, messageId: null, postId: null, externalPost: false };
+    return { title: "Announcement", body: "", channelName: "announcements", channelId: null, messageId: null, postId: null, externalPost: false, borderColor: "#9cff00", borderStyle: "solid" };
   }
 };
 
@@ -195,11 +197,24 @@ const MessageList = ({
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncementMessage}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <button
+                    type="button"
+                    className="msg-card-menu-btn"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      onContextMenu?.({ preventDefault() {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }, msg);
+                    }}
+                    aria-label="Message options"
+                  >
+                    <MoreHorizontal size={12} />
+                  </button>
                   {postReply && (
                     <button
                       type="button"
-                      className="msg-reply-quote announcement post-reply-quote"
-                      style={{ "--announcement-color": "#9cff00" }}
+                      className={`msg-reply-quote announcement post-reply-quote announcement-border-${postReply.borderStyle || "solid"}`}
+                      style={{ "--announcement-color": postReply.borderColor || "#9cff00" }}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClickCapture={(event) => { event.preventDefault(); event.stopPropagation(); onPostNavigate?.(postReply); }}
                       aria-label={`Open original post in #${postReply.channelName}`}
@@ -233,7 +248,7 @@ const MessageList = ({
                   <button
                     type="button"
                     className="announcement-reply-button"
-                    onClick={(event) => { event.stopPropagation(); onReply?.({ ...msg, isAnnouncement: true }); }}
+                    onClick={(event) => { event.stopPropagation(); onReply?.({ ...msg, isAnnouncement: true, borderColor: announcement?.borderColor || postReply?.borderColor || "#9cff00", borderStyle: announcement?.borderStyle || postReply?.borderStyle || "solid" }); }}
                     aria-label="Reply to announcement"
                   >
                     <Reply size={12} />
@@ -255,10 +270,10 @@ const MessageList = ({
           width: 100%;
           box-sizing: border-box;
           align-items: stretch;
-          padding: 8px 12px;
+          padding: 4px 12px 8px;
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 0;
         }
 
         .msg-loading {
@@ -288,7 +303,7 @@ const MessageList = ({
           box-sizing: border-box;
           align-items: flex-end;
           gap: 2px;
-          margin-bottom: 4px;
+          margin-bottom: 1px;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
@@ -301,6 +316,30 @@ const MessageList = ({
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
         .msg-item .msg-bubble { min-width: 148px; padding-bottom: 6px; }
         .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
+        .msg-card-menu-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 22px;
+          height: 22px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 7px;
+          border: 1px solid rgba(156,255,0,0.22);
+          background: rgba(10,12,10,0.72);
+          color: #dfffc8;
+          cursor: pointer;
+          padding: 0;
+          z-index: 4;
+          box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+          transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        }
+        .msg-card-menu-btn:hover {
+          transform: translateY(-1px);
+          background: rgba(156,255,0,0.10);
+          border-color: rgba(156,255,0,0.35);
+        }
 
         .msg-item.me .msg-bubble,
         .msg-item.them .msg-bubble {
@@ -399,7 +438,7 @@ const MessageList = ({
 
         .msg-bubble {
           max-width: 70%;
-          padding: 3px 7px 2px;
+          padding: 4px 8px 3px;
           border-radius: 14px;
           backdrop-filter: blur(10px);
           position: relative;
@@ -412,7 +451,7 @@ const MessageList = ({
           max-width: min(92%, 760px);
           padding: 18px 22px 8px;
           border-radius: 18px;
-          background: linear-gradient(145deg, rgba(28,42,25,.98), rgba(10,20,13,.98));
+          background: linear-gradient(145deg, rgba(14,18,14,.94), rgba(8,12,9,.98));
           border: 1px solid rgba(156,255,0,.28);
           box-shadow: 0 10px 32px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
         }
@@ -513,7 +552,8 @@ const MessageList = ({
           font-size: 12px;
           font-weight: 700;
           color: var(--accent);
-          margin-bottom: 3px;
+          margin-bottom: 2px;
+          line-height: 1.2;
         }
 
         .msg-content {
@@ -533,7 +573,7 @@ const MessageList = ({
           margin-top: 3px;
         }
         .msg-item.me .msg-meta { justify-content: flex-start; }
-        .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:-1px;padding:6px 11px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
+        .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:2px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-radius:999px;background:linear-gradient(180deg,rgba(156,255,0,.12),rgba(156,255,0,.04));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
         .announcement-reply-button:hover{background:rgba(156,255,0,.17);border-color:rgba(156,255,0,.55);color:#9cff00;transform:translateY(1px)}
 
         .msg-time {

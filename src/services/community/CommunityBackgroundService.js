@@ -36,10 +36,22 @@ class CommunityBackgroundService {
         },
       },
       {
+        id: "grid",
+        name: "Grid",
+        icon: "▦",
+        description: "Option 3 — black background with no grid lines",
+        style: {
+          background: "radial-gradient(ellipse 85% 85% at 50% 50%, transparent 32%, rgba(0,0,0,0.82) 72%, #000 100%), radial-gradient(ellipse 55% 55% at 50% 50%, rgba(132,204,22,0.04) 0%, transparent 100%), #000",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        },
+      },
+      {
         id: "aurora",
         name: "Hexa Glow",
         icon: "✨",
-        description: "Option 3 — shared artwork",
+        description: "Option 4 — shared artwork",
         style: {
           backgroundImage: `linear-gradient(180deg, rgba(5, 8, 15, 0.66), rgba(5, 8, 15, 0.58)), url(${communityBgHexaGlow})`,
           backgroundSize: "cover",
@@ -77,6 +89,23 @@ class CommunityBackgroundService {
     ];
   }
 
+  normalizeBackgroundSelection(backgroundId) {
+    if (typeof backgroundId === "string" && backgroundId.startsWith("custom:")) {
+      return backgroundId;
+    }
+
+    if (typeof backgroundId === "string") {
+      const theme = this.backgrounds.find((bg) => bg.id === backgroundId);
+      if (theme) return theme.id;
+    }
+
+    if (typeof backgroundId === "number" && this.backgrounds[backgroundId]) {
+      return this.backgrounds[backgroundId].id;
+    }
+
+    return "classic_weave";
+  }
+
   getBackground(userId, communityId) {
     try {
       const stored = localStorage.getItem(this.storageKey);
@@ -95,7 +124,7 @@ class CommunityBackgroundService {
         return "classic_weave";
       }
 
-      return savedBackground;
+      return this.normalizeBackgroundSelection(savedBackground);
     } catch (error) {
       console.error("Error getting background:", error);
       return "classic_weave";
@@ -120,6 +149,22 @@ class CommunityBackgroundService {
   }
 
   getTheme(backgroundId) {
+    if (typeof backgroundId === "string" && backgroundId.startsWith("custom:")) {
+      const image = backgroundId.slice("custom:".length);
+      return {
+        id: backgroundId,
+        name: "Custom image",
+        icon: "🖼️",
+        description: "Uploaded background",
+        style: {
+          backgroundImage: `linear-gradient(180deg, rgba(4, 5, 10, 0.62), rgba(4, 5, 10, 0.48)), url(${image})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        },
+      };
+    }
+
     const theme = this.backgrounds.find(bg => bg.id === backgroundId);
     return theme || this.backgrounds[0];
   }

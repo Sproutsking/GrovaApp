@@ -915,7 +915,7 @@ const CSS = `
 .gcv-msgs-default .gcv-msgs-overlay{background:rgba(0,0,0,.18);} 
 .gcv-logo-markers{position:absolute;inset:0;pointer-events:none;z-index:0;}
 .gcv-logo-mark{position:absolute;border-radius:16px;background-image:url('/logo192.png');background-size:cover;background-position:center;filter:brightness(1.05) saturate(1.15) contrast(1.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.18);}
-.gcv-msgs-content{position:relative;z-index:1;padding:12px 14px 16px;display:flex;flex-direction:column;gap:1px;}
+.gcv-msgs-content{position:relative;z-index:1;padding:8px 10px 16px;display:flex;flex-direction:column;gap:1px;}
 
 .gcv-loading{display:flex;justify-content:center;padding:40px;}
 .gcv-spin{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:gcvSpin .7s linear infinite;}

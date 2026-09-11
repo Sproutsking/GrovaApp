@@ -58,13 +58,9 @@ import bg_hexa_night       from "../../components/Messages/Assets/backgrounds/do
 // Grid lines at the edges get smothered; lines at the centre glow brightest.
 const GRID_BACKGROUND = [
   // Layer 1 — deep vignette fading to pure black at edges
-  "radial-gradient(ellipse 85% 85% at 50% 50%, transparent 30%, rgba(0,0,0,0.72) 70%, #000 100%)",
-  // Layer 2 — soft green bloom at centre
-  "radial-gradient(ellipse 55% 55% at 50% 50%, rgba(101,163,13,0.07) 0%, transparent 100%)",
-  // Layer 3a — vertical grid lines (lime, very faint)
-  "repeating-linear-gradient(90deg, rgba(132,204,22,0.09) 0px, rgba(132,204,22,0.09) 1px, transparent 1px, transparent 36px)",
-  // Layer 3b — horizontal grid lines (lime, very faint)
-  "repeating-linear-gradient(0deg,  rgba(132,204,22,0.09) 0px, rgba(132,204,22,0.09) 1px, transparent 1px, transparent 36px)",
+  "radial-gradient(ellipse 85% 85% at 50% 50%, transparent 32%, rgba(0,0,0,0.82) 72%, #000 100%)",
+  // Layer 2 — subtle centre glow kept very restrained to preserve the pure black finish
+  "radial-gradient(ellipse 55% 55% at 50% 50%, rgba(132,204,22,0.04) 0%, transparent 100%)",
   // Base — pure black canvas
   "#000",
 ].join(", ");
