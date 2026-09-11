@@ -587,11 +587,11 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-oracle-tab.active { background:rgba(168,85,247,.12); border-color:#a855f7; }
 
         .xpl-search-dd { 
-          position: fixed !important; 
-          top: 54px !important;
-          left: 50% !important; 
-          transform: translateX(-50%) !important;
-          width: min(1200px, calc(100vw - 24px)) !important;
+          position: absolute !important;
+          top: calc(100% + 8px) !important;
+          left: 0 !important;
+          transform: none !important;
+          width: min(420px, calc(100% - 16px)) !important;
           max-height: 60vh;
           overflow-y: auto;
           display:flex !important; 
@@ -604,7 +604,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           padding:8px 10px 10px !important; 
           box-shadow: 0 10px 40px rgba(0,0,0,.95) !important; 
           animation: dropIn .15s ease !important; 
-          z-index:200 !important;
+          z-index:1000 !important;
         }
         .xpl-search-input-wrap { display:flex; align-items:center; gap:10px; background:rgba(132,204,22,.05); border:1px solid rgba(132,204,22,.25); border-radius:8px; padding:7px 9px; min-height: 34px; }
         .xpl-search-input { flex:1; background:none; border:none; color:#fff; font-size:13px; outline:none; font-weight:500; height: 18px; }
@@ -615,18 +615,18 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-search-hint strong { color:#84cc16; }
 
         .xpl-tabs-dd { 
-          position: fixed; 
-          top: 54px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: min(1200px, calc(100vw - 24px));
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          transform: none;
+          width: min(260px, calc(100% - 16px));
           background:#0a0a0a; 
           border:1px solid rgba(132,204,22,.2); 
           border-radius:10px; 
           padding:8px; 
           box-shadow:0 12px 48px rgba(0,0,0,.9); 
           animation:dropIn .15s ease; 
-          z-index:150; 
+          z-index:1000;
           max-height: 60vh;
           overflow-y: auto;
         }
@@ -638,10 +638,10 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         .xpl-tab-opt.oracle-opt.active { background:rgba(168,85,247,.15); }
 
         .xpl-filter-dd { 
-          position: fixed; 
-          top: 54px;
-          left: 50%;
-          transform: translateX(-50%);
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          transform: none;
           width: min(360px, calc(100vw - 24px));
           background:linear-gradient(135deg, rgba(10,10,10,0.98) 0%, rgba(15,15,15,0.95) 100%);
           border:1.5px solid rgba(168,230,61,.3); 
@@ -651,7 +651,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           overflow-y: auto;
           box-shadow:0 16px 56px rgba(0,0,0,.95), 0 0 40px rgba(168,230,61,.12); 
           animation:dropIn .18s cubic-bezier(0.34, 1.56, 0.64, 1); 
-          z-index:150;
+          z-index:1000;
           backdrop-filter: blur(10px);
         }
         .xpl-filter-label { 
@@ -940,8 +940,8 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           .xpl-controls-left { gap:6px; }
           .xpl-controls-right { gap:6px; }
           .xpl-btn { padding:7px 11px; font-size:12px; height:30px; }
-          .xpl-search-dd { top: 50px; }
-          .xpl-tabs-dd { top: 50px; left: 10px; right: 10px; }
+          .xpl-search-dd { top: calc(100% + 6px) !important; left: 0 !important; width: min(320px, calc(100vw - 32px)) !important; }
+          .xpl-tabs-dd { top: calc(100% + 6px); left: 0; right: auto; width: min(240px, calc(100vw - 32px)); }
           .xpl-filter-dd { position:fixed !important; top:auto !important; bottom:0 !important; left:0 !important; right:0 !important; border-radius:14px 14px 0 0; max-height:65vh; overflow-y:auto; }
           .xpl-reels-grid { grid-template-columns:1fr; }
           .xpl-user-grid  { grid-template-columns:1fr; }

@@ -10,7 +10,6 @@
 //  [FIX-SPACE] ResizeObserver on a sentinelRef auto-measures the sticky
 //              AccountView tab-bar height and pads the hero so nothing hides
 //              under it. Zero hardcoded pixels.
-//
 //  [KEPT]  All v3 data fetching, realtime subs, EP breakdown, sparkline, etc.
 // ============================================================================
 
@@ -22,6 +21,7 @@ import {
   Settings, Video,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import ComingSoonModal from "../Shared/ComingSoonModal";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 const fmt = (n) => {
@@ -268,6 +268,7 @@ const DashboardSection = ({
   onOpenSaved,
 }) => {
   const uid = currentUser?.id;
+  const [comingSoonFeature, setComingSoonFeature] = useState(null);
 
   // [FIX-SPACE] Measure the sticky .account-tabs bar height via DOM
   const [topPad, setTopPad] = useState(0);
@@ -463,6 +464,10 @@ const DashboardSection = ({
   const ACCOUNT_TABS = new Set(["profile","settings","security"]);
 
   const navigate = useCallback((tab) => {
+    if (tab === "stream" || tab === "rewards") {
+      setComingSoonFeature(tab);
+      return;
+    }
     if (ACCOUNT_TABS.has(tab)) {
       // stays inside AccountView
       setActiveTab?.(tab);
@@ -494,6 +499,8 @@ const DashboardSection = ({
 
   return (
     <div className="ds-root" style={{ paddingTop: topPad > 0 ? 0 : 0 }}>
+      {comingSoonFeature === "stream" && <ComingSoonModal title="Live Streaming is almost here" description="We are preparing a creator-first live room where you can broadcast, bring people on stage, and build real-time community energy around your work." feature="Live rooms, co-hosts and real-time audience moments are coming soon." accent="#fb7185" Icon={Radio} onClose={() => setComingSoonFeature(null)} />}
+      {comingSoonFeature === "rewards" && <ComingSoonModal title="Rewards is being prepared" description="Your activity, consistency, and contribution will soon connect to a richer rewards experience built around meaningful progress, not empty points." feature="Reward levels, daily progress and EP opportunities are coming soon." accent="#84cc16" Icon={Award} onClose={() => setComingSoonFeature(null)} />}
       <style>{`
         @keyframes dsFadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes dsGlow    { 0%,100%{box-shadow:0 0 6px rgba(132,204,22,0.06)} 50%{box-shadow:0 0 16px rgba(132,204,22,0.2)} }
@@ -930,7 +937,7 @@ const DashboardSection = ({
         )}
 
       </>)}
-    </div>
+      </div>
   );
 };
 

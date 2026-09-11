@@ -22,7 +22,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 import {
-  X, UserPlus, UserCheck, Loader,
+  X, UserPlus, UserCheck, Loader, Gift,
   Shield, Crown, Image, Film, BookOpen, Heart, Eye,
 } from "lucide-react";
 import { supabase }          from "../../services/config/supabase";
@@ -583,6 +583,23 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     onClose?.();
   }, [myId, isOwn, targetId, onClose]);
 
+  const handleGift = useCallback((e) => {
+    e.stopPropagation();
+    if (!targetId || isOwn) return;
+    window.dispatchEvent(new CustomEvent("xeevia:open-gift-card", {
+      detail: {
+        recipient: {
+          id: targetId,
+          user_id: targetId,
+          username: profile?.username || user?.username || "user",
+          full_name: profile?.fullName || user?.name || user?.full_name || "User",
+          avatar_id: profile?.avatarId || user?.avatar_id || null,
+        },
+      },
+    }));
+    onClose?.();
+  }, [targetId, isOwn, profile, user, onClose]);
+
   const currentContent =
     activeTab === "posts" ? posts : activeTab === "reels" ? reels : stories;
 
@@ -707,6 +724,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     </button>
                     <button className="upm-fbtn upm-message-btn" onClick={handleMessage} type="button">
                       <MessageSquare size={16} /><span>Message</span>
+                    </button>
+                    <button className="upm-fbtn upm-gift-btn" onClick={handleGift} type="button">
+                      <Gift size={16} /><span>Gift</span>
                     </button>
                   </div>
                 )}
@@ -928,7 +948,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
         .upm-sl { font-size:10px; color:#737373; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
         .upm-sdiv { width:1px; margin:10px 0; background:rgba(255,255,255,.07); }
-        .upm-follow-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px 20px 4px; }
+        .upm-follow-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:14px 20px 4px; }
         .upm-fbtn {
           width:100%; padding:13px 20px; border-radius:14px;
           font-size:14px; font-weight:800; letter-spacing:0.02em;
@@ -944,6 +964,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-fbtn:disabled { opacity:.55; cursor:not-allowed; }
         .upm-message-btn { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.16); color:#e5e7eb; box-shadow:inset 0 1px rgba(255,255,255,.06); }
         .upm-message-btn:hover { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.5); color:#93c5fd; box-shadow:0 0 18px rgba(96,165,250,.16); }
+        .upm-gift-btn { background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.24); color:#fcd34d; box-shadow:inset 0 1px rgba(255,255,255,.05); }
+        .upm-gift-btn:hover { background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.48); color:#fde68a; box-shadow:0 0 18px rgba(251,191,36,.14); }
         .upm-verification-entry { margin:10px 16px 0; width:calc(100% - 32px); border-radius:16px; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:11px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; color:#fff; text-align:left; }
         .upm-verification-entry:hover { border-color:rgba(168,85,247,.58); background:radial-gradient(circle at top left,rgba(168,85,247,.24),transparent 34%),rgba(15,23,42,.9); }
         .upm-verification-icon { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:rgba(168,85,247,.16); color:#d8b4fe; flex-shrink:0; }

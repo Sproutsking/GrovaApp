@@ -70,8 +70,8 @@ const css = `
 .sin{width:100%;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;color:#fff;font-size:12.5px;box-sizing:border-box;outline:none;transition:border .15s}
 .sin:focus{border-color:rgba(132,204,22,.5)}
 
-.bl{padding:10px 14px;border-radius:12px;border:1px solid rgba(132,204,22,.32);background:linear-gradient(135deg,#a3e635,#84cc16);color:#0b1206;font-size:11.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;box-shadow:0 4px 12px rgba(132,204,22,.25)}
-.bl:hover:not(:disabled){background:linear-gradient(135deg,#bbf86a,#9ae632);border-color:rgba(132,204,22,.55);box-shadow:0 6px 20px rgba(132,204,22,.35)}
+.bl{padding:10px 14px;border-radius:11px;border:1px solid rgba(163,230,53,.3);background:linear-gradient(135deg,rgba(163,230,53,.2),rgba(132,204,22,.12));color:#d9f99d;font-size:11.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(132,204,22,.1)}
+.bl:hover:not(:disabled){background:linear-gradient(135deg,rgba(190,242,100,.3),rgba(132,204,22,.2));border-color:rgba(190,242,100,.5);box-shadow:0 6px 20px rgba(132,204,22,.2)}
 .bl:disabled{opacity:.5;cursor:not-allowed}
 .bg{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#f8fafc;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
 .bg:hover:not(:disabled){background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28)}

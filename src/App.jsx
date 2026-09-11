@@ -323,6 +323,7 @@ const MainApp = memo(() => {
   // DM panel state
   const [showMessages,   setShowMessages]   = useState(false);
   const [dmTargetUserId, setDmTargetUserId] = useState(null);
+  const [giftRecipient,  setGiftRecipient]  = useState(null);
 
   // Active call overlay
   const [showActiveCall,   setShowActiveCall]   = useState(false);
@@ -401,6 +402,17 @@ const MainApp = memo(() => {
     };
     window.addEventListener("community:open-dm", openCommunityDm);
     return () => window.removeEventListener("community:open-dm", openCommunityDm);
+  }, [user?.id]);
+
+  useEffect(() => {
+    const openGiftCard = (event) => {
+      const recipient = event.detail?.recipient;
+      if (!recipient?.id || recipient.id === user?.id) return;
+      setGiftRecipient(recipient);
+      setOverlayTab("giftcards");
+    };
+    window.addEventListener("xeevia:open-gift-card", openGiftCard);
+    return () => window.removeEventListener("xeevia:open-gift-card", openGiftCard);
   }, [user?.id]);
 
   // ── Notification deep-link navigate ──────────────────────────────────────
@@ -957,6 +969,7 @@ const MainApp = memo(() => {
           <GiftCardsView
             currentUser={currentUser}
             userId={user.id}
+            initialRecipient={giftRecipient}
             onClose={closeOverlayToAccount}
           />
         </Suspense>

@@ -968,7 +968,7 @@ const PCRightPanel = ({ tier, message, occasion, senderName, recipientName, song
 // ─────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────
-const GiftCardsView = ({ currentUser, onClose, isSidebar = false }) => {
+const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipient = null }) => {
   const [tab,         setTab]         = useState("send");
   const [phase,       setPhase]       = useState("browse");
   const [selId,       setSelId]       = useState(null);
@@ -997,6 +997,14 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false }) => {
   }, []);
 
   const showPC = isWide && !isSidebar;
+
+  useEffect(() => {
+    if (!initialRecipient?.id) return;
+    setRecipient(initialRecipient);
+    setTab("send");
+    setSelId("silver");
+    setPhase("configure");
+  }, [initialRecipient]);
   const tier   = TIERS.find(t => t.id === selId);
   const fee    = tier ? Math.round(tier.value * FEE) : 0;
   const net    = tier ? tier.value - fee : 0;

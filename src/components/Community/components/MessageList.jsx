@@ -611,7 +611,9 @@ const MessageList = ({
           margin-top: 3px;
         }
         .msg-item.me .msg-meta { justify-content: flex-start; }
-        .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:2px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-radius:999px;background:linear-gradient(180deg,rgba(156,255,0,.12),rgba(156,255,0,.04));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
+        .msg-item.me .announcement-reply-button{align-self:flex-end}
+        .msg-item.them .announcement-reply-button{align-self:flex-start}
+  .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;margin-top:-1px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
         .announcement-reply-button:hover{background:rgba(156,255,0,.17);border-color:rgba(156,255,0,.55);color:#9cff00;transform:translateY(1px)}
 
         .msg-time {
