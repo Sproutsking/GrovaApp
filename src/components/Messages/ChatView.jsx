@@ -22,6 +22,7 @@ import { useUserBoostTier } from "../../hooks/useUserBoostTier";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shared/LinkifiedText";
 import MessageContextMenu from "../Shared/MessageContextMenu";
 import OptimizedImage from "../Shared/OptimizedImage";
+import UserProfileModal from "../Modals/UserProfileModal";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -212,7 +213,7 @@ const GifPicker = memo(({ onSelect, onClose }) => {
 GifPicker.displayName="GifPicker";
 
 // ─── Message Row ──────────────────────────────────────────────────────────────
-const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, otherVerified, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, onNavigate, onReaction, onDeleted, onOpenMenu }) => {
+const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, otherVerified, boostTier, boostThemeId, boostFontId, boostColorId, messages, onReply, onScrollTo, getTickStatus, fmtTime, currentUserId, currentUserName, currentUserVerified, currentUser, otherUser, onNavigate, onReaction, onDeleted, onOpenMenu, onProfileClick }) => {
   const [swipeX,setSX]=useState(0); const [swiping,setSw]=useState(false);
   const [rAnim,setRAnim]=useState(false);
   const touchX=useRef(null); const touchY=useRef(null); const suppressPointerMenu=useRef(false); const rowRef=useRef(null);
@@ -278,13 +279,23 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
       onClick={onMessageClick} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
       data-msg-id={msg.id}>
       {swiping&&<div className="cv-swipe-ind" style={{opacity:Math.min(1,Math.abs(swipeX)/TH),transform:`scale(${.6+.4*Math.min(1,Math.abs(swipeX)/TH)})`,[isMe?"right":"left"]:"calc(100% + 10px)"}}><Ic.Reply/></div>}
-      {!isMe&&(showAv?(<div style={{ transform: `translate(${boostTier ? 0 : 0}px, ${boostTier ? 3 : 0}px)` }}><BoostAvatarRing tier={boostTier} themeId={boostThemeId} accentColor={getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color} size={38} src={avatarUrl} letter={(otherName||"U").charAt(0)} showBadge={false} style={{ border: boostTier ? undefined : "2px solid rgba(132,204,22,.18)" }} /></div>):<div className="cv-avatar-sp"/>)}
-      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(calc(4px + ${swipeX*.5}px))`:"translateX(4px)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)"}}>
+      {showAv ? (
+        <button
+          type="button"
+          className="cv-avatar"
+          onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))}
+          aria-label={isMe ? `View ${currentUserName || "your"} profile` : `View ${otherName || "user"}'s profile`}
+          style={{ transform: `translate(${boostTier ? 0 : 0}px, ${boostTier ? 3 : 0}px)`, cursor: "pointer" }}
+        >
+          {avatarUrl ? <img src={avatarUrl} alt={isMe ? (currentUserName || "You") : (otherName || "User")} loading="eager" fetchPriority="high" /> : ((isMe ? (currentUserName || "You") : (otherName || "U")).charAt(0).toUpperCase())}
+        </button>
+      ) : <div className="cv-avatar-sp" />}
+      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(calc(4px + ${swipeX*.5}px))`:"translateX(4px)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)", paddingLeft: isMe ? 28 : 10, paddingRight: isMe ? 10 : 28}}>
         <button className={`cv-message-menu-btn ${isMe ? "cv-message-menu-btn-me" : "cv-message-menu-btn-them"}`} type="button" onClick={handleMenuButtonClick} aria-label="Message options">
           <Ic.More/>
         </button>
         {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
-        {!isMe&&showAv&&<div className="cv-msg-author" style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{otherName||"Unknown"}{(otherVerified||boostTier)&&<span className="cv-msg-verified" aria-label="Verified account">✓</span>}</div>}
+        {showAv&&<button type="button" className="cv-msg-author" onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))} style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{(isMe ? (currentUserName || "You") : (otherName||"Unknown"))}{((isMe ? currentUserVerified : otherVerified) || boostTier)&&<span className="cv-msg-verified" aria-label="Verified account">✓</span>}</button>}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
@@ -404,6 +415,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const [readStatus,setReadStatus]     = useState({});
   const [replyTo,setReplyTo]           = useState(null);
   const [messageMenu, setMessageMenu] = useState(null);
+  const [profileTarget, setProfileTarget] = useState(null);
 
   const endRef=useRef(null); const containerRef=useRef(null);
   const tyTO=useRef(null); const isAtBottom=useRef(true);
@@ -412,22 +424,12 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const msgsRef=useRef([]); useEffect(()=>{msgsRef.current=messages;},[messages]);
 
   const convId=conversation.id; const otherUser=conversation.otherUser;
+  const currentUserBoost = useUserBoostTier(currentUser?.id);
   const otherBoost = useUserBoostTier(otherUser?.id);
   const bgs=backgroundService.getBackgrounds();
   const activeBg = bgs.find((bg) => bg.id === selectedBg) || bgs[0];
   const bgStyle=backgroundService.getBgStyle(selectedBg);
   const isDefault=activeBg?.isDefault===true;
-  const logoMarks = [
-    { top: "8%", left: "8%", size: 32, opacity: 0.22 },
-    { top: "18%", left: "58%", size: 26, opacity: 0.18 },
-    { top: "30%", left: "20%", size: 20, opacity: 0.14 },
-    { top: "36%", left: "82%", size: 24, opacity: 0.16 },
-    { top: "52%", left: "12%", size: 28, opacity: 0.18 },
-    { top: "60%", left: "68%", size: 18, opacity: 0.12 },
-    { top: "72%", left: "38%", size: 30, opacity: 0.18 },
-    { top: "82%", left: "78%", size: 22, opacity: 0.14 },
-    { top: "88%", left: "18%", size: 16, opacity: 0.11 },
-  ];
 
   const scrollToBottom=(b="smooth")=>{endRef.current?.scrollIntoView({behavior:b});setShowJump(false);};
   const handleScroll=()=>{
@@ -552,9 +554,13 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const avatarMetadata = otherUser?.avatar_metadata || otherUser?.avatarMetadata || {};
   const avatarSource = otherUser?.avatar_url || otherUser?.avatarUrl || otherUser?.avatar || otherUser?.avatar_id || avatarMetadata.url || avatarMetadata.publicUrl || avatarMetadata.avatar_url;
   const avatarUrl = avatarSource ? mediaUrlService.resolveAvatarUrl(avatarSource, 200) : null;
+  const currentUserAvatarMetadata = currentUser?.avatar_metadata || currentUser?.avatarMetadata || {};
+  const currentUserAvatarSource = currentUser?.avatar_url || currentUser?.avatarUrl || currentUser?.avatar || currentUser?.avatar_id || currentUser?.avatarId || currentUserAvatarMetadata.url || currentUserAvatarMetadata.publicUrl || currentUserAvatarMetadata.avatar_url;
+  const currentUserAvatarUrl = currentUserAvatarSource ? mediaUrlService.resolveAvatarUrl(currentUserAvatarSource, 200) : null;
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
-  },[avatarUrl]);
+    if(currentUserAvatarUrl) mediaUrlService.preloadMediaUrl(currentUserAvatarUrl, { type: "image", priority: "high" });
+  },[avatarUrl,currentUserAvatarUrl]);
 
   return (
     <div className="cv-root">
@@ -602,28 +608,16 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
       {/* Messages */}
       <div className={`cv-msgs${isDefault?" cv-msgs-default":""}`} style={bgStyle} ref={containerRef} onScroll={handleScroll}>
-        <div className="cv-logo-markers" aria-hidden="true">
-          {logoMarks.map((mark, index) => (
-            <div
-              key={index}
-              className="cv-logo-mark"
-              style={{
-                top: mark.top,
-                left: mark.left,
-                width: mark.size,
-                height: mark.size,
-                opacity: mark.opacity,
-              }}
-            />
-          ))}
-        </div>
         <div className="cv-msgs-overlay"/>
         <div className="cv-msgs-content">
           {loading&&<div className="cv-loading"><div className="cv-spinner"/></div>}
           {!loading&&messages.map((msg,idx)=>{
             const isMe=msg.sender_id===currentUser.id;
             const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={!isMe&&tail} showTail={tail} avatarUrl={avatarUrl} otherName={otherUser?.full_name||otherUser?.username} otherVerified={otherUser?.verified} boostTier={otherBoost.tier} boostThemeId={otherBoost.themeId} boostFontId={otherBoost.fontId} boostColorId={otherBoost.colorId} currentUserId={currentUser.id} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))} onOpenMenu={(message, position) => setMessageMenu({ message, position })}/>;
+            const rowAvatarUrl = isMe ? currentUserAvatarUrl : avatarUrl;
+            const rowDisplayName = isMe ? (currentUser?.full_name || currentUser?.username || "You") : (otherUser?.full_name||otherUser?.username||"Unknown");
+            const rowVerified = isMe ? Boolean(currentUser?.verified) : Boolean(otherUser?.verified);
+            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={tail} showTail={tail} avatarUrl={rowAvatarUrl} otherName={rowDisplayName} otherVerified={rowVerified} boostTier={isMe ? currentUserBoost?.tier : otherBoost.tier} boostThemeId={isMe ? currentUserBoost?.themeId : otherBoost.themeId} boostFontId={isMe ? currentUserBoost?.fontId : otherBoost.fontId} boostColorId={isMe ? currentUserBoost?.colorId : otherBoost.colorId} currentUserId={currentUser.id} currentUserName={currentUser?.full_name || currentUser?.username || "You"} currentUserVerified={Boolean(currentUser?.verified)} currentUser={currentUser} otherUser={otherUser} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))} onOpenMenu={(message, position) => setMessageMenu({ message, position })} onProfileClick={(user) => user && setProfileTarget(user)}/>;
           })}
           {typing.isTyping&&(
             <div className="cv-msg cv-them">
@@ -661,6 +655,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
       )}
 
       <MessageInput onSend={handleSend} onTyping={handleTypingLocal} replyTo={replyTo} onCancelReply={()=>setReplyTo(null)}/>
+      {profileTarget && <UserProfileModal user={profileTarget} currentUser={currentUser} onClose={() => setProfileTarget(null)} />}
       <style>{CV_CSS}</style>
     </div>
   );
@@ -705,8 +700,6 @@ export const CV_CSS = `
 .cv-msgs::-webkit-scrollbar{width:3px;}.cv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
 .cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.28);pointer-events:none;z-index:0;}
 .cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.18);} 
-.cv-logo-markers{position:absolute;inset:0;pointer-events:none;z-index:0;}
-.cv-logo-mark{position:absolute;border-radius:16px;background-image:url('/logo192.png');background-size:cover;background-position:center;filter:brightness(1.05) saturate(1.15) contrast(1.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.18);}
 .cv-msgs-content{position:relative;z-index:1;padding:4px 12px 8px;display:flex;flex-direction:column;gap:0;}
 .cv-loading{display:flex;justify-content:center;padding:40px;}
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}

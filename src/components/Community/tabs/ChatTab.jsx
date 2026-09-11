@@ -73,7 +73,7 @@ const ChatTab = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
-  const [backgroundId, setBackgroundId] = useState("classic_weave");
+  const [backgroundId, setBackgroundId] = useState("grid");
   const [isMobile, setIsMobile] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
@@ -88,7 +88,9 @@ const ChatTab = ({
   const [postNavigationTarget, setPostNavigationTarget] = useState(null);
 
   const backgroundTheme = backgroundService.getTheme(backgroundId);
-  const communityBackgroundStyle = backgroundTheme?.style || { background: "linear-gradient(135deg, #000000 0%, #0a0a0a 100%)" };
+  const communityBackgroundStyle = backgroundId === "grid"
+    ? { background: "#000000", backgroundImage: "none", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
+    : backgroundTheme?.style || { background: "#000000" };
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const unsubscribeChannel = useRef(null);
@@ -524,10 +526,11 @@ const ChatTab = ({
 
   const currentChannelIndex = channels.findIndex((ch) => ch.id === selectedChannel?.id);
   const isOwner = community?.owner_id === userId;
-  const canManageChannels = userPermissions.manageChannels || isOwner;
-  const canManageRoles = userPermissions.manageRoles || isOwner;
-  const canManageCommunity = userPermissions.manageCommunity || isOwner;
-  const canManageBackground = canManageCommunity || canManageChannels;
+  const hasAdminOverride = Boolean(userPermissions.administrator);
+  const canManageChannels = userPermissions.manageChannels || hasAdminOverride || isOwner;
+  const canManageRoles = userPermissions.manageRoles || hasAdminOverride || isOwner;
+  const canManageCommunity = userPermissions.manageCommunity || hasAdminOverride || isOwner;
+  const canManageBackground = canManageCommunity || canManageChannels || hasAdminOverride;
   const canSendMessages = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages") ? channelPermissions.sendMessages : userPermissions.sendMessages);
   const canAddReactions = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions") ? channelPermissions.addReactions : userPermissions.addReactions);
 
@@ -683,7 +686,7 @@ const ChatTab = ({
 
   return (
     <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
-      <ChatBackground key={backgroundId} theme={backgroundTheme.id} />
+      <ChatBackground style={communityBackgroundStyle} />
 
       <div className="channels-container">
         <div className={`channels-header${canManageChannels ? " has-manage" : " no-manage"}`}>
@@ -766,7 +769,7 @@ const ChatTab = ({
           </div>
         )}
 
-        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={communityBackgroundStyle}>
+        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={{ background: "transparent" }}>
           {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
@@ -1183,7 +1186,7 @@ const ChatTab = ({
         .skel-item { height: 40px; border-radius: 11px; background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 100%); background-size: 200% 100%; animation: skelShimmer 1.3s ease-in-out infinite; }
         @keyframes skelShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-        .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 12px; box-sizing: border-box; }
+        .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 12px; box-sizing: border-box; background: #000; background-image: none; }
         .chat-msgs > section { box-sizing: border-box; width: 100%; }
         .chat-msgs::-webkit-scrollbar { width: 5px; }
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }

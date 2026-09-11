@@ -39,9 +39,10 @@ class CommunityBackgroundService {
         id: "grid",
         name: "Grid",
         icon: "▦",
-        description: "Option 3 — black background with no grid lines",
+        description: "Option 3 — pure black background with no grid lines",
         style: {
-          background: "radial-gradient(ellipse 85% 85% at 50% 50%, transparent 32%, rgba(0,0,0,0.82) 72%, #000 100%), radial-gradient(ellipse 55% 55% at 50% 50%, rgba(132,204,22,0.04) 0%, transparent 100%), #000",
+          background: "#000000",
+          backgroundImage: "none",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
@@ -103,31 +104,22 @@ class CommunityBackgroundService {
       return this.backgrounds[backgroundId].id;
     }
 
-    return "classic_weave";
+    return "grid";
   }
 
   getBackground(userId, communityId) {
     try {
       const stored = localStorage.getItem(this.storageKey);
-      if (!stored) return "classic_weave";
+      if (!stored) return "grid";
 
       const backgrounds = JSON.parse(stored);
       const key = `${userId}_${communityId}`;
-      const savedBackground = backgrounds[key] || "classic_weave";
-
-      // Legacy migration: older builds saved the old minimal default.
-      // Treat that as the legacy default and upgrade users to the ref1 default.
-      if (savedBackground === "minimal") {
-        backgrounds[key] = "classic_weave";
-        localStorage.setItem(this.storageKey, JSON.stringify(backgrounds));
-        this.emit();
-        return "classic_weave";
-      }
+      const savedBackground = backgrounds[key] || "grid";
 
       return this.normalizeBackgroundSelection(savedBackground);
     } catch (error) {
       console.error("Error getting background:", error);
-      return "classic_weave";
+      return "grid";
     }
   }
 
@@ -166,7 +158,7 @@ class CommunityBackgroundService {
     }
 
     const theme = this.backgrounds.find(bg => bg.id === backgroundId);
-    return theme || this.backgrounds[0];
+    return theme || this.backgrounds.find((bg) => bg.id === "grid") || this.backgrounds[0];
   }
 
   getAllThemes() {

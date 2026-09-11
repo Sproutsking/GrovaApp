@@ -19,6 +19,7 @@ import LinkifiedText from "../Shared/LinkifiedText";
 import MessageList from "../Community/components/MessageList";
 import CommunityMessageInput from "../Community/components/CommunityMessageInput";
 import ContextMenu from "../Community/components/ContextMenu";
+import UserProfileModal from "../Modals/UserProfileModal";
 import { supabase } from "../../services/config/supabase";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
@@ -507,6 +508,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const [sending,      setSending]      = useState(false);
   const [showJump,     setShowJump]     = useState(false);
   const [messageContextMenu, setMessageContextMenu] = useState(null);
+  const [profileTarget, setProfileTarget] = useState(null);
   const [selectedBg,   setSelectedBg]   = useState(() =>
     backgroundService.getConversationBackground ? backgroundService.getConversationBackground(`gc_${groupProp?.id}`) : "classic_weave"
   );
@@ -554,17 +556,6 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
   const bgs         = backgroundService.getBackgrounds?.() ?? [];
   const activeBg    = bgs.find((bg) => bg.id === selectedBg) || bgs[0];
   const isDefaultBg = activeBg?.isDefault === true;
-  const logoMarks = [
-    { top: "8%", left: "10%", size: 30, opacity: 0.22 },
-    { top: "16%", left: "64%", size: 24, opacity: 0.16 },
-    { top: "26%", left: "18%", size: 18, opacity: 0.12 },
-    { top: "42%", left: "82%", size: 26, opacity: 0.16 },
-    { top: "52%", left: "10%", size: 28, opacity: 0.17 },
-    { top: "62%", left: "74%", size: 16, opacity: 0.12 },
-    { top: "74%", left: "36%", size: 30, opacity: 0.18 },
-    { top: "82%", left: "78%", size: 20, opacity: 0.14 },
-    { top: "90%", left: "22%", size: 14, opacity: 0.1 },
-  ];
 
   const scrollToBottom = useCallback((b="smooth")=>{
     endRef.current?.scrollIntoView({behavior:b});
@@ -729,21 +720,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
       <div className="gcv-body">
         {/* Messages */}
         <div className={`gcv-msgs${isDefaultBg?" gcv-msgs-default":""}`} style={bgStyle} ref={containerRef} onScroll={handleScroll}>
-          <div className="gcv-logo-markers" aria-hidden="true">
-            {logoMarks.map((mark, index) => (
-              <div
-                key={index}
-                className="gcv-logo-mark"
-                style={{
-                  top: mark.top,
-                  left: mark.left,
-                  width: mark.size,
-                  height: mark.size,
-                  opacity: mark.opacity,
-                }}
-              />
-            ))}
-          </div>
+          
           <div className="gcv-msgs-overlay"/>
           <div className="gcv-msgs-content">
             {loading&&<div className="gcv-loading"><div className="gcv-spin"/></div>}
@@ -771,7 +748,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
                 const touch = event.touches?.[0];
                 setMessageContextMenu({ x: touch?.clientX || 24, y: touch?.clientY || 120, message });
               }}
-              onProfileClick={() => {}}
+              onProfileClick={(user) => user && setProfileTarget(user)}
               onReply={setReplyTo}
               onNavigate={onNavigate}
               onReactionClick={handleReact}
@@ -843,6 +820,7 @@ const GroupChatView = ({ group: groupProp, currentUser, onBack, onNavigate }) =>
           onClose={()=>setShowSettings(false)}
         />
       )}
+      {profileTarget && <UserProfileModal user={profileTarget} currentUser={currentUser} onClose={() => setProfileTarget(null)} />}
       {messageContextMenu && <ContextMenu
         position={messageContextMenu}
         message={messageContextMenu.message}
@@ -913,8 +891,6 @@ const CSS = `
 .gcv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
 .gcv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.32);pointer-events:none;z-index:0;}
 .gcv-msgs-default .gcv-msgs-overlay{background:rgba(0,0,0,.18);} 
-.gcv-logo-markers{position:absolute;inset:0;pointer-events:none;z-index:0;}
-.gcv-logo-mark{position:absolute;border-radius:16px;background-image:url('/logo192.png');background-size:cover;background-position:center;filter:brightness(1.05) saturate(1.15) contrast(1.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.18);}
 .gcv-msgs-content{position:relative;z-index:1;padding:8px 10px 16px;display:flex;flex-direction:column;gap:1px;}
 
 .gcv-loading{display:flex;justify-content:center;padding:40px;}

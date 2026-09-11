@@ -1,6 +1,6 @@
 // components/Community/components/MessageList.jsx - 0.5PX SHIFT UP ⚡
 import React from "react";
-import { MoreHorizontal, Reply } from "lucide-react";
+import { MoreVertical, Reply } from "lucide-react";
 import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
@@ -147,12 +147,15 @@ const MessageList = ({
           const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
           const isAnnouncementMessage = isAnnouncement || Boolean(announcement);
-          const showTail = !isAnnouncementMessage && (!prev || prev.user_id !== msg.user_id);
+          const prevCreatedAt = prev ? new Date(prev.created_at).getTime() : null;
+          const currentCreatedAt = msg.created_at ? new Date(msg.created_at).getTime() : null;
+          const isWithinCluster = prev && prev.user_id === msg.user_id && prevCreatedAt !== null && currentCreatedAt !== null && (currentCreatedAt - prevCreatedAt) <= 10 * 60 * 1000;
+          const showTail = !isAnnouncementMessage && (!prev || prev.user_id !== msg.user_id || !isWithinCluster);
           const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
-          const showAvatar = isAnnouncementMessage || (!isMe && showTail);
+          const showAvatar = isAnnouncementMessage || showTail;
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
@@ -196,10 +199,10 @@ const MessageList = ({
 
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncementMessage}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: isMe ? 28 : 10, paddingRight: isMe ? 10 : 28, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <button
                     type="button"
-                    className="msg-card-menu-btn"
+                    className={`msg-card-menu-btn ${isMe ? "me" : "them"}`}
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -208,7 +211,7 @@ const MessageList = ({
                     }}
                     aria-label="Message options"
                   >
-                    <MoreHorizontal size={12} />
+                    <MoreVertical size={12} />
                   </button>
                   {postReply && (
                     <button
@@ -230,10 +233,10 @@ const MessageList = ({
                       <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReply.content || "...")}</strong>
                     </div>
                   )}
-                  {!isMe && showAvatar && (
+                  {showAvatar && (
                     <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
-                      {msg.user?.full_name || msg.user?.username || "Unknown"}
                       {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user.subscription_tier === "silver" ? "◇" : msg.user.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
+                      <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
                     </button>
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
@@ -270,7 +273,7 @@ const MessageList = ({
           width: 100%;
           box-sizing: border-box;
           align-items: stretch;
-          padding: 4px 12px 8px;
+          padding: 6px 12px 8px;
           display: flex;
           flex-direction: column;
           gap: 0;
@@ -302,8 +305,8 @@ const MessageList = ({
           width: 100%;
           box-sizing: border-box;
           align-items: flex-end;
-          gap: 2px;
-          margin-bottom: 1px;
+          gap: 4px;
+          margin: 4px 0;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
@@ -315,11 +318,12 @@ const MessageList = ({
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
         .msg-item .msg-bubble { min-width: 148px; padding-bottom: 6px; }
+        .msg-item.me .msg-bubble { padding-left: 12px; padding-right: 12px; }
+        .msg-item.them .msg-bubble { padding-left: 12px; padding-right: 12px; }
         .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
         .msg-card-menu-btn {
           position: absolute;
-          top: 8px;
-          right: 8px;
+          top: 6px;
           width: 22px;
           height: 22px;
           display: inline-flex;
@@ -335,6 +339,17 @@ const MessageList = ({
           box-shadow: 0 8px 18px rgba(0,0,0,0.28);
           transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
         }
+        .msg-card-menu-btn.them {
+          right: 8px;
+          left: auto;
+        }
+        .msg-card-menu-btn.me {
+          left: 8px;
+          right: auto;
+        }
+        .msg-card-menu-btn svg {
+          transform: rotate(90deg);
+        }
         .msg-card-menu-btn:hover {
           transform: translateY(-1px);
           background: rgba(156,255,0,0.10);
@@ -344,6 +359,16 @@ const MessageList = ({
         .msg-item.me .msg-bubble,
         .msg-item.them .msg-bubble {
           margin: 0;
+          padding-left: 32px;
+          padding-right: 32px;
+        }
+        .msg-item.me .msg-bubble {
+          padding-left: 30px;
+          padding-right: 10px;
+        }
+        .msg-item.them .msg-bubble {
+          padding-left: 10px;
+          padding-right: 30px;
         }
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
@@ -360,6 +385,7 @@ const MessageList = ({
         .msg-item.me {
           flex-direction: row-reverse;
           justify-content: flex-start;
+          padding-right: 4px;
         }
 
         .msg-item.optimistic {
@@ -392,6 +418,11 @@ const MessageList = ({
           box-shadow: 0 2px 8px var(--shadow);
           padding: 0;
           cursor: pointer;
+          margin-right: 4px;
+        }
+        .msg-item.me .msg-avatar {
+          margin-left: 4px;
+          margin-right: 0;
         }
 
         .msg-verified,
@@ -554,6 +585,13 @@ const MessageList = ({
           color: var(--accent);
           margin-bottom: 2px;
           line-height: 1.2;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .msg-user-name-text {
+          display: inline-block;
         }
 
         .msg-content {

@@ -40,7 +40,7 @@ const BackgroundDropdown = ({ currentTheme, onThemeChange, show, onClose, canMan
       id: "grid",
       name: "Grid",
       icon: "▦",
-      preview: "radial-gradient(ellipse 85% 85% at 50% 50%, transparent 32%, rgba(0,0,0,0.82) 72%, #000 100%), radial-gradient(ellipse 55% 55% at 50% 50%, rgba(132,204,22,0.04) 0%, transparent 100%), #000"
+      preview: "#000000"
     },
     {
       id: "aurora",

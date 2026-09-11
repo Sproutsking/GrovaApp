@@ -115,9 +115,12 @@ const CommunityMenu = ({
   };
 
   const isOwner = community?.owner_id === userId;
-  const canManageRoles = userPermissions?.manageRoles || isOwner;
-  const canManageCommunity = userPermissions?.manageCommunity || isOwner;
-  const canCreateChannels = userPermissions?.createChannels || isOwner;
+  const hasAdminOverride = Boolean(userPermissions?.administrator);
+  const canManageRoles = userPermissions?.manageRoles || hasAdminOverride || isOwner;
+  const canManageCommunity = userPermissions?.manageCommunity || hasAdminOverride || isOwner;
+  const canManageChannels = userPermissions?.manageChannels || hasAdminOverride || isOwner;
+  const canManageBackground = canManageCommunity || canManageChannels || hasAdminOverride;
+  const canCreateChannels = userPermissions?.createChannels || hasAdminOverride || isOwner;
 
   const showConfirm = (title, message, onConfirm, isDanger = false) => {
     setConfirmDialog({ show: true, title, message, onConfirm, isDanger });
@@ -210,7 +213,7 @@ const CommunityMenu = ({
                     { label:"View Members", desc:"Browse all community members", icon:<Users size={16}/>, gradient:"linear-gradient(135deg,#9cff00,#667eea)", onClick:()=>setMenuView("members"), arrow:true },
                     { label:"Invite People", desc:"Share invite links", icon:<Link2 size={16}/>, gradient:"linear-gradient(135deg,#f093fb,#f5576c)", onClick:()=>{onClose();onOpenInvite();} },
                     ...(canCreateChannels ? [{ label:"Create Channel", desc:"Add a new channel", icon:<Plus size={16}/>, gradient:"linear-gradient(135deg,#4facfe,#00f2fe)", onClick:onCreateChannel }] : []),
-                    { label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} },
+                    ...(canManageBackground ? [{ label:"Change Background", desc:"Customize chat appearance", icon:<Palette size={16}/>, gradient:"linear-gradient(135deg,#667eea,#764ba2)", onClick:()=>{onClose();onOpenBackgroundSwitcher?.();} }] : []),
                     ...(canManageCommunity ? [
                       { label:"Community Settings", desc:"Manage appearance & privacy", icon:<Settings size={16}/>, gradient:"linear-gradient(135deg,#43e97b,#38f9d7)", onClick:()=>setMenuView("settings"), arrow:true },
                       { label:"Roles & Permissions", desc:"Configure member roles", icon:<Crown size={16}/>, gradient:"linear-gradient(135deg,#fa709a,#fee140)", onClick:()=>setMenuView("roles"), arrow:true },
