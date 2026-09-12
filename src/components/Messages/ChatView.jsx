@@ -356,11 +356,6 @@ const MessageInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
 
   return (
     <div className="cv-input-root">
-      {showEmoji&&(
-        <div className="cv-ep-wrap">
-          <EmojiPicker onSelect={e=>{setVal(v=>v+e);setEmo(false);taRef.current?.focus();}} onClose={()=>setEmo(false)}/>
-        </div>
-      )}
       {showGif&&(
         <div className="cv-gp-wrap">
           <GifPicker onSelect={sendGif} onClose={()=>setGif(false)}/>
@@ -368,11 +363,6 @@ const MessageInput = memo(({ onSend, onTyping, replyTo, onCancelReply }) => {
       )}
       <ReplyBar replyTo={replyTo} onCancel={onCancelReply}/>
       <div className="cv-input-bar">
-        {/* [EMOJI] button */}
-        <button className={`cv-input-icon-btn${showEmoji?" cv-iib-on":""}`}
-          onClick={()=>{setEmo(s=>!s);setGif(false);}} title="Emoji">
-          <Ic.Smile/>
-        </button>
         {/* [GIF] button */}
         <button className={`cv-input-icon-btn cv-iib-gif${showGif?" cv-iib-gif-on":""}`}
           onClick={()=>{setGif(s=>!s);setEmo(false);}} title="GIF">

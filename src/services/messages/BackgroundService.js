@@ -254,7 +254,7 @@ class BackgroundService {
     if (bg.isDefault) return getDefaultBgStyle();
     if (bg.image) {
       return {
-        backgroundImage: `linear-gradient(180deg, rgba(2, 4, 8, 0.62) 0%, rgba(2, 4, 8, 0.52) 35%, rgba(2, 4, 8, 0.74) 100%), url(${bg.image})`,
+        backgroundImage: `url(${bg.image})`,
         backgroundSize: "cover",
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
