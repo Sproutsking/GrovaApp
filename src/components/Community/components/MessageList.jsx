@@ -363,6 +363,8 @@ const MessageList = ({
         .msg-card-header.incoming .msg-card-menu-btn { order:2; }
         .msg-card-header.outgoing .msg-card-menu-btn { order:1; }
         .msg-card-header.outgoing .msg-user-name { order:2; }
+        .msg-card-header.outgoing { justify-content:flex-end; }
+        .msg-card-header.incoming { justify-content:flex-start; }
         .msg-card-header .msg-user-name { flex:1 1 auto; min-width:max-content; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
         .msg-card-header .msg-card-menu-btn { inset:auto; margin:0; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
@@ -477,8 +479,8 @@ const MessageList = ({
         .msg-item.announcement .msg-meta { margin-top: 10px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
-        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: min(70%, 100%); max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
-        .mra-wrapper .msg-bubble { width: 100%; max-width: 100%; }
+        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: fit-content; max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
+        .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
         .mra-ann { align-items: flex-start; width: fit-content; max-width: min(760px, calc(100vw - 92px)); }
