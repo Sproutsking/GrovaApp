@@ -153,6 +153,7 @@ const MessageList = ({
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
           const showAvatar = isAnnouncementMessage || showTail;
+          const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
@@ -195,7 +196,7 @@ const MessageList = ({
               )}
               {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
 
-              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncementMessage}>
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} showReactionTrigger={isReactionChannel}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
@@ -363,8 +364,9 @@ const MessageList = ({
         .msg-card-header.incoming .msg-card-menu-btn { order:2; }
         .msg-card-header.outgoing .msg-card-menu-btn { order:1; }
         .msg-card-header.outgoing .msg-user-name { order:2; }
-        .msg-card-header.outgoing { justify-content:flex-end; }
-        .msg-card-header.incoming { justify-content:flex-start; }
+        .msg-card-header.outgoing,
+        .msg-card-header.incoming { justify-content:space-between; }
+        .msg-card-header.outgoing .msg-user-name { flex-direction:row-reverse; }
         .msg-card-header .msg-user-name { flex:1 1 auto; min-width:max-content; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
         .msg-card-header .msg-card-menu-btn { inset:auto; margin:0; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}

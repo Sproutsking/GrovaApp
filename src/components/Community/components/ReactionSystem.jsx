@@ -299,7 +299,7 @@ export const ReactionBurst = ({ emoji, x, y }) => {
 /**
  * Full area that wraps a message — shows reaction bar + hover picker trigger
  */
-export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false }) => {
+export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
   const [burst, setBurst] = useState(null);
@@ -340,7 +340,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         onToggle={(emoji) => onToggle?.(message.id, emoji)}
         isAnnouncement={isAnnouncement}
         triggerRef={triggerRef}
-        onOpenPicker={togglePicker}
+        onOpenPicker={showReactionTrigger ? togglePicker : undefined}
       />
     </div>
   );
