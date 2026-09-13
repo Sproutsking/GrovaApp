@@ -95,14 +95,15 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
       updated_at: new Date().toISOString(),
     };
     setError("");
+    const previousRows = rows;
     setRows((current) => [...current.filter((item) => item.tool_type !== type), { ...row, ...nextRow }]);
     const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
-    if (saveError) { setError(saveError.message); return; }
+    if (saveError) { setRows(previousRows); setError(saveError.message); return; }
     const { error: clearError } = await supabase.from("community_channels").update({ tool_type: null, updated_at: new Date().toISOString() }).eq("community_id", communityId).eq("tool_type", type);
-    if (clearError) { setError(clearError.message); return; }
+    if (clearError) { setRows(previousRows); setError(clearError.message); return; }
     if (ids.length) {
       const { error: markerError } = await supabase.from("community_channels").update({ tool_type: type, updated_at: new Date().toISOString() }).in("id", ids);
-      if (markerError) setError(markerError.message);
+      if (markerError) { setRows(previousRows); setError(markerError.message); }
     }
   };
 
