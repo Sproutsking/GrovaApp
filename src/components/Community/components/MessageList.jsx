@@ -151,7 +151,7 @@ const MessageList = ({
           const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
           const messageTitle = announcement?.title || "";
-          const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
+          const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || String(msg.content || "").replace(/^\[\[welcome-member:[^\]]+\]\]\n?/, "");
           const showAvatar = isAnnouncementMessage || showTail;
           const showSenderHeader = isAnnouncementMessage || Boolean(msg.user);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
