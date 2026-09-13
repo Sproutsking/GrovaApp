@@ -189,7 +189,8 @@ class CommunityMessageService {
           .select(`
             *,
             user:user_id(
-              id, username, full_name, avatar_id, avatar_metadata, verified
+              id, username, full_name, avatar_id, avatar_metadata, verified,
+              subscription_tier, boost_selections
             )
           `)
           .eq("id", payload.new.id)
@@ -234,7 +235,7 @@ class CommunityMessageService {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, username, full_name, avatar_id, avatar_metadata, verified")
+        .select("id, username, full_name, avatar_id, avatar_metadata, verified, subscription_tier, boost_selections")
         .eq("id", message.user_id)
         .single();
 

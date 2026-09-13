@@ -33,6 +33,7 @@ import TicketToolPanel from "../tools/TicketToolPanel";
 import VerificationPanel from "../verification/VerificationPanel";
 import UpdatesChannelPanel from "../updates/UpdatesChannelPanel";
 import { supabase } from "../../../services/config/supabase";
+import { useUserBoostTier } from "../../../hooks/useUserBoostTier";
 
 const ChatTab = ({
   community,
@@ -78,6 +79,44 @@ const ChatTab = ({
   const [isMobile, setIsMobile] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
+  const currentUserBoost = useUserBoostTier(userId);
+
+  useEffect(() => {
+    if (!userId || currentUserBoost.loading) return;
+    setMessages((previousMessages) => previousMessages.map((message) => {
+      if (String(message.user_id) !== String(userId)) return message;
+
+      const previousSelections = message.user?.boost_selections || {};
+      const nextSelections = {
+        ...previousSelections,
+        ...(currentUserBoost.themeId ? { themeId: currentUserBoost.themeId } : {}),
+        ...(currentUserBoost.fontId ? { fontId: currentUserBoost.fontId } : {}),
+        ...(currentUserBoost.colorId ? { colorId: currentUserBoost.colorId } : {}),
+        ...(currentUserBoost.backgroundColorId ? { backgroundColorId: currentUserBoost.backgroundColorId } : {}),
+      };
+      const previousTier = message.user?.subscription_tier || null;
+      const nextTier = currentUserBoost.tier || previousTier;
+      const selectionsChanged = JSON.stringify(previousSelections) !== JSON.stringify(nextSelections);
+
+      if (previousTier === nextTier && !selectionsChanged) return message;
+      return {
+        ...message,
+        user: {
+          ...message.user,
+          subscription_tier: nextTier,
+          boost_selections: nextSelections,
+        },
+      };
+    }));
+  }, [
+    userId,
+    currentUserBoost.loading,
+    currentUserBoost.tier,
+    currentUserBoost.themeId,
+    currentUserBoost.fontId,
+    currentUserBoost.colorId,
+    currentUserBoost.backgroundColorId,
+  ]);
   const [forwardMessage, setForwardMessage] = useState(null);
   const [mentionedRole, setMentionedRole] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
@@ -491,6 +530,14 @@ const ChatTab = ({
             avatar_id: avatarId,
             avatar_metadata: currentUser?.avatar_metadata,
             verified: currentUser?.verified || false,
+            subscription_tier: currentUserBoost.tier || currentUser?.subscription_tier || currentUser?.subscriptionTier || null,
+            boost_selections: {
+              ...(currentUser?.boost_selections || currentUser?.boostSelections || {}),
+              ...(currentUserBoost.themeId ? { themeId: currentUserBoost.themeId } : {}),
+              ...(currentUserBoost.fontId ? { fontId: currentUserBoost.fontId } : {}),
+              ...(currentUserBoost.colorId ? { colorId: currentUserBoost.colorId } : {}),
+              ...(currentUserBoost.backgroundColorId ? { backgroundColorId: currentUserBoost.backgroundColorId } : {}),
+            },
           },
           reply_to_id: isCrossChannelPostReply ? null : (replyTo?.id || null),
         }
