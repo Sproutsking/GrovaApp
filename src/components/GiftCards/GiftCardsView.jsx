@@ -1047,6 +1047,19 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
     setRecipient(null); setSong(null); setGenCode(""); setBurstDone(false); setEpError("");
   }, []);
 
+  const goBack = useCallback(() => {
+    if (phase === "confirm") {
+      setPhase("configure");
+      setBurstDone(false);
+      return;
+    }
+    if (phase === "configure") {
+      setPhase("browse");
+      return;
+    }
+    reset();
+  }, [phase, reset]);
+
   const switchTab = useCallback((k) => { setTab(k); if (k !== "send") reset(); }, [reset]);
 
   // Buy / send flow
@@ -1218,6 +1231,17 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
 
       {phase === "configure" && tier && (
         <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "1px" }}>Card amount</div>
+            <span style={{ fontSize: 10, color: "#555" }}>Recipient stays selected</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 12 }}>
+            {TIERS.map((option) => (
+              <button key={option.id} type="button" onClick={() => setSelId(option.id)} style={{ flex: "0 0 auto", padding: "7px 10px", borderRadius: 9, border: `1px solid ${option.id === selId ? option.c1 + "66" : "rgba(255,255,255,0.08)"}`, background: option.id === selId ? `${option.c1}18` : "rgba(255,255,255,0.03)", color: option.id === selId ? option.c1 : "#666", fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                {option.name} · {option.value.toLocaleString()} EP
+              </button>
+            ))}
+          </div>
           {/* Tier summary */}
           <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 15px", background: `${tier.c1}08`, border: `1px solid ${tier.c1}24`, borderRadius: 16, marginBottom: 20 }}>
             <div style={{ width: 44, height: 44, borderRadius: 13, background: `${tier.c1}18`, border: `1px solid ${tier.c1}2a`, display: "flex", alignItems: "center", justifyContent: "center" }}>{getTierIcon(tier, 22)}</div>
@@ -1451,7 +1475,7 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
       {/* HEADER */}
       <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "14px 16px 10px", background: "rgba(5,5,5,0.96)", backdropFilter: "blur(28px)", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0, boxShadow: "0 1px 0 rgba(255,255,255,0.03)", zIndex: 10 }}>
         {!showPC && phase !== "browse" && tab === "send"
-          ? <button onClick={reset} style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#707070", flexShrink: 0 }}><ArrowLeft size={15} /></button>
+          ? <button onClick={goBack} aria-label="Go back without clearing recipient" style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#707070", flexShrink: 0 }}><ArrowLeft size={15} /></button>
           : <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#707070", flexShrink: 0 }}><X size={15} /></button>
         }
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1489,7 +1513,7 @@ const GiftCardsView = ({ currentUser, onClose, isSidebar = false, initialRecipie
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
             {tab === "send" && phase !== "browse" && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 20px 0", flexShrink: 0 }}>
-                <button onClick={reset} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}><ArrowLeft size={12} /> Back</button>
+                <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#555", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}><ArrowLeft size={12} /> Back</button>
                 <span style={{ fontSize: 11, color: "#2a2a2a" }}>→</span>
                 <span style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>{phase === "configure" ? "Configure Gift" : phase === "confirm" ? "Confirm & Send" : "Sent! 🎁"}</span>
               </div>
