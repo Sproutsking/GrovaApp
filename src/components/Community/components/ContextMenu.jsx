@@ -6,7 +6,7 @@ import EmojiPanel from "./EmojiPanel";
 const QUICK_EMOJIS = ["❤️", "😂", "🔥", "👏"];
 const MORE_EMOJIS = ["😍", "🤯", "💯", "👑", "🚀", "😭", "🥳", "💀", "👍", "🙏", "🎉", "✨"];
 
-const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onClose, onEdit, onDelete, onReaction, onCopy, onReply, onForward, onReport }) => {
+const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onClose, onEdit, onDelete, onReaction, onReactionBurst, onCopy, onReply, onForward, onReport }) => {
   const [showMore, setShowMore] = useState(false);
   const [showReactionPanel, setShowReactionPanel] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -90,17 +90,17 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
         <EmojiPanel
           panelRef={reactionPanelRef}
           managePosition={false}
-          onSelect={(emoji) => onReaction?.(emoji)}
+          onSelect={(emoji) => { onReactionBurst?.(emoji, position); onReaction?.(emoji); }}
           onClose={onClose}
           style={reactionPanelStyle}
         />
       ) : <div ref={panelRef} className="message-context-menu" style={{ left: position.x, top: position.y }} onClick={(event) => event.stopPropagation()}>
         <button className="message-context-item primary" onClick={() => handle(onReply)}><Reply size={15} /><span>Reply</span></button>
         <div className="message-quick-reactions">
-          {QUICK_EMOJIS.map((emoji) => <button key={emoji} onClick={() => handle(() => onReaction?.(emoji))}>{emoji}</button>)}
+          {QUICK_EMOJIS.map((emoji) => <button key={emoji} onClick={(event) => handle(() => { onReactionBurst?.(emoji, event.currentTarget.getBoundingClientRect()); onReaction?.(emoji); })}>{emoji}</button>)}
           <button className={`message-more-reaction${showMore ? " active" : ""}`} onClick={() => setShowReactionPanel(true)}><MoreHorizontal size={16} /></button>
         </div>
-        {showMore && <div className="message-more-grid">{MORE_EMOJIS.map((emoji) => <button key={emoji} onClick={() => handle(() => onReaction?.(emoji))}>{emoji}</button>)}</div>}
+        {showMore && <div className="message-more-grid">{MORE_EMOJIS.map((emoji) => <button key={emoji} onClick={(event) => handle(() => { onReactionBurst?.(emoji, event.currentTarget.getBoundingClientRect()); onReaction?.(emoji); })}>{emoji}</button>)}</div>}
         <div className="message-context-divider" />
         <button className="message-context-item" onClick={() => handle(onCopy)}><Copy size={14} /><span>Copy message</span></button>
         <button className="message-context-item" onClick={() => handle(onForward)}><Forward size={14} /><span>Forward message</span></button>

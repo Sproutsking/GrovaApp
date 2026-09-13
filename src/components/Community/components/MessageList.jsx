@@ -137,12 +137,9 @@ const MessageList = ({
         </div>
       )}
 
-      {!loading &&
-        allMessages.map((msg, idx) => {
+      {!loading && allMessages.map((msg, idx) => {
           const isMe = String(msg.user_id) === String(userId);
           const prev = allMessages[idx - 1];
-          
-          // Show tail on first message in a cluster (for both "me" and "them")
           const isAnnouncement = channelType === "announcement";
           const announcementMatch = String(msg.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/);
           const announcement = announcementMatch ? parseAnnouncementMetadata(announcementMatch[1]) : null;
@@ -159,6 +156,7 @@ const MessageList = ({
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
+          const replyTier = ["silver", "gold", "diamond"].includes(originalReply?.user?.subscription_tier) ? originalReply.user.subscription_tier : "normal";
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
           const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
           
@@ -199,7 +197,7 @@ const MessageList = ({
 
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncementMessage}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: isMe ? 28 : 10, paddingRight: isMe ? 10 : 28, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <button
                     type="button"
                     className={`msg-card-menu-btn ${isMe ? "me" : "them"}`}
@@ -213,6 +211,12 @@ const MessageList = ({
                   >
                     <MoreVertical size={12} />
                   </button>
+                  {showAvatar && (
+                    <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
+                      <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
+                      {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user.subscription_tier === "silver" ? "◇" : msg.user.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
+                    </button>
+                  )}
                   {postReply && (
                     <button
                       type="button"
@@ -228,16 +232,10 @@ const MessageList = ({
                     </button>
                   )}
                   {msg.reply_to_id && originalReply && !postReply && (
-                    <div className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}}>
+                    <div className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""} reply-tier-${replyTier}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}}>
                       <span>{originalReplyAnnouncementMeta ? "Announcement" : `Replying to ${originalReply.user?.full_name || "member"}`}</span>
                       <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReply.content || "...")}</strong>
                     </div>
-                  )}
-                  {showAvatar && (
-                    <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
-                      {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user.subscription_tier === "silver" ? "◇" : msg.user.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
-                      <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
-                    </button>
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
@@ -273,7 +271,7 @@ const MessageList = ({
           width: 100%;
           box-sizing: border-box;
           align-items: stretch;
-          padding: 6px 12px 8px;
+          padding: 6px 6px 8px;
           display: flex;
           flex-direction: column;
           gap: 0;
@@ -317,7 +315,7 @@ const MessageList = ({
         .msg-item.announcement .msg-bubble { width: fit-content; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
-        .msg-item .msg-bubble { min-width: 148px; padding-bottom: 6px; }
+        .msg-item .msg-bubble { min-width: max-content; padding-bottom: 6px; }
         .msg-item.me .msg-bubble { padding-left: 12px; padding-right: 12px; }
         .msg-item.them .msg-bubble { padding-left: 12px; padding-right: 12px; }
         .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
@@ -373,12 +371,22 @@ const MessageList = ({
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
-        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25}
+        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+        .msg-reply-quote.reply-tier-silver{border-left-color:#cbd5e1;background:linear-gradient(135deg,rgba(148,163,184,.13),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
+        .msg-reply-quote.reply-tier-gold{border-left-color:#fbbf24;background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(251,191,36,.18)}
+        .msg-reply-quote.reply-tier-diamond{border-left-color:#7dd3fc;background:linear-gradient(135deg,rgba(125,211,252,.15),rgba(167,139,250,.09));box-shadow:inset 0 0 0 1px rgba(125,211,252,.2),0 0 12px rgba(125,211,252,.12)}
         .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
+        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:max-content; min-height:22px; padding-top:8px; margin-bottom:8px; box-sizing:border-box; gap:12px; }
+        .msg-card-header .msg-card-menu-btn { position:relative; top:auto; left:auto; right:auto; flex:0 0 22px; }
+        .msg-card-header.incoming .msg-user-name { order:1; }
+        .msg-card-header.incoming .msg-card-menu-btn { order:2; }
+        .msg-card-header.outgoing .msg-card-menu-btn { order:1; }
+        .msg-card-header.outgoing .msg-user-name { order:2; }
+        .msg-card-header .msg-user-name { flex:1 1 auto; min-width:max-content; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
         @keyframes postTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.28),0 0 30px rgba(156,255,0,.34)}100%{box-shadow:0 0 0 2px rgba(156,255,0,.12),0 0 18px rgba(156,255,0,.18)}}
 
@@ -421,9 +429,10 @@ const MessageList = ({
           margin-right: 4px;
         }
         .msg-item.me .msg-avatar {
-          margin-left: 4px;
+          margin-left: 2px;
           margin-right: 0;
         }
+        .msg-item.them .msg-avatar { margin-right: 0; }
 
         .msg-verified,
         .community-profile-verified {
@@ -492,8 +501,8 @@ const MessageList = ({
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
         .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: min(70%, max-content); max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
         .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
-        .msg-item.them .mra-wrapper { margin-right: auto; }
-        .msg-item.me .mra-wrapper { margin-left: auto; }
+        .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
+        .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
         .mra-ann { align-items: flex-start; width: fit-content; max-width: min(760px, calc(100vw - 92px)); }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
@@ -678,6 +687,7 @@ const MessageList = ({
 
           .msg-bubble {
             max-width: 80%;
+            min-width: max-content;
             padding: 5px 9px;
             border-radius: 14px;
           }
@@ -688,6 +698,11 @@ const MessageList = ({
 
           .msg-content {
             font-size: 13px;
+          }
+
+          .msg-list-wrapper {
+            padding-left: 8px;
+            padding-right: 8px;
           }
 
           .msg-bubble.them.has-tail::before {

@@ -362,6 +362,7 @@ const MembersSection = ({ community, userId }) => {
         <CommunityProfileModal
           user={selectedMember.user}
           member={selectedMember}
+          onlineStatus={onlineStatuses[selectedMember.user_id] || { online: false, lastSeenText: "Offline" }}
           community={community}
           roles={roles}
           canManageRoles={community.owner_id === userId}
@@ -732,7 +733,7 @@ const MembersSection = ({ community, userId }) => {
           align-items: center;
           justify-content: center;
           position: relative;
-          overflow: hidden;
+          overflow: visible;
           transition: all 0.3s;
           box-shadow: 0 0 0 2px rgba(15, 15, 15, 0.8);
         }

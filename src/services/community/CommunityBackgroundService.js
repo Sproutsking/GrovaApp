@@ -1,6 +1,5 @@
 // services/community/CommunityBackgroundService.js
-import communityBgClassicWeave from "../../components/Messages/Assets/backgrounds/classic-weave.svg";
-import communityBgNovaWeave from "../../components/Messages/Assets/backgrounds/nova-weave.svg";
+import dmBackgroundService from "../messages/BackgroundService";
 import communityBgHexaGlow from "../../components/Messages/Assets/backgrounds/download (49).jpg";
 import communityBgHexaWave from "../../components/Messages/Assets/backgrounds/download (48).jpg";
 import communityBgHexaNight from "../../components/Messages/Assets/backgrounds/download (47).jpg";
@@ -15,25 +14,15 @@ class CommunityBackgroundService {
         id: "classic_weave",
         name: "Classic Weave",
         icon: "🌀",
-        description: "Option 1 — ref 1 default background",
-        style: {
-          backgroundImage: `linear-gradient(180deg, rgba(4, 5, 10, 0.68), rgba(4, 5, 10, 0.52)), url(${communityBgClassicWeave})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        },
+        description: "Option 1 — shared DM default background",
+        style: dmBackgroundService.getBgStyle("classic_weave"),
       },
       {
         id: "nova_weave",
         name: "Nova Weave",
         icon: "✦",
         description: "Option 2 — ref 2 artwork",
-        style: {
-          backgroundImage: `linear-gradient(180deg, rgba(4, 5, 10, 0.66), rgba(4, 5, 10, 0.54)), url(${communityBgNovaWeave})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        },
+        style: dmBackgroundService.getBgStyle("nova_weave"),
       },
       {
         id: "grid",
@@ -104,22 +93,22 @@ class CommunityBackgroundService {
       return this.backgrounds[backgroundId].id;
     }
 
-    return "grid";
+    return "classic_weave";
   }
 
   getBackground(userId, communityId) {
     try {
       const stored = localStorage.getItem(this.storageKey);
-      if (!stored) return "grid";
+      if (!stored) return "classic_weave";
 
       const backgrounds = JSON.parse(stored);
       const key = `${userId}_${communityId}`;
-      const savedBackground = backgrounds[key] || "grid";
+      const savedBackground = backgrounds[key] || "classic_weave";
 
       return this.normalizeBackgroundSelection(savedBackground);
     } catch (error) {
       console.error("Error getting background:", error);
-      return "grid";
+      return "classic_weave";
     }
   }
 
@@ -158,7 +147,7 @@ class CommunityBackgroundService {
     }
 
     const theme = this.backgrounds.find(bg => bg.id === backgroundId);
-    return theme || this.backgrounds.find((bg) => bg.id === "grid") || this.backgrounds[0];
+    return theme || this.backgrounds.find((bg) => bg.id === "classic_weave") || this.backgrounds[0];
   }
 
   getAllThemes() {

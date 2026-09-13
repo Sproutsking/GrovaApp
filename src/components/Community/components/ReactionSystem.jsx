@@ -77,14 +77,15 @@ export const ReactionPicker = ({ onSelect, onClose, style = {} }) => {
 /**
  * reactions: { "❤️": { count: 3, users: ["uid1","uid2"] }, ... }
  */
-export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false }) => {
+export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement = false, onOpenPicker, triggerRef }) => {
   const [burst, setBurst] = useState(null);
   const barRef = useRef(null);
+  const burstIdRef = useRef(0);
 
   const handleClick = useCallback((emoji, e) => {
     // Burst animation
     const rect = e.currentTarget.getBoundingClientRect();
-    setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: Date.now() });
+    setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: `${Date.now()}-${burstIdRef.current++}` });
     setTimeout(() => setBurst(null), 800);
 
     onToggle?.(emoji);
@@ -106,6 +107,18 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           </button>
         );
       })}
+      {onOpenPicker && (
+        <button
+          ref={triggerRef}
+          type="button"
+          className={`rb-pill rb-add-trigger ${isAnnouncement ? "ann-pill" : ""}`}
+          onClick={onOpenPicker}
+          aria-label="Add a reaction"
+          title="Add a reaction"
+        >
+          <span className="rb-emoji"><Smile size={15} /></span>
+        </button>
+      )}
 
       {burst && <ReactionBurst key={burst.id} emoji={burst.emoji} x={burst.x} y={burst.y} />}
 
@@ -113,8 +126,11 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
         .rb-bar {
           display: flex;
           flex-wrap: wrap;
+          align-items: center;
           gap: 4px;
           margin-top: 5px;
+          width: 100%;
+          min-width: 0;
         }
 
         .rb-bar.announcement {
@@ -134,6 +150,16 @@ export const ReactionBar = ({ reactions = {}, userId, onToggle, isAnnouncement =
           transition: all 0.18s;
           font-family: inherit;
           animation: pillIn 0.2s ease-out;
+        }
+        .rb-add-trigger {
+          padding-left: 8px;
+          padding-right: 8px;
+          min-width: 30px;
+        }
+        .rb-add-trigger .rb-emoji {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         @keyframes pillIn {
           from { opacity: 0; transform: scale(0.7); }
@@ -279,11 +305,12 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
   const [burst, setBurst] = useState(null);
   const areaRef = useRef(null);
   const triggerRef = useRef(null);
+  const burstIdRef = useRef(0);
 
   const handleAddReaction = (emoji) => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) {
-      setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: Date.now() });
+      setBurst({ emoji, x: rect.left + rect.width / 2, y: rect.top, id: `${Date.now()}-${burstIdRef.current++}` });
       window.setTimeout(() => setBurst(null), 800);
     }
     onToggle?.(message.id, emoji);
@@ -312,19 +339,9 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         userId={userId}
         onToggle={(emoji) => onToggle?.(message.id, emoji)}
         isAnnouncement={isAnnouncement}
+        triggerRef={triggerRef}
+        onOpenPicker={togglePicker}
       />
-      {(
-        <button
-          type="button"
-          ref={triggerRef}
-          className="mra-reaction-trigger"
-          onClick={togglePicker}
-          aria-label="Add a reaction"
-          title="Add a reaction"
-        >
-          <Smile size={15} />
-        </button>
-      )}
     </div>
   );
 
@@ -346,8 +363,8 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           position: relative;
           display: flex;
           flex: 0 1 auto;
-          width: fit-content;
-          max-width: 70%;
+          width: 100%;
+          max-width: 100%;
           flex-direction: column;
           align-items: flex-end;
           min-width: 0;
@@ -391,12 +408,13 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           min-width: 0;
           min-height: 30px;
           margin-top: 3px;
-          padding: 0 34px;
+          padding: 0 0 0 0;
           box-sizing: border-box;
         }
         .mra-reaction-row .rb-bar {
-          width: 100%;
-          max-width: 100%;
+          flex: 1 1 auto;
+          width: auto;
+          max-width: none;
           min-width: 0;
           margin-top: 0;
           justify-content: flex-start;
@@ -404,9 +422,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           min-height: 26px;
           padding: 0;
         }
-        .mra-reaction-trigger { position: absolute; right: 0; bottom: 1px; }
-        .msg-item.them .mra-reaction-trigger { left: 0; right: auto; }
-        .msg-item.me .mra-reaction-trigger { left: auto; right: 0; }
+        .mra-reaction-trigger { position: relative; right: auto; left: auto; bottom: auto; }
         .mra-reaction-row.announcement .rb-bar {
           flex: 0 1 auto;
           min-width: 0;

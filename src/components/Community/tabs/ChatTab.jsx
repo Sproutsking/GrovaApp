@@ -5,6 +5,7 @@ import {
   ChevronDown, ArrowLeft, Settings2, Hash, Megaphone, Volume2,
 } from "lucide-react";
 import MessageList from "../components/MessageList";
+import { ReactionBurst } from "../components/ReactionSystem";
 import ContextMenu from "../components/ContextMenu";
 import ChannelContextMenu from "../components/ChannelContextMenu";
 import CommunityMenu from "../components/CommunityMenu";
@@ -12,7 +13,6 @@ import CreateChannelModal from "../modals/CreateChannelModal";
 import EditChannelModal from "../modals/EditChannelModal";
 import ChannelPermissionsModal from "../modals/ChannelPermissionsModal";
 import BackgroundDropdown from "../components/BackgroundDropdown";
-import ChatBackground from "../components/ChatBackground";
 import CommunityMessageInput from "../components/CommunityMessageInput";
 import ChannelButton from "../utils/channelStyles";
 import CategoryGroup from "../utils/CategoryGroup";
@@ -20,6 +20,7 @@ import channelService from "../../../services/community/channelService";
 import communityMessageService from "../../../services/community/communityMessageService";
 import communityState from "../../../services/community/CommunityStateManager";
 import backgroundService from "../../../services/community/CommunityBackgroundService";
+import dmBackgroundService from "../../../services/messages/BackgroundService";
 import permissionService from "../../../services/community/permissionService";
 import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
@@ -73,7 +74,7 @@ const ChatTab = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBgDropdown, setShowBgDropdown] = useState(false);
   const [showJump, setShowJump] = useState(false);
-  const [backgroundId, setBackgroundId] = useState("grid");
+  const [backgroundId, setBackgroundId] = useState("classic_weave");
   const [isMobile, setIsMobile] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
@@ -86,11 +87,9 @@ const ChatTab = ({
   const [draggedChannel, setDraggedChannel] = useState(null);
   const [categoryMenu, setCategoryMenu] = useState(null);
   const [postNavigationTarget, setPostNavigationTarget] = useState(null);
+  const [contextReactionBurst, setContextReactionBurst] = useState(null);
 
-  const backgroundTheme = backgroundService.getTheme(backgroundId);
-  const communityBackgroundStyle = backgroundId === "grid"
-    ? { background: "#000000", backgroundImage: "none", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
-    : backgroundTheme?.style || { background: "#000000" };
+  const communityBackgroundStyle = dmBackgroundService.getBgStyle(backgroundId === "classic_weave" ? "classic_weave" : backgroundId);
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const unsubscribeChannel = useRef(null);
@@ -686,8 +685,6 @@ const ChatTab = ({
 
   return (
     <div className="chat-tab" onClick={() => { setContextMenu(null); setChannelContextMenu(null); }}>
-      <ChatBackground style={communityBackgroundStyle} />
-
       <div className="channels-container">
         <div className={`channels-header${canManageChannels ? " has-manage" : " no-manage"}`}>
           {canManageChannels && (
@@ -769,7 +766,7 @@ const ChatTab = ({
           </div>
         )}
 
-        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={{ background: "transparent" }}>
+        <div className="chat-msgs" ref={containerRef} onScroll={handleScroll} style={communityBackgroundStyle}>
           {selectedChannel?.tool_type === "tickets" ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} onTicketCreated={(channel) => { setChannels((current) => [...current, channel]); setSelectedChannel(channel); }} /> : selectedChannel?.integrations?.ticket ? <TicketToolPanel communityId={community.id} userId={userId} channelId={selectedChannel.id} isPrivateTicket onTicketDeleted={async (channelId) => { const remaining = channels.filter((channel) => channel.id !== channelId); setChannels(remaining); communityCache.setChannels(community.id, remaining); setSelectedChannel(remaining[0] || null); await loadChannels(); }} /> : selectedChannel?.tool_type === "verification" ? <VerificationPanel communityId={community.id} userId={userId} onVerified={() => loadMessages()} /> : selectedChannel?.tool_type === "social_updates" ? <UpdatesChannelPanel channelId={selectedChannel.id} userId={userId} canAddReactions={canAddReactions} focusPostId={postNavigationTarget?.externalPost && postNavigationTarget.channelId === selectedChannel.id ? postNavigationTarget.postId : null} onReply={(post) => { setReplyTo({ ...post, channelId: selectedChannel.id }); const general = channels.find((channel) => channel.name?.toLowerCase() === "general" && channel.type === "text"); if (general) setSelectedChannel(general); }} /> : <MessageList
             messages={messages}
             pendingMessages={[]}
@@ -901,6 +898,13 @@ const ChatTab = ({
           permissions={userPermissions}
           isOwner={isOwner}
           onClose={() => setContextMenu(null)}
+          onReactionBurst={(emoji, anchor) => {
+            const x = anchor?.left !== undefined ? anchor.left + (anchor.width || 0) / 2 : anchor?.x || window.innerWidth / 2;
+            const y = anchor?.top !== undefined ? anchor.top : anchor?.y || window.innerHeight / 2;
+            const burst = { emoji, x, y, id: Date.now() + Math.random() };
+            setContextReactionBurst(burst);
+            window.setTimeout(() => setContextReactionBurst((current) => current?.id === burst.id ? null : current), 800);
+          }}
           onEdit={() => {
             setEditingMessage(contextMenu.message);
             setMessageInput(contextMenu.message.content);
@@ -950,6 +954,7 @@ const ChatTab = ({
           onReport={() => { alert("Message reported to community moderators."); setContextMenu(null); }}
         />
       )}
+      {contextReactionBurst && <ReactionBurst key={contextReactionBurst.id} emoji={contextReactionBurst.emoji} x={contextReactionBurst.x} y={contextReactionBurst.y} />}
 
       {profileTarget && (
         <UserProfileModal user={profileTarget} currentUser={currentUser} onClose={() => setProfileTarget(null)} />

@@ -6,9 +6,11 @@ class CommunityOnlineStatusService {
     this.userId = null;
     this.communityId = null;
     this.heartbeat = null;
+    this.statusRefresh = null;
     this.channel = null;
     this.cache = new Map();
     this.listeners = new Set();
+    this.memberIds = [];
   }
 
   start(userId, communityId) {
@@ -21,8 +23,10 @@ class CommunityOnlineStatusService {
     this.communityId = communityId;
     this.updatePresence();
 
-    // Update presence every 30 seconds
-    this.heartbeat = setInterval(() => this.updatePresence(), 30000);
+    this.heartbeat = setInterval(() => this.updatePresence(), 10000);
+    this.statusRefresh = setInterval(() => {
+      if (this.memberIds.length) this.fetchMemberStatuses(this.memberIds);
+    }, 10000);
 
     // Subscribe to presence channel for this community
     this.channel = supabase
@@ -58,6 +62,10 @@ class CommunityOnlineStatusService {
       clearInterval(this.heartbeat);
       this.heartbeat = null;
     }
+    if (this.statusRefresh) {
+      clearInterval(this.statusRefresh);
+      this.statusRefresh = null;
+    }
 
     if (this.channel) {
       supabase.removeChannel(this.channel);
@@ -69,6 +77,7 @@ class CommunityOnlineStatusService {
       this.userId = null;
       this.communityId = null;
     }
+    this.memberIds = [];
   }
 
   async updatePresence(isOnline = true) {
@@ -101,9 +110,9 @@ class CommunityOnlineStatusService {
 
       if (!data) return { online: false, lastSeenText: "Offline" };
 
-      // Check if last_seen is within 2 minutes
+      // A 10-second heartbeat allows a short network grace window.
       const diff = Date.now() - new Date(data.last_seen);
-      const online = data.is_online && diff < 120000;
+      const online = data.is_online && diff < 20000;
       const lastSeenText = this.formatLastSeen(diff);
 
       const status = { online, lastSeenText };
@@ -118,6 +127,7 @@ class CommunityOnlineStatusService {
 
   async fetchMemberStatuses(memberIds) {
     if (!this.communityId || !memberIds.length) return {};
+    this.memberIds = memberIds;
 
     try {
       const { data } = await supabase
@@ -131,11 +141,15 @@ class CommunityOnlineStatusService {
 
       (data || []).forEach((member) => {
         const diff = now - new Date(member.last_seen);
-        const online = member.is_online && diff < 120000;
+        const online = member.is_online && diff < 20000;
         const lastSeenText = this.formatLastSeen(diff);
 
         statuses[member.user_id] = { online, lastSeenText };
+        const previous = this.cache.get(member.user_id);
         this.cache.set(member.user_id, { online, lastSeenText });
+        if (!previous || previous.online !== online || previous.lastSeenText !== lastSeenText) {
+          this.notify(member.user_id, statuses[member.user_id]);
+        }
       });
 
       return statuses;
@@ -151,7 +165,8 @@ class CommunityOnlineStatusService {
     const hr = Math.floor(min / 60);
     const day = Math.floor(hr / 24);
 
-    if (sec < 120) return "Online";
+    if (sec < 20) return "Online";
+    if (sec < 60) return `Last seen ${sec} seconds ago`;
     if (min === 1) return "Last seen 1 min ago";
     if (min < 60) return `Last seen ${min} mins ago`;
     if (hr === 1) return "Last seen 1 hour ago";

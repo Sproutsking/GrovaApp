@@ -131,11 +131,11 @@ const ContextMenu = memo(({ msg, pos, isMe, onReply, onCopy, onDelete, onClose }
 ContextMenu.displayName="ContextMenu";
 
 // ─── Reply Quote ──────────────────────────────────────────────────────────────
-const ReplyQuote = memo(({ replyToId, messages, onScrollTo }) => {
+const ReplyQuote = memo(({ replyToId, messages, onScrollTo, replyTier = "normal" }) => {
   const original = messages.find(m=>m.id===replyToId);
   if (!original) return null;
   return (
-    <div className="cv-rq" onClick={()=>onScrollTo?.(replyToId)}>
+    <div className={`cv-rq reply-tier-${replyTier}`} onClick={()=>onScrollTo?.(replyToId)}>
       <div className="cv-rq-bar"/>
       <div className="cv-rq-text">{original.content?.slice(0,80)||"Message"}</div>
     </div>
@@ -243,6 +243,8 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
   useEffect(()=>{
     if(avatarUrl) mediaUrlService.preloadMediaUrl(avatarUrl, { type: "image", priority: "high" });
   },[avatarUrl]);
+  const replyTarget = msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) : null;
+  const replyTier = ["silver", "gold", "diamond"].includes(replyTarget?.user?.subscription_tier) ? replyTarget.user.subscription_tier : "normal";
   const renderContent=(c, opts={})=>{
     if(!c||typeof c!=="string"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
       return <span className="cv-bad">[message unavailable]</span>;
@@ -294,8 +296,13 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
         <button className={`cv-message-menu-btn ${isMe ? "cv-message-menu-btn-me" : "cv-message-menu-btn-them"}`} type="button" onClick={handleMenuButtonClick} aria-label="Message options">
           <Ic.More/>
         </button>
-        {msg.reply_to_id&&<ReplyQuote replyToId={msg.reply_to_id} messages={messages} onScrollTo={onScrollTo}/>}
         {showAv&&<button type="button" className="cv-msg-author" onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))} style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{(isMe ? (currentUserName || "You") : (otherName||"Unknown"))}{((isMe ? currentUserVerified : otherVerified) || boostTier)&&<span className="cv-msg-verified" aria-label="Verified account">✓</span>}</button>}
+        {msg.reply_to_id&&<ReplyQuote
+          replyToId={msg.reply_to_id}
+          messages={messages}
+          onScrollTo={onScrollTo}
+          replyTier={replyTier}
+        />}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
         <div className={`cv-meta${isMe?" cv-meta-me":""}`}>
@@ -716,7 +723,10 @@ export const CV_CSS = `
 .cv-tail-l.cv-bthem::after{content:"";position:absolute;bottom:-1px;left:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(255,255,255,.08) transparent;z-index:-1;}
 .cv-tail-r.cv-bme::before{content:"";position:absolute;bottom:0;right:-6px;width:0;height:0;border-style:solid;border-width:0 0 8px 7px;border-color:transparent transparent rgba(31,84,34,.98) transparent;transform:scaleX(-1);}
 .cv-tail-r.cv-bme::after{content:"";position:absolute;bottom:0;right:-7px;width:0;height:0;border-style:solid;border-width:0 0 9px 8px;border-color:transparent transparent rgba(156,255,0,.26) transparent;z-index:-1;transform:scaleX(-1);}
-.cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 5px;line-height:1.1;}
+.cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 5px;line-height:1.1;display:flex;align-items:center;justify-content:flex-start;gap:5px;min-width:0;max-width:100%;}
+.cv-bme .cv-msg-author{justify-content:flex-end;padding-right:26px;margin-right:12px;}
+.cv-bthem .cv-msg-author{justify-content:flex-start;padding-left:8px;margin-left:12px;}
+.cv-bme .cv-meta{justify-content:flex-end;}.cv-bthem .cv-meta{justify-content:flex-end;}
 .cv-content{max-width:100%;min-width:0;font-size:14px;color:#f1f5ef;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;}
 .cv-msg-verified{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:5px;border-radius:50%;background:#84cc16;color:#071007;font-size:10px;font-weight:900;line-height:1;vertical-align:middle;}
 .cv-bme .cv-content{color:#f1f9e8;}
@@ -748,8 +758,14 @@ export const CV_CSS = `
 @keyframes cvDRIn{from{opacity:0;scale:.7}to{opacity:1;scale:1}}
 .cv-dr-right{right:-38px;}.cv-dr-left{left:-38px;}
 .cv-rq{display:flex;align-items:stretch;gap:6px;padding:5px 8px;margin-bottom:6px;background:rgba(0,0,0,.28);border-radius:8px;cursor:pointer;transition:background .15s;}
+.cv-rq.reply-tier-silver{background:linear-gradient(135deg,rgba(148,163,184,.12),rgba(255,255,255,.03));border:1px solid rgba(148,163,184,.22);}
+.cv-rq.reply-tier-gold{background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(255,255,255,.03));border:1px solid rgba(251,191,36,.22);}
+.cv-rq.reply-tier-diamond{background:linear-gradient(135deg,rgba(125,211,252,.12),rgba(167,139,250,.08));border:1px solid rgba(125,211,252,.2);box-shadow:0 0 12px rgba(125,211,252,.1);}
 .cv-rq:hover{background:rgba(132,204,22,.08);}
 .cv-rq-bar{width:3px;border-radius:2px;background:#84cc16;flex-shrink:0;}
+.reply-tier-silver .cv-rq-bar{background:linear-gradient(180deg,#e2e8f0,#94a3b8);}
+.reply-tier-gold .cv-rq-bar{background:linear-gradient(180deg,#fef3c7,#fbbf24);}
+.reply-tier-diamond .cv-rq-bar{background:linear-gradient(180deg,#e0f2fe,#7dd3fc 42%,#a78bfa);}
 .cv-rq-text{font-size:12px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
 .cv-highlight .cv-bubble{animation:cvHL .8s ease-out;}
 @keyframes cvHL{0%,100%{filter:brightness(1)}40%{filter:brightness(1.5)}}
