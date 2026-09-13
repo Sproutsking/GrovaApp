@@ -153,6 +153,7 @@ const MessageList = ({
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || msg.content;
           const showAvatar = isAnnouncementMessage || showTail;
+          const showSenderHeader = isAnnouncementMessage || Boolean(msg.user);
           const isReactionChannel = isAnnouncementMessage || channelType === "social_updates";
           const originalReply = msg.reply_to_id ? allMessages.find((item) => item.id === msg.reply_to_id) : null;
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
@@ -194,13 +195,13 @@ const MessageList = ({
                   />
                 </div>
               )}
-              {!showAvatar && !isMe && <div className="msg-avatar-spacer" style={{ width: avatarFootprint }} />}
+              {!showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
 
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} showReactionTrigger={isReactionChannel}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
-                    {showAvatar && (
+                    {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                         <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
                         {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user?.subscription_tier === "silver" ? "◇" : msg.user?.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
