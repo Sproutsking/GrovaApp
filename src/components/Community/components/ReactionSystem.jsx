@@ -332,7 +332,8 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
     setShowPicker(true);
   };
 
-  const reactionRow = (
+  const hasReactions = Object.values(message.reactions || {}).some((reaction) => reaction?.count > 0);
+  const reactionRow = (hasReactions || showReactionTrigger) ? (
     <div className={`mra-reaction-row${isAnnouncement ? " announcement" : ""}`}>
       <ReactionBar
         reactions={message.reactions || {}}
@@ -343,7 +344,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
         onOpenPicker={showReactionTrigger ? togglePicker : undefined}
       />
     </div>
-  );
+  ) : null;
 
   return (
     <div
@@ -363,8 +364,8 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           position: relative;
           display: flex;
           flex: 0 1 auto;
-          width: 100%;
-          max-width: 100%;
+          width: fit-content;
+          max-width: 70%;
           flex-direction: column;
           align-items: flex-end;
           min-width: 0;
