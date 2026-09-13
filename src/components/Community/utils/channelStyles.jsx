@@ -60,6 +60,7 @@ export default function ChannelButton({
   onDragOver,
   onDrop,
   onDragEnd,
+  unreadCount = 0,
 }) {
   injectChannelButtonStyles();
   return (
@@ -78,6 +79,7 @@ export default function ChannelButton({
       <span className="chb-icon">{renderChannelIcon(channel)}</span>
       {dividerStyle !== "none" && <span className={`chb-div chb-div--${dividerStyle}`} />}
       <span className="chb-name">{channel.name}</span>
+      {unreadCount > 0 && <span className="chb-unread" aria-label={`${unreadCount} unread updates`}>{unreadCount > 99 ? "99+" : unreadCount}</span>}
       {(channel.is_private || channel.is_locked) && <Lock size={12} className="chb-lock" />}
     </button>
   );
@@ -89,6 +91,7 @@ const CHANNEL_BUTTON_CSS = `
 .chb-icon{display:flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;opacity:.85}
 .chb-icon-img{width:16px;height:16px;border-radius:4px;object-fit:cover}
 .chb-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.chb-unread{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent,#9cff00);color:#071007;font-size:10px;font-weight:900;line-height:1;flex-shrink:0;box-shadow:0 0 0 2px rgba(156,255,0,.1),0 4px 10px rgba(156,255,0,.18)}
 .chb-lock{margin-left:auto;opacity:.5;flex-shrink:0}
 
 .chb-div--dot-solid{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0}

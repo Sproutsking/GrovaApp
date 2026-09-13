@@ -50,6 +50,7 @@ const ChatTab = ({
   onNavigate,
 }) => {
   const [channels, setChannels] = useState([]);
+  const [channelUnreadCounts, setChannelUnreadCounts] = useState({});
   const [channelsReady, setChannelsReady] = useState(false);
   const [channelsRefreshing, setChannelsRefreshing] = useState(false);
   const [messages, setMessages] = useState(() =>
@@ -80,6 +81,44 @@ const ChatTab = ({
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
   const currentUserBoost = useUserBoostTier(userId);
+
+  useEffect(() => {
+    const channelIds = channels.map((channel) => channel.id).filter(Boolean);
+    if (!userId || !channelIds.length) {
+      setChannelUnreadCounts({});
+      return undefined;
+    }
+
+    let active = true;
+    const loadUnreadCounts = async () => {
+      const { data } = await supabase
+        .from("channel_notification_preferences")
+        .select("channel_id, unread_count")
+        .eq("user_id", userId)
+        .in("channel_id", channelIds);
+      if (!active) return;
+      setChannelUnreadCounts(Object.fromEntries((data || []).map((row) => [row.channel_id, row.unread_count || 0])));
+    };
+    loadUnreadCounts();
+
+    const unreadChannel = supabase
+      .channel(`community-unread:${community?.id}:${userId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "community_messages" }, (payload) => {
+        const message = payload.new;
+        if (!message?.channel_id || String(message.user_id) === String(userId) || !channelIds.includes(message.channel_id)) return;
+        if (message.channel_id === selectedChannel?.id) return;
+        setChannelUnreadCounts((current) => ({
+          ...current,
+          [message.channel_id]: (current[message.channel_id] || 0) + 1,
+        }));
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(unreadChannel).catch(() => {});
+    };
+  }, [channels, community?.id, selectedChannel?.id, userId]);
 
   useEffect(() => {
     if (!userId || currentUserBoost.loading) return;
@@ -344,6 +383,7 @@ const ChatTab = ({
   useEffect(() => {
     if (selectedChannel) {
       channelNotificationService.markRead(selectedChannel.id).catch(() => {});
+      setChannelUnreadCounts((current) => ({ ...current, [selectedChannel.id]: 0 }));
       setMessages([...(communityState.getMessages(selectedChannel.id) || [])]);
       communityState.setActive(selectedChannel.id);
       communityMessageService.init(userId);
@@ -764,10 +804,11 @@ const ChatTab = ({
                   <ChannelButton
                     key={channel.id}
                     channel={channel}
+                    unreadCount={channelUnreadCounts[channel.id] || 0}
                     active={selectedChannel?.id === channel.id}
                     buttonStyle={buttonStyle}
                     dividerStyle={dividerStyle}
-                    onClick={() => { setSelectedChannel(channel); const key = `xeevia:last-community-location:${userId}`; const stored = JSON.parse(localStorage.getItem(key) || "{}"); const locations = stored.locations || (stored.communityId ? { [stored.communityId]: stored } : {}); locations[community.id] = { communityId: community.id, ...locations[community.id], channelId: channel.id, view: "chat", lastVisited: Date.now() }; localStorage.setItem(key, JSON.stringify({ locations })); }}
+                    onClick={() => { setChannelUnreadCounts((current) => ({ ...current, [channel.id]: 0 })); setSelectedChannel(channel); const key = `xeevia:last-community-location:${userId}`; const stored = JSON.parse(localStorage.getItem(key) || "{}"); const locations = stored.locations || (stored.communityId ? { [stored.communityId]: stored } : {}); locations[community.id] = { communityId: community.id, ...locations[community.id], channelId: channel.id, view: "chat", lastVisited: Date.now() }; localStorage.setItem(key, JSON.stringify({ locations })); }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
