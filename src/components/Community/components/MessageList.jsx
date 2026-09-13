@@ -198,25 +198,20 @@ const MessageList = ({
               <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isAnnouncementMessage}>
                 {({ reactionRow }) => <>
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
-                  <button
-                    type="button"
-                    className={`msg-card-menu-btn ${isMe ? "me" : "them"}`}
-                    onClick={(event) => {
+                  <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
+                    {showAvatar && (
+                      <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
+                        <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
+                        {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user?.subscription_tier === "silver" ? "◇" : msg.user?.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
+                      </button>
+                    )}
+                    <button type="button" className={`msg-card-menu-btn ${isMe ? "me" : "them"}`} onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                       const rect = event.currentTarget.getBoundingClientRect();
                       onContextMenu?.({ preventDefault() {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }, msg);
-                    }}
-                    aria-label="Message options"
-                  >
-                    <MoreVertical size={12} />
-                  </button>
-                  {showAvatar && (
-                    <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
-                      <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
-                      {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user.subscription_tier === "silver" ? "◇" : msg.user.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
-                    </button>
-                  )}
+                    }} aria-label="Message options"><MoreVertical size={12} /></button>
+                  </div>
                   {postReply && (
                     <button
                       type="button"
@@ -315,12 +310,12 @@ const MessageList = ({
         .msg-item.announcement .msg-bubble { width: fit-content; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
-        .msg-item .msg-bubble { min-width: max-content; padding-bottom: 6px; }
+        .msg-item .msg-bubble { min-width: 0; padding-bottom: 6px; }
         .msg-item.me .msg-bubble { padding-left: 12px; padding-right: 12px; }
         .msg-item.them .msg-bubble { padding-left: 12px; padding-right: 12px; }
         .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
         .msg-card-menu-btn {
-          position: absolute;
+          position: relative;
           top: 6px;
           width: 22px;
           height: 22px;
@@ -337,14 +332,8 @@ const MessageList = ({
           box-shadow: 0 8px 18px rgba(0,0,0,0.28);
           transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
         }
-        .msg-card-menu-btn.them {
-          right: 8px;
-          left: auto;
-        }
-        .msg-card-menu-btn.me {
-          left: 8px;
-          right: auto;
-        }
+        .msg-card-menu-btn.them,
+        .msg-card-menu-btn.me { inset: auto; }
         .msg-card-menu-btn svg {
           transform: rotate(90deg);
         }
@@ -355,19 +344,7 @@ const MessageList = ({
         }
 
         .msg-item.me .msg-bubble,
-        .msg-item.them .msg-bubble {
-          margin: 0;
-          padding-left: 32px;
-          padding-right: 32px;
-        }
-        .msg-item.me .msg-bubble {
-          padding-left: 30px;
-          padding-right: 10px;
-        }
-        .msg-item.them .msg-bubble {
-          padding-left: 10px;
-          padding-right: 30px;
-        }
+        .msg-item.them .msg-bubble { margin: 0; }
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
@@ -380,13 +357,14 @@ const MessageList = ({
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:max-content; min-height:22px; padding-top:8px; margin-bottom:8px; box-sizing:border-box; gap:12px; }
+        .msg-card-header { display:flex; align-items:center; justify-content:space-between; width:100%; min-width:max-content; min-height:22px; padding-top:8px; margin-bottom:5px; box-sizing:border-box; gap:12px; }
         .msg-card-header .msg-card-menu-btn { position:relative; top:auto; left:auto; right:auto; flex:0 0 22px; }
         .msg-card-header.incoming .msg-user-name { order:1; }
         .msg-card-header.incoming .msg-card-menu-btn { order:2; }
         .msg-card-header.outgoing .msg-card-menu-btn { order:1; }
         .msg-card-header.outgoing .msg-user-name { order:2; }
         .msg-card-header .msg-user-name { flex:1 1 auto; min-width:max-content; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
+        .msg-card-header .msg-card-menu-btn { inset:auto; margin:0; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
         @keyframes postTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.28),0 0 30px rgba(156,255,0,.34)}100%{box-shadow:0 0 0 2px rgba(156,255,0,.12),0 0 18px rgba(156,255,0,.18)}}
 
@@ -499,8 +477,8 @@ const MessageList = ({
         .msg-item.announcement .msg-meta { margin-top: 10px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
-        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: min(70%, max-content); max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
-        .mra-wrapper .msg-bubble { width: auto; max-width: 100%; }
+        .mra-wrapper { position: relative; display: flex; flex: 0 1 auto; width: min(70%, 100%); max-width: 70%; flex-direction: column; align-items: flex-end; min-width: 0; }
+        .mra-wrapper .msg-bubble { width: 100%; max-width: 100%; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
         .mra-ann { align-items: flex-start; width: fit-content; max-width: min(760px, calc(100vw - 92px)); }
