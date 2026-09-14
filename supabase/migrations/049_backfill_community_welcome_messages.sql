@@ -53,7 +53,7 @@ begin
 
   welcome_title := coalesce(nullif(trim(welcome_setting.config->>'title'), ''), 'Welcome to our community');
   welcome_description := coalesce(nullif(trim(welcome_setting.config->>'description'), ''), 'Introduce yourself and join the conversation.');
-  welcome_content := format('[[welcome-member:%s]]%s\n\n%s\n\nWelcome %s! Please introduce yourself and join the conversation.', new.user_id, E'\n', welcome_title, welcome_description, coalesce('@' || nullif(member_username, ''), member_name));
+  welcome_content := format('[[welcome-member:%s]]%s%s%s%s%sWelcome %s! Please introduce yourself and join the conversation.', new.user_id, E'\n', welcome_title, E'\n\n', welcome_description, E'\n\n', coalesce('@' || nullif(member_username, ''), member_name));
 
   insert into public.community_messages (channel_id, user_id, content)
   values (welcome_channel.id, owner_id, welcome_content);
@@ -75,9 +75,11 @@ begin
   select
     settings.channel_id,
     communities.owner_id,
-    format('[[welcome-member:%s]]%s\n\n%s\n\nWelcome %s! Please introduce yourself and join the conversation.', members.user_id, E'\n',
+    format('[[welcome-member:%s]]%s%s%s%s%sWelcome %s! Please introduce yourself and join the conversation.', members.user_id, E'\n',
       coalesce(nullif(trim(settings.config->>'title'), ''), 'Welcome to our community'),
+      E'\n\n',
       coalesce(nullif(trim(settings.config->>'description'), ''), 'Introduce yourself and join the conversation.'),
+      E'\n\n',
       coalesce('@' || nullif(profiles.username, ''), profiles.full_name, 'new member')),
     members.joined_at,
     members.joined_at
