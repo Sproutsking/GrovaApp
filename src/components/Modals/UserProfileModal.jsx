@@ -37,6 +37,7 @@ import { buildPublicProfileDashboard } from "../../services/evidence/publicProfi
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import VerificationDashboardPage from "./VerificationDashboardPage";
 import TierBadgePill from "../Shared/TierBadgePill";
+import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
   ShieldCheck, Users, MessageSquare,
@@ -673,7 +674,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   }}
                 >
                   {profile?.fullName || "Unknown"}
-                  {(profile?.verified || hasBoosted) && <span className="upm-name-verified" aria-label="Verified account">✓</span>}
+                  {(profile?.verified || hasBoosted) && <VerifiedBadgeSeal tier={hasBoosted ? tier : "silver"} size={20} />}
                 </h2>
 
                 {/* Badges */}

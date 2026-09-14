@@ -33,6 +33,7 @@ import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
 import TierBadgePill from "../Shared/TierBadgePill";
+import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 
 // [B1–B3] Boost imports
 import BoostProfileCard from "../Boost/BoostProfileCard";
@@ -838,7 +839,7 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
               })()}
             >
               {profile.fullName}
-              {(profile.verified || hasBoostedTier) && <span className="profile-name-verified" aria-label="Verified account">✓</span>}
+              {(profile.verified || hasBoostedTier) && <VerifiedBadgeSeal tier={hasBoostedTier ? profile.subscriptionTier : "silver"} size={20} />}
             </h2>
 
             <p className="profile-username">@{profile.username}</p>

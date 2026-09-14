@@ -25,6 +25,7 @@ import OptimizedImage from "../Shared/OptimizedImage";
 import UserProfileModal from "../Modals/UserProfileModal";
 import MessageList from "../Community/components/MessageList";
 import CommunityMessageInput from "../Community/components/CommunityMessageInput";
+import { VerifiedBadgeCircle } from "../Shared/VerifiedBadges";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -298,7 +299,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
         <button className={`cv-message-menu-btn ${isMe ? "cv-message-menu-btn-me" : "cv-message-menu-btn-them"}`} type="button" onClick={handleMenuButtonClick} aria-label="Message options">
           <Ic.More/>
         </button>
-        {showAv&&<button type="button" className="cv-msg-author" onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))} style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{(isMe ? (currentUserName || "You") : (otherName||"Unknown"))}{((isMe ? currentUserVerified : otherVerified) || boostTier)&&<span className="cv-msg-verified" aria-label="Verified account">✓</span>}</button>}
+        {showAv&&<button type="button" className="cv-msg-author" onClick={() => onProfileClick?.(isMe ? currentUser : (msg.user || otherUser || null))} style={{ color: getBoostNameDesign(boostTier, boostFontId, boostColorId).color?.color || getBoostNameColor(boostTier, boostThemeId) || "#9cff00", fontFamily: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.family, fontWeight: getBoostNameDesign(boostTier, boostFontId, boostColorId).font?.weight }}>{(isMe ? (currentUserName || "You") : (otherName||"Unknown"))}{((isMe ? currentUserVerified : otherVerified) || boostTier)&&<VerifiedBadgeCircle tier={boostTier || "silver"} size={16} />}</button>}
         {msg.reply_to_id&&<ReplyQuote
           replyToId={msg.reply_to_id}
           messages={messages}
@@ -542,7 +543,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   }));
 
   const scrollToMessage=useCallback(msgId=>{
-    const el=containerRef.current?.querySelector(`[data-msg-id="${msgId}"]`);
+    const el=containerRef.current?.querySelector(`[data-message-id="${msgId}"], [data-msg-id="${msgId}"]`);
     if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("cv-highlight");setTimeout(()=>el.classList.remove("cv-highlight"),1500);}
   },[]);
 
@@ -634,6 +635,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
             }}
             onProfileClick={(user) => user && setProfileTarget(user)}
             onReply={setReplyTo}
+            onReplyNavigate={(_, messageId) => scrollToMessage(messageId)}
             onNavigate={onNavigate}
             onReactionClick={toggleReaction}
           />

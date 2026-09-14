@@ -892,6 +892,12 @@ const ChatTab = ({
             }}
             onNavigate={onNavigate}
             onPostNavigate={navigateToPost}
+            onReplyNavigate={(_, messageId) => {
+              const target = containerRef.current?.querySelector(`[data-message-id="${messageId}"]`);
+              if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+              target?.classList.add("reply-navigation-target");
+              window.setTimeout(() => target?.classList.remove("reply-navigation-target"), 1500);
+            }}
               channelType={selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
               if (!canAddReactions) return;

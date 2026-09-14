@@ -5,6 +5,7 @@ import mediaUrlService from "../../../services/shared/mediaUrlService";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../../Shared/LinkifiedText";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
+import { VerifiedBadgeCircle } from "../../Shared/VerifiedBadges";
 import { MessageReactionArea } from "./ReactionSystem";
 
 const ANNOUNCEMENT_BORDER_STYLES = new Set(["solid", "double", "dashed", "glow"]);
@@ -63,6 +64,7 @@ const MessageList = ({
   onMessageClick,
   onMessageLongPress,
   onPostNavigate,
+  onReplyNavigate,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -204,7 +206,7 @@ const MessageList = ({
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                         <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
-                        {(msg.user?.verified || hasBoostedProfile) && <span className={`msg-verified${hasBoostedProfile ? ` tier-${msg.user?.subscription_tier}` : ""}`} aria-label={hasBoostedProfile ? `${msg.user.subscription_tier} profile` : "Verified account"}>{hasBoostedProfile ? (msg.user?.subscription_tier === "silver" ? "◇" : msg.user?.subscription_tier === "gold" ? "✦" : "◆") : "✓"}</span>}
+                        {(msg.user?.verified || hasBoostedProfile) && <VerifiedBadgeCircle tier={hasBoostedProfile ? msg.user?.subscription_tier : "silver"} size={16} />}
                       </button>
                     )}
                     <button type="button" className={`msg-card-menu-btn ${isMe ? "me" : "them"}`} onClick={(event) => {
@@ -229,10 +231,10 @@ const MessageList = ({
                     </button>
                   )}
                   {msg.reply_to_id && originalReply && !postReply && (
-                    <div className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""} reply-tier-${replyTier}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}}>
+                    <button type="button" className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""} reply-tier-${replyTier}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onReplyNavigate?.(originalReply, msg.reply_to_id); }} aria-label="Jump to the message being replied to">
                       <span>{originalReplyAnnouncementMeta ? "Announcement" : `Replying to ${originalReply.user?.full_name || "member"}`}</span>
                       <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReply.content || "...")}</strong>
-                    </div>
+                    </button>
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
@@ -371,6 +373,8 @@ const MessageList = ({
         .msg-card-header .msg-user-name { flex:1 1 auto; min-width:max-content; margin:0; padding:0; text-align:inherit; white-space:nowrap; }
         .msg-card-header .msg-card-menu-btn { inset:auto; margin:0; }
         .msg-item.post-navigation-target .msg-bubble{animation:postTargetPulse 2.2s cubic-bezier(.22,.61,.36,1);}
+        .msg-item.reply-navigation-target .msg-bubble{animation:replyTargetPulse 1.5s ease-out;}
+        @keyframes replyTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.38),0 0 28px rgba(156,255,0,.32)}100%{box-shadow:0 0 0 1px rgba(156,255,0,.12),0 0 10px rgba(156,255,0,.12)}}
         @keyframes postTargetPulse{0%{box-shadow:0 0 0 0 rgba(156,255,0,0),0 0 0 rgba(156,255,0,0)}35%{box-shadow:0 0 0 4px rgba(156,255,0,.28),0 0 30px rgba(156,255,0,.34)}100%{box-shadow:0 0 0 2px rgba(156,255,0,.12),0 0 18px rgba(156,255,0,.18)}}
 
         .msg-item.me {

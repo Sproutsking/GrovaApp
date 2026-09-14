@@ -9,6 +9,7 @@ import BoostProfileCard from "../../Boost/BoostProfileCard";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 import { getBoostNameDesign } from "../../../services/boost/boostThemes";
 import { getBoostNameColor } from "../../Shared/profileVisuals";
+import { VerifiedBadgeSeal } from "../../Shared/VerifiedBadges";
 
 const PIXEL_PALETTES = {
   standard: ["#9cff00", "#38bdf8", "#a78bfa", "#fbbf24"],
@@ -272,7 +273,7 @@ const CommunityProfileModal = ({
           <div className="community-profile-heading">
             <h2 style={hasBoosted ? { color: nameDesign.color?.color || getBoostNameColor(tier, themeId) || "#fff", fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing, textShadow: `0 0 18px ${nameDesign.color?.shadow || boostVisual?.glow || "rgba(156,255,0,.35)"}` } : undefined}>
               {displayName}
-              {(user?.verified || hasBoosted) && <span className={`community-profile-verified${hasBoosted ? ` tier-${tier}` : ""}`} aria-label={hasBoosted ? `${tier} profile` : "Verified account"}>{hasBoosted ? (tier === "silver" ? "◇" : tier === "gold" ? "✦" : "◆") : "✓"}</span>}
+              {(user?.verified || hasBoosted) && <VerifiedBadgeSeal tier={hasBoosted ? tier : "silver"} size={18} />}
             </h2>
             <span>@{user?.username || "unknown"}</span>
             <small className={`community-profile-status${onlineStatus.online ? " online" : ""}`}><i />{onlineStatus.online ? "Online" : onlineStatus.lastSeenText}</small>
