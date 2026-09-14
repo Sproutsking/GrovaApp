@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import ReactDOM from "react-dom";
 import { Send, Plus, X, Eye, Palette } from "lucide-react";
 import MediaPopup from "../../Messages/MediaPopup";
@@ -48,6 +48,15 @@ const CommunityMessageInput = ({
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
   }, []);
+
+  useLayoutEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    const maxHeight = 140;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 40), maxHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [value]);
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
@@ -558,8 +567,9 @@ const CommunityMessageInput = ({
           resize: none;
           outline: none;
           line-height: 1.5;
-          max-height: 120px;
-          overflow-y: auto;
+          max-height: 140px;
+          overflow-y: hidden;
+          box-sizing: border-box;
           transition: border-color 0.2s, box-shadow 0.2s;
         }
 

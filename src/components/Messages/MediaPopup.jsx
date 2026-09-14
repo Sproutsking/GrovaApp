@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { Smile, Image, Film, Paperclip, X } from "lucide-react";
 import EmojiPanel from "./EmojiPanel";
 import GifPanel from "./GifPanel";
@@ -38,6 +39,7 @@ const MediaPopup = ({
 }) => {
   const [activePanel, setActivePanel] = useState(null); // "emoji" | "gif" | "meme" | null
   const toolbarRef = useRef(null);
+  const panelRef = useRef(null);
   const fileInputRef = useRef(null);
 
   // ─── TOOLBAR POSITION ─────────────────────────────────────────────
@@ -56,7 +58,7 @@ const MediaPopup = ({
     if (left < 8) left = 8;
     if (left + 220 > vw - 8) left = vw - 228;
 
-    return { position: "fixed", top, left, zIndex: 9998 };
+    return { position: "fixed", top, left, zIndex: 200000 };
   }, [triggerRect]);
 
   // ─── SUB-PANEL POSITION ───────────────────────────────────────────
@@ -100,7 +102,7 @@ const MediaPopup = ({
     if (left < 8) left = 8;
     if (left + PANEL_WIDTH > vw - 8) left = vw - PANEL_WIDTH - 8;
 
-    return { position: "fixed", top, left, zIndex: 9999 };
+    return { position: "fixed", top, left, zIndex: 200001 };
   }, [triggerRect]);
 
   // ─── FILE INPUT HANDLER ───────────────────────────────────────────
@@ -120,7 +122,7 @@ const MediaPopup = ({
   useEffect(() => {
     const handler = (e) => {
       // If click is inside toolbar or inside an open panel, ignore
-      if (toolbarRef.current && toolbarRef.current.contains(e.target)) return;
+      if (toolbarRef.current?.contains(e.target) || panelRef.current?.contains(e.target)) return;
       // Check if click is on a panel (panels are rendered via portal-style fixed positioning)
       // We rely on stopPropagation inside panels, so if we get here it's outside
       onClose();
@@ -160,7 +162,7 @@ const MediaPopup = ({
     { id: "file", icon: Paperclip, label: "File", color: "#74b9ff" },
   ];
 
-  return (
+  return ReactDOM.createPortal((
     <>
       {/* Toolbar */}
       <div
@@ -205,7 +207,7 @@ const MediaPopup = ({
 
       {/* Sub-panels — rendered at computed position */}
       {activePanel === "emoji" && (
-        <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
+        <div ref={panelRef} style={panelStyle} onClick={(e) => e.stopPropagation()}>
           <EmojiPanel
             onSelect={(emoji) => {
               onEmojiSelect(emoji);
@@ -218,7 +220,7 @@ const MediaPopup = ({
       )}
 
       {activePanel === "gif" && (
-        <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
+        <div ref={panelRef} style={panelStyle} onClick={(e) => e.stopPropagation()}>
           <GifPanel
             onSelect={(text) => {
               onGifSelect(text);
@@ -231,7 +233,7 @@ const MediaPopup = ({
       )}
 
       {activePanel === "meme" && (
-        <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
+        <div ref={panelRef} style={panelStyle} onClick={(e) => e.stopPropagation()}>
           <MemePanel
             onSelect={(text) => {
               onMemeSelect(text);
@@ -300,7 +302,7 @@ const MediaPopup = ({
         }
       `}</style>
     </>
-  );
+  ), document.body);
 };
 
 export default MediaPopup;

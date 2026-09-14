@@ -352,12 +352,13 @@ const MessageList = ({
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
-        .msg-reply-quote{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:5px 7px;border-left:2px solid var(--accent);background:rgba(156,255,0,.06);border-radius:4px;color:var(--text-secondary);font-size:10px;line-height:1.25;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+        .msg-reply-quote{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;padding:8px 10px;border-left:3px solid var(--accent);background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));border-radius:9px;color:var(--text-secondary);font-size:11px;line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
         .msg-reply-quote.reply-tier-silver{border-left-color:#cbd5e1;background:linear-gradient(135deg,rgba(148,163,184,.13),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
         .msg-reply-quote.reply-tier-gold{border-left-color:#fbbf24;background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(251,191,36,.18)}
         .msg-reply-quote.reply-tier-diamond{border-left-color:#7dd3fc;background:linear-gradient(135deg,rgba(125,211,252,.15),rgba(167,139,250,.09));box-shadow:inset 0 0 0 1px rgba(125,211,252,.2),0 0 12px rgba(125,211,252,.12)}
         .msg-reply-quote.announcement{border:1px solid color-mix(in srgb,var(--announcement-color, var(--accent)) 35%, transparent);border-left:4px solid var(--announcement-color, var(--accent));border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.12);transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
-        .msg-reply-quote strong{color:var(--text);font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .msg-reply-quote span{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a8c59f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .msg-reply-quote strong{color:var(--text);font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         button.msg-reply-quote{width:100%;text-align:left;font:inherit;cursor:pointer}
         button.msg-reply-quote:hover{border-color:rgba(156,255,0,.8);background:linear-gradient(135deg,rgba(156,255,0,.17),rgba(255,255,255,.06));box-shadow:0 8px 24px rgba(156,255,0,.14),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(-1px)}
         button.msg-reply-quote:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
@@ -576,7 +577,7 @@ const MessageList = ({
           padding: 0;
           cursor: pointer;
           text-align: left;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 700;
           color: var(--accent);
           margin-bottom: 2px;

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import ReactDOM from "react-dom";
 import { Smile, Image, Film, Paperclip, X } from "lucide-react";
 import EmojiPanel from "./EmojiPanel";
 import GifPanel from "./GifPanel";
@@ -25,20 +26,34 @@ const MediaPopup = ({
   triggerRect,
 }) => {
   const [activeTab, setActiveTab] = useState("emoji");
+  const [popupStyle, setPopupStyle] = useState({ position: "fixed", left: 8, top: 80, zIndex: 200000 });
   const popupRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Position above trigger
-  const popupStyle = {
-    position: "fixed",
-    bottom: triggerRect
-      ? window.innerHeight - triggerRect.top + 8
-      : 80,
-    left: triggerRect
-      ? Math.max(8, Math.min(triggerRect.left - 8, window.innerWidth - 380))
-      : 8,
-    zIndex: 3000,
-  };
+  useLayoutEffect(() => {
+    const placePopup = () => {
+      const width = Math.min(360, window.innerWidth - 16);
+      const height = Math.min(480, window.innerHeight - 24);
+      const left = triggerRect ? Math.max(8, Math.min(triggerRect.left - 8, window.innerWidth - width - 8)) : 8;
+      const triggerTop = triggerRect?.top ?? window.innerHeight - 80;
+      const belowSpace = window.innerHeight - triggerTop - 8;
+      setPopupStyle({
+        position: "fixed",
+        left,
+        top: belowSpace >= height ? triggerTop + 8 : Math.max(8, triggerTop - height - 8),
+        width,
+        maxHeight: height,
+        zIndex: 200000,
+      });
+    };
+    placePopup();
+    window.addEventListener("resize", placePopup);
+    window.addEventListener("scroll", placePopup, true);
+    return () => {
+      window.removeEventListener("resize", placePopup);
+      window.removeEventListener("scroll", placePopup, true);
+    };
+  }, [triggerRect]);
 
   useEffect(() => {
     const handleKey = (e) => { if (e.key === "Escape") onClose?.(); };
@@ -67,7 +82,7 @@ const MediaPopup = ({
     onClose?.();
   };
 
-  return (
+  return ReactDOM.createPortal((
     <div ref={popupRef} style={popupStyle} className="mp-popup" onClick={(e) => e.stopPropagation()}>
       {/* Tab bar */}
       <div className="mp-tabbar">
@@ -128,7 +143,7 @@ const MediaPopup = ({
 
       <style>{`
         .mp-popup {
-          width: 360px;
+          width: min(360px, calc(100vw - 16px));
           background: #0d0d0d;
           border: 1px solid rgba(156,255,0,0.25);
           border-radius: 16px;
@@ -200,13 +215,14 @@ const MediaPopup = ({
         }
 
         .mp-panel-area {
-          height: 420px;
+          height: min(420px, calc(100vh - 78px));
+          min-height: 240px;
           overflow: hidden;
           position: relative;
         }
       `}</style>
     </div>
-  );
+  ), document.body);
 };
 
 export default MediaPopup;

@@ -124,8 +124,8 @@ const ContextMenu = ({ position, message, userId, permissions = {}, isOwner, onC
         </div>
       )}
       <style>{`
-        .message-context-backdrop{position:fixed;inset:0;z-index:9998}
-        .message-context-menu{position:fixed;width:238px;padding:7px;background:rgba(12,14,18,.98);border:1px solid rgba(156,255,0,.2);border-radius:13px;box-shadow:0 18px 46px rgba(0,0,0,.75),0 0 24px rgba(156,255,0,.06);animation:messageMenuIn .14s ease;z-index:9999}
+        .message-context-backdrop{position:fixed;inset:0;z-index:200000;background:transparent;pointer-events:auto}
+        .message-context-menu{position:fixed;width:238px;max-height:calc(100vh - 24px);overflow-y:auto;padding:7px;background:rgba(12,14,18,.98);border:1px solid rgba(156,255,0,.2);border-radius:13px;box-shadow:0 18px 46px rgba(0,0,0,.75),0 0 24px rgba(156,255,0,.06);animation:messageMenuIn .14s ease;z-index:200001}
         @keyframes messageMenuIn{from{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:none}}
         .message-context-item{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#c8c8c8;font:600 12px/1.2 inherit;cursor:pointer;text-align:left}
         .message-context-item:hover,.message-context-item.primary{background:rgba(156,255,0,.09);color:#9cff00}
