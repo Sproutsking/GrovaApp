@@ -26,6 +26,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import adapters from "./platformAdapterFactory";
 
 // Safe error handler — keeps service from swallowing useful errors
 const handleError = (err, msg) => {
@@ -53,14 +54,6 @@ const cache = (() => {
 })();
 
 // Platform adapter factory — no-op adapter if unavailable
-const adapters = (() => {
-  try {
-    return require("./platformAdapterFactory").default;
-  } catch {
-    return { getAdapter: () => null, getSupportedPlatforms: () => [] };
-  }
-})();
-
 // ── Safe default preferences (used when table missing or user has no row) ────
 const DEFAULT_PREFS = {
   platform_preferences: {},
@@ -131,7 +124,7 @@ class DistributionService {
       const { data, error } = await withTimeout(
         supabase
           .from("connections")
-          .select("provider, auth_status")
+          .select("id, provider, auth_status")
           .eq("user_id", userId)
           .eq("auth_status", "active"),
         10000
@@ -142,7 +135,30 @@ class DistributionService {
         console.warn("[DistributionService] getConnectedPlatforms:", error.message);
         return [];
       }
-      return (data || []).map(c => c.provider);
+      const activeConnections = (data || []).filter((connection) => adapters.getAdapter(connection.provider));
+      if (!activeConnections.length) return [];
+
+      const connectionIds = activeConnections.map((connection) => connection.id);
+      const { data: tokens, error: tokenError } = await withTimeout(
+        supabase
+          .from("tokens")
+          .select("connection_id, expires_at")
+          .in("connection_id", connectionIds)
+          .eq("revoked", false),
+        10000
+      );
+      if (tokenError) {
+        console.warn("[DistributionService] getConnectedPlatforms token check:", tokenError.message);
+        return [];
+      }
+
+      const now = Date.now();
+      const validTokenConnections = new Set((tokens || [])
+        .filter((token) => !token.expires_at || new Date(token.expires_at).getTime() > now)
+        .map((token) => token.connection_id));
+      return activeConnections
+        .filter((connection) => validTokenConnections.has(connection.id))
+        .map((connection) => connection.provider);
     } catch (err) {
       console.warn("[DistributionService] getConnectedPlatforms exception:", err?.message);
       return [];
@@ -384,10 +400,11 @@ class DistributionService {
         .eq("post_id", postId);
 
       if (error) throw error;
-      if (!data || data.length === 0) return null;
+      const postableRows = (data || []).filter((row) => adapters.getAdapter(row.platform));
+      if (postableRows.length === 0) return null;
 
       const byPlatform = {};
-      data.forEach(d => {
+      postableRows.forEach(d => {
         byPlatform[d.platform] = {
           status:         d.status,
           externalPostId: d.external_post_id,
@@ -397,10 +414,10 @@ class DistributionService {
       });
 
       return {
-        total:      data.length,
-        successful: data.filter(d => d.status === "success").length,
-        failed:     data.filter(d => d.status === "failed").length,
-        pending:    data.filter(d => d.status === "pending").length,
+        total:      postableRows.length,
+        successful: postableRows.filter(d => d.status === "success").length,
+        failed:     postableRows.filter(d => d.status === "failed").length,
+        pending:    postableRows.filter(d => d.status === "pending").length,
         byPlatform,
       };
     } catch (err) {

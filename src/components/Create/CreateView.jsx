@@ -627,7 +627,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     return (
       <div className="form-group">
         <div style={{ marginBottom: 10, color: "#d4d4d4", fontSize: 13 }}>
-          <strong>Distribute</strong> — share this {label} to your connected platforms instantly.
+          <strong>Distribute</strong> — share this {label} to your postable platforms instantly.
           <span style={{ marginLeft: 8, fontSize: 11, color: "#737373" }}>
             Manage connections in Account → Identity
           </span>

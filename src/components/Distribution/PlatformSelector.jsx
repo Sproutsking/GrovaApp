@@ -18,7 +18,7 @@
 // DESIGN:
 //   - Connected platforms: fully opaque toggle pill, ON by default, clickable
 //   - Unconnected platforms: dimmed, locked, shows "Link in Identity" on hover
-//   - All 4 live platforms shown so user knows what's possible
+//   - Only postable platforms with a valid connection and token are shown as available
 //   - No Settings panel complexity — clean and direct
 // ============================================================================
 
@@ -147,7 +147,7 @@ const CSS = `
 // ── Component ─────────────────────────────────────────────────────────────────
 const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
-  const [selected,    setSelected]    = useState(initialSelection);
+  const [selected,    setSelected]    = useState(() => initialSelection.filter((platform) => LIVE_PLATFORM_KEYS.includes(platform)));
   const [loadState,   setLoadState]   = useState("loading"); // "loading"|"ready"|"error"
 
   // ── Load connected platforms ───────────────────────────────────────────────
@@ -155,14 +155,17 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
     if (!userId) { setLoadState("ready"); return; }
     setLoadState("loading");
     try {
-      // [FIX] getConnectedPlatforms() now returns [] on any error — never throws
+      // Only adapter-supported platforms with a valid token are returned.
       const connectedList = await distributionService.getConnectedPlatforms(userId);
       setConnected(connectedList);
 
       // Auto-select all connected platforms if no initial selection provided
       if (initialSelection.length === 0) {
-        setSelected(connectedList);
-        onSelection?.(connectedList);
+        const nextSelection = initialSelection.length > 0
+          ? initialSelection.filter((platform) => connectedList.includes(platform) && LIVE_PLATFORM_KEYS.includes(platform))
+          : connectedList;
+        setSelected(nextSelection);
+        onSelection?.(nextSelection);
       }
 
       setLoadState("ready");

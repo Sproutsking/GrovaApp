@@ -34,4 +34,6 @@ class PlatformAdapterFactory {
   }
 }
 
+export const POSTABLE_PLATFORM_KEYS = ["x", "facebook", "instagram", "linkedin"];
+
 export default new PlatformAdapterFactory();
