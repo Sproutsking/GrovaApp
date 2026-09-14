@@ -9,6 +9,13 @@ export default function TicketToolPanel({ communityId, userId, channelId, isPriv
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `.community-ticket-tool{width:min(100%,620px)!important;max-width:620px!important;margin:10px auto!important;padding:14px!important}.ticket-actions{margin-left:54px;max-width:calc(100% - 54px)}.community-ticket-tool>button,.ticket-close-card button{margin-left:54px}@media(max-width:600px){.ticket-actions{margin-left:0;max-width:100%}.community-ticket-tool>button,.ticket-close-card button{margin-left:0}}`;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
+  useEffect(() => {
     let active = true;
     supabase.from("community_tool_settings").select("config").eq("community_id", communityId).eq("tool_type", "tickets").maybeSingle().then(({ data }) => { if (active && data?.config) setConfig((current) => ({ ...current, ...data.config })); });
     if (isPrivateTicket && channelId) {

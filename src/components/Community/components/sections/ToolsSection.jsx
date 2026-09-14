@@ -154,7 +154,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
 
   const navigation = [
     { label: "Invite people", description: "Create or manage invite links.", icon: UserPlus, onClick: onOpenInvite },
-    { label: "Upgrade community", description: "Boost visibility and unlock premium controls.", icon: Crown, onClick: onOpenUpgrade },
+    { label: "Customize community", description: "Shape your community identity, tools, and controls.", icon: Crown, onClick: onOpenUpgrade },
     { label: "Roles & moderation", description: "Manage roles, permissions, and member access.", icon: Users2, onClick: onOpenModeration },
   ];
 
