@@ -23,6 +23,8 @@ import LinkifiedText, { SharedContentMessage, parseSharedContent } from "../Shar
 import MessageContextMenu from "../Shared/MessageContextMenu";
 import OptimizedImage from "../Shared/OptimizedImage";
 import UserProfileModal from "../Modals/UserProfileModal";
+import MessageList from "../Community/components/MessageList";
+import CommunityMessageInput from "../Community/components/CommunityMessageInput";
 
 // ─── GIF helpers ──────────────────────────────────────────────────────────────
 const FALLBACK_GIFS = [
@@ -413,6 +415,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const [replyTo,setReplyTo]           = useState(null);
   const [messageMenu, setMessageMenu] = useState(null);
   const [profileTarget, setProfileTarget] = useState(null);
+  const [messageInput, setMessageInput] = useState("");
 
   const endRef=useRef(null); const containerRef=useRef(null);
   const tyTO=useRef(null); const isAtBottom=useRef(true);
@@ -532,6 +535,12 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     }
   }, [currentUser.id]);
 
+  const communityMessages = messages.map((message) => ({
+    ...message,
+    user_id: message.sender_id || message.user_id,
+    user: message.user || (String(message.sender_id || message.user_id) === String(currentUser.id) ? currentUser : otherUser),
+  }));
+
   const scrollToMessage=useCallback(msgId=>{
     const el=containerRef.current?.querySelector(`[data-msg-id="${msgId}"]`);
     if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("cv-highlight");setTimeout(()=>el.classList.remove("cv-highlight"),1500);}
@@ -608,20 +617,27 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
         <div className="cv-msgs-overlay"/>
         <div className="cv-msgs-content">
           {loading&&<div className="cv-loading"><div className="cv-spinner"/></div>}
-          {!loading&&messages.map((msg,idx)=>{
-            const isMe=msg.sender_id===currentUser.id;
-            const prev=messages[idx-1]; const tail=!prev||prev.sender_id!==msg.sender_id;
-            const rowAvatarUrl = isMe ? currentUserAvatarUrl : avatarUrl;
-            const rowDisplayName = isMe ? (currentUser?.full_name || currentUser?.username || "You") : (otherUser?.full_name||otherUser?.username||"Unknown");
-            const rowVerified = isMe ? Boolean(currentUser?.verified) : Boolean(otherUser?.verified);
-            return <MessageRow key={msg.id||msg._tempId} msg={msg} isMe={isMe} showAv={tail} showTail={tail} avatarUrl={rowAvatarUrl} otherName={rowDisplayName} otherVerified={rowVerified} boostTier={isMe ? currentUserBoost?.tier : otherBoost.tier} boostThemeId={isMe ? currentUserBoost?.themeId : otherBoost.themeId} boostFontId={isMe ? currentUserBoost?.fontId : otherBoost.fontId} boostColorId={isMe ? currentUserBoost?.colorId : otherBoost.colorId} currentUserId={currentUser.id} currentUserName={currentUser?.full_name || currentUser?.username || "You"} currentUserVerified={Boolean(currentUser?.verified)} currentUser={currentUser} otherUser={otherUser} messages={messages} onReply={setReplyTo} onScrollTo={scrollToMessage} getTickStatus={getTickStatus} fmtTime={fmtTime} onNavigate={onNavigate} onReaction={(emoji) => toggleReaction(msg.id, emoji)} onDeleted={(messageId) => setMessages((items) => items.filter((item) => item.id !== messageId))} onOpenMenu={(message, position) => setMessageMenu({ message, position })} onProfileClick={(user) => user && setProfileTarget(user)}/>;
-          })}
-          {typing.isTyping&&(
-            <div className="cv-msg cv-them">
-              <div className="cv-avatar">{avatarUrl?<img src={avatarUrl} alt={otherUser?.full_name} loading="eager" fetchPriority="high"/>:(otherUser?.full_name||"U").charAt(0)}</div>
-              <div className="cv-bubble cv-bthem cv-tail-l cv-typing-bubble"><div className="cv-dots"><span/><span/><span/></div></div>
-            </div>
-          )}
+          <MessageList
+            messages={communityMessages}
+            pendingMessages={[]}
+            loading={loading}
+            userId={currentUser.id}
+            currentUser={currentUser}
+            messagesEndRef={endRef}
+            onContextMenu={(event, message) => {
+              event.preventDefault();
+              setMessageMenu({ message, position: { x: event.clientX, y: event.clientY } });
+            }}
+            onMessageLongPress={(event, message) => {
+              const touch = event.changedTouches?.[0] || event.touches?.[0];
+              setMessageMenu({ message, position: { x: touch?.clientX || 24, y: touch?.clientY || window.innerHeight * 0.5 } });
+            }}
+            onProfileClick={(user) => user && setProfileTarget(user)}
+            onReply={setReplyTo}
+            onNavigate={onNavigate}
+            onReactionClick={toggleReaction}
+          />
+          {typing.isTyping && <div className="cv-community-typing">{typing.userName} is typing…</div>}
           <div ref={endRef}/>
         </div>
         {showJump&&<button className="cv-jump-btn" onClick={()=>scrollToBottom()}><Ic.Down/></button>}
@@ -651,7 +667,19 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
         />
       )}
 
-      <MessageInput onSend={handleSend} onTyping={handleTypingLocal} replyTo={replyTo} onCancelReply={()=>setReplyTo(null)}/>
+      <CommunityMessageInput
+        value={messageInput}
+        onChange={(value) => { setMessageInput(value); handleTypingLocal(); }}
+        onSend={() => {
+          handleSend(messageInput, replyTo?.id || null);
+          setMessageInput("");
+        }}
+        placeholder="Message…"
+        typingUsers={typing.isTyping ? [{ userName: typing.userName }] : []}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        members={[currentUser, otherUser]}
+      />
       {profileTarget && <UserProfileModal user={profileTarget} currentUser={currentUser} onClose={() => setProfileTarget(null)} />}
       <style>{CV_CSS}</style>
     </div>
@@ -660,6 +688,10 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
 
 export const CV_CSS = `
 .cv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
+.cv-root .msg-bubble.them{background:rgba(19,21,20,.97);border-color:rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
+.cv-root .msg-bubble.me{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border-color:rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
+.cv-root .msg-bubble.them.has-tail::before{border-bottom-color:rgba(19,21,20,.97);}
+.cv-root .msg-bubble.me.has-tail::before{border-bottom-color:rgba(31,84,34,.98);}
 .cv-head{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px)+10px) 14px 10px;background:rgba(0,0,0,.98);border-bottom:1px solid rgba(132,204,22,.1);position:relative;z-index:10;flex-shrink:0;min-height:56px;padding: 0 10px;}
 .cv-back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#84cc16;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;}
 .cv-back-btn:hover{background:rgba(132,204,22,.1);}

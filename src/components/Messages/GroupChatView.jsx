@@ -861,6 +861,10 @@ const CSS = `
 
 /* Root */
 .gcv-root{display:flex;flex-direction:column;height:100%;background:#000;overflow:hidden;position:relative;}
+.gcv-root .msg-bubble.them{background:rgba(19,21,20,.97);border-color:rgba(255,255,255,.08);border-radius:14px 14px 14px 4px;}
+.gcv-root .msg-bubble.me{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border-color:rgba(156,255,0,.26);border-radius:14px 14px 4px 14px;}
+.gcv-root .msg-bubble.them.has-tail::before{border-bottom-color:rgba(19,21,20,.97);}
+.gcv-root .msg-bubble.me.has-tail::before{border-bottom-color:rgba(31,84,34,.98);}
 
 /* Header — 14px sides, safe-area top, exactly matches ChatView */
 .gcv-head{
