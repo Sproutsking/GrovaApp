@@ -81,7 +81,6 @@ const OptimizedImage = ({
     const el = imgRef.current;
     if (el && el.complete && el.naturalWidth > 0) {
       setRevealed(true);
-      setIsLoading(false);
     }
   }, [idx]);
 
