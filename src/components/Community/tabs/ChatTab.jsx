@@ -78,6 +78,7 @@ const ChatTab = ({
   const [showJump, setShowJump] = useState(false);
   const [backgroundId, setBackgroundId] = useState("classic_weave");
   const [isMobile, setIsMobile] = useState(false);
+  const [welcomeBrowse, setWelcomeBrowse] = useState({ active: false, viewed: [] });
   const [profileTarget, setProfileTarget] = useState(null);
   const [communityProfileTarget, setCommunityProfileTarget] = useState(null);
   const currentUserBoost = useUserBoostTier(userId);
@@ -611,6 +612,28 @@ const ChatTab = ({
   };
 
   const currentChannelIndex = channels.findIndex((ch) => ch.id === selectedChannel?.id);
+
+  const browseChannels = channels.filter((channel) => channel.type !== "voice" && !channel.deleted_at);
+  const browseNextWelcomeChannel = () => {
+    const viewed = new Set(welcomeBrowse.viewed.length ? welcomeBrowse.viewed : [selectedChannel?.id]);
+    const nextChannel = browseChannels.find((channel) => !viewed.has(channel.id));
+    if (!nextChannel) return;
+    viewed.add(nextChannel.id);
+    setWelcomeBrowse({ active: true, viewed: [...viewed] });
+    setSelectedChannel(nextChannel);
+  };
+  const startWelcomeBrowse = () => {
+    setWelcomeBrowse({ active: true, viewed: selectedChannel?.id ? [selectedChannel.id] : [] });
+    browseNextWelcomeChannel();
+  };
+  const cancelWelcomeBrowse = () => setWelcomeBrowse({ active: false, viewed: [] });
+  const openWelcomeIntroduction = (channelId) => {
+    const target = channels.find((channel) => channel.id === channelId);
+    if (target) {
+      cancelWelcomeBrowse();
+      setSelectedChannel(target);
+    }
+  };
   const isOwner = community?.owner_id === userId;
   const hasAdminOverride = Boolean(userPermissions.administrator);
   const canManageChannels = userPermissions.manageChannels || hasAdminOverride || isOwner;
@@ -900,6 +923,9 @@ const ChatTab = ({
             }}
               communityId={community.id}
               community={community}
+              onWelcomeProfileClick={(member) => member?.id && setCommunityProfileTarget(member)}
+              onWelcomeIntroduce={openWelcomeIntroduction}
+              onWelcomeBrowse={startWelcomeBrowse}
               channelType={selectedChannel?.type}
             onReactionClick={async (msgId, emoji) => {
               if (!canAddReactions) return;
@@ -938,6 +964,7 @@ const ChatTab = ({
               <ChevronDown size={18} />
             </button>
           )}
+          {welcomeBrowse.active && <div className="welcome-browse-footer"><span>Browsing community channels</span><button type="button" onClick={browseNextWelcomeChannel} disabled={welcomeBrowse.viewed.length >= browseChannels.length}>Next channel</button><button type="button" onClick={cancelWelcomeBrowse}>Cancel</button></div>}
         </div>
 
         <div className="chat-input-area">
@@ -1314,6 +1341,11 @@ const ChatTab = ({
 
         .jump-btn { position: fixed; bottom: 80px; right: 18px; z-index: 5; width: 38px; height: 38px; border-radius: 50%; background: var(--panel-strong); border: 1.5px solid var(--accent-border-strong); color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.4); transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .jump-btn:hover { transform: scale(1.1) translateY(-2px); box-shadow: 0 8px 24px var(--accent-shadow); }
+        .welcome-browse-footer { position: sticky; bottom: 8px; z-index: 6; display: flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; max-width: calc(100% - 24px); margin: 12px auto 4px; padding: 7px 8px 7px 11px; border: 1px solid var(--accent-border); border-radius: 10px; background: color-mix(in srgb, var(--panel-strong) 92%, transparent); box-shadow: 0 8px 22px rgba(0,0,0,.25); backdrop-filter: blur(8px); }
+        .welcome-browse-footer span { color: var(--text-secondary); font-size: 10px; }
+        .welcome-browse-footer button { padding: 6px 9px; border: 1px solid var(--accent-border); border-radius: 7px; background: var(--accent-bg); color: var(--accent); font: 700 10px inherit; cursor: pointer; }
+        .welcome-browse-footer button:last-child { border-color: var(--surface-border); background: transparent; color: var(--text-secondary); }
+        .welcome-browse-footer button:disabled { cursor: default; opacity: .45; }
 
         @media (max-width: 768px) {
           .chat-tab { flex-direction: column; height: 100%; }

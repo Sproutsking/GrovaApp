@@ -68,6 +68,9 @@ const MessageList = ({
   onReplyNavigate,
   communityId,
   community,
+  onWelcomeProfileClick,
+  onWelcomeIntroduce,
+  onWelcomeBrowse,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -173,7 +176,7 @@ const MessageList = ({
           const nameDesign = getBoostNameDesign(msg.user?.subscription_tier, msg.user?.boost_selections?.fontId, msg.user?.boost_selections?.colorId);
 
           return (
-            welcomeMemberId ? <WelcomeMemberCard key={msg.id || msg.tempId || msg._tempId} communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} /> : (
+            welcomeMemberId ? <WelcomeMemberCard key={msg.id || msg.tempId || msg._tempId} communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
             <div
               key={msg.id || msg.tempId || msg._tempId}
               data-message-id={msg.id || msg.tempId || msg._tempId}

@@ -277,6 +277,7 @@ const CommunityMenu = ({
               onOpenInvite={() => { onClose(); onOpenInvite?.(); }}
               onOpenUpgrade={() => setMenuView("settings")}
               onOpenModeration={() => setMenuView("roles")}
+              onCreateChannel={() => { onClose(); onCreateChannel?.(); }}
             />}
             {menuView === "channels" && <ChannelManagementSection
               channels={channels}
