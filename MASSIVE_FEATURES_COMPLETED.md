@@ -1,5 +1,7 @@
 # ✅ MASSIVE FEATURES IMPLEMENTATION — COMPLETE
 
+> **Historical implementation record.** The completion language below describes the milestone when this file was written. Validate current behavior against source, tests, migrations, and [docs/CAPABILITY_STATUS.md](docs/CAPABILITY_STATUS.md).
+
 ## Implementation Status: 100% ✓
 
 All 4 major feature sets have been fully implemented with world-class quality.

@@ -22,6 +22,7 @@ import {
   Menu, X, ChevronRight, Headphones, RefreshCw, Zap,
   TrendingUp, TrendingDown, Star, Droplets, Activity,
   DollarSign,
+  BookOpen,
 } from "lucide-react";
 import { C, Btn, AdminOnlinePanel, LivePulse } from "./AdminUI.jsx";
 import { getVisibleSections, ROLE_META } from "./permissions.js";
@@ -42,6 +43,7 @@ import TeamSection, { CEOPanel } from "./sections/TeamSection.jsx";
 import AmbassadorSection from "./sections/AmbassadorSection.jsx";
 import LiquiditySection  from "./sections/LiquiditySection.jsx";
 import ComingSoonModal from "../Shared/ComingSoonModal";
+import FounderBriefingSection from "./sections/FounderBriefingSection.jsx";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -59,6 +61,7 @@ const NAV_ITEMS = [
   { id: "team",        label: "Team",           icon: Users2 },
   { id: "ambassador",  label: "Ambassadors",    icon: Star },
   { id: "ceo",         label: "CEO Panel",      icon: Crown },
+  { id: "founder",     label: "Founder Briefing", icon: BookOpen },
 ];
 
 // Groups shown above nav items when sidebar is expanded
@@ -77,6 +80,7 @@ const NAV_GROUPS = {
   team:          "Admin",
   ambassador:    null,
   ceo:           null,
+  founder:       "Founder",
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────
@@ -527,6 +531,7 @@ export default function AdminDashboard({ adminData, onClose }) {
   const casesHook         = useSupportCases();
 
   const navigate = useCallback((section) => {
+    if (section === "founder" && adminData?.role !== "ceo_owner") return;
     if (section === "ambassador" && !["ceo_owner", "super_admin"].includes(adminData?.role)) {
       setShowAmbassadorComingSoon(true);
       return;
@@ -644,6 +649,9 @@ export default function AdminDashboard({ adminData, onClose }) {
 
       case "ceo":
         return <CEOPanel adminData={adminData} stats={stats} teamMgmt={teamMgmt} platformSettings={platformSettings} />;
+
+      case "founder":
+        return adminData?.role === "ceo_owner" ? <FounderBriefingSection /> : null;
 
       default:
         return <div style={{ padding: 40, color: C.muted, textAlign: "center" }}>Section not found</div>;

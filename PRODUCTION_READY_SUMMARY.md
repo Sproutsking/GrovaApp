@@ -1,5 +1,7 @@
 # 🚀 PRODUCTION DEPLOYMENT READY
 
+> **Historical delivery summary (2026-08-31).** This document describes the profile boost release at that point in time. It is not a current status authority for the whole Xeevia platform. Check [docs/CAPABILITY_STATUS.md](docs/CAPABILITY_STATUS.md) and deployed configuration before release decisions.
+
 ## ✅ FINAL STATUS: FULLY PRODUCTION READY
 
 **Date:** 2026-08-31  

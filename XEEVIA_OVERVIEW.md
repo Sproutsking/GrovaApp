@@ -1,112 +1,85 @@
-# XEEVIA Platform Overview
+# Xeevia Platform Overview
 
-## What is XEEVIA?
-XEEVIA is a full-featured digital creator platform and social finance experience built for modern content communities, seamless wallet interactions, and web-native payments.
+## Product Definition
 
-At its core, XEEVIA combines:
-- social publishing and content discovery,
-- community management and messaging,
-- a dual-currency wallet economy,
-- fast in-app payments and peer-to-peer transfers,
-- a Progressive Web App shell for instant mobile-like performance.
+Xeevia turns the parts of a person's digital life that they choose to connect into a coherent, permissioned, and inspectable record of identity, contribution, relationships, and outcomes.
 
-XEEVIA is designed to make creator value flow directly through the platform while keeping account security, speed, and real-world payments front and center.
+The user-facing experience is a social and creator platform. The deeper system is an evidence layer that helps people and organizations understand what a person has done, where they have contributed, and what supports each claim.
 
-## Key Product Experience
+## The Three Layers
 
-### Social and Content
-- Feed and discovery streams with personalized, trending, and community content.
-- Full post creation and rich media support including images, video, and reels.
-- Explore and search features for tags, trending topics, communities, and live streams.
-- Content distribution tools for cross-posting and preserving canonical content on XEEVIA.
+### Social surface
 
-### Communities and Messaging
-- Community spaces with dedicated tabs and real-time interaction.
-- Direct messaging, group chat support, and incoming call handling.
-- Notifications, support channels, and in-app toasts for live updates.
+- Content creation, media, discovery, and feeds
+- Communities, direct messages, group conversations, and notifications
+- Creator profiles, presentation, and premium tools
+- Cross-platform publishing where provider permissions and adapters support it
 
-### Wallet and Payments
-- XEEVIA Wallet with dual-currency support: $XEV token economy and EP credits.
-- PayWave service for instant NGN payments, airtime, data, bills, and financial services.
-- Secure deposit, withdrawal, and P2P money transfer flows.
-- Premium service section for rewards, upgrade tiers, gift cards, and embedded financial products.
-- Integrated Paystack and OPay support for local currency settlement.
+### Evidence layer
 
-### Creator Value and Premium Tools
-- Boost and premium profile features for creator monetization.
-- Reward systems, gift cards, scholarship and staking-style products.
-- Admin tools for platform control, audit trails, and service moderation.
+- User-authorized identity connections
+- Provider-linked profile and activity records
+- Normalized evidence items and relationships
+- Source, timestamp, confidence, permission, and revocation context
+- Human-readable verification dashboards and evidence trails
+- XRC audit records for selected application events
 
-## Architecture and Codebase
+### Value layer
 
-### Frontend
-- **React 18** application built with **Create React App** (`react-scripts`).
-- `src/App.jsx` serves as the main shell, with heavy use of `React.lazy` and `Suspense` for deferred component loading.
-- Client-side navigation is managed with custom tab rendering rather than bulky route frameworks, delivering a fast shell-first experience.
-- Progressive Web App support through service worker registration, update/install prompt handling, and offline fallback pages.
+- Xeevia wallets and EP credits
+- Local payment and settlement integrations
+- Web3 payment flows and confirmation tracking
+- Creator rewards and profile boosts
+- Campaign, attribution, and future evidence-backed settlement infrastructure
 
-### Backend and Services
-- **Supabase** powers authentication, database, real-time updates, and edge functions.
-- `supabase/functions/` contains serverless logic for payment checkout, push notification handling, 2FA, streaming, and withdrawals.
-- Supabase Realtime channels are used for live wallet balance updates and notifications.
+The layers are related but should not be conflated. A payment is not identity proof. A connected profile is not automatically verified activity. A hash is not external truth.
 
-### Integrations
-- **OneSignal** for push notifications and in-app toast dispatch.
-- **Cloudflare Stream** for video playback and live streaming support.
-- **Lucide React** for iconography and fast UI visuals.
-- **WebPush / PWA** for installable app behavior and refresh/update prompts.
-- **Crypto libraries** like `@solana/web3.js`, `@emurgo/cardano-serialization-lib-browser`, `crypto-js`, `otpauth`, and `qrcode` for wallet, identity, and security features.
+## Why It Matters
 
-## Platform Features
+People's professional, creative, technical, social, community, and economic histories are fragmented across separate services. Xeevia aims to make authorized evidence portable and understandable without claiming ownership of a person's whole digital life.
 
-### Navigation and UX
-- App shell with shared headers, sidebars, mobile bottom navigation, and service modals.
-- Fast tab switching with preloaded views and deferred render paths.
-- Smooth service panel animations and instant open/close transitions.
-- Adaptive mobile/desktop layouts with custom bottom sheets and desktop modal UX.
+The central product question is:
 
-### Security and Wallet Hardening
-- PIN-protected withdrawal and P2P flows.
-- Account verification, two-factor authentication (2FA), and secure session handling.
-- Payment gating and audit-aware write flows using `xrcService`.
+> What connected identities, contributions, relationships, and outcomes can this person demonstrate, and what evidence supports each claim?
 
-### Advanced Content and Community
-- `XRCOracleExplorer` for chain explorer and content provenance.
-- Community moderation, role management, and topic-specific sections.
-- Support center with FAQ, contact, and help tabs built into the app.
+## Identity and Google
 
-## Technology Stack
+Google Identity authenticates control of a Google account. Xeevia uses authentication as one possible input into a broader contribution record that may include multiple authorized platforms, projects, communities, domains, wallets, and outcomes.
 
-### Core Technologies
-- React 18
-- Create React App
-- JavaScript / JSX
-- CSS-driven component styling
+Xeevia is not a replacement for Google authentication. It is a context and evidence layer above individual account authentication.
 
-### Backend and Infrastructure
-- Supabase (Auth, Database, Realtime, Storage)
-- Supabase Edge Functions
-- Vercel-friendly deployment pipeline
+## Platform Integrations
 
-### Payment and Wallet
-- Paystack integration
-- OPay integration
-- In-app wallet balance updates
-- XEEVIA dual-currency wallet model
+Xeevia distinguishes three forms of platform support:
 
-### Notifications and Offline
-- OneSignal push notifications
-- Service worker registration and offline caching
-- Custom prompt management for update/install flows
+1. **Identity connection** - the account or profile is linked to Xeevia.
+2. **Evidence ingestion** - Xeevia can collect permitted source records.
+3. **Publishing** - Xeevia can publish using a valid credential, provider permission, and registered adapter.
 
-### Developer and Build Tools
-- `react-scripts` build tooling
-- `cross-env` build environment control
-- `npm` scripts for local development, production build, and wallet checks
+A platform may support one, two, or all three. The current state is documented in [docs/CAPABILITY_STATUS.md](docs/CAPABILITY_STATUS.md).
 
-## Why XEEVIA?
-XEEVIA is more than a social app. It is a mobile-first creator ecosystem that connects content, community, and commerce in one experience.
+## Technology
 
-Its core strength is combining a polished, high-speed interface with deep payment and wallet functionality, while preserving creator ownership, secure finance flows, and real-time interaction.
+- React 18 and Create React App frontend
+- Supabase authentication, database, realtime, storage, and Edge Functions
+- Evidence items and edges stored in normalized tables
+- XRC hash-chain utilities for selected audit records
+- Provider connectors and publishing adapters
+- Progressive Web App support
+- Wallet, local payment, and Web3 integration services
 
-This overview is intended to capture XEEVIA’s current identity, feature set, and engineering direction as present in the repository.
+## Product Principles
+
+- Permission before collection
+- Evidence before claims
+- Explainability before scoring
+- User control before exposure
+- Quality before volume
+- Attribution before settlement
+- Native provider support before broad marketing claims
+
+## Current Product Position
+
+Xeevia has a substantial social, community, wallet, and integration foundation. Its strategic advantage is still being built. The highest-value work is improving native evidence coverage, evidence freshness and provenance, privacy controls, explainable decisions, attribution, and measurable outcomes.
+
+For the current truth status, read [docs/CAPABILITY_STATUS.md](docs/CAPABILITY_STATUS.md), not historical completion summaries.

@@ -1,5 +1,7 @@
 # ✅ PRODUCTION READINESS VERIFICATION
 
+> **Historical verification record (2026-08-31).** This document records the state of the profile boost feature at the time it was written. It is not the current repository-wide production status. Check [docs/CAPABILITY_STATUS.md](docs/CAPABILITY_STATUS.md), current source, migrations, provider configuration, and live tests before relying on any claim here.
+
 **Status:** FULLY PRODUCTION-READY  
 **Date:** 2026-08-31  
 **Version:** 1.0.0  

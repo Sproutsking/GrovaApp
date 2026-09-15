@@ -1,70 +1,43 @@
-# Getting Started with Create React App
+# Xeevia
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Xeevia is a permissioned identity, contribution, and creator platform. It turns the parts of a person's digital life that they choose to connect into a coherent, inspectable record of identity, contribution, relationships, and outcomes.
 
-## Available Scripts
+The product has a familiar social surface, but its deeper purpose is accountability: connect permitted sources, preserve provenance, explain evidence quality, and use that evidence to support communities, creators, attribution, and value exchange.
 
-In the project directory, you can run:
+## Read First
 
-### `npm start`
+- [Documentation home](docs/README.md)
+- [Product thesis](docs/PRODUCT_THESIS.md)
+- [System architecture](docs/SYSTEM_ARCHITECTURE.md)
+- [Capability status](docs/CAPABILITY_STATUS.md)
+- [Evidence and trust principles](docs/EVIDENCE_AND_TRUST.md)
+- [Development roadmap](docs/ROADMAP.md)
+- [Xeevia platform overview](XEEVIA_OVERVIEW.md)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Repository Areas
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- `src/` - React application, product services, connectors, evidence, distribution, wallet, and community features.
+- `supabase/` - Database migrations and Edge Functions.
+- `docs/` - Canonical product, architecture, trust, and operational documentation.
+- Root-level guides - Deployment notes, integration guides, handoffs, and historical delivery records.
 
-### `npm test`
+## Development
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+npm install
+npm start
+npm test -- --watchAll=false --runInBand
+npm run build
+```
 
-### `npm run build`
+## Important Capability Boundaries
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- A connected provider is not automatically a verified identity or verified activity.
+- Evidence coverage is broader than native provider activity ingestion.
+- A platform appears in post distribution only when it has an active connection, valid publishing credential, and registered adapter.
+- XRC records can provide tamper-evident application history; they do not independently prove that an external claim is true.
+- Payments, provider OAuth, API scopes, RLS, and Edge Functions require deployed configuration outside this repository.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Documentation Discipline
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+The canonical status document is [docs/CAPABILITY_STATUS.md](docs/CAPABILITY_STATUS.md). Older documents may describe a historical milestone and should not override the current source code or capability ledger.
