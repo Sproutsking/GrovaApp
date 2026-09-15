@@ -27,9 +27,6 @@ import { Link2, Check, X as XIcon, RefreshCw } from "lucide-react";
 import distributionService from "../../services/distribution/distributionService";
 import { PLATFORMS } from "../Account/IdentitySection";
 
-// Only the 4 live platforms appear in the distribution UI
-const LIVE_PLATFORM_KEYS = ["x", "facebook", "instagram", "linkedin"];
-
 // ── Scoped styles ─────────────────────────────────────────────────────────────
 const CSS = `
   @keyframes psIn   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
@@ -147,7 +144,7 @@ const CSS = `
 // ── Component ─────────────────────────────────────────────────────────────────
 const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
   const [connected,   setConnected]   = useState([]);   // array of provider strings
-  const [selected,    setSelected]    = useState(() => initialSelection.filter((platform) => LIVE_PLATFORM_KEYS.includes(platform)));
+  const [selected,    setSelected]    = useState(() => initialSelection);
   const [loadState,   setLoadState]   = useState("loading"); // "loading"|"ready"|"error"
 
   // ── Load connected platforms ───────────────────────────────────────────────
@@ -159,14 +156,13 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
       const connectedList = await distributionService.getConnectedPlatforms(userId);
       setConnected(connectedList);
 
-      // Auto-select all connected platforms if no initial selection provided
-      if (initialSelection.length === 0) {
-        const nextSelection = initialSelection.length > 0
-          ? initialSelection.filter((platform) => connectedList.includes(platform) && LIVE_PLATFORM_KEYS.includes(platform))
-          : connectedList;
-        setSelected(nextSelection);
-        onSelection?.(nextSelection);
-      }
+      // Auto-select all connected platforms if no initial selection provided;
+      // otherwise discard selections that are no longer publishable.
+      const nextSelection = initialSelection.length > 0
+        ? initialSelection.filter((platform) => connectedList.includes(platform))
+        : connectedList;
+      setSelected(nextSelection);
+      onSelection?.(nextSelection);
 
       setLoadState("ready");
     } catch (err) {

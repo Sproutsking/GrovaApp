@@ -32,6 +32,7 @@
 // ============================================================================
 
 import { supabase } from "../config/supabase";
+import { syncUserConnectorEvidence } from "../evidence/connectorService";
 
 const POPUP_W = 520;
 const POPUP_H = 620;
@@ -45,7 +46,6 @@ export function resolveProviderLinkState({ platform, identities = [], connection
     if (!providerName) return false;
     if (providerName === platform) return true;
     if (platform === "x" && providerName === "twitter") return true;
-    if (platform === "instagram" && providerName === "facebook") return true;
     return false;
   };
 
@@ -146,6 +146,7 @@ class SocialConnectService {
   async checkAndImportExistingIdentities(userId) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       if (!user?.identities) return {};
 
       const imported = {};
@@ -200,6 +201,17 @@ class SocialConnectService {
 
           if (conn) {
             imported[platformKey] = true;
+            const sessionProvider = session?.user?.app_metadata?.provider;
+            const providerToken = sessionProvider === identity.provider ? session?.provider_token : null;
+            if (providerToken) {
+              await supabase.from("tokens").upsert({
+                connection_id: conn.id,
+                encrypted_token: providerToken,
+                refresh_token: session.provider_refresh_token || null,
+                expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                revoked: false,
+              }, { onConflict: "connection_id" });
+            }
             try {
               const { syncUserConnectorEvidence } = await import("../evidence/connectorService");
               await syncUserConnectorEvidence(userId, platformKey).catch((err) => {
@@ -263,8 +275,12 @@ class SocialConnectService {
     });
     if (linkError) {
       sessionStorage.removeItem(PENDING_LINK_KEY);
-      if (/manual linking is disabled|linking.*disabled|provider.*already.*connected/i.test(linkError.message || "")) {
-        throw new Error("This provider is already connected to this account or provider linking is disabled in the current project setup.");
+      const linkMessage = linkError.message || "";
+      if (/manual linking is disabled|linking.*disabled/i.test(linkMessage)) {
+        throw new Error("Provider linking is disabled in Supabase Auth. Enable Manual Linking and this OAuth provider in the hosted project settings, then try again.");
+      }
+      if (/provider.*already.*connected|already.*identity/i.test(linkMessage)) {
+        throw new Error("This provider is already connected to another Xeevia account or identity. Sign in to that account before managing it.");
       }
       throw linkError;
     }
@@ -349,6 +365,9 @@ class SocialConnectService {
       connected_via: "profile_link",
     }, { onConflict: "user_id,provider" });
     if (error) throw new Error(`Failed to save profile link: ${error.message}`);
+    await syncUserConnectorEvidence(userId, platform).catch((syncError) => {
+      console.warn(`[SocialConnect] Connection proof sync failed for ${platform}:`, syncError?.message);
+    });
     return { platform, profileUrl: parsed.toString() };
   }
 

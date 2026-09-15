@@ -6,11 +6,40 @@ import { registerDefaultConnectors } from "./connectors";
 
 registerDefaultConnectors();
 
+const buildConnectionProof = (connection, userId) => ({
+  id: `connection:${connection.id}:identity`,
+  provider: connection.provider,
+  type: "profile",
+  source: "connection",
+  entityType: "person",
+  externalId: connection.platform_user_id,
+  title: `${connection.provider} identity`,
+  summary: connection.connected_via === "profile_link"
+    ? "Public profile link supplied by the account owner."
+    : "External identity connected to this Xeevia account.",
+  verified: false,
+  confidence: connection.connected_via === "profile_link" ? "low" : "medium",
+  profileId: userId,
+  connectionId: connection.id,
+  url: connection.connected_via === "profile_link" ? connection.platform_user_id : null,
+  metadata: {
+    proofType: "social",
+    verificationLevel: "standard",
+    connectionId: connection.id,
+    platformUserId: connection.platform_user_id,
+    connectedVia: connection.connected_via || "unknown",
+  },
+});
+
+async function saveConnectionProof(connection, userId) {
+  const [evidenceItem] = await evidenceService.saveEvidenceItems([
+    buildConnectionProof(connection, userId),
+  ]);
+  return { connection, evidenceItems: evidenceItem ? [evidenceItem] : [], evidenceEdges: [] };
+}
+
 export async function syncConnectorEvidence(provider, context = {}) {
   const connector = getConnector(provider);
-  if (!connector) {
-    throw new Error(`No connector registered for provider: ${provider}`);
-  }
 
   const result = await connector.sync(context);
   const normalized = normalizeConnectorPayload({
@@ -51,6 +80,8 @@ export async function syncUserConnectorEvidence(userId, provider) {
   if (connErr) throw connErr;
   if (!connection) throw new Error(`No active connection found for ${provider}`);
 
+  if (!connector) return saveConnectionProof(connection, userId);
+
   const { data: tokenRow, error: tokenErr } = await supabase
     .from("tokens")
     .select("encrypted_token, refresh_token, expires_at, revoked")
@@ -59,7 +90,7 @@ export async function syncUserConnectorEvidence(userId, provider) {
     .maybeSingle();
 
   if (tokenErr) throw tokenErr;
-  if (!tokenRow) throw new Error(`No valid token found for ${provider}`);
+  if (!tokenRow) return saveConnectionProof(connection, userId);
 
   const context = {
     username: connection.platform_user_id,
@@ -134,6 +165,28 @@ export async function syncUserConnectorEvidence(userId, provider) {
     evidenceItems,
     evidenceEdges,
     raw: result,
+  };
+}
+
+export async function syncAllUserConnectorEvidence(userId) {
+  if (!userId) throw new Error("userId is required");
+
+  const { data: connections, error } = await supabase
+    .from("connections")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("auth_status", "active");
+
+  if (error) throw error;
+
+  const results = await Promise.allSettled(
+    (connections || []).map((connection) => syncUserConnectorEvidence(userId, connection.provider))
+  );
+
+  return {
+    connections: connections || [],
+    results,
+    failures: results.filter((result) => result.status === "rejected"),
   };
 }
 

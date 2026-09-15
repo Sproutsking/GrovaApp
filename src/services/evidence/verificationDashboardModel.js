@@ -1,4 +1,8 @@
 const SECTION_ORDER = ["bio", "socials", "portfolio", "reports", "comments", "replies", "likes"];
+const SOCIAL_PROVIDERS = new Set([
+  "x", "twitter", "facebook", "instagram", "linkedin", "tiktok", "threads",
+  "reddit", "youtube", "twitch", "kick", "telegram", "pinterest",
+]);
 
 const getProofLabel = (item = {}) => {
   const proofType = item?.metadata?.proofType || item?.metadata?.proof_type || item?.provider;
@@ -52,7 +56,6 @@ export function buildVerificationDashboardSections(items = [], context = {}) {
     const type = item?.evidence_type || item?.type;
     return type === "profile" || type === "identity" || type === "verification";
   });
-  const socialItems = safeItems.filter((item) => item?.provider && ["profile", "activity", "comment", "reply", "like", "report"].includes(item?.evidence_type) === false);
   const portfolioItems = safeItems.filter((item) => item?.metadata?.kind === "portfolio" || item?.evidence_type === "portfolio");
   const reportItems = safeItems.filter((item) => item?.evidence_type === "report" || item?.metadata?.kind === "report");
   const commentItems = safeItems.filter((item) => item?.evidence_type === "comment" || item?.metadata?.kind === "comment");
@@ -73,8 +76,8 @@ export function buildVerificationDashboardSections(items = [], context = {}) {
       title: "Socials",
       subtitle: "Connected platforms and verified identities",
       accent: "#60a5fa",
-      items: normalizeSectionItems(safeItems.filter((item) => item?.provider && item.provider !== "XRC Oracle" && !item?.metadata?.firstParty && item?.evidence_type !== "report" && item?.evidence_type !== "comment" && item?.evidence_type !== "reply" && item?.evidence_type !== "like"), "socials"),
-      summary: `${safeItems.filter((item) => item?.provider && item.provider !== "XRC Oracle" && !item?.metadata?.firstParty && item?.verified).length} verified signals across connected platforms`,
+      items: normalizeSectionItems(safeItems.filter((item) => SOCIAL_PROVIDERS.has(String(item?.provider || "").toLowerCase()) && !item?.metadata?.firstParty && !["report", "comment", "reply", "like"].includes(item?.evidence_type)), "socials"),
+      summary: `${safeItems.filter((item) => SOCIAL_PROVIDERS.has(String(item?.provider || "").toLowerCase()) && !item?.metadata?.firstParty && item?.verified).length} verified signals across connected platforms`,
     },
     {
       id: "portfolio",

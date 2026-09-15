@@ -2,6 +2,11 @@ import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 import { ArrowLeft, ShieldCheck, X } from "lucide-react";
 
+const SOCIAL_PROVIDERS = new Set([
+  "x", "twitter", "facebook", "instagram", "linkedin", "tiktok", "threads",
+  "reddit", "youtube", "twitch", "kick", "telegram", "pinterest",
+]);
+
 const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [], loading, onBack, onClose }) => {
   const [selectedSection, setSelectedSection] = useState(null);
   const selected = dashboard?.sections?.find(section => section.id === selectedSection);
@@ -12,12 +17,12 @@ const VerificationDashboardPage = ({ profile, dashboard, verificationItems = [],
   }).length;
   const evidenceSourceCount = new Set(verificationItems.map(item => item?.provider).filter(Boolean)).size;
   const connectedSourceCount = new Set(verificationItems
-    .filter(item => item?.provider && item.provider !== "XRC Oracle" && !item?.metadata?.firstParty)
+    .filter(item => SOCIAL_PROVIDERS.has(String(item?.provider || "").toLowerCase()) && !item?.metadata?.firstParty)
     .map(item => item.provider)).size;
   const platformProfiles = useMemo(() => {
     const seen = new Set();
     return verificationItems
-      .filter((item) => item?.provider && !seen.has(item.provider) && seen.add(item.provider))
+      .filter((item) => SOCIAL_PROVIDERS.has(String(item?.provider || "").toLowerCase()) && !item?.metadata?.firstParty && !seen.has(item.provider) && seen.add(item.provider))
       .slice(0, 8)
       .map((item) => ({
         provider: item.provider,

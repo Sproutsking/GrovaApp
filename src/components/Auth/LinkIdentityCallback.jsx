@@ -56,14 +56,29 @@ export default function LinkIdentityCallback() {
           || latestIdentity.identity_data?.preferred_username
           || latestIdentity.identity_data?.sub
           || latestIdentity.id;
-        const { error: connectionError } = await supabase.from("connections").upsert({
+        const { data: connection, error: connectionError } = await supabase.from("connections").upsert({
           user_id: userData.user.id,
           provider: pending.platform,
           platform_user_id: platformUserId,
           auth_status: "active",
           connected_via: "supabase_identity",
-        }, { onConflict: "user_id,provider" });
+        }, { onConflict: "user_id,provider" }).select("id").single();
         if (connectionError) throw new Error(`Identity verified, but connection tracking failed: ${connectionError.message}`);
+
+        // Persist the provider credential so this connection can publish and
+        // sync evidence instead of appearing connected with no usable token.
+        const providerToken = data.session.provider_token || exchanged.session.provider_token;
+        const providerRefreshToken = data.session.provider_refresh_token || exchanged.session.provider_refresh_token || null;
+        if (providerToken && connection?.id) {
+          const { error: tokenError } = await supabase.from("tokens").upsert({
+            connection_id: connection.id,
+            encrypted_token: providerToken,
+            refresh_token: providerRefreshToken,
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            revoked: false,
+          }, { onConflict: "connection_id" });
+          if (tokenError) throw new Error(`Identity connected, but permission storage failed: ${tokenError.message}`);
+        }
         sessionStorage.removeItem(PENDING_LINK_KEY);
 
         if (!mounted) return;

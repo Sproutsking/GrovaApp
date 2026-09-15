@@ -52,7 +52,7 @@ export const CONNECTOR_DEFINITIONS = {
     desc: "",
     category: "Visual",
     live: true,
-    connectionMode: "profile_link",
+    connectionMode: "oauth",
     connectNote: "",
     evidenceTypes: ["profile", "posts", "media"],
   },

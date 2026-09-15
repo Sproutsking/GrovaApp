@@ -67,4 +67,15 @@ describe("buildVerificationDashboardSections", () => {
 
     expect(sections.find((section) => section.id === "bio").items[0].proofLabel).toBe("Email verification");
   });
+
+  it("does not present email or first-party evidence as connected social sources", () => {
+    const sections = buildVerificationDashboardSections([
+      { id: "email-1", provider: "email", evidence_type: "identity", verified: true },
+      { id: "xeevia-1", provider: "Xeevia", evidence_type: "profile", verified: true, metadata: { firstParty: true } },
+      { id: "x-1", provider: "x", evidence_type: "profile", verified: true },
+    ]);
+
+    expect(sections.find((section) => section.id === "socials").items).toHaveLength(1);
+    expect(sections.find((section) => section.id === "socials").items[0].provider).toBe("x");
+  });
 });

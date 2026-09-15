@@ -32,6 +32,7 @@ import { buildVerificationDashboardSections } from "../../services/evidence/veri
 import VerificationDashboardPage from "../Modals/VerificationDashboardPage";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
 import { createFirstPartyXeeviaEvidence } from "../../services/evidence/evidenceNormalizer";
+import { syncAllUserConnectorEvidence } from "../../services/evidence/connectorService";
 import TierBadgePill from "../Shared/TierBadgePill";
 import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 
@@ -353,6 +354,9 @@ const ProfileSection = ({ userId, onProfileUpdate, onSignOut, onNavigate, curren
   const loadVerificationItems = async () => {
     try {
       setVerificationLoading(true);
+      await syncAllUserConnectorEvidence(userId).catch((syncError) => {
+        console.warn("Verification connector sync failed:", syncError?.message || syncError);
+      });
       const { data, error } = await supabase
         .from("evidence_items")
         .select("*")
