@@ -43,7 +43,7 @@ function Preview({ config, communityName = "your community" }) {
   return (
     <div className={`welcome-builder-preview welcome-preview-${config.layout}`} style={{ "--welcome-accent": theme.accent, "--welcome-bg": theme.bg, "--welcome-border": theme.border }}>
       <div className="welcome-preview-glow" />
-      <div className="welcome-preview-topline"><span><Icon size={14} /> {config.eyebrow}</span>{config.showMemberCount && <small><UserPlus size={12} /> 1,248 members</small>}</div>
+      <div className="welcome-preview-topline"><span><Icon size={14} /> {config.eyebrow}</span>{config.showMemberCount && <small><UserPlus size={12} /> Live member detail</small>}</div>
       <div className="welcome-preview-main"><div className="welcome-preview-copy"><strong>Welcome to {communityName}</strong><h3>{config.title}</h3><p>{config.description}</p>{config.showFeatures && <div className="welcome-preview-features">{config.features.map((feature) => <span key={feature}><Check size={12} />{feature}</span>)}</div>}</div><div className="welcome-preview-actions"><button type="button"><UserPlus size={14} />{config.primaryLabel}</button><button type="button" className="welcome-preview-secondary"><LayoutTemplate size={14} />{config.secondaryLabel}</button></div></div>
     </div>
   );

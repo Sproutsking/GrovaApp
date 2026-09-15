@@ -7,6 +7,7 @@ import { getBoostNameDesign } from "../../../services/boost/boostThemes";
 import BoostAvatarRing from "../../Shared/BoostAvatarRing";
 import { VerifiedBadgeCircle } from "../../Shared/VerifiedBadges";
 import { MessageReactionArea } from "./ReactionSystem";
+import WelcomeMemberCard, { getWelcomeMemberId } from "../verification/WelcomeMemberCard";
 
 const ANNOUNCEMENT_BORDER_STYLES = new Set(["solid", "double", "dashed", "glow"]);
 const ANNOUNCEMENT_COLORS = new Set(["#9cff00", "#38bdf8", "#f59e0b", "#f472b6", "#a78bfa"]);
@@ -65,6 +66,8 @@ const MessageList = ({
   onMessageLongPress,
   onPostNavigate,
   onReplyNavigate,
+  communityId,
+  community,
 }) => {
   const formatTime = (d) => {
     if (!d) return "";
@@ -152,6 +155,7 @@ const MessageList = ({
           const showTail = !isAnnouncementMessage && (!prev || prev.user_id !== msg.user_id || !isWithinCluster);
           const postReplyMatch = String(msg.content || "").match(/^\[\[post-reply:(.*?)\]\]\n([\s\S]*)$/);
           const postReply = postReplyMatch ? parsePostReplyMetadata(postReplyMatch[1]) : null;
+          const welcomeMemberId = getWelcomeMemberId(msg.content);
           const messageTitle = announcement?.title || "";
           const messageBody = announcementMatch?.[2] || postReplyMatch?.[2] || String(msg.content || "").replace(/^\[\[welcome-member:[^\]]+\]\]\n?/, "");
           const showAvatar = isAnnouncementMessage || showTail;
@@ -169,6 +173,7 @@ const MessageList = ({
           const nameDesign = getBoostNameDesign(msg.user?.subscription_tier, msg.user?.boost_selections?.fontId, msg.user?.boost_selections?.colorId);
 
           return (
+            welcomeMemberId ? <WelcomeMemberCard key={msg.id || msg.tempId || msg._tempId} communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} /> : (
             <div
               key={msg.id || msg.tempId || msg._tempId}
               data-message-id={msg.id || msg.tempId || msg._tempId}
@@ -258,6 +263,7 @@ const MessageList = ({
                 </>}
               </MessageReactionArea>
             </div>
+          )
           );
         })}
 
