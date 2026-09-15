@@ -5,6 +5,7 @@ import { supabase } from "../../../../services/config/supabase";
 
 import { X, Settings2 } from "lucide-react";
 import VerificationToolDashboard from "../../verification/VerificationToolDashboard";
+import WelcomeToolDashboard from "../../verification/WelcomeToolDashboard";
 import ModerationToolDashboard from "../../moderation/ModerationToolDashboard";
 const TOOL_CATALOG = [
   { type: "verification", label: "Verification", description: "Choose how members prove access before entering.", icon: ShieldCheck, modes: [
@@ -27,6 +28,7 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
   const [sourceConnected, setSourceConnected] = useState(false);
   const [linkedSources, setLinkedSources] = useState([]);
   const [dashboardTool, setDashboardTool] = useState(null);
+  const [welcomeDashboardOpen, setWelcomeDashboardOpen] = useState(false);
   const [draft, setDraft] = useState({});
 
   useEffect(() => {
@@ -107,16 +109,11 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     }
   };
 
-  const updateWelcomeConfig = async (field, value) => {
-    if (!canManage) return;
-    const row = getRow("welcome");
-    const nextRow = { ...row, community_id: communityId, tool_type: "welcome", enabled: true, channel_id: row.channel_id || null, config: { ...(row.config || {}), [field]: value }, updated_at: new Date().toISOString() };
-    setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), nextRow]);
-    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
-    if (saveError) setError(saveError.message);
-  };
-
   const openDashboard = (tool) => {
+    if (tool.type === "welcome") {
+      setWelcomeDashboardOpen(true);
+      return;
+    }
     const row = getRow(tool.type);
     setDashboardTool(tool);
     setDraft({ ...(row.config || {}), mode: row.config?.mode || tool.modes?.[0]?.id || "default" });
@@ -152,6 +149,16 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
     setDashboardTool(null);
   };
 
+  const saveWelcomeConfig = async (config) => {
+    if (!canManage) return;
+    const row = getRow("welcome");
+    const nextRow = { ...row, community_id: communityId, tool_type: "welcome", enabled: Boolean(row.enabled || selectedIds("welcome").size), channel_id: row.channel_id || null, config, updated_at: new Date().toISOString() };
+    const { error: saveError } = await supabase.from("community_tool_settings").upsert(nextRow, { onConflict: "community_id,tool_type" });
+    if (saveError) { setError(saveError.message); return; }
+    setRows((current) => [...current.filter((item) => item.tool_type !== "welcome"), nextRow]);
+    setWelcomeDashboardOpen(false);
+  };
+
   const navigation = [
     { label: "Invite people", description: "Create or manage invite links.", icon: UserPlus, onClick: onOpenInvite },
     { label: "Customize community", description: "Shape your community identity, tools, and controls.", icon: Crown, onClick: onOpenUpgrade },
@@ -174,12 +181,13 @@ export default function ToolsSection({ communityId, userId, channels = [], canMa
             <button type="button" className="community-tool-card" onClick={() => openDashboard(tool)}>
               <span className="community-tool-icon"><tool.icon size={17} /></span><span className="community-tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span><em>{selected.size ? `${selected.size} channel${selected.size > 1 ? "s" : ""}` : "Off"}</em><ChevronRight size={15} />
             </button>
-            {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}{tool.type === "welcome" && <div className="community-tool-config"><input disabled={!canManage} value={getRow("welcome").config?.title || "Welcome to our community"} onChange={(event) => updateWelcomeConfig("title", event.target.value)} placeholder="Welcome title" maxLength={150} /><textarea disabled={!canManage} value={getRow("welcome").config?.description || "Introduce yourself and join the conversation."} onChange={(event) => updateWelcomeConfig("description", event.target.value)} placeholder="Welcome description" rows={3} maxLength={500} /></div>}</div>}
+            {open && <div className="community-tool-picker"><span>{loading ? "Loading channels..." : canManage ? "Send member-facing panel to:" : "Configured channels:"}</span>{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selected.has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(tool.type, channel.id)}><i>{selected.has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div>}
             {open && tool.type === "social_updates" && canManage && <div className="community-tool-sources"><button type="button" className="community-tool-source" onClick={connectXeevia}>{sourceConnected ? "Xeevia connected" : "Connect Xeevia source"}</button>{linkedSources.length ? <div className="community-tool-linked-sources">{linkedSources.map((source) => <button type="button" key={`${source.provider}-${source.platform_user_id}`} onClick={() => connectLinkedSource(source)}>{source.provider} <small>Use linked account</small></button>)}</div> : <span>Link an account in Account &gt; Identity to use it here.</span>}</div>}
           </div>
         );
       })}
       {error && <p className="community-tools-error">{error}</p>}
+      {welcomeDashboardOpen && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setWelcomeDashboardOpen(false)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Welcome experience</h2><p>Design the first impression members see when they arrive.</p></div><button type="button" onClick={() => setWelcomeDashboardOpen(false)} aria-label="Close welcome dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><WelcomeToolDashboard value={getRow("welcome").config} communityName="your community" disabled={!canManage} onSave={saveWelcomeConfig} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "verification" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Verification</h2><p>Manage live quick and picture verification for members.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close verification dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><VerificationToolDashboard value={getRow("verification").config} disabled={!canManage} onSave={saveVerificationConfig} /></div></section></div>, document.body)}
       {dashboardTool && dashboardTool.type === "moderation" && ReactDOM.createPortal(<div className="tool-dashboard-overlay" style={{ zIndex: 100002 }} onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>Moderation</h2><p>Build a live safety system for this community.</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close moderation dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><ModerationToolDashboard communityId={communityId} value={getRow("moderation").config} disabled={!canManage} onSave={saveModerationConfig} /></div></section></div>, document.body)}
       {dashboardTool && ReactDOM.createPortal(<div className="tool-dashboard-overlay" onClick={() => setDashboardTool(null)}><section className="tool-dashboard" onClick={(event) => event.stopPropagation()}><header><div><span className="tool-dashboard-kicker">Community tool dashboard</span><h2>{dashboardTool.label}</h2><p>{dashboardTool.description}</p></div><button type="button" onClick={() => setDashboardTool(null)} aria-label="Close tool dashboard"><X size={18} /></button></header><div className="tool-dashboard-body"><div className="tool-dashboard-block"><strong>Tool type</strong><div className="tool-mode-grid">{(dashboardTool.modes || [{ id: "default", label: "Standard", description: "Use the standard configuration for this tool." }]).map((mode) => <button type="button" key={mode.id} className={`tool-mode-card${draft.mode === mode.id ? " selected" : ""}`} onClick={() => setDraft((current) => ({ ...current, mode: mode.id }))}><span>{draft.mode === mode.id ? <Check size={14} /> : null}</span><b>{mode.label}</b><small>{mode.description}</small></button>)}</div></div><div className="tool-dashboard-block"><strong>Member-facing channels</strong><p className="tool-dashboard-help">Choose where this tool is available. Selecting a channel opens it in the channel list without changing your existing channel arrangement.</p><div className="tool-channel-grid">{channels.filter((channel) => channel.type !== "voice").map((channel) => <button type="button" disabled={!canManage} className={`community-tool-channel${selectedIds(dashboardTool.type).has(channel.id) ? " selected" : ""}`} key={channel.id} onClick={() => toggleChannel(dashboardTool.type, channel.id)}><i>{selectedIds(dashboardTool.type).has(channel.id) ? <Check size={12} /> : null}</i>#{channel.name}</button>)}</div></div>{dashboardTool.type === "verification" && <div className="tool-dashboard-block"><strong>Verification setup</strong><input disabled={!canManage} value={draft.message || ""} onChange={(event) => setDraft((current) => ({ ...current, message: event.target.value }))} placeholder="Message shown before verification" maxLength={300} /><small className="tool-dashboard-help">Some verification types require an enabled Xeevia platform integration before members can use them.</small></div>}{dashboardTool.type === "welcome" && <div className="tool-dashboard-block"><strong>Welcome content</strong><input disabled={!canManage} value={draft.title || "Welcome to our community"} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Welcome title" maxLength={150} /><textarea disabled={!canManage} value={draft.description || "Introduce yourself and join the conversation."} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Welcome description" rows={4} maxLength={500} /></div>}</div><footer><button type="button" className="tool-dashboard-cancel" onClick={() => setDashboardTool(null)}>Cancel</button><button type="button" className="tool-dashboard-save" disabled={!canManage} onClick={saveDashboard}>Save tool setup</button></footer></section></div>, document.body)}
