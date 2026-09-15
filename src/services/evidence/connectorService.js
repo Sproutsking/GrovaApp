@@ -65,9 +65,6 @@ export async function syncUserConnectorEvidence(userId, provider) {
   if (!provider) throw new Error("provider is required");
 
   const connector = getConnector(provider);
-  if (!connector) {
-    throw new Error(`No connector registered for provider: ${provider}`);
-  }
 
   const { data: connection, error: connErr } = await supabase
     .from("connections")
@@ -95,6 +92,7 @@ export async function syncUserConnectorEvidence(userId, provider) {
   const context = {
     username: connection.platform_user_id,
     profileId: connection.platform_user_id,
+    profileUrl: connection.connected_via === "profile_link" ? connection.platform_user_id : null,
     accessToken: tokenRow.encrypted_token,
     userId,
     connectionId: connection.id,

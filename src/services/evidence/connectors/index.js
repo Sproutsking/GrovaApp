@@ -1,6 +1,53 @@
 import { BaseConnector } from "../connectorBase";
 import { normalizeConnectorPayload } from "../evidenceNormalizer";
 import { registerConnector } from "../connectorRegistry";
+import { CONNECTOR_DEFINITIONS } from "../../connectors/connectorRegistry";
+
+export class ConnectedIdentityConnector extends BaseConnector {
+  constructor(definition) {
+    super({
+      provider: definition.key,
+      label: definition.name,
+      supportedTypes: ["profile"],
+      capabilities: ["connected-identity", "profile-link"],
+    });
+    this.definition = definition;
+  }
+
+  async fetchProfile(context = {}) {
+    const identifier = context.profileId || context.username || context.handle;
+    if (!identifier) return null;
+
+    return {
+      id: identifier,
+      username: context.username || (String(identifier).startsWith("http") ? null : identifier),
+      name: this.definition.name,
+      url: context.profileUrl || (String(identifier).startsWith("http") ? identifier : null),
+      description: `Connected ${this.definition.name} identity`,
+      verified: false,
+    };
+  }
+
+  async fetchActivity() {
+    return [];
+  }
+
+  normalizeProfile(profile, context = {}) {
+    return normalizeConnectorPayload({
+      provider: this.provider,
+      profile,
+      metadata: {
+        source: "connected_identity",
+        connectionMode: context.connection?.connected_via || "oauth",
+        verificationLevel: "standard",
+      },
+    }).profile;
+  }
+
+  normalizeActivity() {
+    return null;
+  }
+}
 
 export class GitHubConnector extends BaseConnector {
   constructor(options = {}) {
@@ -146,4 +193,10 @@ export class XConnector extends BaseConnector {
 export function registerDefaultConnectors() {
   registerConnector(new GitHubConnector());
   registerConnector(new XConnector());
+
+  Object.values(CONNECTOR_DEFINITIONS).forEach((definition) => {
+    if (!['github', 'x'].includes(definition.key)) {
+      registerConnector(new ConnectedIdentityConnector(definition));
+    }
+  });
 }
