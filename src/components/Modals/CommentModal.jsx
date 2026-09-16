@@ -157,6 +157,7 @@ const CommentModal = ({
   onClose,
   currentUser,
   isMobile = false,
+  embedded = false,
   onCommentPosted, // (delta: number) => void — fires instantly so count updates in feed
 }) => {
   const [comments, setComments] = useState([]);
@@ -250,10 +251,10 @@ const CommentModal = ({
 
   return (
     <>
-      <div className="comment-modal-overlay" onClick={onClose} />
+      {!embedded && <div className="comment-modal-overlay" onClick={onClose} />}
 
       <div
-        className={`comment-modal${isMobile ? " comment-modal-mobile" : " comment-modal-desktop"}`}
+        className={`comment-modal${isMobile ? " comment-modal-mobile" : " comment-modal-desktop"}${embedded ? " comment-modal-embedded" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -396,8 +397,24 @@ const CommentModal = ({
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          width: 580px;
-          max-height: 80vh;
+          width: min(70vw, 1100px);
+          height: 90vh;
+          max-height: 90vh;
+          min-height: 0;
+        }
+        .comment-modal-embedded {
+          position: relative;
+          inset: auto;
+          top: auto;
+          left: auto;
+          transform: none;
+          width: 100%;
+          max-height: none;
+          height: 100%;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          background: transparent;
         }
         .comment-modal-mobile {
           bottom: 0;

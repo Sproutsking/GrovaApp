@@ -916,9 +916,9 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onComment={handleComment}
-                  onOpenFullScreen={(id) => {
-                    const post = posts.find(p => p.id === id);
-                    const reel = reels.find(r => r.id === id);
+                  onOpenFullScreen={(contentId) => {
+                    const post = posts.find(p => p.id === contentId);
+                    const reel = reels.find(r => r.id === contentId);
                     if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
                     else if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
                   }}

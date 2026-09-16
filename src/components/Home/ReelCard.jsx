@@ -336,7 +336,7 @@ const ReelCard = ({
         videoRef.current.pause();
         setPlaying(false);
       }
-      onOpenFullScreen(index);
+      onOpenFullScreen(reel.id);
     }
   };
 
@@ -566,7 +566,7 @@ const ReelCard = ({
                     videoRef.current.pause();
                     setPlaying(false);
                   }
-                  onOpenFullScreen(index);
+                  onOpenFullScreen(reel.id);
                 }}
                 aria-label="Full screen"
               >

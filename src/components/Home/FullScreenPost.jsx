@@ -31,6 +31,7 @@ import {
   ChevronLeft, ChevronRight, Send, MoreVertical, Lock,
 } from "lucide-react";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import CommentModal from "../Modals/CommentModal";
 
 function getCloudinaryName() {
   return (
@@ -127,6 +128,7 @@ const FullScreenPost = ({
   const [threadDepth, setThreadDepth] = useState({});
   const [videoSourceIndex, setVideoSourceIndex] = useState(0);
   const [portalRoot, setPortalRoot] = useState(null);
+  const [showComments, setShowComments] = useState(false);
 
   const videoRef = useRef(null);
   const commentsContainerRef = useRef(null);
@@ -436,135 +438,23 @@ const FullScreenPost = ({
           <button className="fs-action-btn" onClick={handleShare} title="Share">
             <Share2 size={24} />
           </button>
+          <button className="fs-action-btn" onClick={() => setShowComments(true)} title="Comments">
+            <MessageCircle size={24} />
+          </button>
         </div>
       </div>
 
-      {/* Right/Bottom: Comments Thread */}
-      <div className="fullscreen-post-comments">
-        <div className="comments-header">
-          <MessageCircle size={18} />
-          <span className="comment-count">{comments.length}</span>
-        </div>
-
-        <div className="comments-list" ref={commentsContainerRef}>
-          {/* New comment input */}
-          <div className="comment-input-wrapper">
-            <input
-              type="text"
-              placeholder="Add a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmitComment();
-                }
-              }}
-              className="comment-input"
-            />
-            {newComment.trim() && (
-              <button onClick={handleSubmitComment} className="comment-send-btn">
-                <Send size={16} />
-              </button>
-            )}
-          </div>
-
-          {/* Top-level comments */}
-          {topLevelComments.map((comment) => {
-            const replies = getReplies(comment.id);
-            return (
-              <div key={comment.id} className="comment-thread">
-                {/* Top-level comment */}
-                <div className="comment-item comment-level-1">
-                  <img
-                    src={mediaUrlService.getAvatarUrl(comment.profiles?.avatar_id, 32)}
-                    alt={comment.profiles?.username}
-                    className="comment-avatar"
-                  />
-                  <div className="comment-content">
-                    <div className="comment-header">
-                      <strong>{comment.profiles?.full_name || "User"}</strong>
-                      <span className="comment-handle">@{comment.profiles?.username}</span>
-                    </div>
-                    <p className="comment-text">{comment.text}</p>
-                    <div className="comment-actions">
-                      <button className="comment-action-btn">Like {comment.likes > 0 && `(${comment.likes})`}</button>
-                      {calculateDepth(comment.id) < 2 && (
-                        <button
-                          className="comment-action-btn"
-                          onClick={() => setExpandedReplyTo(comment.id)}
-                        >
-                          Reply
-                        </button>
-                      )}
-                      {calculateDepth(comment.id) >= 2 && (
-                        <button
-                          className="comment-action-btn comment-dm-suggest"
-                          onClick={() => alert("Start a conversation via DM")}
-                        >
-                          Message
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Replies to this comment */}
-                {replies.map((reply) => (
-                  <div key={reply.id} className="comment-item comment-level-2">
-                    <img
-                      src={mediaUrlService.getAvatarUrl(reply.profiles?.avatar_id, 28)}
-                      alt={reply.profiles?.username}
-                      className="comment-avatar-small"
-                    />
-                    <div className="comment-content-small">
-                      <div className="comment-header-small">
-                        <strong>{reply.profiles?.full_name}</strong>
-                        <span>@{reply.profiles?.username}</span>
-                      </div>
-                      <p className="comment-text-small">{reply.text}</p>
-                      <button className="comment-action-btn-small">Like {reply.likes > 0 && `(${reply.likes})`}</button>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Reply input (if expanded) */}
-                {expandedReplyTo === comment.id && (
-                  <div className="comment-reply-input">
-                    <input
-                      type="text"
-                      placeholder={`Reply to @${comment.profiles?.username}...`}
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmitReply(comment.id);
-                        }
-                      }}
-                      className="reply-input"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleSubmitReply(comment.id)}
-                      className="reply-send-btn"
-                    >
-                      <Send size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {comments.length === 0 && (
-            <div className="no-comments">
-              <MessageCircle size={32} style={{ opacity: 0.3 }} />
-              <p>No comments yet. Be the first!</p>
-            </div>
-          )}
-        </div>
-      </div>
+      {showComments && portalRoot && ReactDOM.createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 100003 }}>
+          <CommentModal
+            content={{ ...post, type: "post" }}
+            currentUser={currentUser}
+            onClose={() => setShowComments(false)}
+            isMobile={window.innerWidth <= 768}
+          />
+        </div>,
+        portalRoot,
+      )}
 
       <style>{`
         .fullscreen-post-container {
