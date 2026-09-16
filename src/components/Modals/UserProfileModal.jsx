@@ -607,10 +607,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   // ── Render ────────────────────────────────────────────────────────────────
   return showDashboard ? dashboardPage : ReactDOM.createPortal(
     <div
-      className="upm-bd"
+      className="upm-bd upm-bd--fullscreen"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="upm-sheet">
+      <div className="upm-sheet upm-sheet--fullscreen">
         {loading ? (
           <div className="upm-load">
             <div className="upm-spin" />
@@ -624,7 +624,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               themeId={themeId}
               backgroundColorId={backgroundColorId}
               embedded
-              style={{ borderRadius: "20px 20px 0 0", position: "relative", width: "100%", minHeight: 0, maxHeight: "none" }}
+              style={{ borderRadius: 0, position: "relative", width: "100%", minHeight: 0, maxHeight: "none" }}
             >
               <button className="upm-close" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
                 <X size={16} />
@@ -880,48 +880,44 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       </div>
 
       <style>{`
-        /* ── Backdrop: near-transparent on desktop, no blur ── */
+        /* ── Full-bleed profile section: no rounded corners, browser-like focus ── */
         .upm-bd {
           position:fixed; inset:0; z-index:10000;
-          background:rgba(0,0,0,0.28);
-          display:flex; align-items:center; justify-content:center;
-          padding:20px 16px; animation:upmFI .2s ease;
+          background:rgba(0,0,0,0.6);
+          display:flex; align-items:stretch; justify-content:center;
+          padding:0; animation:upmFI .2s ease;
         }
 
-        /* ── Sheet: centered card on desktop ── */
         .upm-sheet {
-          position:relative; width:100%; max-width:440px; max-height:90vh;
-          overflow-y:auto; border-radius:20px; background:#0a0a0a;
-          border:1px solid rgba(255,255,255,0.08);
-          box-shadow:0 24px 80px rgba(0,0,0,.9);
+          position:relative; width:100%; height:100vh; max-width:none; max-height:none;
+          overflow-y:auto; border-radius:0; background:#0e1217;
+          border:none; box-shadow:none;
           animation:upmSU .25s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none;
         }
+        .upm-sheet--fullscreen {
+          width:100vw; height:100vh; max-width:100vw; max-height:100vh;
+          background:linear-gradient(180deg,#090b0e 0%,#0d1218 100%);
+        }
         .upm-sheet::-webkit-scrollbar { display:none; }
+        .upm-sheet * { border-radius:0 !important; }
 
-        /* ── Mobile: fullscreen bottom sheet ── */
         @media (max-width: 480px) {
           .upm-bd {
             padding:0;
-            align-items:flex-end;
-            background:rgba(0,0,0,0.55);
+            background:rgba(0,0,0,0.7);
           }
           .upm-sheet {
-            max-width:100%;
-            width:100%;
-            max-height:100dvh;
-            height:100dvh;
-            border-radius:0;
-            border:none;
-            box-shadow:none;
+            width:100vw; height:100dvh; max-width:100vw; max-height:100dvh;
+            border:none; box-shadow:none;
             animation:upmSUMobile .28s cubic-bezier(.34,1.2,.64,1);
           }
         }
 
         .upm-close {
-          position:fixed; top:34px; right:26px; z-index:10001;
-          width:32px; height:32px; border-radius:50%;
-          background:rgba(0,0,0,.65); backdrop-filter:blur(12px);
-          border:1.5px solid rgba(255,255,255,.28); color:#fff;
+          position:fixed; top:20px; right:22px; z-index:10001;
+          width:36px; height:36px; border-radius:0;
+          background:rgba(17,24,39,0.9); backdrop-filter:blur(12px);
+          border:1px solid rgba(255,255,255,.18); color:#fff;
           display:flex; align-items:center; justify-content:center;
           cursor:pointer; transition:all .15s; pointer-events:auto; padding:0;
         }
@@ -933,7 +929,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-spin { width:36px; height:36px; border:3px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-sm { width:22px; height:22px; border:2px solid rgba(132,204,22,.2); border-top-color:#84cc16; border-radius:50%; animation:upmSpin .8s linear infinite; }
         .upm-spin-icon { animation:upmSpin .7s linear infinite; flex-shrink:0; }
-        .upm-hdr { padding:44px 24px 24px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:20px 20px 0 0; overflow:hidden; }
+        .upm-hdr { padding:54px 24px 24px; text-align:center; position:relative; width:100%; display:flex; flex-direction:column; border-radius:0; overflow:hidden; }
         .upm-name { font-size:22px; font-weight:900; margin:0 0 8px; line-height:1.2; display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,0.6); }
         .upm-name-verified { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#84cc16; color:#071007; font-size:12px; font-weight:900; line-height:1; }
         .upm-badges { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
@@ -943,7 +939,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-bio { font-size:13px; color:#d1d1d1; line-height:1.5; margin:0 0 8px; max-width:320px; margin-left:auto; margin-right:auto; text-shadow:0 1px 6px rgba(0,0,0,0.5); }
         .upm-join { font-size:11px; color:#b3b3b3; font-weight:500; margin:0; text-shadow:0 1px 4px rgba(0,0,0,0.4); }
         .upm-card-lower { margin-top:16px; padding:0 0 16px; background:transparent; }
-        .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:4px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
+        .upm-stats { display:flex; align-items:stretch; margin:0 16px; padding:4px; border-radius:0; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.18); backdrop-filter:blur(14px); overflow:hidden; }
         .upm-stat { flex:1; padding:12px 8px; text-align:center; display:flex; flex-direction:column; gap:3px; border-radius:13px; }
         .upm-stat:hover { background:rgba(255,255,255,.035); }
         .upm-sv { font-size:18px; font-weight:900; background:linear-gradient(135deg,#84cc16,#65a30d); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
@@ -951,7 +947,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sdiv { width:1px; margin:10px 0; background:rgba(255,255,255,.07); }
         .upm-follow-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:14px 20px 4px; }
         .upm-fbtn {
-          width:100%; padding:13px 20px; border-radius:14px;
+          width:100%; padding:13px 20px; border-radius:0;
           font-size:14px; font-weight:800; letter-spacing:0.02em;
           cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
           transition:all .25s ease; font-family:inherit;
@@ -967,7 +963,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-message-btn:hover { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.5); color:#93c5fd; box-shadow:0 0 18px rgba(96,165,250,.16); }
         .upm-gift-btn { background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.24); color:#fcd34d; box-shadow:inset 0 1px rgba(255,255,255,.05); }
         .upm-gift-btn:hover { background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.48); color:#fde68a; box-shadow:0 0 18px rgba(251,191,36,.14); }
-        .upm-verification-entry { margin:10px 16px 0; width:calc(100% - 32px); border-radius:16px; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:11px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; color:#fff; text-align:left; }
+        .upm-verification-entry { margin:10px 16px 0; width:calc(100% - 32px); border-radius:0; border:1px solid rgba(168,85,247,.3); background:radial-gradient(circle at top left,rgba(168,85,247,.16),transparent 30%),rgba(15,23,42,.78); padding:11px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; color:#fff; text-align:left; }
         .upm-verification-entry:hover { border-color:rgba(168,85,247,.58); background:radial-gradient(circle at top left,rgba(168,85,247,.24),transparent 34%),rgba(15,23,42,.9); }
         .upm-verification-icon { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:rgba(168,85,247,.16); color:#d8b4fe; flex-shrink:0; }
         .upm-verification-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
@@ -975,7 +971,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-verification-copy small { color:#c4b5fd; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .upm-verification-open { display:inline-flex; align-items:center; gap:4px; padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:11px; font-weight:700; flex-shrink:0; }
         .upm-tabs { display:flex; padding:14px 16px 0; gap:6px; }
-        .upm-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:8px 6px; border-radius:10px 10px 0 0; font-size:12px; font-weight:700; font-family:inherit; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all .18s; background:rgba(255,255,255,.03); color:#525252; }
+        .upm-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:8px 6px; border-radius:0; font-size:12px; font-weight:700; font-family:inherit; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all .18s; background:rgba(255,255,255,.03); color:#525252; }
         .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }
         .upm-tc { font-size:10px; padding:1px 5px; border-radius:8px; background:rgba(255,255,255,.07); color:#737373; }
         .upm-cnt { padding:10px 14px 20px; min-height:100px; }
