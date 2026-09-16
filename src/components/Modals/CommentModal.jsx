@@ -11,6 +11,8 @@ import {
   Send,
   ChevronDown,
   ChevronUp,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import CommentModel from "../../models/CommentModel";
 import LikeModel from "../../models/LikeModel";
@@ -23,6 +25,7 @@ const CommentItem = ({
   comment,
   contentType,
   currentUser,
+  onProfileClick,
   onReply,
   level = 0,
   maxLevel = 3,
@@ -31,6 +34,7 @@ const CommentItem = ({
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(comment.likes || 0);
   const [epErr, setEpErr] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const errTimer = useRef(null);
 
   useEffect(() => {
@@ -86,13 +90,18 @@ const CommentItem = ({
     <div className="comment-thread" style={{ marginLeft: `${level * 18}px` }}>
       {epErr && <div className="ci-ep-err">⚡ {epErr}</div>}
       <div className="comment-item">
-        <div className="comment-avatar">
+        <button
+          type="button"
+          className="comment-avatar"
+          onClick={() => onProfileClick?.(comment)}
+          aria-label={`Open ${comment.author || "user"}'s profile`}
+        >
           {comment.avatar ? (
             <img src={comment.avatar} alt={comment.author} />
           ) : (
             <span>{comment.author?.charAt(0) || "U"}</span>
           )}
-        </div>
+        </button>
         <div className="comment-content">
           <div className="comment-header">
             <span className="comment-author">{comment.author}</span>
@@ -141,6 +150,7 @@ const CommentItem = ({
               contentType={contentType}
               currentUser={currentUser}
               onReply={onReply}
+              onProfileClick={onProfileClick}
               level={level + 1}
               maxLevel={maxLevel}
             />
@@ -156,6 +166,7 @@ const CommentModal = ({
   content,
   onClose,
   currentUser,
+  onProfileClick,
   isMobile = false,
   embedded = false,
   onCommentPosted, // (delta: number) => void — fires instantly so count updates in feed
@@ -254,7 +265,7 @@ const CommentModal = ({
       {!embedded && <div className="comment-modal-overlay" onClick={onClose} />}
 
       <div
-        className={`comment-modal${isMobile ? " comment-modal-mobile" : " comment-modal-desktop"}${embedded ? " comment-modal-embedded" : ""}`}
+        className={`comment-modal${isMobile && !isFullscreen ? " comment-modal-mobile" : " comment-modal-desktop"}${embedded ? " comment-modal-embedded" : ""}${isFullscreen ? " comment-modal-fullscreen" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -270,6 +281,15 @@ const CommentModal = ({
           >
             <X size={22} />
           </button>
+          {isMobile && (
+            <button
+              className="comment-fullscreen-btn"
+              onClick={() => setIsFullscreen((value) => !value)}
+              aria-label={isFullscreen ? "Restore comments" : "Open comments full screen"}
+            >
+              {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+            </button>
+          )}
         </div>
 
         {/* Sort bar */}
@@ -311,6 +331,7 @@ const CommentModal = ({
                 contentType={content.type}
                 currentUser={currentUser}
                 onReply={setReplyTo}
+                onProfileClick={onProfileClick}
               />
             ))
           )}
@@ -397,10 +418,18 @@ const CommentModal = ({
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          width: min(70vw, 1100px);
+          width: 70vw;
+          min-width: 400px;
+          max-width: 1100px;
           height: 90vh;
           max-height: 90vh;
           min-height: 0;
+        }
+        .comment-modal-fullscreen {
+          width: 100vw;
+          height: 100vh;
+          max-height: 100vh;
+          border-radius: 0;
         }
         .comment-modal-embedded {
           position: relative;
@@ -472,6 +501,23 @@ const CommentModal = ({
         .comment-close-btn:hover {
           background: rgba(132, 204, 22, 0.15);
           color: #84cc16;
+        }
+        .comment-fullscreen-btn {
+          display: none;
+          background: rgba(255, 255, 255, 0.06);
+          border: none;
+          color: #f2f7ee;
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 10px;
+          align-items: center;
+          justify-content: center;
+        }
+        @media (max-width: 768px) {
+          .comment-fullscreen-btn { display: flex; }
+          .comment-modal-header { gap: 8px; }
+          .comment-modal-header .comment-close-btn { order: 2; }
+          .comment-modal-header .comment-fullscreen-btn { order: 1; margin-left: auto; }
         }
 
         /* ── SORT BAR ── */
@@ -585,11 +631,24 @@ const CommentModal = ({
           font-size: 13px;
           flex-shrink: 0;
           overflow: hidden;
+          border: 2px solid rgba(190, 255, 104, 0.78);
+          box-shadow: 0 0 0 2px rgba(132, 204, 22, 0.18), 0 0 14px rgba(132, 204, 22, 0.3);
+          cursor: pointer;
+          padding: 0;
+          transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+        }
+        .comment-avatar:hover,
+        .comment-avatar:focus-visible {
+          transform: scale(1.08);
+          filter: brightness(1.2);
+          box-shadow: 0 0 0 3px rgba(190, 255, 104, 0.34), 0 0 18px rgba(132, 204, 22, 0.55);
+          outline: none;
         }
         .comment-avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          filter: brightness(1.08) saturate(1.05);
         }
         .comment-content {
           flex: 1;

@@ -67,6 +67,7 @@ const FullScreenReels = ({
   onAuthorClick,
   onSoundClick,
   onActionMenu,
+  onProfileClick,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [muted, setMuted] = useState(GlobalVideoState.getGlobalMuteState());
@@ -351,6 +352,8 @@ const FullScreenReels = ({
 
   if (!currentReel || !profile) return null;
 
+  if (!portalRoot) return null;
+
   return ReactDOM.createPortal(
     <>
       <div
@@ -486,6 +489,7 @@ const FullScreenReels = ({
             currentUser={currentUser}
             onClose={() => setShowComments(false)}
             isMobile={window.innerWidth <= 768}
+            onProfileClick={onProfileClick}
           />
         </div>,
         portalRoot,
@@ -830,7 +834,7 @@ const FullScreenReels = ({
         ::-webkit-scrollbar { display: none; }
       `}</style>
     </>
-  );
+  , portalRoot);
 };
 
 export default FullScreenReels;

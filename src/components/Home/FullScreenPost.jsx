@@ -115,6 +115,7 @@ const FullScreenPost = ({
   onPrev,
   onAuthorClick,
   onActionMenu,
+  onProfileClick,
 }) => {
   useFullScreenMediaPreload(post);
   const [muted, setMuted] = useState(true);
@@ -451,6 +452,7 @@ const FullScreenPost = ({
             currentUser={currentUser}
             onClose={() => setShowComments(false)}
             isMobile={window.innerWidth <= 768}
+            onProfileClick={onProfileClick}
           />
         </div>,
         portalRoot,

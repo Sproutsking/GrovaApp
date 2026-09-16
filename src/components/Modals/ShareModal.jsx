@@ -17,6 +17,12 @@ import {
   Search,
   Loader,
   ExternalLink,
+  Mail,
+  Music2,
+  Gamepad2,
+  Radio,
+  Hash,
+  Pin,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
 import postService from "../../services/home/postService";
@@ -538,17 +544,17 @@ const ShareModal = ({
           </button>
 
           {[
-            ["reddit", "Reddit", "🔴"],
-            ["pinterest", "Pinterest", "📌"],
-            ["tumblr", "Tumblr", "✦"],
-            ["email", "Email", "✉"],
-            ["tiktok", "TikTok", "♪"],
-            ["discord", "Discord", "◉"],
-            ["twitch", "Twitch", "◈"],
-            ["kick", "Kick", "K"],
+            ["reddit", "Reddit", Radio],
+            ["pinterest", "Pinterest", Pin],
+            ["tumblr", "Tumblr", Hash],
+            ["email", "Email", Mail],
+            ["tiktok", "TikTok", Music2],
+            ["discord", "Discord", MessageCircle],
+            ["twitch", "Twitch", Radio],
+            ["kick", "Kick", Gamepad2],
           ].map(([platform, label, icon]) => (
             <button key={platform} className={`sm-ext-btn sm-${platform}`} onClick={() => shareExternal(platform)} type="button">
-              <span aria-hidden="true">{icon}</span>
+              {React.createElement(icon, { size: 18, "aria-hidden": true })}
               <span>{label}</span>
             </button>
           ))}

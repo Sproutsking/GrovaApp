@@ -739,6 +739,7 @@ const ReelCard = ({
             currentUser={currentUser}
             onComment={() => setShowComments(true)}
             onShare={() => setShowShare(true)}
+            onProfileClick={onProfileClick}
             layout="horizontal"
             compact={true}
           />
@@ -774,6 +775,7 @@ const ReelCard = ({
             <CommentModal
               content={reelWithType}
               currentUser={currentUser}
+              onProfileClick={onProfileClick}
               onClose={() => setShowComments(false)}
               isMobile={window.innerWidth <= 768}
             />

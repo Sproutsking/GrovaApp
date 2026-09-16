@@ -312,7 +312,7 @@ const ScrollFAB = () => {
 // VirtualFeed — [ARCH-1..7]
 // ═══════════════════════════════════════════════════════════════════════════════
 const VirtualFeed = React.memo(({
-  items, currentUser, onAuthorClick, onActionMenu, onComment, onOpenFullScreen,
+  items, currentUser, onAuthorClick, onActionMenu, onComment, onOpenFullScreen, onProfileClick,
   onAnchorChange, onPipelineNavigate, injections,
 }) => {
   const [anchorIndex, setAnchorIndex] = useState(0);
@@ -380,6 +380,7 @@ const VirtualFeed = React.memo(({
                     reel={item} currentUser={currentUser}
                     onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
                     onComment={onComment} onOpenFullScreen={onOpenFullScreen}
+                    onProfileClick={onProfileClick}
                     index={index}
                   />
                 ) : (
@@ -387,6 +388,7 @@ const VirtualFeed = React.memo(({
                     post={item} currentUser={currentUser}
                     onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
                     onComment={onComment} onOpenFullScreen={onOpenFullScreen}
+                    onProfileClick={onProfileClick}
                     feedIndex={index}
                   />
                 )
@@ -418,6 +420,7 @@ const FeedTab = React.forwardRef(function FeedTab(
     onActionMenu,
     onComment,
     onOpenFullScreen,
+    onProfileClick,
     onLoadMore,
     hasMore       = false,
     isLoadingMore = false,
@@ -564,6 +567,7 @@ const FeedTab = React.forwardRef(function FeedTab(
         onActionMenu={onActionMenu}
         onComment={onComment}
         onOpenFullScreen={onOpenFullScreen}
+        onProfileClick={onProfileClick}
         onAnchorChange={setAnchorIndex}
         onPipelineNavigate={handlePipelineNavigate}
         injections={injections}

@@ -122,6 +122,7 @@ const ReactionPanel = ({
   compact   = false,
   className = '',
   onComment,        // optional: open custom comment UI instead of built-in modal
+  onProfileClick,   // optional: open a commenter profile from the modal
   onShare,          // optional: open custom share UI instead of built-in modal
   onCommented,      // (updatedContent) → notify parent of comment count change
   onContentUpdate,  // (updatedContent) → generic parent patch
@@ -456,6 +457,7 @@ const ReactionPanel = ({
         <CommentModal
           content={content}
           currentUser={currentUser}
+          onProfileClick={onProfileClick}
           onClose={() => setShowComments(false)}
           isMobile={typeof window !== 'undefined' && window.innerWidth <= 768}
           onCommentPosted={handleCommentPosted}

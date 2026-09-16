@@ -562,6 +562,7 @@ const PostCard = ({
   onPostUpdate,
   onPostDelete,
   onOpenFullScreen,
+  onProfileClick,
   feedIndex = 99,
 }) => {
   const [post,       setPost]       = useState(initialPost);
@@ -912,7 +913,7 @@ const PostCard = ({
 
         {/* ── FOOTER ── */}
         <div className="gvp-footer">
-          <ReactionPanel content={{ ...post, type:"post" }} currentUser={currentUser} layout="horizontal" />
+          <ReactionPanel content={{ ...post, type:"post" }} currentUser={currentUser} onProfileClick={onProfileClick} layout="horizontal" />
         </div>
       </div>
 

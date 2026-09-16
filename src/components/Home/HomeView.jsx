@@ -916,6 +916,7 @@ const HomeView = ({
                   onAuthorClick={handleAuthorClick}
                   onActionMenu={handleActionMenu}
                   onComment={handleComment}
+                  onProfileClick={handleAuthorClick}
                   onOpenFullScreen={(contentId) => {
                     const post = posts.find(p => p.id === contentId);
                     const reel = reels.find(r => r.id === contentId);
@@ -1015,6 +1016,7 @@ const HomeView = ({
         <FullScreenPost
           post={modals.fullscreenPost}
           currentUser={resolvedUser}
+          onProfileClick={handleAuthorClick}
           onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_POST" })}
         />
       )}
@@ -1023,6 +1025,7 @@ const HomeView = ({
           reels={[modals.fullscreenReels]}
           initialIndex={0}
           currentUser={resolvedUser}
+          onProfileClick={handleAuthorClick}
           onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_REELS" })}
         />
       )}
@@ -1041,6 +1044,7 @@ const HomeView = ({
       )}
       {modals.comment && (
         <CommentModal content={modals.comment} currentUser={resolvedUser}
+          onProfileClick={handleAuthorClick}
           onClose={() => dispatchModal({ type:"CLOSE_COMMENT" })}
           onCommentPosted={(delta=1) => syncCommentCount(modals.comment.id, modals.comment.type||"post", delta)} />
       )}
