@@ -27,12 +27,18 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
-const SUPABASE_ANON = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const FALLBACK_SUPABASE_URL = "https://example.supabase.co";
+const FALLBACK_SUPABASE_ANON = "demo-anon-key";
+const HAS_SUPABASE_CONFIG = Boolean(
+  process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY,
+);
 
-if (!SUPABASE_URL || !SUPABASE_ANON) {
-  console.error(
-    "[Supabase] Missing env vars. Check REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY in your .env file.",
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || FALLBACK_SUPABASE_URL;
+const SUPABASE_ANON = process.env.REACT_APP_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON;
+
+if (!HAS_SUPABASE_CONFIG) {
+  console.warn(
+    "[Supabase] Missing env vars; using safe placeholders so the app can still start in test/dev. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY for real backend access.",
   );
 }
 
