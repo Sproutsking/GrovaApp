@@ -1125,7 +1125,6 @@ const MainApp = memo(() => {
         style={{
           visibility:    showAdminDashboard ? "hidden" : "visible",
           pointerEvents: showAdminDashboard ? "none"   : "auto",
-          display:       "contents",
         }}
       >
         {!isMobile && (

@@ -28,8 +28,8 @@ html {
   background: var(--bg);
   color-scheme: dark;
   -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
-  overscroll-behavior: none;
+  scroll-behavior: auto;
+  overscroll-behavior: auto;
   /* Smooth scroll padding for fixed headers */
   scroll-padding-top: 80px;
 }
@@ -215,7 +215,7 @@ body {
   transition: background-color 0.18s ease, color 0.18s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior: none;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
 }
@@ -236,8 +236,8 @@ img, video {
   user-select: none;
 }
 
-::-webkit-scrollbar { display: none; }
-* { scrollbar-width: none; -ms-overflow-style: none; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+* { scrollbar-width: thin; -ms-overflow-style: auto; }
 
 /* ==========================================================================
    2. APP SHELL
@@ -321,7 +321,9 @@ img, video {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
+  overscroll-behavior-x: none;
+  scrollbar-gutter: stable;
   background: var(--bg);
   padding-bottom: 80px;
 }
@@ -387,7 +389,9 @@ img, video {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
+  overscroll-behavior-x: none;
+  scrollbar-gutter: stable;
   background: var(--bg);
   padding-bottom: 8px;
 }
