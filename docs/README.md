@@ -12,6 +12,8 @@ This directory contains the canonical product and architecture documents. Root-l
 4. [Evidence and Trust Principles](EVIDENCE_AND_TRUST.md) - the rules that keep Xeevia honest and useful.
 5. [Development Roadmap](ROADMAP.md) - the order of work required to turn the thesis into measurable advantage.
 6. [Legacy and Operations Index](LEGACY_AND_OPERATIONS.md) - deployment guides, historical records, and specialist implementation notes.
+7. [Ripple Economy](RIPPLE_ECONOMY.md) - the engagement genealogy, settlement rules, and economic invariants.
+8. [Patent Invention Disclosure](PATENT_INVENTION_DISCLOSURE.md) - confidential technical disclosure draft for qualified patent counsel.
 
 ## Operational Guides
 

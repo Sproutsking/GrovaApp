@@ -14,35 +14,9 @@ import {
 } from "lucide-react";
 import CommentModel from "../../models/CommentModel";
 import LikeModel from "../../models/LikeModel";
-import { supabase } from "../../services/config/supabase";
+import { processEngagement } from "../../services/economy/epEconomyService";
 
 const EP_COSTS = { comment: 4, comment_like: 0.5, reply: 2 };
-
-async function deductEP(userId, amount, reason) {
-  if (!userId) return false;
-  try {
-    const { data } = await supabase.rpc("deduct_ep", {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-    });
-    return !!data;
-  } catch {
-    return false;
-  }
-}
-async function awardEP(userId, amount, reason) {
-  if (!userId) return;
-  try {
-    await supabase.rpc("award_ep", {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-    });
-  } catch {
-    /* silent */
-  }
-}
 
 // ── Comment Item ──────────────────────────────────────────────────────────────
 const CommentItem = ({
@@ -87,28 +61,22 @@ const CommentItem = ({
       return;
     }
 
-    const ok = await deductEP(
-      currentUser.id,
-      EP_COSTS.comment_like,
-      "comment_like",
-    );
-    if (!ok) {
-      showErr(`Need ${EP_COSTS.comment_like} EP`);
-      return;
-    }
-
     setLiked(true);
     setLikeCount((c) => c + 1);
-    if (comment.user_id && comment.user_id !== currentUser.id)
-      awardEP(
-        comment.user_id,
-        EP_COSTS.comment_like * 0.82,
-        "received_comment_like",
-      );
-    LikeModel.toggleLike("comment", comment.id, currentUser.id).catch(() => {
+    try {
+      await LikeModel.toggleLike("comment", comment.id, currentUser.id);
+      const result = await processEngagement({
+        actorId: currentUser.id,
+        contentType: "comment",
+        contentId: comment.id,
+        engagementType: "like",
+      });
+      if (!result.success && !result.selfEngagement) throw new Error(result.error || "Comment like settlement failed");
+    } catch (error) {
       setLiked(false);
       setLikeCount((c) => Math.max(0, c - 1));
-    });
+      showErr(error?.message || "Comment like failed");
+    }
   };
 
   const hasReplies = comment.replies?.length > 0;
@@ -232,19 +200,6 @@ const CommentModal = ({
   const handleAddComment = async () => {
     if (!currentUser?.id || !newComment.trim() || submitting) return;
 
-    const cost = replyTo ? EP_COSTS.reply : EP_COSTS.comment;
-
-    // Deduct EP first
-    const ok = await deductEP(
-      currentUser.id,
-      cost,
-      replyTo ? "reply_comment" : "add_comment",
-    );
-    if (!ok) {
-      showErr(`Need ${cost} EP to ${replyTo ? "reply" : "comment"}`);
-      return;
-    }
-
     setSubmitting(true);
     const savedText = newComment;
     const savedReplyTo = replyTo;
@@ -253,7 +208,7 @@ const CommentModal = ({
     setReplyTo(null);
 
     try {
-      await CommentModel.addComment(
+      const savedComment = await CommentModel.addComment(
         content.type,
         content.id,
         currentUser.id,
@@ -261,16 +216,15 @@ const CommentModal = ({
         savedReplyTo?.id || null,
       );
 
-      // Award EP to content owner
-      if (content.user_id && content.user_id !== currentUser.id) {
-        awardEP(content.user_id, cost * 0.82, "received_comment");
-      }
-
       // ── THE KEY FIX ───────────────────────────────────────────────────────
       // Fire BEFORE loadComments() — ReactionPanel sees +1 immediately.
       // Only top-level comments increment comments_count (not replies).
-      if (!savedReplyTo && onCommentPosted) {
-        onCommentPosted(1);
+      if (onCommentPosted) {
+        onCommentPosted(savedReplyTo ? 0 : 1, {
+          isReply: Boolean(savedReplyTo),
+          parentCommentId: savedReplyTo?.id || null,
+          commentId: savedComment?.id || null,
+        });
       }
 
       // Reload to show the real comment in the list

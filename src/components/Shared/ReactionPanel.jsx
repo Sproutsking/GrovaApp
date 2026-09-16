@@ -287,16 +287,18 @@ const ReactionPanel = ({
       return next;
     });
 
-    // Only process EP on a successful post (delta === +1)
-    if (delta !== 1 || !currentUser?.id) return;
+    // Top-level comments increment the counter; replies still settle as
+    // economic events even though they do not change that counter.
+    if ((delta !== 1 && !meta.isReply) || !currentUser?.id) return;
 
-    const { isReply, parentCommentId } = meta;
+    const { isReply, parentCommentId, commentId } = meta;
 
     const epResult = await processEngagement({
       actorId:        currentUser.id,
       contentType:    isReply ? 'comment'      : content.type,
       contentId:      isReply ? parentCommentId : content.id,
       engagementType: isReply ? 'reply'         : 'comment',
+      idempotencyKey: commentId ? `comment:${commentId}` : null,
     });
 
     if (!epResult.success && !epResult.selfEngagement) {

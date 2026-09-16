@@ -18,6 +18,7 @@ This document is the source of truth for whether a capability is shipped, partia
 | Complete declared-platform connector registration | Shipped | Native connectors plus connected-identity fallback connectors |
 | Human-readable verification dashboard | Shipped | Verification dashboard components and model |
 | XRC record verification utilities | Present and usable where records are written correctly | `src/services/xrc/verificationService.js`, hashing and chain services |
+| Ripple engagement genealogy | First settlement slice implemented in migration and client service; deployment and hardening required | `supabase/migrations/052_recursive_engagement_economy.sql`, `src/services/economy/epEconomyService.js` |
 | Community verification modes | Shipped at the configured feature level | Community verification components and migrations |
 
 ## Partial or Limited
@@ -30,6 +31,7 @@ This document is the source of truth for whether a capability is shipped, partia
 | XRC integrity | Hash and chain verification utilities exist, but all event writers and field names must be audited together | Consistent schema contract, append-only enforcement, integration tests, and tamper tests |
 | Advertising engine | Foundation and campaign surface exist; delivery, attribution, fraud scoring, and settlement are not complete | Live measured campaigns and reconciliation tests |
 | Reputation | Product language describes reputation, but a complete, tested policy model is not established | Context-specific scoring, anti-gaming rules, appeals, decay, and outcome validation |
+| Recursive impact and settlement | Atomic events and direct/root allocation exist in the first slice; quality propagation, reversals, and anti-farming are not complete | Concurrency tests, reversal rules, anti-farming, reconciliation, and live measurement |
 | Privacy controls | RLS and connection boundaries exist, but evidence visibility and raw payload retention need a full privacy review | Public/private policy matrix, deletion flow, consent logs, and security review |
 | Partner relationships | Provider APIs and OAuth settings are external dependencies | Named provider approvals, terms, scopes, and operational contacts |
 

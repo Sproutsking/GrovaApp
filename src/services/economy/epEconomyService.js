@@ -30,7 +30,7 @@ export const EP_COSTS = Object.freeze({
   like:    2,
   follow:  2,
   comment: 4,
-  reply:   4,
+  reply:   2,
   share:   10,
 });
 
@@ -497,6 +497,7 @@ export async function processEngagement({
   contentType,
   contentId,
   engagementType,
+  idempotencyKey = null,
 }) {
   const epCost = EP_COSTS[engagementType] ?? 0;
 
@@ -506,37 +507,28 @@ export async function processEngagement({
 
   invalidateEPCache(actorId);
 
-  const epCostInt = Math.trunc(epCost);
+  const eventKey = idempotencyKey || (
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${actorId}:${contentType}:${contentId}:${engagementType}:${Date.now()}`
+  );
 
   try {
     await walletService.ensureWallet(actorId);
 
-    const { data, error } = await supabase.rpc('process_engagement_ep', {
+    const { data, error } = await supabase.rpc('process_ripple_engagement', {
       p_actor_id:        actorId,
       p_content_type:    contentType,
       p_content_id:      contentId,
-      p_engagement_type: engagementType,
-      p_ep_cost:         epCostInt,
+      p_action_type:     engagementType,
+      p_idempotency_key: eventKey,
     });
 
     if (error) {
-      const isAmbiguity =
-        (error.message || '').includes('Could not choose') ||
-        (error.message || '').includes('ambiguous')        ||
-        error.code === '42725';
-      console.warn(
-        `[epEconomyService] RPC ${isAmbiguity ? 'overload ambiguity' : 'error'}: ${error.message} — using direct wallet fallback`,
-      );
-      const fallback = await _fallbackProcessEngagement({ actorId, contentType, contentId, engagementType });
-      if (fallback.success) {
-        return fallback;
-      }
       return {
         success: false,
-        epCost: epCostInt,
-        error: fallback.error ?? error.message ?? 'EP processing failed.',
-        balance: fallback.balance,
-        required: fallback.required,
+        epCost,
+        error: error.message ?? 'Ripple settlement is unavailable.',
       };
     }
 
@@ -547,16 +539,18 @@ export async function processEngagement({
       _setCache(actorId, freshBalance);
       return {
         success: false,
-        epCost: epCostInt,
+        epCost: Number(result.ep_cost ?? epCost),
         error: result.error ?? 'EP processing failed.',
         balance: result.balance != null ? Number(result.balance) : undefined,
         required: result.required != null ? Number(result.required) : undefined,
       };
     }
 
+    const settledCost = Number(result.ep_cost ?? epCost);
+
     if (!result.self_engagement) {
       const cached = _getCached(actorId);
-      if (cached !== null) _setCache(actorId, Math.max(0, cached - epCostInt));
+      if (cached !== null) _setCache(actorId, Math.max(0, cached - settledCost));
     }
 
     _sendEngagementPush({
@@ -569,28 +563,23 @@ export async function processEngagement({
 
     return {
       success: true,
-      epCost: epCostInt,
+      epCost: settledCost,
       selfEngagement: result.self_engagement ?? false,
-      platformFee: Number(result.platform_fee ?? 0),
+      platformFee: Number(result.protocol_fee ?? result.platform_fee ?? 0),
       distributable: Number(result.distributable ?? 0),
       directOwnerShare: Number(result.direct_owner_share ?? 0),
       postOwnerShare: Number(result.post_owner_share ?? 0),
       splitApplied: result.split_applied ?? false,
+      eventId: result.event_id ?? null,
+      generation: Number(result.generation ?? 0),
+      rootContentType: result.root_content_type ?? contentType,
+      rootContentId: result.root_content_id ?? contentId,
     };
 
   } catch (err) {
     const errorMessage = err?.message || err?.error_description || 'EP processing failed.';
     console.error('[epEconomyService] engagement RPC failed:', errorMessage);
-
-    try {
-      const fallback = await _fallbackProcessEngagement({ actorId, contentType, contentId, engagementType });
-      if (fallback.success) return fallback;
-      return { success: false, epCost: epCostInt, error: fallback.error ?? errorMessage };
-    } catch (fallbackErr) {
-      const fallbackMessage = fallbackErr?.message || fallbackErr?.error_description || 'EP processing failed.';
-      console.error('[epEconomyService] engagement fallback failed:', fallbackMessage);
-      return { success: false, epCost: epCostInt, error: fallbackMessage };
-    }
+    return { success: false, epCost, error: errorMessage };
   }
 }
 
