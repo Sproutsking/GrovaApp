@@ -68,6 +68,7 @@ const MessageList = ({
   onReplyNavigate,
   communityId,
   community,
+  communityMembers = [],
   onWelcomeProfileClick,
   onWelcomeIntroduce,
   onWelcomeBrowse,
@@ -174,6 +175,8 @@ const MessageList = ({
           const avatarUrl = getAvatar(msg.user);
           const initial = getInitial(msg.user);
           const nameDesign = getBoostNameDesign(msg.user?.subscription_tier, msg.user?.boost_selections?.fontId, msg.user?.boost_selections?.colorId);
+          const communityRole = communityMembers.find((member) => String(member.user_id || member.user?.id) === String(msg.user_id))?.role;
+          const communityNameColor = communityRole?.color || nameDesign.color?.color;
 
           return (
             welcomeMemberId ? <WelcomeMemberCard key={msg.id || msg.tempId || msg._tempId} communityId={communityId} memberId={welcomeMemberId} community={community} createdAt={msg.created_at} onProfileClick={onWelcomeProfileClick} onIntroduce={onWelcomeIntroduce} onBrowse={onWelcomeBrowse} /> : (
@@ -212,7 +215,7 @@ const MessageList = ({
                   <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
-                      <button className="msg-user-name" style={{ color: nameDesign.color?.color || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
+                      <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
                         <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
                         {(msg.user?.verified || hasBoostedProfile) && <VerifiedBadgeCircle tier={hasBoostedProfile ? msg.user?.subscription_tier : "silver"} size={16} />}
                       </button>

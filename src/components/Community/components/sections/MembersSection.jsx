@@ -281,6 +281,7 @@ const MembersSection = ({ community, userId }) => {
                   const boostSelections = member.user?.boost_selections || {};
                   const nameDesign = getBoostNameDesign(tier, boostSelections.fontId, boostSelections.colorId);
                   const displayName = member.user?.full_name || member.user?.username || "Unknown User";
+                  const communityNameColor = member.role?.color || nameDesign.color?.color || "#ffffffd3";
 
                   return (
                     <div key={member.id} className="member-card" onClick={() => setSelectedMember(member)}>
@@ -321,7 +322,7 @@ const MembersSection = ({ community, userId }) => {
                             className="member-name"
                             data-boosted={tier ? "true" : "false"}
                             style={tier ? {
-                              "--member-name-color": nameDesign.color?.color || "#ffffffd3",
+                              "--member-name-color": communityNameColor,
                               "--member-name-font": nameDesign.font?.family || "inherit",
                               "--member-name-weight": nameDesign.font?.weight || 600,
                               "--member-name-spacing": nameDesign.font?.spacing || "normal",

@@ -923,6 +923,7 @@ const ChatTab = ({
             }}
               communityId={community.id}
               community={community}
+              communityMembers={members}
               onWelcomeProfileClick={(member) => member?.id && setCommunityProfileTarget(member)}
               onWelcomeIntroduce={openWelcomeIntroduction}
               onWelcomeBrowse={startWelcomeBrowse}

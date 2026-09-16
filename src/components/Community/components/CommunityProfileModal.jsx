@@ -208,6 +208,7 @@ const CommunityProfileModal = ({
   };
 
   const currentRole = member?.role || memberships.find((item) => item.community?.id === community?.id)?.role;
+  const communityNameColor = currentRole?.color || nameDesign.color?.color || "#fff";
   const uniqueRoleMap = new Map();
   const addUniqueRole = (role, fallbackLabel) => {
     if (!role) return;
@@ -271,7 +272,7 @@ const CommunityProfileModal = ({
             />
           </div>
           <div className="community-profile-heading">
-            <h2 style={hasBoosted ? { color: nameDesign.color?.color || getBoostNameColor(tier, themeId) || "#fff", fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing, textShadow: `0 0 18px ${nameDesign.color?.shadow || boostVisual?.glow || "rgba(156,255,0,.35)"}` } : undefined}>
+            <h2 style={(hasBoosted || currentRole?.color) ? { color: communityNameColor, fontFamily: hasBoosted ? nameDesign.font?.family : undefined, fontWeight: hasBoosted ? nameDesign.font?.weight : undefined, letterSpacing: hasBoosted ? nameDesign.font?.spacing : undefined, textShadow: hasBoosted ? `0 0 18px ${nameDesign.color?.shadow || boostVisual?.glow || "rgba(156,255,0,.35)"}` : undefined } : undefined}>
               {displayName}
               {(user?.verified || hasBoosted) && <VerifiedBadgeSeal tier={hasBoosted ? tier : "silver"} size={18} />}
             </h2>
