@@ -41,7 +41,10 @@ export default function WelcomeMemberCard({ communityId, memberId, community, cr
       }
     };
     load();
-    const channel = supabase.channel(`welcome-member:${communityId}:${memberId}`).on("postgres_changes", { event: "*", schema: "public", table: "community_members", filter: `community_id=eq.${communityId}` }, load).subscribe();
+    const channel = supabase.channel(`welcome-member:${communityId}:${memberId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_members", filter: `community_id=eq.${communityId}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${memberId}` }, load)
+      .subscribe();
     return () => { active = false; supabase.removeChannel(channel).catch(() => {}); };
   }, [communityId, memberId]);
 
