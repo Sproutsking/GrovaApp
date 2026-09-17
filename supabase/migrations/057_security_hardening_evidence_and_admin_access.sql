@@ -16,6 +16,7 @@ create policy "Authenticated users can read own or verified evidence" on public.
     or (verified = true and profile_id is not null)
   );
 
+drop policy if exists "Service role may modify evidence items" on public.evidence_items;
 create policy "Service role may modify evidence items" on public.evidence_items
   for all to service_role
   using (true)
@@ -39,6 +40,7 @@ create policy "Authenticated users can read relevant evidence edges" on public.e
     )
   );
 
+drop policy if exists "Service role may modify evidence edges" on public.evidence_edges;
 create policy "Service role may modify evidence edges" on public.evidence_edges
   for all to service_role
   using (true)

@@ -278,16 +278,13 @@ body.community-fullscreen {
 
 @media (max-width: 768px) {
   .community-view {
-    top: 0;
+    top: var(--community-mobile-top, 47px);
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 10000;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    height: 100dvh;
-    min-height: 100dvh;
-    max-height: 100dvh;
   }
 
   .community-content { min-height: 0; }

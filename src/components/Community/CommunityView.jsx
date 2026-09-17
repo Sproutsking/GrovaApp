@@ -55,6 +55,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const currentCommunityRef = useRef(null);
   const switchTimeoutRef    = useRef(null);
   const sidebarRef          = useRef(null);
+  const communityViewRef    = useRef(null);
 
   // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -63,6 +64,33 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  // Keep this surface below the actual root header, including devices where
+  // the header height changes because of safe-area or responsive content.
+  useEffect(() => {
+    if (!isMobile) return undefined;
+
+    const updateHeaderOffset = () => {
+      const header = document.querySelector(".mh-header");
+      const viewElement = communityViewRef.current;
+      if (!header || !viewElement) return;
+      const headerBottom = Math.max(0, Math.ceil(header.getBoundingClientRect().bottom));
+      viewElement.style.setProperty("--community-mobile-top", `${headerBottom}px`);
+    };
+
+    updateHeaderOffset();
+    const header = document.querySelector(".mh-header");
+    const observer = typeof ResizeObserver !== "undefined" && header
+      ? new ResizeObserver(updateHeaderOffset)
+      : null;
+    observer?.observe(header);
+    window.addEventListener("resize", updateHeaderOffset);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateHeaderOffset);
+    };
+  }, [isMobile]);
 
   // ── Give the community its own full mobile surface ───────────────────────
   useEffect(() => {
@@ -328,6 +356,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   // ── Render — NO loading spinner or gate ───────────────────────────────────
   return (
     <div
+      ref={communityViewRef}
       className="community-view"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
