@@ -1180,6 +1180,47 @@ export function useSecurity() {
   return { events, lockedAccounts, loading, error, reload: load, resolveEvent };
 }
 
+// ─── Security center alerts ───────────────────────────────────────────────
+export function useSecurityCenter() {
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: queryError } = await sb()
+        .from("security_alerts")
+        .select("*, viewers:security_alert_viewers(admin_user_id)")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (queryError) throw queryError;
+      setAlerts(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const updateStatus = (id, status) => safeCall(async () => {
+    const { error: rpcError } = await sb().rpc("update_security_alert_status", { p_alert_id: id, p_status: status });
+    if (rpcError) throw rpcError;
+    await load();
+  }, "Failed to update security alert.");
+
+  const setViewers = (id, viewerIds) => safeCall(async () => {
+    const { error: rpcError } = await sb().rpc("set_security_alert_viewers", { p_alert_id: id, p_viewer_ids: viewerIds });
+    if (rpcError) throw rpcError;
+    await load();
+  }, "Failed to update alert visibility.");
+
+  return { alerts, loading, error, reload: load, updateStatus, setViewers };
+}
+
 // ─── Notifications ─────────────────────────────────────────────────────────
 export function useNotifications() {
   const [sent, setSent] = useState([]);
@@ -1604,7 +1645,7 @@ export function useTeam() {
     load();
   }, [load]);
 
-  const addMember = ({ email, name, role, permissions }) =>
+  const addMember = async ({ email, name, role, permissions }) =>
     safeCall(async () => {
       const { data: profile, error: profileErr } = await sb()
         .from("profiles")
@@ -1623,68 +1664,33 @@ export function useTeam() {
         .maybeSingle();
       if (existingErr) throw existingErr;
 
-      if (existing) {
-        if (existing.status === "inactive") {
-          const { error } = await sb()
-            .from("admin_team")
-            .update({
-              status: "active",
-              role,
-              permissions: permissions?.length
-                ? permissions
-                : ROLE_PERMISSIONS[role] || [],
-              full_name: name || profile.full_name,
-            })
-            .eq("id", existing.id);
-          if (error) throw error;
-        } else {
-          throw new Error("This user is already an admin team member.");
-        }
-      } else {
-        const { error } = await sb()
-          .from("admin_team")
-          .insert({
-            user_id: profile.id,
-            email: profile.email,
-            full_name: name || profile.full_name,
-            role,
-            permissions: permissions?.length
-              ? permissions
-              : ROLE_PERMISSIONS[role] || [],
-            status: "active",
-            created_at: new Date().toISOString(),
-          });
-        if (error) throw error;
-      }
+      const { error } = await sb().rpc("manage_admin_member", {
+        p_action: "add",
+        p_user_id: profile.id,
+        p_role: role,
+        p_permissions: permissions?.length ? permissions : ROLE_PERMISSIONS[role] || [],
+      });
+      if (error) throw error;
       await load();
     }, "Failed to add team member.");
 
   const removeMember = (id) =>
     safeCall(async () => {
-      const { error } = await sb()
-        .from("admin_team")
-        .update({ status: "inactive" })
-        .eq("id", id);
+      const { error } = await sb().rpc("manage_admin_member", { p_action: "remove", p_member_id: id });
       if (error) throw error;
       await load();
     }, "Failed to remove team member.");
 
   const updatePermissions = (id, permissions) =>
     safeCall(async () => {
-      const { error } = await sb()
-        .from("admin_team")
-        .update({ permissions })
-        .eq("id", id);
+      const { error } = await sb().rpc("manage_admin_member", { p_action: "update", p_member_id: id, p_permissions: permissions });
       if (error) throw error;
       await load();
     }, "Failed to update permissions.");
 
   const updateRole = (id, role) =>
     safeCall(async () => {
-      const { error } = await sb()
-        .from("admin_team")
-        .update({ role, permissions: ROLE_PERMISSIONS[role] || [] })
-        .eq("id", id);
+      const { error } = await sb().rpc("manage_admin_member", { p_action: "update", p_member_id: id, p_role: role, p_permissions: ROLE_PERMISSIONS[role] || [] });
       if (error) throw error;
       await load();
     }, "Failed to update role.");

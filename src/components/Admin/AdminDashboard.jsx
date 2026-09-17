@@ -30,6 +30,7 @@ import {
   useStats, useUsers, useInvites, useAnalytics,
   useSecurity, useNotifications, usePlatformFreeze,
   usePlatformSettings, useTeam, useSupportCases,
+  useSecurityCenter,
 } from "./useAdminData.js";
 
 import SupportSection from "./sections/SupportSection.jsx";
@@ -44,6 +45,7 @@ import AmbassadorSection from "./sections/AmbassadorSection.jsx";
 import LiquiditySection  from "./sections/LiquiditySection.jsx";
 import ComingSoonModal from "../Shared/ComingSoonModal";
 import FounderBriefingSection from "./sections/FounderBriefingSection.jsx";
+import SecurityCenterSection from "./sections/SecurityCenterSection.jsx";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -54,7 +56,7 @@ const NAV_ITEMS = [
   { id: "analytics",   label: "Analytics",      icon: BarChart3 },
   { id: "transactions", label: "Transactions",   icon: CreditCard },
   { id: "communities",  label: "Communities",    icon: Globe },
-  { id: "security",    label: "Security",       icon: Shield },
+  { id: "security",    label: "Security Alarms", icon: Shield, badge: "alerts" },
   { id: "notifications",label: "Notifications", icon: Bell },
   { id: "system",      label: "System",         icon: Settings },
   { id: "liquidity",   label: "Liquidity",      icon: Droplets },
@@ -409,7 +411,7 @@ function DashboardOverview({ stats, onNavigate, team, adminData, dashboardCols, 
 }
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────
-function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapsed, onToggle }) {
+function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, securityAlertCount = 0, collapsed, onToggle }) {
   const visibleSections = getVisibleSections(adminData);
   const roleMeta        = ROLE_META[adminData?.role] || ROLE_META.support;
   const openCases       = stats?.openCases || 0;
@@ -463,7 +465,7 @@ function AdminSidebarNav({ adminData, activeSection, onNavigate, stats, collapse
       <nav style={{ flex: 1, padding: "6px 0", overflowY: "auto" }}>
         {navItems.map((item) => {
           const isActive   = activeSection === item.id;
-          const badge      = item.badge === "cases" ? openCases : null;
+          const badge      = item.badge === "cases" ? openCases : item.badge === "alerts" ? securityAlertCount : null;
           const showBadge  = badge && badge > 0;
           const groupLabel = !collapsed ? NAV_GROUPS[item.id] : null;
           const showGroup  = groupLabel && groupLabel !== lastGroup;
@@ -524,6 +526,7 @@ export default function AdminDashboard({ adminData, onClose }) {
   const invitesHook       = useInvites();
   const analyticsHook     = useAnalytics();
   const securityHook      = useSecurity();
+  const securityCenterHook = useSecurityCenter();
   const notificationsHook = useNotifications();
   const freezeHook        = usePlatformFreeze();
   const platformSettings  = usePlatformSettings();
@@ -605,12 +608,15 @@ export default function AdminDashboard({ adminData, onClose }) {
 
       case "security":
         return (
+          <div>
           <SecuritySection adminData={adminData} secData={{
             recentEvents:       securityHook.events || [],
             suspiciousAccounts: securityHook.lockedAccounts || [],
             load:               securityHook.reload,
             unlockAccount:      securityHook.resolveEvent,
           }} />
+          <div style={{ marginTop: 28 }}><SecurityCenterSection adminData={adminData} securityCenter={securityCenterHook} team={teamHook.team || []} /></div>
+          </div>
         );
 
       case "notifications":
@@ -661,7 +667,7 @@ export default function AdminDashboard({ adminData, onClose }) {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: C.bg, fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif", color: C.text, overflow: "hidden", position: "fixed", top: 0, left: 0, zIndex: 10000 }}>
       {showAmbassadorComingSoon && <ComingSoonModal title="Ambassador Management" onClose={() => setShowAmbassadorComingSoon(false)} />}
-      <AdminSidebarNav adminData={adminData} activeSection={activeSection} onNavigate={navigate} stats={stats} collapsed={sidebarCollapsed || isMobileAdmin} onToggle={() => setSidebarCollapsed((c) => !c)} />
+      <AdminSidebarNav adminData={adminData} activeSection={activeSection} onNavigate={navigate} stats={stats} securityAlertCount={(securityCenterHook.alerts || []).filter((alert) => alert.status !== "resolved").length} collapsed={sidebarCollapsed || isMobileAdmin} onToggle={() => setSidebarCollapsed((c) => !c)} />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         {/* Top bar */}
