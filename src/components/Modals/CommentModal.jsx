@@ -34,7 +34,6 @@ const CommentItem = ({
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(comment.likes || 0);
   const [epErr, setEpErr] = useState(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const errTimer = useRef(null);
 
   useEffect(() => {
@@ -178,6 +177,7 @@ const CommentModal = ({
   const [submitting, setSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState("recent");
   const [epErr, setEpErr] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const errTimer = useRef(null);
   const textareaRef = useRef(null);
 
