@@ -62,6 +62,13 @@ const LENS_SERVICES = {
     ["upgrade", "Web3 Tooling", "Access advanced protocol tools"],
     ["oracle", "XRC Oracle", "On-chain data and protocol feeds"],
   ],
+  student: [
+    ["community", "Study Circles", "Find classmates and learning groups"],
+    ["search", "Learning Library", "Discover lessons and study resources"],
+    ["saved", "Saved Resources", "Keep important study material close"],
+    ["rewards", "Student Rewards", "Track learning milestones and rewards"],
+    ["support", "Student Support", "Get help with your learning journey"],
+  ],
 };
 
 function resolveTab(id) {

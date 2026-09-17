@@ -313,7 +313,7 @@ const MessageList = ({
           display: flex;
           width: 100%;
           box-sizing: border-box;
-          align-items: flex-end;
+          align-items: flex-start;
           gap: 4px;
           margin: 4px 0;
           animation: slideIn 0.2s ease-out;
@@ -327,8 +327,8 @@ const MessageList = ({
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
         .msg-item .msg-bubble { min-width: 0; padding-bottom: 6px; }
-        .msg-item.me .msg-bubble { padding-left: 12px; padding-right: 12px; }
-        .msg-item.them .msg-bubble { padding-left: 12px; padding-right: 12px; }
+        .msg-item.me .msg-bubble { padding-left: 6px; padding-right: 6px; }
+        .msg-item.them .msg-bubble { padding-left: 6px; padding-right: 6px; }
         .msg-item.announcement .msg-bubble { min-width: min(280px, calc(100vw - 92px)); }
         .msg-card-menu-btn {
           position: relative;
@@ -524,63 +524,61 @@ const MessageList = ({
         .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         .msg-bubble.them.has-tail {
-          border-bottom-left-radius: 4px;
+          border-top-left-radius: 4px;
         }
 
         .msg-bubble.them.has-tail::before {
           content: '';
           position: absolute;
-          bottom: 0;
+          top: 0;
           left: -7px;
           width: 0;
           height: 0;
           border-style: solid;
-          border-width: 0 0 10px 8px;
-          border-color: transparent transparent rgba(18,20,19,.97) transparent;
+          border-width: 10px 0 0 8px;
+          border-color: rgba(18,20,19,.97) transparent transparent transparent;
         }
 
         .msg-bubble.them.has-tail::after {
           content: '';
           position: absolute;
-          bottom: 0;
+          top: 0;
           left: -8px;
           width: 0;
           height: 0;
           border-style: solid;
-          border-width: 0 0 11px 9px;
-          border-color: transparent transparent rgba(255,255,255,.08) transparent;
+          border-width: 11px 0 0 9px;
+          border-color: rgba(255,255,255,.08) transparent transparent transparent;
           z-index: -1;
         }
 
         .msg-bubble.me.has-tail {
-          border-bottom-right-radius: 4px;
+          border-top-right-radius: 4px;
         }
 
         .msg-bubble.me.has-tail::before {
           content: '';
           position: absolute;
-          bottom: 1px;
+          top: 1px;
           right: -7px;
           width: 0;
           height: 0;
           border-style: solid;
-          border-width: 0 0 10px 8px;
-          border-color: transparent transparent rgba(23,29,26,.98) transparent;
-          transform: scaleX(-1);
+          border-width: 10px 8px 0 0;
+          border-color: rgba(23,29,26,.98) transparent transparent transparent;
         }
 
         .msg-bubble.me.has-tail::after {
           content: '';
           position: absolute;
-          bottom: 1px;
+          top: 1px;
           right: -8px;
           width: 0;
           height: 0;
           border-style: solid;
-          border-width: 0 0 11px 9px;
-          border-color: transparent transparent rgba(196,214,202,.14) transparent;
+          border-width: 11px 9px 0 0;
+          border-color: rgba(196,214,202,.14) transparent transparent transparent;
           z-index: -1;
-          transform: scaleX(-1);
         }
 
         .msg-user-name {
@@ -609,6 +607,7 @@ const MessageList = ({
           line-height: 1.5;
           word-break: break-word;
         }
+        .msg-item.me .msg-content { text-align: right; }
         .msg-mention{border:0;border-radius:4px;padding:1px 3px;font:inherit;cursor:pointer}.msg-mention.channel{color:#8fc9ff;background:rgba(96,165,250,.12)}.msg-mention.user{color:#baff82;background:rgba(156,255,0,.1)}.msg-mention:hover{filter:brightness(1.2)}
 
         .msg-meta {
@@ -688,7 +687,7 @@ const MessageList = ({
           .msg-bubble {
             max-width: 80%;
             min-width: max-content;
-            padding: 5px 9px;
+            padding: 5px 6px;
             border-radius: 14px;
           }
 
@@ -701,29 +700,31 @@ const MessageList = ({
           }
 
           .msg-list-wrapper {
-            padding-left: 8px;
-            padding-right: 8px;
+            padding-left: 6px;
+            padding-right: 6px;
           }
 
           .msg-bubble.them.has-tail::before {
-            border-width: 0 0 9px 7px;
+            border-width: 9px 0 0 7px;
             left: -6px;
+            top: -0.5px;
           }
 
           .msg-bubble.them.has-tail::after {
-            border-width: 0 0 10px 8px;
+            border-width: 10px 0 0 8px;
             left: -7px;
+            top: -0.5px;
           }
 
           .msg-bubble.me.has-tail::before {
-            border-width: 0 0 9px 7px;
-            bottom: -0.5px;
+            border-width: 9px 7px 0 0;
+            top: -0.5px;
             right: -6.5px;
           }
 
           .msg-bubble.me.has-tail::after {
-            border-width: 0 0 10px 8px;
-            bottom: -0.5px;
+            border-width: 10px 8px 0 0;
+            top: -0.5px;
             right: -7.5px;
           }
         }

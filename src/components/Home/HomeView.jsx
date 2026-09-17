@@ -746,13 +746,17 @@ const HomeView = ({
   const handleComment     = useCallback(c => dispatchModal({ type:"OPEN_COMMENT", payload:c }), []);
   const handleUnlock      = useCallback(s => { if (!resolvedUser) { alert("Please sign in"); return; } dispatchModal({ type:"OPEN_PIN", payload:s }); }, [resolvedUser]);
   
-  const handleOpenFullScreenPost = useCallback((postId) => {
-    const post = posts.find(p => p.id === postId);
+  const handleOpenFullScreenPost = useCallback((postOrId) => {
+    const post = typeof postOrId === "object"
+      ? postOrId
+      : posts.find(p => p.id === postOrId);
     if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
   }, [posts]);
 
-  const handleOpenFullScreenReels = useCallback((reelId) => {
-    const reel = reels.find(r => r.id === reelId);
+  const handleOpenFullScreenReels = useCallback((reelOrId) => {
+    const reel = typeof reelOrId === "object"
+      ? reelOrId
+      : reels.find(r => r.id === reelOrId);
     if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
   }, [reels]);
   const handleOpenStory   = useCallback(async (story) => {
@@ -917,11 +921,15 @@ const HomeView = ({
                   onActionMenu={handleActionMenu}
                   onComment={handleComment}
                   onProfileClick={handleAuthorClick}
-                  onOpenFullScreen={(contentId) => {
-                    const post = posts.find(p => p.id === contentId);
-                    const reel = reels.find(r => r.id === contentId);
-                    if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
-                    else if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
+                  onOpenFullScreen={(contentOrId) => {
+                    const content = typeof contentOrId === "object"
+                      ? contentOrId
+                      : posts.find(p => p.id === contentOrId) || reels.find(r => r.id === contentOrId);
+                    if (!content) return;
+                    dispatchModal({
+                      type: content.type === "reel" || content.video_id ? "OPEN_FULLSCREEN_REELS" : "OPEN_FULLSCREEN_POST",
+                      payload: content,
+                    });
                   }}
                   onLoadMore={loadMorePosts}
                   hasMore={hasMorePosts}

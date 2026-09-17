@@ -8,7 +8,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export const VALID_TRINITY_LENSES = ['everyday', 'gaming', 'web3'];
+export const VALID_TRINITY_LENSES = ['everyday', 'gaming', 'web3', 'student'];
 
 export const normalizeTrinityLens = (value) => {
   if (VALID_TRINITY_LENSES.includes(value)) return value;

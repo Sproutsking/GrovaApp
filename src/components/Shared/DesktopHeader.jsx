@@ -127,6 +127,12 @@ const TRINITY_TABS = {
     { id: "tokens",  Icon: Coins,      label: "Tokens" },
     { id: "signals", Icon: BarChart2,  label: "Signals" },
   ],
+  student: [
+    { id: "feed",      Icon: PostsIcon, label: "Study Feed" },
+    { id: "lessons",   Icon: StoriesIcon, label: "Lessons" },
+    { id: "resources", Icon: NewsIcon, label: "Resources" },
+    { id: "study",     Icon: CultureIcon, label: "Study Hub" },
+  ],
 };
 
 // ── Fetch unread data ─────────────────────────────────────────────────────────

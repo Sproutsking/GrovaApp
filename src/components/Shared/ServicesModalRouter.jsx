@@ -5,6 +5,7 @@
 // 'everyday' → Standard multi-category services
 // 'gaming'   → Gaming-focused services (trading, matchmaking, clans)
 // 'web3'     → Web3-focused services (oracles, analytics, tooling)
+// 'student'  → Student-focused services (study circles, resources, support)
 // ============================================================================
 
 import React from "react";
