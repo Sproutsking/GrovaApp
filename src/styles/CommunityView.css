@@ -31,8 +31,13 @@
 }
 
 body.community-fullscreen .mobile-header,
-body.community-fullscreen .mobile-bottom-nav {
+body.community-fullscreen .mobile-bottom-nav,
+body.community-fullscreen .mbn {
   display: none !important;
+}
+
+body.community-fullscreen {
+  overflow: hidden;
 }
 
 /* ============================================
@@ -284,6 +289,10 @@ body.community-fullscreen .mobile-bottom-nav {
     right: 0;
     z-index: 1000;
     padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
   }
 
   .community-content { min-height: 0; }
@@ -341,19 +350,6 @@ body.community-fullscreen .mobile-bottom-nav {
   .message-input-container { padding: 6px 6px 10px; }
   .discover-tab  { padding: 12px 12px 40px; }
 }
-
-/* ============================================
-   SCROLLBAR OVERRIDES INSIDE COMMUNITY
-   ============================================ */
-
-.community-view ::-webkit-scrollbar       { width: 8px; height: 8px; display: block; }
-.community-view ::-webkit-scrollbar-track { background: rgba(26,26,26,0.2); border-radius: 4px; }
-.community-view ::-webkit-scrollbar-thumb { background: var(--accent-bg-strong); border-radius: 4px; }
-.community-view ::-webkit-scrollbar-thumb:hover { background: rgba(132,204,22,0.5); }
-
-/* Override global hide-scrollbar inside community */
-.community-view * { scrollbar-width: thin; }
-.messages-container { scrollbar-width: thin; }
 
 /* Theme-aware community surfaces */
 .community-view {

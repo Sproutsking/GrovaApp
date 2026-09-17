@@ -151,6 +151,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   // ── Community actions ─────────────────────────────────────────────────────
   const handleSelectCommunity = async (community) => {
     if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
+    const mobileViewport = window.innerWidth <= 768;
     if (currentCommunityRef.current !== community.id) {
       setSelectedChannel(null);
       currentCommunityRef.current = community.id;
@@ -159,10 +160,10 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     // that land without a preceding hover.
     handlePrefetchCommunity(community.id);
     setSelectedCommunity(community);
-    saveLocation(community.id, { view: isMobile ? "channels" : "chat", lastVisited: Date.now() });
+    saveLocation(community.id, { view: mobileViewport ? "channels" : "chat", lastVisited: Date.now() });
     // On mobile, show channels view; on desktop, go straight to chat
-    setView(isMobile ? "channels" : "chat");
-    if (isMobile) setSidebarOpen(false);
+    setView(mobileViewport ? "channels" : "chat");
+    if (mobileViewport) setSidebarOpen(false);
 
     switchTimeoutRef.current = setTimeout(async () => {
       try {
