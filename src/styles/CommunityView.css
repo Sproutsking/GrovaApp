@@ -31,6 +31,7 @@
 }
 
 body.community-fullscreen .mobile-header,
+body.community-fullscreen .mh-header,
 body.community-fullscreen .mobile-bottom-nav,
 body.community-fullscreen .mbn {
   display: none !important;
@@ -281,7 +282,7 @@ body.community-fullscreen {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    z-index: 10000;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     height: 100dvh;
