@@ -49,7 +49,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const saveLocation = (communityId, location) => {
     const locations = readLocations();
     locations[communityId] = { communityId, ...locations[communityId], ...location };
-    localStorage.setItem(lastLocationKey, JSON.stringify({ locations }));
+    localStorage.setItem(lastLocationKey, JSON.stringify({ locations, lastVisitedCommunityId: communityId }));
   };
 
   const currentCommunityRef = useRef(null);
@@ -64,11 +64,11 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // ── Hide mobile nav when in chat ──────────────────────────────────────────
+  // ── Give the community its own full mobile surface ───────────────────────
   useEffect(() => {
-    const shouldHide = isMobile && view === "chat";
-    document.body.classList.toggle("community-chat-open", shouldHide);
-    return () => document.body.classList.remove("community-chat-open");
+    const shouldHide = isMobile && (view === "chat" || view === "channels");
+    document.body.classList.toggle("community-fullscreen", shouldHide);
+    return () => document.body.classList.remove("community-fullscreen");
   }, [isMobile, view]);
 
   // ── User profile ──────────────────────────────────────────────────────────
@@ -293,10 +293,10 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
 
   // ── Touch swipe ───────────────────────────────────────────────────────────
   const handleTouchStart = (e) => {
-    if (!isMobile || view !== "chat") return;
+    if (!isMobile || (view !== "chat" && view !== "channels")) return;
     const tx = e.touches[0].clientX;
     setTouchStart(tx); setTouchCurrent(tx);
-    if (tx < 30 || sidebarOpen) setIsSwiping(true);
+    if (view === "chat" && (tx < 30 || sidebarOpen)) setIsSwiping(true);
   };
   const handleTouchMove = (e) => {
     if (!isSwiping || !isMobile) return;
@@ -305,7 +305,10 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
   const handleTouchEnd = () => {
     if (!isSwiping || !isMobile) return;
     const diff = touchCurrent - touchStart;
-    if (sidebarOpen && diff < -50) setSidebarOpen(false);
+    if (view === "chat" && !sidebarOpen && diff > 70 && touchStart > 30) {
+      setSelectedChannel(null);
+      setView("channels");
+    } else if (sidebarOpen && diff < -50) setSidebarOpen(false);
     else if (!sidebarOpen && diff > 50 && touchStart < 30) setSidebarOpen(true);
     else if (!sidebarOpen && diff > 100) setSidebarOpen(true);
     setIsSwiping(false); setTouchStart(0); setTouchCurrent(0);
@@ -367,6 +370,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
             userId={userId}
             currentUser={fullUserProfile || currentUser || { id: userId }}
             onSelectChannel={handleSelectChannel}
+            onOpenPreviousChannel={handleSelectChannel}
             onBack={() => {
               setSelectedCommunity(null); setSelectedChannel(null);
               setView("discover"); currentCommunityRef.current = null;

@@ -183,7 +183,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId, initialCategory = 
               <div className="channel-icon-row">
                 <input type="text" className="form-input" placeholder="Enter emoji" value={formData.icon} onChange={(e) => setFormData({ ...formData, icon: e.target.value })} maxLength={2} />
                 <button type="button" className="channel-icon-picker-btn" onClick={() => setShowIconPicker((open) => !open)}><Smile size={15} /> Pick emoji</button>
-                {showIconPicker && ReactDOM.createPortal(<div className="channel-icon-picker"><EmojiPanel onSelect={(icon) => { setFormData({ ...formData, icon }); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} style={{ position: "fixed", left: 24, top: 120 }} /></div>, document.body)}
+                {showIconPicker && ReactDOM.createPortal(<div className="channel-icon-picker"><EmojiPanel onSelect={(icon) => { setFormData({ ...formData, icon }); setShowIconPicker(false); }} onClose={() => setShowIconPicker(false)} style={{ position: "fixed", left: 24, top: 120, zIndex: 100002 }} /></div>, document.body)}
               </div>
               <label className="channel-icon-upload"><Upload size={14} /> Upload image<input type="file" accept="image/*" onChange={(e) => setIconFile(e.target.files?.[0] || null)} /></label>
               {iconFile && <small className="help-text">{iconFile.name}</small>}
@@ -249,7 +249,7 @@ const CreateChannelModal = ({ onClose, onCreate, communityId, initialCategory = 
         .channel-icon-row{display:flex;align-items:center;gap:8px;position:relative;}
         .channel-icon-preview{width:44px;height:44px;border-radius:12px;border:1px solid rgba(156,255,0,.35);background:rgba(156,255,0,.1);font-size:24px;cursor:pointer;flex-shrink:0;}
         .channel-icon-picker-btn{height:40px;border:1px solid rgba(156,255,0,.25);border-radius:9px;background:rgba(156,255,0,.08);color:#caff9a;display:flex;align-items:center;gap:5px;padding:0 10px;cursor:pointer;white-space:nowrap;}
-        .channel-icon-picker{position:absolute;left:0;top:100%;z-index:20;}
+        .channel-icon-picker{position:fixed;left:0;top:0;z-index:100002;}
         @media(max-width:768px){.channel-modal-overlay{inset:0;padding:0;align-items:stretch}.channel-modal{width:100%;height:100dvh;max-height:none;border-radius:0}.channel-modal-body{padding:14px}.channel-icon-row .form-input{min-width:0}.channel-icon-picker-btn{font-size:0}.channel-icon-picker-btn svg{margin:0}}
         .modal-overlay {
           position: fixed;

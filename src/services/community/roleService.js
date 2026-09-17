@@ -46,7 +46,7 @@ class RoleService {
   }
 
   /**
-   * Create a new role (creates a "Novis" role with restricted permissions)
+   * Create a new role (creates a "Novice" role with restricted permissions)
    */
   async createRole(roleData, communityId) {
     try {
@@ -56,10 +56,10 @@ class RoleService {
         throw new Error(validation.errors.join(", "));
       }
 
-      // If creating a "Novis" role, set restricted permissions
+      // Keep the default novice role restricted even when older UI text uses "Novis".
       let permissions = roleData.permissions;
-      if (roleData.name.toLowerCase() === "novis") {
-        permissions = this.getNovisPermissions();
+      if (["novis", "novice"].includes(roleData.name.trim().toLowerCase())) {
+        permissions = this.getNovicePermissions();
       }
 
       const roleModel = new RoleModel({
@@ -83,14 +83,14 @@ class RoleService {
   }
 
   /**
-   * Get restricted permissions for Novis role
+   * Get the intentionally minimal permissions for a newly joined member.
    */
-  getNovisPermissions() {
+  getNovicePermissions() {
     return {
       sendMessages: false,
       attachFiles: false,
       embedLinks: false,
-      addReactions: false,
+      addReactions: true,
       useExternalEmojis: false,
       mentionEveryone: false,
       useSlashCommands: false,
@@ -98,7 +98,7 @@ class RoleService {
       createChannels: false,
       manageChannels: false,
       createPrivateChannels: false,
-      viewMembers: true,
+      viewMembers: false,
       inviteMembers: false,
       kickMembers: false,
       banMembers: false,
@@ -109,7 +109,7 @@ class RoleService {
       viewRoles: false,
       manageMessages: false,
       pinMessages: false,
-      readMessageHistory: true,
+      readMessageHistory: false,
       viewAuditLog: false,
       timeoutMembers: false,
       manageWarnings: false,
@@ -123,6 +123,10 @@ class RoleService {
       prioritySpeaker: false,
       moveMembers: false,
     };
+  }
+
+  getNovisPermissions() {
+    return this.getNovicePermissions();
   }
 
   /**
@@ -205,7 +209,7 @@ class RoleService {
         const inherited = categoryOverrideMap.get(categoryIds.get(channel.category));
         if (inherited === "deny") return false;
         if (inherited === "allow") return true;
-        return !channel.is_private;
+        return roleModel.hasPermission("viewChannels") && !channel.is_private;
       });
     } catch (error) {
       console.error("Error getting visible channels:", error);

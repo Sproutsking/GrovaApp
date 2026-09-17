@@ -30,6 +30,11 @@
   overflow: hidden;
 }
 
+body.community-fullscreen .mobile-header,
+body.community-fullscreen .mobile-bottom-nav {
+  display: none !important;
+}
+
 /* ============================================
    COMMUNITY SIDEBAR (icon column)
    ============================================ */
@@ -273,13 +278,17 @@
 
 @media (max-width: 768px) {
   .community-view {
-    /* Override desktop positioning */
-    top: 47px;        /* below mobile header */
+    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
-    bottom: 56px;     /* above mobile bottom nav */
-    z-index: 5;
+    z-index: 1000;
+    padding-top: env(safe-area-inset-top, 0px);
   }
+
+  .community-content { min-height: 0; }
+  .messages-container { padding: 0 2px 4px; gap: 0; }
+  .message-input-container { padding: 4px 3px; }
 
   /* Hide the icon sidebar on mobile — full-width chat instead */
   .community-sidebar {

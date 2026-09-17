@@ -744,7 +744,8 @@ const ChatTab = ({
   };
   const removeCategory = async () => {
     if (!categoryMenu || !isOwner || categoryMenu.name === "Welcome") return;
-    await supabase.from("community_channels").update({ category: "Welcome", updated_at: new Date().toISOString() }).eq("community_id", community.id).eq("category", categoryMenu.name);
+    const { data: welcomeCategory } = await supabase.from("community_channel_categories").select("id,name").eq("community_id", community.id).eq("name", "Welcome").maybeSingle();
+    await supabase.from("community_channels").update({ category: welcomeCategory?.name || "Welcome", category_id: welcomeCategory?.id || null, updated_at: new Date().toISOString() }).eq("community_id", community.id).eq("category", categoryMenu.name);
     await supabase.from("community_channel_categories").delete().eq("community_id", community.id).eq("name", categoryMenu.name);
     setCategoryMenu(null);
     await loadChannels();
@@ -1332,7 +1333,7 @@ const ChatTab = ({
         .skel-item { height: 40px; border-radius: 11px; background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 100%); background-size: 200% 100%; animation: skelShimmer 1.3s ease-in-out infinite; }
         @keyframes skelShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-        .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 12px; box-sizing: border-box; background: #000; background-image: none; }
+        .chat-msgs { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; position: relative; padding: 0 2px; box-sizing: border-box; background: #000; background-image: none; }
         .chat-msgs > section { box-sizing: border-box; width: 100%; }
         .chat-msgs::-webkit-scrollbar { width: 5px; }
         .chat-msgs::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
@@ -1349,13 +1350,14 @@ const ChatTab = ({
         .welcome-browse-footer button:disabled { cursor: default; opacity: .45; }
 
         @media (max-width: 768px) {
-          .chat-tab { flex-direction: column; height: 100%; }
+          .chat-tab { flex-direction: column; height: 100%; min-height: 0; }
           .chat-main { width: 100%; height: 100%; flex: 1; }
-          .mobile-chat-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 12px; border-bottom: 1px solid rgba(156,255,0,0.12); background: rgba(10, 12, 16, 0.96); z-index: 11; flex-shrink: 0; }
+          .mobile-chat-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 6px; border-bottom: 1px solid rgba(156,255,0,0.12); background: rgba(10, 12, 16, 0.96); z-index: 11; flex-shrink: 0; }
           .mobile-back-btn, .mobile-menu-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(156,255,0,0.14); background: rgba(156,255,0,0.06); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
           .mobile-back-btn:hover, .mobile-menu-btn:hover { background: rgba(156,255,0,0.12); border-color: rgba(156,255,0,0.2); transform: translateY(-1px); }
           .mobile-chat-title { flex: 1; text-align: center; font-size: 13px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.3px; }
           .channels-container { display: none; }
+          .chat-msgs { padding-left: 2px; padding-right: 2px; }
           .jump-btn { bottom: 72px; right: 12px; width: 36px; height: 36px; }
         }
         .category-context-menu { position: fixed; z-index: 10001; width: 220px; padding: 7px; border: 1px solid rgba(156,255,0,.3); border-radius: 13px; background: linear-gradient(145deg,rgba(17,27,19,.99),rgba(8,13,11,.99)); box-shadow: 0 18px 50px rgba(0,0,0,.68),0 0 20px rgba(156,255,0,.08); }

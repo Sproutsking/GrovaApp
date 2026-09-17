@@ -731,7 +731,7 @@ export const CV_CSS = `
 .cv-msgs::-webkit-scrollbar{width:3px;}.cv-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
 .cv-msgs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.28);pointer-events:none;z-index:0;}
 .cv-msgs-default .cv-msgs-overlay{background:rgba(0,0,0,.18);} 
-.cv-msgs-content{position:relative;z-index:1;padding:4px 12px 8px;display:flex;flex-direction:column;gap:0;}
+.cv-msgs-content{position:relative;z-index:1;padding:0 2px 4px;display:flex;flex-direction:column;gap:0;}
 .cv-loading{display:flex;justify-content:center;padding:40px;}
 .cv-spinner{width:22px;height:22px;border:2px solid rgba(132,204,22,.15);border-top-color:#84cc16;border-radius:50%;animation:cvSpin .7s linear infinite;}
 @keyframes cvSpin{to{transform:rotate(360deg)}}
@@ -742,7 +742,7 @@ export const CV_CSS = `
 .cv-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#222);border:2px solid rgba(132,204,22,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#84cc16;overflow:hidden;flex-shrink:0;box-sizing:border-box;}
 .cv-avatar img{width:100%;height:100%;object-fit:cover;}
 .cv-avatar-sp{width:34px;flex-shrink:0;}
-.cv-bubble{max-width:70%;min-width:0;padding:6px 6px 6px;border-radius:14px;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box;backdrop-filter:blur(10px);position:relative;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:visible;}
+.cv-bubble{max-width:70%;min-width:0;padding:0 5px 4px;border-radius:14px;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box;backdrop-filter:blur(10px);position:relative;will-change:transform;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:visible;}
 .cv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);box-shadow:0 5px 18px rgba(0,0,0,.18);}
 .cv-bme{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border:1px solid rgba(156,255,0,.26);box-shadow:0 5px 18px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.06);}
 .cv-message-menu-btn{position:absolute;top:8px;width:24px;height:24px;border-radius:8px;border:1px solid rgba(156,255,0,.22);background:rgba(10,12,10,.72);color:#dfffc8;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:4;box-shadow:0 8px 18px rgba(0,0,0,.28);transition:transform .15s ease, background .15s ease, border-color .15s ease;}

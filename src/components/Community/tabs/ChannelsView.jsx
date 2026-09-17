@@ -3,7 +3,7 @@
 // REVISION: cache-first instant paint (shares the cache with ChatTab, so if
 // desktop/mobile already visited this community, it's instant here too) +
 // a premium visual pass matching the rest of the community rewrite.
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Plus, Lock, Menu, Hash, Megaphone, Volume2, X, ChevronDown, Folder } from "lucide-react";
 import channelService from "../../../services/community/channelService";
 import permissionService from "../../../services/community/permissionService";
@@ -19,7 +19,7 @@ const CHANNEL_TYPE_ICON = {
   voice: Volume2,
 };
 
-const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack }) => {
+const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onOpenPreviousChannel, onBack }) => {
   const [channels, setChannels] = useState([]);
   const [channelsReady, setChannelsReady] = useState(false);
   const [userPermissions, setUserPermissions] = useState({});
@@ -29,6 +29,8 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
   const [collapsedCategories, setCollapsedCategories] = useState({});
   const [roles, setRoles] = useState([]);
   const [permissionsChannel, setPermissionsChannel] = useState(null);
+  const previousChannelRef = useRef(null);
+  const touchRef = useRef(null);
 
   useEffect(() => {
     if (community) {
@@ -53,9 +55,7 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
       const stored = JSON.parse(localStorage.getItem(`xeevia:last-community-location:${userId}`) || "{}");
       const saved = stored.locations?.[community.id] || (stored.communityId === community.id ? stored : null);
       const savedChannel = normalizedVisible.find((channel) => channel.id === saved?.channelId);
-      if (savedChannel) {
-        requestAnimationFrame(() => onSelectChannel(savedChannel));
-      }
+      previousChannelRef.current = savedChannel || null;
       setCategoryOrder((categories || []).map((category) => category.name));
       setChannelsReady(true);
     } catch (error) {
@@ -93,7 +93,23 @@ const ChannelsView = ({ community, userId, currentUser, onSelectChannel, onBack 
     .map((category) => [category, groupedChannels[category] || []]);
 
   return (
-    <div className="channels-view">
+    <div
+      className="channels-view"
+      onTouchStart={(event) => {
+        const touch = event.touches[0];
+        touchRef.current = { x: touch.clientX, y: touch.clientY };
+      }}
+      onTouchEnd={(event) => {
+        if (!touchRef.current) return;
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - touchRef.current.x;
+        const dy = touch.clientY - touchRef.current.y;
+        touchRef.current = null;
+        if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy)) return;
+        if (dx < 0 && previousChannelRef.current) onOpenPreviousChannel?.(previousChannelRef.current);
+        if (dx > 0) onBack?.();
+      }}
+    >
       {/* ── Header ── */}
       <div className="channels-view-header">
         <button className="cv-back-btn" onClick={onBack} aria-label="Back">

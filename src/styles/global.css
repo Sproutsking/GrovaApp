@@ -34,30 +34,15 @@ html {
   scroll-padding-top: 80px;
 }
 
-/* Ultra-smooth scrolling physics */
+/* Keep scrolling available without taking visual space from the layout. */
 * {
-  scrollbar-color: rgba(132, 204, 22, 0.3) rgba(0, 0, 0, 0.1);
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(132, 204, 22, 0.4) 0%, rgba(132, 204, 22, 0.2) 100%);
-  border-radius: 10px;
-  transition: background 0.3s ease;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(132, 204, 22, 0.6) 0%, rgba(132, 204, 22, 0.4) 100%);
+  display: none !important;
+  width: 0;
+  height: 0;
 }
 
 :root {

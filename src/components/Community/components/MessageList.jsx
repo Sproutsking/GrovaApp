@@ -202,7 +202,7 @@ const MessageList = ({
             <div
               key={msg.id || msg.tempId || msg._tempId}
               data-message-id={msg.id || msg.tempId || msg._tempId}
-              className={`msg-item ${isMe ? "me" : "them"} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
+              className={`msg-item ${isMe ? "me" : "them"} ${isWithinCluster ? "clustered" : ""} ${isAnnouncementMessage ? "announcement" : ""} ${msg._optimistic ? "optimistic" : ""} ${msg._failed ? "failed" : ""}`}
               onClick={(event) => onMessageClick?.(event, msg)}
               onContextMenu={(e) => onContextMenu?.(e, msg)}
               onTouchStart={(e) => { beginSwipe(e, msg); startLongPress(e, msg); }}
@@ -334,12 +334,13 @@ const MessageList = ({
           box-sizing: border-box;
           align-items: flex-start;
           gap: 4px;
-          margin: 4px 0;
+          margin: 0 0 6px;
           animation: slideIn 0.2s ease-out;
           position: relative;
           transition: transform 0.18s ease-out;
         }
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
+        .msg-item.clustered { margin-bottom: 4px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
         .msg-item.announcement .mra-wrapper { width: 100%; max-width: calc(100% - 48px); }
         .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
@@ -497,7 +498,7 @@ const MessageList = ({
 
         .msg-bubble {
           max-width: 70%;
-          padding: 4px 8px 3px;
+          padding: 0 5px 4px;
           border-radius: 14px;
           backdrop-filter: blur(10px);
           position: relative;
@@ -630,6 +631,7 @@ const MessageList = ({
           word-break: break-word;
         }
         .msg-item.me .msg-content { text-align: right; }
+        .msg-item.me .msg-reply-quote { text-align: right; }
         .msg-mention{border:0;border-radius:4px;padding:1px 3px;font:inherit;cursor:pointer}.msg-mention.channel{color:#8fc9ff;background:rgba(96,165,250,.12)}.msg-mention.user{color:#baff82;background:rgba(156,255,0,.1)}.msg-mention:hover{filter:brightness(1.2)}
 
         .msg-meta {
@@ -640,7 +642,7 @@ const MessageList = ({
           gap: 4px;
           margin-top: 3px;
         }
-        .msg-item.me .msg-meta { justify-content: flex-start; }
+        .msg-item.me .msg-meta { justify-content: flex-end; }
         .msg-item.me .announcement-reply-button{align-self:flex-end}
         .msg-item.them .announcement-reply-button{align-self:flex-start}
   .announcement-reply-button{display:inline-flex;align-items:center;gap:5px;margin-top:-1px;padding:6px 10px;border:1px solid rgba(156,255,0,.24);border-top:0;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(156,255,0,.1),rgba(156,255,0,.035));color:#cfeabf;font:700 10px/1 inherit;cursor:pointer;transition:all .18s ease}
@@ -709,7 +711,7 @@ const MessageList = ({
           .msg-bubble {
             max-width: 80%;
             min-width: max-content;
-            padding: 5px 6px;
+            padding: 0 5px 4px;
             border-radius: 14px;
           }
 
@@ -722,8 +724,8 @@ const MessageList = ({
           }
 
           .msg-list-wrapper {
-            padding-left: 6px;
-            padding-right: 6px;
+            padding-left: 2px;
+            padding-right: 2px;
           }
 
           .msg-bubble.them.has-tail::before {
