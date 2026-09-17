@@ -339,7 +339,10 @@ const CommunityMessageInput = ({
             <div className="comm-announcement-preview-stage">
               <article className={`comm-announcement-preview-card announcement-border-${announcementBorderStyle}`} style={{ "--announcement-color": announcementBorderColor }}>
                 {announcementTitle.trim() && <h3>{announcementTitle.trim()}</h3>}
-                <p>{value.trim() || "Your announcement message will appear here."}</p>
+                <p className="comm-announcement-preview-body">{(value.trim() || "Your announcement message will appear here.").split(/(\*\*[^*]+\*\*|__[^_]+__)/g).map((part, index) => {
+                  const boldMatch = part.match(/^(?:\*\*|__)(.+)(?:\*\*|__)$/s);
+                  return boldMatch ? <strong key={index}>{boldMatch[1]}</strong> : <React.Fragment key={index}>{part}</React.Fragment>;
+                })}</p>
                 <small>Now · You</small>
               </article>
             </div>

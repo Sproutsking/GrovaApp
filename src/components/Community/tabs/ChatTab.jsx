@@ -545,7 +545,7 @@ const ChatTab = ({
         const parts = currentUser.avatar.split("/");
         avatarId = parts[parts.length - 1].split("?")[0];
       }
-      const announcementContent = selectedChannel?.type === "announcement" && announcement?.title
+      const announcementContent = selectedChannel?.type === "announcement" && announcement
         ? `[[announcement:${encodeURIComponent(JSON.stringify({ title: announcement.title.replace(/\]/g, ""), borderStyle: announcement.borderStyle || "solid", borderColor: announcement.borderColor || "#9cff00" }))}]]\n${content}`
         : content;
       const messageContent = isCrossChannelPostReply

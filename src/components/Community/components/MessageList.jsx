@@ -129,14 +129,33 @@ const MessageList = ({
     }, 500);
   };
 
-  const renderContent = (content) => {
-    const parts = String(content || "").split(/(#[\w-]+|@[\w.-]+)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("#")) return <button key={index} className="msg-mention channel" onClick={() => onChannelMention?.(part.slice(1))}>{part}</button>;
-      if (part.startsWith("@")) return <button key={index} className="msg-mention user" onClick={() => onRoleMention?.(part.slice(1))}>{part}</button>;
-      return <React.Fragment key={index}><LinkifiedText onNavigate={onNavigate}>{part}</LinkifiedText></React.Fragment>;
+  const renderInlineContent = (content, keyPrefix = "line") => {
+    const markdownParts = String(content || "").split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*)/g).filter(Boolean);
+    return markdownParts.map((part, index) => {
+      const key = `${keyPrefix}-${index}`;
+      const boldMatch = part.match(/^(?:\*\*|__)(.+)(?:\*\*|__)$/s);
+      if (boldMatch) return <strong key={key}>{renderInlineContent(boldMatch[1], key)}</strong>;
+      const italicMatch = part.match(/^\*([^*]+)\*$/s);
+      if (italicMatch) return <em key={key}>{renderInlineContent(italicMatch[1], key)}</em>;
+      const codeMatch = part.match(/^`([^`]+)`$/s);
+      if (codeMatch) return <code key={key} className="msg-inline-code">{codeMatch[1]}</code>;
+
+      return String(part).split(/(#[\w-]+|@[\w.-]+)/g).map((mentionPart, mentionIndex) => {
+        const mentionKey = `${key}-${mentionIndex}`;
+        if (mentionPart.startsWith("#")) return <button key={mentionKey} className="msg-mention channel" onClick={() => onChannelMention?.(mentionPart.slice(1))}>{mentionPart}</button>;
+        if (mentionPart.startsWith("@")) return <button key={mentionKey} className="msg-mention user" onClick={() => onRoleMention?.(mentionPart.slice(1))}>{mentionPart}</button>;
+        return <React.Fragment key={mentionKey}><LinkifiedText onNavigate={onNavigate}>{mentionPart}</LinkifiedText></React.Fragment>;
+      });
     });
   };
+
+  const renderContent = (content) => String(content || "").split("\n").map((line, index) => (
+    <React.Fragment key={`row-${index}`}>
+      {index > 0 && <br />}
+      {!line.trim() && <span className="msg-content-blank-line" aria-hidden="true" />}
+      {line.trim() && renderInlineContent(line, `row-${index}`)}
+    </React.Fragment>
+  ));
 
   return (
     <div className="msg-list-wrapper">
@@ -322,8 +341,8 @@ const MessageList = ({
         }
         .msg-item.announcement { align-items: flex-start; gap: 8px; }
         .msg-item.announcement .msg-avatar { margin-top: 2px; }
-        .msg-item.announcement .mra-wrapper { width: fit-content; max-width: calc(100% - 48px); }
-        .msg-item.announcement .msg-bubble { width: fit-content; max-width: 100%; }
+        .msg-item.announcement .mra-wrapper { width: 100%; max-width: calc(100% - 48px); }
+        .msg-item.announcement .msg-bubble { width: 100%; max-width: 100%; }
         .msg-item.announcement.me .mra-wrapper { align-items: flex-end; }
         .msg-item.announcement.them .mra-wrapper { align-items: flex-start; }
         .msg-item .msg-bubble { min-width: 0; padding-bottom: 6px; }
@@ -488,14 +507,17 @@ const MessageList = ({
         .msg-item.them .msg-bubble { margin-right: auto; }
         .msg-item.me .msg-bubble { margin-left: auto; }
         .msg-item.announcement .msg-bubble {
-          max-width: min(92%, 760px);
+          width: 100%;
+          max-width: min(760px, 100%);
           padding: 18px 22px 8px;
           border-radius: 18px;
           background: linear-gradient(145deg, rgba(14,18,14,.94), rgba(8,12,9,.98));
           border: 1px solid rgba(156,255,0,.28);
           box-shadow: 0 10px 32px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
         }
-        .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; }
+        .msg-item.announcement .msg-content { font-size: 15px; line-height: 1.7; white-space: normal; }
+        .msg-content-blank-line { display: block; height: .85em; }
+        .msg-inline-code { padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.08); color: #d9ffaf; font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; }
         .msg-item.announcement .msg-meta { margin-top: 10px; }
         .msg-item.announcement .msg-bubble{border-top:3px solid var(--announcement-color,#9cff00);border-bottom-left-radius:0;border-bottom-right-radius:0}.msg-item.announcement .msg-bubble.announcement-border-double{border-top-style:double;border-top-width:6px}.msg-item.announcement .msg-bubble.announcement-border-dashed{border-top-style:dashed}.msg-item.announcement .msg-bubble.announcement-border-glow{box-shadow:0 0 26px color-mix(in srgb,var(--announcement-color,#9cff00) 22%,transparent),0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)}
         .announcement-title{font-size:18px;line-height:1.25;font-weight:900;color:#eaffd8;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid color-mix(in srgb,var(--announcement-color,#9cff00) 28%,transparent)}
@@ -503,7 +525,7 @@ const MessageList = ({
         .mra-wrapper .msg-bubble { width: fit-content; max-width: 100%; }
         .msg-item.them .mra-wrapper { margin-right: auto; align-items:flex-start; }
         .msg-item.me .mra-wrapper { margin-left: auto; align-items:flex-end; }
-        .mra-ann { align-items: flex-start; width: fit-content; max-width: min(760px, calc(100vw - 92px)); }
+        .mra-ann { align-items: flex-start; width: 100%; max-width: min(760px, calc(100vw - 92px)); }
         .mra-ann .mra-picker-wrap { left: 0; right: auto; }
 
         /* Base bubble styles */
