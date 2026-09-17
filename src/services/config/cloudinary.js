@@ -1,15 +1,20 @@
 // src/services/config/cloudinary.js
 
+import { getSafeEnvValue } from './securityGuards';
+
+const CLOUD_NAME = getSafeEnvValue(process.env.REACT_APP_CLOUDINARY_CLOUD_NAME);
+const API_KEY = getSafeEnvValue(process.env.REACT_APP_CLOUDINARY_API_KEY);
+const UPLOAD_PRESET = getSafeEnvValue(process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET);
+
 // Cloudinary Configuration
 export const CLOUDINARY_CONFIG = {
-  CLOUD_NAME: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME,
-  API_KEY: process.env.REACT_APP_CLOUDINARY_API_KEY,
-  API_SECRET: process.env.REACT_APP_CLOUDINARY_API_SECRET,
-  UPLOAD_PRESET: process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET,
-  
-  // Base URLs
-  UPLOAD_URL: `https://api.cloudinary.com/v1_1/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME}`,
-  DELIVERY_URL: `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME}`
+  CLOUD_NAME,
+  API_KEY,
+  UPLOAD_PRESET,
+
+  // Base URLs intentionally omit secrets. API secret must remain server-side only.
+  UPLOAD_URL: CLOUD_NAME ? `https://api.cloudinary.com/v1_1/${CLOUD_NAME}` : '',
+  DELIVERY_URL: CLOUD_NAME ? `https://res.cloudinary.com/${CLOUD_NAME}` : '',
 };
 
 // Cloudinary Media Client (handles both images and videos)
