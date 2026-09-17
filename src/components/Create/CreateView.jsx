@@ -55,6 +55,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const [showExitDialog,      setShowExitDialog]      = useState(false);
   const [pendingNavigation,   setPendingNavigation]   = useState(null);
   const [distributedPostId,   setDistributedPostId]   = useState(null);
+  const [publishNotice,       setPublishNotice]       = useState("");
 
   const autoSaveTimer = useRef(null);
 
@@ -421,6 +422,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
       dispatchPublish(newPost, "post");
       if (onPublishSuccess) onPublishSuccess(newPost, "post");
       setDistributedPostId(newPost.id);
+      setPublishNotice("Post published successfully");
+      window.setTimeout(() => setPublishNotice(""), 3500);
 
       try {
         await distribution.distributePost(newPost.id);
@@ -840,6 +843,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                   ? <><Loader size={15} className="spinner" /> Publishing…</>
                   : <><Send size={15} /> Publish Post</>}
               </button>
+              {publishNotice && <div role="status" className="publish-success-notice"><CheckCircle size={15} /> {publishNotice}</div>}
               {/* [D1] Debug block REMOVED — was making app look broken */}
             </div>
 

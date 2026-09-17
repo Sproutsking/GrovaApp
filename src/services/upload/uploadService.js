@@ -416,7 +416,7 @@ class UploadService {
   }
 
   validateAvatar(file) {
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 5 * 1024 * 1024; // 5MB
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
     if (!file) {
@@ -424,7 +424,7 @@ class UploadService {
     }
 
     if (file.size > maxSize) {
-      throw new Error('Avatar must be less than 2MB');
+      throw new Error('Avatar must be less than 5MB');
     }
 
     if (!allowedTypes.includes(file.type)) {

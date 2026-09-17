@@ -299,7 +299,7 @@ export const ReactionBurst = ({ emoji, x, y }) => {
 /**
  * Full area that wraps a message — shows reaction bar + hover picker trigger
  */
-export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false }) => {
+export const MessageReactionArea = ({ message, userId, onToggle, children, isAnnouncement = false, showReactionTrigger = false, isOutgoing = false }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerStyle, setPickerStyle] = useState({ position: "fixed", left: 12, top: 12, zIndex: 10000 });
   const [burst, setBurst] = useState(null);
@@ -349,7 +349,7 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
   return (
     <div
       ref={areaRef}
-      className={`mra-wrapper ${isAnnouncement ? "mra-ann" : ""}`}
+      className={`mra-wrapper ${isAnnouncement ? "mra-ann" : ""}${isAnnouncement && isOutgoing ? " mra-ann-outgoing" : ""}`}
     >
       {typeof children === "function" ? children({ reactionRow }) : children}
 
@@ -399,6 +399,10 @@ export const MessageReactionArea = ({ message, userId, onToggle, children, isAnn
           right: 12px;
           bottom: 42px;
         }
+        .mra-ann-outgoing { align-items: flex-end; }
+        .mra-ann-outgoing .mra-reaction-row { justify-content: flex-end; }
+        .mra-ann-outgoing .mra-reaction-row .rb-bar { justify-content: flex-end; }
+        .mra-ann-outgoing .mra-reaction-row .rb-add-trigger { order: -1; }
         .mra-reaction-row {
           position: relative;
           display: flex;

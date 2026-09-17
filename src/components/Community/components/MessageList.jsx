@@ -229,9 +229,9 @@ const MessageList = ({
               )}
               {!showAvatar && <div className={`msg-avatar-spacer ${isMe ? "outgoing" : "incoming"}`} style={{ width: avatarFootprint }} aria-hidden="true" />}
 
-              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} showReactionTrigger={isReactionChannel}>
+              <MessageReactionArea message={msg} userId={userId} onToggle={onReactionClick} isAnnouncement={isReactionChannel} isOutgoing={isMe} showReactionTrigger={isReactionChannel}>
                 {({ reactionRow }) => <>
-                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
+                  <div className={`msg-bubble ${isMe ? "me" : "them"} ${showTail ? 'has-tail' : ''}${announcement ? ` announcement-border-${announcement.borderStyle}` : ""}`} style={{ margin: 0, paddingLeft: 10, paddingRight: 10, textAlign: isAnnouncementMessage && isMe ? "right" : undefined, ...(announcement ? { "--announcement-color": announcement.borderColor } : {}) }}>
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>

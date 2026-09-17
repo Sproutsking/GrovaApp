@@ -226,16 +226,16 @@ const Sidebar = ({
             <div className="social-grid">
               <h4 className="footer-title">follow us here 👇</h4>
               <div className="footer-content">
-                <button className="social-item" aria-label="Twitter">
+                <button className="social-item" aria-label="Twitter" onClick={() => window.open("https://x.com", "_blank", "noopener,noreferrer")}>
                   <i className="fa-brands fa-x-twitter" />
                 </button>
-                <button className="social-item" aria-label="Facebook">
+                <button className="social-item" aria-label="Facebook" onClick={() => window.open("https://www.facebook.com", "_blank", "noopener,noreferrer")}>
                   <i className="bx bxl-facebook" />
                 </button>
-                <button className="social-item" aria-label="Discord">
+                <button className="social-item" aria-label="Discord" onClick={() => window.open("https://discord.com", "_blank", "noopener,noreferrer")}>
                   <i className="bx bxl-discord-alt" />
                 </button>
-                <button className="social-item" aria-label="TikTok">
+                <button className="social-item" aria-label="TikTok" onClick={() => window.open("https://www.tiktok.com", "_blank", "noopener,noreferrer")}>
                   <i className="fa-brands fa-tiktok" />
                 </button>
               </div>

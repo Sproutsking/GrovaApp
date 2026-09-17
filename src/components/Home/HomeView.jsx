@@ -1038,7 +1038,7 @@ const HomeView = ({
         />
       )}
       {modals.profile && (
-        <UserProfileModal user={modals.profile} onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })} />
+        <UserProfileModal user={modals.profile} currentUser={resolvedUser} onClose={() => dispatchModal({ type:"CLOSE_PROFILE" })} />
       )}
       {modals.actionMenu && (
         <ActionMenu

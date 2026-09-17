@@ -9,6 +9,7 @@ import {
   ThumbsDown, ThumbsUp, Check, AlertTriangle, FolderPlus,
 } from "lucide-react";
 import ShareModal from "../Modals/ShareModal";
+import { buildContentShareUrl } from "../../utils/shareLinks";
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 const Toast = ({ message, type = "success", onDone }) => {
@@ -433,8 +434,19 @@ const ActionMenu = ({
   const handleCopyLink = useCallback(async (e) => {
     e.stopPropagation();
     try {
-      const url = `${window.location.origin}/${contentType}/${content?.id}`;
-      await navigator.clipboard.writeText(url);
+      const url = buildContentShareUrl(contentType, content);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.setAttribute("readonly", "");
+        textarea.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
       showToast("Link copied!");
       setTimeout(onClose, 1500);
     } catch {
