@@ -198,13 +198,7 @@ body.community-fullscreen {
   display: flex; flex-direction: column; gap: 4px;
   z-index: 1; position: relative;
   scroll-behavior: smooth;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(132,204,22,0.3) rgba(26,26,26,0.2);
 }
-.messages-container::-webkit-scrollbar       { width: 8px; display: block; }
-.messages-container::-webkit-scrollbar-track { background: rgba(26,26,26,0.2); border-radius: 4px; }
-.messages-container::-webkit-scrollbar-thumb { background: var(--accent-bg-strong); border-radius: 4px; }
-.messages-container::-webkit-scrollbar-thumb:hover { background: rgba(132,204,22,0.5); }
 .messages-container.loading,
 .messages-container.empty { justify-content: center; align-items: center; }
 
@@ -296,7 +290,7 @@ body.community-fullscreen {
   }
 
   .community-content { min-height: 0; }
-  .messages-container { padding: 0 2px 4px; gap: 0; }
+  .messages-container { padding: 0 4px 4px; gap: 0; }
   .message-input-container { padding: 4px 3px; }
 
   /* Hide the icon sidebar on mobile — full-width chat instead */
@@ -313,7 +307,7 @@ body.community-fullscreen {
   .channel-item { padding: 6px 12px; font-size: 13px; }
   .channel-nav-btn { width: 28px; height: 28px; }
 
-  .messages-container { padding: 12px; }
+  .messages-container { padding: 12px 4px; }
   .message-input-container { padding: 8px 8px 12px; }
   .input-wrapper { padding: 6px 10px; }
   .input-btn     { width: 28px; height: 28px; }
