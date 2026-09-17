@@ -924,10 +924,13 @@ const HomeView = ({
                   onOpenFullScreen={(contentOrId) => {
                     const content = typeof contentOrId === "object"
                       ? contentOrId
-                      : posts.find(p => p.id === contentOrId) || reels.find(r => r.id === contentOrId);
+                      : posts.find(p => String(p.id) === String(contentOrId))
+                        || reels.find(r => String(r.id) === String(contentOrId));
                     if (!content) return;
+                    const isReel = content.type === "reel"
+                      || (!content.type && Boolean(content.video_id));
                     dispatchModal({
-                      type: content.type === "reel" || content.video_id ? "OPEN_FULLSCREEN_REELS" : "OPEN_FULLSCREEN_POST",
+                      type: isReel ? "OPEN_FULLSCREEN_REELS" : "OPEN_FULLSCREEN_POST",
                       payload: content,
                     });
                   }}
