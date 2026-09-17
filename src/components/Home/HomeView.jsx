@@ -749,14 +749,14 @@ const HomeView = ({
   const handleOpenFullScreenPost = useCallback((postOrId) => {
     const post = typeof postOrId === "object"
       ? postOrId
-      : posts.find(p => p.id === postOrId);
+      : posts.find(p => String(p.id) === String(postOrId));
     if (post) dispatchModal({ type:"OPEN_FULLSCREEN_POST", payload:post });
   }, [posts]);
 
   const handleOpenFullScreenReels = useCallback((reelOrId) => {
     const reel = typeof reelOrId === "object"
       ? reelOrId
-      : reels.find(r => r.id === reelOrId);
+      : reels.find(r => String(r.id) === String(reelOrId));
     if (reel) dispatchModal({ type:"OPEN_FULLSCREEN_REELS", payload:reel });
   }, [reels]);
   const handleOpenStory   = useCallback(async (story) => {

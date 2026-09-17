@@ -807,7 +807,7 @@ const PostCard = ({
           onClick={(e) => {
             // Only trigger fullscreen if click is not on interactive element
             if (!e.target.closest("button") && !e.target.closest("a") && onOpenFullScreen) {
-              onOpenFullScreen(post.id);
+              onOpenFullScreen(post);
             }
           }}
           style={{ cursor: onOpenFullScreen ? "pointer" : "default" }}
