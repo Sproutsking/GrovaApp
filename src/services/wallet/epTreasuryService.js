@@ -192,6 +192,21 @@ export const epTreasuryService = {
     return data;
   },
 
+  // CEO-only user grant. The database function rechecks role, PIN, balance,
+  // recipient status, and writes the immutable audit records atomically.
+  async sendToUser({ recipientId, amount, pin, partition = "operations", notes = "" }) {
+    const { data, error } = await supabase.rpc("ep_treasury_send_to_user", {
+      p_recipient_id: recipientId,
+      p_amount: Number(amount),
+      p_pin: pin,
+      p_partition: partition,
+      p_notes: notes,
+    });
+    if (error) throw new Error(`[epTreasury] sendToUser: ${error.message}`);
+    _balanceCache = null;
+    return data;
+  },
+
   // ── Get ledger history ─────────────────────────────────────────────────────
   async getLedger({ partition, limit = 50, offset = 0, txType } = {}) {
     let query = supabase

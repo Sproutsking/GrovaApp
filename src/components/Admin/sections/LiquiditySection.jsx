@@ -44,6 +44,7 @@ import liquidityService, {
   SYSTEM_STATE_CONFIG,
 } from "../../../services/economy/liquidityService";
 import { supabase } from "../../../services/config/supabase";
+import TreasuryWalletPanel from "./TreasuryWalletPanel.jsx";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtEP = (n) =>
@@ -1107,6 +1108,7 @@ export default function LiquiditySection({ adminData }) {
               </div>
             </div>
           )}
+          {adminData?.role === "ceo_owner" && <TreasuryWalletPanel adminData={adminData} />}
         </div>
       )}
 
