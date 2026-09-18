@@ -419,26 +419,26 @@ const FullScreenReels = ({
             </div>
           )}
 
-          <div className="reel-left-info">
-            <div className="video-progress-container">
-              <div
-                ref={progressBarRef}
-                className="video-progress-bar"
-                onClick={handleProgressBarClick}
-                onMouseDown={handleProgressBarMouseDown}
-              >
-                <div className="progress-buffered" style={{ width: `${bufferedProgress}%` }} />
-                <div className="progress-played" style={{ width: `${playedPercentage}%` }}>
-                  <div className="progress-handle" />
-                </div>
+          <div className="video-progress-container">
+            <div
+              ref={progressBarRef}
+              className="video-progress-bar"
+              onClick={handleProgressBarClick}
+              onMouseDown={handleProgressBarMouseDown}
+            >
+              <div className="progress-buffered" style={{ width: `${bufferedProgress}%` }} />
+              <div className="progress-played" style={{ width: `${playedPercentage}%` }}>
+                <div className="progress-handle" />
               </div>
-              {!videoError && duration > 0 && (
-                <div className="video-time-display">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </div>
-              )}
             </div>
+            {!videoError && duration > 0 && (
+              <div className="video-time-display">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </div>
+            )}
+          </div>
 
+          <div className="reel-left-info">
             <ReelProfilePreview
               profile={profile}
               music={currentReel.music}
@@ -477,13 +477,15 @@ const FullScreenReels = ({
               onComment={() => setShowComments(true)}
               onShare={() => setShowShare(true)}
             />
-            <button
-              className="action-menu-btn"
-              onClick={(e) => onActionMenu?.(e, currentReel, currentReel.user_id === currentUser?.id)}
-            >
-              <MoreVertical size={28} color="#ffffff" />
-            </button>
           </div>
+
+          <button
+            className={`action-menu-btn ${showControls ? "visible" : ""}`}
+            onClick={(e) => onActionMenu?.(e, currentReel, currentReel.user_id === currentUser?.id)}
+            aria-label="More actions"
+          >
+            <MoreVertical size={28} color="#ffffff" />
+          </button>
 
           <button
             className={`fullscreen-mute-btn ${showControls ? "visible" : ""}`}
@@ -688,7 +690,7 @@ const FullScreenReels = ({
 
         .reel-left-info {
           position: absolute;
-          bottom: max(12px, env(safe-area-inset-bottom)); left: 16px; right: 16px;
+          bottom: 72px; left: 16px; right: 104px;
           z-index: 10;
           pointer-events: all;
           display: flex;
@@ -697,8 +699,9 @@ const FullScreenReels = ({
         }
 
         .video-progress-container {
-          display: flex; align-items: center; gap: 8px; width: 100%;
-          padding-right: 84px;
+          position: absolute; left: 16px; right: 16px;
+          bottom: max(48px, env(safe-area-inset-bottom));
+          display: flex; align-items: center; gap: 8px; width: auto;
         }
 
         .video-progress-bar {
@@ -779,7 +782,7 @@ const FullScreenReels = ({
         .caption-expanded-content p { color: #e5e5e5; font-size: 14px; line-height: 1.5; margin: 0; }
 
         .reel-right-actions {
-          position: absolute; right: 16px; bottom: 58px;
+          position: absolute; right: 16px; bottom: 104px;
           display: flex; flex-direction: column; gap: 12px;
           z-index: 10; transition: all 0.3s;
           opacity: 0; pointer-events: none;
@@ -789,13 +792,18 @@ const FullScreenReels = ({
         .reel-right-actions.visible { opacity: 1; pointer-events: all; }
 
         .action-menu-btn {
+          position: absolute; right: 16px; bottom: max(8px, env(safe-area-inset-bottom));
           background: rgba(0,0,0,0.6);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255,255,255,0.1);
           color: white; width: 36px; height: 36px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: all 0.2s;
+          cursor: pointer; transition: all 0.2s; opacity: 0; pointer-events: none;
         }
+
+        .action-menu-btn.visible { opacity: 1; pointer-events: all; }
+
+        .action-menu-btn svg { transform: rotate(90deg); }
 
         .action-menu-btn:hover { background: rgba(0,0,0,0.8); transform: scale(1.05); }
         .action-menu-btn svg { width: 24px; height: 24px; }
@@ -824,11 +832,11 @@ const FullScreenReels = ({
             padding: 0;
           }
 
-          .reel-left-info { bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; right: 12px; }
-          .video-progress-container { padding-right: 64px; }
+          .reel-left-info { bottom: 72px; left: 12px; right: 72px; }
+          .video-progress-container { left: 12px; right: 12px; bottom: max(48px, env(safe-area-inset-bottom)); }
           .reel-caption-text { font-size: 12px; padding: 5px 8px; }
           .caption-expanded-content p { font-size: 13px; }
-          .reel-right-actions { right: 12px; bottom: 58px; gap: 8px; }
+          .reel-right-actions { right: 12px; bottom: 104px; gap: 8px; }
           .action-menu-btn { width: 44px; height: 44px; }
           .action-menu-btn svg { width: 22px; height: 22px; }
           .fullscreen-close-btn { top: 16px; right: 16px; width: 40px; height: 40px; }
@@ -836,11 +844,12 @@ const FullScreenReels = ({
         }
 
         @media (max-width: 480px) {
-          .reel-left-info { bottom: 10px; left: 10px; right: 10px; }
-          .video-progress-container { padding-right: 56px; }
+          .reel-left-info { bottom: 68px; left: 10px; right: 64px; }
+          .video-progress-container { left: 10px; right: 10px; bottom: max(44px, env(safe-area-inset-bottom)); }
           .reel-caption-text { font-size: 11px; padding: 4px 6px; }
           .action-menu-btn { width: 40px; height: 40px; }
-          .reel-right-actions { right: 10px; bottom: 54px; gap: 6px; }
+          .reel-right-actions { right: 10px; bottom: 96px; gap: 6px; }
+          .action-menu-btn { right: 10px; }
           .fullscreen-close-btn { top: 12px; right: 12px; width: 36px; height: 36px; font-size: 18px; }
           .fullscreen-mute-btn  { top: 12px; left: 12px;  width: 36px; height: 36px; font-size: 16px; }
         }

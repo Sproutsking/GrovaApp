@@ -128,6 +128,24 @@ const FullScreenPostView = ({
       </div>
 
       <div className="fspv-body">
+        {post.video_ids?.[0] && (
+          <video
+            className="fspv-post-media"
+            src={mediaUrlService.getVideoUrl(post.video_ids[0], { quality: "auto", format: "mp4" })}
+            poster={post.image_ids?.[0] ? mediaUrlService.getImageUrl(post.image_ids[0], { width: 1200, quality: "auto:good", format: "auto" }) : undefined}
+            controls
+            playsInline
+            preload="metadata"
+          />
+        )}
+        {!post.video_ids?.[0] && post.image_ids?.[0] && (
+          <img
+            className="fspv-post-media"
+            src={mediaUrlService.getImageUrl(post.image_ids[0], { width: 1200, quality: "auto:best", format: "auto" })}
+            alt={post.content || "Post media"}
+            loading="eager"
+          />
+        )}
         {/* News hero image */}
         {heroImageUrl && (
           <div className="fspv-news-hero">
@@ -174,26 +192,10 @@ const FullScreenPostView = ({
             className={`fspv-desktop-card${!isNews && showComments ? " with-comments" : ""}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="fspv-desktop-post">{postContent}</div>
-
-            {!isNews && showComments && (
-              <div className="fspv-desktop-comments">
-                <div className="fspv-comments-header">
-                  <span>Comments</span>
-                  <button className="fspv-comments-close-btn" onClick={() => setShowComments(false)} aria-label="Close comments">
-                    <X size={15} />
-                  </button>
-                </div>
-                <div className="fspv-comments-body">
-                  <CommentModal
-                    content={{ ...post, type: "post" }}
-                    currentUser={currentUser}
-                    onClose={() => setShowComments(false)}
-                    embedded={true}
-                  />
-                </div>
-              </div>
-            )}
+            <div className="fspv-desktop-post">
+              {postContent}
+              {!isNews && showComments && <PostComments post={post} currentUser={currentUser} onClose={() => setShowComments(false)} />}
+            </div>
           </div>
 
           {!isNews && showShare && (
@@ -218,37 +220,8 @@ const FullScreenPostView = ({
       >
         <div className="fspv-mobile-card" onClick={(e) => e.stopPropagation()}>
           {postContent}
+          {!isNews && showComments && <PostComments post={post} currentUser={currentUser} onClose={() => setShowComments(false)} />}
         </div>
-
-        {!isNews && (
-          <div
-            ref={sidebarRef}
-            className={`fspv-mobile-sidebar${showComments ? " open" : ""}`}
-            style={{
-              transform: showComments
-                ? `translateX(${commentSlideX}px)`
-                : `translateX(calc(100% + ${commentSlideX}px))`,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="fspv-comments-header">
-              <button className="fspv-mobile-back-btn" onClick={() => setShowComments(false)}>
-                <ChevronLeft size={15} /><span>Back</span>
-              </button>
-              <span className="fspv-comments-title">Comments</span>
-            </div>
-            <div className="fspv-comments-body">
-              {showComments && (
-                <CommentModal
-                  content={{ ...post, type: "post" }}
-                  currentUser={currentUser}
-                  onClose={() => setShowComments(false)}
-                  embedded={true}
-                />
-              )}
-            </div>
-          </div>
-        )}
 
         {!isNews && showShare && (
           <ShareModal
@@ -269,6 +242,20 @@ const FullScreenPostView = ({
     portalRoot
   );
 };
+
+const PostComments = ({ post, currentUser, onClose }) => (
+  <section className="fspv-post-comments">
+    <div className="fspv-comments-header">
+      <span>Comments</span>
+      <button className="fspv-comments-close-btn" onClick={onClose} aria-label="Close comments">
+        <X size={15} />
+      </button>
+    </div>
+    <div className="fspv-comments-body">
+      <CommentModal content={{ ...post, type: "post" }} currentUser={currentUser} onClose={onClose} embedded={true} />
+    </div>
+  </section>
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CSS
@@ -295,9 +282,9 @@ const CSS = `
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   width: min(820px, 90vw);
-  max-height: 90vh;
+  max-height: 92vh;
   border-radius: 20px;
   overflow: hidden;
   background: #0f0f0f;
@@ -306,13 +293,8 @@ const CSS = `
   animation: fspvSlideUp 0.25s cubic-bezier(0.34,1.2,0.64,1) both;
   transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
 }
-.fspv-desktop-card.with-comments { width: min(1120px, 94vw); }
-.fspv-desktop-post { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
-.fspv-desktop-comments {
-  width:320px; flex-shrink:0; border-left:1px solid rgba(255,255,255,0.07);
-  display:flex; flex-direction:column; background:#111;
-  animation:fspvSlideRight 0.22s cubic-bezier(0.34,1.1,0.64,1) both; overflow:hidden;
-}
+.fspv-desktop-card.with-comments { width: min(900px, 94vw); }
+.fspv-desktop-post { flex:1; min-width:0; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; }
 .fspv-mobile {
   align-items: stretch;
   justify-content: flex-start;
@@ -320,7 +302,7 @@ const CSS = `
   animation: fspvFadeIn 0.18s ease both;
 }
 .fspv-mobile-card {
-  flex:1; display:flex; flex-direction:column; background:#000; overflow:hidden; min-width:0;
+  flex:1; display:flex; flex-direction:column; background:#000; overflow-y:auto; overflow-x:hidden; min-width:0;
 }
 .fspv-mobile-sidebar {
   position:absolute; top:0; right:0; bottom:0; width:min(100%,400px);
@@ -369,9 +351,13 @@ const CSS = `
   background:rgba(132,204,22,0.13); border-color:rgba(132,204,22,0.35); color:#84cc16; transform:scale(1.05);
 }
 .fspv-body {
-  flex:1; overflow-y:auto; padding:20px 22px; color:#f0f0f0; font-size:17px; line-height:1.85;
+  flex:0 0 auto; overflow:visible; padding:20px 22px; color:#f0f0f0; font-size:17px; line-height:1.85;
   scrollbar-width:thin; scrollbar-color:rgba(132,204,22,0.4) rgba(255,255,255,0.03);
 }
+.fspv-post-media {
+  display:block; width:100%; max-height:56vh; object-fit:contain; background:#000; margin:0 0 18px;
+}
+.fspv-post-comments { flex:0 0 min(520px, 70vh); display:flex; flex-direction:column; border-top:1px solid rgba(132,204,22,0.1); background:#111; }
 .fspv-body::-webkit-scrollbar { width:5px; }
 .fspv-body::-webkit-scrollbar-track { background:rgba(255,255,255,0.02); }
 .fspv-body::-webkit-scrollbar-thumb { background:rgba(132,204,22,0.4); border-radius:3px; }

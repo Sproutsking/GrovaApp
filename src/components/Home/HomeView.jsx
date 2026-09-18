@@ -63,6 +63,7 @@ import FullContentView     from "./FullContentView";
 import SaveFolderModal     from "../Modals/SaveFolderModal";
 import EditPostModal       from "../Modals/EditPostModal";
 import FullScreenPost      from "./FullScreenPost";
+import FullScreenPostView  from "./FullScreenPostView";
 import FullScreenReels     from "./FullScreenReels";
 import UnifiedLoader       from "../Shared/UnifiedLoader";
 import { walletService }   from "../../services/wallet/walletService";
@@ -1031,8 +1032,15 @@ const HomeView = ({
 
       {/* ── Modals ── */}
       {modals.fullscreenPost && (
-        <FullScreenPost
+        <FullScreenPostView
           post={modals.fullscreenPost}
+          profile={{
+            userId: modals.fullscreenPost.user_id,
+            author: modals.fullscreenPost.profiles?.full_name || modals.fullscreenPost.author || "Unknown User",
+            username: modals.fullscreenPost.profiles?.username || modals.fullscreenPost.username || "unknown",
+            avatar_id: modals.fullscreenPost.profiles?.avatar_id,
+            verified: modals.fullscreenPost.profiles?.verified || false,
+          }}
           currentUser={resolvedUser}
           onProfileClick={handleAuthorClick}
           onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_POST" })}

@@ -433,7 +433,7 @@ const FullScreenPost = ({
         </div>
       </div>
 
-      {showComments && validPortalRoot && ReactDOM.createPortal(
+      {showComments && portalRoot && ReactDOM.createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 100003 }}>
           <CommentModal
             content={{ ...post, type: "post" }}
