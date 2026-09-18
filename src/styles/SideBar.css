@@ -9,14 +9,20 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: #ef4444;
-	color: #fff;
+	background: rgba(100,116,139,.72);
+	color: #e2e8f0;
 	font-size: 9px;
 	font-weight: 800;
 	line-height: 1;
-	box-shadow: 0 0 0 2px rgba(4, 7, 5, .9), 0 0 10px rgba(239, 68, 68, .45);
+	box-shadow: 0 0 0 2px rgba(4, 7, 5, .9);
 }
 
 .nav-unread-badge { margin-left: auto; }
 .community-unread-badge { position: absolute; top: -4px; right: -5px; z-index: 2; }
 .dh-tab-badge, .mh-tab-badge { margin-left: 4px; }
+.dh-nav-tab--active .dh-tab-badge,
+.mh-tab--active .mh-tab-badge {
+	background: #ff3b5f;
+	color: #fff;
+	box-shadow: 0 0 0 2px rgba(4, 7, 5, .9), 0 0 12px rgba(255, 59, 95, .55);
+}

@@ -41,6 +41,7 @@ import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
   ShieldCheck, Users, MessageSquare,
+  ChevronRight, Trophy, Hash, BarChart3, ArrowUpRight,
 } from "lucide-react";
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
@@ -288,8 +289,38 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [stats,          setStats]          = useState({
     posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
   });
+  const [profileCommunities, setProfileCommunities] = useState([]);
+  const [desktopBounds, setDesktopBounds] = useState({ left: 0, top: 56 });
 
   const mounted = useRef(true);
+
+  useEffect(() => {
+    const measureDesktopBounds = () => {
+      if (window.innerWidth <= 768) {
+        setDesktopBounds({ left: 0, top: 0 });
+        return;
+      }
+      const sidebar = document.querySelector(".sidebar, .xv-sidebar");
+      const header = document.querySelector(".dh-header, .mh-header");
+      const sidebarRect = sidebar?.getBoundingClientRect();
+      const headerRect = header?.getBoundingClientRect();
+      setDesktopBounds({
+        left: Math.max(0, Math.ceil(sidebarRect?.right || 0)),
+        top: Math.max(0, Math.ceil(headerRect?.bottom || 56)),
+      });
+    };
+    measureDesktopBounds();
+    window.addEventListener("resize", measureDesktopBounds);
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measureDesktopBounds) : null;
+    const sidebar = document.querySelector(".sidebar, .xv-sidebar");
+    const header = document.querySelector(".dh-header, .mh-header");
+    observer?.observe(sidebar);
+    observer?.observe(header);
+    return () => {
+      window.removeEventListener("resize", measureDesktopBounds);
+      observer?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (openVerificationDashboard) setShowDashboard(true);
@@ -393,6 +424,22 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     if (targetId) loadProfile();
     return () => { mounted.current = false; };
   }, [targetId]); // eslint-disable-line
+
+  useEffect(() => {
+    let active = true;
+    if (!targetId) return undefined;
+    supabase
+      .from("community_members")
+      .select("community:communities(id, name, icon, member_count), joined_at")
+      .eq("user_id", targetId)
+      .order("joined_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (active) setProfileCommunities((data || []).map((item) => ({ ...item.community, joinedAt: item.joined_at })).filter((item) => item?.id));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [targetId]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -610,6 +657,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   return showDashboard ? dashboardPage : ReactDOM.createPortal(
     <div
       className="upm-bd"
+      style={{ "--upm-left": `${desktopBounds.left}px`, "--upm-top": `${desktopBounds.top}px` }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="upm-sheet">
@@ -883,6 +931,61 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 )}
               </div>
             )}
+
+            <aside className="upm-profile-rail" aria-label="Profile highlights">
+              <div className="upm-rail-heading">
+                <div>
+                  <span className="upm-rail-kicker">Profile intelligence</span>
+                  <h3>More about {profile?.fullName || "this creator"}</h3>
+                </div>
+                <BarChart3 size={18} />
+              </div>
+
+              <div className="upm-rail-card upm-rail-signal">
+                <div className="upm-rail-card-icon"><Trophy size={16} /></div>
+                <div className="upm-rail-card-copy">
+                  <span className="upm-rail-card-label">Creator footprint</span>
+                  <strong>{fmt(stats.posts + stats.reels + stats.stories)} published moments</strong>
+                  <small>{fmt(stats.followers)} people currently following this profile</small>
+                </div>
+                <ArrowUpRight size={14} />
+              </div>
+
+              <div className="upm-rail-section-head">
+                <div><span className="upm-rail-kicker">Trust layer</span><strong>Verified signals</strong></div>
+                <button type="button" onClick={() => setShowDashboard(true)}>See more <ChevronRight size={13} /></button>
+              </div>
+              <button type="button" className="upm-rail-card upm-rail-button" onClick={() => setShowDashboard(true)}>
+                <div className="upm-rail-card-icon upm-rail-card-icon--purple"><ShieldCheck size={16} /></div>
+                <div className="upm-rail-card-copy">
+                  <span className="upm-rail-card-label">Xeevia proof profile</span>
+                  <strong>{verificationItems.length ? `${verificationItems.length} evidence signals` : "Building trusted identity"}</strong>
+                  <small>{verificationItems.length ? "Open the verification dashboard" : "Signals appear as this profile participates"}</small>
+                </div>
+                <ChevronRight size={15} />
+              </button>
+
+              <div className="upm-rail-section-head">
+                <div><span className="upm-rail-kicker">Belonging</span><strong>Top communities</strong></div>
+                <button type="button" onClick={() => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community")); }}>See more <ChevronRight size={13} /></button>
+              </div>
+              <div className="upm-rail-community-list">
+                {profileCommunities.length ? profileCommunities.slice(0, 3).map((community) => (
+                  <button type="button" className="upm-rail-community" key={community.id} onClick={() => { onClose?.(); window.dispatchEvent(new CustomEvent("xeevia:open-community", { detail: { communityId: community.id } })); }}>
+                    <span className="upm-rail-community-icon">{community.icon || <Hash size={14} />}</span>
+                    <span><strong>{community.name}</strong><small>{fmt(community.member_count)} members</small></span>
+                    <ChevronRight size={14} />
+                  </button>
+                )) : (
+                  <div className="upm-rail-empty"><Users size={16} /><span>Community footprint is still forming.</span></div>
+                )}
+              </div>
+
+              <div className="upm-rail-footer">
+                <span>Explore the profile story</span>
+                <button type="button" onClick={() => handleTabChange("posts")}>View posts <ChevronRight size={13} /></button>
+              </div>
+            </aside>
           </>
         )}
       </div>
@@ -890,24 +993,50 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       <style>{`
         /* ── Backdrop: near-transparent on desktop, no blur ── */
         .upm-bd {
-          position:fixed; inset:0; z-index:10000;
-          background:rgba(0,0,0,0.28);
+          position:fixed; left:var(--upm-left, 0px); right:0; top:var(--upm-top, 0px); bottom:0; z-index:10000;
+          background:rgba(0,0,0,0.42);
           display:flex; align-items:center; justify-content:center;
-          padding:20px 16px; animation:upmFI .2s ease;
+          padding:0; animation:upmFI .2s ease;
         }
 
         .upm-sheet {
-          position:relative; width:100%; max-width:440px; max-height:90vh;
-          overflow-y:auto; border-radius:20px; background:#0a0a0a;
-          border:1px solid rgba(255,255,255,0.08);
+          position:relative; width:100%; max-width:none; height:100%; max-height:none;
+          overflow-y:auto; border-radius:0; background:#0a0a0a;
+          border:1px solid rgba(255,255,255,0.08); border-right:0;
           box-shadow:0 24px 80px rgba(0,0,0,.9);
           animation:upmSU .25s cubic-bezier(.34,1.4,.64,1); scrollbar-width:none;
         }
         .upm-sheet::-webkit-scrollbar { display:none; }
 
+        .upm-sheet > *:not(.upm-profile-rail):not(style) { width:calc(100% - 326px); }
+        .upm-profile-rail { position:fixed; top:var(--upm-top, 0px); right:0; bottom:0; width:326px; padding:28px 22px; overflow-y:auto; background:linear-gradient(180deg,rgba(15,21,16,.98),rgba(7,10,8,.98)); border-left:1px solid rgba(132,204,22,.14); z-index:3; }
+        .upm-rail-heading, .upm-rail-section-head, .upm-rail-footer, .upm-rail-community, .upm-rail-card { display:flex; align-items:center; }
+        .upm-rail-heading { justify-content:space-between; margin-bottom:22px; color:#84cc16; }
+        .upm-rail-heading h3 { color:#fff; font-size:17px; line-height:1.2; margin:4px 0 0; }
+        .upm-rail-kicker { display:block; color:#84cc16; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+        .upm-rail-card { width:100%; gap:11px; padding:13px; margin-bottom:18px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:rgba(255,255,255,.045); color:#fff; text-align:left; }
+        .upm-rail-button { cursor:pointer; font:inherit; }
+        .upm-rail-card:hover, .upm-rail-community:hover { border-color:rgba(132,204,22,.34); background:rgba(132,204,22,.08); }
+        .upm-rail-card-icon { width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center; border-radius:10px; color:#fbbf24; background:rgba(251,191,36,.14); }
+        .upm-rail-card-icon--purple { color:#c4b5fd; background:rgba(168,85,247,.15); }
+        .upm-rail-card-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:3px; }
+        .upm-rail-card-label { color:#9ca3af; font-size:10px; }
+        .upm-rail-card-copy strong { color:#f5f5f5; font-size:12px; }
+        .upm-rail-card-copy small { color:#737373; font-size:10px; line-height:1.4; }
+        .upm-rail-section-head { justify-content:space-between; margin:22px 0 10px; }
+        .upm-rail-section-head strong { display:block; color:#fff; font-size:13px; margin-top:3px; }
+        .upm-rail-section-head button, .upm-rail-footer button { display:inline-flex; align-items:center; gap:3px; border:0; background:transparent; color:#84cc16; font-size:10px; font-weight:800; cursor:pointer; }
+        .upm-rail-community { width:100%; gap:9px; padding:10px 0; border:0; border-bottom:1px solid rgba(255,255,255,.07); background:transparent; color:#fff; text-align:left; cursor:pointer; font:inherit; }
+        .upm-rail-community-icon { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:rgba(132,204,22,.12); color:#a3e635; font-size:15px; }
+        .upm-rail-community > span:nth-child(2) { min-width:0; flex:1; display:flex; flex-direction:column; gap:3px; }
+        .upm-rail-community strong { font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .upm-rail-community small { color:#737373; font-size:9px; }
+        .upm-rail-empty { display:flex; align-items:center; gap:8px; padding:14px 0; color:#737373; font-size:11px; }
+        .upm-rail-footer { justify-content:space-between; margin-top:28px; padding-top:15px; border-top:1px solid rgba(255,255,255,.08); color:#737373; font-size:10px; }
+
         @media (max-width: 480px) {
           .upm-bd {
-            padding:0;
+            left:0; top:0; padding:0;
             align-items:flex-end;
             background:rgba(0,0,0,0.55);
           }
@@ -919,10 +1048,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             border:none; box-shadow:none;
             animation:upmSUMobile .28s cubic-bezier(.34,1.2,.64,1);
           }
+          .upm-sheet > *:not(.upm-profile-rail):not(style) { width:100%; }
+          .upm-profile-rail { display:none; }
         }
 
         .upm-close {
-          position:fixed; top:34px; right:26px; z-index:10001;
+          position:fixed; top:calc(var(--upm-top, 0px) + 16px); right:26px; z-index:10001;
           width:32px; height:32px; border-radius:50%;
           background:rgba(0,0,0,.65); backdrop-filter:blur(12px);
           border:1.5px solid rgba(255,255,255,.28); color:#fff;

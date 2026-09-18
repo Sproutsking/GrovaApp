@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { id: "wallet", Icon: Wallet, label: "Wallet" },
 ];
 
-const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onOpenAdsCentre }) => {
+const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onOpenAdsCentre, unreadCounts = {} }) => {
   const [showServices, setShowServices] = useState(false);
   const [fabVisible, setFabVisible] = useState(true);
   const timerRef = useRef(null);
@@ -252,6 +252,28 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
           text-shadow: 0 0 8px var(--accent-glow);
         }
 
+        .mbn-badge {
+          position: absolute;
+          top: 1px;
+          right: 9px;
+          min-width: 15px;
+          height: 15px;
+          padding: 0 4px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(100,116,139,.72);
+          color: #e2e8f0;
+          font: 800 8px/1 Arial, sans-serif;
+          box-shadow: 0 0 0 2px rgba(5,7,6,.9);
+        }
+        .mbn-btn.is-active .mbn-badge {
+          background: #ff3b5f;
+          color: #fff;
+          box-shadow: 0 0 0 2px rgba(5,7,6,.9), 0 0 12px rgba(255,59,95,.55);
+        }
+
         /* ── Pulse dot ── */
         .mbn-dot {
           width: 3px;
@@ -416,6 +438,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
                       />
                     </span>
                     <span className="mbn-lbl">{label}</span>
+                    {(unreadCounts[id] || 0) > 0 && <span className="mbn-badge">{unreadCounts[id] > 99 ? "99+" : unreadCounts[id]}</span>}
                     {active && <span className="mbn-dot" />}
                   </div>
                 </button>

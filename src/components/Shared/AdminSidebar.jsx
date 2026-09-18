@@ -131,6 +131,21 @@ const STYLES = `
   }
   .xv-nav-btn--active { font-weight: 700; }
 
+  .xv-unread-badge {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    margin-left: auto;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(100,116,139,.72);
+    color: #e2e8f0;
+    font: 800 9px/1 Arial, sans-serif;
+    box-shadow: 0 0 0 2px rgba(5, 7, 6, .9);
+  }
+
   .xv-active-bar {
     position: absolute;
     left: 0;
@@ -482,6 +497,7 @@ export default function AdminSidebar({
   currentUser,
   xrcService,
   onOpenAdsCentre,
+  unreadCounts = {},
 }) {
   const [hovered, setHovered]           = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -590,6 +606,11 @@ export default function AdminSidebar({
                   <Icon color={iconColor} strokeWidth={isActive ? 2.5 : 2} />
                 </div>
                 <span>{item.label}</span>
+                {(unreadCounts[item.id] || 0) > 0 && (
+                  <span className="xv-unread-badge" aria-label={`${unreadCounts[item.id]} unread`}>
+                    {unreadCounts[item.id] > 99 ? "99+" : unreadCounts[item.id]}
+                  </span>
+                )}
               </button>
             );
           })}

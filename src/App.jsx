@@ -407,6 +407,15 @@ const MainApp = memo(() => {
   }, [user?.id]);
 
   useEffect(() => {
+    const openCommunity = () => {
+      setActiveTab("community");
+      setMountedTabs((previous) => new Set([...previous, "community"]));
+    };
+    window.addEventListener("xeevia:open-community", openCommunity);
+    return () => window.removeEventListener("xeevia:open-community", openCommunity);
+  }, []);
+
+  useEffect(() => {
     const openGiftCard = (event) => {
       const recipient = event.detail?.recipient;
       if (!recipient?.id || recipient.id === user?.id) return;
@@ -549,12 +558,16 @@ const MainApp = memo(() => {
       const count = (predicate) => notifications.filter((item) => !item.is_read && predicate(item)).length;
       const isWallet = (item) => item.metadata?.category === "wallet" || item.metadata?.category === "paywave" || item.metadata?.pw_type;
       const isCommunity = (item) => item.metadata?.community_id || item.metadata?.channel_id || String(item.type || "").startsWith("community_");
-      const homeTabs = Object.fromEntries(["feed", "stories", "news", "culture", "clips", "alpha", "tokens", "signals", "lessons", "resources", "study"].map((tab) => [
+      const isStory = (item) => item.type === "new_story" || item.metadata?.content_type === "story";
+      const isExplicitHomeTab = (item, tab) => item.metadata?.home_tab === tab || item.metadata?.home_section === tab;
+      const isHomeActivity = (item) => !isWallet(item) && !isCommunity(item);
+      const homeTabs = Object.fromEntries(["stories", "news", "culture", "clips", "alpha", "tokens", "signals", "lessons", "resources", "study"].map((tab) => [
         tab, count((item) => item.metadata?.home_tab === tab || item.metadata?.home_section === tab),
       ]));
+      homeTabs.feed = count((item) => isHomeActivity(item) && (isExplicitHomeTab(item, "feed") || (!isStory(item) && !isExplicitHomeTab(item, "news") && !isExplicitHomeTab(item, "culture"))));
       setUnreadSnapshot({
         ...homeTabs,
-        home: count((item) => !isWallet(item) && !isCommunity(item)),
+        home: count(isHomeActivity),
         wallet: count(isWallet),
         community: communityUnreadService.getTotalCount() + count(isCommunity),
       });
@@ -1086,6 +1099,7 @@ const MainApp = memo(() => {
             onOpenDashboard={() => setShowAdminDashboard(true)}
             onOpenAdsCentre={() => setShowAdsCentre(true)}
             xrcService={xrcService}
+            unreadCounts={unreadSnapshot}
           />
         </Suspense>
       );
