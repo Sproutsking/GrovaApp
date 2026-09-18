@@ -549,13 +549,18 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("cv-highlight");setTimeout(()=>el.classList.remove("cv-highlight"),1500);}
   },[]);
 
-  const getTickStatus=msg=>{
-    if(msg._optimistic)return<span className="cv-tk cv-tk-sent">✓</span>;
-    if(msg._failed)return<span className="cv-tk cv-tk-red">✗</span>;
+  const getMessageState = (msg) => {
+    if (msg._failed) return "failed";
+    if (msg._optimistic) return "sent";
     const local=readStatus[msg.id];const db=msg.read?"read":msg.delivered?"delivered":"sent";
     const res=(RANK[local]??-1)>=(RANK[db]??-1)?(local||db):db;
-    if(res==="read")return<span className="cv-tk cv-tk-read">✓✓</span>;
-    if(res==="delivered")return<span className="cv-tk cv-tk-dlvr">✓✓</span>;
+    return res;
+  };
+  const getTickStatus=msg=>{
+    const state = getMessageState(msg);
+    if(state==="failed")return<span className="cv-tk cv-tk-red">✗</span>;
+    if(state==="read")return<span className="cv-tk cv-tk-read">✓✓</span>;
+    if(state==="delivered")return<span className="cv-tk cv-tk-dlvr">✓✓</span>;
     return<span className="cv-tk cv-tk-sent">✓</span>;
   };
 
@@ -639,6 +644,7 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
             onReply={setReplyTo}
             onReplyNavigate={(_, messageId) => scrollToMessage(messageId)}
             onNavigate={onNavigate}
+            getMessageStatus={getMessageState}
             onReactionClick={toggleReaction}
           />
           {typing.isTyping && <div className="cv-community-typing">{typing.userName} is typing…</div>}

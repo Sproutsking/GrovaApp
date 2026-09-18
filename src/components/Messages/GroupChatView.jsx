@@ -454,7 +454,9 @@ const MsgBubble = memo(({ msg, isMe, prevSame, nextSame, members, onReply, onRea
         {/* Meta */}
         <div className={`gcv-meta${isMe?" gcv-meta-me":""}`}>
           <span className="gcv-time">{timeStr(msg.created_at)}</span>
-          {isMe&&<Ic.DblChk/>}
+          {isMe&&<span className={`gcv-status gcv-status-${msg._failed ? "failed" : msg._optimistic ? "sent" : msg.read ? "read" : msg.delivered ? "delivered" : "sent"}`} aria-label={`Message ${msg._failed ? "failed" : msg.read ? "read" : msg.delivered ? "delivered" : "sent"}`}>
+            {msg._failed ? "!" : msg.read || msg.delivered ? "✓✓" : "✓"}
+          </span>}
         </div>
 
         {/* Desktop hover reply */}
@@ -965,6 +967,8 @@ const CSS = `
 .gcv-bwrap-me .gcv-meta{justify-content:flex-start;}
 .gcv-meta-me{justify-content:flex-start;}
 .gcv-time{font-size:10px;color:#444;}
+.gcv-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;min-width:15px;text-align:left;}
+.gcv-status-sent{color:#9ca3af;}.gcv-status-delivered{color:#d1d5db;}.gcv-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}.gcv-status-failed{color:#ef4444;letter-spacing:0;}
 
 /* Reactions */
 .gcv-reacs{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}

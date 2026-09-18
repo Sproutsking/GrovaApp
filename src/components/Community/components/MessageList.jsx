@@ -59,6 +59,7 @@ const MessageList = ({
   onChannelMention,
   onRoleMention,
   onNavigate,
+  getMessageStatus,
   channelType,
   avatarImageBleed = 0,
   avatarSize = 36,
@@ -271,6 +272,9 @@ const MessageList = ({
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
                   <div className="msg-meta">
                     <span className="msg-time">{formatTime(msg.created_at)}</span>
+                    {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
+                      {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
+                    </span>}
                     {msg.edited && <span className="msg-edited">(edited)</span>}
                   </div>
                   {reactionRow}
@@ -307,6 +311,10 @@ const MessageList = ({
           flex-direction: column;
           gap: 0;
         }
+        .dm-message-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;margin-left:2px;display:inline-block;min-width:15px;text-align:left;}
+        .dm-message-status-sent{color:#9ca3af;}
+        .dm-message-status-delivered{color:#d1d5db;}
+        .dm-message-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}
 
         .msg-loading {
           display: flex;
