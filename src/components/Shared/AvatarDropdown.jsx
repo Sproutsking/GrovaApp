@@ -544,7 +544,7 @@ const AvatarDropdown = ({
         .ad-chevron.open { transform:rotate(180deg); }
 
         .ad-panel {
-          position:fixed; width:270px;
+          position:fixed; width:320px; max-width:calc(100vw - 24px);
           background:var(--panel);
           border:1px solid rgba(132,204,22,0.18);
           border-radius:18px; overflow:hidden;
