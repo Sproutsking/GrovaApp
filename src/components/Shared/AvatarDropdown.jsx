@@ -21,6 +21,7 @@ import {
   Gamepad2, Zap, Coins, X,
 } from "lucide-react";
 import { supabase } from "../../services/config/supabase";
+import BoostAvatarRing from "./BoostAvatarRing";
 import AddAccountOverlay, {
   loadAccounts,
   saveAccountsToStorage,
@@ -386,6 +387,7 @@ const AvatarDropdown = ({
   isValidAvatar, imageLoaded, imageError,
   onImageLoad, onImageError,
   onOpenAccount, onOpenBoost, onSignOut,
+  boostTier, boostThemeId,
   isMobile = false,
 }) => {
   const [open,              setOpen]              = useState(false);
@@ -525,21 +527,18 @@ const AvatarDropdown = ({
 
         .ad-avatar-btn {
           position:relative; border-radius:50%;
-          border:1.5px solid rgba(156,255,0,.62);
-          background:linear-gradient(135deg,#9cff00 0%,#367b24 52%,#112a18 100%);
+          border:1px solid rgba(255,255,255,.16);
+          background:rgba(10,14,12,.92);
           display:flex; align-items:center; justify-content:center;
           cursor:pointer;
           transition:transform 0.2s, box-shadow 0.2s, border-color 0.2s;
           flex-shrink:0;
-          padding:2px;
-          box-shadow:0 0 0 1px rgba(156,255,0,.1), 0 5px 18px rgba(0,0,0,.45), 0 0 14px rgba(156,255,0,.2);
+          padding:0;
+          box-shadow:0 4px 16px rgba(0,0,0,.34);
         }
-        .ad-avatar-btn:hover  { transform:scale(1.07); box-shadow:0 0 24px rgba(132,204,22,0.55); border-color:#a3e635; }
+        .ad-avatar-btn:hover  { transform:scale(1.05); box-shadow:0 0 18px rgba(132,204,22,0.22); border-color:rgba(163,230,53,.55); }
         .ad-avatar-btn:active { transform:scale(0.95); }
-        .ad-avatar-btn.open   { border-color:#a3e635; box-shadow:0 0 22px rgba(132,204,22,0.5); }
-        .ad-avatar-inner { position:absolute; inset:2px; border-radius:50%; overflow:hidden; background:#142519; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), inset 0 0 16px rgba(0,0,0,.28); }
-        .ad-avatar-letter { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; color:#000; z-index:1; }
-        .ad-avatar-inner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; z-index:2; transition:opacity 0.35s; filter:saturate(1.08) contrast(1.04); }
+        .ad-avatar-btn.open   { border-color:rgba(163,230,53,.62); box-shadow:0 0 18px rgba(132,204,22,0.25); }
         .ad-chevron { position:absolute; bottom:-3px; right:-3px; width:15px; height:15px; background:var(--surface); border:1.5px solid rgba(132,204,22,0.55); border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10; transition:transform 0.25s; pointer-events:none; }
         .ad-chevron.open { transform:rotate(180deg); }
 
@@ -660,17 +659,16 @@ const AvatarDropdown = ({
           aria-label="Account menu"
           aria-expanded={open}
         >
-          <div className="ad-avatar-inner">
-            <div className="ad-avatar-letter" style={{ fontSize: fSz }}>{fallbackLetter}</div>
-            {isValidAvatar && (
-              <img
-                src={avatarUrl} alt="Profile"
-                onLoad={onImageLoad} onError={onImageError}
-                crossOrigin="anonymous"
-                style={{ opacity: imageLoaded && !imageError ? 1 : 0 }}
-              />
-            )}
-          </div>
+          <BoostAvatarRing
+            tier={boostTier}
+            themeId={boostThemeId}
+            size={sz - 6}
+            src={isValidAvatar ? avatarUrl : null}
+            letter={fallbackLetter}
+            showBadge={false}
+            borderRadius="circle"
+            style={{ pointerEvents: "none" }}
+          />
           <div className={`ad-chevron${open ? " open" : ""}`}>
             <ChevronDown size={8} color="#84cc16" strokeWidth={3}/>
           </div>

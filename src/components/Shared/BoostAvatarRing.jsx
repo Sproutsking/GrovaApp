@@ -505,7 +505,7 @@ const BoostAvatarRing = ({
                 objectFit:      "cover",
                 objectPosition: "center",
                 opacity:        1,
-                filter:         "saturate(1.08) contrast(1.04)",
+                filter:         "brightness(1.04) saturate(1.06) contrast(1.06)",
                 zIndex:         2,
               }}
             />
