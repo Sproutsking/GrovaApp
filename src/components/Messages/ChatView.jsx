@@ -134,11 +134,11 @@ const ContextMenu = memo(({ msg, pos, isMe, onReply, onCopy, onDelete, onClose }
 ContextMenu.displayName="ContextMenu";
 
 // ─── Reply Quote ──────────────────────────────────────────────────────────────
-const ReplyQuote = memo(({ replyToId, messages, onScrollTo, replyTier = "normal" }) => {
+const ReplyQuote = memo(({ replyToId, messages, onScrollTo, replyTier = "normal", replyColor = "#9cff00" }) => {
   const original = messages.find(m=>m.id===replyToId);
   if (!original) return null;
   return (
-    <div className={`cv-rq reply-tier-${replyTier}`} onClick={()=>onScrollTo?.(replyToId)}>
+    <div className={`cv-rq reply-tier-${replyTier}`} style={{ "--reply-color": replyColor }} onClick={()=>onScrollTo?.(replyToId)}>
       <div className="cv-rq-bar"/>
       <div className="cv-rq-text">{original.content?.slice(0,80)||"Message"}</div>
     </div>
@@ -248,6 +248,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
   },[avatarUrl]);
   const replyTarget = msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) : null;
   const replyTier = ["silver", "gold", "diamond"].includes(replyTarget?.user?.subscription_tier) ? replyTarget.user.subscription_tier : "normal";
+  const replyColor = replyTier === "normal" ? "#9cff00" : getBoostNameDesign(replyTier, replyTarget?.user?.boost_selections?.fontId, replyTarget?.user?.boost_selections?.colorId).color?.color || "#9cff00";
   const renderContent=(c, opts={})=>{
     if(!c||typeof c!=="string"||/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.trim()))
       return <span className="cv-bad">[message unavailable]</span>;
@@ -305,6 +306,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
           messages={messages}
           onScrollTo={onScrollTo}
           replyTier={replyTier}
+          replyColor={replyColor}
         />}
         <div className="cv-content">{renderContent(msg.content, { showSender: !!showAv || isMe })}</div>
         {msg.reactions && Object.keys(msg.reactions).length > 0 && <div className="cv-reactions">{Object.entries(msg.reactions).map(([emoji, data]) => <button key={emoji} className={`cv-reaction-pill${data.users?.includes(currentUserId) ? " cv-reaction-pill-on" : ""}`} onClick={() => onReaction?.(emoji)}>{emoji} {data.count}</button>)}</div>}
@@ -791,16 +793,16 @@ export const CV_CSS = `
 .cv-desktop-reply:hover{background:rgba(132,204,22,.12);}
 @keyframes cvDRIn{from{opacity:0;scale:.7}to{opacity:1;scale:1}}
 .cv-dr-right{right:-38px;}.cv-dr-left{left:-38px;}
-.cv-rq{display:flex;align-items:stretch;gap:6px;padding:5px 8px;margin-bottom:6px;background:rgba(0,0,0,.28);border-radius:8px;cursor:pointer;transition:background .15s;}
+.cv-rq{display:flex;align-items:stretch;gap:6px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:5px 8px;margin-bottom:6px;background:color-mix(in srgb,var(--reply-color,#9cff00) 10%, rgba(0,0,0,.28));border:1px solid color-mix(in srgb,var(--reply-color,#9cff00) 28%, transparent);border-radius:8px;cursor:pointer;transition:background .15s;overflow:hidden;}
 .cv-rq.reply-tier-silver{background:linear-gradient(135deg,rgba(148,163,184,.12),rgba(255,255,255,.03));border:1px solid rgba(148,163,184,.22);}
 .cv-rq.reply-tier-gold{background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(255,255,255,.03));border:1px solid rgba(251,191,36,.22);}
 .cv-rq.reply-tier-diamond{background:linear-gradient(135deg,rgba(125,211,252,.12),rgba(167,139,250,.08));border:1px solid rgba(125,211,252,.2);box-shadow:0 0 12px rgba(125,211,252,.1);}
 .cv-rq:hover{background:rgba(132,204,22,.08);}
-.cv-rq-bar{width:3px;border-radius:2px;background:#84cc16;flex-shrink:0;}
+.cv-rq-bar{width:3px;border-radius:2px;background:var(--reply-color,#9cff00);flex-shrink:0;}
 .reply-tier-silver .cv-rq-bar{background:linear-gradient(180deg,#e2e8f0,#94a3b8);}
 .reply-tier-gold .cv-rq-bar{background:linear-gradient(180deg,#fef3c7,#fbbf24);}
 .reply-tier-diamond .cv-rq-bar{background:linear-gradient(180deg,#e0f2fe,#7dd3fc 42%,#a78bfa);}
-.cv-rq-text{font-size:12px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.cv-rq-text{font-size:12px;color:rgba(255,255,255,.65);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
 .cv-highlight .cv-bubble{animation:cvHL .8s ease-out;}
 @keyframes cvHL{0%,100%{filter:brightness(1)}40%{filter:brightness(1.5)}}
 .cv-ctx-overlay{position:fixed;inset:0;z-index:99980;background:transparent;}

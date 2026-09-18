@@ -367,8 +367,8 @@ const CommunityMessageInput = ({
           gap: 6px;
           padding: 4px 12px;
         }
-        .comm-reply-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 12px;border-top:1px solid rgba(156,255,0,.18);background:linear-gradient(180deg, rgba(156,255,0,.08), rgba(156,255,0,.02));color:#9cff00;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-        .comm-reply-banner-copy{display:flex;flex-direction:column;gap:3px;min-width:0}.comm-reply-banner strong{font-size:10px;letter-spacing:.08em;text-transform:uppercase}.comm-reply-banner span{font-size:11px;color:#c9d8c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:8px;border-left:2px solid rgba(156,255,0,.38);max-width:100%}.comm-reply-banner button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:#8aa68a;cursor:pointer;flex-shrink:0}
+        .comm-reply-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0;width:100%;box-sizing:border-box;padding:8px 12px;border-top:1px solid rgba(156,255,0,.18);background:linear-gradient(180deg, rgba(156,255,0,.08), rgba(156,255,0,.02));color:#9cff00;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+        .comm-reply-banner-copy{display:flex;flex:1 1 auto;flex-direction:column;gap:3px;min-width:0;overflow:hidden}.comm-reply-banner strong{font-size:10px;letter-spacing:.08em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.comm-reply-banner span{display:block;min-width:0;font-size:11px;color:#c9d8c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:8px;border-left:2px solid rgba(156,255,0,.38);max-width:100%}.comm-reply-banner button{width:25px;height:25px;display:flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:#8aa68a;cursor:pointer;flex:0 0 25px}
         .comm-typing-bubble {
           padding: 4px 8px;
           background: var(--surface);

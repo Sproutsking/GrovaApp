@@ -479,8 +479,8 @@ const MainApp = memo(() => {
     if (!user?.id || !profile) return;
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
-    const isContentLink = /^\/(post|reel|story)\//.test(path);
-    if (isContentLink) {
+    const isAppLink = /^\/(post|reel|story|profile|community|invite)\//.test(path);
+    if (isAppLink) {
       handleNotificationNavigate(path);
       return;
     }

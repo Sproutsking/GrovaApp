@@ -188,6 +188,7 @@ const MessageList = ({
           const originalReplyAnnouncementMatch = originalReply ? String(originalReply.content || "").match(/^\[\[announcement:(.*?)\]\]\n([\s\S]*)$/) : null;
           const originalReplyAnnouncementMeta = originalReplyAnnouncementMatch ? parseAnnouncementMetadata(originalReplyAnnouncementMatch[1]) : null;
           const replyTier = ["silver", "gold", "diamond"].includes(originalReply?.user?.subscription_tier) ? originalReply.user.subscription_tier : "normal";
+          const replyColor = replyTier === "normal" ? "#9cff00" : getBoostNameDesign(replyTier, originalReply?.user?.boost_selections?.fontId, originalReply?.user?.boost_selections?.colorId).color?.color || "#9cff00";
           const hasBoostedProfile = ["silver", "gold", "diamond"].includes(msg.user?.subscription_tier);
           const avatarFootprint = avatarSize + (hasBoostedProfile ? 10 : 4);
           
@@ -261,7 +262,7 @@ const MessageList = ({
                     </button>
                   )}
                   {msg.reply_to_id && originalReply && !postReply && (
-                    <button type="button" className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""} reply-tier-${replyTier}`} style={originalReplyAnnouncementMeta ? { "--announcement-color": originalReplyAnnouncementMeta.borderColor } : {}} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onReplyNavigate?.(originalReply, msg.reply_to_id); }} aria-label="Jump to the message being replied to">
+                    <button type="button" className={`msg-reply-quote${originalReplyAnnouncementMeta ? " announcement" : ""} reply-tier-${replyTier}`} style={{ "--reply-color": originalReplyAnnouncementMeta?.borderColor || replyColor }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onReplyNavigate?.(originalReply, msg.reply_to_id); }} aria-label="Jump to the message being replied to">
                       <span>{originalReplyAnnouncementMeta ? "Announcement" : `Replying to ${originalReply.user?.full_name || "member"}`}</span>
                       <strong>{originalReplyAnnouncementMeta ? (originalReplyAnnouncementMeta.title || "Announcement") : (originalReply.content || "...")}</strong>
                     </button>
@@ -384,7 +385,7 @@ const MessageList = ({
 
         .msg-swipe-reply{position:absolute;top:50%;width:28px;height:28px;margin-top:-14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(156,255,0,.14);border:1px solid rgba(156,255,0,.4);color:#9cff00;font-size:17px;pointer-events:none}
         .msg-swipe-reply.incoming{left:-2px}.msg-swipe-reply.outgoing{right:-2px}
-        .msg-reply-quote{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;padding:8px 10px;border-left:3px solid var(--accent);background:linear-gradient(135deg,rgba(156,255,0,.1),rgba(255,255,255,.035));border-radius:9px;color:var(--text-secondary);font-size:11px;line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+        .msg-reply-quote{display:flex;flex-direction:column;gap:3px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;margin-bottom:7px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--reply-color,#9cff00) 28%, transparent);border-left:3px solid var(--reply-color,#9cff00);background:linear-gradient(135deg,color-mix(in srgb,var(--reply-color,#9cff00) 13%, transparent),rgba(255,255,255,.035));border-radius:9px;color:var(--text-secondary);font-size:11px;line-height:1.3;transition:transform .18s ease,box-shadow .18s ease,background .18s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
         .msg-reply-quote.reply-tier-silver{border-left-color:#cbd5e1;background:linear-gradient(135deg,rgba(148,163,184,.13),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
         .msg-reply-quote.reply-tier-gold{border-left-color:#fbbf24;background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(251,191,36,.18)}
         .msg-reply-quote.reply-tier-diamond{border-left-color:#7dd3fc;background:linear-gradient(135deg,rgba(125,211,252,.15),rgba(167,139,250,.09));box-shadow:inset 0 0 0 1px rgba(125,211,252,.2),0 0 12px rgba(125,211,252,.12)}
