@@ -546,6 +546,12 @@ const MessageList = ({
           border-bottom-right-radius: 4px;
         }
 
+        .msg-list-wrapper.text-channel .msg-bubble.them,
+        .msg-list-wrapper.text-channel .msg-bubble.me {
+          border-bottom-left-radius: 14px !important;
+          border-bottom-right-radius: 14px !important;
+        }
+
         .msg-bubble.me .msg-content { color: #f1f9e8; }
 
         @media (max-width: 768px) {

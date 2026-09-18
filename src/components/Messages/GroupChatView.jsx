@@ -942,7 +942,7 @@ const CSS = `
 .gcv-rq-pre{font-size:11px;color:#777;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* Bubbles */
-.gcv-bubble{padding:0 5px 4px;word-break:break-word;position:relative;box-shadow:0 4px 16px rgba(0,0,0,.12);margin:0;}
+.gcv-bubble{padding:0 5px 4px;word-break:break-word;position:relative;box-shadow:0 4px 16px rgba(0,0,0,.12);margin:0;border-radius:14px!important;}
 .gcv-bme{background:linear-gradient(135deg,rgba(31,84,34,.98),rgba(17,38,20,.99) 62%,rgba(9,21,13,1));border:1px solid rgba(156,255,0,.26);border-radius:14px 14px 4px 14px;}
 .gcv-bthem{background:rgba(19,21,20,.97);border:1px solid rgba(255,255,255,.08);border-radius:14px 14px 14px 4px;}
 .gcv-grpme{border-radius:14px 4px 4px 14px!important;}
