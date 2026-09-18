@@ -20,6 +20,7 @@ class DMMessageService {
     this.conversationChannels = new Map();
     this.channelReady = new Map();
     this.listChannel = null;
+    this.conversationCallbacks = new Map();
     this.userId = null;
     this.pendingMessages = new Map();
     this._seenBroadcastIds = new Set();
@@ -395,7 +396,18 @@ class DMMessageService {
 
   subscribeToConversation(conversationId, callbacks = {}) {
     const channelKey = `conversation:${conversationId}`;
-    if (this.conversationChannels.has(channelKey)) return () => {};
+    if (this.conversationChannels.has(channelKey)) {
+      const listeners = this.conversationCallbacks.get(channelKey) || new Set();
+      listeners.add(callbacks);
+      this.conversationCallbacks.set(channelKey, listeners);
+      return () => listeners.delete(callbacks);
+    }
+
+    const listeners = new Set([callbacks]);
+    this.conversationCallbacks.set(channelKey, listeners);
+    const notify = (name, ...args) => {
+      listeners.forEach((listener) => listener?.[name]?.(...args));
+    };
 
     const channel = supabase
       .channel(channelKey, {
@@ -434,7 +446,7 @@ class DMMessageService {
           });
         }
 
-        callbacks.onMessage?.(message);
+        notify("onMessage", message);
       })
       .on("broadcast", { event: "message_confirmed" }, ({ payload }) => {
         const current = conversationState.getMessages(conversationId);
@@ -462,24 +474,29 @@ class DMMessageService {
         );
         if (msg?.id && !msg._tempId) {
           this.markDelivered(msg.id);
-          conversationState.state.messageStatusById?.set(msg.id, "delivered");
+          conversationState.updateMessage(msg.id, { delivered: true });
         }
-        callbacks.onDelivered?.(payload.tempId);
+        notify("onDelivered", payload.tempId);
       })
       .on("broadcast", { event: "message_read" }, ({ payload }) => {
         if (payload.user_id !== this.userId) {
           conversationState.markAllRead(conversationId);
-          callbacks.onRead?.(payload.user_id);
+          notify("onRead", payload.user_id);
         }
       })
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload.userId !== this.userId) {
-          callbacks.onTyping?.(
+          notify("onTyping",
             payload.userId,
             payload.isTyping,
             payload.userName,
           );
         }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` }, ({ new: message }) => {
+        if (!message?.id) return;
+        conversationState.updateMessage(message.id, { delivered: Boolean(message.delivered), read: Boolean(message.read) });
+        notify("onStatus", message);
       })
       .subscribe((status) => {
         console.log(`🔌 [DM] ${channelKey}: ${status}`);
@@ -488,9 +505,13 @@ class DMMessageService {
 
     this.conversationChannels.set(channelKey, channel);
     return () => {
-      supabase.removeChannel(channel);
-      this.conversationChannels.delete(channelKey);
-      this.channelReady.delete(channelKey);
+      listeners.delete(callbacks);
+      if (!listeners.size) {
+        supabase.removeChannel(channel);
+        this.conversationChannels.delete(channelKey);
+        this.conversationCallbacks.delete(channelKey);
+        this.channelReady.delete(channelKey);
+      }
     };
   }
 

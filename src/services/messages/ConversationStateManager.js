@@ -84,12 +84,26 @@ class ConversationStateManager {
       const idx = messages.findIndex((m) => m.id === messageId);
       if (idx !== -1) {
         messages[idx] = { ...messages[idx], ...updates };
-        if (updates.read) {
-          this.state.messageStatusById.set(messageId, "read");
-        }
+          const message = messages[idx];
+          const status = message.read ? "read" : message.delivered ? "delivered" : "sent";
+          this.state.messageStatusById.set(messageId, status);
+          const conversation = this.state.conversations.get(convId);
+          if (conversation?.lastMessage?.id === messageId) {
+            this.state.conversations.set(convId, { ...conversation, lastMessage: message });
+          }
         this.emit();
         return;
       }
+    }
+
+    for (const [convId, conversation] of this.state.conversations) {
+      if (conversation.lastMessage?.id !== messageId) continue;
+      const message = { ...conversation.lastMessage, ...updates };
+      const status = message.read ? "read" : message.delivered ? "delivered" : "sent";
+      this.state.messageStatusById.set(messageId, status);
+      this.state.conversations.set(convId, { ...conversation, lastMessage: message });
+      this.emit();
+      return;
     }
   }
 
@@ -134,9 +148,16 @@ class ConversationStateManager {
 
   markAllRead(conversationId) {
     const messages = this.state.messagesByConversation.get(conversationId) || [];
-    messages.forEach((msg) => {
+      const updatedMessages = messages.map((msg) => ({ ...msg, read: true }));
+      this.state.messagesByConversation.set(conversationId, updatedMessages);
+      updatedMessages.forEach((msg) => {
       this.state.messageStatusById.set(msg.id, "read");
     });
+      const conversation = this.state.conversations.get(conversationId);
+      const lastMessage = updatedMessages[updatedMessages.length - 1];
+      if (conversation && lastMessage) {
+        this.state.conversations.set(conversationId, { ...conversation, lastMessage });
+      }
     this.clearUnread(conversationId);
   }
 

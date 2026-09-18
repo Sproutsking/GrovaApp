@@ -240,6 +240,13 @@ const ConversationList = ({
     return `${isMe ? "You: " : ""}${content.slice(0, 60)}`;
   }, [typingMap, currentUserId]);
 
+  const getLastMessageStatus = useCallback((conv) => {
+    const message = conv?.lastMessage;
+    if (!message || message.sender_id !== currentUserId) return null;
+    if (message._failed) return "failed";
+    return conversationState.getMessageStatus(message.id) || (message.read ? "read" : message.delivered ? "delivered" : "sent");
+  }, [currentUserId]);
+
   const getAvatar = (user) => {
     if (!user?.avatar_id) return null;
     return mediaUrlService.getAvatarUrl(user.avatar_id, 200);
@@ -384,6 +391,7 @@ const ConversationList = ({
           const avatarUrl = getAvatar(other);
           const isTyping = typingMap.has(conv.id);
           const preview = getPreview(conv);
+          const lastMessageStatus = getLastMessageStatus(conv);
 
           return (
             <div
@@ -406,6 +414,9 @@ const ConversationList = ({
                   <span className="cl-time">{formatTime(conv.lastMessage?.created_at || conv.last_message_at)}</span>
                 </div>
                 <div className="cl-bottom">
+                  {lastMessageStatus && <span className={`cl-status cl-status-${lastMessageStatus}`} aria-label={`Message ${lastMessageStatus}`}>
+                    {lastMessageStatus === "failed" ? "!" : lastMessageStatus === "read" || lastMessageStatus === "delivered" ? "✓✓" : "✓"}
+                  </span>}
                   <span className={`cl-preview${hasUnread ? " cl-preview-bold" : ""}${isTyping ? " cl-preview-typing" : ""}`}>
                     {preview}
                   </span>
@@ -453,6 +464,8 @@ const ConversationList = ({
         .cl-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
         .cl-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;display:flex;align-items:center;gap:6px;}
         .cl-group-tag{font-size:9px;font-weight:700;color:#84cc16;background:rgba(132,204,22,.12);border:1px solid rgba(132,204,22,.25);border-radius:4px;padding:1px 5px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0;}
+          .cl-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;min-width:16px;text-align:left;flex-shrink:0;}
+          .cl-status-sent{color:#9ca3af;}.cl-status-delivered{color:#d1d5db;}.cl-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}.cl-status-failed{color:#ef4444;letter-spacing:0;}
         .cl-time{font-size:11px;color:#444;flex-shrink:0;margin-left:8px;}
         .cl-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;}
         .cl-preview{font-size:13px;color:#4a4a4a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
