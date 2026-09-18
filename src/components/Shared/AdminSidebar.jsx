@@ -350,6 +350,13 @@ const NAV_ITEMS = [
     icon: SearchIcon,
   },
   {
+    id: "create",
+    label: "Create",
+    iconColor: "var(--brand-warning)",
+    iconBg: "var(--brand-warning-bg)",
+    icon: PlusSquareIcon,
+  },
+  {
     id: "community",
     label: "Community",
     iconColor: "var(--brand-purple)",
@@ -388,6 +395,15 @@ function SearchIcon({ color, strokeWidth = 2 }) {
     <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8"/>
       <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  );
+}
+function PlusSquareIcon({ color, strokeWidth = 2 }) {
+  return (
+    <svg className="xv-nav-icon" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
     </svg>
   );
 }

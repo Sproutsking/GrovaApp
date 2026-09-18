@@ -1,9 +1,9 @@
 // src/components/Shared/MobileBottomNav.jsx — v5
 // Active state: clean bordered pill matching PayWave nav style
 // No translateY lift — avoids top-edge rub
-// Create entry point is intentionally disabled.
+// Create entry point appears after normal interaction with the mobile shell.
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Home, Search, LayoutGrid, Users, Wallet } from "lucide-react";
 import ServicesModalRouter from "./ServicesModalRouter";
 
@@ -17,6 +17,23 @@ const NAV_ITEMS = [
 
 const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onOpenAdsCentre }) => {
   const [showServices, setShowServices] = useState(false);
+  const [fabVisible, setFabVisible] = useState(true);
+  const timerRef = useRef(null);
+
+  const triggerFab = useCallback(() => {
+    setFabVisible(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setFabVisible(false), 6000);
+  }, []);
+
+  useEffect(() => {
+    const events = ["scroll", "touchstart", "touchmove", "mousemove", "wheel", "keydown", "pointerdown"];
+    events.forEach((eventName) => window.addEventListener(eventName, triggerFab, { passive: true }));
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, triggerFab));
+      clearTimeout(timerRef.current);
+    };
+  }, [triggerFab]);
 
   // DOM-based PayWave detection: watch body.paywave-open class
   // Instant hide when PayWave opens, smooth animate-in when it closes
@@ -375,7 +392,26 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
         </nav>
 
         {/* FAB */}
-      {/* Create is intentionally unavailable until the publishing workflow returns. */}
+        <button
+          className={`mbn-fab${fabVisible ? " fab-show" : ""}`}
+          onClick={() => setActiveTab("create")}
+          aria-label="Create"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="mbn-fab-ring" />
+        </button>
 
       {showServices && (
         <ServicesModalRouter
