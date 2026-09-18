@@ -296,7 +296,7 @@ const MessageRow = memo(({ msg, isMe, showAv, showTail, avatarUrl, otherName, ot
           {avatarUrl ? <img src={avatarUrl} alt={isMe ? (currentUserName || "You") : (otherName || "User")} loading="eager" fetchPriority="high" /> : ((isMe ? (currentUserName || "You") : (otherName || "U")).charAt(0).toUpperCase())}
         </button>
       ) : <div className="cv-avatar-sp" />}
-      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(calc(4px + ${swipeX*.5}px))`:"translateX(4px)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)", paddingLeft: 6, paddingRight: 6}}>
+      <div className={["cv-bubble",isMe?"cv-bme":"cv-bthem",showTail&&!isMe?"cv-tail-l":"",showTail&&isMe?"cv-tail-r":""].filter(Boolean).join(" ")} style={{transform:swiping?`translateX(calc(4px + ${swipeX*.5}px))`:"translateX(4px)",transition:swiping?"none":"transform 0.25s cubic-bezier(.34,1.56,.64,1)", paddingLeft: 2, paddingRight: 2}}>
         <button className={`cv-message-menu-btn ${isMe ? "cv-message-menu-btn-me" : "cv-message-menu-btn-them"}`} type="button" onClick={handleMenuButtonClick} aria-label="Message options">
           <Ic.More/>
         </button>
@@ -762,7 +762,7 @@ export const CV_CSS = `
 .cv-msg-author{font-size:12px;font-weight:800;color:#9cff00;margin:0 0 5px;line-height:1.1;display:flex;align-items:center;justify-content:flex-start;gap:5px;min-width:0;max-width:100%;}
 .cv-bme .cv-msg-author{justify-content:flex-end;padding-right:26px;margin-right:12px;}
 .cv-bthem .cv-msg-author{justify-content:flex-start;padding-left:8px;margin-left:12px;}
-.cv-bme .cv-meta{justify-content:space-between;width:100%;}.cv-bthem .cv-meta{justify-content:flex-end;}
+.cv-bme .cv-meta{justify-content:flex-start;width:100%;}.cv-bthem .cv-meta{justify-content:flex-end;}
 .cv-content{max-width:100%;min-width:0;font-size:14px;color:#f1f5ef;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;}
 .cv-msg-verified{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:5px;border-radius:50%;background:#84cc16;color:#071007;font-size:10px;font-weight:900;line-height:1;vertical-align:middle;}
 .cv-bme .cv-content{color:#f1f9e8;text-align:right;}
@@ -776,7 +776,7 @@ export const CV_CSS = `
 .cv-forwarded-body{font-size:13px;color:inherit;}
 .cv-bad{font-size:12px;color:#444;font-style:italic;}
 .cv-meta{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;}
-.cv-meta-me{justify-content:space-between;}
+.cv-meta-me{justify-content:flex-start;}
 .cv-time{font-size:10px;color:#555;}
 .cv-st{line-height:1;}
 .cv-tk{font-size:11px;font-weight:700;display:inline-block;transition:color .25s;}

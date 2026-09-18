@@ -3,15 +3,16 @@
 // ============================================================================
 
 import React from 'react';
+import LinkifiedText from './LinkifiedText';
 
 /**
  * ParsedText Component - Renders text with clickable hashtags and mentions
  */
-const ParsedText = ({ text, onHashtagClick, onMentionClick, className = '' }) => {
+const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, className = '' }) => {
   if (!text) return null;
 
   const parseText = (text) => {
-    const combinedPattern = /(#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/g;
+    const combinedPattern = /(https?:\/\/[^\s]+|#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/g;
     const parts = [];
     let lastIndex = 0;
     let match;
@@ -29,7 +30,12 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, className = '' }) =>
 
       // Add the matched hashtag or mention
       const matched = match[0];
-      if (matched.startsWith('#')) {
+      if (/^https?:\/\//i.test(matched)) {
+        parts.push({
+          type: 'url',
+          content: matched,
+        });
+      } else if (matched.startsWith('#')) {
         parts.push({
           type: 'hashtag',
           content: matched,
@@ -62,7 +68,9 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, className = '' }) =>
   return (
     <span className={className}>
       {parts.map((part, index) => {
-        if (part.type === 'hashtag') {
+        if (part.type === 'url') {
+          return <LinkifiedText key={`url-${index}`} onNavigate={onNavigate}>{part.content}</LinkifiedText>;
+        } else if (part.type === 'hashtag') {
           return (
             <span
               key={`hashtag-${index}`}

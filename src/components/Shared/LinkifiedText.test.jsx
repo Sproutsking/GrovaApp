@@ -1,6 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import LinkifiedText, { SharedContentMessage, parseSharedContent } from "./LinkifiedText";
+import ParsedText from "./ParsedText";
 
 describe("LinkifiedText", () => {
   it("renders HTTP links as safe clickable anchors and preserves punctuation", () => {
@@ -58,5 +59,12 @@ describe("LinkifiedText", () => {
     expect(profileLink).toBeTruthy();
     fireEvent.click(profileLink);
     expect(onNavigate).toHaveBeenLastCalledWith("/profile/tina");
+  });
+
+  it("activates URLs in published-content text", () => {
+    render(<ParsedText text="Read more at https://preeb.cloud/about." />);
+    const link = screen.getByRole("link", { name: "Open link" });
+    expect(link.getAttribute("href")).toBe("https://preeb.cloud/about");
+    expect(link.style.color).toBe("rgb(163, 230, 53)");
   });
 });
