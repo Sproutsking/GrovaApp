@@ -237,7 +237,7 @@ const MessageList = ({
                   <div className={`msg-card-header ${isMe ? "outgoing" : "incoming"}`}>
                     {showSenderHeader && (
                       <button className="msg-user-name" style={{ color: communityNameColor || undefined, fontFamily: nameDesign.font?.family, fontWeight: nameDesign.font?.weight, letterSpacing: nameDesign.font?.spacing }} onClick={() => onProfileClick?.(msg.user)}>
-                        <span className="msg-user-name-text">{msg.user?.full_name || msg.user?.username || "Unknown"}</span>
+                        <span className="msg-user-name-text">{isMe ? (currentUser?.fullName || currentUser?.name || msg.user?.full_name || msg.user?.name || "You") : (msg.user?.full_name || msg.user?.name || msg.user?.username || "Unknown")}</span>
                         {(msg.user?.verified || hasBoostedProfile) && <VerifiedBadgeCircle tier={hasBoostedProfile ? msg.user?.subscription_tier : "silver"} size={16} />}
                       </button>
                     )}
@@ -270,7 +270,7 @@ const MessageList = ({
                   )}
                   {messageTitle && <div className="announcement-title">{messageTitle}</div>}
                   <div className="msg-content">{parseSharedContent(messageBody) ? <SharedContentMessage onNavigate={onNavigate}>{messageBody}</SharedContentMessage> : renderContent(messageBody)}</div>
-                  <div className="msg-meta">
+                  <div className={`msg-meta${isMe && getMessageStatus ? " dm-meta dm-meta-outgoing" : ""}`}>
                     <span className="msg-time">{formatTime(msg.created_at)}</span>
                     {isMe && getMessageStatus && <span className={`dm-message-status dm-message-status-${getMessageStatus(msg)}`} aria-label={`Message ${getMessageStatus(msg)}`}>
                       {getMessageStatus(msg) === "failed" ? "!" : getMessageStatus(msg) === "read" || getMessageStatus(msg) === "delivered" ? "✓✓" : "✓"}
@@ -315,6 +315,7 @@ const MessageList = ({
         .dm-message-status-sent{color:#9ca3af;}
         .dm-message-status-delivered{color:#d1d5db;}
         .dm-message-status-read{color:#9cff00;text-shadow:0 0 7px rgba(156,255,0,.48);}
+        .msg-meta.dm-meta-outgoing{justify-content:space-between;width:100%;}
 
         .msg-loading {
           display: flex;

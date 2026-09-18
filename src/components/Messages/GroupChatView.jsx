@@ -964,7 +964,7 @@ const CSS = `
 
 /* Meta */
 .gcv-meta{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;padding:0 2px;}
-.gcv-bwrap-me .gcv-meta{justify-content:flex-start;}
+.gcv-bwrap-me .gcv-meta{justify-content:space-between;width:100%;}
 .gcv-meta-me{justify-content:flex-start;}
 .gcv-time{font-size:10px;color:#444;}
 .gcv-status{font-size:12px;font-weight:800;line-height:1;letter-spacing:-2px;min-width:15px;text-align:left;}
