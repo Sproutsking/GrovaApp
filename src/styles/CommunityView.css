@@ -30,13 +30,6 @@
   overflow: hidden;
 }
 
-body.community-fullscreen .mobile-header,
-body.community-fullscreen .mh-header,
-body.community-fullscreen .mobile-bottom-nav,
-body.community-fullscreen .mbn {
-  display: none !important;
-}
-
 body.community-fullscreen {
   overflow: hidden;
 }
@@ -279,12 +272,12 @@ body.community-fullscreen {
 @media (max-width: 768px) {
   .community-view {
     top: var(--community-mobile-top, 47px);
-    bottom: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
-    z-index: 10000;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 90;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .community-content { min-height: 0; }
