@@ -129,7 +129,6 @@ const FullScreenPost = ({
   const [replyText, setReplyText] = useState("");
   const [threadDepth, setThreadDepth] = useState({});
   const [videoSourceIndex, setVideoSourceIndex] = useState(0);
-  const [portalRoot, setPortalRoot] = useState(null);
   const [showComments, setShowComments] = useState(false);
 
   const videoRef = useRef(null);
@@ -153,20 +152,6 @@ const FullScreenPost = ({
     return () => {
       mountedRef.current = false;
       document.body.style.overflow = "";
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return undefined;
-    const host = document.createElement("div");
-    host.setAttribute("data-fullscreen-post-portal", "true");
-    const mountTarget = document.body || document.documentElement;
-    if (!mountTarget) return undefined;
-    mountTarget.appendChild(host);
-    setPortalRoot(host);
-    return () => {
-      host.remove();
-      setPortalRoot(null);
     };
   }, []);
 
@@ -339,8 +324,8 @@ const FullScreenPost = ({
     return comments.filter(c => c.parent_id === parentId);
   }, [comments]);
 
-  const validPortalRoot = portalRoot && portalRoot.nodeType === Node.ELEMENT_NODE && portalRoot.isConnected;
-  if (!validPortalRoot) return null;
+  const portalRoot = typeof document !== "undefined" ? document.body : null;
+  if (!portalRoot || portalRoot.nodeType !== 1) return null;
 
   return ReactDOM.createPortal(
     <div className="fullscreen-post-container">

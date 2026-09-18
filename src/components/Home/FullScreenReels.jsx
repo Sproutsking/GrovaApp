@@ -688,7 +688,7 @@ const FullScreenReels = ({
 
         .reel-left-info {
           position: absolute;
-          bottom: max(12px, env(safe-area-inset-bottom)); left: 16px; right: 104px;
+          bottom: max(12px, env(safe-area-inset-bottom)); left: 16px; right: 16px;
           z-index: 10;
           pointer-events: all;
           display: flex;
@@ -698,6 +698,7 @@ const FullScreenReels = ({
 
         .video-progress-container {
           display: flex; align-items: center; gap: 8px; width: 100%;
+          padding-right: 84px;
         }
 
         .video-progress-bar {
@@ -778,7 +779,7 @@ const FullScreenReels = ({
         .caption-expanded-content p { color: #e5e5e5; font-size: 14px; line-height: 1.5; margin: 0; }
 
         .reel-right-actions {
-          position: absolute; right: 2%; bottom: 10px;
+          position: absolute; right: 16px; bottom: 58px;
           display: flex; flex-direction: column; gap: 12px;
           z-index: 10; transition: all 0.3s;
           opacity: 0; pointer-events: none;
@@ -823,10 +824,11 @@ const FullScreenReels = ({
             padding: 0;
           }
 
-          .reel-left-info { bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; right: 72px; }
+          .reel-left-info { bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; right: 12px; }
+          .video-progress-container { padding-right: 64px; }
           .reel-caption-text { font-size: 12px; padding: 5px 8px; }
           .caption-expanded-content p { font-size: 13px; }
-          .reel-right-actions { right: 12px; bottom: 12px; gap: 8px; }
+          .reel-right-actions { right: 12px; bottom: 58px; gap: 8px; }
           .action-menu-btn { width: 44px; height: 44px; }
           .action-menu-btn svg { width: 22px; height: 22px; }
           .fullscreen-close-btn { top: 16px; right: 16px; width: 40px; height: 40px; }
@@ -834,10 +836,11 @@ const FullScreenReels = ({
         }
 
         @media (max-width: 480px) {
-          .reel-left-info { bottom: 10px; left: 10px; right: 60px; }
+          .reel-left-info { bottom: 10px; left: 10px; right: 10px; }
+          .video-progress-container { padding-right: 56px; }
           .reel-caption-text { font-size: 11px; padding: 4px 6px; }
           .action-menu-btn { width: 40px; height: 40px; }
-          .reel-right-actions { right: 10px; bottom: 10px; gap: 6px; }
+          .reel-right-actions { right: 10px; bottom: 54px; gap: 6px; }
           .fullscreen-close-btn { top: 12px; right: 12px; width: 36px; height: 36px; font-size: 18px; }
           .fullscreen-mute-btn  { top: 12px; left: 12px;  width: 36px; height: 36px; font-size: 16px; }
         }
