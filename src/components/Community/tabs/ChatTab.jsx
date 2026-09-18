@@ -642,8 +642,16 @@ const ChatTab = ({
   const canManageRoles = userPermissions.manageRoles || hasAdminOverride || isOwner;
   const canManageCommunity = userPermissions.manageCommunity || hasAdminOverride || isOwner;
   const canManageBackground = canManageCommunity || canManageChannels || hasAdminOverride;
-  const canSendMessages = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages") ? channelPermissions.sendMessages : userPermissions.sendMessages);
-  const canAddReactions = isOwner || (Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions") ? channelPermissions.addReactions : userPermissions.addReactions);
+  const canSendMessages = isOwner || (
+    Object.prototype.hasOwnProperty.call(channelPermissions, "sendMessages")
+      ? channelPermissions.sendMessages !== false
+      : userPermissions.sendMessages !== false
+  );
+  const canAddReactions = isOwner || (
+    Object.prototype.hasOwnProperty.call(channelPermissions, "addReactions")
+      ? channelPermissions.addReactions !== false
+      : userPermissions.addReactions !== false
+  );
 
   const showSkeleton = !channelsReady && channels.length === 0;
 
@@ -984,9 +992,9 @@ const ChatTab = ({
             value={messageInput}
             onChange={setMessageInput}
             onSend={handleSendMessage}
-            disabled={sending || selectedChannel?.is_locked || (!canSendMessages && !replyTo)}
+            disabled={sending || selectedChannel?.is_locked || !canSendMessages}
             placeholder={`Message #${selectedChannel?.name || "channel"}`}
-            title={selectedChannel?.is_locked ? "This channel is locked - read only" : !canSendMessages && !replyTo ? "Your role cannot send messages in this channel" : undefined}
+            title={selectedChannel?.is_locked ? "This channel is locked - read only" : !canSendMessages ? "Your role cannot send messages in this channel" : undefined}
             editingMessage={editingMessage}
             onCancelEdit={() => { setEditingMessage(null); setMessageInput(""); }}
             typingUsers={typingUsers}

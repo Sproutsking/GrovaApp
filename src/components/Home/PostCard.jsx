@@ -265,16 +265,6 @@ const SmartImage = ({ candidates = [], alt = "", className, style, fetchPriority
   const [revealed, setRevealed] = useState(false);
   const imgRef = useRef(null);
 
-  // Reset when candidates array changes (new post or active carousel slide)
-  useEffect(() => {
-    setIdx(0);
-    setFailed(false);
-    setRevealed(false);
-  }, [candidates.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // CACHE HIT — detect synchronously after mount.
-  // If PostTab's preloader fetched this URL, img.complete = true immediately.
-  // setRevealed(true) before the browser's first paint → zero transition delay.
   useLayoutEffect(() => {
     const el = imgRef.current;
     if (el && el.complete && el.naturalWidth > 0) setRevealed(true);
@@ -448,6 +438,18 @@ const ReelStyleVideo = ({ item, idx, isActive, inVP, muted, onMuteToggle }) => {
   const videoRef  = useRef(null);
   const [vidIdx,  setVidIdx]  = useState(0);
   const [vidFail, setVidFail] = useState(false);
+  const [fullscreenActive, setFullscreenActive] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenOpened = () => setFullscreenActive(true);
+    const handleFullscreenClosed = () => setFullscreenActive(false);
+    window.addEventListener("fullscreen-opened", handleFullscreenOpened);
+    window.addEventListener("fullscreen-closed", handleFullscreenClosed);
+    return () => {
+      window.removeEventListener("fullscreen-opened", handleFullscreenOpened);
+      window.removeEventListener("fullscreen-closed", handleFullscreenClosed);
+    };
+  }, []);
 
   const {
     playing, isLoading, videoError, duration, bufferedProgress, showControls,
@@ -455,7 +457,7 @@ const ReelStyleVideo = ({ item, idx, isActive, inVP, muted, onMuteToggle }) => {
     handleLoadStart, handleLoadedMetadata, handleTimeUpdate, handleProgress,
     handleError: hookError, handleEnded, handleProgressClick,
     handleProgressMouseDown, touchHandlers, mouseHandlers, currentTime,
-  } = useVideoPlayer(videoRef, muted, inVP && isActive, GlobalVideoState.getGlobalPlayState());
+  } = useVideoPlayer(videoRef, muted, inVP && isActive && !fullscreenActive, GlobalVideoState.getGlobalPlayState());
 
   const handleVideoError = useCallback(() => {
     if (vidIdx < item.candidates.length - 1) setVidIdx(i => i + 1);
@@ -585,7 +587,6 @@ const PostCard = ({
   const [inVP,       setInVP]       = useState(feedIndex === 0);
   const [burst,      setBurst]      = useState(null);
   const [isHovered,  setIsHovered]  = useState(false);
-
   const contRef = useRef(null);
   const txtRef  = useRef(null);
   const capRef  = useRef(null);

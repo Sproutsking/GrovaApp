@@ -148,9 +148,11 @@ const FullScreenPost = ({
 
   useEffect(() => {
     mountedRef.current = true;
+    window.dispatchEvent(new CustomEvent("fullscreen-opened"));
     document.body.style.overflow = "hidden";
     return () => {
       mountedRef.current = false;
+      window.dispatchEvent(new CustomEvent("fullscreen-closed"));
       document.body.style.overflow = "";
     };
   }, []);

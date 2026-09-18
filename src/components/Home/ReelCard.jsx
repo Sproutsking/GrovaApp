@@ -186,6 +186,7 @@ const ReelCard = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showFollowAnim, setShowFollowAnim] = useState(false);
+  const [fullscreenActive, setFullscreenActive] = useState(false);
 
   const videoRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
@@ -193,6 +194,21 @@ const ReelCard = ({
   const progressBarRef = useRef(null);
   const observerRef = useRef(null);
   const isTouching = useRef(false);
+
+  useEffect(() => {
+    const handleFullscreenOpened = () => {
+      setFullscreenActive(true);
+      if (videoRef.current) videoRef.current.pause();
+      setPlaying(false);
+    };
+    const handleFullscreenClosed = () => setFullscreenActive(false);
+    window.addEventListener("fullscreen-opened", handleFullscreenOpened);
+    window.addEventListener("fullscreen-closed", handleFullscreenClosed);
+    return () => {
+      window.removeEventListener("fullscreen-opened", handleFullscreenOpened);
+      window.removeEventListener("fullscreen-closed", handleFullscreenClosed);
+    };
+  }, []);
 
   const isOwnReel =
     reel.user_id === currentUser?.id || reel.user_id === currentUser?.uid;
@@ -250,7 +266,7 @@ const ReelCard = ({
     const unsub = GlobalVideoState.subscribe(() => {
       setMuted(GlobalVideoState.globalMuteState);
       if (videoRef.current) {
-        const shouldPlay = isVisible && GlobalVideoState.globalPlayState;
+        const shouldPlay = isVisible && GlobalVideoState.globalPlayState && !fullscreenActive;
         if (shouldPlay && !playing) {
           videoRef.current.play().catch(() => {});
           setPlaying(true);
@@ -261,7 +277,7 @@ const ReelCard = ({
       }
     });
     return unsub;
-  }, [isVisible, playing]);
+  }, [isVisible, playing, fullscreenActive]);
 
   // Intersection observer
   useEffect(() => {
@@ -272,7 +288,7 @@ const ReelCard = ({
           const visible =
             entry.isIntersecting && entry.intersectionRatio >= 0.75;
           setIsVisible(visible);
-          if (visible) {
+          if (visible && !fullscreenActive) {
             GlobalVideoState.setCurrentlyVisibleVideo(reel.id);
             if (
               GlobalVideoState.globalPlayState &&
@@ -294,7 +310,7 @@ const ReelCard = ({
     return () => {
       if (observerRef.current) observerRef.current.disconnect();
     };
-  }, [reel.id, playing]);
+  }, [reel.id, playing, fullscreenActive]);
 
   const resetControlsTimer = () => {
     setShowControls(true);

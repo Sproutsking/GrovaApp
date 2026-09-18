@@ -16,6 +16,7 @@ import ReactionPanel  from "../Shared/ReactionPanel";
 import CommentModal   from "../Modals/CommentModal";
 import ShareModal     from "../Modals/ShareModal";
 import ParsedText     from "../Shared/ParsedText";
+import CardPostDisplay from "../MediaUploader/CardPostDisplay";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 
 // ── Breakpoint ────────────────────────────────────────────────────────────────
@@ -70,10 +71,12 @@ const FullScreenPostView = ({
   }, []);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("fullscreen-opened"));
     lockScroll();
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => {
+      window.dispatchEvent(new CustomEvent("fullscreen-closed"));
       unlockScroll();
       window.removeEventListener("keydown", onKey);
     };
@@ -110,6 +113,7 @@ const FullScreenPostView = ({
   // ── Shared content ─────────────────────────────────────────────────────
   // Determine effective image URL (news passes newsImageUrl; posts use their own)
   const heroImageUrl = newsImageUrl || null;
+  const isTextCard = post?.is_text_card === true || post?.is_text_card === "true" || post?.is_text_card === 1;
 
   useEffect(() => {
     if (!heroImageUrl) return;
@@ -128,7 +132,13 @@ const FullScreenPostView = ({
       </div>
 
       <div className="fspv-body">
-        {post.video_ids?.[0] && (
+        {isTextCard && (
+          <div className="fspv-card-post">
+            <CardPostDisplay post={post} />
+            {post.card_caption && <ParsedText text={post.card_caption} />}
+          </div>
+        )}
+        {!isTextCard && post.video_ids?.[0] && (
           <video
             className="fspv-post-media"
             src={mediaUrlService.getVideoUrl(post.video_ids[0], { quality: "auto", format: "mp4" })}
@@ -138,7 +148,7 @@ const FullScreenPostView = ({
             preload="metadata"
           />
         )}
-        {!post.video_ids?.[0] && post.image_ids?.[0] && (
+        {!isTextCard && !post.video_ids?.[0] && post.image_ids?.[0] && (
           <img
             className="fspv-post-media"
             src={mediaUrlService.getImageUrl(post.image_ids[0], { width: 1200, quality: "auto:best", format: "auto" })}
@@ -153,7 +163,7 @@ const FullScreenPostView = ({
           </div>
         )}
 
-        <ParsedText text={post.content} />
+        {!isTextCard && <ParsedText text={post.content} />}
       </div>
 
       <div className="fspv-footer">
@@ -357,6 +367,8 @@ const CSS = `
 .fspv-post-media {
   display:block; width:100%; max-height:56vh; object-fit:contain; background:#000; margin:0 0 18px;
 }
+.fspv-card-post { width:100%; margin-bottom:4px; }
+.fspv-card-post .cp-wrapper { width:100%; }
 .fspv-post-comments { flex:0 0 min(520px, 70vh); display:flex; flex-direction:column; border-top:1px solid rgba(132,204,22,0.1); background:#111; }
 .fspv-body::-webkit-scrollbar { width:5px; }
 .fspv-body::-webkit-scrollbar-track { background:rgba(255,255,255,0.02); }
