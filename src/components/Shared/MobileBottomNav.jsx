@@ -20,11 +20,29 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
   const [fabVisible, setFabVisible] = useState(true);
   const timerRef = useRef(null);
 
+  const hasEngagementInput = useCallback(() => {
+    if (activeTab === "create") return true;
+    return Boolean(document.querySelector([
+      ".comm-msg-input-wrapper",
+      ".chat-input-area",
+      ".cv-input-root",
+      ".msg-input-wrapper",
+      ".comment-input-area",
+      ".pfs-reply-composer",
+      ".fspv-post-comments textarea",
+    ].join(",")));
+  }, [activeTab]);
+
   const triggerFab = useCallback(() => {
+    if (hasEngagementInput()) {
+      setFabVisible(false);
+      clearTimeout(timerRef.current);
+      return;
+    }
     setFabVisible(true);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setFabVisible(false), 6000);
-  }, []);
+  }, [hasEngagementInput]);
 
   useEffect(() => {
     const events = ["scroll", "touchstart", "touchmove", "mousemove", "wheel", "keydown", "pointerdown"];
@@ -34,6 +52,21 @@ const MobileBottomNav = ({ activeTab, setActiveTab, currentUser, xrcService, onO
       clearTimeout(timerRef.current);
     };
   }, [triggerFab]);
+
+  useEffect(() => {
+    const updateFabVisibility = () => {
+      setFabVisible(!hasEngagementInput());
+    };
+    updateFabVisibility();
+    const observer = new MutationObserver(updateFabVisibility);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    return () => observer.disconnect();
+  }, [hasEngagementInput]);
 
   // DOM-based PayWave detection: watch body.paywave-open class
   // Instant hide when PayWave opens, smooth animate-in when it closes
