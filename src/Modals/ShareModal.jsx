@@ -23,6 +23,7 @@ import postService from "../../services/home/postService";
 import reelService from "../../services/home/reelService";
 import storyService from "../../services/home/storyService";
 import mediaUrlService from "../../services/shared/mediaUrlService";
+import { buildContentShareUrl } from "../../utils/shareLinks";
 
 // ─── AVATAR ──────────────────────────────────────────────────────────────────
 const Avatar = ({ profile, size = 40 }) => {
@@ -65,7 +66,7 @@ const ShareModal = ({
   const [toast, setToast] = useState(null);
   const searchTimeout = useRef(null);
 
-  const shareUrl = `${window.location.origin}/${contentType}/${content?.id}`;
+  const shareUrl = buildContentShareUrl(contentType, content);
 
   // ── Load top 3 recent DM contacts on mount ────────────────────────────────
   useEffect(() => {

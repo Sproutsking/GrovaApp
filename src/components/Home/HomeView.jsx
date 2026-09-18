@@ -784,7 +784,7 @@ const HomeView = ({
           if (!cancelled && post) dispatchModal({ type: "OPEN_FULLSCREEN_POST", payload: post });
         } else if (deepLinkTarget.type === "reel") {
           const reel = await reelService.getReel(deepLinkTarget.id);
-          if (!cancelled && reel) dispatchModal({ type: "OPEN_FULLSCREEN_REELS", payload: reel });
+          if (!cancelled && reel) dispatchModal({ type: "OPEN_FULLSCREEN_REELS", payload: { reels: [reel], initialIndex: 0 } });
         } else if (deepLinkTarget.type === "story") {
           const story = await storyService.getStory(deepLinkTarget.id);
           if (!cancelled && story) setReadingStory(story);
@@ -931,7 +931,12 @@ const HomeView = ({
                       || (!content.type && Boolean(content.video_id));
                     dispatchModal({
                       type: isReel ? "OPEN_FULLSCREEN_REELS" : "OPEN_FULLSCREEN_POST",
-                      payload: content,
+                      payload: isReel
+                        ? {
+                            reels,
+                            initialIndex: Math.max(0, reels.findIndex((reel) => String(reel.id) === String(content.id))),
+                          }
+                        : content,
                     });
                   }}
                   onLoadMore={loadMorePosts}
@@ -1033,8 +1038,8 @@ const HomeView = ({
       )}
       {modals.fullscreenReels && (
         <FullScreenReels
-          reels={[modals.fullscreenReels]}
-          initialIndex={0}
+          reels={modals.fullscreenReels.reels || [modals.fullscreenReels]}
+          initialIndex={modals.fullscreenReels.initialIndex || 0}
           currentUser={resolvedUser}
           onProfileClick={handleAuthorClick}
           onClose={() => dispatchModal({ type: "CLOSE_FULLSCREEN_REELS" })}

@@ -16,7 +16,7 @@ export const buildShareUrl = (type, id, params = {}) => {
     // Keep the existing referral contract; the metadata endpoint also accepts
     // this query shape so campaign attribution is not lost.
     ambassador: "/",
-    share: `/share/${id}`,
+    share: `/share/post/${encodeId(id)}`,
   };
   const path = routes[type] || "/";
   const url = new URL(path, origin || "http://localhost");

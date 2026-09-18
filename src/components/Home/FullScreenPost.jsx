@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import mediaUrlService from "../../services/shared/mediaUrlService";
 import CommentModal from "../Modals/CommentModal";
+import { buildContentShareUrl } from "../../utils/shareLinks";
 
 function getCloudinaryName() {
   return (
@@ -207,15 +208,16 @@ const FullScreenPost = ({
   // ── Handle share ──────────────────────────────────────────────────────
   const handleShare = useCallback((e) => {
     e.stopPropagation();
+    const shareUrl = buildContentShareUrl("post", post);
     const shareData = {
       title: post.profiles?.full_name,
       text: post.content || "",
-      url: window.location.href,
+      url: shareUrl,
     };
     if (navigator.share) {
       navigator.share(shareData).catch(() => {});
     } else {
-      navigator.clipboard?.writeText(window.location.href);
+      navigator.clipboard?.writeText(shareUrl);
     }
     resetControls();
   }, [post, resetControls]);
@@ -337,7 +339,8 @@ const FullScreenPost = ({
     return comments.filter(c => c.parent_id === parentId);
   }, [comments]);
 
-  if (!portalRoot) return null;
+  const validPortalRoot = portalRoot && portalRoot.nodeType === Node.ELEMENT_NODE && portalRoot.isConnected;
+  if (!validPortalRoot) return null;
 
   return ReactDOM.createPortal(
     <div className="fullscreen-post-container">
@@ -445,7 +448,7 @@ const FullScreenPost = ({
         </div>
       </div>
 
-      {showComments && portalRoot && ReactDOM.createPortal(
+      {showComments && validPortalRoot && ReactDOM.createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 100003 }}>
           <CommentModal
             content={{ ...post, type: "post" }}

@@ -32,6 +32,7 @@ const FilteredFeedView = ({
   onClose,
   onAuthorClick,
   onActionMenu,
+  onOpenFullScreen,
   onComment,
   onPostUpdate,
   onPostDelete,
@@ -424,7 +425,7 @@ const FilteredFeedView = ({
                   currentUser={currentUser}
                   onAuthorClick={onAuthorClick}
                   onActionMenu={onActionMenu}
-                  onOpenFullScreen={() => {}} // TODO: wire fullscreen if needed
+                  onOpenFullScreen={() => onOpenFullScreen?.(item)}
                 />
               ))}
             </div>
@@ -450,6 +451,7 @@ const FilteredFeedView = ({
                         onComment={onComment}
                         onPostUpdate={onPostUpdate}
                         onPostDelete={onPostDelete}
+                        onOpenFullScreen={() => onOpenFullScreen?.(item)}
                       />
                     </div>
                   );
@@ -468,7 +470,7 @@ const FilteredFeedView = ({
                         currentUser={currentUser}
                         onAuthorClick={onAuthorClick}
                         onActionMenu={onActionMenu}
-                        onOpenFullScreen={() => {}}
+                        onOpenFullScreen={() => onOpenFullScreen?.(item)}
                       />
                     </div>
                   );

@@ -407,6 +407,31 @@ img, video {
   overflow-y: auto;
 }
 
+@media (min-width: 1680px) {
+  .desktop-header {
+    left: calc((100vw - 1680px) / 2);
+    right: calc((100vw - 1680px) / 2);
+  }
+
+  .desktop-layout {
+    left: calc((100vw - 1680px) / 2);
+    right: calc((100vw - 1680px) / 2);
+  }
+
+  .main-content-desktop {
+    left: calc((100vw - 1680px) / 2 + 300px + 4vw);
+    right: calc((100vw - 1680px) / 2 + 340px + 4vw);
+  }
+
+  .trending-sidebar {
+    right: calc((100vw - 1680px) / 2 + 4vw);
+  }
+
+  .sidebar {
+    left: calc((100vw - 1680px) / 2);
+  }
+}
+
 /* ==========================================================================
    8. Z-INDEX ASSIGNMENTS
    ========================================================================== */

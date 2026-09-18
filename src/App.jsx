@@ -418,38 +418,44 @@ const MainApp = memo(() => {
   // ── Notification deep-link navigate ──────────────────────────────────────
   const handleNotificationNavigate = useCallback((path) => {
     if (!path || path === "/") return;
+    let pathname = path;
+    try {
+      pathname = new URL(path, window.location.origin).pathname;
+    } catch {
+      pathname = String(path).split("?")[0].split("#")[0];
+    }
     setShowMessages(false);
     setDmTargetUserId(null);
 
-    if (path === "/messages" || path.startsWith("/messages")) {
+    if (pathname === "/messages" || pathname.startsWith("/messages/")) {
       setShowMessages(true);
       setDmTargetUserId(null);
       return;
     }
 
-    const postMatch    = path.match(/^\/post\/(.+)$/);
-    const reelMatch    = path.match(/^\/reel\/(.+)$/);
-    const storyMatch   = path.match(/^\/story\/(.+)$/);
-    const shareMatch   = path.match(/^\/share\/(post|reel|story)\/(.+)$/);
-    const profileMatch = path.match(/^\/profile\/(.+)$/);
+    const postMatch    = pathname.match(/^\/post\/([^/]+)$/);
+    const reelMatch    = pathname.match(/^\/reel\/([^/]+)$/);
+    const storyMatch   = pathname.match(/^\/story\/([^/]+)$/);
+    const shareMatch   = pathname.match(/^\/share\/(post|reel|story)\/([^/]+)$/);
+    const profileMatch = pathname.match(/^\/profile\/([^/]+)$/);
 
     if (shareMatch) {
       const [, sharedType, sharedId] = shareMatch;
       handleNotificationNavigate(`/${sharedType}/${sharedId}`);
     } else if (postMatch) {
       setActiveTab("home"); setHomeSection("newsfeed");
-      setDeepLinkTarget({ type: "post", id: postMatch[1] });
+      setDeepLinkTarget({ type: "post", id: decodeURIComponent(postMatch[1]) });
       setMountedTabs((p) => new Set([...p, "home"]));
     } else if (reelMatch) {
       setActiveTab("home"); setHomeSection("reels");
-      setDeepLinkTarget({ type: "reel", id: reelMatch[1] });
+      setDeepLinkTarget({ type: "reel", id: decodeURIComponent(reelMatch[1]) });
       setMountedTabs((p) => new Set([...p, "home"]));
     } else if (storyMatch) {
       setActiveTab("home"); setHomeSection("stories");
-      setDeepLinkTarget({ type: "story", id: storyMatch[1] });
+      setDeepLinkTarget({ type: "story", id: decodeURIComponent(storyMatch[1]) });
       setMountedTabs((p) => new Set([...p, "home"]));
     } else if (profileMatch) {
-      const targetId = profileMatch[1];
+      const targetId = decodeURIComponent(profileMatch[1]);
       if (targetId === user?.id) {
         setActiveTab("account");
         setMountedTabs((p) => new Set([...p, "account"]));
@@ -473,7 +479,7 @@ const MainApp = memo(() => {
     const params = new URLSearchParams(window.location.search);
     const isContentLink = /^\/(post|reel|story)\//.test(path);
     if (isContentLink) {
-      handleNotificationNavigate(`${path}${window.location.search}`);
+      handleNotificationNavigate(path);
       return;
     }
     if (params.has("invite")) {

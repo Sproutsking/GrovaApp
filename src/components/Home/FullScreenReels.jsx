@@ -91,6 +91,8 @@ const FullScreenReels = ({
   const containerRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
   const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const touchTrackingRef = useRef(false);
   const progressBarRef = useRef(null);
   const isTransitioningRef = useRef(false);
 
@@ -234,7 +236,7 @@ const FullScreenReels = ({
 
   const handleWheel = useCallback((e) => {
     e.preventDefault();
-    if (isScrolling) return;
+    if (isScrolling || Math.abs(e.deltaY) < Math.abs(e.deltaX) || Math.abs(e.deltaY) < 18) return;
     setIsScrolling(true);
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     if (e.deltaY > 0) goToNext(); else if (e.deltaY < 0) goToPrevious();
@@ -242,14 +244,23 @@ const FullScreenReels = ({
   }, [isScrolling, goToNext, goToPrevious]);
 
   const handleTouchStart = (e) => {
-    if (e.target.closest("button") || e.target.closest(".reel-left-info")) return;
+    if (e.target.closest("button") || e.target.closest(".reel-left-info") || e.target.closest(".reel-right-actions")) {
+      touchTrackingRef.current = false;
+      return;
+    }
     touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
+    touchTrackingRef.current = true;
   };
 
   const handleTouchEnd = (e) => {
-    if (e.target.closest("button") || e.target.closest(".reel-left-info")) return;
+    if (!touchTrackingRef.current || e.target.closest("button") || e.target.closest(".reel-left-info") || e.target.closest(".reel-right-actions")) return;
     const diff = touchStartY.current - e.changedTouches[0].clientY;
-    if (Math.abs(diff) > 30) { if (diff > 0) goToNext(); else goToPrevious(); }
+    const horizontalDiff = Math.abs(touchStartX.current - e.changedTouches[0].clientX);
+    touchTrackingRef.current = false;
+    if (Math.abs(diff) > 56 && Math.abs(diff) > horizontalDiff * 1.15) {
+      if (diff > 0) goToNext(); else goToPrevious();
+    }
   };
 
   const handleProgressBarClick = (e) => {
@@ -370,8 +381,9 @@ const FullScreenReels = ({
         <div className="reel-slide">
           {videoUrl && !videoError ? (
             <>
-              <video
+                  <video
                 ref={videoRef}
+                    key={currentReel.id || videoUrl}
                 className="reel-video"
                 src={videoUrl}
                 poster={thumbnailUrl}
@@ -597,7 +609,7 @@ const FullScreenReels = ({
         }
 
         .reel-slide {
-          width: 100%;
+          width: min(100%, 1100px);
           height: 100%;
           position: relative;
           display: flex;
@@ -676,7 +688,7 @@ const FullScreenReels = ({
 
         .reel-left-info {
           position: absolute;
-          bottom: 4px; left: 4px; right: 90px;
+          bottom: max(12px, env(safe-area-inset-bottom)); left: 16px; right: 104px;
           z-index: 10;
           pointer-events: all;
           display: flex;
@@ -689,7 +701,7 @@ const FullScreenReels = ({
         }
 
         .video-progress-bar {
-          flex: 1; height: 4px;
+          flex: 1; height: 5px;
           background: rgba(255,255,255,0.2);
           border-radius: 2px; cursor: pointer;
           transition: height 0.2s ease;
@@ -706,7 +718,7 @@ const FullScreenReels = ({
 
         .progress-played {
           position: absolute; top: 0; left: 0; height: 100%;
-          background: linear-gradient(90deg, #84cc16 0%, #65a30d 100%);
+          background: #fff;
           transition: width 0.1s linear;
           display: flex; align-items: center; justify-content: flex-end;
           border-radius: 2px;
@@ -811,7 +823,7 @@ const FullScreenReels = ({
             padding: 0;
           }
 
-          .reel-left-info { bottom: 12px; left: 12px; right: 70px; }
+          .reel-left-info { bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; right: 72px; }
           .reel-caption-text { font-size: 12px; padding: 5px 8px; }
           .caption-expanded-content p { font-size: 13px; }
           .reel-right-actions { right: 12px; bottom: 12px; gap: 8px; }

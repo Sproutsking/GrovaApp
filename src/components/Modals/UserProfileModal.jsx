@@ -399,7 +399,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     try {
       const { data: p } = await supabase
         .from("profiles")
-        .select("id,full_name,username,avatar_id,bio,verified,is_pro,payment_status,created_at")
+        .select("id,full_name,username,avatar_id,bio,verified,is_pro,payment_status,created_at,email,phone,show_email,show_phone")
         .eq("id", targetId)
         .maybeSingle();
 
@@ -446,6 +446,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
           joinDate:      raw.created_at
             ? new Date(raw.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
             : null,
+          email:        raw.show_email ? raw.email : null,
+          phone:        raw.show_phone ? raw.phone : null,
           paymentStatus: raw.payment_status ?? user?.payment_status ?? "pending",
         });
 
@@ -698,6 +700,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
 
                 {profile?.bio     && <p className="upm-bio">{profile.bio}</p>}
                 {profile?.joinDate && <p className="upm-join">Joined {profile.joinDate}</p>}
+                {(profile?.email || profile?.phone) && (
+                  <div className="upm-contact-meta">
+                    {profile.email && <span>{profile.email}</span>}
+                    {profile.phone && <span>{profile.phone}</span>}
+                  </div>
+                )}
               </div>
 
               <div className="upm-card-lower">
