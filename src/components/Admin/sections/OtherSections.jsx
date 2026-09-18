@@ -182,12 +182,14 @@ function StatTile({
 // ============================================================================
 // ANALYTICS SECTION
 // ============================================================================
-export function AnalyticsSection({ adminData, stats, onRefresh }) {
+export function AnalyticsSection({ adminData, stats, activeUserAnalytics, onRefresh }) {
   const [view, setView] = useState("overview");
   const [normalizing, setNormalizing] = useState(false);
   const [normalizeResult, setNormalizeResult] = useState(null);
 
   const s = stats || {};
+  const activeData = activeUserAnalytics?.data || { daily: [], periods: [] };
+  const selectedWindow = activeData.periods.find((period) => period.days === activeUserAnalytics?.days);
 
   const handleNormalizeEP = async () => {
     if (
@@ -247,6 +249,31 @@ export function AnalyticsSection({ adminData, stats, onRefresh }) {
           onClose={() => setNormalizeResult(null)}
         />
       )}
+
+      <Section title="Daily Active Users" subtitle="Distinct users with session activity, measured in UTC day windows.">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {[1, 2, 3, 4, 5, 7, 14, 21, 30].map((period) => (
+            <button key={period} onClick={() => activeUserAnalytics?.setDays(period)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${activeUserAnalytics?.days === period ? C.accent : C.border}`, background: activeUserAnalytics?.days === period ? `${C.accent}18` : C.bg1, color: activeUserAnalytics?.days === period ? C.accent : C.muted, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+              {period === 1 ? "Today" : `${period} days`}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
+          <StatTile label="Selected window" value={`${activeUserAnalytics?.days || 7}d`} icon={BarChart3} color={C.info} />
+          <StatTile label="Latest DAU" value={(selectedWindow?.daily || 0).toLocaleString()} icon={Activity} color={C.accent} />
+          <StatTile label="Average DAU" value={(selectedWindow?.average || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })} icon={Users} color={C.success} />
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          {activeData.daily.slice(-(activeUserAnalytics?.days || 7)).reverse().map((entry) => (
+            <div key={entry.date} style={{ display: "grid", gridTemplateColumns: "76px 1fr 58px", alignItems: "center", gap: 10, fontSize: 11 }}>
+              <span style={{ color: C.muted }}>{entry.label}</span>
+              <div style={{ height: 7, borderRadius: 8, background: C.border, overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.min(100, (entry.users / Math.max(1, ...activeData.daily.map((day) => day.users))) * 100)}%`, background: C.accent, borderRadius: 8 }} /></div>
+              <strong style={{ color: C.text, textAlign: "right" }}>{entry.users.toLocaleString()}</strong>
+            </div>
+          ))}
+          {!activeData.daily.length && <div style={{ color: C.muted, fontSize: 12 }}>{activeUserAnalytics?.loading ? "Loading activity…" : "No session activity recorded yet."}</div>}
+        </div>
+      </Section>
 
       {/* EP Warning Banner */}
       {s.totalEPCirculation > 100000 && (

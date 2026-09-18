@@ -455,7 +455,6 @@ const VirtualFeed = React.memo(({
   return (
     <div className="vf-list">
       {posts.map((post, index) => {
-        const inWindow = index >= renderStart && index <= renderEnd;
         const pipeType = injections.get(index);
         return (
           <React.Fragment key={post.id}>
@@ -463,16 +462,11 @@ const VirtualFeed = React.memo(({
               <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />
             )}
             <div ref={makeRef(index)} className="vf-item">
-              {inWindow ? (
-                <PostCard
-                  post={post} currentUser={currentUser}
-                  onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                  onComment={onComment} feedIndex={index}
-                />
-              ) : (
-                // [VBF-2][VBF-3] Smart height, colored gradient
-                <Placeholder height={heightMap.current[index]} post={post} />
-              )}
+              <PostCard
+                post={post} currentUser={currentUser}
+                onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
+                onComment={onComment} feedIndex={index}
+              />
             </div>
           </React.Fragment>
         );

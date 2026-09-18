@@ -617,6 +617,31 @@ class ExploreService {
   // TRENDING
   // ══════════════════════════════════════════════════════════════════════
 
+  async getRecentPosts(limit = 6, currentUserId = null) {
+    try {
+      const safeLimit = Math.min(Math.max(Number(limit) || 6, 1), 6);
+      const cacheKey = `recent:posts:${safeLimit}:${currentUserId || "anon"}`;
+      const cached = cacheService.get(cacheKey);
+      if (cached) return cached;
+
+      const { data, error } = await supabase
+        .from("posts")
+        .select(this._postSelect(currentUserId))
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(safeLimit);
+      if (error) throw error;
+
+      const result = { stories: [], posts: data || [], reels: [], users: [], tags: [], mentions: [] };
+      cacheService.set(cacheKey, result, 30000);
+      return result;
+    } catch (error) {
+      console.error("Recent posts failed:", error);
+      return { stories: [], posts: [], reels: [], users: [], tags: [], mentions: [] };
+    }
+  }
+
   async getTrending(contentType = "all", limit = 20, currentUserId = null) {
     try {
       const cacheKey = `trending:${contentType}:${limit}:${currentUserId || "anon"}`;

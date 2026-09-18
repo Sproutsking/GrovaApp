@@ -1014,6 +1014,62 @@ export function useAnalytics() {
   return { data, loading, reload: load };
 }
 
+// ─── Active-user windows ───────────────────────────────────────────────────
+// DAU is based on distinct users with recorded session activity, not account
+// status. This keeps the metric tied to actual use of the platform.
+export function useActiveUserAnalytics() {
+  const [days, setDays] = useState(7);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const windowDays = 30;
+      const cutoff = new Date(Date.now() - (windowDays - 1) * 86400000);
+      cutoff.setHours(0, 0, 0, 0);
+      const { data: sessions, error } = await sb()
+        .from("user_sessions")
+        .select("user_id,last_activity")
+        .gte("last_activity", cutoff.toISOString());
+      if (error) throw error;
+
+      const byDay = new Map();
+      for (let i = 0; i < windowDays; i++) {
+        const date = new Date(cutoff.getTime() + i * 86400000);
+        byDay.set(date.toISOString().slice(0, 10), new Set());
+      }
+      (sessions || []).forEach((session) => {
+        const key = new Date(session.last_activity).toISOString().slice(0, 10);
+        if (byDay.has(key) && session.user_id) byDay.get(key).add(session.user_id);
+      });
+
+      const daily = [...byDay].map(([date, users]) => ({
+        date,
+        label: new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        users: users.size,
+      }));
+      const periods = [1, 2, 3, 4, 5, 7, 14, 21, 30].map((period) => {
+        const values = daily.slice(-period).map((entry) => entry.users);
+        return {
+          days: period,
+          daily: values[values.length - 1] || 0,
+          average: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0,
+        };
+      });
+      setData({ daily, periods });
+    } catch (error) {
+      console.error("Active-user analytics error:", error);
+      setData({ daily: [], periods: [] });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  return { data, days, setDays, loading, reload: load };
+}
+
 // ─── Transactions ──────────────────────────────────────────────────────────
 export function useTransactions(pageSize = 20) {
   const [transactions, setTransactions] = useState([]);

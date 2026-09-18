@@ -30,7 +30,7 @@ import {
   useStats, useUsers, useInvites, useAnalytics,
   useSecurity, useNotifications, usePlatformFreeze,
   usePlatformSettings, useTeam, useSupportCases,
-  useSecurityCenter,
+  useSecurityCenter, useActiveUserAnalytics,
 } from "./useAdminData.js";
 
 import SupportSection from "./sections/SupportSection.jsx";
@@ -46,6 +46,7 @@ import LiquiditySection  from "./sections/LiquiditySection.jsx";
 import ComingSoonModal from "../Shared/ComingSoonModal";
 import FounderBriefingSection from "./sections/FounderBriefingSection.jsx";
 import SecurityCenterSection from "./sections/SecurityCenterSection.jsx";
+import PlatformModelsSection from "./sections/PlatformModelsSection.jsx";
 
 // ─── Nav definition ────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -64,6 +65,7 @@ const NAV_ITEMS = [
   { id: "ambassador",  label: "Ambassadors",    icon: Star },
   { id: "ceo",         label: "CEO Panel",      icon: Crown },
   { id: "founder",     label: "Founder Briefing", icon: BookOpen },
+  { id: "models",      label: "Platform Models",  icon: Activity },
 ];
 
 // Groups shown above nav items when sidebar is expanded
@@ -83,6 +85,7 @@ const NAV_GROUPS = {
   ambassador:    null,
   ceo:           null,
   founder:       "Founder",
+  models:        "Founder",
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────
@@ -525,6 +528,7 @@ export default function AdminDashboard({ adminData, onClose }) {
   const usersHook         = useUsers();
   const invitesHook       = useInvites();
   const analyticsHook     = useAnalytics();
+  const activeUserHook    = useActiveUserAnalytics();
   const securityHook      = useSecurity();
   const securityCenterHook = useSecurityCenter();
   const notificationsHook = useNotifications();
@@ -534,7 +538,7 @@ export default function AdminDashboard({ adminData, onClose }) {
   const casesHook         = useSupportCases();
 
   const navigate = useCallback((section) => {
-    if (section === "founder" && adminData?.role !== "ceo_owner") return;
+    if (["founder", "models"].includes(section) && adminData?.role !== "ceo_owner") return;
     if (section === "ambassador" && !["ceo_owner", "super_admin"].includes(adminData?.role)) {
       setShowAmbassadorComingSoon(true);
       return;
@@ -598,7 +602,7 @@ export default function AdminDashboard({ adminData, onClose }) {
         return <InviteSection adminData={adminData} invitesHook={invitesHook} />;
 
       case "analytics":
-        return <AnalyticsSection adminData={adminData} stats={stats} onRefresh={analyticsHook.reload} />;
+        return <AnalyticsSection adminData={adminData} stats={stats} activeUserAnalytics={activeUserHook} onRefresh={() => { analyticsHook.reload(); activeUserHook.reload(); }} />;
 
       case "transactions":
         return <TransactionsSection adminData={adminData} />;
@@ -658,6 +662,9 @@ export default function AdminDashboard({ adminData, onClose }) {
 
       case "founder":
         return adminData?.role === "ceo_owner" ? <FounderBriefingSection /> : null;
+
+      case "models":
+        return adminData?.role === "ceo_owner" ? <PlatformModelsSection /> : null;
 
       default:
         return <div style={{ padding: 40, color: C.muted, textAlign: "center" }}>Section not found</div>;

@@ -42,8 +42,15 @@ class ReelService {
   // ── GET REELS ───────────────────────────────────────────────────────────────
   async getReels(filters = {}, offset = 0, limit = 20) {
     try {
-      const { userId = null, category = null } = filters;
-      const cacheKey = `reels:${userId || "all"}:${category || "all"}:${offset}:${limit}`;
+      const {
+        userId = null,
+        category = null,
+        limit: filterLimit,
+        offset: filterOffset,
+      } = filters;
+      const pageOffset = Number.isInteger(filterOffset) ? filterOffset : offset;
+      const pageLimit = Number.isInteger(filterLimit) ? filterLimit : limit;
+      const cacheKey = `reels:${userId || "all"}:${category || "all"}:${pageOffset}:${pageLimit}`;
       const cached = cacheService.get(cacheKey);
       if (cached) return cached;
 
@@ -57,7 +64,8 @@ class ReelService {
         `)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order("id", { ascending: false })
+        .range(pageOffset, pageOffset + pageLimit - 1);
 
       if (userId) query = query.eq("user_id", userId);
       if (category) query = query.eq("category", category);

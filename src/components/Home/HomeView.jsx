@@ -402,6 +402,8 @@ const HomeView = ({
   const hasMoreReelsRef = useRef(true);
   const hasMoreNewsRef  = useRef(true);
   const loadingMoreRef  = useRef(false);
+  const loadingPostsRef = useRef(false);
+  const loadingReelsRef = useRef(false);
   const tabFetchedAt   = useRef({ feed:0, stories:0, news:0, culture:0 });
   const currentTab     = activeHomeTab || "feed";
   const modeCategory = trinityLens === "gaming" ? "Gaming" : trinityLens === "web3" ? "Web3" : null;
@@ -573,8 +575,8 @@ const HomeView = ({
   }, []);
 
   const loadMorePosts = useCallback(async () => {
-    if (loadingMoreRef.current || !hasMorePostsRef.current) return;
-    loadingMoreRef.current = true; setLoadingMore(true);
+    if (loadingMoreRef.current || loadingPostsRef.current || !hasMorePostsRef.current) return;
+    loadingPostsRef.current = true; loadingMoreRef.current = true; setLoadingMore(true);
     const off = postsOffRef.current;
     try {
       const next = await postService.getPosts({}, off, POSTS_PAGE);
@@ -587,15 +589,15 @@ const HomeView = ({
         if (safe.length < POSTS_PAGE) { hasMorePostsRef.current = false; setHasMorePosts(false); }
       }
     } catch (e) { console.error("[HomeView] loadMorePosts:", e.message); }
-    finally { loadingMoreRef.current = false; setLoadingMore(false); }
+    finally { loadingPostsRef.current = false; loadingMoreRef.current = false; setLoadingMore(false); }
   }, []);
 
   const loadMoreReels = useCallback(async () => {
-    if (loadingMoreRef.current || !hasMoreReelsRef.current) return;
-    loadingMoreRef.current = true; setReelsLoading(true);
+    if (loadingMoreRef.current || loadingReelsRef.current || !hasMoreReelsRef.current) return;
+    loadingReelsRef.current = true; loadingMoreRef.current = true; setReelsLoading(true);
     const off = reelsOffRef.current;
     try {
-      const next = await reelService.getReels({ limit: REELS_PAGE, offset: off }).catch(() => []);
+      const next = await reelService.getReels({}, off, REELS_PAGE).catch(() => []);
       const safe = Array.isArray(next) ? next : [];
       if (!safe.length) { hasMoreReelsRef.current = false; setHasMoreReels(false); }
       else {
@@ -604,7 +606,7 @@ const HomeView = ({
         if (safe.length < REELS_PAGE) { hasMoreReelsRef.current = false; setHasMoreReels(false); }
       }
     } catch (e) { console.error("[HomeView] loadMoreReels:", e.message); }
-    finally { loadingMoreRef.current = false; setReelsLoading(false); }
+    finally { loadingReelsRef.current = false; loadingMoreRef.current = false; setReelsLoading(false); }
   }, []);
 
   const loadMoreNews = useCallback(async () => {

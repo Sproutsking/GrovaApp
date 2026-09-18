@@ -60,6 +60,7 @@ class PostService {
         )
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (userId && typeof userId === "string") query = query.eq("user_id", userId);

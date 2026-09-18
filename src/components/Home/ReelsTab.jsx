@@ -237,17 +237,12 @@ const VirtualReelGrid = React.memo(({
     roMap.current[index] = ro;
   }, [cardRefs]);
 
-  const renderStart = Math.max(0, anchorIndex - RENDER_RADIUS);
-  const renderEnd   = Math.min(reels.length - 1, anchorIndex + RENDER_RADIUS);
-
   return (
     <div className="reels-vgrid">
       {reels.map((reel, index) => {
-        const inWindow = index >= renderStart && index <= renderEnd;
-        return inWindow ? (
+        return (
           <div ref={makeRef(index)} key={reel.id} className="reels-vgrid-item">
             <ReelCard
-              key={reel.id}
               reel={reel}
               currentUser={currentUser}
               onAuthorClick={onAuthorClick}
@@ -258,10 +253,6 @@ const VirtualReelGrid = React.memo(({
               onMentionClick={onMentionClick}
               index={index}
             />
-          </div>
-        ) : (
-          <div ref={makeRef(index)} key={reel.id} className="reels-vgrid-item">
-            <ReelPlaceholder reel={reel} height={heightMap.current[index]} />
           </div>
         );
       })}

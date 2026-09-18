@@ -48,6 +48,7 @@ export const ALL_SECTIONS = [
   "ambassador",  // ← ADDED
   "ceo",
   "founder",
+  "models",
 ];
 
 // ── Section visibility by role ────────────────────────────────────────────────

@@ -377,7 +377,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         // Load all tab content in parallel
         Promise.all([
           exploreService.getTrending("stories", 50, userId).catch(() => ({})),
-          exploreService.getTrending("posts", 50, userId).catch(() => ({})),
+          exploreService.getRecentPosts(6, userId).catch(() => ({})),
           exploreService.getTrending("reels", 50, userId).catch(() => ({})),
           exploreService.getTrending("users", 50, userId).catch(() => ({})),
           exploreService.getTrending("tags", 50, userId).catch(() => ({})),
@@ -420,7 +420,9 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
     if (activeTab === "evidence") return;
     try {
       setLoading(true);
-      const data = await exploreService.getTrending(activeTab, 50, userId);
+      const data = activeTab === "posts"
+        ? await exploreService.getRecentPosts(6, userId)
+        : await exploreService.getTrending(activeTab, 50, userId);
       setContent({ ...data, userContext: null, searchType: null });
     } catch (err) { console.error("Failed to load:", err); }
     finally { setLoading(false); }
@@ -495,7 +497,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         ═══════════════════════════════════════════════════════════════ */
         .xpl-wrapper { max-width:1200px; margin:0 auto; }
 
-        .xpl-header { 
+        .xpl-header {
           position:sticky; 
           top:0; 
           background:#000; 
@@ -503,6 +505,9 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           border-bottom:1px solid rgba(132,204,22,.12);
           --header-height: 54px;
           height: 54px;
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
           padding: 0;
         }
         .xpl-controls { 
@@ -510,7 +515,10 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
           align-items:center; 
           justify-content:space-between; 
           gap:6px; 
-          padding:2px 2px; 
+          width: 100%;
+          min-height: 100%;
+          align-items: center;
+          padding: 0 8px;
           flex-wrap:nowrap;
           overflow-x:auto;
           overflow-y:hidden;
@@ -936,7 +944,7 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
 
         @media (max-width:768px) {
           .xpl-header { --header-height: 50px; height: 50px; }
-          .xpl-controls { gap:8px; padding:8px 10px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+          .xpl-controls { gap:8px; padding:0 10px; min-height:50px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
           .xpl-controls-left { gap:6px; }
           .xpl-controls-right { gap:6px; }
           .xpl-btn { padding:7px 11px; font-size:12px; height:30px; }

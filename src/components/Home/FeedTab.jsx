@@ -366,7 +366,6 @@ const VirtualFeed = React.memo(({
   return (
     <div className="vf-list">
       {items.map((item, index) => {
-        const inWindow = index >= renderStart && index <= renderEnd;
         const pipeType = injections.get(index);
         return (
           <React.Fragment key={item.id}>
@@ -374,26 +373,22 @@ const VirtualFeed = React.memo(({
               <FeedPipeline type={pipeType} currentUser={currentUser} onNavigate={onPipelineNavigate} />
             )}
             <div ref={makeRef(index)} className="vf-item">
-              {inWindow ? (
-                item.type === "reel" ? (
-                  <ReelCard
-                    reel={item} currentUser={currentUser}
-                    onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                    onComment={onComment} onOpenFullScreen={onOpenFullScreen}
-                    onProfileClick={onProfileClick}
-                    index={index}
-                  />
-                ) : (
-                  <PostCard
-                    post={item} currentUser={currentUser}
-                    onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
-                    onComment={onComment} onOpenFullScreen={onOpenFullScreen}
-                    onProfileClick={onProfileClick}
-                    feedIndex={index}
-                  />
-                )
+              {item.type === "reel" ? (
+                <ReelCard
+                  reel={item} currentUser={currentUser}
+                  onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
+                  onComment={onComment} onOpenFullScreen={onOpenFullScreen}
+                  onProfileClick={onProfileClick}
+                  index={index}
+                />
               ) : (
-                <Placeholder height={heightMap.current[index]} item={item} />
+                <PostCard
+                  post={item} currentUser={currentUser}
+                  onAuthorClick={onAuthorClick} onActionMenu={onActionMenu}
+                  onComment={onComment} onOpenFullScreen={onOpenFullScreen}
+                  onProfileClick={onProfileClick}
+                  feedIndex={index}
+                />
               )}
             </div>
           </React.Fragment>
