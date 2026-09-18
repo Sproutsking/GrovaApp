@@ -17,6 +17,7 @@ import ConfirmModal from "../Modals/ConfirmModal";
 import communityService from "../../services/community/communityService";
 import channelService from "../../services/community/channelService";
 import communityCache from "../../services/community/communityCache";
+import communityUnreadService from "../../services/community/communityUnreadService";
 import "../../styles/CommunityView.css";
 
 const CommunityView = ({ userId, currentUser, onNavigate }) => {
@@ -149,6 +150,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
       ]);
       setMyCommunities(userComms);
       setAllCommunities(allComms);
+      communityUnreadService.sync(userId, userComms).catch((error) => console.warn("Community unread sync:", error));
       const locations = readLocations();
       const savedCommunityId = Object.values(locations).sort((a, b) => (b?.lastVisited || 0) - (a?.lastVisited || 0))[0]?.communityId;
       const restoredCommunity = userComms.find((item) => item.id === savedCommunityId);
@@ -203,6 +205,7 @@ const CommunityView = ({ userId, currentUser, onNavigate }) => {
 
   const handleSelectChannel = async (channel) => {
     setSelectedChannel(channel);
+    if (channel?.id) communityUnreadService.markRead(channel.id).catch(() => {});
     setView("chat"); // Move to chat when a channel is selected
     if (selectedCommunity?.id && channel?.id) saveLocation(selectedCommunity.id, { channelId: channel.id, view: "chat", lastVisited: Date.now() });
   };

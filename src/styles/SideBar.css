@@ -1,1 +1,22 @@
-﻿
+﻿.nav-unread-badge,
+.community-unread-badge,
+.dh-tab-badge,
+.mh-tab-badge {
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: #ef4444;
+	color: #fff;
+	font-size: 9px;
+	font-weight: 800;
+	line-height: 1;
+	box-shadow: 0 0 0 2px rgba(4, 7, 5, .9), 0 0 10px rgba(239, 68, 68, .45);
+}
+
+.nav-unread-badge { margin-left: auto; }
+.community-unread-badge { position: absolute; top: -4px; right: -5px; z-index: 2; }
+.dh-tab-badge, .mh-tab-badge { margin-left: 4px; }

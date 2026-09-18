@@ -50,6 +50,7 @@ import { supabase }               from "./services/config/supabase";
 import mediaUrlService             from "./services/shared/mediaUrlService";
 import { pushService }             from "./services/notifications/pushService";
 import notificationService         from "./services/notifications/notificationService";
+import communityUnreadService      from "./services/community/communityUnreadService";
 import MessageNotificationService  from "./services/messages/MessageNotificationService";
 import callService                 from "./services/messages/callService";
 import { useNavigation }           from "./hooks/useNavigation";
@@ -334,6 +335,7 @@ const MainApp = memo(() => {
   const [streamSession, setStreamSession] = useState(null);
 
   const [activeHomeTab, setActiveHomeTab] = useState("feed");
+  const [unreadSnapshot, setUnreadSnapshot] = useState({ notifications: 0, community: 0 });
 
   const feedRef        = useRef(null);
   const refreshTimeout = useRef(null);
@@ -539,6 +541,29 @@ const MainApp = memo(() => {
 
     return () => clearTimeout(refreshTimeout.current);
   }, [user?.id, profile]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const syncUnread = () => {
+      const notifications = notificationService._cache || [];
+      const count = (predicate) => notifications.filter((item) => !item.is_read && predicate(item)).length;
+      const isWallet = (item) => item.metadata?.category === "wallet" || item.metadata?.category === "paywave" || item.metadata?.pw_type;
+      const isCommunity = (item) => item.metadata?.community_id || item.metadata?.channel_id || String(item.type || "").startsWith("community_");
+      const homeTabs = Object.fromEntries(["feed", "stories", "news", "culture", "clips", "alpha", "tokens", "signals", "lessons", "resources", "study"].map((tab) => [
+        tab, count((item) => item.metadata?.home_tab === tab || item.metadata?.home_section === tab),
+      ]));
+      setUnreadSnapshot({
+        ...homeTabs,
+        home: count((item) => !isWallet(item) && !isCommunity(item)),
+        wallet: count(isWallet),
+        community: communityUnreadService.getTotalCount() + count(isCommunity),
+      });
+    };
+    const stopNotifications = notificationService.subscribe(syncUnread);
+    const stopCommunity = communityUnreadService.subscribe(syncUnread);
+    syncUnread();
+    return () => { stopNotifications(); stopCommunity(); };
+  }, [user?.id]);
 
   // ── UNIFIED PUSH + CALL EVENT HANDLER ────────────────────────────────────
   useEffect(() => {
@@ -1149,6 +1174,7 @@ const MainApp = memo(() => {
             onSignOut={handleSignOut}
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
+            unreadCounts={unreadSnapshot}
           />
         </Suspense>
       )}
@@ -1167,6 +1193,7 @@ const MainApp = memo(() => {
             activeTab={activeTab}
             activeHomeTab={activeHomeTab}
             setActiveHomeTab={setActiveHomeTab}
+            unreadCounts={unreadSnapshot}
           />
         </Suspense>
       )}
@@ -1213,6 +1240,7 @@ const MainApp = memo(() => {
             currentUser={currentUser}
             xrcService={xrcService}
             onOpenAdsCentre={() => setShowAdsCentre(true)}
+            unreadCounts={unreadSnapshot}
           />
         </Suspense>
       )}

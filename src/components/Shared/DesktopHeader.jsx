@@ -175,6 +175,7 @@ const DesktopHeader = ({
   onSignOut,
   activeHomeTab,
   setActiveHomeTab,
+  unreadCounts = {},
 }) => {
   const isOnHome = activeTab === "home";
   const { activeTrinityLens } = useTrinitylens();
@@ -362,6 +363,7 @@ const DesktopHeader = ({
                   >
                     <span className="dh-tab-icon"><Icon active={isActive} /></span>
                     <span className="dh-tab-label">{label}</span>
+                    {(unreadCounts[id] || 0) > 0 && <span className="dh-tab-badge">{unreadCounts[id] > 99 ? "99+" : unreadCounts[id]}</span>}
                   </button>
                 );
               })}

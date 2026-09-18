@@ -49,6 +49,7 @@ const CATEGORIES = [
   { id: "all",     label: "All",    Icon: Bell,     color: "#84cc16" },
   { id: "paywave", label: "PayWave",Icon: Wallet,   color: "#a3e635" },
   { id: "wallet",  label: "Wallet", Icon: Zap,      color: "#a855f7" },
+  { id: "community", label: "Community", Icon: Globe, color: "#f472b6" },
   { id: "system",  label: "System", Icon: Settings, color: "#f59e0b" },
   { id: "social",  label: "Social", Icon: Globe,    color: "#60a5fa" },
 ];
@@ -58,6 +59,7 @@ function inferCategory(n) {
   const cat = n.metadata?.category;
   if (cat) return cat;
   if (n.metadata?.pw_type) return "paywave";
+  if (n.metadata?.community_id || n.metadata?.channel_id || String(n.type || "").startsWith("community_")) return "community";
   const social = ["like","comment","comment_reply","follow","profile_view",
                   "share","new_post","new_reel","new_story","story_unlocked_by_you",
                   "milestone_followers","mention"];

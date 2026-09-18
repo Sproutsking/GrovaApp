@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Home, Plus } from "lucide-react";
 import CommunityAvatar from "../utils/communityVisuals";
+import communityUnreadService from "../../../services/community/communityUnreadService";
 
 const CommunitySidebar = ({
   myCommunities,
@@ -12,6 +13,9 @@ const CommunitySidebar = ({
   view,
 }) => {
   const [contextMenu, setContextMenu] = useState(null);
+  const [, rerender] = useState(0);
+
+  React.useEffect(() => communityUnreadService.subscribe(() => rerender((value) => value + 1)), []);
 
   const handleCreate = () => {
     if (typeof onCreateCommunity === "function") {
@@ -65,6 +69,11 @@ const CommunitySidebar = ({
                     : "none",
                 }}
               />
+              {communityUnreadService.getCommunityCount(community.id) > 0 && (
+                <span className="community-unread-badge">
+                  {communityUnreadService.getCommunityCount(community.id) > 99 ? "99+" : communityUnreadService.getCommunityCount(community.id)}
+                </span>
+              )}
             </div>
           ))}
         </div>

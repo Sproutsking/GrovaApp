@@ -26,6 +26,7 @@ import communityService from "../../../services/community/communityService";
 import communityCache from "../../../services/community/communityCache";
 import roleService from "../../../services/community/roleService";
 import channelNotificationService from "../../../services/community/channelNotificationService";
+import communityUnreadService from "../../../services/community/communityUnreadService";
 import UserProfileModal from "../../Modals/UserProfileModal";
 import CommunityProfileModal from "../components/CommunityProfileModal";
 import ForwardMessageModal from "../components/ForwardMessageModal";
@@ -383,6 +384,7 @@ const ChatTab = ({
 
   useEffect(() => {
     if (selectedChannel) {
+      communityUnreadService.markRead(selectedChannel.id).catch(() => {});
       channelNotificationService.markRead(selectedChannel.id).catch(() => {});
       setChannelUnreadCounts((current) => ({ ...current, [selectedChannel.id]: 0 }));
       setMessages([...(communityState.getMessages(selectedChannel.id) || [])]);

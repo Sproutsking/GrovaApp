@@ -67,6 +67,7 @@ const Sidebar = ({
   xrcService,
   setActiveHomeTab,
   onOpenAdsCentre,
+  unreadCounts = {},
 }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [showServices, setShowServices] = useState(false);
@@ -215,6 +216,9 @@ const Sidebar = ({
                     {item.label}
                   </span>
                   {isHovered && !isActive && <div className="hover-shimmer" />}
+                  {item.id !== "search" && item.id !== "create" && item.id !== "menu" && (unreadCounts[item.id] || 0) > 0 && (
+                    <span className="nav-unread-badge">{unreadCounts[item.id] > 99 ? "99+" : unreadCounts[item.id]}</span>
+                  )}
                 </button>
               );
             })}

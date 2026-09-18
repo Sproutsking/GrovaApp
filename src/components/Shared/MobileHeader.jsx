@@ -154,6 +154,7 @@ const MobileHeader = ({
   activeTab,
   activeHomeTab,
   setActiveHomeTab,
+  unreadCounts = {},
 }) => {
   const { activeTrinityLens } = useTrinitylens();
   // ── Instant trinity mode transition ────────────────────────────────────────
@@ -362,6 +363,7 @@ const MobileHeader = ({
                 >
                   <Icon active={active} />
                   <span>{label}</span>
+                  {(unreadCounts[id] || 0) > 0 && <span className="mh-tab-badge">{unreadCounts[id] > 99 ? "99+" : unreadCounts[id]}</span>}
                 </button>
               );
             })}
