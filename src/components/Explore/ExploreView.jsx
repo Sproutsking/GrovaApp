@@ -943,6 +943,8 @@ const ExploreView = ({ currentUser, userId, onAuthorClick, onActionMenu, xrcServ
         @keyframes spin   { to{transform:rotate(360deg)} }
 
         @media (max-width:768px) {
+          .xpl-wrapper { width:100%; max-width:none; margin:0; }
+          .xpl-content { padding:0; }
           .xpl-header { --header-height: 50px; height: 50px; }
           .xpl-controls { gap:8px; padding:0 10px; min-height:50px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
           .xpl-controls-left { gap:6px; }
