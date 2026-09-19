@@ -47,6 +47,7 @@ import "./styles/lightTheme.css";
 import BoostStyles from "./components/Boost/BoostStyles";
 
 import { supabase }               from "./services/config/supabase";
+import { isOAuthCallbackUrl, cleanOAuthCallbackParams } from "./services/auth/oauthUrl";
 import mediaUrlService             from "./services/shared/mediaUrlService";
 import { pushService }             from "./services/notifications/pushService";
 import notificationService         from "./services/notifications/notificationService";
@@ -124,15 +125,11 @@ function hasOAuthCodeInUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.has("error") || params.has("error_code")) {
-      const url = new URL(window.location.href);
-      ["error", "error_code", "error_description", "state", "code"].forEach(
-        (k) => url.searchParams.delete(k),
-      );
+      const url = cleanOAuthCallbackParams(window.location.href);
       window.history.replaceState({}, "", url.toString());
       return false;
     }
-    const code = params.get("code");
-    return !!(code && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(code));
+    return isOAuthCallbackUrl(window.location.href);
   } catch {
     return false;
   }
