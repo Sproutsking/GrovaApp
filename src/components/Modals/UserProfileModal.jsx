@@ -31,6 +31,9 @@ import followService         from "../../services/social/followService";
 import { BOOST_VISUAL } from "../../services/account/profileTierService";
 import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
+import PostCard              from "../Home/PostCard";
+import ReelCard              from "../Home/ReelCard";
+import StoryCard             from "../Home/StoryCard";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
 import { getBoostNameDesign } from "../../services/boost/boostThemes";
 import { buildPublicProfileDashboard } from "../../services/evidence/publicProfileDashboardModel";
@@ -206,96 +209,26 @@ const resolveMyId = (cu) =>
   cu?.userId  ||
   cu?.user_id ||
   null;
+const FullProfileContent = ({ item, type, profile, currentUser }) => {
+  const content = {
+    ...item,
+    author: item.author || profile?.fullName || "Unknown",
+    username: item.username || profile?.username || "unknown",
+    profiles: item.profiles || {
+      full_name: profile?.fullName || "Unknown",
+      username: profile?.username || "unknown",
+      avatar_id: profile?.avatarId || null,
+      verified: profile?.verified || false,
+    },
+  };
 
-// ── Content grid card ─────────────────────────────────────────────────────────
-
-const ContentCard = ({ item, type, onOpen }) => {
-  const [imageFailed, setImageFailed] = React.useState(false);
-  const imgUrl = resolveMediaThumbnail(item);
-  const textPost = type === "post" && isTextPost(item);
-  const isVideo = type === "reel" || (type === "post" && parseMediaIds(item.video_ids).length > 0);
-  const videoUrl = isVideo ? resolveVideoUrl(item) : null;
-  const showVideo = isVideo && (!imgUrl || imageFailed) && videoUrl;
-
-  return (
-    <button type="button" className="upm-content-card" style={{
-      borderRadius: 12, overflow: "hidden",
-      background:   "rgba(255,255,255,0.04)",
-      border:       "1px solid rgba(255,255,255,0.07)",
-      aspectRatio:  "1", position: "relative",
-      padding: 0, cursor: "pointer", textAlign: "left", color: "inherit",
-    }} onClick={() => onOpen?.(item, type)}>
-      {textPost ? (
-        <div style={{
-          width: "100%", height: "100%", padding: 12, display: "flex",
-          flexDirection: "column", justifyContent: "center", gap: 8,
-          overflow: "hidden", textAlign: item.text_card_metadata?.align || "center",
-          color: item.text_card_metadata?.textColor || "#fff",
-          background: item.text_card_metadata?.gradient || "linear-gradient(145deg,#172554,#0f766e)",
-          position: "relative", isolation: "isolate",
-        }}>
-          <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: ".12em", opacity: .7 }}>TEXT POST</span>
-          <span style={{ fontSize: 13, lineHeight: 1.18, fontWeight: 800, textShadow: "0 2px 8px rgba(0,0,0,.35)" }}>
-            {item.content || item.card_caption || "Text post"}
-          </span>
-        </div>
-      ) : showVideo ? (
-        <video
-          src={videoUrl}
-          poster={imgUrl || undefined}
-          muted
-          loop
-          playsInline
-          autoPlay
-          preload="metadata"
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : imgUrl && !imageFailed ? (
-        <img
-          src={imgUrl}
-          alt=""
-          onError={() => setImageFailed(true)}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : (
-        <div style={{
-          width: "100%", height: "100%", display: "flex",
-          alignItems: "center", justifyContent: "center",
-          background: "rgba(132,204,22,0.05)",
-        }}>
-          {isVideo          ? <Film     size={22} color="#84cc16" opacity={0.3} />
-           : type === "story" ? <BookOpen size={22} color="#84cc16" opacity={0.3} />
-           :                    <Image   size={22} color="#84cc16" opacity={0.3} />}
-        </div>
-      )}
-
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0,
-        background: "linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 100%)",
-        padding: "5px 5px 4px", display: "flex", gap: 6,
-        fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600,
-      }}>
-        {item.likes > 0 && (
-          <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Heart size={8} /> {fmt(item.likes)}
-          </span>
-        )}
-        {item.views > 0 && (
-          <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Eye size={8} /> {fmt(item.views)}
-          </span>
-        )}
-      </div>
-
-      {type === "reel" && (
-        <div style={{
-          position: "absolute", top: 5, right: 5,
-          background: "rgba(0,0,0,0.5)", borderRadius: 4,
-          padding: "1px 4px", fontSize: 8, color: "#fff", fontWeight: 700,
-        }}>▶</div>
-      )}
-    </button>
-  );
+  if (type === "reel") {
+    return <ReelCard reel={content} currentUser={currentUser} index={0} />;
+  }
+  if (type === "story") {
+    return <StoryCard story={content} currentUser={currentUser} />;
+  }
+  return <PostCard post={content} currentUser={currentUser} />;
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -607,21 +540,21 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
       if (tab === "posts") {
         const { data } = await supabase
           .from("posts")
-          .select("id,content,image_ids,video_ids,likes,views,comments_count,created_at")
+          .select("id,user_id,content,image_ids,image_metadata,video_ids,video_metadata,is_text_card,text_card_metadata,card_caption,category,likes,views,comments_count,shares,created_at,updated_at,profiles:user_id(id,full_name,username,avatar_id,verified)")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setPosts(data || []);
       } else if (tab === "reels") {
         const { data } = await supabase
           .from("reels")
-          .select("id,caption,thumbnail_id,video_id,likes,views,comments_count,created_at")
+          .select("id,user_id,caption,music,category,duration,thumbnail_id,video_id,video_metadata,likes,views,comments_count,shares,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setReels(data || []);
       } else if (tab === "stories") {
         const { data } = await supabase
           .from("stories")
-          .select("id,title,cover_image_id,likes,views,comments_count,created_at")
+          .select("id,user_id,title,preview,full_content,cover_image_id,cover_image_metadata,category,unlock_cost,max_accesses,current_accesses,likes,views,comments_count,created_at,profiles:user_id(id,full_name,username,avatar_id,verified)")
           .eq("user_id", targetId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(12);
         if (mounted.current) setStories(data || []);
@@ -750,7 +683,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         ) : (
           <>
             <main className="upm-main" aria-label="Profile content">
-            {/* ── Boost background header ── */}
             <BoostProfileCard
               tier={hasBoosted ? tier : null}
               themeId={themeId}
@@ -1035,13 +967,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                     </div>
                   )
                 ) : currentContent.length > 0 ? (
-                  <div className="upm-grid">
+                  <div className="upm-full-feed">
                     {currentContent.map((item) => (
-                      <ContentCard
+                      <FullProfileContent
                         key={item.id}
                         item={item}
                         type={activeTab === "reels" ? "reel" : activeTab === "stories" ? "story" : "post"}
-                        onOpen={handleOpenContent}
+                        profile={profile}
+                        currentUser={currentUser}
                       />
                     ))}
                   </div>
@@ -1149,14 +1082,14 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   {selectedContent.type === "reply" ? (
                     <p className="upm-content-dialog-copy">{selectedContent.item.content || "Comment"}</p>
                   ) : (
-                    <>
-                      {resolveMediaThumbnail(selectedContent.item) && (
-                        <img className="upm-content-dialog-media" src={resolveMediaThumbnail(selectedContent.item)} alt="" />
-                      )}
-                      {(selectedContent.item.content || selectedContent.item.caption || selectedContent.item.title) && (
-                        <p className="upm-content-dialog-copy">{selectedContent.item.content || selectedContent.item.caption || selectedContent.item.title}</p>
-                      )}
-                    </>
+                    <div className="upm-full-feed upm-dialog-feed">
+                      <FullProfileContent
+                        item={selectedContent.item}
+                        type={selectedContent.type}
+                        profile={profile}
+                        currentUser={currentUser}
+                      />
+                    </div>
                   )}
                   <div className="upm-content-dialog-meta">
                     <span><Heart size={13} /> {fmt(selectedContent.item.likes || 0)}</span>
@@ -1304,7 +1237,9 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-tab.active { background:rgba(132,204,22,.08); color:#84cc16; border-bottom-color:#84cc16; }
         .upm-tc { font-size:10px; padding:1px 5px; border-radius:8px; background:rgba(255,255,255,.07); color:#737373; }
         .upm-cnt { padding:10px 14px 20px; min-height:100px; }
-        .upm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+        .upm-full-feed { display:flex; flex-direction:column; gap:12px; }
+        .upm-full-feed > * { width:100%; min-width:0; }
+        .upm-dialog-feed { margin-top:2px; }
         .upm-empty { display:flex; flex-direction:column; align-items:center; gap:10px; padding:30px; color:#525252; font-size:13px; }
 
         @media (max-width: 480px) {

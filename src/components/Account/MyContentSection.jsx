@@ -17,6 +17,9 @@ import mediaUrlService from "../../services/shared/mediaUrlService";
 import PostTab        from "../Home/PostTab";
 import StoryTab       from "../Home/StoryTab";
 import ReelsTab       from "../Home/ReelsTab";
+import PostCard       from "../Home/PostCard";
+import ReelCard       from "../Home/ReelCard";
+import StoryCard      from "../Home/StoryCard";
 import CommentsViewer from "./CommentsViewer";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -154,6 +157,17 @@ const enrich = (item, profileData, tab) => ({
   // Normalise tab-specific field aliases
   ...(tab === "reels" && { caption: item.caption || item.content || "" }),
 });
+
+const ProfileContentCard = ({ item, tab, profileData, currentUser, onAuthorClick, onActionMenu }) => {
+  const content = enrich(item, profileData, tab);
+  if (tab === "reels") {
+    return <ReelCard reel={content} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} index={0} />;
+  }
+  if (tab === "stories") {
+    return <StoryCard story={content} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} />;
+  }
+  return <PostCard post={content} currentUser={currentUser} onAuthorClick={onAuthorClick} onActionMenu={onActionMenu} />;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VIDEO FRAME EXTRACTOR — pulls a frame from a video URL as a data-URL
@@ -555,7 +569,7 @@ const MyContentSection = ({
       if (tab === "posts") {
         const { data, error } = await supabase
           .from("posts")
-          .select("id, content, image_ids, video_ids, video_metadata, views, likes, comments_count, created_at, category, is_text_card, text_card_metadata, card_caption, user_id")
+          .select("id, user_id, content, image_ids, image_metadata, video_ids, video_metadata, views, likes, comments_count, shares, created_at, updated_at, category, is_text_card, text_card_metadata, card_caption")
           .eq("user_id", userId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(60);
         if (error) throw error;
@@ -563,7 +577,7 @@ const MyContentSection = ({
       } else if (tab === "reels") {
         const { data, error } = await supabase
           .from("reels")
-          .select("id, caption, video_id, thumbnail_id, video_metadata, views, likes, comments_count, created_at, user_id")
+          .select("id, user_id, caption, music, category, duration, video_id, thumbnail_id, video_metadata, views, likes, comments_count, shares, created_at")
           .eq("user_id", userId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(60);
         if (error) throw error;
@@ -571,7 +585,7 @@ const MyContentSection = ({
       } else if (tab === "stories") {
         const { data, error } = await supabase
           .from("stories")
-          .select("id, title, preview, cover_image_id, views, likes, comments_count, created_at, category, user_id")
+          .select("id, user_id, title, preview, full_content, cover_image_id, cover_image_metadata, views, likes, comments_count, created_at, category, unlock_cost, max_accesses, current_accesses")
           .eq("user_id", userId).is("deleted_at", null)
           .order("created_at", { ascending: false }).limit(60);
         if (error) throw error;
@@ -696,6 +710,8 @@ const MyContentSection = ({
           gap: 2px; padding: 2px;
         }
         @media (min-width: 460px) { .mcs-grid { grid-template-columns: repeat(4, 1fr); } }
+        .mcs-full-feed { display:flex; flex-direction:column; gap:12px; padding:10px 12px 18px; }
+        .mcs-full-feed > * { width:100%; min-width:0; }
 
         /* ── Card ── */
         .mcs-card {
@@ -1086,14 +1102,17 @@ const MyContentSection = ({
             </button>
           </div>
         ) : (
-          <div className="mcs-grid" role="list">
+          <div className="mcs-full-feed" role="list">
             {filtered.map((item, i) => (
-              <ThumbCard
+              <ProfileContentCard
                 key={item.id || i}
                 item={item}
                 tab={activeTab}
                 index={i}
-                onClick={() => setViewer({ tab: activeTab, index: i })}
+                profileData={profileData}
+                currentUser={currentUser}
+                onAuthorClick={onAuthorClick}
+                onActionMenu={onActionMenu}
               />
             ))}
           </div>
