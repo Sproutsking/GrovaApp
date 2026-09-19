@@ -705,9 +705,9 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
     : bgLayers;
 
   const cardRadius = style.borderRadius ?? 24;
-  const embeddedHeight = embedded ? (style.height ?? "auto") : "auto";
-  const embeddedMinHeight = embedded ? (style.minHeight ?? 0) : undefined;
-  const embeddedMaxHeight = embedded ? (style.maxHeight ?? "none") : undefined;
+  const embeddedHeight = embedded ? (style.height ?? "fit-content") : "auto";
+  const embeddedMinHeight = embedded ? (style.minHeight ?? 0) : 0;
+  const embeddedMaxHeight = embedded ? (style.maxHeight ?? "none") : "none";
 
   const cardStyle = {
     position: "relative",
@@ -732,7 +732,7 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
       data-design={theme.id.replace(`${tier}-`, "")}
       style={{
         width: "100%",
-        height: embedded ? (style.height ?? "auto") : undefined,
+        height: embedded ? (style.height ?? "fit-content") : undefined,
         minHeight: embedded ? (style.minHeight ?? 0) : undefined,
         maxHeight: embedded ? (style.maxHeight ?? "none") : undefined,
         position: "relative",
@@ -764,11 +764,12 @@ const BoostProfileCard = ({ tier, themeId, backgroundColorId, style = {}, classN
             position: "relative",
             zIndex: 1,
             width: "100%",
-            height: embedded ? (style.height ? "100%" : "auto") : "100%",
-            minHeight: embedded ? (style.minHeight ?? 0) : undefined,
-            maxHeight: embedded ? (style.maxHeight ?? "none") : undefined,
+            height: embedded ? "auto" : "100%",
+            minHeight: embedded ? (style.minHeight ?? 0) : 0,
+            maxHeight: embedded ? (style.maxHeight ?? "none") : "none",
             display: "flex",
             flexDirection: "column",
+            flex: embedded ? "0 0 auto" : undefined,
           }}
         >
           {children}

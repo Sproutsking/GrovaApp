@@ -692,7 +692,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               backgroundColorId={backgroundColorId}
               embedded
               className="upm-boost-profile"
-              style={{ borderRadius: 24, position: "relative", minHeight: 0, maxHeight: "none", height: "auto", width: "100%" }}
+              style={{ borderRadius: 24, position: "relative", minHeight: 0, maxHeight: "none", height: "fit-content", width: "100%" }}
             >
               <button className="upm-close" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
                 <X size={16} />
