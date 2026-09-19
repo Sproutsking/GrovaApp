@@ -143,6 +143,49 @@ class DMMessageService {
     }
   }
 
+  async isUserBlocked(userId, otherUserId) {
+    const { data, error } = await supabase.from("user_blocks")
+      .select("blocked_id").eq("blocker_id", userId).eq("blocked_id", otherUserId).maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+
+  async blockUser(userId, otherUserId) {
+    const { error } = await supabase.from("user_blocks").upsert(
+      { blocker_id: userId, blocked_id: otherUserId }, { onConflict: "blocker_id,blocked_id" },
+    );
+    if (error) throw error;
+  }
+
+  async unblockUser(userId, otherUserId) {
+    const { error } = await supabase.from("user_blocks").delete()
+      .eq("blocker_id", userId).eq("blocked_id", otherUserId);
+    if (error) throw error;
+  }
+
+  async reportUser({ reporterId, reportedUserId, conversationId, messageId = null, reason = "other", details = null }) {
+    const { error } = await supabase.from("message_reports").insert({
+      reporter_id: reporterId, reported_user_id: reportedUserId, conversation_id: conversationId,
+      message_id: messageId, reason, details,
+    });
+    if (error) throw error;
+  }
+
+  async getMessagingPreferences(userId) {
+    const { data, error } = await supabase.from("messaging_preferences").select("*")
+      .eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    return data || { read_receipts: true, typing_indicators: true, message_notifications: true, media_auto_download: true };
+  }
+
+  async updateMessagingPreferences(userId, preferences) {
+    const { data, error } = await supabase.from("messaging_preferences")
+      .upsert({ user_id: userId, ...preferences, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+      .select().single();
+    if (error) throw error;
+    return data;
+  }
+
   // =========================================================================
   // MESSAGES
   // =========================================================================
@@ -215,7 +258,8 @@ class DMMessageService {
 
   async sendMessage(conversationId, content, senderId, replyToId = null, files = []) {
     if ((!content?.trim() && !files.length) || !conversationId || !senderId) return null;
-    const selected = validateMessageAttachments(files, 10);
+    const rawFiles = files.map((item) => item?.file || item).filter(Boolean);
+    const selected = validateMessageAttachments(rawFiles, 10);
     const attachments = await Promise.all(selected.map(({ file }) => uploadService.uploadMessageAttachment(file)));
     const primary = attachments[0] || null;
 
@@ -272,31 +316,37 @@ class DMMessageService {
       };
       if (replyToId) insertData.reply_to_id = replyToId;
 
-      const { data, error } = await supabase
-        .from("messages")
-        .insert(insertData)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("send_direct_message", {
+        p_conversation_id: conversationId,
+        p_sender_id: senderId,
+        p_content: insertData.content,
+        p_reply_to_id: replyToId || null,
+        p_media_url: insertData.media_url,
+        p_media_type: insertData.media_type,
+        p_attachments: attachments,
+      });
 
       if (error) throw error;
+      const savedMessage = Array.isArray(data) ? data[0] : data;
+      if (!savedMessage?.id) throw new Error("The message was not saved. Please try again.");
 
       // Replace optimistic with real message
       const current = conversationState.getMessages(conversationId);
       const updated = current.map((m) =>
-        m._tempId === tempId ? { ...data, _replaced: true } : m,
+        m._tempId === tempId ? { ...savedMessage, _replaced: true } : m,
       );
       conversationState.state.messagesByConversation.set(
         conversationId,
         updated,
       );
-      conversationState.state.messageStatusById.set(data.id, "sent");
+      conversationState.state.messageStatusById.set(savedMessage.id, "sent");
       conversationState.emit();
       this.pendingMessages.delete(tempId);
 
       // Update conversation last_message_at
       supabase
         .from("conversations")
-        .update({ last_message_at: data.created_at })
+        .update({ last_message_at: savedMessage.created_at })
         .eq("id", conversationId)
         .then();
 
@@ -304,13 +354,13 @@ class DMMessageService {
       this._sendBroadcast(channel, "message_confirmed", {
         tempId,
         realId: data.id,
-        created_at: data.created_at,
+        created_at: savedMessage.created_at,
       });
 
       // Trigger push AFTER successful DB insert — never on optimistic
       this._triggerDmPush(conversationId, senderId, content?.trim() || "Attachment");
 
-      return data;
+      return savedMessage;
     } catch (error) {
       console.error("❌ [DM] DB insert failed:", error);
       const current = conversationState.getMessages(conversationId);

@@ -411,6 +411,9 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
   const [status,setStatus]             = useState({online:false,lastSeenText:"Offline"});
   const [typing,setTyping]             = useState({isTyping:false,userName:""});
   const [showMenu,setShowMenu]         = useState(false);
+  const [showSettings,setShowSettings] = useState(false);
+  const [blocked,setBlocked]           = useState(false);
+  const [messagePreferences,setMessagePreferences] = useState(null);
   const [showBgPicker,setShowBgPicker] = useState(false);
   const [showJump,setShowJump]         = useState(false);
   const [selectedBg,setSelectedBg]     = useState(()=>backgroundService.getConversationBackground(conversation.id));
@@ -508,16 +511,40 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
     const unsub=onlineStatusService.subscribe((uid,st)=>{if(uid===otherUser?.id)setStatus(st);}); return unsub;
   },[otherUser?.id]);
 
+  useEffect(()=>{
+    let active=true;
+    Promise.all([
+      dmMessageService.isUserBlocked(currentUser.id,otherUser.id),
+      dmMessageService.getMessagingPreferences(currentUser.id),
+    ]).then(([isBlocked,preferences])=>{if(active){setBlocked(isBlocked);setMessagePreferences(preferences);}})
+      .catch(error=>console.warn("[DM] settings load:",error));
+    return()=>{active=false;};
+  },[currentUser.id,otherUser.id]);
+
   const handleTypingLocal=()=>{
     dmMessageService.sendTyping(convId,true,currentUser.fullName||currentUser.full_name||currentUser.name);
     clearTimeout(tyTO.current); tyTO.current=setTimeout(()=>dmMessageService.sendTyping(convId,false),2500);
   };
 
   const handleSend=async(text,replyToId=null,files=[])=>{
-    if(!text?.trim() && !files.length)return;
+    if((!text?.trim() && !files.length) || blocked)return;
     clearTimeout(tyTO.current); dmMessageService.sendTyping(convId,false); setReplyTo(null);
     try{const sent=await dmMessageService.sendMessage(convId,text,currentUser.id,replyToId,files);if(sent?.id)patchStatus([sent.id],"sent");setTimeout(scrollToBottom,10);}
-    catch(e){console.error("send:",e);}
+    catch(e){console.error("send:",e);alert(e.message||"Message could not be sent.");}
+  };
+
+  const handleBlock=async()=>{
+    try{if(blocked)await dmMessageService.unblockUser(currentUser.id,otherUser.id);else await dmMessageService.blockUser(currentUser.id,otherUser.id);setBlocked(!blocked);setShowMenu(false);setShowSettings(false);}
+    catch(error){alert(error.message||"Could not update block settings.");}
+  };
+  const handleReport=async()=>{
+    try{await dmMessageService.reportUser({reporterId:currentUser.id,reportedUserId:otherUser.id,conversationId:convId,reason:"user"});setShowMenu(false);setShowSettings(false);alert("Report submitted. Thank you for helping keep messaging safe.");}
+    catch(error){alert(error.message||"Could not submit report.");}
+  };
+  const updatePreference=async(key,value)=>{
+    const previous=messagePreferences; const next={...previous,[key]:value}; setMessagePreferences(next);
+    try{await dmMessageService.updateMessagingPreferences(currentUser.id,next);}
+    catch(error){setMessagePreferences(previous);alert(error.message||"Could not save messaging settings.");}
   };
 
   const toggleReaction = useCallback(async (messageId, emoji) => {
@@ -604,6 +631,9 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
           <div className="cv-overlay" onClick={()=>setShowMenu(false)}/>
           <div className="cv-menu">
             <button onClick={()=>{setShowBgPicker(true);setShowMenu(false);}}><Ic.Palette/><span>Change Background</span></button>
+            <button onClick={()=>{setShowSettings(true);setShowMenu(false);}}><Ic.Info/><span>Messaging Settings</span></button>
+            <button className="cv-menu-danger" onClick={handleBlock}><span>{blocked ? "🔓" : "🚫"}</span><span>{blocked ? "Unblock User" : "Block User"}</span></button>
+            <button className="cv-menu-danger" onClick={handleReport}><span>⚑</span><span>Report User</span></button>
           </div>
         </>}
         {showBgPicker&&<>
@@ -616,6 +646,15 @@ const ChatViewInner = ({ conversation, currentUser, onBack, onStartCall, onNavig
                 <span>{b.name}</span>
               </button>
             ))}
+          </div>
+        </>}
+        {showSettings&&messagePreferences&&<>
+          <div className="cv-overlay" onClick={()=>setShowSettings(false)}/>
+          <div className="cv-settings-panel">
+            <div className="cv-settings-head"><strong>Messaging Settings</strong><button onClick={()=>setShowSettings(false)}><Ic.Close/></button></div>
+            <p>Control how this conversation behaves on your account.</p>
+            {[['read_receipts','Read receipts'],['typing_indicators','Typing indicators'],['message_notifications','Message notifications'],['media_auto_download','Auto-download media']].map(([key,label])=><label className="cv-setting-row" key={key}><span>{label}</span><input type="checkbox" checked={Boolean(messagePreferences[key])} onChange={e=>updatePreference(key,e.target.checked)}/></label>)}
+            <button className="cv-settings-report" onClick={handleReport}>Report {otherUser?.full_name||"user"}</button>
           </div>
         </>}
       </div>
@@ -728,6 +767,14 @@ export const CV_CSS = `
 .cv-menu{position:absolute;top:54px;right:12px;background:#111;border:1px solid rgba(132,204,22,.2);border-radius:12px;padding:6px;z-index:30;min-width:180px;}
 .cv-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;background:transparent;border:none;border-radius:8px;color:#ccc;font-size:13px;cursor:pointer;}
 .cv-menu button:hover{background:rgba(255,255,255,.05);}
+.cv-menu .cv-menu-danger{color:#fb7185;}
+.cv-settings-panel{position:absolute;top:54px;right:12px;background:#111;border:1px solid rgba(132,204,22,.2);border-radius:14px;padding:14px;z-index:30;width:min(290px,calc(100vw - 24px));box-shadow:0 16px 48px rgba(0,0,0,.7);}
+.cv-settings-head{display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:14px;}
+.cv-settings-head button{border:0;background:transparent;color:#888;cursor:pointer;display:flex;}
+.cv-settings-panel p{font-size:11px;color:#777;line-height:1.5;margin:8px 0 12px;}
+.cv-setting-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(255,255,255,.07);color:#ccc;font-size:12px;cursor:pointer;}
+.cv-setting-row input{accent-color:#84cc16;width:17px;height:17px;}
+.cv-settings-report{width:100%;margin-top:10px;padding:9px;border:1px solid rgba(251,113,133,.3);border-radius:8px;background:rgba(251,113,133,.08);color:#fb7185;cursor:pointer;}
 .cv-bgpicker{position:absolute;top:54px;right:12px;background:#111;border:1px solid rgba(132,204,22,.2);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:4px;z-index:30;max-height:70vh;overflow-y:auto;width:200px;}
 .cv-bgopt{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;color:#ccc;font-size:13px;cursor:pointer;text-align:left;transition:background .15s;}
 .cv-bgopt:hover{background:rgba(255,255,255,.06);}
