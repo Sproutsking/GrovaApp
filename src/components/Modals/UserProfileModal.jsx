@@ -269,7 +269,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         return;
       }
       const sidebar = document.querySelector(".sidebar, .xv-sidebar");
-      const header = document.querySelector(".dh-header, .mh-header");
+      const header = document.querySelector(".desktop-header, .mobile-header, .dh-header, .mh-header");
       const sidebarRect = sidebar?.getBoundingClientRect();
       const headerRect = header?.getBoundingClientRect();
       setDesktopBounds({
@@ -281,7 +281,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     window.addEventListener("resize", measureDesktopBounds);
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measureDesktopBounds) : null;
     const sidebar = document.querySelector(".sidebar, .xv-sidebar");
-    const header = document.querySelector(".dh-header, .mh-header");
+    const header = document.querySelector(".desktop-header, .mobile-header, .dh-header, .mh-header");
     observer?.observe(sidebar);
     observer?.observe(header);
     return () => {
@@ -1123,8 +1123,8 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-sheet::-webkit-scrollbar { display:none; }
         .upm-main { min-width:0; min-height:0; height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(132,204,22,.34) transparent; background:radial-gradient(ellipse 80% 22% at 50% 0%,rgba(132,204,22,.045),transparent 80%),#0a0a0a; }
         .upm-boost-profile.xvb-root, .upm-boost-profile .boost-card, .upm-boost-profile .card-content { height:fit-content !important; min-height:0 !important; max-height:none !important; }
-        .upm-boost-profile { align-self:flex-start; display:block; flex:none; min-height:0 !important; max-height:none !important; }
-        .upm-boost-profile .card-content { display:flex; flex-direction:column; padding-bottom:14px; }
+        .upm-boost-profile { align-self:flex-start; display:block; flex:none; width:calc(100% - 16px) !important; margin:8px 8px 0; min-height:0 !important; max-height:none !important; }
+        .upm-boost-profile .card-content { display:flex; flex-direction:column; padding-bottom:12px; }
         .upm-main::-webkit-scrollbar, .upm-profile-rail::-webkit-scrollbar { width:6px; }
         .upm-main::-webkit-scrollbar-track, .upm-profile-rail::-webkit-scrollbar-track { background:transparent; }
         .upm-main::-webkit-scrollbar-thumb, .upm-profile-rail::-webkit-scrollbar-thumb { background:rgba(132,204,22,.28); border-radius:999px; }
@@ -1153,7 +1153,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
         .upm-rail-empty { display:flex; align-items:center; gap:8px; padding:14px 0; color:#737373; font-size:11px; }
         .upm-rail-footer { justify-content:space-between; margin-top:28px; padding-top:15px; border-top:1px solid rgba(255,255,255,.08); color:#737373; font-size:10px; }
 
-        @media (max-width: 480px) {
+        @media (max-width: 767px) {
           .upm-bd {
             left:0; top:0; padding:0;
             align-items:flex-end;
@@ -1167,7 +1167,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
             min-height:0;
             display:block;
             overscroll-behavior:contain;
-            border:none; box-shadow:none;
+            border:none; border-radius:18px 18px 0 0; box-shadow:none;
             animation:upmSUMobile .28s cubic-bezier(.34,1.2,.64,1);
           }
           .upm-main { width:100%; height:100%; }

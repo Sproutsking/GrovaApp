@@ -218,8 +218,10 @@ const ProfilePreview = ({
 
   const handleClick = (e) => {
     e.stopPropagation();
-    // If caller provided their own onClick, call it too (but don't block modal)
-    if (typeof onClick === "function") onClick(e);
+    if (typeof onClick === "function") {
+      onClick(e);
+      return;
+    }
     setShowProfileModal(true);
   };
 

@@ -565,6 +565,7 @@ const PostCard = ({
   onPostDelete,
   onOpenFullScreen,
   onProfileClick,
+  onAuthorClick,
   feedIndex = 99,
 }) => {
   const [post,       setPost]       = useState(initialPost);
@@ -777,7 +778,12 @@ const PostCard = ({
       >
         {/* ── HEADER ── */}
         <div className="gvp-header">
-          <ProfilePreview profile={profile} currentUser={currentUser} size="small" />
+          <ProfilePreview
+            profile={profile}
+            currentUser={currentUser}
+            size="small"
+            onClick={onProfileClick || onAuthorClick}
+          />
           {post.created_at && <span className="gvp-ts">{relTime(post.created_at)}</span>}
           <div className="gvp-hsp" />
           {!isOwn && currentUser?.id && (

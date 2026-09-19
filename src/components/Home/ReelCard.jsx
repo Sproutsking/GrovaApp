@@ -157,6 +157,7 @@ const getCategoryStyle = (cat) =>
 const ReelCard = ({
   reel,
   onProfileClick,
+  onAuthorClick,
   onMusicClick,
   onActionMenu,
   currentUser,
@@ -662,7 +663,7 @@ const ReelCard = ({
                 <ReelProfilePreview
                   profile={profile}
                   music={reel.music}
-                  onProfileClick={onProfileClick}
+                  onProfileClick={onProfileClick || onAuthorClick}
                   onMusicClick={onMusicClick}
                   size="medium"
                 />

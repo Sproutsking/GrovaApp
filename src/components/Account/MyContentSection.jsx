@@ -640,12 +640,14 @@ const MyContentSection = ({
       <style>{`
         /* ── Root ── */
         .mcs-root {
-          margin-top: 20px;
+          width: 100%;
+          margin: 20px 0 0;
           background: rgba(255,255,255,0.02);
           border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 20px;
+          border-radius: 16px 16px 0 0;
           overflow: hidden;
         }
+        .mcs-root > .mcs-top { border-top: 2px solid rgba(132,204,22,0.72); }
 
         /* ── Tabs ── */
         .mcs-top { padding: 14px 14px 0; }
@@ -710,7 +712,7 @@ const MyContentSection = ({
           gap: 2px; padding: 2px;
         }
         @media (min-width: 460px) { .mcs-grid { grid-template-columns: repeat(4, 1fr); } }
-        .mcs-full-feed { display:flex; flex-direction:column; gap:12px; padding:10px 12px 18px; }
+        .mcs-full-feed { display:flex; flex-direction:column; gap:12px; padding:10px 0 14px; }
         .mcs-full-feed > * { width:100%; min-width:0; }
 
         /* ── Card ── */

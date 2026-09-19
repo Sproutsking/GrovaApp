@@ -56,6 +56,7 @@ const ReelProfilePreview = ({
   music,
   currentUser,
   onMusicClick,
+  onProfileClick,
   size      = "medium",
   className = "",
 }) => {
@@ -201,7 +202,14 @@ const ReelProfilePreview = ({
       enhancedAvatar.startsWith("https://") ||
       enhancedAvatar.startsWith("blob:"));
 
-  const handleProfileClick = (e) => { e.stopPropagation(); setShowProfileModal(true); };
+  const handleProfileClick = (e) => {
+    e.stopPropagation();
+    if (typeof onProfileClick === "function") {
+      onProfileClick(e);
+      return;
+    }
+    setShowProfileModal(true);
+  };
   const handleMusicClick   = (e) => {
     e.stopPropagation();
     if (hasMusic && onMusicClick) onMusicClick(music);
