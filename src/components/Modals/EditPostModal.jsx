@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import { X, Save, Loader } from "lucide-react";
 import postService from "../../services/home/postService";
 
@@ -64,7 +65,7 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
     }
   };
 
-  return (
+  const modal = (
     <>
       <div style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)",
@@ -199,6 +200,10 @@ const EditPostModal = ({ post, onClose, onUpdate, currentUser }) => {
       `}</style>
     </>
   );
+
+  return typeof document !== "undefined"
+    ? ReactDOM.createPortal(modal, document.body)
+    : modal;
 };
 
 export default EditPostModal;
