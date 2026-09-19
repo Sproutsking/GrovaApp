@@ -310,10 +310,7 @@ const MainApp = memo(() => {
   const [showAdsCentre, setShowAdsCentre] = useState(false);
   const [isOnline,           setIsOnline]           = useState(navigator.onLine);
   const [showOfflineBanner,  setShowOfflineBanner]  = useState(false);
-  const [mountedTabs,        setMountedTabs]        = useState(new Set([
-    "home", "search", "create", "community", "account", "wallet",
-    "analytics", "upgrade", "rewards", "stream", "giftcards", "ambassador"
-  ]));
+  const [mountedTabs,        setMountedTabs]        = useState(() => new Set(["home"]));
   const [deepLinkTarget,     setDeepLinkTarget]     = useState(null);
   const [themeMode,         setThemeMode]         = useState(() => {
     if (typeof window === "undefined") return "dark";
@@ -363,13 +360,18 @@ const MainApp = memo(() => {
   }, []);
 
   // ── Network ─────────────────────────────────────────────────────────────
+  const onlineRef = useRef(isOnline);
+  useEffect(() => {
+    onlineRef.current = isOnline;
+  }, [isOnline]);
+
   useEffect(() => {
     const goOnline  = () => { setIsOnline(true);  setShowOfflineBanner(false); };
     const goOffline = () => { setIsOnline(false); setShowOfflineBanner(true);  };
     window.addEventListener("online",  goOnline);
     window.addEventListener("offline", goOffline);
     netCheckRef.current = setInterval(() => {
-      if (navigator.onLine !== isOnline) {
+      if (navigator.onLine !== onlineRef.current) {
         navigator.onLine ? goOnline() : goOffline();
       }
     }, 5000);
@@ -378,7 +380,7 @@ const MainApp = memo(() => {
       window.removeEventListener("offline", goOffline);
       clearInterval(netCheckRef.current);
     };
-  }, [isOnline]);
+  }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1163,18 +1165,6 @@ const MainApp = memo(() => {
       )}
 
       {renderOverlay()}
-
-      <div style={{ display: showMessages ? "block" : "none" }}>
-        <Suspense fallback={null}>
-          <DMMessagesView
-            currentUser={currentUser}
-            userId={user.id}
-            onClose={() => setShowMessages(false)}
-            targetUserId={dmTargetUserId}
-            onNavigate={handleNotificationNavigate}
-          />
-        </Suspense>
-      </div>
 
       <div
         style={{
