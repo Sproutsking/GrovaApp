@@ -203,9 +203,20 @@ const ReelProfilePreview = ({
       enhancedAvatar.startsWith("blob:"));
 
   const handleProfileClick = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (typeof onProfileClick === "function") {
-      onProfileClick(e);
+      onProfileClick({
+        id: userId,
+        user_id: userId,
+        userId,
+        name: author,
+        author,
+        username,
+        avatar,
+        verified,
+        subscription_tier: tier,
+        boost_selections: { themeId, fontId, colorId },
+      });
       return;
     }
     setShowProfileModal(true);

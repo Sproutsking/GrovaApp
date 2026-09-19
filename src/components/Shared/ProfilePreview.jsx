@@ -217,9 +217,9 @@ const ProfilePreview = ({
       enhancedAvatar.startsWith("blob:"));
 
   const handleClick = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (typeof onClick === "function") {
-      onClick(e);
+      onClick(modalUser);
       return;
     }
     setShowProfileModal(true);
