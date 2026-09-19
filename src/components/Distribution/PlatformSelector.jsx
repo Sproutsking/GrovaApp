@@ -23,8 +23,9 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Link2, Check, X as XIcon, RefreshCw } from "lucide-react";
+import { Link2, RefreshCw } from "lucide-react";
 import distributionService from "../../services/distribution/distributionService";
+import { POSTABLE_PLATFORM_KEYS } from "../../services/distribution/platformAdapterFactory";
 import { PLATFORMS } from "../Account/IdentitySection";
 
 // ── Scoped styles ─────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ const PlatformSelector = ({ userId, onSelection, initialSelection = [] }) => {
 
         {/* ── Platform cards ── */}
         <div className="psGrid">
-          {LIVE_PLATFORM_KEYS.map(key => {
+          {POSTABLE_PLATFORM_KEYS.map(key => {
             const meta       = PLATFORMS[key];
             if (!meta) return null;
             const isConn     = connected.includes(key);

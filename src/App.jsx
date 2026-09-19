@@ -248,35 +248,6 @@ const OfflineBanner = memo(({ visible }) => {
 });
 OfflineBanner.displayName = "OfflineBanner";
 
-// ── Preload lazy overlays ─────────────────────────────────────────────────────────
-function preloadTabs() {
-  [
-    () => import("./components/Analytics/AnalyticsView"),
-    () => import("./components/Upgrade/UpgradeView"),
-    () => import("./components/Rewards/RewardsView"),
-    () => import("./components/Stream/StreamView"),
-    () => import("./components/GiftCards/GiftCardsView"),
-    () => import("./components/Messages/DMMessagesView"),
-    () => import("./components/Messages/ActiveCall"),
-    () => import("./components/Ambassador/AmbassadorView"),
-    () => import("./components/Shared/SupportSidebar"),
-    () => import("./components/Shared/NotificationSidebar"),
-    () => import("./components/Shared/InAppNotificationToast"),
-    () => import("./components/Shared/AccountSwitchPrompt"),
-    () => import("./components/Shared/PullToRefreshIndicator"),
-    () => import("./components/Shared/NetworkError"),
-    () => import("./components/Messages/IncomingCallToast"),
-  ].forEach((fn) => fn().catch(() => {}));
-}
-
-function scheduleTabPrefetch() {
-  if (typeof requestIdleCallback !== "undefined") {
-    requestIdleCallback(preloadTabs, { timeout: 3000 });
-  } else {
-    setTimeout(preloadTabs, 1200);
-  }
-}
-
 // ── MainApp ───────────────────────────────────────────────────────────────────
 const MainApp = memo(() => {
   const { user, profile, isAdmin, adminData, signOut, signOutAllDevices } = useAuth(); // eslint-disable-line

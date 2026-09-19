@@ -209,6 +209,137 @@
           transform: translateY(-1px);
         }
 
+        .upm-rail-button {
+          width: 100%;
+          padding: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 14px;
+          background: rgba(255,255,255,0.03);
+          color: #fff;
+          cursor: pointer;
+          text-align: left;
+          font: inherit;
+          gap: 10px;
+        }
+
+        .upm-rail-button:hover {
+          border-color: rgba(132,204,22,0.34);
+          background: rgba(132,204,22,0.08);
+          transform: translateY(-1px);
+        }
+
+        .upm-content-card {
+          display: block;
+          width: 100%;
+          transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+        }
+
+        .upm-content-card:hover,
+        .upm-content-card:focus-visible {
+          border-color: rgba(132,204,22,0.4) !important;
+          background: rgba(132,204,22,0.08) !important;
+          transform: translateY(-2px);
+          outline: none;
+        }
+
+        .upm-reply-item {
+          width: 100%;
+          color: inherit;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+          transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+        }
+
+        .upm-reply-item:hover,
+        .upm-reply-item:focus-visible {
+          border-color: rgba(132,204,22,0.34);
+          background: rgba(132,204,22,0.08);
+          transform: translateY(-1px);
+          outline: none;
+        }
+
+        .upm-content-dialog-backdrop {
+          position: absolute;
+          inset: 0;
+          z-index: 20;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background: rgba(0,0,0,0.72);
+          backdrop-filter: blur(10px);
+        }
+
+        .upm-content-dialog {
+          width: min(520px, 100%);
+          max-height: min(720px, 90%);
+          overflow: auto;
+          padding: 16px;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 18px;
+          background: #101410;
+          box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+        }
+
+        .upm-content-dialog-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+
+        .upm-content-dialog-head strong {
+          display: block;
+          margin-top: 4px;
+          color: #f5f5f5;
+          font-size: 14px;
+        }
+
+        .upm-content-dialog-close {
+          width: 32px;
+          height: 32px;
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 50%;
+          background: rgba(255,255,255,0.05);
+          color: #f5f5f5;
+          cursor: pointer;
+        }
+
+        .upm-content-dialog-media {
+          display: block;
+          width: 100%;
+          max-height: 52vh;
+          object-fit: contain;
+          border-radius: 12px;
+          background: rgba(0,0,0,0.3);
+        }
+
+        .upm-content-dialog-copy {
+          margin: 14px 0 0;
+          color: #e5e5e5;
+          font-size: 14px;
+          line-height: 1.6;
+          white-space: pre-wrap;
+        }
+
+        .upm-content-dialog-meta {
+          display: flex;
+          gap: 14px;
+          margin-top: 16px;
+          color: #9ca3af;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .upm-content-dialog-meta span {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
         .upm-rail-list-icon,
         .upm-rail-list-thumb {
           width: 32px;

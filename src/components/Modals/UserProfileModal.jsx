@@ -23,12 +23,12 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 import {
   X, UserPlus, UserCheck, Loader, Gift,
-  Shield, Crown, Image, Film, BookOpen, Heart, Eye,
+  Crown, Image, Film, BookOpen, Heart, Eye,
 } from "lucide-react";
 import { supabase }          from "../../services/config/supabase";
 import mediaUrlService       from "../../services/shared/mediaUrlService";
 import followService         from "../../services/social/followService";
-import { BOOST_VISUAL, getTierBadge } from "../../services/account/profileTierService";
+import { BOOST_VISUAL } from "../../services/account/profileTierService";
 import BoostProfileCard      from "../Boost/BoostProfileCard";
 import BoostAvatarRing       from "../Shared/BoostAvatarRing";
 import { useUserBoostTier }  from "../../hooks/useUserBoostTier";
@@ -41,7 +41,7 @@ import { VerifiedBadgeSeal } from "../Shared/VerifiedBadges";
 import {
   Briefcase, FileText, MessageCircleReply, ThumbsUp, Sparkles, ArrowLeft,
   ShieldCheck, Users, MessageSquare,
-  ChevronRight, Trophy, Hash, BarChart3, ArrowUpRight,
+  ChevronRight, Trophy, BarChart3, ArrowUpRight,
 } from "lucide-react";
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
@@ -176,7 +176,17 @@ const isDirectMediaUrl = (value) =>
 
 const CommunityRailIcon = ({ community }) => {
   const [failed, setFailed] = useState(false);
-  const icon = community?.icon;
+  const iconValue = community?.icon || community?.icon_url || community?.image_url || community?.avatar_url;
+  const icon = isDirectMediaUrl(iconValue)
+    ? iconValue
+    : mediaUrlService.getImageUrl(iconValue, {
+        width: 80,
+        height: 80,
+        crop: "fill",
+        gravity: "auto",
+        quality: "auto:good",
+        format: "auto",
+      });
   const initials = String(community?.name || "Community")
     .trim()
     .split(/\s+/)
@@ -199,7 +209,7 @@ const resolveMyId = (cu) =>
 
 // ── Content grid card ─────────────────────────────────────────────────────────
 
-const ContentCard = ({ item, type }) => {
+const ContentCard = ({ item, type, onOpen }) => {
   const [imageFailed, setImageFailed] = React.useState(false);
   const imgUrl = resolveMediaThumbnail(item);
   const textPost = type === "post" && isTextPost(item);
@@ -208,12 +218,13 @@ const ContentCard = ({ item, type }) => {
   const showVideo = isVideo && (!imgUrl || imageFailed) && videoUrl;
 
   return (
-    <div style={{
+    <button type="button" className="upm-content-card" style={{
       borderRadius: 12, overflow: "hidden",
       background:   "rgba(255,255,255,0.04)",
       border:       "1px solid rgba(255,255,255,0.07)",
       aspectRatio:  "1", position: "relative",
-    }}>
+      padding: 0, cursor: "pointer", textAlign: "left", color: "inherit",
+    }} onClick={() => onOpen?.(item, type)}>
       {textPost ? (
         <div style={{
           width: "100%", height: "100%", padding: 12, display: "flex",
@@ -283,7 +294,7 @@ const ContentCard = ({ item, type }) => {
           padding: "1px 4px", fontSize: 8, color: "#fff", fontWeight: 700,
         }}>▶</div>
       )}
-    </div>
+    </button>
   );
 };
 
@@ -308,6 +319,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const [verificationItems, setVerificationItems] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
   const [showDashboard, setShowDashboard] = useState(openVerificationDashboard);
+  const [selectedContent, setSelectedContent] = useState(null);
   const [verificationLoading, setVerificationLoading] = useState(true);
   const [stats,          setStats]          = useState({
     posts: 0, reels: 0, stories: 0, followers: 0, following: 0,
@@ -379,12 +391,6 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
   const nameColor  = hasBoosted ? (nameDesign.color?.color ?? getTierColor(tier, themeId)) : "#ffffff";
   const dashboard = buildPublicProfileDashboard(profile, verificationItems);
   const selectedSectionData = dashboard.sections.find((section) => section.id === selectedSection) || null;
-  const verifiedCount = verificationItems.filter((item) => item?.verified).length;
-  const highTrustCount = verificationItems.filter((item) => {
-    const level = item?.metadata?.verificationLevel || item?.metadata?.verification_level;
-    return item?.verified && (level === "high" || level === "critical");
-  }).length;
-  const sourceCount = new Set(verificationItems.map((item) => item?.provider).filter(Boolean)).size;
   const sectionIconMap = {
     bio: ShieldCheck,
     socials: Users,
@@ -641,6 +647,10 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
     if (tab !== "replies") setContentFilter("momentum");
     loadContent(tab);
   };
+
+  const handleOpenContent = useCallback((item, type) => {
+    setSelectedContent({ item, type });
+  }, []);
 
   const handleFollow = useCallback(async (e) => {
     e.stopPropagation();
@@ -1004,7 +1014,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   replies.length > 0 ? (
                     <div className="upm-reply-list">
                       {replies.map((item) => (
-                        <div key={item.id} className="upm-reply-item">
+                        <button type="button" key={item.id} className="upm-reply-item" onClick={() => handleOpenContent(item, "reply")}>
                           <div className="upm-reply-header">
                             <span className="upm-reply-badge">Reply</span>
                             <span className="upm-reply-date">{item.created_at ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recently"}</span>
@@ -1014,7 +1024,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                             <span><Heart size={12} /> {fmt(item.likes || 0)}</span>
                             <span><MessageCircleReply size={12} /> {fmt(item.reply_count || 0)}</span>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   ) : (
@@ -1030,6 +1040,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                         key={item.id}
                         item={item}
                         type={activeTab === "reels" ? "reel" : activeTab === "stories" ? "story" : "post"}
+                        onOpen={handleOpenContent}
                       />
                     ))}
                   </div>
@@ -1054,7 +1065,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 <BarChart3 size={18} />
               </div>
 
-              <div className="upm-rail-card upm-rail-signal">
+              <button type="button" className="upm-rail-card upm-rail-button upm-rail-signal" onClick={() => handleTabChange("posts")}>
                 <div className="upm-rail-card-icon"><Trophy size={16} /></div>
                 <div className="upm-rail-card-copy">
                   <span className="upm-rail-card-label">Creator footprint</span>
@@ -1062,7 +1073,7 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                   <small>{fmt(stats.followers)} people currently following this profile</small>
                 </div>
                 <ArrowUpRight size={14} />
-              </div>
+              </button>
 
               <div className="upm-rail-section-head">
                 <div><span className="upm-rail-kicker">Trust layer</span><strong>Verified signals</strong></div>
@@ -1079,12 +1090,12 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
               </button>
 
               <div className="upm-rail-section-head">
-                <div><span className="upm-rail-kicker">Top people</span><strong>Most engaged</strong></div>
+                <div><span className="upm-rail-kicker">Communities</span><strong>Most engaged</strong></div>
                 <button type="button" onClick={() => setShowDashboard(true)}>See more <ChevronRight size={13} /></button>
               </div>
               <div className="upm-rail-list">
                 {engagementLeaders.length ? engagementLeaders.slice(0, 3).map((person) => (
-                  <button type="button" className="upm-rail-list-item" key={person.id || person.name || person.community_id}>
+                  <button type="button" className="upm-rail-list-item" key={person.id || person.name || person.community_id} onClick={() => window.dispatchEvent(new CustomEvent("xeevia:open-community", { detail: { communityId: person.id } }))}>
                     <span className="upm-rail-list-icon"><CommunityRailIcon community={person} /></span>
                     <span className="upm-rail-list-copy">
                       <strong>{person.name || person.full_name || "High-engagement supporter"}</strong>
@@ -1121,6 +1132,39 @@ const UserProfileModal = ({ user, currentUser, onClose, openVerificationDashboar
                 <button type="button" onClick={() => handleTabChange("posts")}>View posts <ChevronRight size={13} /></button>
               </div>
             </aside>
+
+            {selectedContent && (
+              <div className="upm-content-dialog-backdrop" onClick={() => setSelectedContent(null)}>
+                <section className="upm-content-dialog" role="dialog" aria-modal="true" aria-label="Open profile content" onClick={(event) => event.stopPropagation()}>
+                  <div className="upm-content-dialog-head">
+                    <div>
+                      <span className="upm-rail-kicker">{selectedContent.type === "reply" ? "Reply" : selectedContent.type}</span>
+                      <strong>{profile?.fullName || "Profile content"}</strong>
+                    </div>
+                    <button type="button" className="upm-content-dialog-close" onClick={() => setSelectedContent(null)} aria-label="Close content">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {selectedContent.type === "reply" ? (
+                    <p className="upm-content-dialog-copy">{selectedContent.item.content || "Comment"}</p>
+                  ) : (
+                    <>
+                      {resolveMediaThumbnail(selectedContent.item) && (
+                        <img className="upm-content-dialog-media" src={resolveMediaThumbnail(selectedContent.item)} alt="" />
+                      )}
+                      {(selectedContent.item.content || selectedContent.item.caption || selectedContent.item.title) && (
+                        <p className="upm-content-dialog-copy">{selectedContent.item.content || selectedContent.item.caption || selectedContent.item.title}</p>
+                      )}
+                    </>
+                  )}
+                  <div className="upm-content-dialog-meta">
+                    <span><Heart size={13} /> {fmt(selectedContent.item.likes || 0)}</span>
+                    <span><Eye size={13} /> {fmt(selectedContent.item.views || 0)}</span>
+                    <span><MessageCircleReply size={13} /> {fmt(selectedContent.item.comments_count || selectedContent.item.reply_count || 0)}</span>
+                  </div>
+                </section>
+              </div>
+            )}
           </>
         )}
       </div>
