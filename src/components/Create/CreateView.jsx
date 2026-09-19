@@ -78,6 +78,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
   const [postMedia,    setPostMedia]    = useState([]);
   const [postCategory, setPostCategory] = useState("General");
   const [useTextCard,  setUseTextCard]  = useState(false);
+  const [linkDisplayMode, setLinkDisplayMode] = useState("string");
 
   const [reelCaption,  setReelCaption]  = useState("");
   const [reelMedia,    setReelMedia]    = useState(null);
@@ -333,6 +334,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     if (activeTab === "post") {
       setPostContent(""); setPostCaption(""); setPostMedia([]);
       setPostCategory("General"); setUseTextCard(false);
+      setLinkDisplayMode("string");
       setTextAlign("center"); setCardFontSize(null);
     } else if (activeTab === "reel") {
       setReelCaption(""); setReelMedia(null); setReelCategory("Entertainment");
@@ -374,6 +376,9 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
     setPostContent(val);
   };
 
+  const postLinkSource = useTextCard ? postContent : postCaption;
+  const hasPostLink = /https?:\/\/[^\s]+/i.test(postLinkSource);
+
   const getPreviewFontSize = () => {
     if (cardFontSize !== null) return cardFontSize;
     const chars = postContent.trim().length;
@@ -406,6 +411,7 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
             textColor: customTextColor, edgeStyle: "medium", align: textAlign, fontSize: cardFontSize,
           },
           cardCaption: postCaption.trim() || null,
+          linkDisplayMode,
         };
       } else {
         if (!postCaption.trim() && postMedia.length === 0)
@@ -414,7 +420,8 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
         const videosToUpload = postMedia.filter((m) => m.type === "video").map((m) => m.file);
         postData = {
           content: postCaption.trim() || null, images: imagesToUpload,
-          videos: videosToUpload, category: postCategory, isTextCard: false,
+            videos: videosToUpload, category: postCategory, isTextCard: false,
+            linkDisplayMode,
         };
       }
 
@@ -823,6 +830,33 @@ const CreateView = ({ currentUser: initialCurrentUser, userId: initialUserId, on
                   />
                 </div>
               </>
+            )}
+
+            {hasPostLink && (
+              <div className="form-group">
+                <label className="form-label"><Sparkles size={12} /> Link presentation</label>
+                <div className="post-type-toggle" role="group" aria-label="Link presentation">
+                  <button
+                    type="button"
+                    className={`toggle-btn${linkDisplayMode === "string" ? " active" : ""}`}
+                    onClick={() => setLinkDisplayMode("string")}
+                    disabled={loading}
+                  >
+                    Show as link
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn${linkDisplayMode === "embed" ? " active" : ""}`}
+                    onClick={() => setLinkDisplayMode("embed")}
+                    disabled={loading}
+                  >
+                    Link + preview
+                  </button>
+                </div>
+                <small style={{ display: "block", marginTop: 7, color: "rgba(255,255,255,.52)", fontSize: 11 }}>
+                  Viewers will see the presentation you choose.
+                </small>
+              </div>
             )}
 
             <div className="form-group">

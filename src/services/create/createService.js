@@ -35,7 +35,7 @@ class CreateService {
     try {
       console.log("📝 Creating post...", { userId, isTextCard: postData.isTextCard });
 
-      const { content, images, videos, category, isTextCard, textCardMetadata, cardCaption } = postData;
+      const { content, images, videos, category, isTextCard, textCardMetadata, cardCaption, linkDisplayMode } = postData;
 
       // ── TEXT CARD ────────────────────────────────────────────────────────
       if (isTextCard) {
@@ -59,6 +59,7 @@ class CreateService {
               align:     textCardMetadata?.align     || "center",
               fontSize:  textCardMetadata?.fontSize  ?? null,
               cardHeight:textCardMetadata?.cardHeight || null,
+              link_display_mode: linkDisplayMode === "embed" ? "embed" : "string",
             },
             card_caption: cardCaption?.trim() || null,
             likes: 0, comments_count: 0, shares: 0, views: 0,
@@ -124,6 +125,7 @@ class CreateService {
           video_metadata: videoMetadata,
           category:       category || "General",
           is_text_card:   false,
+          text_card_metadata: { link_display_mode: linkDisplayMode === "embed" ? "embed" : "string" },
           card_caption:   null,
           likes: 0, comments_count: 0, shares: 0, views: 0,
         })

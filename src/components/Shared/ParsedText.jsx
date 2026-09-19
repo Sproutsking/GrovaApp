@@ -8,7 +8,7 @@ import LinkifiedText from './LinkifiedText';
 /**
  * ParsedText Component - Renders text with clickable hashtags and mentions
  */
-const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, className = '' }) => {
+const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, displayMode = 'string', className = '' }) => {
   if (!text) return null;
 
   const parseText = (text) => {
@@ -64,12 +64,15 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, classNam
   };
 
   const parts = parseText(text);
+  const previewUrls = displayMode === "embed"
+    ? parts.filter((part) => part.type === "url").map((part) => part.content)
+    : [];
 
   return (
     <span className={className}>
       {parts.map((part, index) => {
         if (part.type === 'url') {
-          return <LinkifiedText key={`url-${index}`} onNavigate={onNavigate}>{part.content}</LinkifiedText>;
+          return <LinkifiedText key={`url-${index}`} onNavigate={onNavigate} displayMode="string">{part.content}</LinkifiedText>;
         } else if (part.type === 'hashtag') {
           return (
             <span
@@ -100,6 +103,9 @@ const ParsedText = ({ text, onHashtagClick, onMentionClick, onNavigate, classNam
           return <span key={`text-${index}`}>{part.content}</span>;
         }
       })}
+      {previewUrls.map((url) => (
+        <LinkifiedText key={`preview-${url}`} onNavigate={onNavigate} displayMode="embed">{url}</LinkifiedText>
+      ))}
     </span>
   );
 };

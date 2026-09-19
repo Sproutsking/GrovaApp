@@ -660,6 +660,7 @@ const PostCard = ({
   const multi    = items.length > 1;
   const hasMedia = items.length > 0;
   const catStyle = getCatStyle(post.category);
+  const linkDisplayMode = post.text_card_metadata?.link_display_mode === "embed" ? "embed" : "string";
 
   // Prefetch sibling images in carousel on mount
   useEffect(() => {
@@ -818,7 +819,7 @@ const PostCard = ({
               <div className="gvp-tcs"><CardPostDisplay post={post} /></div>
               {post.card_caption && (
                 <div className="gvp-text" style={{ padding:"6px 14px 0" }}>
-                  <ParsedText text={post.card_caption} />
+                  <ParsedText text={post.card_caption} displayMode={linkDisplayMode} />
                 </div>
               )}
             </>
@@ -829,7 +830,7 @@ const PostCard = ({
                 className={`gvp-text gvp-text-only${!capExp && txtOver ? " gvp-fade" : ""}`}
                 style={!capExp && txtOver ? { maxHeight:"40vh", overflow:"hidden" } : undefined}
               >
-                <ParsedText text={post.content} />
+                <ParsedText text={post.content} displayMode={linkDisplayMode} />
               </div>
               {txtOver && !capExp && (
                 <button className="gvp-expand" onClick={() => setFullPost(true)}>Read more</button>
@@ -901,7 +902,7 @@ const PostCard = ({
               {post.content && (
                 <>
                   <div ref={capRef} className={`gvp-text gvp-cap${!capExp && capClamp ? " gvp-cap-clamp" : ""}`}>
-                    <ParsedText text={post.content} />
+                    <ParsedText text={post.content} displayMode={linkDisplayMode} />
                   </div>
                   {capClamp && !capExp && (
                     <button className="gvp-expand gvp-expand-inline" onClick={() => setCapExp(true)}>…more</button>

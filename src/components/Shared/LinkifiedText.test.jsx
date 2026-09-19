@@ -67,4 +67,19 @@ describe("LinkifiedText", () => {
     expect(link.getAttribute("href")).toBe("https://preeb.cloud/about");
     expect(link.style.color).toBe("rgb(163, 230, 53)");
   });
+
+  it("keeps the selected link visible and appends its preview below the full text", () => {
+    render(
+      <ParsedText
+        displayMode="embed"
+        text="Read this first. https://preeb.cloud/about Then keep reading."
+      />,
+    );
+
+    const links = screen.getAllByRole("link");
+    expect(links[0].getAttribute("href")).toBe("https://preeb.cloud/about");
+    expect(links[0].textContent).toContain("https://preeb.cloud/about");
+    expect(links[1].textContent).toContain("preeb.cloud link");
+    expect(screen.getByText("Then keep reading.")).toBeTruthy();
+  });
 });
